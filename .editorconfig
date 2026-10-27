@@ -1,0 +1,70 @@
+root = true
+
+[*]
+
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{json,xml,slnx,csproj,py}]
+
+indent_style = space
+indent_size = 4
+
+[*.md]
+
+indent_style = space
+indent_size = 2
+
+[*.gd]
+
+indent_style = tab
+indent_size = 4
+
+[*.cs]
+
+# Indents
+indent_style = space
+indent_size = 4
+
+# Treat enabled-by-default analyzer rules as errors, unless overridden below.
+# This does not enable disabled rules or change compiler warning severities.
+# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/configuration-options#scope
+dotnet_analyzer_diagnostic.severity = error
+
+# IDE0003 and IDE0009: this and Me preferences
+dotnet_style_qualification_for_field = true
+dotnet_style_qualification_for_property = true
+dotnet_style_qualification_for_event = true
+dotnet_style_qualification_for_method = true
+
+# IDE0055: C# formatting options, New-line options
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+csharp_new_line_before_members_in_object_initializers = false
+csharp_new_line_before_members_in_anonymous_types = false
+csharp_new_line_between_query_expression_clauses = false
+
+# IDE0055: C# formatting options, Indentation options
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = false
+csharp_indent_case_contents_when_block = false
+
+# IDE0055: C# formatting options, Using directive options
+dotnet_sort_system_directives_first = false
+
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity = none
+
+# IDE0160, IDE0161: Namespace declaration preferences
+csharp_style_namespace_declarations = file_scoped
+
+###################################################
+### CS* (C Sharp compiler warning) rule toggles ###
+###################################################
+
+# Nonnullable reference not initialized
+dotnet_diagnostic.CS8618.severity = error
