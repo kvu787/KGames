@@ -206,32 +206,51 @@ pub fn draw(
     let left_width = width - margin * 3.0 - right_width;
     let right_x = margin * 2.0 + left_width;
     let padding = (line_height * 0.5).round();
+    // A panel's padding above and below, and its title.
+    let title_height = padding * 2.0 + line_height * 1.4;
+
+    // Rows are as tall as their contents, including however many rows of
+    // chips the width needs. The stick graphs grow into the space that's
+    // left, and the log gets the rest.
+    let gamepad_names: Vec<&str> = GAMEPAD_BUTTONS.iter().map(|(_, name)| *name).collect();
+    let (_, gamepad_chips) = chip_layout(canvas, left_width - padding * 2.0, &gamepad_names);
+    // Captions, two lines of values and a status line, around the graphs and chips.
+    let gamepad_height_without_graph = title_height + line_height * 4.6 + padding + gamepad_chips;
+
+    let keyboard_width = ((left_width - margin) * 0.45).floor();
+    let mouse_width = left_width - margin - keyboard_width;
+    let mouse_names: Vec<&str> = MOUSE_BUTTONS.iter().map(|(_, name)| *name).collect();
+    let (_, mouse_chips) = chip_layout(
+        canvas,
+        mouse_text_width(mouse_width - padding * 2.0, line_height, padding),
+        &mouse_names,
+    );
+    // The mouse's chips, four lines of values and a status line, or its
+    // motion pad and caption, whichever is taller.
+    let middle_height = title_height + (mouse_chips + line_height * 5.2).max(line_height * 6.1);
 
     let bar_width = (char_width * 5.0).round();
     let inner_gap = padding * 2.0;
+    let available = bottom - top;
+    let log_minimum = title_height + line_height * 3.0;
     let graph_by_width = (left_width - padding * 2.0 - bar_width * 2.0 - inner_gap * 3.0) / 2.0;
-    let graph_by_height = (bottom - top) * 0.34;
+    let graph_by_height =
+        (available - gamepad_height_without_graph - middle_height - margin * 2.0 - log_minimum)
+            .min(available * 0.3);
+    // At least wide enough for the values under it, like "x +0.000  y +0.000".
     let graph = graph_by_width
         .min(graph_by_height)
-        .clamp(line_height * 5.0, line_height * 14.0)
+        .clamp(char_width * 16.0, line_height * 14.0)
         .floor();
 
-    let gamepad_height = padding * 2.0
-        + line_height * 2.5
-        + graph
-        + line_height * 2.0
-        + padding
-        + line_height * 2.9
-        + line_height;
+    let gamepad_height = gamepad_height_without_graph + graph;
     let gamepad_area = Rect::new(margin, top, left_width, gamepad_height);
-    let middle_height = padding * 2.0 + line_height * 7.5;
     let middle_y = gamepad_area.bottom() + margin;
-    let keyboard_width = ((left_width - margin) * 0.5).floor();
     let keyboard_area = Rect::new(margin, middle_y, keyboard_width, middle_height);
     let mouse_area = Rect::new(
         margin * 2.0 + keyboard_width,
         middle_y,
-        left_width - margin - keyboard_width,
+        mouse_width,
         middle_height,
     );
     let latest_area = Rect::new(right_x, top, right_width, gamepad_height);
@@ -361,7 +380,7 @@ fn draw_gamepad(
     let values_y = plots_y + graph + line_height * 0.3;
     for (x, value) in [(left_x, left), (right_x, right)] {
         let mut lines = Lines::new(
-            Rect::new(x, values_y, graph + gap * 0.5, line_height * 2.0),
+            Rect::new(x, values_y, graph + gap, line_height * 2.0),
             line_height,
         );
         lines.line(
@@ -391,17 +410,21 @@ fn draw_gamepad(
     );
 
     // A chip per button. Buttons the gamepad says it lacks are faint.
+    let chips_y = values_y + line_height * 2.0 + padding;
     let chips_area = Rect::new(
         inner.x,
-        values_y + line_height * 2.0 + padding,
+        chips_y,
         inner.width,
-        line_height * 2.9,
+        inner.bottom() - line_height * 1.2 - chips_y,
     );
-    let buttons = GAMEPAD_BUTTONS.iter().map(|&(button, name)| {
-        let supported = view.layout.is_none_or(|layout| layout & button != 0);
-        (name, state.buttons & button != 0, supported)
-    });
-    chips(canvas, chips_area, buttons);
+    let buttons: Vec<_> = GAMEPAD_BUTTONS
+        .iter()
+        .map(|&(button, name)| {
+            let supported = view.layout.is_none_or(|layout| layout & button != 0);
+            (name, state.buttons & button != 0, supported)
+        })
+        .collect();
+    chips(canvas, chips_area, &buttons);
 
     let mut status = format!("Readings: {}/s   Rumble test: ", view.rate.per_second);
     status += if input.rumble_enabled { "on" } else { "off" };
@@ -477,18 +500,38 @@ fn trigger_bar(canvas: &mut Canvas, area: Rect, value: f32, color: Color) {
     canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
 }
 
-// Lays out labeled chips left to right, wrapping onto new rows.
-fn chips<'a>(canvas: &mut Canvas, area: Rect, items: impl Iterator<Item = (&'a str, bool, bool)>) {
+fn chip_height(canvas: &Canvas) -> f32 {
+    (canvas.line_height() * 1.3).round()
+}
+
+// Places chips with these names left to right, wrapping onto new rows to fit
+// in `width`. Returns each chip's offset from the top left and its width, and
+// the height of all the rows.
+fn chip_layout(canvas: &Canvas, width: f32, names: &[&str]) -> (Vec<([f32; 2], f32)>, f32) {
     let line_height = canvas.line_height();
-    let chip_height = (line_height * 1.3).round();
     let gap = (line_height * 0.3).round();
-    let (mut x, mut y) = (area.x, area.y);
-    for (name, pressed, supported) in items {
+    let (mut x, mut y) = (0.0, 0.0);
+    let mut chips = Vec::new();
+    for name in names {
         let chip_width = canvas.text_width(name) + line_height * 0.8;
-        if x + chip_width > area.right() && x > area.x {
-            x = area.x;
-            y += chip_height + gap;
+        if x + chip_width > width && x > 0.0 {
+            x = 0.0;
+            y += chip_height(canvas) + gap;
         }
+        chips.push(([x, y], chip_width));
+        x += chip_width + gap;
+    }
+    (chips, y + chip_height(canvas))
+}
+
+// Draws labeled chips as chip_layout places them, and returns their height.
+fn chips(canvas: &mut Canvas, area: Rect, items: &[(&str, bool, bool)]) -> f32 {
+    let line_height = canvas.line_height();
+    let chip_height = chip_height(canvas);
+    let names: Vec<&str> = items.iter().map(|(name, ..)| *name).collect();
+    let (layout, height) = chip_layout(canvas, area.width, &names);
+    for (&(name, pressed, supported), ([x, y], chip_width)) in items.iter().zip(layout) {
+        let (x, y) = (area.x + x, area.y + y);
         if y + chip_height > area.bottom() + 0.5 {
             break;
         }
@@ -505,8 +548,8 @@ fn chips<'a>(canvas: &mut Canvas, area: Rect, items: impl Iterator<Item = (&'a s
                 if supported { DIM } else { FAINT },
             );
         }
-        x += chip_width + gap;
     }
+    height
 }
 
 fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
@@ -550,7 +593,7 @@ fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     match event.interval {
         Some(interval) => lines.pair(
             canvas,
-            "Since the device's previous reading: ",
+            "Since its previous reading: ",
             &format!("{interval:.3} ms"),
             TEXT,
         ),
@@ -618,8 +661,8 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     let inner = panel(canvas, area, padding, "Mouse", &view.label);
 
     // Raw relative motion, without the pointer acceleration the cursor has.
-    let pad_size = (inner.height - line_height * 1.1)
-        .min(inner.width * 0.4)
+    let pad_size = mouse_pad_size(inner.width, line_height)
+        .min(inner.height - line_height * 1.1)
         .floor();
     let pad_area = Rect::new(
         inner.right() - pad_size,
@@ -643,20 +686,17 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
         inner.width - pad_size - padding,
         inner.height - line_height,
     );
-    let chip_rows = Rect::new(text_area.x, text_area.y, text_area.width, line_height * 2.9);
-    chips(
-        canvas,
-        chip_rows,
-        MOUSE_BUTTONS
-            .iter()
-            .map(|&(button, name)| (name, state.buttons & button != 0, true)),
-    );
+    let buttons: Vec<_> = MOUSE_BUTTONS
+        .iter()
+        .map(|&(button, name)| (name, state.buttons & button != 0, true))
+        .collect();
+    let values_y = text_area.y + chips(canvas, text_area, &buttons) + line_height * 0.2;
     let mut lines = Lines::new(
         Rect::new(
             text_area.x,
-            text_area.y + line_height * 3.1,
+            values_y,
             text_area.width,
-            text_area.height - line_height * 3.1,
+            text_area.bottom() - values_y,
         ),
         line_height,
     );
@@ -699,6 +739,17 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     );
 }
 
+// The mouse panel's motion pad is at most 5 lines tall, so that the panel
+// isn't taller than its values need.
+fn mouse_pad_size(inner_width: f32, line_height: f32) -> f32 {
+    (inner_width * 0.4).min(line_height * 5.0).floor()
+}
+
+// The width beside the motion pad, for the mouse's chips and values.
+fn mouse_text_width(inner_width: f32, line_height: f32, padding: f32) -> f32 {
+    inner_width - mouse_pad_size(inner_width, line_height) - padding
+}
+
 fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     let line_height = canvas.line_height();
     let inner = panel(
@@ -712,11 +763,15 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     if input.devices.is_empty() {
         lines.line(canvas, "None yet", FAINT);
     }
-    // One line each: the name, then what kind of device it is.
-    for info in &input.devices {
-        if !lines.has_room() {
-            break;
-        }
+    // One line each: the name, then what kind of device it is. If they don't
+    // all fit, the last line says how many more there are.
+    let rows = ((inner.height + 0.5) / line_height).floor() as usize;
+    let shown = if input.devices.len() > rows {
+        rows.saturating_sub(1)
+    } else {
+        input.devices.len()
+    };
+    for info in input.devices.iter().take(shown) {
         let active = input.gamepad.device.as_ref() == Some(&info.device);
         let x = canvas.text_clipped(
             lines.x,
@@ -734,6 +789,13 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
         }
         canvas.text_clipped(x, lines.y, &details, lines.right() - x, DIM);
         lines.y += line_height;
+    }
+    if shown < input.devices.len() {
+        lines.line(
+            canvas,
+            &format!("and {} more", input.devices.len() - shown),
+            DIM,
+        );
     }
 }
 
