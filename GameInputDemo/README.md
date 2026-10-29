@@ -112,7 +112,7 @@ which can change between restarts.
 
 The demo reads `Settings.json`, in this folder next to `Cargo.toml`, when it starts. The
 folder's path is built into the exe, so the exe finds the file wherever it's run from.
-Git ignores the file. If it doesn't exist, the demo writes it with the defaults:
+The file is in Git. If it doesn't exist, the demo writes it with the defaults:
 
 ```json
 {
@@ -316,4 +316,4 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
 | `Scripts/RunInBackground.ps1`      | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
-| `Settings.json`                    | The [settings file](#settings-file), which the demo writes; not in Git           |
+| `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |

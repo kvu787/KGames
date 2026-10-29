@@ -1,6 +1,6 @@
 // The demo's settings, from Settings.json in the GameInputDemo folder, next to
 // Cargo.toml. The folder's path is built into the exe, so the exe finds the
-// file wherever it's run from. Git ignores the file.
+// file wherever it's run from. The file is in Git.
 //
 //     {
 //         "Display": "Primary",
