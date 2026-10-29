@@ -5247,6 +5247,15 @@ pub struct LUID {
 }
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MINMAXINFO {
+    pub ptReserved: POINT,
+    pub ptMaxSize: POINT,
+    pub ptMaxPosition: POINT,
+    pub ptMinTrackSize: POINT,
+    pub ptMaxTrackSize: POINT,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MSG {
     pub hwnd: HWND,
     pub message: u32,
@@ -5337,6 +5346,7 @@ pub struct VS_FIXEDFILEINFO {
 }
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DPICHANGED: i32 = 736;
+pub const WM_GETMINMAXINFO: i32 = 36;
 pub const WM_QUIT: i32 = 18;
 pub const WM_SIZE: i32 = 5;
 pub const WM_SYSCOMMAND: i32 = 274;

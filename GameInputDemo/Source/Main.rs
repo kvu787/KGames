@@ -44,6 +44,8 @@ use windows_core::{Error, PCWSTR, Result, w};
 
 // The em height of the font at 100% scaling, in pixels.
 const FONT_SIZE: u32 = 15;
+// The smallest window, at 100% scaling, that the panels fit in.
+const MINIMUM_WINDOW_SIZE: [u32; 2] = [1024, 820];
 
 // The window procedure only records what happened; the main loop reacts.
 // This keeps renderer state out of the callback.
@@ -85,6 +87,17 @@ extern "system" fn window_procedure(
             }
             LRESULT(0)
         }
+        WM_GETMINMAXINFO => {
+            let info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
+            let dpi = unsafe { GetDpiForWindow(window) };
+            let [width, height] = MINIMUM_WINDOW_SIZE
+                .map(|size| (size * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32);
+            info.ptMinTrackSize = POINT {
+                x: width,
+                y: height,
+            };
+            LRESULT(0)
+        }
         // A tap of Alt or F10 would otherwise enter the window menu's modal
         // loop, which stalls the frame loop until the next key press.
         WM_SYSCOMMAND if (wparam.0 & 0xFFF0) as i32 == SC_KEYMENU => LRESULT(0),
@@ -124,10 +137,10 @@ fn main() -> Result<()> {
             return Err(Error::from_thread());
         }
 
-        // 1280x860 at 100% scaling, but no more than 90% of the screen.
+        // 1280x900 at 100% scaling, but no more than 90% of the screen.
         let scale = GetDpiForSystem() as f32 / USER_DEFAULT_SCREEN_DPI as f32;
         let width = (1280.0 * scale).min(GetSystemMetrics(SM_CXSCREEN) as f32 * 0.9);
-        let height = (860.0 * scale).min(GetSystemMetrics(SM_CYSCREEN) as f32 * 0.9);
+        let height = (900.0 * scale).min(GetSystemMetrics(SM_CYSCREEN) as f32 * 0.9);
         let window = CreateWindowExW(
             0,
             class_name,
