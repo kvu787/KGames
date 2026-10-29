@@ -43,7 +43,7 @@ mod renderer;
 #[path = "Settings.rs"]
 mod settings;
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 use bindings::*;
 use canvas::Canvas;
@@ -70,6 +70,31 @@ static DPI_CHANGED: AtomicBool = AtomicBool::new(false);
 // The window may be on another display, or the displays changed.
 static MOVED: AtomicBool = AtomicBool::new(false);
 static DISPLAYS_CHANGED: AtomicBool = AtomicBool::new(false);
+// The mouse, for the gamepad select box: the cursor's position in the window,
+// and where the left button was last pressed, packed by pack_point. GameInput
+// doesn't say where the cursor is in a window, so these come from messages.
+static CURSOR: AtomicU64 = AtomicU64::new(NO_POINT);
+static CLICK: AtomicU64 = AtomicU64::new(NO_POINT);
+// Whether Windows will send WM_MOUSELEAVE when the cursor leaves the window.
+static TRACKING_MOUSE: AtomicBool = AtomicBool::new(false);
+static ESCAPE_PRESSED: AtomicBool = AtomicBool::new(false);
+
+const NO_POINT: u64 = u64::MAX;
+
+// A mouse message's position in the window, from the low and high words of
+// its LPARAM, as one value for an atomic.
+fn pack_point(lparam: LPARAM) -> u64 {
+    (lparam.0 as u64) & 0xFFFF_FFFF
+}
+
+fn unpack_point(packed: u64) -> Option<[f32; 2]> {
+    (packed != NO_POINT).then(|| {
+        [
+            (packed as u16 as i16) as f32,
+            ((packed >> 16) as u16 as i16) as f32,
+        ]
+    })
+}
 
 extern "system" fn window_procedure(
     window: HWND,
@@ -127,6 +152,37 @@ extern "system" fn window_procedure(
         // A tap of Alt or F10 would otherwise enter the window menu's modal
         // loop, which stalls the frame loop until the next key press.
         WM_SYSCOMMAND if (wparam.0 & 0xFFF0) as i32 == SC_KEYMENU => LRESULT(0),
+        // Windows only reports that the cursor left the window if asked, and
+        // the request ends with the WM_MOUSELEAVE it sends.
+        WM_MOUSEMOVE => {
+            CURSOR.store(pack_point(lparam), Ordering::Relaxed);
+            if !TRACKING_MOUSE.swap(true, Ordering::Relaxed) {
+                let mut track = TRACKMOUSEEVENT {
+                    cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
+                    dwFlags: TME_LEAVE as u32,
+                    hwndTrack: window,
+                    dwHoverTime: 0,
+                };
+                unsafe {
+                    let _ = TrackMouseEvent(&mut track);
+                }
+            }
+            LRESULT(0)
+        }
+        WM_MOUSELEAVE => {
+            CURSOR.store(NO_POINT, Ordering::Relaxed);
+            TRACKING_MOUSE.store(false, Ordering::Relaxed);
+            LRESULT(0)
+        }
+        WM_LBUTTONDOWN => {
+            CURSOR.store(pack_point(lparam), Ordering::Relaxed);
+            CLICK.store(pack_point(lparam), Ordering::Relaxed);
+            LRESULT(0)
+        }
+        WM_KEYDOWN if wparam.0 == VK_ESCAPE as usize => {
+            ESCAPE_PRESSED.store(true, Ordering::Relaxed);
+            LRESULT(0)
+        }
         WM_DESTROY => {
             unsafe { PostQuitMessage(0) };
             LRESULT(0)
@@ -418,6 +474,10 @@ fn main() -> Result<()> {
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         let mut display = display_label(window, &displays);
+        // Where clicks do something in the last frame drawn, and whether the
+        // gamepad select box's list is open.
+        let mut targets = panels::Targets::default();
+        let mut picker_open = false;
 
         let mut message = MSG::default();
         loop {
@@ -477,16 +537,34 @@ fn main() -> Result<()> {
                 if std::mem::take(&mut input.fullscreen_toggled) {
                     toggle_fullscreen(window, &mut windowed)?;
                 }
+                // A click on the select box opens or closes its list, and a
+                // click on the list picks what it's on. Any other click closes it.
+                if let Some(point) = unpack_point(CLICK.swap(NO_POINT, Ordering::Relaxed)) {
+                    match targets.at(point) {
+                        Some(panels::Click::Picker) => picker_open = !picker_open,
+                        Some(panels::Click::Choose(listen)) => {
+                            input.set_listen(listen.clone());
+                            picker_open = false;
+                        }
+                        None => picker_open = false,
+                    }
+                }
             }
             let focused = GetForegroundWindow() == window;
+            // So do Esc, and the window losing focus.
+            if ESCAPE_PRESSED.swap(false, Ordering::Relaxed) || !focused {
+                picker_open = false;
+            }
             let mut canvas = Canvas::new(&font, &mut vertices);
             let status = panels::Status {
                 focused,
                 frames: &frames,
                 display: &display,
                 notices: &notices,
+                cursor: unpack_point(CURSOR.load(Ordering::Relaxed)),
+                picker_open,
             };
-            panels::draw(
+            targets = panels::draw(
                 &mut canvas,
                 &input,
                 &status,

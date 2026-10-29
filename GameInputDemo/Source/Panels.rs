@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use crate::canvas::{Canvas, Color};
 use crate::frame_counter::FrameCounter;
 use crate::game_input::*;
-use crate::input::{GAMEPAD_BUTTONS, Input, MOUSE_BUTTONS, Source, describe_key};
+use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
 pub const BACKGROUND: [f32; 4] = [0.071, 0.078, 0.094, 1.0];
 const PANEL: Color = Color::rgb(0x1C1F26);
@@ -53,6 +53,31 @@ impl Rect {
 
     fn right(&self) -> f32 {
         self.x + self.width
+    }
+
+    fn contains(&self, [x, y]: [f32; 2]) -> bool {
+        x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
+    }
+}
+
+// What a click does at a place in the window.
+pub enum Click {
+    // Opens or closes the gamepad select box's list.
+    Picker,
+    Choose(Listen),
+}
+
+// The places in the last frame drawn that react to clicks, topmost last.
+#[derive(Default)]
+pub struct Targets(Vec<(Rect, Click)>);
+
+impl Targets {
+    pub fn at(&self, point: [f32; 2]) -> Option<&Click> {
+        self.0
+            .iter()
+            .rev()
+            .find(|(area, _)| area.contains(point))
+            .map(|(_, click)| click)
     }
 }
 
@@ -124,15 +149,20 @@ pub struct Status<'a> {
     pub display: &'a str,
     // Problems with how the demo was started, one per paragraph.
     pub notices: &'a [String],
+    // Where the mouse cursor is in the window, if it's over the window.
+    pub cursor: Option<[f32; 2]>,
+    // Whether the gamepad select box's list is open.
+    pub picker_open: bool,
 }
 
+// Returns where clicks do something in what it drew.
 pub fn draw(
     canvas: &mut Canvas,
     input: &Result<Input, String>,
     status: &Status,
     width: f32,
     height: f32,
-) {
+) -> Targets {
     let line_height = canvas.line_height();
     let char_width = canvas.char_width();
     let margin = (line_height * 0.6).round();
@@ -243,7 +273,7 @@ pub fn draw(
     let top = margin + header_bottom;
     let bottom = footer_y - margin;
     let Ok(input) = input else {
-        return;
+        return Targets::default();
     };
 
     // Columns: gamepad, keyboard and mouse on the left; the latest event and
@@ -304,15 +334,18 @@ pub fn draw(
     let log_y = middle_y + middle_height + margin;
     let log_area = Rect::new(margin, log_y, width - margin * 2.0, bottom - log_y);
 
-    draw_gamepad(
+    let mut targets = Targets::default();
+    let picker = draw_gamepad(
         canvas,
         input,
+        status,
         gamepad_area,
         padding,
         graph,
         bar_width,
         inner_gap,
     );
+    targets.0.push((picker, Click::Picker));
     draw_latest(canvas, input, latest_area, padding);
     draw_keyboard(canvas, input, keyboard_area, padding);
     draw_mouse(canvas, input, mouse_area, padding);
@@ -320,6 +353,11 @@ pub fn draw(
     if log_area.height > line_height * 2.0 {
         draw_log(canvas, input, log_area, padding);
     }
+    // Last, so the list covers the panels under it.
+    if status.picker_open {
+        draw_picker_list(canvas, input, status, picker, width - margin, &mut targets);
+    }
+    targets
 }
 
 // Draws a panel's background and title, and returns the area under the title.
@@ -356,29 +394,21 @@ fn panel_with(
     )
 }
 
+// Returns the area of the select box for which gamepads to listen to.
 fn draw_gamepad(
     canvas: &mut Canvas,
     input: &Input,
+    status: &Status,
     area: Rect,
     padding: f32,
     graph: f32,
     bar_width: f32,
     gap: f32,
-) {
+) -> Rect {
     let view = &input.gamepad;
     let line_height = canvas.line_height();
-    // The panel follows whichever gamepad sent the latest reading.
-    let inner = match &view.device {
-        Some(_) => panel(canvas, area, padding, "Gamepad", &view.label),
-        None => panel_with(
-            canvas,
-            area,
-            padding,
-            "Gamepad",
-            "No input yet: connect a gamepad, then press a button or move a stick",
-            WARNING,
-        ),
-    };
+    let inner = panel(canvas, area, padding, "Gamepad", "");
+    let picker = draw_picker_box(canvas, input, status, area, padding);
     let state = &view.state;
 
     // Stick graphs and trigger bars, with a caption above and values below.
@@ -483,6 +513,196 @@ fn draw_gamepad(
         inner.width,
         DIM,
     );
+    picker
+}
+
+// The select box after the gamepad panel's title, which shows which gamepads
+// the demo listens to, and after it, what the panel shows. Returns its area.
+fn draw_picker_box(
+    canvas: &mut Canvas,
+    input: &Input,
+    status: &Status,
+    area: Rect,
+    padding: f32,
+) -> Rect {
+    let line_height = canvas.line_height();
+    let char_width = canvas.char_width();
+    let text_y = area.y + padding;
+    let height = chip_height(canvas);
+    let x = area.x + padding + canvas.text_width("Gamepad") + char_width * 2.0;
+    let y = (text_y - (height - line_height) * 0.5).round();
+    let inset = (line_height * 0.4).round();
+    let arrow_width = line_height;
+    let text = listen_label(input, &input.listen);
+    let width =
+        (canvas.text_width(&text) + inset * 2.0 + arrow_width).min(area.right() - padding - x);
+    let picker = Rect::new(x, y, width, height);
+
+    let hovered = status.cursor.is_some_and(|point| picker.contains(point));
+    canvas.rect(picker.x, picker.y, picker.width, picker.height, PLOT);
+    canvas.rect_outline(
+        picker.x,
+        picker.y,
+        picker.width,
+        picker.height,
+        1.0,
+        if hovered || status.picker_open {
+            DIM
+        } else {
+            BORDER
+        },
+    );
+    canvas.text_clipped(x + inset, text_y, &text, width - inset - arrow_width, TEXT);
+    chevron(
+        canvas,
+        [picker.right() - arrow_width * 0.5, y + height * 0.5],
+        (line_height * 0.2).round(),
+        status.picker_open,
+        DIM,
+    );
+
+    let (note, color) = match &input.listen {
+        Listen::AnyGamepad => match &input.gamepad.device {
+            Some(_) => (format!("showing {}", input.gamepad.label), DIM),
+            None => (
+                "No input yet: connect a gamepad, then press a button or move a stick".to_string(),
+                WARNING,
+            ),
+        },
+        Listen::Gamepad(device) if !input.gamepads().any(|info| info.device == *device) => (
+            "Disconnected: waiting for it to reconnect".to_string(),
+            WARNING,
+        ),
+        Listen::Gamepad(_) => (String::new(), DIM),
+        Listen::NoGamepad => ("Gamepad input is ignored".to_string(), DIM),
+    };
+    let note_x = picker.right() + char_width * 2.0;
+    canvas.text_clipped(
+        note_x,
+        text_y,
+        &note,
+        area.right() - padding - note_x,
+        color,
+    );
+    picker
+}
+
+// The select box's list of choices, under the box. Adds a target for each.
+fn draw_picker_list(
+    canvas: &mut Canvas,
+    input: &Input,
+    status: &Status,
+    picker: Rect,
+    right: f32,
+    targets: &mut Targets,
+) {
+    let line_height = canvas.line_height();
+    let char_width = canvas.char_width();
+    let row_height = chip_height(canvas);
+    let inset = (line_height * 0.4).round();
+
+    // Each choice, and a few words about it.
+    let mut choices = vec![(
+        Listen::AnyGamepad,
+        listen_label(input, &Listen::AnyGamepad),
+        "follows the one used last".to_string(),
+    )];
+    for info in input.gamepads() {
+        let listen = Listen::Gamepad(info.device.clone());
+        choices.push((listen, info.label.clone(), info.family_name().to_string()));
+    }
+    // A chosen gamepad stays in the list while it's disconnected.
+    if let Listen::Gamepad(device) = &input.listen
+        && !input.gamepads().any(|info| info.device == *device)
+    {
+        choices.push((
+            input.listen.clone(),
+            listen_label(input, &input.listen),
+            "disconnected".to_string(),
+        ));
+    }
+    choices.push((
+        Listen::NoGamepad,
+        listen_label(input, &Listen::NoGamepad),
+        "ignores all gamepads".to_string(),
+    ));
+
+    let label_width = choices
+        .iter()
+        .map(|(_, label, _)| canvas.text_width(label))
+        .fold(0.0, f32::max);
+    let detail_width = choices
+        .iter()
+        .map(|(_, _, detail)| canvas.text_width(detail))
+        .fold(0.0, f32::max);
+    // With a pixel on each side for the outline.
+    let width = (inset * 2.0 + label_width + char_width * 2.0 + detail_width + 2.0)
+        .max(picker.width)
+        .min(right - picker.x);
+    let list = Rect::new(
+        picker.x,
+        picker.bottom() + 2.0,
+        width,
+        row_height * choices.len() as f32 + 2.0,
+    );
+    // A shadow, so the list stands out from the panels under it.
+    canvas.rect(
+        list.x + 3.0,
+        list.y + 3.0,
+        list.width,
+        list.height,
+        Color::rgb(0x000000).alpha(0.5),
+    );
+    canvas.rect(list.x, list.y, list.width, list.height, PANEL);
+    canvas.rect_outline(list.x, list.y, list.width, list.height, 1.0, DIM);
+
+    let detail_x = list.x + inset + label_width + char_width * 2.0;
+    for (index, (listen, label, detail)) in choices.into_iter().enumerate() {
+        let row = Rect::new(
+            list.x + 1.0,
+            list.y + 1.0 + row_height * index as f32,
+            list.width - 2.0,
+            row_height,
+        );
+        let chosen = listen == input.listen;
+        if status.cursor.is_some_and(|point| row.contains(point)) {
+            canvas.rect(row.x, row.y, row.width, row.height, BORDER);
+        }
+        if chosen {
+            canvas.rect(row.x, row.y, 3.0, row.height, LEFT);
+        }
+        let text_y = row.y + ((row_height - line_height) * 0.5).round();
+        canvas.text_clipped(
+            row.x + inset,
+            text_y,
+            &label,
+            detail_x - char_width - row.x - inset,
+            if chosen { LEFT } else { TEXT },
+        );
+        canvas.text_clipped(
+            detail_x,
+            text_y,
+            &detail,
+            row.right() - inset - detail_x,
+            DIM,
+        );
+        targets.0.push((row, Click::Choose(listen)));
+    }
+}
+
+fn listen_label(input: &Input, listen: &Listen) -> String {
+    match listen {
+        Listen::AnyGamepad => "Any gamepad".to_string(),
+        Listen::Gamepad(device) => input.label_of(Some(device)),
+        Listen::NoGamepad => "None".to_string(),
+    }
+}
+
+// A small V that points down, or up while the list it opens is open.
+fn chevron(canvas: &mut Canvas, [x, y]: [f32; 2], size: f32, up: bool, color: Color) {
+    let tip = if up { -size * 0.5 } else { size * 0.5 };
+    canvas.line([x - size, y - tip], [x, y + tip], 1.5, color);
+    canvas.line([x, y + tip], [x + size, y - tip], 1.5, color);
 }
 
 fn stick_graph(
@@ -817,15 +1037,16 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     } else {
         input.devices.len()
     };
+    // The gamepad the panel shows is highlighted, and those ignored are faint.
     for info in input.devices.iter().take(shown) {
-        let active = input.gamepad.device.as_ref() == Some(&info.device);
-        let x = canvas.text_clipped(
-            lines.x,
-            lines.y,
-            &info.label,
-            lines.width,
-            if active { LEFT } else { TEXT },
-        );
+        let color = if input.gamepad.device.as_ref() == Some(&info.device) {
+            LEFT
+        } else if !input.listens_to(info) {
+            FAINT
+        } else {
+            TEXT
+        };
+        let x = canvas.text_clipped(lines.x, lines.y, &info.label, lines.width, color);
         let mut details = format!("  {}: {}", info.family_name(), info.kinds());
         if let Some(index) = info.xinput_index {
             details += &format!(", XInput #{index}");

@@ -208,6 +208,32 @@ struct Rumble {
     sent: GameInputRumbleParams,
 }
 
+// Which gamepads the demo listens to, chosen in the gamepad panel's select box.
+// The others are ignored, along with any keyboard or mouse input they have:
+// a GameSir in Xbox 360 mode is one device with a gamepad, a keyboard and a mouse.
+#[derive(Clone, PartialEq)]
+pub enum Listen {
+    // All of them, and the panel follows whichever was used last.
+    AnyGamepad,
+    // Kept by its device, so that it's listened to again if it reconnects.
+    Gamepad(IGameInputDevice),
+    NoGamepad,
+}
+
+impl Listen {
+    unsafe fn includes(&self, device: &IGameInputDevice) -> bool {
+        match self {
+            Listen::AnyGamepad => true,
+            Listen::Gamepad(chosen) => chosen == device || !unsafe { is_gamepad(device) },
+            Listen::NoGamepad => !unsafe { is_gamepad(device) },
+        }
+    }
+}
+
+unsafe fn is_gamepad(device: &IGameInputDevice) -> bool {
+    unsafe { device.GetSupportedInput() & GameInputKindGamepad != 0 }
+}
+
 #[derive(Default)]
 pub struct KeyboardView {
     pub label: String,
@@ -244,8 +270,10 @@ pub struct Input {
     pub log: VecDeque<LogEntry>,
     pub reading_count: u64,
     pub rumble_enabled: bool,
-    // One for each gamepad that has sent a reading.
+    // One for each gamepad listened to that has sent a reading.
     rumbles: Vec<Rumble>,
+    // Changed with set_listen.
+    pub listen: Listen,
     // Set when the fullscreen shortcut is pressed. The main loop owns the
     // window, so it does the switch and clears this.
     pub fullscreen_toggled: bool,
@@ -280,6 +308,7 @@ impl Input {
                 reading_count: 0,
                 rumble_enabled: false,
                 rumbles: Vec::new(),
+                listen: Listen::AnyGamepad,
                 fullscreen_toggled: false,
                 shortcuts: Vec::new(),
             })
@@ -431,7 +460,74 @@ impl Input {
         }
     }
 
-    fn label_of(&self, device: Option<&IGameInputDevice>) -> String {
+    // Shows another gamepad in the panel, starting from an idle state.
+    fn view_gamepad(&mut self, device: Option<&IGameInputDevice>, label: String) {
+        let info = self
+            .devices
+            .iter()
+            .find(|info| Some(&info.device) == device);
+        self.gamepad = GamepadView {
+            device: device.cloned(),
+            label,
+            layout: info.and_then(|info| info.gamepad_layout),
+            rumble_motors: info.map_or(0, |info| info.rumble_motors),
+            ..Default::default()
+        };
+    }
+
+    // The connected gamepads, which the select box offers besides any and none.
+    pub fn gamepads(&self) -> impl Iterator<Item = &DeviceInfo> {
+        self.devices
+            .iter()
+            .filter(|info| info.supported_input & GameInputKindGamepad != 0)
+    }
+
+    // Whether the demo handles the device's readings.
+    pub fn listens_to(&self, info: &DeviceInfo) -> bool {
+        unsafe { self.listen.includes(&info.device) }
+    }
+
+    pub fn set_listen(&mut self, listen: Listen) {
+        if listen == self.listen {
+            return;
+        }
+        self.listen = listen;
+        unsafe {
+            // Gamepads no longer listened to stop rumbling.
+            let listen = &self.listen;
+            self.rumbles.retain(|rumble| {
+                let keep = listen.includes(&rumble.device);
+                if !keep {
+                    rumble.device.SetRumbleState(None);
+                }
+                keep
+            });
+            let text = match self.listen.clone() {
+                Listen::AnyGamepad => "Listening to any gamepad".to_string(),
+                Listen::Gamepad(device) => {
+                    let label = self.label_of(Some(&device));
+                    if self.gamepad.device.as_ref() != Some(&device) {
+                        self.view_gamepad(Some(&device), label.clone());
+                        // Its current state, if GameInput still has a reading of it.
+                        if let Ok(reading) = self
+                            .game_input
+                            .GetCurrentReading(GameInputKindGamepad, Some(&device))
+                        {
+                            reading.GetGamepadState(&mut self.gamepad.state);
+                        }
+                    }
+                    format!("Listening to {label} only")
+                }
+                Listen::NoGamepad => {
+                    self.gamepad = GamepadView::default();
+                    "Ignoring all gamepads".to_string()
+                }
+            };
+            self.log(self.now, Source::Demo, text, None);
+        }
+    }
+
+    pub fn label_of(&self, device: Option<&IGameInputDevice>) -> String {
         let Some(device) = device else {
             return "Unknown device".to_string();
         };
@@ -448,9 +544,14 @@ impl Input {
         reading: &IGameInputReading,
     ) {
         unsafe {
+            let device = reading.GetDevice();
+            if let Some(device) = &device
+                && !self.listen.includes(device)
+            {
+                return;
+            }
             self.reading_count += 1;
             let time = self.seconds(reading.GetTimestamp());
-            let device = reading.GetDevice();
             // The same device's reading before this one. There's none for the
             // first reading of a device, or when it's no longer in the history.
             let previous = device.as_ref().and_then(|device| {
@@ -550,19 +651,9 @@ impl Input {
                 }
             }
 
-            // The panel follows whichever gamepad was used last.
+            // The panel follows whichever gamepad was used last, of those listened to.
             if self.gamepad.device.as_ref() != device {
-                let info = self
-                    .devices
-                    .iter()
-                    .find(|info| Some(&info.device) == device);
-                self.gamepad = GamepadView {
-                    device: device.cloned(),
-                    label: label.to_string(),
-                    layout: info.and_then(|info| info.gamepad_layout),
-                    rumble_motors: info.map_or(0, |info| info.rumble_motors),
-                    ..Default::default()
-                };
+                self.view_gamepad(device, label.to_string());
             }
             let view = &mut self.gamepad;
             view.state = state;
