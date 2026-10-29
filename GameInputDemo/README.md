@@ -17,8 +17,8 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
   the dead zone of the [rumble test](#rumble-test), the only part of the demo that applies
   one. Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
   each trigger. A chip for every button that lights up while it's held. A select box
-  after the panel's title picks which [gamepads the demo listens to](#choosing-gamepads):
-  any of them, one, or none.
+  after the panel's title picks which [gamepad the demo listens to](#choosing-a-gamepad),
+  if any.
 - **Latest input event**: a text box describing the newest reading that changed
   something: its device, what changed, how long after that device's previous reading
   it came, and the device's whole state.
@@ -36,7 +36,7 @@ Shortcuts, which the demo also reads with GameInput:
 
 | Key   | Action                                                                        |
 | ----- | ----------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. Each gamepad's sticks then drive its grip motors       |
+| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors        |
 | `F2`  | Clear the event log                                                           |
 | `F11` | Borderless fullscreen on or off, for the lowest latency                       |
 
@@ -56,27 +56,26 @@ have the same dead zone: 10% of full deflection by default, set with
 `RumbleTestInnerDeadZone` in the [settings file](#settings-file). Nothing else in the
 demo applies a dead zone.
 
-### Choosing gamepads
+### Choosing a gamepad
 
 Click the select box after the Gamepad panel's title for a list of choices, and click
 one to pick it. Esc, a click anywhere else, or the window losing focus closes the list.
 
-| Choice        | What the demo listens to                                                    |
-| ------------- | --------------------------------------------------------------------------- |
-| `Any gamepad` | Every gamepad, and the panel follows whichever was used last. The default   |
-| A gamepad     | Only that one. If it disconnects, the demo waits for it to reconnect        |
-| `None`        | No gamepad                                                                  |
+| Choice    | What the demo listens to                                                        |
+| --------- | ------------------------------------------------------------------------------- |
+| A gamepad | Only that one. If it disconnects, the demo waits for it to reconnect            |
+| `None`    | No gamepad                                                                      |
 
 The demo ignores a gamepad it doesn't listen to: its readings aren't shown, logged or
 counted, and the rumble test leaves its motors off. That includes any keyboard or mouse
 input from the same device. A GameSir controller in Xbox 360 mode, for example, is one
-device with a gamepad, a keyboard and a mouse. Choosing one gamepad also keeps a noisy one
-from taking over the panel: a DualSense sends readings about every millisecond from stick
-noise alone, and with `Any gamepad`, the panel follows those.
+device with a gamepad, a keyboard and a mouse.
 
-The choice isn't saved, so the demo always starts with `Any gamepad`. The select box
-reads the mouse from the window's messages, not from GameInput, because they say where
-the cursor is in the window.
+The choice isn't saved. Until one is picked, the demo chooses for itself: the first
+gamepad it finds connected. If that one disconnects, it switches to another that's still
+connected, or else to the next one that connects. Before any gamepad connects, the select
+box shows `None`. The select box reads the mouse from the window's messages, not from
+GameInput, because they say where the cursor is in the window.
 
 ## Requirements
 

@@ -388,7 +388,7 @@ fn panel_with(
     )
 }
 
-// Returns the area of the select box for which gamepads to listen to.
+// Returns the area of the select box for which gamepad to listen to.
 fn draw_gamepad(
     canvas: &mut Canvas,
     input: &Input,
@@ -555,19 +555,19 @@ fn draw_picker_box(
         DIM,
     );
 
+    // Until a choice is picked, the demo switches to a gamepad as soon as one connects.
     let (note, color) = match &input.listen {
-        Listen::AnyGamepad => match &input.gamepad.device {
-            Some(_) => (format!("showing {}", input.gamepad.label), DIM),
-            None => (
-                "No input yet: connect a gamepad, then press a button or move a stick".to_string(),
-                WARNING,
-            ),
-        },
         Listen::Gamepad(device) if !input.gamepads().any(|info| info.device == *device) => (
-            "Disconnected: waiting for it to reconnect".to_string(),
+            if input.listen_picked {
+                "Disconnected: waiting for it to reconnect"
+            } else {
+                "Disconnected: waiting for a gamepad to connect"
+            }
+            .to_string(),
             WARNING,
         ),
         Listen::Gamepad(_) => (String::new(), DIM),
+        Listen::NoGamepad if !input.listen_picked => ("No gamepad connected".to_string(), WARNING),
         Listen::NoGamepad => ("Gamepad input is ignored".to_string(), DIM),
     };
     let note_x = picker.right() + char_width * 2.0;
@@ -596,11 +596,7 @@ fn draw_picker_list(
     let inset = (line_height * 0.4).round();
 
     // Each choice, and a few words about it.
-    let mut choices = vec![(
-        Listen::AnyGamepad,
-        listen_label(input, &Listen::AnyGamepad),
-        "follows the one used last".to_string(),
-    )];
+    let mut choices = Vec::new();
     for info in input.gamepads() {
         let listen = Listen::Gamepad(info.device.clone());
         choices.push((listen, info.label.clone(), info.family_name().to_string()));
@@ -686,7 +682,6 @@ fn draw_picker_list(
 
 fn listen_label(input: &Input, listen: &Listen) -> String {
     match listen {
-        Listen::AnyGamepad => "Any gamepad".to_string(),
         Listen::Gamepad(device) => input.label_of(Some(device)),
         Listen::NoGamepad => "None".to_string(),
     }

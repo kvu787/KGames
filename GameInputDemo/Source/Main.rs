@@ -543,7 +543,7 @@ fn main() -> Result<()> {
                     match targets.at(point) {
                         Some(panels::Click::Picker) => picker_open = !picker_open,
                         Some(panels::Click::Choose(listen)) => {
-                            input.set_listen(listen.clone());
+                            input.pick_listen(listen.clone());
                             picker_open = false;
                         }
                         None => picker_open = false,

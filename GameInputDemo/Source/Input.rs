@@ -192,7 +192,6 @@ impl RateCounter {
 #[derive(Default)]
 pub struct GamepadView {
     pub device: Option<IGameInputDevice>,
-    pub label: String,
     pub layout: Option<GameInputGamepadButtons>,
     pub rumble_motors: GameInputRumbleMotors,
     pub state: GameInputGamepadState,
@@ -209,13 +208,12 @@ struct Rumble {
     sent: GameInputRumbleParams,
 }
 
-// Which gamepads the demo listens to, chosen in the gamepad panel's select box.
-// The others are ignored, along with any keyboard or mouse input they have:
-// a GameSir in Xbox 360 mode is one device with a gamepad, a keyboard and a mouse.
+// Which gamepad the demo listens to, if any, chosen in the gamepad panel's
+// select box. The others are ignored, along with any keyboard or mouse input
+// they have: a GameSir in Xbox 360 mode is one device with a gamepad, a
+// keyboard and a mouse.
 #[derive(Clone, PartialEq)]
 pub enum Listen {
-    // All of them, and the panel follows whichever was used last.
-    AnyGamepad,
     // Kept by its device, so that it's listened to again if it reconnects.
     Gamepad(IGameInputDevice),
     NoGamepad,
@@ -224,7 +222,6 @@ pub enum Listen {
 impl Listen {
     unsafe fn includes(&self, device: &IGameInputDevice) -> bool {
         match self {
-            Listen::AnyGamepad => true,
             Listen::Gamepad(chosen) => chosen == device || !unsafe { is_gamepad(device) },
             Listen::NoGamepad => !unsafe { is_gamepad(device) },
         }
@@ -279,8 +276,10 @@ pub struct Input {
     pub rumble_dead_zone: f32,
     // One for each gamepad listened to that has sent a reading.
     rumbles: Vec<Rumble>,
-    // Changed with set_listen.
+    // Changed with pick_listen, or by listen_by_default until then.
     pub listen: Listen,
+    // Whether listen was picked in the select box.
+    pub listen_picked: bool,
     // Set when the fullscreen shortcut is pressed. The main loop owns the
     // window, so it does the switch and clears this.
     pub fullscreen_toggled: bool,
@@ -316,7 +315,8 @@ impl Input {
                 rumble_enabled: false,
                 rumble_dead_zone,
                 rumbles: Vec::new(),
-                listen: Listen::AnyGamepad,
+                listen: Listen::NoGamepad,
+                listen_picked: false,
                 fullscreen_toggled: false,
                 shortcuts: Vec::new(),
             })
@@ -334,6 +334,7 @@ impl Input {
             for (event, device) in events {
                 self.handle_device_event(event, &device);
             }
+            self.listen_by_default();
 
             // Gather every new reading of each kind, then handle them all in
             // timestamp order, so the log interleaves devices correctly.
@@ -469,21 +470,20 @@ impl Input {
     }
 
     // Shows another gamepad in the panel, starting from an idle state.
-    fn view_gamepad(&mut self, device: Option<&IGameInputDevice>, label: String) {
+    fn view_gamepad(&mut self, device: Option<&IGameInputDevice>) {
         let info = self
             .devices
             .iter()
             .find(|info| Some(&info.device) == device);
         self.gamepad = GamepadView {
             device: device.cloned(),
-            label,
             layout: info.and_then(|info| info.gamepad_layout),
             rumble_motors: info.map_or(0, |info| info.rumble_motors),
             ..Default::default()
         };
     }
 
-    // The connected gamepads, which the select box offers besides any and none.
+    // The connected gamepads, which the select box offers besides none.
     pub fn gamepads(&self) -> impl Iterator<Item = &DeviceInfo> {
         self.devices
             .iter()
@@ -495,7 +495,30 @@ impl Input {
         unsafe { self.listen.includes(&info.device) }
     }
 
-    pub fn set_listen(&mut self, listen: Listen) {
+    // For a choice clicked in the select box. The demo keeps to it from then on.
+    pub fn pick_listen(&mut self, listen: Listen) {
+        self.listen_picked = true;
+        self.set_listen(listen);
+    }
+
+    // Until a choice is picked, the demo listens to a connected gamepad if
+    // there is one: the one it has while that's connected, or else the first.
+    fn listen_by_default(&mut self) {
+        if self.listen_picked {
+            return;
+        }
+        if let Listen::Gamepad(device) = &self.listen
+            && self.gamepads().any(|info| info.device == *device)
+        {
+            return;
+        }
+        let first = self.gamepads().next().map(|info| info.device.clone());
+        if let Some(device) = first {
+            self.set_listen(Listen::Gamepad(device));
+        }
+    }
+
+    fn set_listen(&mut self, listen: Listen) {
         if listen == self.listen {
             return;
         }
@@ -511,11 +534,10 @@ impl Input {
                 keep
             });
             let text = match self.listen.clone() {
-                Listen::AnyGamepad => "Listening to any gamepad".to_string(),
                 Listen::Gamepad(device) => {
                     let label = self.label_of(Some(&device));
                     if self.gamepad.device.as_ref() != Some(&device) {
-                        self.view_gamepad(Some(&device), label.clone());
+                        self.view_gamepad(Some(&device));
                         // Its current state, if GameInput still has a reading of it.
                         if let Ok(reading) = self
                             .game_input
@@ -571,7 +593,7 @@ impl Input {
 
             let (changes, state, motion_only) = match source {
                 Source::Gamepad => {
-                    self.handle_gamepad(time, reading, previous.as_ref(), device.as_ref(), &label)
+                    self.handle_gamepad(time, reading, previous.as_ref(), device.as_ref())
                 }
                 Source::Keyboard => self.handle_keyboard(time, reading, previous.as_ref(), &label),
                 _ => self.handle_mouse(time, reading, previous.as_ref(), device.as_ref(), &label),
@@ -633,7 +655,6 @@ impl Input {
         reading: &IGameInputReading,
         previous: Option<&IGameInputReading>,
         device: Option<&IGameInputDevice>,
-        label: &str,
     ) -> (Vec<String>, Vec<String>, bool) {
         unsafe {
             let mut state = GameInputGamepadState::default();
@@ -662,9 +683,10 @@ impl Input {
                 }
             }
 
-            // The panel follows whichever gamepad was used last, of those listened to.
+            // The panel shows the gamepad listened to. Its view is reset when
+            // it disconnects, so this sets it up again after it reconnects.
             if self.gamepad.device.as_ref() != device {
-                self.view_gamepad(device, label.to_string());
+                self.view_gamepad(device);
             }
             let view = &mut self.gamepad;
             view.state = state;
@@ -913,7 +935,7 @@ impl Input {
     fn toggle_rumble(&mut self) {
         self.rumble_enabled = !self.rumble_enabled;
         let text = if self.rumble_enabled {
-            "Rumble test on: each gamepad's sticks drive its motors"
+            "Rumble test on: the gamepad's sticks drive its motors"
         } else {
             "Rumble test off"
         };
@@ -929,9 +951,6 @@ impl Input {
     // standard rumble that Xbox 360, PlayStation 4 and 5 and most other
     // gamepads with rumble have. Xbox One and Series gamepads' trigger motors
     // stay off.
-    // Every gamepad drives its own motors, not just the one the panel shows.
-    // Otherwise another gamepad's readings would stop the one in use, and a
-    // DualSense sends readings about every millisecond from stick noise alone.
     unsafe fn update_rumble(&mut self) {
         for rumble in &mut self.rumbles {
             let [left, right] = rumble.sticks;
