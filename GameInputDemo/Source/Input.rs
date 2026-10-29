@@ -201,10 +201,11 @@ pub struct GamepadView {
     pub rate: RateCounter,
 }
 
-// A gamepad's latest trigger values, and the rumble last sent to it.
+// How far a gamepad's left and right sticks last were from their centers,
+// and the rumble last sent to it.
 struct Rumble {
     device: IGameInputDevice,
-    triggers: [f32; 2],
+    sticks: [f32; 2],
     sent: GameInputRumbleParams,
 }
 
@@ -636,16 +637,19 @@ impl Input {
             }
             self.gamepad.rate.add(time);
             if let Some(device) = device {
-                let triggers = [state.leftTrigger, state.rightTrigger];
+                let sticks = [
+                    deflection(state.leftThumbstickX, state.leftThumbstickY),
+                    deflection(state.rightThumbstickX, state.rightThumbstickY),
+                ];
                 match self
                     .rumbles
                     .iter_mut()
                     .find(|rumble| rumble.device == *device)
                 {
-                    Some(rumble) => rumble.triggers = triggers,
+                    Some(rumble) => rumble.sticks = sticks,
                     None => self.rumbles.push(Rumble {
                         device: device.clone(),
-                        triggers,
+                        sticks,
                         sent: GameInputRumbleParams::default(),
                     }),
                 }
@@ -902,24 +906,26 @@ impl Input {
     fn toggle_rumble(&mut self) {
         self.rumble_enabled = !self.rumble_enabled;
         let text = if self.rumble_enabled {
-            "Rumble test on: each gamepad's triggers drive its motors"
+            "Rumble test on: each gamepad's sticks drive its motors"
         } else {
             "Rumble test off"
         };
         self.log(self.now, Source::Demo, text.to_string(), None);
     }
 
-    // With the rumble test on, a gamepad's left trigger drives its
-    // low-frequency (left grip) motor and its right trigger the high-frequency
-    // (right grip) one. Only those two, the standard rumble that Xbox 360,
-    // PlayStation 4 and 5 and most other gamepads with rumble have. Xbox One
-    // and Series gamepads' trigger motors stay off.
+    // With the rumble test on, a gamepad's left stick drives its
+    // low-frequency (left grip) motor and its right stick the high-frequency
+    // (right grip) one. Each motor is off with its stick at the center, and
+    // its strength grows in proportion to how far the stick is pushed, up to
+    // full at the edge. Only those two motors, the standard rumble that Xbox
+    // 360, PlayStation 4 and 5 and most other gamepads with rumble have. Xbox
+    // One and Series gamepads' trigger motors stay off.
     // Every gamepad drives its own motors, not just the one the panel shows.
     // Otherwise another gamepad's readings would stop the one in use, and a
     // DualSense sends readings about every millisecond from stick noise alone.
     unsafe fn update_rumble(&mut self) {
         for rumble in &mut self.rumbles {
-            let [left, right] = rumble.triggers;
+            let [left, right] = rumble.sticks;
             let params = if self.rumble_enabled {
                 GameInputRumbleParams {
                     lowFrequency: left,
@@ -1019,6 +1025,12 @@ pub fn kind_names(kinds: GameInputKind) -> String {
     } else {
         names.join(", ")
     }
+}
+
+// How far a stick is from its center: 0 at rest, 1 at its edge. Toward the
+// corners, many sticks read a little past 1, so that's cut off at 1.
+fn deflection(x: f32, y: f32) -> f32 {
+    x.hypot(y).min(1.0)
 }
 
 fn pair(x: f32, y: f32) -> String {
