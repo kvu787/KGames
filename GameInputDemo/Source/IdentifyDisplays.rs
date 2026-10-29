@@ -1,6 +1,7 @@
 // Shows each display's identifier on that display, and writes the
-// identifiers to the console. Run GameInputDemo with --display and an
-// identifier to open it on that display.
+// identifiers to the console. Set "Display" in GameInputDemo's settings file
+// to an identifier, or run it with --display and the identifier, to open it
+// on that display.
 //
 // Each display gets a box in its middle, drawn with GDI. The boxes close when
 // one is clicked, or when Esc is pressed while one has focus.
@@ -263,8 +264,13 @@ fn print(displays: &[Display]) {
         );
         println!("{indent}{}", display.device_path);
     }
+    // Where GameInputDemo's Settings.rs keeps its settings.
+    let settings = std::env::var("LOCALAPPDATA").unwrap_or("%LOCALAPPDATA%".to_string())
+        + r"\GameInputDemo\Settings.json";
     println!();
-    println!("Run GameInputDemo with --display and an identifier to open it on that display.");
+    println!("To open GameInputDemo on a display, set \"Display\" in {settings} to the");
+    println!("display's identifier, or run GameInputDemo with --display and the identifier.");
+    println!();
     println!("Click an identifier on screen, or press Esc, to close them.");
 }
 

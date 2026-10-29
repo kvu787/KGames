@@ -78,7 +78,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub unsafe fn new(window: HWND, font: &Font) -> Result<Self> {
+    // Frames may tear if `allow_tearing` and the GPU's driver allow it.
+    pub unsafe fn new(window: HWND, font: &Font, allow_tearing: bool) -> Result<Self> {
         unsafe {
             // The debug layer needs the "Graphics Tools" optional Windows feature.
             let mut factory_flags = 0;
@@ -136,16 +137,17 @@ impl Renderer {
                 })?;
 
             // Tearing needs Windows 10 1809 or later, and a driver that allows it.
-            let mut allow_tearing = windows_core::BOOL(0);
-            let tearing = factory
-                .cast::<IDXGIFactory5>()?
-                .CheckFeatureSupport(
-                    DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                    (&raw mut allow_tearing).cast(),
-                    size_of::<windows_core::BOOL>() as u32,
-                )
-                .is_ok()
-                && allow_tearing.as_bool();
+            let mut supported = windows_core::BOOL(0);
+            let tearing = allow_tearing
+                && factory
+                    .cast::<IDXGIFactory5>()?
+                    .CheckFeatureSupport(
+                        DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                        (&raw mut supported).cast(),
+                        size_of::<windows_core::BOOL>() as u32,
+                    )
+                    .is_ok()
+                && supported.as_bool();
             let mut swap_chain_flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT as u32;
             if tearing {
                 swap_chain_flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING as u32;

@@ -34,10 +34,14 @@ mod font;
 mod frame_counter;
 #[path = "Input.rs"]
 mod input;
+#[path = "Json.rs"]
+mod json;
 #[path = "Panels.rs"]
 mod panels;
 #[path = "Renderer.rs"]
 mod renderer;
+#[path = "Settings.rs"]
+mod settings;
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
@@ -48,12 +52,11 @@ use font::Font;
 use frame_counter::FrameCounter;
 use input::Input;
 use renderer::{Renderer, check_handle};
+use settings::{Settings, WindowMode};
 use windows_core::{Error, PCWSTR, Result, w};
 
 // The em height of the font at 100% scaling, in pixels.
 const FONT_SIZE: u32 = 15;
-// The window's client area at 100% scaling, when it isn't fullscreen.
-const WINDOW_SIZE: [u32; 2] = [1280, 900];
 // The smallest window, at 100% scaling, that the panels fit in.
 const MINIMUM_WINDOW_SIZE: [u32; 2] = [1024, 820];
 
@@ -194,8 +197,8 @@ fn scale(size: u32, dpi: u32) -> i32 {
     (size * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32
 }
 
-// Where the window goes on a display when it isn't fullscreen: centered in
-// the display's work area, with a client area of `size` at 100% scaling,
+// Where the window goes on a display when it's Windowed: centered in the
+// display's work area, with a client area of `size` at 100% scaling,
 // but no smaller than the panels need, and no bigger than the work area.
 unsafe fn windowed_area(display: &Display, size: [u32; 2]) -> Result<RECT> {
     let [width, height] = size.map(|size| scale(size, display.dpi));
@@ -237,21 +240,20 @@ unsafe fn display_label(window: HWND, displays: &[Display]) -> String {
     }
 }
 
-// The identifier after --display, which IdentifyDisplays shows. Problems
-// with the command line go in `notices`.
-fn display_argument(notices: &mut Vec<String>) -> Option<String> {
-    let mut display = None;
+// The command line, which overrides the settings file. --display and an
+// identifier that IdentifyDisplays shows, or "Primary", picks the display.
+// Problems go in `notices`.
+fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) {
     let mut arguments = std::env::args().skip(1);
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
             "--display" => match arguments.next() {
-                Some(identifier) => display = Some(identifier),
+                Some(display) => settings.display = settings::parse_display(&display),
                 None => notices.push("--display needs a display identifier after it".to_string()),
             },
             _ => notices.push(format!("Unknown command-line argument: {argument}")),
         }
     }
-    display
 }
 
 fn main() -> Result<()> {
@@ -294,11 +296,13 @@ fn main() -> Result<()> {
             return Err(Error::from_thread());
         }
 
-        // Problems with the command line, which the header lists.
+        // Problems with the settings and the command line, which the header lists.
         let mut notices = Vec::new();
-        let requested = display_argument(&mut notices);
+        let mut settings = Settings::load(&mut notices);
+        apply_arguments(&mut settings, &mut notices);
         let mut displays = displays::enumerate()?;
-        let display = requested
+        let display = settings
+            .display
             .as_deref()
             .and_then(|identifier| {
                 let display = displays::find(&displays, identifier);
@@ -315,7 +319,7 @@ fn main() -> Result<()> {
 
         // The window stays hidden until it's in its place, and the renderer
         // is ready to draw into it.
-        let area = windowed_area(display, WINDOW_SIZE)?;
+        let area = windowed_area(display, settings.window_size)?;
         let window = CreateWindowExW(
             0,
             class_name,
@@ -331,6 +335,11 @@ fn main() -> Result<()> {
             None,
         );
         check_handle(window.0)?;
+        // Before the renderer, so its swap chain starts at the display's size.
+        let mut windowed = None;
+        if settings.window_mode == WindowMode::BorderlessFullscreen {
+            toggle_fullscreen(window, &mut windowed)?;
+        }
         DPI.store(GetDpiForWindow(window), Ordering::Relaxed);
         // Cosmetic, so a failure doesn't matter.
         let dark = windows_core::BOOL(1);
@@ -342,7 +351,7 @@ fn main() -> Result<()> {
         );
 
         let mut font = Font::new(scale(FONT_SIZE, DPI.load(Ordering::Relaxed)))?;
-        let mut renderer = Renderer::new(window, &font)?;
+        let mut renderer = Renderer::new(window, &font, settings.allow_tearing)?;
         // The title bar says how frames are presented, as it affects latency.
         let mut title = format!("GameInput Demo - {}", renderer.adapter_name);
         title += if renderer.adapter_drives_monitor {
@@ -352,18 +361,24 @@ fn main() -> Result<()> {
         };
         title += if renderer.tearing {
             ", tearing allowed"
-        } else {
+        } else if settings.allow_tearing {
             ", tearing not supported"
+        } else {
+            ", tearing off in the settings"
         };
         let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
         SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
-        let _ = ShowWindow(window, SW_SHOW);
+        let show = if settings.window_mode == WindowMode::Maximized {
+            SW_SHOWMAXIMIZED
+        } else {
+            SW_SHOW
+        };
+        let _ = ShowWindow(window, show);
         // Without GameInput the window still opens, and says why there's no input.
         let mut input =
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
-        let mut windowed = None;
         let mut display = display_label(window, &displays);
 
         let mut message = MSG::default();
