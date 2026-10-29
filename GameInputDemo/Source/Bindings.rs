@@ -203,6 +203,11 @@ pub unsafe fn GdiFlush() -> windows_core::BOOL {
     unsafe { GdiFlush() }
 }
 #[inline]
+pub unsafe fn GetCurrentProcess() -> HANDLE {
+    windows_core::link!("kernel32.dll" "system" fn GetCurrentProcess() -> HANDLE);
+    unsafe { GetCurrentProcess() }
+}
+#[inline]
 pub unsafe fn GetDpiForSystem() -> u32 {
     windows_core::link!("user32.dll" "system" fn GetDpiForSystem() -> u32);
     unsafe { GetDpiForSystem() }
@@ -387,6 +392,23 @@ pub unsafe fn SetBkColor(hdc: HDC, color: COLORREF) -> COLORREF {
 pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn SetProcessDpiAwarenessContext(value : DPI_AWARENESS_CONTEXT) -> windows_core::BOOL);
     unsafe { SetProcessDpiAwarenessContext(value) }
+}
+#[inline]
+pub unsafe fn SetProcessInformation(
+    hprocess: HANDLE,
+    processinformationclass: PROCESS_INFORMATION_CLASS,
+    processinformation: *const core::ffi::c_void,
+    processinformationsize: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn SetProcessInformation(hprocess : HANDLE, processinformationclass : PROCESS_INFORMATION_CLASS, processinformation : *const core::ffi::c_void, processinformationsize : u32) -> windows_core::BOOL);
+    unsafe {
+        SetProcessInformation(
+            hprocess,
+            processinformationclass,
+            processinformation,
+            processinformationsize,
+        )
+    }
 }
 #[inline]
 pub unsafe fn SetTextColor(hdc: HDC, color: COLORREF) -> COLORREF {
@@ -5394,6 +5416,17 @@ pub struct POINT {
     pub x: i32,
     pub y: i32,
 }
+pub type PROCESS_INFORMATION_CLASS = i32;
+pub const PROCESS_POWER_THROTTLING_CURRENT_VERSION: i32 = 1;
+pub const PROCESS_POWER_THROTTLING_EXECUTION_SPEED: i32 = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PROCESS_POWER_THROTTLING_STATE {
+    pub Version: u32,
+    pub ControlMask: u32,
+    pub StateMask: u32,
+}
+pub const ProcessPowerThrottling: PROCESS_INFORMATION_CLASS = 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RECT {
