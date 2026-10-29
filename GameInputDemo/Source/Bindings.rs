@@ -6082,6 +6082,7 @@ pub const SWP_NOSIZE: i32 = 1;
 pub const SWP_NOZORDER: i32 = 4;
 pub const SW_SHOW: i32 = 5;
 pub const SW_SHOWMAXIMIZED: i32 = 3;
+pub const SW_SHOWNA: i32 = 8;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TEXTMETRICW {
@@ -6175,6 +6176,7 @@ pub struct WPARAM(pub usize);
 pub const WS_CAPTION: i32 = 12582912;
 pub const WS_EX_TOOLWINDOW: i32 = 128;
 pub const WS_EX_TOPMOST: i32 = 8;
+pub const WS_MAXIMIZE: i32 = 16777216;
 pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
 pub const WS_POPUP: u32 = 2147483648;
 pub const WS_VISIBLE: i32 = 268435456;

@@ -140,7 +140,9 @@ extern "system" fn window_procedure(
 // to the screen, instead of the desktop compositor copying them into its own
 // frame, which saves up to a refresh of latency and lets frames tear.
 // `windowed` keeps the normal window's placement while in fullscreen.
-// A hidden window stays hidden, so it can start in fullscreen.
+// A hidden window stays hidden, so it can start in fullscreen. Entering
+// fullscreen doesn't activate the window: F11 only reaches the demo while its
+// window is active, and activating it before it's shown would take focus.
 unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>) -> Result<()> {
     unsafe {
         let visible = GetWindowLongPtrW(window, GWL_STYLE) & WS_VISIBLE as isize;
@@ -183,7 +185,7 @@ unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>
                 area.top,
                 area.right - area.left,
                 area.bottom - area.top,
-                (SWP_FRAMECHANGED | SWP_NOOWNERZORDER) as u32,
+                (SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_NOACTIVATE) as u32,
             )
             .ok()?;
             *windowed = Some(placement);
@@ -244,6 +246,9 @@ unsafe fn display_label(window: HWND, displays: &[Display]) -> String {
 struct Arguments {
     // Whether the display came from --display, which must be connected.
     display_required: bool,
+    // Whether the window takes focus when it opens. --no-activate opens it
+    // behind the window that has focus, so typing there stays there.
+    activate: bool,
 }
 
 // The command line, which overrides the settings file. --display and an
@@ -252,6 +257,7 @@ struct Arguments {
 fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) -> Arguments {
     let mut result = Arguments {
         display_required: false,
+        activate: true,
     };
     let mut arguments = std::env::args().skip(1);
     while let Some(argument) = arguments.next() {
@@ -263,6 +269,7 @@ fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) -> Argume
                 }
                 None => notices.push("--display needs a display identifier after it".to_string()),
             },
+            "--no-activate" => result.activate = false,
             _ => notices.push(format!("Unknown command-line argument: {argument}")),
         }
     }
@@ -340,13 +347,18 @@ fn main() -> Result<()> {
             .ok_or_else(|| Error::new(E_FAIL, "Windows reports no displays"))?;
 
         // The window stays hidden until it's in its place, and the renderer
-        // is ready to draw into it.
+        // is ready to draw into it. A Maximized window is maximized while
+        // it's hidden, so that showing it doesn't have to activate it.
         let area = windowed_area(display, settings.window_size)?;
+        let mut style = WS_OVERLAPPEDWINDOW as u32;
+        if settings.window_mode == WindowMode::Maximized {
+            style |= WS_MAXIMIZE as u32;
+        }
         let window = CreateWindowExW(
             0,
             class_name,
             w!("GameInput Demo"),
-            WS_OVERLAPPEDWINDOW as u32,
+            style,
             area.left,
             area.top,
             area.right - area.left,
@@ -390,7 +402,11 @@ fn main() -> Result<()> {
         };
         let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
         SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
-        let show = if settings.window_mode == WindowMode::Maximized {
+        // SW_SHOWNA shows the window as it is, maximized or not, without
+        // activating it. The others activate it.
+        let show = if !arguments.activate {
+            SW_SHOWNA
+        } else if settings.window_mode == WindowMode::Maximized {
             SW_SHOWMAXIMIZED
         } else {
             SW_SHOW
