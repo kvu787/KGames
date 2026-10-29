@@ -32,7 +32,7 @@ Shortcuts, which the demo also reads with GameInput:
 
 | Key   | Action                                                                        |
 | ----- | ----------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. The triggers then drive the active gamepad's motors    |
+| `F1`  | Rumble test on or off. Each gamepad's triggers then drive its own motors      |
 | `F2`  | Clear the event log                                                           |
 | `F11` | Borderless fullscreen on or off, for the lowest latency                       |
 

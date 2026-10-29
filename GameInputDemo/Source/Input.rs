@@ -201,6 +201,13 @@ pub struct GamepadView {
     pub rate: RateCounter,
 }
 
+// A gamepad's latest trigger values, and the rumble last sent to it.
+struct Rumble {
+    device: IGameInputDevice,
+    triggers: [f32; 2],
+    sent: GameInputRumbleParams,
+}
+
 #[derive(Default)]
 pub struct KeyboardView {
     pub label: String,
@@ -237,7 +244,8 @@ pub struct Input {
     pub log: VecDeque<LogEntry>,
     pub reading_count: u64,
     pub rumble_enabled: bool,
-    rumble_sent: GameInputRumbleParams,
+    // One for each gamepad that has sent a reading.
+    rumbles: Vec<Rumble>,
     // Set when the fullscreen shortcut is pressed. The main loop owns the
     // window, so it does the switch and clears this.
     pub fullscreen_toggled: bool,
@@ -271,7 +279,7 @@ impl Input {
                 log: VecDeque::new(),
                 reading_count: 0,
                 rumble_enabled: false,
-                rumble_sent: GameInputRumbleParams::default(),
+                rumbles: Vec::new(),
                 fullscreen_toggled: false,
                 shortcuts: Vec::new(),
             })
@@ -403,8 +411,8 @@ impl Input {
                     }
                     if self.gamepad.device.as_ref() == Some(device) {
                         self.gamepad = GamepadView::default();
-                        self.rumble_sent = GameInputRumbleParams::default();
                     }
+                    self.rumbles.retain(|rumble| rumble.device != *device);
                     format!("Disconnected: {label}")
                 }
                 GameInputDeviceEventKeyboardLayoutUpdated => {
@@ -526,12 +534,24 @@ impl Input {
                 previous.GetGamepadState(&mut old);
             }
             self.gamepad.rate.add(time);
+            if let Some(device) = device {
+                let triggers = [state.leftTrigger, state.rightTrigger];
+                match self
+                    .rumbles
+                    .iter_mut()
+                    .find(|rumble| rumble.device == *device)
+                {
+                    Some(rumble) => rumble.triggers = triggers,
+                    None => self.rumbles.push(Rumble {
+                        device: device.clone(),
+                        triggers,
+                        sent: GameInputRumbleParams::default(),
+                    }),
+                }
+            }
 
             // The panel follows whichever gamepad was used last.
             if self.gamepad.device.as_ref() != device {
-                if let Some(old_device) = &self.gamepad.device {
-                    old_device.SetRumbleState(None);
-                }
                 let info = self
                     .devices
                     .iter()
@@ -543,7 +563,6 @@ impl Input {
                     rumble_motors: info.map_or(0, |info| info.rumble_motors),
                     ..Default::default()
                 };
-                self.rumble_sent = GameInputRumbleParams::default();
             }
             let view = &mut self.gamepad;
             view.state = state;
@@ -792,34 +811,36 @@ impl Input {
     fn toggle_rumble(&mut self) {
         self.rumble_enabled = !self.rumble_enabled;
         let text = if self.rumble_enabled {
-            "Rumble test on: the triggers drive the gamepad's motors"
+            "Rumble test on: each gamepad's triggers drive its motors"
         } else {
             "Rumble test off"
         };
         self.log(self.now, Source::Demo, text.to_string(), None);
     }
 
-    // With the rumble test on, the left trigger drives the low-frequency
-    // (left grip) motor and the right trigger the high-frequency (right grip)
-    // one, and each trigger's own motor, where the gamepad has them.
+    // With the rumble test on, a gamepad's left trigger drives its
+    // low-frequency (left grip) motor and its right trigger the high-frequency
+    // (right grip) one, and each trigger's own motor, where it has them.
+    // Every gamepad drives its own motors, not just the one the panel shows.
+    // Otherwise another gamepad's readings would stop the one in use, and a
+    // DualSense sends readings about every millisecond from stick noise alone.
     unsafe fn update_rumble(&mut self) {
-        let Some(device) = &self.gamepad.device else {
-            return;
-        };
-        let state = &self.gamepad.state;
-        let params = if self.rumble_enabled {
-            GameInputRumbleParams {
-                lowFrequency: state.leftTrigger,
-                highFrequency: state.rightTrigger,
-                leftTrigger: state.leftTrigger,
-                rightTrigger: state.rightTrigger,
+        for rumble in &mut self.rumbles {
+            let [left, right] = rumble.triggers;
+            let params = if self.rumble_enabled {
+                GameInputRumbleParams {
+                    lowFrequency: left,
+                    highFrequency: right,
+                    leftTrigger: left,
+                    rightTrigger: right,
+                }
+            } else {
+                GameInputRumbleParams::default()
+            };
+            if params != rumble.sent {
+                unsafe { rumble.device.SetRumbleState(Some(&params)) };
+                rumble.sent = params;
             }
-        } else {
-            GameInputRumbleParams::default()
-        };
-        if params != self.rumble_sent {
-            unsafe { device.SetRumbleState(Some(&params)) };
-            self.rumble_sent = params;
         }
     }
 }
@@ -827,8 +848,8 @@ impl Input {
 impl Drop for Input {
     fn drop(&mut self) {
         unsafe {
-            if let Some(device) = &self.gamepad.device {
-                device.SetRumbleState(None);
+            for rumble in &self.rumbles {
+                rumble.device.SetRumbleState(None);
             }
             self.game_input.UnregisterCallback(self.callback_token);
         }
