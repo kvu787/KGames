@@ -44,12 +44,6 @@ All PowerShell scripts must:
 - Use `Set-StrictMode -Version Latest`
 - Use `$ErrorActionPreference = 'Stop'`
 
-## Dependencies
-
-You can add any dependencies that are scoped to the repo.
-You must not add any dependencies that have a scope that is broader than repo-scope.
-If you want to add and use any dependencies that have a scope that is broader than repo-scope, you must request this from the user.
-
 # Git
 
 When implementing stuff, avoid difficult-to-review "mega-commits".
