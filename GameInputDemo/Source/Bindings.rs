@@ -1712,6 +1712,8 @@ impl Default for DXGI_ADAPTER_DESC1 {
 pub type DXGI_ALPHA_MODE = i32;
 pub type DXGI_COLOR_SPACE_TYPE = i32;
 pub const DXGI_CREATE_FACTORY_DEBUG: i32 = 1;
+pub type DXGI_FEATURE = i32;
+pub const DXGI_FEATURE_PRESENT_ALLOW_TEARING: DXGI_FEATURE = 0;
 pub type DXGI_FORMAT = i32;
 pub const DXGI_FORMAT_420_OPAQUE: DXGI_FORMAT = 106;
 pub const DXGI_FORMAT_A4B4G4R4_UNORM: DXGI_FORMAT = 191;
@@ -1843,6 +1845,7 @@ pub const DXGI_GPU_PREFERENCE_UNSPECIFIED: DXGI_GPU_PREFERENCE = 0;
 pub type DXGI_MODE_SCALING = i32;
 pub type DXGI_MODE_SCANLINE_ORDER = i32;
 pub const DXGI_MWA_NO_ALT_ENTER: i32 = 2;
+pub const DXGI_PRESENT_ALLOW_TEARING: u32 = 512;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DXGI_RATIONAL {
@@ -1871,6 +1874,21 @@ pub struct DXGI_SWAP_CHAIN_DESC1 {
     pub AlphaMode: DXGI_ALPHA_MODE,
     pub Flags: u32,
 }
+pub type DXGI_SWAP_CHAIN_FLAG = i32;
+pub const DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH: DXGI_SWAP_CHAIN_FLAG = 2;
+pub const DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING: DXGI_SWAP_CHAIN_FLAG = 2048;
+pub const DXGI_SWAP_CHAIN_FLAG_DISPLAY_ONLY: DXGI_SWAP_CHAIN_FLAG = 32;
+pub const DXGI_SWAP_CHAIN_FLAG_FOREGROUND_LAYER: DXGI_SWAP_CHAIN_FLAG = 128;
+pub const DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT: DXGI_SWAP_CHAIN_FLAG = 64;
+pub const DXGI_SWAP_CHAIN_FLAG_FULLSCREEN_VIDEO: DXGI_SWAP_CHAIN_FLAG = 256;
+pub const DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE: DXGI_SWAP_CHAIN_FLAG = 4;
+pub const DXGI_SWAP_CHAIN_FLAG_HW_PROTECTED: DXGI_SWAP_CHAIN_FLAG = 1024;
+pub const DXGI_SWAP_CHAIN_FLAG_NONPREROTATED: DXGI_SWAP_CHAIN_FLAG = 1;
+pub const DXGI_SWAP_CHAIN_FLAG_RESTRICTED_CONTENT: DXGI_SWAP_CHAIN_FLAG = 8;
+pub const DXGI_SWAP_CHAIN_FLAG_RESTRICTED_TO_ALL_HOLOGRAPHIC_DISPLAYS: DXGI_SWAP_CHAIN_FLAG = 4096;
+pub const DXGI_SWAP_CHAIN_FLAG_RESTRICT_SHARED_RESOURCE_DRIVER: DXGI_SWAP_CHAIN_FLAG = 16;
+pub const DXGI_SWAP_CHAIN_FLAG_USE_DEFAULT_COLOR_SPACE: DXGI_SWAP_CHAIN_FLAG = 32768;
+pub const DXGI_SWAP_CHAIN_FLAG_YUV_VIDEO: DXGI_SWAP_CHAIN_FLAG = 512;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DXGI_SWAP_CHAIN_FULLSCREEN_DESC {
@@ -4853,10 +4871,32 @@ windows_core::imp::interface_hierarchy!(
     IDXGIFactory3,
     IDXGIFactory4
 );
+impl IDXGIFactory5 {
+    pub unsafe fn CheckFeatureSupport(
+        &self,
+        feature: DXGI_FEATURE,
+        pfeaturesupportdata: *mut core::ffi::c_void,
+        featuresupportdatasize: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).CheckFeatureSupport)(
+                windows_core::Interface::as_raw(self),
+                feature,
+                pfeaturesupportdata as _,
+                featuresupportdatasize,
+            )
+        }
+    }
+}
 #[repr(C)]
 pub struct IDXGIFactory5_Vtbl {
     pub base__: IDXGIFactory4_Vtbl,
-    CheckFeatureSupport: usize,
+    pub CheckFeatureSupport: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DXGI_FEATURE,
+        *mut core::ffi::c_void,
+        u32,
+    ) -> windows_core::HRESULT,
 }
 impl windows_core::RuntimeName for IDXGIFactory5 {}
 windows_core::imp::define_interface!(
@@ -5115,14 +5155,32 @@ windows_core::imp::interface_hierarchy!(
     IDXGISwapChain,
     IDXGISwapChain1
 );
+impl IDXGISwapChain2 {
+    pub unsafe fn SetMaximumFrameLatency(&self, maxlatency: u32) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetMaximumFrameLatency)(
+                windows_core::Interface::as_raw(self),
+                maxlatency,
+            )
+        }
+    }
+    pub unsafe fn GetFrameLatencyWaitableObject(&self) -> HANDLE {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetFrameLatencyWaitableObject)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+}
 #[repr(C)]
 pub struct IDXGISwapChain2_Vtbl {
     pub base__: IDXGISwapChain1_Vtbl,
     SetSourceSize: usize,
     GetSourceSize: usize,
-    SetMaximumFrameLatency: usize,
+    pub SetMaximumFrameLatency:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32) -> windows_core::HRESULT,
     GetMaximumFrameLatency: usize,
-    GetFrameLatencyWaitableObject: usize,
+    pub GetFrameLatencyWaitableObject: unsafe extern "system" fn(*mut core::ffi::c_void) -> HANDLE,
     SetMatrixTransform: usize,
     GetMatrixTransform: usize,
 }
@@ -5344,6 +5402,8 @@ pub struct VS_FIXEDFILEINFO {
     pub dwFileDateMS: u32,
     pub dwFileDateLS: u32,
 }
+pub const WAIT_OBJECT_0: i32 = 0;
+pub const WAIT_TIMEOUT: i32 = 258;
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_GETMINMAXINFO: i32 = 36;
