@@ -644,6 +644,11 @@ pub unsafe fn TextOutW(hdc: HDC, x: i32, y: i32, lpstring: &[u16]) -> windows_co
     }
 }
 #[inline]
+pub unsafe fn TrackMouseEvent(lpeventtrack: *mut TRACKMOUSEEVENT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn TrackMouseEvent(lpeventtrack : *mut TRACKMOUSEEVENT) -> windows_core::BOOL);
+    unsafe { TrackMouseEvent(lpeventtrack as _) }
+}
+#[inline]
 pub unsafe fn TranslateMessage(lpmsg: *const MSG) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn TranslateMessage(lpmsg : *const MSG) -> windows_core::BOOL);
     unsafe { TranslateMessage(lpmsg) }
@@ -6107,6 +6112,15 @@ pub struct TEXTMETRICW {
     pub tmPitchAndFamily: u8,
     pub tmCharSet: u8,
 }
+pub const TME_LEAVE: i32 = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TRACKMOUSEEVENT {
+    pub cbSize: u32,
+    pub dwFlags: u32,
+    pub hwndTrack: HWND,
+    pub dwHoverTime: u32,
+}
 pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
 pub const VK_ESCAPE: i32 = 27;
@@ -6145,6 +6159,8 @@ pub const WM_DPICHANGED: i32 = 736;
 pub const WM_GETMINMAXINFO: i32 = 36;
 pub const WM_KEYDOWN: i32 = 256;
 pub const WM_LBUTTONDOWN: i32 = 513;
+pub const WM_MOUSELEAVE: i32 = 675;
+pub const WM_MOUSEMOVE: i32 = 512;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;

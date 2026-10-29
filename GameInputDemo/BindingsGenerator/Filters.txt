@@ -111,6 +111,12 @@ WM_RBUTTONDOWN
 WS_EX_TOOLWINDOW
 WS_EX_TOPMOST
 
+// The gamepad select box, which takes the mouse from window messages
+TrackMouseEvent
+TME_LEAVE
+WM_MOUSELEAVE
+WM_MOUSEMOVE
+
 // Dark title bar, to match the dark panels
 DwmSetWindowAttribute
 DWMWA_USE_IMMERSIVE_DARK_MODE
