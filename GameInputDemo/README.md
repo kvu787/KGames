@@ -50,6 +50,12 @@ Shortcuts, which the demo also reads with GameInput:
 cargo run --release
 ```
 
+Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people
+who want to use the demo, not for coding agents, which use
+[`Scripts\RunInBackground.ps1`](#running-it-in-the-background). It runs `HumanRun.ps1`,
+which does the same as above with `--display Primary`, so the demo opens on the primary
+display whatever `Settings.json` says. Other arguments go to the demo.
+
 To open the demo on another display, find the display's identifier with `IdentifyDisplays`,
 then pass it with `--display`, or put it in the [settings file](#settings-file):
 
@@ -320,5 +326,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
+| `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it        |
+| `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
 | `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |
