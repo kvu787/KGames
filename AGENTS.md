@@ -35,7 +35,6 @@ All PowerShell scripts must:
 
 When implementing stuff, avoid difficult-to-review "mega-commits".
 When it makes sense, split work into multiple commits to make it easier to review.
-Separate commits that record conversations from other commits.
 
 # Markdown
 
