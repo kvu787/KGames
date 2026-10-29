@@ -1,4 +1,6 @@
-// The demo's settings, from %LOCALAPPDATA%\GameInputDemo\Settings.json:
+// The demo's settings, from Settings.json in the GameInputDemo folder, next to
+// Cargo.toml. The folder's path is built into the exe, so the exe finds the
+// file wherever it's run from. Git ignores the file.
 //
 //     {
 //         "Display": "Primary",
@@ -70,10 +72,7 @@ impl Settings {
     // none. Problems go in `notices`.
     pub fn load(notices: &mut Vec<String>) -> Self {
         let mut settings = Self::default();
-        let Some(path) = path() else {
-            notices.push("LOCALAPPDATA isn't set, so the demo uses its default settings".into());
-            return settings;
-        };
+        let path = path();
         let text = match std::fs::read_to_string(&path) {
             Ok(text) => text,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -162,13 +161,8 @@ pub fn parse_display(text: &str) -> Option<String> {
     (!text.eq_ignore_ascii_case("Primary")).then(|| text.to_string())
 }
 
-fn path() -> Option<PathBuf> {
-    let local = std::env::var_os("LOCALAPPDATA")?;
-    Some(
-        Path::new(&local)
-            .join("GameInputDemo")
-            .join("Settings.json"),
-    )
+fn path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("Settings.json")
 }
 
 fn write_defaults(path: &Path) -> std::io::Result<()> {
@@ -188,7 +182,6 @@ fn write_defaults(path: &Path) -> std::io::Result<()> {
         defaults.window_size[1],
         defaults.allow_tearing
     );
-    std::fs::create_dir_all(path.parent().unwrap())?;
     std::fs::write(path, text)
 }
 

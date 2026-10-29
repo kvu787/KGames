@@ -1,0 +1,7 @@
+{
+    "Display": "Primary",
+    "WindowMode": "Windowed",
+    "WindowWidth": 1280,
+    "WindowHeight": 900,
+    "AllowTearing": true
+}

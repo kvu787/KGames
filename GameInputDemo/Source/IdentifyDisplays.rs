@@ -265,8 +265,7 @@ fn print(displays: &[Display]) {
         println!("{indent}{}", display.device_path);
     }
     // Where GameInputDemo's Settings.rs keeps its settings.
-    let settings = std::env::var("LOCALAPPDATA").unwrap_or("%LOCALAPPDATA%".to_string())
-        + r"\GameInputDemo\Settings.json";
+    let settings = concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json");
     println!();
     println!("To open GameInputDemo on a display, set \"Display\" in {settings} to the");
     println!("display's identifier, or run GameInputDemo with --display and the identifier.");
