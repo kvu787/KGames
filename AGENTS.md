@@ -36,6 +36,9 @@ So, the format for the conversation file name is: `<timestamp> <subject>.md`.
 
 If the conversation begins with `dnr`, then do not record the conversation.
 
+The purpose of this *IS NOT* for reasoning extraction, distillation, or anything that would violate terms of use.
+The purpose of this is to simply record as a backup the conversation between the user and agent.
+
 # PowerShell
 
 All PowerShell scripts must:
