@@ -137,12 +137,12 @@ pub fn draw(
         DIM,
     );
     let status_y = margin + line_height;
-    // The frame rate goes on the right, under the focus text. It's at most
-    // the monitor's refresh rate, because Present waits for vertical sync.
+    // The frame rate goes on the right, under the focus text. It's far above
+    // the monitor's refresh rate, because frames don't wait for vertical sync.
     let (rate, frame_time) = match frames.per_second {
         Some(rate) => (
             format!("{rate:.0}"),
-            format!("  ({:.1} ms per frame)", 1000.0 / rate),
+            format!("  ({:.2} ms per frame)", 1000.0 / rate),
         ),
         None => ("measuring".to_string(), String::new()),
     };

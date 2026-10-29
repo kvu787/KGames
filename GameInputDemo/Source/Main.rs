@@ -178,7 +178,8 @@ fn main() -> Result<()> {
 
         let mut message = MSG::default();
         loop {
-            // Drain all pending messages, then render one frame.
+            // Drain all pending messages, then render one frame once the
+            // renderer is ready for it.
             while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE as u32).as_bool() {
                 if message.message == WM_QUIT as u32 {
                     return Ok(());
@@ -205,6 +206,18 @@ fn main() -> Result<()> {
                 continue;
             }
 
+            // Spin until the GPU and DXGI can take a frame. Blocking on an
+            // event would instead wait for Windows to wake the thread, which
+            // can take a while if its core went into a power-saving state.
+            // The wait is short, because frames don't wait for vertical sync,
+            // and the loop keeps handling window messages through it.
+            if !renderer.is_ready()? {
+                std::hint::spin_loop();
+                continue;
+            }
+
+            // Read input only now, right before drawing, so the frame shows
+            // the newest readings.
             frames.frame();
             if let Ok(input) = &mut input {
                 input.update();
