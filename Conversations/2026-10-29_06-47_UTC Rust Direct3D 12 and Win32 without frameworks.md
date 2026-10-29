@@ -455,3 +455,62 @@ windows-core = { version = "0.100", default-features = false, features = ["std"]
 A plain `windows-core = "0.100"` would also build. But it would turn on the crate's default features, including `proc-macros`, which brings back 6 build-time-only crates (`windows-implement`, `windows-interface`, `syn`, `quote`, `proc-macro2`, `unicode-ident`). We don't use those macros, so the extra lines turn the defaults off and turn `std` back on.
 
 One last detail: `"0.100"` and `"0.100.0"` are the same requirement. Both mean "at least 0.100.0, below 0.101.0". crates.io just prints the full version number.
+
+## User
+
+why isn't the app's cargo.toml like this:
+[dependencies]
+windows-link = "0.100"
+[build-dependencies]
+windows-bindgen = "0.100"
+
+as shown in https://github.com/microsoft/windows-rs/blob/master/crates/libs/bindgen/readme.md
+
+## AI
+
+There are two differences, and only the first one is forced.
+
+## 1. `windows-link` can't do Direct3D 12 (forced)
+
+The readme's example generates bindings with `.sys()`, which produces raw C-style declarations: plain functions, structs and constants. Their only runtime need is `windows-link`, which links function calls to system DLLs.
+
+Direct3D 12 and DXGI are COM APIs. Almost everything the sample does is a method call on a COM interface, like `device.CreateCommandQueue(...)` or `swap_chain.Present(...)`. In `.sys()` mode, bindgen doesn't generate those methods. When I tried it, `ID3D12Device` came out as nothing but its interface ID constant (`IID_ID3D12Device`). To call its methods, you'd have to write every COM vtable by hand.
+
+The default ("typed") mode does generate COM interfaces, with callable methods, reference counting and `Result` error handling. That code uses `windows-core`, so `windows-core` has to be the dependency. The readme's options table says the same thing: default output uses `windows-core`, and `.sys()` output uses `windows-link`. `windows-link` still ends up in the build, because `windows-core` depends on it.
+
+## 2. A separate generator instead of `[build-dependencies]` (my choice)
+
+This one is a judgment call, not a requirement. The readme's setup is a fine way to do it. For published libraries, though, the readme itself recommends the approach I took: "generate and commit bindings from a separate tool".
+
+I measured both sides on this machine:
+
+| Step                                     | Time  |
+| ---------------------------------------- | ----- |
+| Clean release build of the game today    | 1.3 s |
+| Compiling the generator and its 5 crates | 3.3 s |
+| Running the generator                    | 1.3 s |
+
+With the readme's setup, a clean build pays for all three steps, so it takes up to about 6 s instead of 1.3 s. Incremental builds would mostly skip the generator either way. So the time difference is real, but small.
+
+What tipped it for me:
+
+- **You can read the bindings.** The generated signatures don't always match Microsoft's C documentation (casts, `HRESULT` returns, wrapper types), so it helps to open `Source/Bindings.rs` and see exactly what you're calling. With `build.rs`, the file is written to a hashed folder like `target/release/build/hello_direct3d12-<hash>/out/`, which is awkward to find.
+- **The game's build stays at 4 crates.** With `[build-dependencies]`, the game's `Cargo.lock` and every clean build also include `windows-bindgen`, `windows-metadata`, `windows-default`, `proc-macro2`, `quote` and `unicode-ident`.
+
+What the readme's setup does better:
+
+- **One package instead of two.** There's no `BindingsGenerator` folder.
+- **No generated 168 KB file in git.**
+- **The bindings can't go stale.** They're regenerated whenever `Filters.txt` changes, so you can't forget that step.
+
+If you prefer the readme's layout, I'd move the generator into `Build.rs`. The game would still depend on `windows-core` rather than `windows-link`:
+
+```toml
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+windows-bindgen = "0.100"
+```
