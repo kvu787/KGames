@@ -329,7 +329,7 @@ fn main() -> Result<()> {
                 renderer.width as f32,
                 renderer.height as f32,
             );
-            renderer.render(&canvas.vertices, panels::BACKGROUND)?;
+            renderer.render(canvas.vertices, panels::BACKGROUND)?;
         }
     }
 }
