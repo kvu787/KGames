@@ -105,7 +105,9 @@ response, is outside the demo.
    default, DXGI lets 3 presented frames queue up, and each one delays the newest.
 2. **Input is read last.** Each frame, the main loop first waits until the GPU has finished
    the previous frame and DXGI's queue has room. Only then does it read GameInput, build
-   the frame and present it, so no readings age during the wait.
+   the frame and present it, so no readings age during the wait. The GPU finishes about
+   45 µs before DXGI's queue has room, and the demo records the commands that don't depend
+   on input in between.
 3. **The wait spins.** The loop polls both conditions instead of blocking on events, so it
    notices them within microseconds, instead of waiting for Windows to wake its thread.
    It keeps handling window messages while it spins.
@@ -124,8 +126,9 @@ response, is outside the demo.
    keep Windows from flipping frames straight to the screen. So the demo draws with the GPU
    that has the window's monitor as an output, which any GPU is fast enough for.
 7. **Little work between reading input and presenting.** On the development machine, an
-   RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a frame takes about 0.2 ms: about 30 µs
-   to build its geometry, 20 µs to record its commands, and 50 to 90 µs in `Present`.
+   RTX 5090 Laptop GPU and a Core Ultra 9 275HX, that takes about 0.13 ms: about 35 µs to
+   read input and build the frame's geometry, 20 µs to copy its vertices and submit its
+   commands, and 70 µs in `Present`. A whole frame takes about 0.2 ms.
    One vertex Vec is reused for every frame. A new one, being large, came fresh from the
    OS each frame, and filling it took a page fault every 4 KB, which made building the
    frame 4 times slower.
@@ -143,6 +146,10 @@ What it doesn't do:
 - **Cap the frame rate.** Drawing one frame per refresh, timed to finish just before
   vertical sync, would save power, but the input it shows would be older, and a frame
   that finishes late waits a whole refresh.
+- **Change how GameInput's helper is scheduled.** Keyboards and mice reach GameInput
+  through its `GameInputRawInputProxy.exe`. On the development machine, a key injected
+  with `SendInput` took about 0.2 ms to reach the demo. Opting the helper out of power
+  throttling too made no difference, and forcing it into efficiency mode added about 0.1 ms.
 
 The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of
 frames a second, even when nothing changes. Minimizing the window stops both.
