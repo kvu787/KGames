@@ -11,7 +11,8 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
 
 - **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
 - **Header**: the GameInput runtime the demo loaded, how many readings it has handled,
-  whether the window has focus, and the frame rate with the time per frame.
+  whether the window has focus, and the frame rate with the time per frame. Under it,
+  anything wrong with the [settings file](#settings-file) or the command line.
 - **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
   XInput's recommended dead zone. A filled bar for each trigger. A chip for every
   button that lights up while it's held. The panel follows whichever gamepad was used last.
@@ -24,6 +25,8 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
 - **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback.
 - **Event log**: everything above as it happens, newest first.
   A run of analog motion from one device shares a line, with a count.
+- **Footer**: the shortcuts, and the [identifier](#display-identifiers) and model of the
+  display the window is on.
 
 Shortcuts, which the demo also reads with GameInput:
 
@@ -45,6 +48,78 @@ Shortcuts, which the demo also reads with GameInput:
 ```powershell
 cargo run --release
 ```
+
+To open the demo on another display, find the display's identifier with `IdentifyDisplays`,
+then pass it with `--display`, or put it in the [settings file](#settings-file):
+
+```powershell
+cargo run --release --bin IdentifyDisplays
+cargo run --release -- --display KXGR16
+```
+
+## Displays and settings
+
+### Display identifiers
+
+`IdentifyDisplays` is a second program in this package. It puts a box in the middle of
+each display with the display's identifier, like `KXGR16`, its model and its mode. It writes
+the same to the console, with each monitor's device path. Click a box, or press `Esc`
+while one has focus, to close them.
+
+An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
+which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an
+FNV-1a hash of the monitor's device path, like
+`\\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8454#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
+Windows makes that path from the monitor's model, from its EDID, and from the GPU output
+it's plugged into. So an identifier:
+
+- Stays the same across restarts, and when the display's resolution, scale or position changes.
+- Differs between two monitors of the same model. On the development machine, three
+  ASUS PA278QGV monitors are `CVVNY2`, `9XH36C` and `KXGR16`.
+- Changes when the monitor is plugged into another output or GPU.
+
+The demo matches identifiers without regard to case. Monitors that clone each other show
+the same part of the desktop, so `IdentifyDisplays` puts all of their identifiers in one
+box, and any of them opens the demo there. Without a monitor device path, like over
+Remote Desktop, the identifier comes from the GDI device name, like `\\.\DISPLAY1`,
+which can change between restarts.
+
+### Settings file
+
+The demo reads `%LOCALAPPDATA%\GameInputDemo\Settings.json` when it starts. If the file
+doesn't exist, the demo writes it with the defaults:
+
+```json
+{
+    "Display": "Primary",
+    "WindowMode": "Windowed",
+    "WindowWidth": 1280,
+    "WindowHeight": 900,
+    "AllowTearing": true
+}
+```
+
+| Setting        | Value                                                                       |
+| -------------- | --------------------------------------------------------------------------- |
+| `Display`      | `"Primary"`, or the identifier of the display to open on                    |
+| `WindowMode`   | `"Windowed"`, `"Maximized"` or `"BorderlessFullscreen"`                     |
+| `WindowWidth`  | The width of a `Windowed` window's contents, at 100% scaling, in pixels     |
+| `WindowHeight` | The height of a `Windowed` window's contents, at 100% scaling, in pixels    |
+| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh       |
+
+- A `Windowed` window is centered in its display's work area. It's scaled with the
+  display's DPI, and kept within the work area and no smaller than the panels need.
+- If `Display` names a display that isn't connected, the demo opens on the primary display.
+- `F11` switches between borderless fullscreen and the window mode the demo opened in,
+  or `Windowed` if it opened in fullscreen.
+- A setting that's missing keeps its default. So does one that's wrong, and the header
+  says what's wrong with it. If the file isn't valid JSON, the header says where, and the
+  demo uses the defaults. Values that are words, like `"Maximized"`, ignore case, but
+  setting names don't.
+- The demo never changes the file once it exists. Delete it to get the defaults back.
+
+`--display` and an identifier on the command line overrides `Display`. `--display Primary`
+opens on the primary display.
 
 ## How it gets GameInput
 
@@ -116,11 +191,15 @@ response, is outside the demo.
    screen takes a frame, the newest one read its input a fraction of a millisecond earlier.
    When Windows flips the demo's frames straight to the screen, a frame can replace the
    one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
-   compositor shows the newest frame at its next refresh.
-5. **Borderless fullscreen.** `F11` makes the window cover its monitor, which lets Windows
-   flip the frames straight to the screen, instead of the compositor copying them into its
-   own frame. That saves up to a refresh, and lets frames tear. In a window, Windows can
-   only do that if the GPU supports multiplane overlays.
+   compositor shows the newest frame at its next refresh. With `"AllowTearing": false` in
+   the [settings](#settings-file), the demo presents with `Present(0, 0)`: frames still
+   don't wait, but the screen takes the newest one at each refresh, so none tear, even
+   in fullscreen.
+5. **Borderless fullscreen.** `F11`, or `"WindowMode": "BorderlessFullscreen"` in the
+   settings, makes the window cover its monitor, which lets Windows flip the frames
+   straight to the screen, instead of the compositor copying them into its own frame.
+   That saves up to a refresh, and lets frames tear. In a window, Windows can only do
+   that if the GPU supports multiplane overlays.
 6. **The monitor's GPU draws.** On a laptop whose screen is wired to the integrated GPU,
    drawing with the discrete one would add a copy between the GPUs to every frame, and
    keep Windows from flipping frames straight to the screen. So the demo draws with the GPU
@@ -191,7 +270,11 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | Window, message loop, frame pacing, fullscreen and DPI changes                   |
+| `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen and DPI changes |
+| `Source/Settings.rs`               | Reads the settings file, and writes it with the defaults if it doesn't exist     |
+| `Source/Json.rs`                   | Parses JSON, for the settings file                                               |
+| `Source/Displays.rs`               | Finds the displays and makes their identifiers, for both programs                |
+| `Source/IdentifyDisplays.rs`       | The `IdentifyDisplays` program, which shows each display's identifier on it      |
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/GameInput.rs`              | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
