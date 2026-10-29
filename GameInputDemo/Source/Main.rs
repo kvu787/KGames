@@ -26,6 +26,8 @@ mod game_input;
 mod canvas;
 #[path = "Font.rs"]
 mod font;
+#[path = "FrameCounter.rs"]
+mod frame_counter;
 #[path = "Input.rs"]
 mod input;
 #[path = "Panels.rs"]
@@ -38,6 +40,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use bindings::*;
 use canvas::Canvas;
 use font::Font;
+use frame_counter::FrameCounter;
 use input::Input;
 use renderer::{Renderer, check_handle};
 use windows_core::{Error, PCWSTR, Result, w};
@@ -171,6 +174,7 @@ fn main() -> Result<()> {
         // Without GameInput the window still opens, and says why there's no input.
         let mut input =
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
+        let mut frames = FrameCounter::default();
 
         let mut message = MSG::default();
         loop {
@@ -197,9 +201,11 @@ fn main() -> Result<()> {
             if IsIconic(window).as_bool() {
                 // Minimized: sleep until something happens instead of spinning.
                 WaitMessage().ok()?;
+                frames.pause();
                 continue;
             }
 
+            frames.frame();
             if let Ok(input) = &mut input {
                 input.update();
             }
@@ -209,6 +215,7 @@ fn main() -> Result<()> {
                 &mut canvas,
                 &input,
                 focused,
+                &frames,
                 renderer.width as f32,
                 renderer.height as f32,
             );

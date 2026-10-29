@@ -4,6 +4,7 @@
 use std::collections::VecDeque;
 
 use crate::canvas::{Canvas, Color};
+use crate::frame_counter::FrameCounter;
 use crate::game_input::*;
 use crate::input::{GAMEPAD_BUTTONS, Input, MOUSE_BUTTONS, Source, describe_key};
 
@@ -119,6 +120,7 @@ pub fn draw(
     canvas: &mut Canvas,
     input: &Result<Input, String>,
     focused: bool,
+    frames: &FrameCounter,
     width: f32,
     height: f32,
 ) {
@@ -135,6 +137,21 @@ pub fn draw(
         DIM,
     );
     let status_y = margin + line_height;
+    // The frame rate goes on the right, under the focus text. It's at most
+    // the monitor's refresh rate, because Present waits for vertical sync.
+    let (rate, frame_time) = match frames.per_second {
+        Some(rate) => (
+            format!("{rate:.0}"),
+            format!("  ({:.1} ms per frame)", 1000.0 / rate),
+        ),
+        None => ("measuring".to_string(), String::new()),
+    };
+    let rate_x = width - margin - canvas.text_width(&format!("FPS: {rate}{frame_time}"));
+    x = canvas.text(rate_x, status_y, "FPS: ", DIM);
+    x = canvas.text(x, status_y, &rate, TEXT);
+    canvas.text(x, status_y, &frame_time, DIM);
+    // The status on the left is cut short to leave room for it.
+    let status_right = rate_x - char_width * 3.0;
     match input {
         Ok(input) => {
             let version = input.runtime.version.map(|part| part.to_string()).join(".");
@@ -151,16 +168,20 @@ pub fn draw(
                 .parent()
                 .map(|path| path.display().to_string())
                 .unwrap_or_default();
-            x = canvas.text_clipped(x, status_y, &format!(" in {location}"), width * 0.45, DIM);
-            x = canvas.text(x, status_y, "   Readings handled: ", DIM);
-            canvas.text(x, status_y, &input.reading_count.to_string(), TEXT);
+            let count = input.reading_count.to_string();
+            let count_label = "   Readings handled: ";
+            let count_width = canvas.text_width(count_label) + canvas.text_width(&count);
+            let location_width = (status_right - x - count_width).min(width * 0.45);
+            x = canvas.text_clipped(x, status_y, &format!(" in {location}"), location_width, DIM);
+            x = canvas.text(x, status_y, count_label, DIM);
+            canvas.text(x, status_y, &count, TEXT);
         }
         Err(message) => {
             canvas.text_clipped(
                 margin,
                 status_y,
                 &format!("GameInput isn't available: {message}"),
-                width - 2.0 * margin,
+                status_right - margin,
                 ERROR,
             );
         }

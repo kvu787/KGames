@@ -9,6 +9,8 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
 
 ## What it shows
 
+- **Header**: the GameInput runtime the demo loaded, how many readings it has handled,
+  whether the window has focus, and the frame rate with the time per frame.
 - **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
   XInput's recommended dead zone. A filled bar for each trigger. A chip for every
   button that lights up while it's held. The panel follows whichever gamepad was used last.
@@ -127,6 +129,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
 | `Source/Main.rs`                   | Window, message loop and DPI changes                                             |
+| `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/GameInput.rs`              | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out and draws the panels                                                    |
