@@ -92,8 +92,11 @@ The header of the demo's window says whether it has focus.
 ## Testing without a gamepad
 
 Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard" or
-"Unidentified mouse" with ID `0000:0000`. The first injected input after the demo starts
-can be lost while GameInput adds that device.
+"Unidentified mouse" with ID `0000:0000`. Injected input can be lost for about half a
+second after the demo starts, while GameInput adds that device.
+
+There's no such way to test the gamepad panel. The virtual gamepad that Windows'
+`InputInjector.InitializeGamepadInjection` creates doesn't reach GameInput, so it needs a real gamepad.
 
 ## Updating GameInput
 
