@@ -171,6 +171,20 @@ fn main() -> Result<()> {
 
         let mut font = Font::new(font_pixel_height(DPI.load(Ordering::Relaxed)))?;
         let mut renderer = Renderer::new(window, &font)?;
+        // The title bar says how frames are presented, as it affects latency.
+        let mut title = format!("GameInput Demo - {}", renderer.adapter_name);
+        title += if renderer.adapter_drives_monitor {
+            " (the monitor's GPU)"
+        } else {
+            " (no GPU reports the monitor)"
+        };
+        title += if renderer.tearing {
+            ", tearing allowed"
+        } else {
+            ", tearing not supported"
+        };
+        let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
+        SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
         // Without GameInput the window still opens, and says why there's no input.
         let mut input =
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));

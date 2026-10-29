@@ -60,8 +60,11 @@ pub struct Renderer {
     fence_event: HANDLE,
     // Marks when the last submitted commands are finished.
     last_fence_value: u64,
+    pub adapter_name: String,
+    // Whether the adapter is the one the window's monitor is connected to.
+    pub adapter_drives_monitor: bool,
     // Whether frames may tear, which lets them reach the screen mid-refresh.
-    tearing: bool,
+    pub tearing: bool,
     // ResizeBuffers must be given the flags the swap chain was created with.
     swap_chain_flags: u32,
     // Signaled when DXGI's queue of presented frames has room for another.
@@ -86,8 +89,39 @@ impl Renderer {
             }
 
             let factory: IDXGIFactory6 = CreateDXGIFactory2(factory_flags)?;
-            let adapter: IDXGIAdapter1 =
+            // Draw with the GPU that the window's monitor is connected to.
+            // Drawing with another, like the discrete GPU of a laptop whose
+            // screen is wired to the integrated one, adds a copy between GPUs
+            // to every frame, and keeps Windows from flipping frames straight
+            // to the screen. Any GPU is fast enough for this UI. If none
+            // reports the monitor, like over Remote Desktop, use the
+            // high-performance one. The choice isn't revisited if the window
+            // moves to a monitor on another GPU.
+            let monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST as u32);
+            let mut adapter: IDXGIAdapter1 =
                 factory.EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)?;
+            let mut adapter_drives_monitor = false;
+            for index in 0.. {
+                let Ok(candidate) = factory.EnumAdapterByGpuPreference::<IDXGIAdapter1>(
+                    index,
+                    DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+                ) else {
+                    break;
+                };
+                if drives_monitor(&candidate, monitor) {
+                    adapter = candidate;
+                    adapter_drives_monitor = true;
+                    break;
+                }
+            }
+            let mut adapter_description = DXGI_ADAPTER_DESC1::default();
+            adapter.GetDesc1(&mut adapter_description).ok()?;
+            let name = &adapter_description.Description;
+            let length = name
+                .iter()
+                .position(|&unit| unit == 0)
+                .unwrap_or(name.len());
+            let adapter_name = String::from_utf16_lossy(&name[..length]);
 
             let mut device: Option<ID3D12Device> = None;
             D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, &mut device)?;
@@ -206,6 +240,8 @@ impl Renderer {
                 fence,
                 fence_event,
                 last_fence_value: 0,
+                adapter_name,
+                adapter_drives_monitor,
                 tearing,
                 swap_chain_flags,
                 frame_latency_event,
@@ -500,6 +536,22 @@ impl Drop for Renderer {
             let _ = CloseHandle(self.frame_latency_event);
         }
     }
+}
+
+// Whether one of the adapter's outputs is this monitor.
+unsafe fn drives_monitor(adapter: &IDXGIAdapter1, monitor: HMONITOR) -> bool {
+    (0..)
+        .map_while(|index| {
+            let mut output = None;
+            unsafe { adapter.EnumOutputs(index, &mut output) }
+                .ok()
+                .ok()?;
+            output
+        })
+        .any(|output| {
+            let mut description = DXGI_OUTPUT_DESC::default();
+            unsafe { output.GetDesc(&mut description) }.is_ok() && description.Monitor == monitor
+        })
 }
 
 unsafe fn create_upload_buffer(device: &ID3D12Device, size: u64) -> Result<ID3D12Resource> {
