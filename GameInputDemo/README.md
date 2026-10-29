@@ -64,7 +64,7 @@ cargo run --release -- --display KXGR16
 `IdentifyDisplays` is a second program in this package. It puts a box in the middle of
 each display with the display's identifier, like `KXGR16`, its model and its mode. It writes
 the same to the console, with each monitor's device path. Click a box, or press `Esc`
-while one has focus, to close them.
+while one has focus, to close them. With `--list`, it only writes to the console.
 
 An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
 which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an
