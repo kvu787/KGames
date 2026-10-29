@@ -34,9 +34,15 @@ Shortcuts, which the demo also reads with GameInput:
 
 | Key   | Action                                                                        |
 | ----- | ----------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. Each gamepad's triggers then drive its own motors      |
+| `F1`  | Rumble test on or off. Each gamepad's triggers then drive its grip motors     |
 | `F2`  | Clear the event log                                                           |
 | `F11` | Borderless fullscreen on or off, for the lowest latency                       |
+
+The rumble test drives only the standard rumble: the low-frequency motor in the left grip
+and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most
+other gamepads with rumble have. The left trigger drives the first and the right trigger
+the second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad
+panel's "Motors" still lists every motor the gamepad has.
 
 ### Choosing gamepads
 

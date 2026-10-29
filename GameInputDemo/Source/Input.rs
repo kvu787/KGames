@@ -911,7 +911,9 @@ impl Input {
 
     // With the rumble test on, a gamepad's left trigger drives its
     // low-frequency (left grip) motor and its right trigger the high-frequency
-    // (right grip) one, and each trigger's own motor, where it has them.
+    // (right grip) one. Only those two, the standard rumble that Xbox 360,
+    // PlayStation 4 and 5 and most other gamepads with rumble have. Xbox One
+    // and Series gamepads' trigger motors stay off.
     // Every gamepad drives its own motors, not just the one the panel shows.
     // Otherwise another gamepad's readings would stop the one in use, and a
     // DualSense sends readings about every millisecond from stick noise alone.
@@ -922,8 +924,7 @@ impl Input {
                 GameInputRumbleParams {
                     lowFrequency: left,
                     highFrequency: right,
-                    leftTrigger: left,
-                    rightTrigger: right,
+                    ..Default::default()
                 }
             } else {
                 GameInputRumbleParams::default()
