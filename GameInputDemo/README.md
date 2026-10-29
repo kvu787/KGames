@@ -78,9 +78,11 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
    That callback runs on one of GameInput's threads, and also reports the devices that
    were already connected when the demo started.
 2. For each of gamepad, keyboard and mouse input, walks the history from the last reading
-   it handled with `GetNextReading`, so no reading is missed between frames. The very
-   first reading, from `GetCurrentReading`, isn't part of the history, so the walk starts
-   again from `GetCurrentReading` when GameInput says the last reading is too old.
+   it handled with `GetNextReading`, so no reading is missed between frames. GameInput
+   keeps readings for only a short time, so after a pause in input the last reading
+   handled has left the history, and `GetNextReading` fails with
+   `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from the newest
+   reading with `GetPreviousReading` to find the ones it hasn't handled.
 3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
    to work out what changed.
 

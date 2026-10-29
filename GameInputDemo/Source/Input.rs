@@ -309,40 +309,56 @@ impl Input {
     unsafe fn new_readings(&mut self, index: usize, kind: GameInputKind) -> Vec<IGameInputReading> {
         let mut readings = Vec::new();
         unsafe {
+            let Some(mut last) = self.last_readings[index].clone() else {
+                // The first time, start from the newest reading.
+                if let Ok(current) = self.game_input.GetCurrentReading(kind, None) {
+                    self.last_readings[index] = Some(current.clone());
+                    readings.push(current);
+                }
+                return readings;
+            };
             loop {
-                let next = match &self.last_readings[index] {
-                    // The first time, start from the newest reading.
-                    None => self.game_input.GetCurrentReading(kind, None),
-                    Some(last) => match self.game_input.GetNextReading(last, kind, None) {
-                        // Nothing newer yet.
-                        Err(error) if error.code() == GAMEINPUT_E_READING_NOT_FOUND => break,
-                        // The last reading fell out of GameInput's history, or never
-                        // was in it, which is true of the first one. Skip ahead to
-                        // the newest, if that's new.
-                        Err(error) if error.code() == GAMEINPUT_E_REFERENCE_READING_TOO_OLD => {
-                            match self.game_input.GetCurrentReading(kind, None) {
-                                Ok(current) if current.GetTimestamp() > last.GetTimestamp() => {
-                                    Ok(current)
-                                }
-                                _ => break,
-                            }
-                        }
-                        other => other,
-                    },
-                };
-                match next {
-                    Ok(reading) => {
-                        let first = self.last_readings[index].is_none();
-                        self.last_readings[index] = Some(reading.clone());
-                        readings.push(reading);
-                        if first {
-                            break;
-                        }
+                match self.game_input.GetNextReading(&last, kind, None) {
+                    Ok(next) => {
+                        readings.push(next.clone());
+                        last = next;
                     }
+                    // GameInput keeps readings for only a short time, so after
+                    // a pause in input the last reading handled is no longer in
+                    // its history. Find the ones after it from the newest end.
+                    Err(error) if error.code() == GAMEINPUT_E_REFERENCE_READING_TOO_OLD => {
+                        readings.extend(self.readings_after(last.GetTimestamp(), kind));
+                        break;
+                    }
+                    // GAMEINPUT_E_READING_NOT_FOUND: nothing newer yet.
                     Err(_) => break,
                 }
             }
+            if let Some(newest) = readings.last() {
+                self.last_readings[index] = Some(newest.clone());
+            }
         }
+        readings
+    }
+
+    // Readings of one kind newer than a timestamp, oldest first. Walks back
+    // from the newest reading with GetPreviousReading.
+    unsafe fn readings_after(&self, timestamp: u64, kind: GameInputKind) -> Vec<IGameInputReading> {
+        let mut readings = Vec::new();
+        unsafe {
+            let mut reading = self.game_input.GetCurrentReading(kind, None).ok();
+            while let Some(current) = reading {
+                if current.GetTimestamp() <= timestamp {
+                    break;
+                }
+                reading = self
+                    .game_input
+                    .GetPreviousReading(&current, kind, None)
+                    .ok();
+                readings.push(current);
+            }
+        }
+        readings.reverse();
         readings
     }
 
