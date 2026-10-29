@@ -3,9 +3,9 @@
 // font atlas texture, and alpha blending.
 //
 // It's set up so that input reaches the screen as soon as possible: a frame
-// is only started once the previous one has left the GPU and DXGI's queue, so
-// no finished frame waits behind another, and frames are presented without
-// waiting for vertical sync.
+// only reads input once the previous one has left the GPU and DXGI's queue,
+// so no finished frame waits behind another, and frames are presented
+// without waiting for vertical sync.
 
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
@@ -71,6 +71,8 @@ pub struct Renderer {
     frame_latency_event: HANDLE,
     // Whether frame_latency_event has been waited on since the last Present.
     queue_has_room: bool,
+    // The back buffer that is_ready started recording the next frame for.
+    recording: Option<usize>,
     pub width: u32,
     pub height: u32,
 }
@@ -246,6 +248,7 @@ impl Renderer {
                 swap_chain_flags,
                 frame_latency_event,
                 queue_has_room: false,
+                recording: None,
                 width: actual.Width,
                 height: actual.Height,
             };
@@ -294,12 +297,22 @@ impl Renderer {
         }
     }
 
+    // Drops the frame that is_ready started recording, if any, so that the
+    // command allocator can be reset and the back buffers released.
+    unsafe fn discard_frame(&mut self) -> Result<()> {
+        if self.recording.take().is_some() {
+            unsafe { self.command_list.Close() }.ok()?;
+        }
+        Ok(())
+    }
+
     pub unsafe fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         unsafe {
             if width == 0 || height == 0 || (width == self.width && height == self.height) {
                 return Ok(());
             }
             // All references to the old back buffers must be gone before ResizeBuffers.
+            self.discard_frame()?;
             self.wait_for_idle()?;
             self.back_buffers.clear();
             self.swap_chain
@@ -321,6 +334,7 @@ impl Renderer {
     pub unsafe fn set_font(&mut self, font: &Font) -> Result<()> {
         unsafe {
             // The GPU might still be drawing with the old atlas.
+            self.discard_frame()?;
             self.wait_for_idle()?;
 
             let description = D3D12_RESOURCE_DESC {
@@ -427,8 +441,18 @@ impl Renderer {
     // an older one: the GPU has finished the previous frame, and DXGI's queue
     // has room. It doesn't block, so the caller can keep reading the newest
     // input until it's true, then draw with it.
+    //
+    // The GPU usually finishes tens of microseconds before DXGI's queue has
+    // room. In between, this records the commands that don't depend on input,
+    // so they aren't left for render, between reading input and presenting.
     pub unsafe fn is_ready(&mut self) -> Result<bool> {
         unsafe {
+            if self.recording.is_none() {
+                if self.fence.GetCompletedValue() < self.last_fence_value {
+                    return Ok(false);
+                }
+                self.begin_frame()?;
+            }
             if !self.queue_has_room {
                 match WaitForSingleObject(self.frame_latency_event, 0) as i32 {
                     WAIT_OBJECT_0 => self.queue_has_room = true,
@@ -436,22 +460,15 @@ impl Renderer {
                     _ => return Err(Error::from_thread()),
                 }
             }
-            Ok(self.queue_has_room && self.fence.GetCompletedValue() >= self.last_fence_value)
+            Ok(self.queue_has_room)
         }
     }
 
-    // Draws and presents a frame. Call it once is_ready is true.
-    pub unsafe fn render(&mut self, vertices: &[Vertex], clear_color: [f32; 4]) -> Result<()> {
+    // Records the start of a frame, up to where it needs the frame's
+    // vertices. The GPU must have finished with the command allocator.
+    unsafe fn begin_frame(&mut self) -> Result<()> {
         unsafe {
             let index = self.swap_chain.GetCurrentBackBufferIndex() as usize;
-
-            // The GPU might still be using the allocator and vertex buffer.
-            self.wait_for_fence(self.last_fence_value)?;
-
-            let vertex_count = vertices.len().min(MAX_VERTICES);
-            let vertex_buffer = &self.vertex_buffer;
-            std::ptr::copy_nonoverlapping(vertices.as_ptr(), vertex_buffer.mapped, vertex_count);
-
             let list = &self.command_list;
             self.allocator.Reset().ok()?;
             list.Reset(&self.allocator, &self.pipeline).ok()?;
@@ -477,19 +494,39 @@ impl Renderer {
                 bottom: self.height as i32,
             }]);
 
-            let back_buffer = &self.back_buffers[index];
             list.ResourceBarrier(&[transition(
-                back_buffer,
+                &self.back_buffers[index],
                 D3D12_RESOURCE_STATE_PRESENT,
                 D3D12_RESOURCE_STATE_RENDER_TARGET,
             )]);
 
             let rtv = self.rtv_handle(index);
             list.OMSetRenderTargets(1, Some(&raw const rtv), false, None);
-            list.ClearRenderTargetView(rtv, &clear_color, &[]);
             list.IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY(
                 D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
             ));
+            self.recording = Some(index);
+            Ok(())
+        }
+    }
+
+    // Finishes the frame that is_ready started, and presents it. Call it once
+    // is_ready is true.
+    pub unsafe fn render(&mut self, vertices: &[Vertex], clear_color: [f32; 4]) -> Result<()> {
+        unsafe {
+            let index = self
+                .recording
+                .take()
+                .expect("render is called once is_ready is true");
+
+            // The GPU has finished the previous frame, so it's done reading
+            // the vertex buffer.
+            let vertex_count = vertices.len().min(MAX_VERTICES);
+            let vertex_buffer = &self.vertex_buffer;
+            std::ptr::copy_nonoverlapping(vertices.as_ptr(), vertex_buffer.mapped, vertex_count);
+
+            let list = &self.command_list;
+            list.ClearRenderTargetView(self.rtv_handle(index), &clear_color, &[]);
             list.IASetVertexBuffers(
                 0,
                 Some(&[D3D12_VERTEX_BUFFER_VIEW {
@@ -501,7 +538,7 @@ impl Renderer {
             list.DrawInstanced(vertex_count as u32, 1, 0, 0);
 
             list.ResourceBarrier(&[transition(
-                back_buffer,
+                &self.back_buffers[index],
                 D3D12_RESOURCE_STATE_RENDER_TARGET,
                 D3D12_RESOURCE_STATE_PRESENT,
             )]);
