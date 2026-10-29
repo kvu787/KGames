@@ -1,0 +1,5366 @@
+#[inline]
+pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn CloseHandle(hobject : HANDLE) -> windows_core::BOOL);
+    unsafe { CloseHandle(hobject) }
+}
+#[inline]
+pub unsafe fn CreateCompatibleDC(hdc: Option<HDC>) -> HDC {
+    windows_core::link!("gdi32.dll" "system" fn CreateCompatibleDC(hdc : HDC) -> HDC);
+    unsafe { CreateCompatibleDC(hdc.unwrap_or(core::mem::zeroed()) as _) }
+}
+#[inline]
+pub unsafe fn CreateDIBSection(
+    hdc: Option<HDC>,
+    pbmi: *const BITMAPINFO,
+    usage: u32,
+    ppvbits: *mut *mut core::ffi::c_void,
+    hsection: Option<HANDLE>,
+    offset: u32,
+) -> HBITMAP {
+    windows_core::link!("gdi32.dll" "system" fn CreateDIBSection(hdc : HDC, pbmi : *const BITMAPINFO, usage : u32, ppvbits : *mut *mut core::ffi::c_void, hsection : HANDLE, offset : u32) -> HBITMAP);
+    unsafe {
+        CreateDIBSection(
+            hdc.unwrap_or(core::mem::zeroed()) as _,
+            pbmi,
+            usage,
+            ppvbits as _,
+            hsection.unwrap_or(core::mem::zeroed()) as _,
+            offset,
+        )
+    }
+}
+#[inline]
+pub unsafe fn CreateDXGIFactory2<T>(flags: u32) -> windows_core::Result<T>
+where
+    T: windows_core::Interface,
+{
+    windows_core::link!("dxgi.dll" "system" fn CreateDXGIFactory2(flags : u32, riid : *const windows_core::GUID, ppfactory : *mut *mut core::ffi::c_void) -> windows_core::HRESULT);
+    let mut result__ = core::ptr::null_mut();
+    unsafe {
+        CreateDXGIFactory2(flags, &T::IID, &mut result__)
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+    }
+}
+#[inline]
+pub unsafe fn CreateEventW<P3>(
+    lpeventattributes: Option<*const SECURITY_ATTRIBUTES>,
+    bmanualreset: bool,
+    binitialstate: bool,
+    lpname: P3,
+) -> HANDLE
+where
+    P3: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn CreateEventW(lpeventattributes : *const SECURITY_ATTRIBUTES, bmanualreset : windows_core::BOOL, binitialstate : windows_core::BOOL, lpname : windows_core::PCWSTR) -> HANDLE);
+    unsafe {
+        CreateEventW(
+            lpeventattributes.unwrap_or(core::mem::zeroed()) as _,
+            bmanualreset.into(),
+            binitialstate.into(),
+            lpname.param().abi(),
+        )
+    }
+}
+#[inline]
+pub unsafe fn CreateFontW<P13>(
+    cheight: i32,
+    cwidth: i32,
+    cescapement: i32,
+    corientation: i32,
+    cweight: i32,
+    bitalic: u32,
+    bunderline: u32,
+    bstrikeout: u32,
+    icharset: u32,
+    ioutprecision: u32,
+    iclipprecision: u32,
+    iquality: u32,
+    ipitchandfamily: u32,
+    pszfacename: P13,
+) -> HFONT
+where
+    P13: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("gdi32.dll" "system" fn CreateFontW(cheight : i32, cwidth : i32, cescapement : i32, corientation : i32, cweight : i32, bitalic : u32, bunderline : u32, bstrikeout : u32, icharset : u32, ioutprecision : u32, iclipprecision : u32, iquality : u32, ipitchandfamily : u32, pszfacename : windows_core::PCWSTR) -> HFONT);
+    unsafe {
+        CreateFontW(
+            cheight,
+            cwidth,
+            cescapement,
+            corientation,
+            cweight,
+            bitalic,
+            bunderline,
+            bstrikeout,
+            icharset,
+            ioutprecision,
+            iclipprecision,
+            iquality,
+            ipitchandfamily,
+            pszfacename.param().abi(),
+        )
+    }
+}
+#[inline]
+pub unsafe fn CreateWindowExW<P1, P2>(
+    dwexstyle: u32,
+    lpclassname: P1,
+    lpwindowname: P2,
+    dwstyle: u32,
+    x: i32,
+    y: i32,
+    nwidth: i32,
+    nheight: i32,
+    hwndparent: Option<HWND>,
+    hmenu: Option<HMENU>,
+    hinstance: Option<HINSTANCE>,
+    lpparam: Option<*const core::ffi::c_void>,
+) -> HWND
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+    P2: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("user32.dll" "system" fn CreateWindowExW(dwexstyle : u32, lpclassname : windows_core::PCWSTR, lpwindowname : windows_core::PCWSTR, dwstyle : u32, x : i32, y : i32, nwidth : i32, nheight : i32, hwndparent : HWND, hmenu : HMENU, hinstance : HINSTANCE, lpparam : *const core::ffi::c_void) -> HWND);
+    unsafe {
+        CreateWindowExW(
+            dwexstyle,
+            lpclassname.param().abi(),
+            lpwindowname.param().abi(),
+            dwstyle,
+            x,
+            y,
+            nwidth,
+            nheight,
+            hwndparent.unwrap_or(core::mem::zeroed()) as _,
+            hmenu.unwrap_or(core::mem::zeroed()) as _,
+            hinstance.unwrap_or(core::mem::zeroed()) as _,
+            lpparam.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn D3D12CreateDevice<P0, T>(
+    padapter: P0,
+    minimumfeaturelevel: D3D_FEATURE_LEVEL,
+    result__: *mut Option<T>,
+) -> windows_core::Result<()>
+where
+    P0: windows_core::Param<windows_core::IUnknown>,
+    T: windows_core::Interface,
+{
+    windows_core::link!("d3d12.dll" "system" fn D3D12CreateDevice(padapter : *mut core::ffi::c_void, minimumfeaturelevel : D3D_FEATURE_LEVEL, riid : *const windows_core::GUID, ppdevice : *mut *mut core::ffi::c_void) -> windows_core::HRESULT);
+    unsafe {
+        D3D12CreateDevice(
+            padapter.param().abi(),
+            minimumfeaturelevel,
+            &T::IID,
+            result__ as *mut _ as *mut _,
+        )
+        .ok()
+    }
+}
+#[inline]
+pub unsafe fn D3D12GetDebugInterface<T>(result__: *mut Option<T>) -> windows_core::Result<()>
+where
+    T: windows_core::Interface,
+{
+    windows_core::link!("d3d12.dll" "system" fn D3D12GetDebugInterface(riid : *const windows_core::GUID, ppvdebug : *mut *mut core::ffi::c_void) -> windows_core::HRESULT);
+    unsafe { D3D12GetDebugInterface(&T::IID, result__ as *mut _ as *mut _).ok() }
+}
+#[inline]
+pub unsafe fn DefWindowProcW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    windows_core::link!("user32.dll" "system" fn DefWindowProcW(hwnd : HWND, msg : u32, wparam : WPARAM, lparam : LPARAM) -> LRESULT);
+    unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+}
+#[inline]
+pub unsafe fn DeleteDC(hdc: HDC) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn DeleteDC(hdc : HDC) -> windows_core::BOOL);
+    unsafe { DeleteDC(hdc) }
+}
+#[inline]
+pub unsafe fn DeleteObject(ho: HGDIOBJ) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn DeleteObject(ho : HGDIOBJ) -> windows_core::BOOL);
+    unsafe { DeleteObject(ho) }
+}
+#[inline]
+pub unsafe fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT {
+    windows_core::link!("user32.dll" "system" fn DispatchMessageW(lpmsg : *const MSG) -> LRESULT);
+    unsafe { DispatchMessageW(lpmsg) }
+}
+#[inline]
+pub unsafe fn DwmSetWindowAttribute(
+    hwnd: HWND,
+    dwattribute: u32,
+    pvattribute: *const core::ffi::c_void,
+    cbattribute: u32,
+) -> windows_core::HRESULT {
+    windows_core::link!("dwmapi.dll" "system" fn DwmSetWindowAttribute(hwnd : HWND, dwattribute : u32, pvattribute : *const core::ffi::c_void, cbattribute : u32) -> windows_core::HRESULT);
+    unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
+}
+#[inline]
+pub unsafe fn GdiFlush() -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn GdiFlush() -> windows_core::BOOL);
+    unsafe { GdiFlush() }
+}
+#[inline]
+pub unsafe fn GetDpiForSystem() -> u32 {
+    windows_core::link!("user32.dll" "system" fn GetDpiForSystem() -> u32);
+    unsafe { GetDpiForSystem() }
+}
+#[inline]
+pub unsafe fn GetDpiForWindow(hwnd: HWND) -> u32 {
+    windows_core::link!("user32.dll" "system" fn GetDpiForWindow(hwnd : HWND) -> u32);
+    unsafe { GetDpiForWindow(hwnd) }
+}
+#[inline]
+pub unsafe fn GetFileVersionInfoSizeW<P0>(lptstrfilename: P0, lpdwhandle: Option<*mut u32>) -> u32
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("version.dll" "system" fn GetFileVersionInfoSizeW(lptstrfilename : windows_core::PCWSTR, lpdwhandle : *mut u32) -> u32);
+    unsafe {
+        GetFileVersionInfoSizeW(
+            lptstrfilename.param().abi(),
+            lpdwhandle.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn GetFileVersionInfoW<P0>(
+    lptstrfilename: P0,
+    dwhandle: Option<u32>,
+    dwlen: u32,
+    lpdata: *mut core::ffi::c_void,
+) -> windows_core::BOOL
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("version.dll" "system" fn GetFileVersionInfoW(lptstrfilename : windows_core::PCWSTR, dwhandle : u32, dwlen : u32, lpdata : *mut core::ffi::c_void) -> windows_core::BOOL);
+    unsafe {
+        GetFileVersionInfoW(
+            lptstrfilename.param().abi(),
+            dwhandle.unwrap_or(core::mem::zeroed()) as _,
+            dwlen,
+            lpdata as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn GetForegroundWindow() -> HWND {
+    windows_core::link!("user32.dll" "system" fn GetForegroundWindow() -> HWND);
+    unsafe { GetForegroundWindow() }
+}
+#[inline]
+pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsize: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn GetKeyNameTextW(lparam : i32, lpstring : windows_core::PWSTR, cchsize : i32) -> i32);
+    unsafe { GetKeyNameTextW(lparam, lpstring, cchsize) }
+}
+#[inline]
+pub unsafe fn GetModuleHandleW<P0>(lpmodulename: P0) -> HMODULE
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn GetModuleHandleW(lpmodulename : windows_core::PCWSTR) -> HMODULE);
+    unsafe { GetModuleHandleW(lpmodulename.param().abi()) }
+}
+#[inline]
+pub unsafe fn GetProcAddress<P1>(hmodule: HMODULE, lpprocname: P1) -> FARPROC
+where
+    P1: windows_core::Param<windows_core::PCSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn GetProcAddress(hmodule : HMODULE, lpprocname : windows_core::PCSTR) -> FARPROC);
+    unsafe { GetProcAddress(hmodule, lpprocname.param().abi()) }
+}
+#[inline]
+pub unsafe fn GetSystemDirectoryW(lpbuffer: Option<windows_core::PWSTR>, usize: u32) -> u32 {
+    windows_core::link!("kernel32.dll" "system" fn GetSystemDirectoryW(lpbuffer : windows_core::PWSTR, usize : u32) -> u32);
+    unsafe { GetSystemDirectoryW(lpbuffer.unwrap_or(core::mem::zeroed()) as _, usize) }
+}
+#[inline]
+pub unsafe fn GetSystemMetrics(nindex: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn GetSystemMetrics(nindex : i32) -> i32);
+    unsafe { GetSystemMetrics(nindex) }
+}
+#[inline]
+pub unsafe fn GetTextMetricsW(hdc: HDC, lptm: *mut TEXTMETRICW) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn GetTextMetricsW(hdc : HDC, lptm : *mut TEXTMETRICW) -> windows_core::BOOL);
+    unsafe { GetTextMetricsW(hdc, lptm as _) }
+}
+#[inline]
+pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { IsIconic(hwnd) }
+}
+#[inline]
+pub unsafe fn LoadCursorW<P1>(hinstance: Option<HINSTANCE>, lpcursorname: P1) -> HCURSOR
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("user32.dll" "system" fn LoadCursorW(hinstance : HINSTANCE, lpcursorname : windows_core::PCWSTR) -> HCURSOR);
+    unsafe {
+        LoadCursorW(
+            hinstance.unwrap_or(core::mem::zeroed()) as _,
+            lpcursorname.param().abi(),
+        )
+    }
+}
+#[inline]
+pub unsafe fn LoadLibraryW<P0>(lplibfilename: P0) -> HMODULE
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn LoadLibraryW(lplibfilename : windows_core::PCWSTR) -> HMODULE);
+    unsafe { LoadLibraryW(lplibfilename.param().abi()) }
+}
+#[inline]
+pub unsafe fn PeekMessageW(
+    lpmsg: *mut MSG,
+    hwnd: Option<HWND>,
+    wmsgfiltermin: u32,
+    wmsgfiltermax: u32,
+    wremovemsg: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn PeekMessageW(lpmsg : *mut MSG, hwnd : HWND, wmsgfiltermin : u32, wmsgfiltermax : u32, wremovemsg : u32) -> windows_core::BOOL);
+    unsafe {
+        PeekMessageW(
+            lpmsg as _,
+            hwnd.unwrap_or(core::mem::zeroed()) as _,
+            wmsgfiltermin,
+            wmsgfiltermax,
+            wremovemsg,
+        )
+    }
+}
+#[inline]
+pub unsafe fn PostQuitMessage(nexitcode: i32) {
+    windows_core::link!("user32.dll" "system" fn PostQuitMessage(nexitcode : i32));
+    unsafe { PostQuitMessage(nexitcode) }
+}
+#[inline]
+pub unsafe fn RegGetValueW<P1, P2>(
+    hkey: HKEY,
+    lpsubkey: P1,
+    lpvalue: P2,
+    dwflags: u32,
+    pdwtype: Option<*mut u32>,
+    pvdata: Option<*mut core::ffi::c_void>,
+    pcbdata: Option<*mut u32>,
+) -> LSTATUS
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+    P2: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("advapi32.dll" "system" fn RegGetValueW(hkey : HKEY, lpsubkey : windows_core::PCWSTR, lpvalue : windows_core::PCWSTR, dwflags : u32, pdwtype : *mut u32, pvdata : *mut core::ffi::c_void, pcbdata : *mut u32) -> LSTATUS);
+    unsafe {
+        RegGetValueW(
+            hkey,
+            lpsubkey.param().abi(),
+            lpvalue.param().abi(),
+            dwflags,
+            pdwtype.unwrap_or(core::mem::zeroed()) as _,
+            pvdata.unwrap_or(core::mem::zeroed()) as _,
+            pcbdata.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
+    windows_core::link!("user32.dll" "system" fn RegisterClassExW(param0 : *const WNDCLASSEXW) -> ATOM);
+    unsafe { RegisterClassExW(param0) }
+}
+#[inline]
+pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
+    windows_core::link!("gdi32.dll" "system" fn SelectObject(hdc : HDC, h : HGDIOBJ) -> HGDIOBJ);
+    unsafe { SelectObject(hdc, h) }
+}
+#[inline]
+pub unsafe fn SetBkColor(hdc: HDC, color: COLORREF) -> COLORREF {
+    windows_core::link!("gdi32.dll" "system" fn SetBkColor(hdc : HDC, color : COLORREF) -> COLORREF);
+    unsafe { SetBkColor(hdc, color) }
+}
+#[inline]
+pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn SetProcessDpiAwarenessContext(value : DPI_AWARENESS_CONTEXT) -> windows_core::BOOL);
+    unsafe { SetProcessDpiAwarenessContext(value) }
+}
+#[inline]
+pub unsafe fn SetTextColor(hdc: HDC, color: COLORREF) -> COLORREF {
+    windows_core::link!("gdi32.dll" "system" fn SetTextColor(hdc : HDC, color : COLORREF) -> COLORREF);
+    unsafe { SetTextColor(hdc, color) }
+}
+#[inline]
+pub unsafe fn SetWindowPos(
+    hwnd: HWND,
+    hwndinsertafter: Option<HWND>,
+    x: i32,
+    y: i32,
+    cx: i32,
+    cy: i32,
+    uflags: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn SetWindowPos(hwnd : HWND, hwndinsertafter : HWND, x : i32, y : i32, cx : i32, cy : i32, uflags : u32) -> windows_core::BOOL);
+    unsafe {
+        SetWindowPos(
+            hwnd,
+            hwndinsertafter.unwrap_or(core::mem::zeroed()) as _,
+            x,
+            y,
+            cx,
+            cy,
+            uflags,
+        )
+    }
+}
+#[inline]
+pub unsafe fn TextOutW(hdc: HDC, x: i32, y: i32, lpstring: &[u16]) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn TextOutW(hdc : HDC, x : i32, y : i32, lpstring : windows_core::PCWSTR, c : i32) -> windows_core::BOOL);
+    unsafe {
+        TextOutW(
+            hdc,
+            x,
+            y,
+            core::mem::transmute(lpstring.as_ptr()),
+            lpstring.len().try_into().unwrap(),
+        )
+    }
+}
+#[inline]
+pub unsafe fn TranslateMessage(lpmsg: *const MSG) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn TranslateMessage(lpmsg : *const MSG) -> windows_core::BOOL);
+    unsafe { TranslateMessage(lpmsg) }
+}
+#[inline]
+pub unsafe fn VerQueryValueW<P1>(
+    pblock: *const core::ffi::c_void,
+    lpsubblock: P1,
+    lplpbuffer: *mut *mut core::ffi::c_void,
+    pulen: *mut u32,
+) -> windows_core::BOOL
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("version.dll" "system" fn VerQueryValueW(pblock : *const core::ffi::c_void, lpsubblock : windows_core::PCWSTR, lplpbuffer : *mut *mut core::ffi::c_void, pulen : *mut u32) -> windows_core::BOOL);
+    unsafe {
+        VerQueryValueW(
+            pblock,
+            lpsubblock.param().abi(),
+            lplpbuffer as _,
+            pulen as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn WaitForSingleObject(hhandle: HANDLE, dwmilliseconds: u32) -> u32 {
+    windows_core::link!("kernel32.dll" "system" fn WaitForSingleObject(hhandle : HANDLE, dwmilliseconds : u32) -> u32);
+    unsafe { WaitForSingleObject(hhandle, dwmilliseconds) }
+}
+#[inline]
+pub unsafe fn WaitMessage() -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn WaitMessage() -> windows_core::BOOL);
+    unsafe { WaitMessage() }
+}
+pub const ANTIALIASED_QUALITY: i32 = 4;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct ATOM(pub u16);
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BITMAPINFO {
+    pub bmiHeader: BITMAPINFOHEADER,
+    pub bmiColors: [RGBQUAD; 1],
+}
+impl Default for BITMAPINFO {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BITMAPINFOHEADER {
+    pub biSize: u32,
+    pub biWidth: i32,
+    pub biHeight: i32,
+    pub biPlanes: u16,
+    pub biBitCount: u16,
+    pub biCompression: u32,
+    pub biSizeImage: u32,
+    pub biXPelsPerMeter: i32,
+    pub biYPelsPerMeter: i32,
+    pub biClrUsed: u32,
+    pub biClrImportant: u32,
+}
+pub const BI_RGB: i32 = 0;
+pub const CLIP_DEFAULT_PRECIS: i32 = 0;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct COLORREF(pub u32);
+pub const CS_HREDRAW: i32 = 2;
+pub const CS_VREDRAW: i32 = 1;
+pub const CW_USEDEFAULT: i32 = -2147483648;
+pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
+pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 10;
+pub const D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP: D3D_PRIMITIVE_TOPOLOGY = 3;
+pub const D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 11;
+pub const D3D10_PRIMITIVE_TOPOLOGY_POINTLIST: D3D_PRIMITIVE_TOPOLOGY = 1;
+pub const D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST: D3D_PRIMITIVE_TOPOLOGY = 4;
+pub const D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 12;
+pub const D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
+pub const D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
+pub const D3D10_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
+pub const D3D11_PRIMITIVE_TOPOLOGY_10_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 42;
+pub const D3D11_PRIMITIVE_TOPOLOGY_11_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 43;
+pub const D3D11_PRIMITIVE_TOPOLOGY_12_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 44;
+pub const D3D11_PRIMITIVE_TOPOLOGY_13_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 45;
+pub const D3D11_PRIMITIVE_TOPOLOGY_14_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 46;
+pub const D3D11_PRIMITIVE_TOPOLOGY_15_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 47;
+pub const D3D11_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 48;
+pub const D3D11_PRIMITIVE_TOPOLOGY_17_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 49;
+pub const D3D11_PRIMITIVE_TOPOLOGY_18_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 50;
+pub const D3D11_PRIMITIVE_TOPOLOGY_19_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 51;
+pub const D3D11_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 33;
+pub const D3D11_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 52;
+pub const D3D11_PRIMITIVE_TOPOLOGY_21_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 53;
+pub const D3D11_PRIMITIVE_TOPOLOGY_22_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 54;
+pub const D3D11_PRIMITIVE_TOPOLOGY_23_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 55;
+pub const D3D11_PRIMITIVE_TOPOLOGY_24_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 56;
+pub const D3D11_PRIMITIVE_TOPOLOGY_25_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 57;
+pub const D3D11_PRIMITIVE_TOPOLOGY_26_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 58;
+pub const D3D11_PRIMITIVE_TOPOLOGY_27_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 59;
+pub const D3D11_PRIMITIVE_TOPOLOGY_28_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 60;
+pub const D3D11_PRIMITIVE_TOPOLOGY_29_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 61;
+pub const D3D11_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 34;
+pub const D3D11_PRIMITIVE_TOPOLOGY_30_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 62;
+pub const D3D11_PRIMITIVE_TOPOLOGY_31_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 63;
+pub const D3D11_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 64;
+pub const D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 35;
+pub const D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 36;
+pub const D3D11_PRIMITIVE_TOPOLOGY_5_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 37;
+pub const D3D11_PRIMITIVE_TOPOLOGY_6_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 38;
+pub const D3D11_PRIMITIVE_TOPOLOGY_7_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 39;
+pub const D3D11_PRIMITIVE_TOPOLOGY_8_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 40;
+pub const D3D11_PRIMITIVE_TOPOLOGY_9_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 41;
+pub const D3D11_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
+pub const D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 10;
+pub const D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP: D3D_PRIMITIVE_TOPOLOGY = 3;
+pub const D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 11;
+pub const D3D11_PRIMITIVE_TOPOLOGY_POINTLIST: D3D_PRIMITIVE_TOPOLOGY = 1;
+pub const D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST: D3D_PRIMITIVE_TOPOLOGY = 4;
+pub const D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 12;
+pub const D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
+pub const D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
+pub const D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
+pub type D3D12_BLEND = i32;
+pub const D3D12_BLEND_ALPHA_FACTOR: D3D12_BLEND = 20;
+pub const D3D12_BLEND_BLEND_FACTOR: D3D12_BLEND = 14;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct D3D12_BLEND_DESC {
+    pub AlphaToCoverageEnable: windows_core::BOOL,
+    pub IndependentBlendEnable: windows_core::BOOL,
+    pub RenderTarget: [D3D12_RENDER_TARGET_BLEND_DESC; 8],
+}
+impl Default for D3D12_BLEND_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub const D3D12_BLEND_DEST_ALPHA: D3D12_BLEND = 7;
+pub const D3D12_BLEND_DEST_COLOR: D3D12_BLEND = 9;
+pub const D3D12_BLEND_INV_ALPHA_FACTOR: D3D12_BLEND = 21;
+pub const D3D12_BLEND_INV_BLEND_FACTOR: D3D12_BLEND = 15;
+pub const D3D12_BLEND_INV_DEST_ALPHA: D3D12_BLEND = 8;
+pub const D3D12_BLEND_INV_DEST_COLOR: D3D12_BLEND = 10;
+pub const D3D12_BLEND_INV_SRC1_ALPHA: D3D12_BLEND = 19;
+pub const D3D12_BLEND_INV_SRC1_COLOR: D3D12_BLEND = 17;
+pub const D3D12_BLEND_INV_SRC_ALPHA: D3D12_BLEND = 6;
+pub const D3D12_BLEND_INV_SRC_COLOR: D3D12_BLEND = 4;
+pub const D3D12_BLEND_ONE: D3D12_BLEND = 2;
+pub type D3D12_BLEND_OP = i32;
+pub const D3D12_BLEND_OP_ADD: D3D12_BLEND_OP = 1;
+pub const D3D12_BLEND_OP_MAX: D3D12_BLEND_OP = 5;
+pub const D3D12_BLEND_OP_MIN: D3D12_BLEND_OP = 4;
+pub const D3D12_BLEND_OP_REV_SUBTRACT: D3D12_BLEND_OP = 3;
+pub const D3D12_BLEND_OP_SUBTRACT: D3D12_BLEND_OP = 2;
+pub const D3D12_BLEND_SRC1_ALPHA: D3D12_BLEND = 18;
+pub const D3D12_BLEND_SRC1_COLOR: D3D12_BLEND = 16;
+pub const D3D12_BLEND_SRC_ALPHA: D3D12_BLEND = 5;
+pub const D3D12_BLEND_SRC_ALPHA_SAT: D3D12_BLEND = 11;
+pub const D3D12_BLEND_SRC_COLOR: D3D12_BLEND = 3;
+pub const D3D12_BLEND_ZERO: D3D12_BLEND = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_BOX {
+    pub left: u32,
+    pub top: u32,
+    pub front: u32,
+    pub right: u32,
+    pub bottom: u32,
+    pub back: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_BUFFER_RTV {
+    pub FirstElement: u64,
+    pub NumElements: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_BUFFER_SRV {
+    pub FirstElement: u64,
+    pub NumElements: u32,
+    pub StructureByteStride: u32,
+    pub Flags: D3D12_BUFFER_SRV_FLAGS,
+}
+pub type D3D12_BUFFER_SRV_FLAGS = u32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_BUFFER_UAV {
+    pub FirstElement: u64,
+    pub NumElements: u32,
+    pub StructureByteStride: u32,
+    pub CounterOffsetInBytes: u64,
+    pub Flags: D3D12_BUFFER_UAV_FLAGS,
+}
+pub type D3D12_BUFFER_UAV_FLAGS = u32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_CACHED_PIPELINE_STATE {
+    pub pCachedBlob: *const core::ffi::c_void,
+    pub CachedBlobSizeInBytes: usize,
+}
+pub type D3D12_CLEAR_FLAGS = u32;
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_CLEAR_VALUE {
+    pub Format: DXGI_FORMAT,
+    pub Anonymous: D3D12_CLEAR_VALUE_0,
+}
+impl Default for D3D12_CLEAR_VALUE {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_CLEAR_VALUE_0 {
+    pub Color: [f32; 4],
+    pub DepthStencil: D3D12_DEPTH_STENCIL_VALUE,
+}
+impl Default for D3D12_CLEAR_VALUE_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub type D3D12_COLOR_WRITE_ENABLE = i32;
+pub const D3D12_COLOR_WRITE_ENABLE_ALL: D3D12_COLOR_WRITE_ENABLE = 15;
+pub const D3D12_COLOR_WRITE_ENABLE_ALPHA: D3D12_COLOR_WRITE_ENABLE = 8;
+pub const D3D12_COLOR_WRITE_ENABLE_BLUE: D3D12_COLOR_WRITE_ENABLE = 4;
+pub const D3D12_COLOR_WRITE_ENABLE_GREEN: D3D12_COLOR_WRITE_ENABLE = 2;
+pub const D3D12_COLOR_WRITE_ENABLE_RED: D3D12_COLOR_WRITE_ENABLE = 1;
+pub type D3D12_COMMAND_LIST_TYPE = i32;
+pub const D3D12_COMMAND_LIST_TYPE_BUNDLE: D3D12_COMMAND_LIST_TYPE = 1;
+pub const D3D12_COMMAND_LIST_TYPE_COMPUTE: D3D12_COMMAND_LIST_TYPE = 2;
+pub const D3D12_COMMAND_LIST_TYPE_COPY: D3D12_COMMAND_LIST_TYPE = 3;
+pub const D3D12_COMMAND_LIST_TYPE_DIRECT: D3D12_COMMAND_LIST_TYPE = 0;
+pub const D3D12_COMMAND_LIST_TYPE_NONE: D3D12_COMMAND_LIST_TYPE = -1;
+pub const D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE: D3D12_COMMAND_LIST_TYPE = 4;
+pub const D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE: D3D12_COMMAND_LIST_TYPE = 6;
+pub const D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS: D3D12_COMMAND_LIST_TYPE = 5;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_COMMAND_QUEUE_DESC {
+    pub Type: D3D12_COMMAND_LIST_TYPE,
+    pub Priority: i32,
+    pub Flags: D3D12_COMMAND_QUEUE_FLAGS,
+    pub NodeMask: u32,
+}
+pub type D3D12_COMMAND_QUEUE_FLAGS = u32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_COMMAND_SIGNATURE_DESC {
+    pub ByteStride: u32,
+    pub NumArgumentDescs: u32,
+    pub pArgumentDescs: *const D3D12_INDIRECT_ARGUMENT_DESC,
+    pub NodeMask: u32,
+}
+pub type D3D12_COMPARISON_FUNC = i32;
+#[repr(C)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_COMPUTE_PIPELINE_STATE_DESC {
+    pub pRootSignature: core::mem::ManuallyDrop<Option<ID3D12RootSignature>>,
+    pub CS: D3D12_SHADER_BYTECODE,
+    pub NodeMask: u32,
+    pub CachedPSO: D3D12_CACHED_PIPELINE_STATE,
+    pub Flags: D3D12_PIPELINE_STATE_FLAGS,
+}
+pub type D3D12_CONSERVATIVE_RASTERIZATION_MODE = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_CONSTANT_BUFFER_VIEW_DESC {
+    pub BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    pub SizeInBytes: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_CPU_DESCRIPTOR_HANDLE {
+    pub ptr: usize,
+}
+pub type D3D12_CPU_PAGE_PROPERTY = i32;
+pub type D3D12_CULL_MODE = i32;
+pub const D3D12_CULL_MODE_BACK: D3D12_CULL_MODE = 3;
+pub const D3D12_CULL_MODE_FRONT: D3D12_CULL_MODE = 2;
+pub const D3D12_CULL_MODE_NONE: D3D12_CULL_MODE = 1;
+pub const D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING: i32 = 5768;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_DEPTH_STENCILOP_DESC {
+    pub StencilFailOp: D3D12_STENCIL_OP,
+    pub StencilDepthFailOp: D3D12_STENCIL_OP,
+    pub StencilPassOp: D3D12_STENCIL_OP,
+    pub StencilFunc: D3D12_COMPARISON_FUNC,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_DEPTH_STENCIL_DESC {
+    pub DepthEnable: windows_core::BOOL,
+    pub DepthWriteMask: D3D12_DEPTH_WRITE_MASK,
+    pub DepthFunc: D3D12_COMPARISON_FUNC,
+    pub StencilEnable: windows_core::BOOL,
+    pub StencilReadMask: u8,
+    pub StencilWriteMask: u8,
+    pub FrontFace: D3D12_DEPTH_STENCILOP_DESC,
+    pub BackFace: D3D12_DEPTH_STENCILOP_DESC,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_DEPTH_STENCIL_VALUE {
+    pub Depth: f32,
+    pub Stencil: u8,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_DEPTH_STENCIL_VIEW_DESC {
+    pub Format: DXGI_FORMAT,
+    pub ViewDimension: D3D12_DSV_DIMENSION,
+    pub Flags: D3D12_DSV_FLAGS,
+    pub Anonymous: D3D12_DEPTH_STENCIL_VIEW_DESC_0,
+}
+impl Default for D3D12_DEPTH_STENCIL_VIEW_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_DEPTH_STENCIL_VIEW_DESC_0 {
+    pub Texture1D: D3D12_TEX1D_DSV,
+    pub Texture1DArray: D3D12_TEX1D_ARRAY_DSV,
+    pub Texture2D: D3D12_TEX2D_DSV,
+    pub Texture2DArray: D3D12_TEX2D_ARRAY_DSV,
+    pub Texture2DMS: D3D12_TEX2DMS_DSV,
+    pub Texture2DMSArray: D3D12_TEX2DMS_ARRAY_DSV,
+}
+impl Default for D3D12_DEPTH_STENCIL_VIEW_DESC_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub type D3D12_DEPTH_WRITE_MASK = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_DESCRIPTOR_HEAP_DESC {
+    pub Type: D3D12_DESCRIPTOR_HEAP_TYPE,
+    pub NumDescriptors: u32,
+    pub Flags: D3D12_DESCRIPTOR_HEAP_FLAGS,
+    pub NodeMask: u32,
+}
+pub type D3D12_DESCRIPTOR_HEAP_FLAGS = u32;
+pub const D3D12_DESCRIPTOR_HEAP_FLAG_NONE: D3D12_DESCRIPTOR_HEAP_FLAGS = 0;
+pub const D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE: D3D12_DESCRIPTOR_HEAP_FLAGS = 1;
+pub type D3D12_DESCRIPTOR_HEAP_TYPE = i32;
+pub const D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: D3D12_DESCRIPTOR_HEAP_TYPE = 0;
+pub const D3D12_DESCRIPTOR_HEAP_TYPE_DSV: D3D12_DESCRIPTOR_HEAP_TYPE = 3;
+pub const D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES: D3D12_DESCRIPTOR_HEAP_TYPE = 4;
+pub const D3D12_DESCRIPTOR_HEAP_TYPE_RTV: D3D12_DESCRIPTOR_HEAP_TYPE = 2;
+pub const D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER: D3D12_DESCRIPTOR_HEAP_TYPE = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_DISCARD_REGION {
+    pub NumRects: u32,
+    pub pRects: *const D3D12_RECT,
+    pub FirstSubresource: u32,
+    pub NumSubresources: u32,
+}
+pub type D3D12_DSV_DIMENSION = i32;
+pub type D3D12_DSV_FLAGS = u32;
+pub type D3D12_FEATURE = i32;
+pub type D3D12_FENCE_FLAGS = u32;
+pub const D3D12_FENCE_FLAG_NONE: D3D12_FENCE_FLAGS = 0;
+pub const D3D12_FENCE_FLAG_NON_MONITORED: D3D12_FENCE_FLAGS = 4;
+pub const D3D12_FENCE_FLAG_SHARED: D3D12_FENCE_FLAGS = 1;
+pub const D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER: D3D12_FENCE_FLAGS = 2;
+pub type D3D12_FILL_MODE = i32;
+pub const D3D12_FILL_MODE_SOLID: D3D12_FILL_MODE = 3;
+pub const D3D12_FILL_MODE_WIREFRAME: D3D12_FILL_MODE = 2;
+pub type D3D12_FILTER = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_GPU_DESCRIPTOR_HANDLE {
+    pub ptr: u64,
+}
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct D3D12_GPU_VIRTUAL_ADDRESS(pub u64);
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct D3D12_GRAPHICS_PIPELINE_STATE_DESC {
+    pub pRootSignature: core::mem::ManuallyDrop<Option<ID3D12RootSignature>>,
+    pub VS: D3D12_SHADER_BYTECODE,
+    pub PS: D3D12_SHADER_BYTECODE,
+    pub DS: D3D12_SHADER_BYTECODE,
+    pub HS: D3D12_SHADER_BYTECODE,
+    pub GS: D3D12_SHADER_BYTECODE,
+    pub StreamOutput: D3D12_STREAM_OUTPUT_DESC,
+    pub BlendState: D3D12_BLEND_DESC,
+    pub SampleMask: u32,
+    pub RasterizerState: D3D12_RASTERIZER_DESC,
+    pub DepthStencilState: D3D12_DEPTH_STENCIL_DESC,
+    pub InputLayout: D3D12_INPUT_LAYOUT_DESC,
+    pub IBStripCutValue: D3D12_INDEX_BUFFER_STRIP_CUT_VALUE,
+    pub PrimitiveTopologyType: D3D12_PRIMITIVE_TOPOLOGY_TYPE,
+    pub NumRenderTargets: u32,
+    pub RTVFormats: [DXGI_FORMAT; 8],
+    pub DSVFormat: DXGI_FORMAT,
+    pub SampleDesc: DXGI_SAMPLE_DESC,
+    pub NodeMask: u32,
+    pub CachedPSO: D3D12_CACHED_PIPELINE_STATE,
+    pub Flags: D3D12_PIPELINE_STATE_FLAGS,
+}
+impl Default for D3D12_GRAPHICS_PIPELINE_STATE_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_HEAP_DESC {
+    pub SizeInBytes: u64,
+    pub Properties: D3D12_HEAP_PROPERTIES,
+    pub Alignment: u64,
+    pub Flags: D3D12_HEAP_FLAGS,
+}
+pub type D3D12_HEAP_FLAGS = u32;
+pub const D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES: D3D12_HEAP_FLAGS = 0;
+pub const D3D12_HEAP_FLAG_ALLOW_DISPLAY: D3D12_HEAP_FLAGS = 8;
+pub const D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS: D3D12_HEAP_FLAGS = 192;
+pub const D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES: D3D12_HEAP_FLAGS = 68;
+pub const D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES: D3D12_HEAP_FLAGS = 132;
+pub const D3D12_HEAP_FLAG_ALLOW_SHADER_ATOMICS: D3D12_HEAP_FLAGS = 1024;
+pub const D3D12_HEAP_FLAG_ALLOW_WRITE_WATCH: D3D12_HEAP_FLAGS = 512;
+pub const D3D12_HEAP_FLAG_CREATE_NOT_RESIDENT: D3D12_HEAP_FLAGS = 2048;
+pub const D3D12_HEAP_FLAG_CREATE_NOT_ZEROED: D3D12_HEAP_FLAGS = 4096;
+pub const D3D12_HEAP_FLAG_DENY_BUFFERS: D3D12_HEAP_FLAGS = 4;
+pub const D3D12_HEAP_FLAG_DENY_NON_RT_DS_TEXTURES: D3D12_HEAP_FLAGS = 128;
+pub const D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES: D3D12_HEAP_FLAGS = 64;
+pub const D3D12_HEAP_FLAG_HARDWARE_PROTECTED: D3D12_HEAP_FLAGS = 256;
+pub const D3D12_HEAP_FLAG_NONE: D3D12_HEAP_FLAGS = 0;
+pub const D3D12_HEAP_FLAG_SHARED: D3D12_HEAP_FLAGS = 1;
+pub const D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER: D3D12_HEAP_FLAGS = 32;
+pub const D3D12_HEAP_FLAG_TOOLS_USE_MANUAL_WRITE_TRACKING: D3D12_HEAP_FLAGS = 8192;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_HEAP_PROPERTIES {
+    pub Type: D3D12_HEAP_TYPE,
+    pub CPUPageProperty: D3D12_CPU_PAGE_PROPERTY,
+    pub MemoryPoolPreference: D3D12_MEMORY_POOL,
+    pub CreationNodeMask: u32,
+    pub VisibleNodeMask: u32,
+}
+pub type D3D12_HEAP_TYPE = i32;
+pub const D3D12_HEAP_TYPE_CUSTOM: D3D12_HEAP_TYPE = 4;
+pub const D3D12_HEAP_TYPE_DEFAULT: D3D12_HEAP_TYPE = 1;
+pub const D3D12_HEAP_TYPE_GPU_UPLOAD: D3D12_HEAP_TYPE = 5;
+pub const D3D12_HEAP_TYPE_READBACK: D3D12_HEAP_TYPE = 3;
+pub const D3D12_HEAP_TYPE_UPLOAD: D3D12_HEAP_TYPE = 2;
+pub type D3D12_INDEX_BUFFER_STRIP_CUT_VALUE = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDEX_BUFFER_VIEW {
+    pub BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    pub SizeInBytes: u32,
+    pub Format: DXGI_FORMAT,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC {
+    pub Type: D3D12_INDIRECT_ARGUMENT_TYPE,
+    pub Anonymous: D3D12_INDIRECT_ARGUMENT_DESC_0,
+}
+impl Default for D3D12_INDIRECT_ARGUMENT_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_INDIRECT_ARGUMENT_DESC_0 {
+    pub VertexBuffer: D3D12_INDIRECT_ARGUMENT_DESC_0_0,
+    pub Constant: D3D12_INDIRECT_ARGUMENT_DESC_0_1,
+    pub ConstantBufferView: D3D12_INDIRECT_ARGUMENT_DESC_0_2,
+    pub ShaderResourceView: D3D12_INDIRECT_ARGUMENT_DESC_0_3,
+    pub UnorderedAccessView: D3D12_INDIRECT_ARGUMENT_DESC_0_4,
+    pub IncrementingConstant: D3D12_INDIRECT_ARGUMENT_DESC_0_5,
+}
+impl Default for D3D12_INDIRECT_ARGUMENT_DESC_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_0 {
+    pub Slot: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_1 {
+    pub RootParameterIndex: u32,
+    pub DestOffsetIn32BitValues: u32,
+    pub Num32BitValuesToSet: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_2 {
+    pub RootParameterIndex: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_3 {
+    pub RootParameterIndex: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_4 {
+    pub RootParameterIndex: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INDIRECT_ARGUMENT_DESC_0_5 {
+    pub RootParameterIndex: u32,
+    pub DestOffsetIn32BitValues: u32,
+}
+pub type D3D12_INDIRECT_ARGUMENT_TYPE = i32;
+pub type D3D12_INPUT_CLASSIFICATION = i32;
+pub const D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA: D3D12_INPUT_CLASSIFICATION = 1;
+pub const D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA: D3D12_INPUT_CLASSIFICATION = 0;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INPUT_ELEMENT_DESC {
+    pub SemanticName: windows_core::PCSTR,
+    pub SemanticIndex: u32,
+    pub Format: DXGI_FORMAT,
+    pub InputSlot: u32,
+    pub AlignedByteOffset: u32,
+    pub InputSlotClass: D3D12_INPUT_CLASSIFICATION,
+    pub InstanceDataStepRate: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_INPUT_LAYOUT_DESC {
+    pub pInputElementDescs: *const D3D12_INPUT_ELEMENT_DESC,
+    pub NumElements: u32,
+}
+pub type D3D12_LOGIC_OP = i32;
+pub type D3D12_MEMORY_POOL = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_PACKED_MIP_INFO {
+    pub NumStandardMips: u8,
+    pub NumPackedMips: u8,
+    pub NumTilesForPackedMips: u32,
+    pub StartTileIndexInOverallResource: u32,
+}
+pub type D3D12_PIPELINE_STATE_FLAGS = u32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_PLACED_SUBRESOURCE_FOOTPRINT {
+    pub Offset: u64,
+    pub Footprint: D3D12_SUBRESOURCE_FOOTPRINT,
+}
+pub type D3D12_PREDICATION_OP = i32;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct D3D12_PRIMITIVE_TOPOLOGY(pub D3D_PRIMITIVE_TOPOLOGY);
+pub type D3D12_PRIMITIVE_TOPOLOGY_TYPE = i32;
+pub const D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE: D3D12_PRIMITIVE_TOPOLOGY_TYPE = 2;
+pub const D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH: D3D12_PRIMITIVE_TOPOLOGY_TYPE = 4;
+pub const D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT: D3D12_PRIMITIVE_TOPOLOGY_TYPE = 1;
+pub const D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE: D3D12_PRIMITIVE_TOPOLOGY_TYPE = 3;
+pub const D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED: D3D12_PRIMITIVE_TOPOLOGY_TYPE = 0;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_QUERY_HEAP_DESC {
+    pub Type: D3D12_QUERY_HEAP_TYPE,
+    pub Count: u32,
+    pub NodeMask: u32,
+}
+pub type D3D12_QUERY_HEAP_TYPE = i32;
+pub type D3D12_QUERY_TYPE = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RANGE {
+    pub Begin: usize,
+    pub End: usize,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_RASTERIZER_DESC {
+    pub FillMode: D3D12_FILL_MODE,
+    pub CullMode: D3D12_CULL_MODE,
+    pub FrontCounterClockwise: windows_core::BOOL,
+    pub DepthBias: i32,
+    pub DepthBiasClamp: f32,
+    pub SlopeScaledDepthBias: f32,
+    pub DepthClipEnable: windows_core::BOOL,
+    pub MultisampleEnable: windows_core::BOOL,
+    pub AntialiasedLineEnable: windows_core::BOOL,
+    pub ForcedSampleCount: u32,
+    pub ConservativeRaster: D3D12_CONSERVATIVE_RASTERIZATION_MODE,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV {
+    pub Location: D3D12_GPU_VIRTUAL_ADDRESS,
+}
+pub type D3D12_RECT = RECT;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RENDER_TARGET_BLEND_DESC {
+    pub BlendEnable: windows_core::BOOL,
+    pub LogicOpEnable: windows_core::BOOL,
+    pub SrcBlend: D3D12_BLEND,
+    pub DestBlend: D3D12_BLEND,
+    pub BlendOp: D3D12_BLEND_OP,
+    pub SrcBlendAlpha: D3D12_BLEND,
+    pub DestBlendAlpha: D3D12_BLEND,
+    pub BlendOpAlpha: D3D12_BLEND_OP,
+    pub LogicOp: D3D12_LOGIC_OP,
+    pub RenderTargetWriteMask: u8,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_RENDER_TARGET_VIEW_DESC {
+    pub Format: DXGI_FORMAT,
+    pub ViewDimension: D3D12_RTV_DIMENSION,
+    pub Anonymous: D3D12_RENDER_TARGET_VIEW_DESC_0,
+}
+impl Default for D3D12_RENDER_TARGET_VIEW_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_RENDER_TARGET_VIEW_DESC_0 {
+    pub Buffer: D3D12_BUFFER_RTV,
+    pub Texture1D: D3D12_TEX1D_RTV,
+    pub Texture1DArray: D3D12_TEX1D_ARRAY_RTV,
+    pub Texture2D: D3D12_TEX2D_RTV,
+    pub Texture2DArray: D3D12_TEX2D_ARRAY_RTV,
+    pub Texture2DMS: D3D12_TEX2DMS_RTV,
+    pub Texture2DMSArray: D3D12_TEX2DMS_ARRAY_RTV,
+    pub Texture3D: D3D12_TEX3D_RTV,
+}
+impl Default for D3D12_RENDER_TARGET_VIEW_DESC_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RESOURCE_ALIASING_BARRIER {
+    pub pResourceBefore: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
+    pub pResourceAfter: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RESOURCE_ALLOCATION_INFO {
+    pub SizeInBytes: u64,
+    pub Alignment: u64,
+}
+#[repr(C)]
+pub struct D3D12_RESOURCE_BARRIER {
+    pub Type: D3D12_RESOURCE_BARRIER_TYPE,
+    pub Flags: D3D12_RESOURCE_BARRIER_FLAGS,
+    pub Anonymous: D3D12_RESOURCE_BARRIER_0,
+}
+impl Clone for D3D12_RESOURCE_BARRIER {
+    fn clone(&self) -> Self {
+        unsafe { core::mem::transmute_copy(self) }
+    }
+}
+impl Default for D3D12_RESOURCE_BARRIER {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+pub union D3D12_RESOURCE_BARRIER_0 {
+    pub Transition: core::mem::ManuallyDrop<D3D12_RESOURCE_TRANSITION_BARRIER>,
+    pub Aliasing: core::mem::ManuallyDrop<D3D12_RESOURCE_ALIASING_BARRIER>,
+    pub UAV: core::mem::ManuallyDrop<D3D12_RESOURCE_UAV_BARRIER>,
+}
+impl Clone for D3D12_RESOURCE_BARRIER_0 {
+    fn clone(&self) -> Self {
+        unsafe { core::mem::transmute_copy(self) }
+    }
+}
+impl Default for D3D12_RESOURCE_BARRIER_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub const D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES: u32 = 4294967295;
+pub type D3D12_RESOURCE_BARRIER_FLAGS = u32;
+pub const D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY: D3D12_RESOURCE_BARRIER_FLAGS = 1;
+pub const D3D12_RESOURCE_BARRIER_FLAG_END_ONLY: D3D12_RESOURCE_BARRIER_FLAGS = 2;
+pub const D3D12_RESOURCE_BARRIER_FLAG_NONE: D3D12_RESOURCE_BARRIER_FLAGS = 0;
+pub type D3D12_RESOURCE_BARRIER_TYPE = i32;
+pub const D3D12_RESOURCE_BARRIER_TYPE_ALIASING: D3D12_RESOURCE_BARRIER_TYPE = 1;
+pub const D3D12_RESOURCE_BARRIER_TYPE_TRANSITION: D3D12_RESOURCE_BARRIER_TYPE = 0;
+pub const D3D12_RESOURCE_BARRIER_TYPE_UAV: D3D12_RESOURCE_BARRIER_TYPE = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RESOURCE_DESC {
+    pub Dimension: D3D12_RESOURCE_DIMENSION,
+    pub Alignment: u64,
+    pub Width: u64,
+    pub Height: u32,
+    pub DepthOrArraySize: u16,
+    pub MipLevels: u16,
+    pub Format: DXGI_FORMAT,
+    pub SampleDesc: DXGI_SAMPLE_DESC,
+    pub Layout: D3D12_TEXTURE_LAYOUT,
+    pub Flags: D3D12_RESOURCE_FLAGS,
+}
+pub type D3D12_RESOURCE_DIMENSION = i32;
+pub const D3D12_RESOURCE_DIMENSION_BUFFER: D3D12_RESOURCE_DIMENSION = 1;
+pub const D3D12_RESOURCE_DIMENSION_TEXTURE1D: D3D12_RESOURCE_DIMENSION = 2;
+pub const D3D12_RESOURCE_DIMENSION_TEXTURE2D: D3D12_RESOURCE_DIMENSION = 3;
+pub const D3D12_RESOURCE_DIMENSION_TEXTURE3D: D3D12_RESOURCE_DIMENSION = 4;
+pub const D3D12_RESOURCE_DIMENSION_UNKNOWN: D3D12_RESOURCE_DIMENSION = 0;
+pub type D3D12_RESOURCE_FLAGS = u32;
+pub const D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER: D3D12_RESOURCE_FLAGS = 16;
+pub const D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL: D3D12_RESOURCE_FLAGS = 2;
+pub const D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET: D3D12_RESOURCE_FLAGS = 1;
+pub const D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS: D3D12_RESOURCE_FLAGS = 32;
+pub const D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS: D3D12_RESOURCE_FLAGS = 4;
+pub const D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE: D3D12_RESOURCE_FLAGS = 8;
+pub const D3D12_RESOURCE_FLAG_NONE: D3D12_RESOURCE_FLAGS = 0;
+pub const D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE: D3D12_RESOURCE_FLAGS = 256;
+pub const D3D12_RESOURCE_FLAG_USE_TIGHT_ALIGNMENT: D3D12_RESOURCE_FLAGS = 1024;
+pub const D3D12_RESOURCE_FLAG_VIDEO_DECODE_REFERENCE_ONLY: D3D12_RESOURCE_FLAGS = 64;
+pub const D3D12_RESOURCE_FLAG_VIDEO_ENCODE_REFERENCE_ONLY: D3D12_RESOURCE_FLAGS = 128;
+pub type D3D12_RESOURCE_STATES = u32;
+pub const D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE: D3D12_RESOURCE_STATES = 192;
+pub const D3D12_RESOURCE_STATE_COMMON: D3D12_RESOURCE_STATES = 0;
+pub const D3D12_RESOURCE_STATE_COPY_DEST: D3D12_RESOURCE_STATES = 1024;
+pub const D3D12_RESOURCE_STATE_COPY_SOURCE: D3D12_RESOURCE_STATES = 2048;
+pub const D3D12_RESOURCE_STATE_DEPTH_READ: D3D12_RESOURCE_STATES = 32;
+pub const D3D12_RESOURCE_STATE_DEPTH_WRITE: D3D12_RESOURCE_STATES = 16;
+pub const D3D12_RESOURCE_STATE_GENERIC_READ: D3D12_RESOURCE_STATES = 2755;
+pub const D3D12_RESOURCE_STATE_INDEX_BUFFER: D3D12_RESOURCE_STATES = 2;
+pub const D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT: D3D12_RESOURCE_STATES = 512;
+pub const D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE: D3D12_RESOURCE_STATES = 64;
+pub const D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE: D3D12_RESOURCE_STATES = 128;
+pub const D3D12_RESOURCE_STATE_PREDICATION: D3D12_RESOURCE_STATES = 512;
+pub const D3D12_RESOURCE_STATE_PRESENT: D3D12_RESOURCE_STATES = 0;
+pub const D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE: D3D12_RESOURCE_STATES = 4194304;
+pub const D3D12_RESOURCE_STATE_RENDER_TARGET: D3D12_RESOURCE_STATES = 4;
+pub const D3D12_RESOURCE_STATE_RESERVED_INTERNAL_100000: D3D12_RESOURCE_STATES = 1048576;
+pub const D3D12_RESOURCE_STATE_RESERVED_INTERNAL_4000: D3D12_RESOURCE_STATES = 16384;
+pub const D3D12_RESOURCE_STATE_RESERVED_INTERNAL_40000000: D3D12_RESOURCE_STATES = 1073741824;
+pub const D3D12_RESOURCE_STATE_RESERVED_INTERNAL_8000: D3D12_RESOURCE_STATES = 32768;
+pub const D3D12_RESOURCE_STATE_RESERVED_INTERNAL_80000000: D3D12_RESOURCE_STATES = 2147483648;
+pub const D3D12_RESOURCE_STATE_RESOLVE_DEST: D3D12_RESOURCE_STATES = 4096;
+pub const D3D12_RESOURCE_STATE_RESOLVE_SOURCE: D3D12_RESOURCE_STATES = 8192;
+pub const D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE: D3D12_RESOURCE_STATES = 16777216;
+pub const D3D12_RESOURCE_STATE_STREAM_OUT: D3D12_RESOURCE_STATES = 256;
+pub const D3D12_RESOURCE_STATE_UNORDERED_ACCESS: D3D12_RESOURCE_STATES = 8;
+pub const D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER: D3D12_RESOURCE_STATES = 1;
+pub const D3D12_RESOURCE_STATE_VIDEO_DECODE_READ: D3D12_RESOURCE_STATES = 65536;
+pub const D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE: D3D12_RESOURCE_STATES = 131072;
+pub const D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ: D3D12_RESOURCE_STATES = 2097152;
+pub const D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE: D3D12_RESOURCE_STATES = 8388608;
+pub const D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ: D3D12_RESOURCE_STATES = 262144;
+pub const D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE: D3D12_RESOURCE_STATES = 524288;
+#[repr(C)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RESOURCE_TRANSITION_BARRIER {
+    pub pResource: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
+    pub Subresource: u32,
+    pub StateBefore: D3D12_RESOURCE_STATES,
+    pub StateAfter: D3D12_RESOURCE_STATES,
+}
+#[repr(C)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_RESOURCE_UAV_BARRIER {
+    pub pResource: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
+}
+pub type D3D12_RTV_DIMENSION = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct D3D12_SAMPLER_DESC {
+    pub Filter: D3D12_FILTER,
+    pub AddressU: D3D12_TEXTURE_ADDRESS_MODE,
+    pub AddressV: D3D12_TEXTURE_ADDRESS_MODE,
+    pub AddressW: D3D12_TEXTURE_ADDRESS_MODE,
+    pub MipLODBias: f32,
+    pub MaxAnisotropy: u32,
+    pub ComparisonFunc: D3D12_COMPARISON_FUNC,
+    pub BorderColor: [f32; 4],
+    pub MinLOD: f32,
+    pub MaxLOD: f32,
+}
+impl Default for D3D12_SAMPLER_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_SHADER_BYTECODE {
+    pub pShaderBytecode: *const core::ffi::c_void,
+    pub BytecodeLength: usize,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_SHADER_RESOURCE_VIEW_DESC {
+    pub Format: DXGI_FORMAT,
+    pub ViewDimension: D3D12_SRV_DIMENSION,
+    pub Shader4ComponentMapping: u32,
+    pub Anonymous: D3D12_SHADER_RESOURCE_VIEW_DESC_0,
+}
+impl Default for D3D12_SHADER_RESOURCE_VIEW_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_SHADER_RESOURCE_VIEW_DESC_0 {
+    pub Buffer: D3D12_BUFFER_SRV,
+    pub Texture1D: D3D12_TEX1D_SRV,
+    pub Texture1DArray: D3D12_TEX1D_ARRAY_SRV,
+    pub Texture2D: D3D12_TEX2D_SRV,
+    pub Texture2DArray: D3D12_TEX2D_ARRAY_SRV,
+    pub Texture2DMS: D3D12_TEX2DMS_SRV,
+    pub Texture2DMSArray: D3D12_TEX2DMS_ARRAY_SRV,
+    pub Texture3D: D3D12_TEX3D_SRV,
+    pub TextureCube: D3D12_TEXCUBE_SRV,
+    pub TextureCubeArray: D3D12_TEXCUBE_ARRAY_SRV,
+    pub RaytracingAccelerationStructure: D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV,
+}
+impl Default for D3D12_SHADER_RESOURCE_VIEW_DESC_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_SO_DECLARATION_ENTRY {
+    pub Stream: u32,
+    pub SemanticName: windows_core::PCSTR,
+    pub SemanticIndex: u32,
+    pub StartComponent: u8,
+    pub ComponentCount: u8,
+    pub OutputSlot: u8,
+}
+pub type D3D12_SRV_DIMENSION = i32;
+pub const D3D12_SRV_DIMENSION_BUFFER: D3D12_SRV_DIMENSION = 1;
+pub const D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE: D3D12_SRV_DIMENSION = 11;
+pub const D3D12_SRV_DIMENSION_TEXTURE1D: D3D12_SRV_DIMENSION = 2;
+pub const D3D12_SRV_DIMENSION_TEXTURE1DARRAY: D3D12_SRV_DIMENSION = 3;
+pub const D3D12_SRV_DIMENSION_TEXTURE2D: D3D12_SRV_DIMENSION = 4;
+pub const D3D12_SRV_DIMENSION_TEXTURE2DARRAY: D3D12_SRV_DIMENSION = 5;
+pub const D3D12_SRV_DIMENSION_TEXTURE2DMS: D3D12_SRV_DIMENSION = 6;
+pub const D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY: D3D12_SRV_DIMENSION = 7;
+pub const D3D12_SRV_DIMENSION_TEXTURE3D: D3D12_SRV_DIMENSION = 8;
+pub const D3D12_SRV_DIMENSION_TEXTURECUBE: D3D12_SRV_DIMENSION = 9;
+pub const D3D12_SRV_DIMENSION_TEXTURECUBEARRAY: D3D12_SRV_DIMENSION = 10;
+pub const D3D12_SRV_DIMENSION_UNKNOWN: D3D12_SRV_DIMENSION = 0;
+pub type D3D12_STENCIL_OP = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_STREAM_OUTPUT_BUFFER_VIEW {
+    pub BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    pub SizeInBytes: u64,
+    pub BufferFilledSizeLocation: D3D12_GPU_VIRTUAL_ADDRESS,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_STREAM_OUTPUT_DESC {
+    pub pSODeclaration: *const D3D12_SO_DECLARATION_ENTRY,
+    pub NumEntries: u32,
+    pub pBufferStrides: *const u32,
+    pub NumStrides: u32,
+    pub RasterizedStream: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_SUBRESOURCE_FOOTPRINT {
+    pub Format: DXGI_FORMAT,
+    pub Width: u32,
+    pub Height: u32,
+    pub Depth: u32,
+    pub RowPitch: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_SUBRESOURCE_TILING {
+    pub WidthInTiles: u32,
+    pub HeightInTiles: u16,
+    pub DepthInTiles: u16,
+    pub StartTileIndexInOverallResource: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_ARRAY_DSV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_ARRAY_RTV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEX1D_ARRAY_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_ARRAY_UAV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_DSV {
+    pub MipSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_RTV {
+    pub MipSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEX1D_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX1D_UAV {
+    pub MipSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_ARRAY_DSV {
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_ARRAY_RTV {
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_ARRAY_SRV {
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_ARRAY_UAV {
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_DSV {
+    pub UnusedField_NothingToDefine: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_RTV {
+    pub UnusedField_NothingToDefine: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_SRV {
+    pub UnusedField_NothingToDefine: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2DMS_UAV {
+    pub UnusedField_NothingToDefine: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_ARRAY_DSV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_ARRAY_RTV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+    pub PlaneSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEX2D_ARRAY_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+    pub PlaneSlice: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_ARRAY_UAV {
+    pub MipSlice: u32,
+    pub FirstArraySlice: u32,
+    pub ArraySize: u32,
+    pub PlaneSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_DSV {
+    pub MipSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_RTV {
+    pub MipSlice: u32,
+    pub PlaneSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEX2D_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub PlaneSlice: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX2D_UAV {
+    pub MipSlice: u32,
+    pub PlaneSlice: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX3D_RTV {
+    pub MipSlice: u32,
+    pub FirstWSlice: u32,
+    pub WSize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEX3D_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TEX3D_UAV {
+    pub MipSlice: u32,
+    pub FirstWSlice: u32,
+    pub WSize: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEXCUBE_ARRAY_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub First2DArrayFace: u32,
+    pub NumCubes: u32,
+    pub ResourceMinLODClamp: f32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_TEXCUBE_SRV {
+    pub MostDetailedMip: u32,
+    pub MipLevels: u32,
+    pub ResourceMinLODClamp: f32,
+}
+pub type D3D12_TEXTURE_ADDRESS_MODE = i32;
+#[repr(C)]
+pub struct D3D12_TEXTURE_COPY_LOCATION {
+    pub pResource: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
+    pub Type: D3D12_TEXTURE_COPY_TYPE,
+    pub Anonymous: D3D12_TEXTURE_COPY_LOCATION_0,
+}
+impl Clone for D3D12_TEXTURE_COPY_LOCATION {
+    fn clone(&self) -> Self {
+        unsafe { core::mem::transmute_copy(self) }
+    }
+}
+impl Default for D3D12_TEXTURE_COPY_LOCATION {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_TEXTURE_COPY_LOCATION_0 {
+    pub PlacedFootprint: D3D12_PLACED_SUBRESOURCE_FOOTPRINT,
+    pub SubresourceIndex: u32,
+}
+impl Default for D3D12_TEXTURE_COPY_LOCATION_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub type D3D12_TEXTURE_COPY_TYPE = i32;
+pub const D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT: D3D12_TEXTURE_COPY_TYPE = 1;
+pub const D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX: D3D12_TEXTURE_COPY_TYPE = 0;
+pub type D3D12_TEXTURE_LAYOUT = i32;
+pub const D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE: D3D12_TEXTURE_LAYOUT = 3;
+pub const D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE: D3D12_TEXTURE_LAYOUT = 2;
+pub const D3D12_TEXTURE_LAYOUT_ROW_MAJOR: D3D12_TEXTURE_LAYOUT = 1;
+pub const D3D12_TEXTURE_LAYOUT_UNKNOWN: D3D12_TEXTURE_LAYOUT = 0;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TILED_RESOURCE_COORDINATE {
+    pub X: u32,
+    pub Y: u32,
+    pub Z: u32,
+    pub Subresource: u32,
+}
+pub type D3D12_TILE_COPY_FLAGS = u32;
+pub type D3D12_TILE_MAPPING_FLAGS = u32;
+pub type D3D12_TILE_RANGE_FLAGS = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TILE_REGION_SIZE {
+    pub NumTiles: u32,
+    pub UseBox: windows_core::BOOL,
+    pub Width: u32,
+    pub Height: u16,
+    pub Depth: u16,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_TILE_SHAPE {
+    pub WidthInTexels: u32,
+    pub HeightInTexels: u32,
+    pub DepthInTexels: u32,
+}
+pub type D3D12_UAV_DIMENSION = i32;
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct D3D12_UNORDERED_ACCESS_VIEW_DESC {
+    pub Format: DXGI_FORMAT,
+    pub ViewDimension: D3D12_UAV_DIMENSION,
+    pub Anonymous: D3D12_UNORDERED_ACCESS_VIEW_DESC_0,
+}
+impl Default for D3D12_UNORDERED_ACCESS_VIEW_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union D3D12_UNORDERED_ACCESS_VIEW_DESC_0 {
+    pub Buffer: D3D12_BUFFER_UAV,
+    pub Texture1D: D3D12_TEX1D_UAV,
+    pub Texture1DArray: D3D12_TEX1D_ARRAY_UAV,
+    pub Texture2D: D3D12_TEX2D_UAV,
+    pub Texture2DArray: D3D12_TEX2D_ARRAY_UAV,
+    pub Texture2DMS: D3D12_TEX2DMS_UAV,
+    pub Texture2DMSArray: D3D12_TEX2DMS_ARRAY_UAV,
+    pub Texture3D: D3D12_TEX3D_UAV,
+}
+impl Default for D3D12_UNORDERED_ACCESS_VIEW_DESC_0 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_VERTEX_BUFFER_VIEW {
+    pub BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    pub SizeInBytes: u32,
+    pub StrideInBytes: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct D3D12_VIEWPORT {
+    pub TopLeftX: f32,
+    pub TopLeftY: f32,
+    pub Width: f32,
+    pub Height: f32,
+    pub MinDepth: f32,
+    pub MaxDepth: f32,
+}
+pub type D3D_FEATURE_LEVEL = i32;
+pub const D3D_FEATURE_LEVEL_10_0: D3D_FEATURE_LEVEL = 40960;
+pub const D3D_FEATURE_LEVEL_10_1: D3D_FEATURE_LEVEL = 41216;
+pub const D3D_FEATURE_LEVEL_11_0: D3D_FEATURE_LEVEL = 45056;
+pub const D3D_FEATURE_LEVEL_11_1: D3D_FEATURE_LEVEL = 45312;
+pub const D3D_FEATURE_LEVEL_12_0: D3D_FEATURE_LEVEL = 49152;
+pub const D3D_FEATURE_LEVEL_12_1: D3D_FEATURE_LEVEL = 49408;
+pub const D3D_FEATURE_LEVEL_12_2: D3D_FEATURE_LEVEL = 49664;
+pub const D3D_FEATURE_LEVEL_1_0_CORE: D3D_FEATURE_LEVEL = 4096;
+pub const D3D_FEATURE_LEVEL_1_0_GENERIC: D3D_FEATURE_LEVEL = 256;
+pub const D3D_FEATURE_LEVEL_9_1: D3D_FEATURE_LEVEL = 37120;
+pub const D3D_FEATURE_LEVEL_9_2: D3D_FEATURE_LEVEL = 37376;
+pub const D3D_FEATURE_LEVEL_9_3: D3D_FEATURE_LEVEL = 37632;
+pub type D3D_PRIMITIVE_TOPOLOGY = i32;
+pub const D3D_PRIMITIVE_TOPOLOGY_10_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 42;
+pub const D3D_PRIMITIVE_TOPOLOGY_11_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 43;
+pub const D3D_PRIMITIVE_TOPOLOGY_12_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 44;
+pub const D3D_PRIMITIVE_TOPOLOGY_13_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 45;
+pub const D3D_PRIMITIVE_TOPOLOGY_14_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 46;
+pub const D3D_PRIMITIVE_TOPOLOGY_15_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 47;
+pub const D3D_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 48;
+pub const D3D_PRIMITIVE_TOPOLOGY_17_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 49;
+pub const D3D_PRIMITIVE_TOPOLOGY_18_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 50;
+pub const D3D_PRIMITIVE_TOPOLOGY_19_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 51;
+pub const D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 33;
+pub const D3D_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 52;
+pub const D3D_PRIMITIVE_TOPOLOGY_21_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 53;
+pub const D3D_PRIMITIVE_TOPOLOGY_22_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 54;
+pub const D3D_PRIMITIVE_TOPOLOGY_23_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 55;
+pub const D3D_PRIMITIVE_TOPOLOGY_24_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 56;
+pub const D3D_PRIMITIVE_TOPOLOGY_25_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 57;
+pub const D3D_PRIMITIVE_TOPOLOGY_26_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 58;
+pub const D3D_PRIMITIVE_TOPOLOGY_27_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 59;
+pub const D3D_PRIMITIVE_TOPOLOGY_28_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 60;
+pub const D3D_PRIMITIVE_TOPOLOGY_29_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 61;
+pub const D3D_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 34;
+pub const D3D_PRIMITIVE_TOPOLOGY_30_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 62;
+pub const D3D_PRIMITIVE_TOPOLOGY_31_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 63;
+pub const D3D_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 64;
+pub const D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 35;
+pub const D3D_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 36;
+pub const D3D_PRIMITIVE_TOPOLOGY_5_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 37;
+pub const D3D_PRIMITIVE_TOPOLOGY_6_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 38;
+pub const D3D_PRIMITIVE_TOPOLOGY_7_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 39;
+pub const D3D_PRIMITIVE_TOPOLOGY_8_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 40;
+pub const D3D_PRIMITIVE_TOPOLOGY_9_CONTROL_POINT_PATCHLIST: D3D_PRIMITIVE_TOPOLOGY = 41;
+pub const D3D_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
+pub const D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 10;
+pub const D3D_PRIMITIVE_TOPOLOGY_LINESTRIP: D3D_PRIMITIVE_TOPOLOGY = 3;
+pub const D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 11;
+pub const D3D_PRIMITIVE_TOPOLOGY_POINTLIST: D3D_PRIMITIVE_TOPOLOGY = 1;
+pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN: D3D_PRIMITIVE_TOPOLOGY = 6;
+pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST: D3D_PRIMITIVE_TOPOLOGY = 4;
+pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 12;
+pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
+pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
+pub const D3D_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
+pub const DEFAULT_CHARSET: i32 = 1;
+pub const DIB_RGB_COLORS: i32 = 0;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DPI_AWARENESS_CONTEXT(pub *mut core::ffi::c_void);
+pub const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
+    DPI_AWARENESS_CONTEXT(-4 as _);
+pub const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = 20;
+pub type DWMWINDOWATTRIBUTE = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DXGI_ADAPTER_DESC1 {
+    pub Description: [u16; 128],
+    pub VendorId: u32,
+    pub DeviceId: u32,
+    pub SubSysId: u32,
+    pub Revision: u32,
+    pub DedicatedVideoMemory: usize,
+    pub DedicatedSystemMemory: usize,
+    pub SharedSystemMemory: usize,
+    pub AdapterLuid: LUID,
+    pub Flags: u32,
+}
+impl Default for DXGI_ADAPTER_DESC1 {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+pub type DXGI_ALPHA_MODE = i32;
+pub type DXGI_COLOR_SPACE_TYPE = i32;
+pub const DXGI_CREATE_FACTORY_DEBUG: i32 = 1;
+pub type DXGI_FORMAT = i32;
+pub const DXGI_FORMAT_420_OPAQUE: DXGI_FORMAT = 106;
+pub const DXGI_FORMAT_A4B4G4R4_UNORM: DXGI_FORMAT = 191;
+pub const DXGI_FORMAT_A8P8: DXGI_FORMAT = 114;
+pub const DXGI_FORMAT_A8_UNORM: DXGI_FORMAT = 65;
+pub const DXGI_FORMAT_AI44: DXGI_FORMAT = 111;
+pub const DXGI_FORMAT_AYUV: DXGI_FORMAT = 100;
+pub const DXGI_FORMAT_B4G4R4A4_UNORM: DXGI_FORMAT = 115;
+pub const DXGI_FORMAT_B5G5R5A1_UNORM: DXGI_FORMAT = 86;
+pub const DXGI_FORMAT_B5G6R5_UNORM: DXGI_FORMAT = 85;
+pub const DXGI_FORMAT_B8G8R8A8_TYPELESS: DXGI_FORMAT = 90;
+pub const DXGI_FORMAT_B8G8R8A8_UNORM: DXGI_FORMAT = 87;
+pub const DXGI_FORMAT_B8G8R8A8_UNORM_SRGB: DXGI_FORMAT = 91;
+pub const DXGI_FORMAT_B8G8R8X8_TYPELESS: DXGI_FORMAT = 92;
+pub const DXGI_FORMAT_B8G8R8X8_UNORM: DXGI_FORMAT = 88;
+pub const DXGI_FORMAT_B8G8R8X8_UNORM_SRGB: DXGI_FORMAT = 93;
+pub const DXGI_FORMAT_BC1_TYPELESS: DXGI_FORMAT = 70;
+pub const DXGI_FORMAT_BC1_UNORM: DXGI_FORMAT = 71;
+pub const DXGI_FORMAT_BC1_UNORM_SRGB: DXGI_FORMAT = 72;
+pub const DXGI_FORMAT_BC2_TYPELESS: DXGI_FORMAT = 73;
+pub const DXGI_FORMAT_BC2_UNORM: DXGI_FORMAT = 74;
+pub const DXGI_FORMAT_BC2_UNORM_SRGB: DXGI_FORMAT = 75;
+pub const DXGI_FORMAT_BC3_TYPELESS: DXGI_FORMAT = 76;
+pub const DXGI_FORMAT_BC3_UNORM: DXGI_FORMAT = 77;
+pub const DXGI_FORMAT_BC3_UNORM_SRGB: DXGI_FORMAT = 78;
+pub const DXGI_FORMAT_BC4_SNORM: DXGI_FORMAT = 81;
+pub const DXGI_FORMAT_BC4_TYPELESS: DXGI_FORMAT = 79;
+pub const DXGI_FORMAT_BC4_UNORM: DXGI_FORMAT = 80;
+pub const DXGI_FORMAT_BC5_SNORM: DXGI_FORMAT = 84;
+pub const DXGI_FORMAT_BC5_TYPELESS: DXGI_FORMAT = 82;
+pub const DXGI_FORMAT_BC5_UNORM: DXGI_FORMAT = 83;
+pub const DXGI_FORMAT_BC6H_SF16: DXGI_FORMAT = 96;
+pub const DXGI_FORMAT_BC6H_TYPELESS: DXGI_FORMAT = 94;
+pub const DXGI_FORMAT_BC6H_UF16: DXGI_FORMAT = 95;
+pub const DXGI_FORMAT_BC7_TYPELESS: DXGI_FORMAT = 97;
+pub const DXGI_FORMAT_BC7_UNORM: DXGI_FORMAT = 98;
+pub const DXGI_FORMAT_BC7_UNORM_SRGB: DXGI_FORMAT = 99;
+pub const DXGI_FORMAT_D16_UNORM: DXGI_FORMAT = 55;
+pub const DXGI_FORMAT_D24_UNORM_S8_UINT: DXGI_FORMAT = 45;
+pub const DXGI_FORMAT_D32_FLOAT: DXGI_FORMAT = 40;
+pub const DXGI_FORMAT_D32_FLOAT_S8X24_UINT: DXGI_FORMAT = 20;
+pub const DXGI_FORMAT_FORCE_UINT: DXGI_FORMAT = -1;
+pub const DXGI_FORMAT_G8R8_G8B8_UNORM: DXGI_FORMAT = 69;
+pub const DXGI_FORMAT_IA44: DXGI_FORMAT = 112;
+pub const DXGI_FORMAT_NV11: DXGI_FORMAT = 110;
+pub const DXGI_FORMAT_NV12: DXGI_FORMAT = 103;
+pub const DXGI_FORMAT_P010: DXGI_FORMAT = 104;
+pub const DXGI_FORMAT_P016: DXGI_FORMAT = 105;
+pub const DXGI_FORMAT_P208: DXGI_FORMAT = 130;
+pub const DXGI_FORMAT_P8: DXGI_FORMAT = 113;
+pub const DXGI_FORMAT_R10G10B10A2_TYPELESS: DXGI_FORMAT = 23;
+pub const DXGI_FORMAT_R10G10B10A2_UINT: DXGI_FORMAT = 25;
+pub const DXGI_FORMAT_R10G10B10A2_UNORM: DXGI_FORMAT = 24;
+pub const DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM: DXGI_FORMAT = 89;
+pub const DXGI_FORMAT_R11G11B10_FLOAT: DXGI_FORMAT = 26;
+pub const DXGI_FORMAT_R16G16B16A16_FLOAT: DXGI_FORMAT = 10;
+pub const DXGI_FORMAT_R16G16B16A16_SINT: DXGI_FORMAT = 14;
+pub const DXGI_FORMAT_R16G16B16A16_SNORM: DXGI_FORMAT = 13;
+pub const DXGI_FORMAT_R16G16B16A16_TYPELESS: DXGI_FORMAT = 9;
+pub const DXGI_FORMAT_R16G16B16A16_UINT: DXGI_FORMAT = 12;
+pub const DXGI_FORMAT_R16G16B16A16_UNORM: DXGI_FORMAT = 11;
+pub const DXGI_FORMAT_R16G16_FLOAT: DXGI_FORMAT = 34;
+pub const DXGI_FORMAT_R16G16_SINT: DXGI_FORMAT = 38;
+pub const DXGI_FORMAT_R16G16_SNORM: DXGI_FORMAT = 37;
+pub const DXGI_FORMAT_R16G16_TYPELESS: DXGI_FORMAT = 33;
+pub const DXGI_FORMAT_R16G16_UINT: DXGI_FORMAT = 36;
+pub const DXGI_FORMAT_R16G16_UNORM: DXGI_FORMAT = 35;
+pub const DXGI_FORMAT_R16_FLOAT: DXGI_FORMAT = 54;
+pub const DXGI_FORMAT_R16_SINT: DXGI_FORMAT = 59;
+pub const DXGI_FORMAT_R16_SNORM: DXGI_FORMAT = 58;
+pub const DXGI_FORMAT_R16_TYPELESS: DXGI_FORMAT = 53;
+pub const DXGI_FORMAT_R16_UINT: DXGI_FORMAT = 57;
+pub const DXGI_FORMAT_R16_UNORM: DXGI_FORMAT = 56;
+pub const DXGI_FORMAT_R1_UNORM: DXGI_FORMAT = 66;
+pub const DXGI_FORMAT_R24G8_TYPELESS: DXGI_FORMAT = 44;
+pub const DXGI_FORMAT_R24_UNORM_X8_TYPELESS: DXGI_FORMAT = 46;
+pub const DXGI_FORMAT_R32G32B32A32_FLOAT: DXGI_FORMAT = 2;
+pub const DXGI_FORMAT_R32G32B32A32_SINT: DXGI_FORMAT = 4;
+pub const DXGI_FORMAT_R32G32B32A32_TYPELESS: DXGI_FORMAT = 1;
+pub const DXGI_FORMAT_R32G32B32A32_UINT: DXGI_FORMAT = 3;
+pub const DXGI_FORMAT_R32G32B32_FLOAT: DXGI_FORMAT = 6;
+pub const DXGI_FORMAT_R32G32B32_SINT: DXGI_FORMAT = 8;
+pub const DXGI_FORMAT_R32G32B32_TYPELESS: DXGI_FORMAT = 5;
+pub const DXGI_FORMAT_R32G32B32_UINT: DXGI_FORMAT = 7;
+pub const DXGI_FORMAT_R32G32_FLOAT: DXGI_FORMAT = 16;
+pub const DXGI_FORMAT_R32G32_SINT: DXGI_FORMAT = 18;
+pub const DXGI_FORMAT_R32G32_TYPELESS: DXGI_FORMAT = 15;
+pub const DXGI_FORMAT_R32G32_UINT: DXGI_FORMAT = 17;
+pub const DXGI_FORMAT_R32G8X24_TYPELESS: DXGI_FORMAT = 19;
+pub const DXGI_FORMAT_R32_FLOAT: DXGI_FORMAT = 41;
+pub const DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS: DXGI_FORMAT = 21;
+pub const DXGI_FORMAT_R32_SINT: DXGI_FORMAT = 43;
+pub const DXGI_FORMAT_R32_TYPELESS: DXGI_FORMAT = 39;
+pub const DXGI_FORMAT_R32_UINT: DXGI_FORMAT = 42;
+pub const DXGI_FORMAT_R8G8B8A8_SINT: DXGI_FORMAT = 32;
+pub const DXGI_FORMAT_R8G8B8A8_SNORM: DXGI_FORMAT = 31;
+pub const DXGI_FORMAT_R8G8B8A8_TYPELESS: DXGI_FORMAT = 27;
+pub const DXGI_FORMAT_R8G8B8A8_UINT: DXGI_FORMAT = 30;
+pub const DXGI_FORMAT_R8G8B8A8_UNORM: DXGI_FORMAT = 28;
+pub const DXGI_FORMAT_R8G8B8A8_UNORM_SRGB: DXGI_FORMAT = 29;
+pub const DXGI_FORMAT_R8G8_B8G8_UNORM: DXGI_FORMAT = 68;
+pub const DXGI_FORMAT_R8G8_SINT: DXGI_FORMAT = 52;
+pub const DXGI_FORMAT_R8G8_SNORM: DXGI_FORMAT = 51;
+pub const DXGI_FORMAT_R8G8_TYPELESS: DXGI_FORMAT = 48;
+pub const DXGI_FORMAT_R8G8_UINT: DXGI_FORMAT = 50;
+pub const DXGI_FORMAT_R8G8_UNORM: DXGI_FORMAT = 49;
+pub const DXGI_FORMAT_R8_SINT: DXGI_FORMAT = 64;
+pub const DXGI_FORMAT_R8_SNORM: DXGI_FORMAT = 63;
+pub const DXGI_FORMAT_R8_TYPELESS: DXGI_FORMAT = 60;
+pub const DXGI_FORMAT_R8_UINT: DXGI_FORMAT = 62;
+pub const DXGI_FORMAT_R8_UNORM: DXGI_FORMAT = 61;
+pub const DXGI_FORMAT_R9G9B9E5_SHAREDEXP: DXGI_FORMAT = 67;
+pub const DXGI_FORMAT_SAMPLER_FEEDBACK_MIN_MIP_OPAQUE: DXGI_FORMAT = 189;
+pub const DXGI_FORMAT_SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE: DXGI_FORMAT = 190;
+pub const DXGI_FORMAT_UNKNOWN: DXGI_FORMAT = 0;
+pub const DXGI_FORMAT_V208: DXGI_FORMAT = 131;
+pub const DXGI_FORMAT_V408: DXGI_FORMAT = 132;
+pub const DXGI_FORMAT_X24_TYPELESS_G8_UINT: DXGI_FORMAT = 47;
+pub const DXGI_FORMAT_X32_TYPELESS_G8X24_UINT: DXGI_FORMAT = 22;
+pub const DXGI_FORMAT_Y210: DXGI_FORMAT = 108;
+pub const DXGI_FORMAT_Y216: DXGI_FORMAT = 109;
+pub const DXGI_FORMAT_Y410: DXGI_FORMAT = 101;
+pub const DXGI_FORMAT_Y416: DXGI_FORMAT = 102;
+pub const DXGI_FORMAT_YUY2: DXGI_FORMAT = 107;
+pub type DXGI_GPU_PREFERENCE = i32;
+pub const DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE: DXGI_GPU_PREFERENCE = 2;
+pub const DXGI_GPU_PREFERENCE_MINIMUM_POWER: DXGI_GPU_PREFERENCE = 1;
+pub const DXGI_GPU_PREFERENCE_UNSPECIFIED: DXGI_GPU_PREFERENCE = 0;
+pub type DXGI_MODE_SCALING = i32;
+pub type DXGI_MODE_SCANLINE_ORDER = i32;
+pub const DXGI_MWA_NO_ALT_ENTER: i32 = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DXGI_RATIONAL {
+    pub Numerator: u32,
+    pub Denominator: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DXGI_SAMPLE_DESC {
+    pub Count: u32,
+    pub Quality: u32,
+}
+pub type DXGI_SCALING = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DXGI_SWAP_CHAIN_DESC1 {
+    pub Width: u32,
+    pub Height: u32,
+    pub Format: DXGI_FORMAT,
+    pub Stereo: windows_core::BOOL,
+    pub SampleDesc: DXGI_SAMPLE_DESC,
+    pub BufferUsage: DXGI_USAGE,
+    pub BufferCount: u32,
+    pub Scaling: DXGI_SCALING,
+    pub SwapEffect: DXGI_SWAP_EFFECT,
+    pub AlphaMode: DXGI_ALPHA_MODE,
+    pub Flags: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DXGI_SWAP_CHAIN_FULLSCREEN_DESC {
+    pub RefreshRate: DXGI_RATIONAL,
+    pub ScanlineOrdering: DXGI_MODE_SCANLINE_ORDER,
+    pub Scaling: DXGI_MODE_SCALING,
+    pub Windowed: windows_core::BOOL,
+}
+pub type DXGI_SWAP_EFFECT = i32;
+pub const DXGI_SWAP_EFFECT_DISCARD: DXGI_SWAP_EFFECT = 0;
+pub const DXGI_SWAP_EFFECT_FLIP_DISCARD: DXGI_SWAP_EFFECT = 4;
+pub const DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL: DXGI_SWAP_EFFECT = 3;
+pub const DXGI_SWAP_EFFECT_SEQUENTIAL: DXGI_SWAP_EFFECT = 1;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DXGI_USAGE(pub u32);
+pub const DXGI_USAGE_RENDER_TARGET_OUTPUT: u32 = 32;
+pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
+pub const FF_MODERN: i32 = 48;
+pub const FIXED_PITCH: i32 = 1;
+pub const FW_NORMAL: i32 = 400;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HANDLE(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HBITMAP(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HBRUSH(pub *mut core::ffi::c_void);
+pub type HCURSOR = HICON;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HDC(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HFONT(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HGDIOBJ(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HICON(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HINSTANCE(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HKEY(pub *mut core::ffi::c_void);
+pub const HKEY_LOCAL_MACHINE: HKEY = HKEY(-2147483646 as _);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HMENU(pub *mut core::ffi::c_void);
+pub type HMODULE = HINSTANCE;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HWND(pub *mut core::ffi::c_void);
+windows_core::imp::define_interface!(
+    ID3D10Blob,
+    ID3D10Blob_Vtbl,
+    0x8ba5fb08_5195_40e2_ac58_0d989c3a0102
+);
+windows_core::imp::interface_hierarchy!(ID3D10Blob, windows_core::IUnknown);
+#[repr(C)]
+pub struct ID3D10Blob_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    GetBufferPointer: usize,
+    GetBufferSize: usize,
+}
+impl windows_core::RuntimeName for ID3D10Blob {}
+windows_core::imp::define_interface!(
+    ID3D12CommandAllocator,
+    ID3D12CommandAllocator_Vtbl,
+    0x6102dee4_af59_4b09_b999_b44d73f09b24
+);
+impl core::ops::Deref for ID3D12CommandAllocator {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12CommandAllocator,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12CommandAllocator {
+    pub unsafe fn Reset(&self) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Reset)(windows_core::Interface::as_raw(self))
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12CommandAllocator_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub Reset: unsafe extern "system" fn(*mut core::ffi::c_void) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for ID3D12CommandAllocator {}
+windows_core::imp::define_interface!(
+    ID3D12CommandList,
+    ID3D12CommandList_Vtbl,
+    0x7116d91c_e7e4_47ce_b8c6_ec8168f437e5
+);
+impl core::ops::Deref for ID3D12CommandList {
+    type Target = ID3D12DeviceChild;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12CommandList,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild
+);
+impl ID3D12CommandList {
+    pub unsafe fn GetType(&self) -> D3D12_COMMAND_LIST_TYPE {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetType)(windows_core::Interface::as_raw(self))
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12CommandList_Vtbl {
+    pub base__: ID3D12DeviceChild_Vtbl,
+    pub GetType: unsafe extern "system" fn(*mut core::ffi::c_void) -> D3D12_COMMAND_LIST_TYPE,
+}
+impl windows_core::RuntimeName for ID3D12CommandList {}
+windows_core::imp::define_interface!(
+    ID3D12CommandQueue,
+    ID3D12CommandQueue_Vtbl,
+    0x0ec870a6_5d7e_4c22_8cfc_5baae07616ed
+);
+impl core::ops::Deref for ID3D12CommandQueue {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12CommandQueue,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12CommandQueue {
+    pub unsafe fn UpdateTileMappings<P0, P4>(
+        &self,
+        presource: P0,
+        numresourceregions: u32,
+        presourceregionstartcoordinates: Option<*const D3D12_TILED_RESOURCE_COORDINATE>,
+        presourceregionsizes: Option<*const D3D12_TILE_REGION_SIZE>,
+        pheap: P4,
+        numranges: u32,
+        prangeflags: Option<*const D3D12_TILE_RANGE_FLAGS>,
+        pheaprangestartoffsets: Option<*const u32>,
+        prangetilecounts: Option<*const u32>,
+        flags: D3D12_TILE_MAPPING_FLAGS,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P4: windows_core::Param<ID3D12Heap>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).UpdateTileMappings)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                numresourceregions,
+                presourceregionstartcoordinates.unwrap_or(core::mem::zeroed()) as _,
+                presourceregionsizes.unwrap_or(core::mem::zeroed()) as _,
+                pheap.param().abi(),
+                numranges,
+                prangeflags.unwrap_or(core::mem::zeroed()) as _,
+                pheaprangestartoffsets.unwrap_or(core::mem::zeroed()) as _,
+                prangetilecounts.unwrap_or(core::mem::zeroed()) as _,
+                flags,
+            );
+        }
+    }
+    pub unsafe fn CopyTileMappings<P0, P2>(
+        &self,
+        pdstresource: P0,
+        pdstregionstartcoordinate: *const D3D12_TILED_RESOURCE_COORDINATE,
+        psrcresource: P2,
+        psrcregionstartcoordinate: *const D3D12_TILED_RESOURCE_COORDINATE,
+        pregionsize: *const D3D12_TILE_REGION_SIZE,
+        flags: D3D12_TILE_MAPPING_FLAGS,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P2: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyTileMappings)(
+                windows_core::Interface::as_raw(self),
+                pdstresource.param().abi(),
+                pdstregionstartcoordinate,
+                psrcresource.param().abi(),
+                psrcregionstartcoordinate,
+                pregionsize,
+                flags,
+            );
+        }
+    }
+    pub unsafe fn ExecuteCommandLists(&self, ppcommandlists: &[Option<ID3D12CommandList>]) {
+        unsafe {
+            (windows_core::Interface::vtable(self).ExecuteCommandLists)(
+                windows_core::Interface::as_raw(self),
+                ppcommandlists.len().try_into().unwrap(),
+                core::mem::transmute(ppcommandlists.as_ptr()),
+            );
+        }
+    }
+    pub unsafe fn SetMarker(
+        &self,
+        metadata: u32,
+        pdata: Option<*const core::ffi::c_void>,
+        size: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetMarker)(
+                windows_core::Interface::as_raw(self),
+                metadata,
+                pdata.unwrap_or(core::mem::zeroed()) as _,
+                size,
+            );
+        }
+    }
+    pub unsafe fn BeginEvent(
+        &self,
+        metadata: u32,
+        pdata: Option<*const core::ffi::c_void>,
+        size: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).BeginEvent)(
+                windows_core::Interface::as_raw(self),
+                metadata,
+                pdata.unwrap_or(core::mem::zeroed()) as _,
+                size,
+            );
+        }
+    }
+    pub unsafe fn EndEvent(&self) {
+        unsafe {
+            (windows_core::Interface::vtable(self).EndEvent)(windows_core::Interface::as_raw(self));
+        }
+    }
+    pub unsafe fn Signal<P0>(&self, pfence: P0, value: u64) -> windows_core::HRESULT
+    where
+        P0: windows_core::Param<ID3D12Fence>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).Signal)(
+                windows_core::Interface::as_raw(self),
+                pfence.param().abi(),
+                value,
+            )
+        }
+    }
+    pub unsafe fn Wait<P0>(&self, pfence: P0, value: u64) -> windows_core::HRESULT
+    where
+        P0: windows_core::Param<ID3D12Fence>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).Wait)(
+                windows_core::Interface::as_raw(self),
+                pfence.param().abi(),
+                value,
+            )
+        }
+    }
+    pub unsafe fn GetTimestampFrequency(&self) -> windows_core::Result<u64> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetTimestampFrequency)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn GetClockCalibration(
+        &self,
+        pgputimestamp: *mut u64,
+        pcputimestamp: *mut u64,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetClockCalibration)(
+                windows_core::Interface::as_raw(self),
+                pgputimestamp as _,
+                pcputimestamp as _,
+            )
+        }
+    }
+    pub unsafe fn GetDesc(&self) -> D3D12_COMMAND_QUEUE_DESC {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetDesc)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12CommandQueue_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub UpdateTileMappings: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_TILED_RESOURCE_COORDINATE,
+        *const D3D12_TILE_REGION_SIZE,
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_TILE_RANGE_FLAGS,
+        *const u32,
+        *const u32,
+        D3D12_TILE_MAPPING_FLAGS,
+    ),
+    pub CopyTileMappings: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_TILED_RESOURCE_COORDINATE,
+        *mut core::ffi::c_void,
+        *const D3D12_TILED_RESOURCE_COORDINATE,
+        *const D3D12_TILE_REGION_SIZE,
+        D3D12_TILE_MAPPING_FLAGS,
+    ),
+    pub ExecuteCommandLists:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const *mut core::ffi::c_void),
+    pub SetMarker:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const core::ffi::c_void, u32),
+    pub BeginEvent:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const core::ffi::c_void, u32),
+    pub EndEvent: unsafe extern "system" fn(*mut core::ffi::c_void),
+    pub Signal: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u64,
+    ) -> windows_core::HRESULT,
+    pub Wait: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u64,
+    ) -> windows_core::HRESULT,
+    pub GetTimestampFrequency:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *mut u64) -> windows_core::HRESULT,
+    pub GetClockCalibration: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut u64,
+        *mut u64,
+    ) -> windows_core::HRESULT,
+    pub GetDesc: unsafe extern "system" fn(*mut core::ffi::c_void, *mut D3D12_COMMAND_QUEUE_DESC),
+}
+impl windows_core::RuntimeName for ID3D12CommandQueue {}
+windows_core::imp::define_interface!(
+    ID3D12CommandSignature,
+    ID3D12CommandSignature_Vtbl,
+    0xc36a797c_ec80_4f0a_8985_a7b2475082d1
+);
+impl core::ops::Deref for ID3D12CommandSignature {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12CommandSignature,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+#[repr(C)]
+pub struct ID3D12CommandSignature_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+}
+impl windows_core::RuntimeName for ID3D12CommandSignature {}
+windows_core::imp::define_interface!(
+    ID3D12Debug,
+    ID3D12Debug_Vtbl,
+    0x344488b7_6846_474b_b989_f027448245e0
+);
+windows_core::imp::interface_hierarchy!(ID3D12Debug, windows_core::IUnknown);
+impl ID3D12Debug {
+    pub unsafe fn EnableDebugLayer(&self) {
+        unsafe {
+            (windows_core::Interface::vtable(self).EnableDebugLayer)(
+                windows_core::Interface::as_raw(self),
+            );
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12Debug_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    pub EnableDebugLayer: unsafe extern "system" fn(*mut core::ffi::c_void),
+}
+pub trait ID3D12Debug_Impl: windows_core::IUnknownImpl {
+    fn EnableDebugLayer(&self);
+}
+impl ID3D12Debug_Vtbl {
+    pub const fn new<Identity: ID3D12Debug_Impl, const OFFSET: isize>() -> Self {
+        unsafe extern "system" fn EnableDebugLayer<
+            Identity: ID3D12Debug_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+        ) {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                ID3D12Debug_Impl::EnableDebugLayer(this);
+            }
+        }
+        Self {
+            base__: windows_core::IUnknown_Vtbl::new::<Identity, OFFSET>(),
+            EnableDebugLayer: EnableDebugLayer::<Identity, OFFSET>,
+        }
+    }
+    pub fn matches(iid: &windows_core::GUID) -> bool {
+        iid == &<ID3D12Debug as windows_core::Interface>::IID
+    }
+}
+impl windows_core::RuntimeName for ID3D12Debug {}
+windows_core::imp::define_interface!(
+    ID3D12DescriptorHeap,
+    ID3D12DescriptorHeap_Vtbl,
+    0x8efb471d_616c_4f49_90f7_127bb763fa51
+);
+impl core::ops::Deref for ID3D12DescriptorHeap {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12DescriptorHeap,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12DescriptorHeap {
+    pub unsafe fn GetDesc(&self) -> D3D12_DESCRIPTOR_HEAP_DESC {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetDesc)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+    pub unsafe fn GetCPUDescriptorHandleForHeapStart(&self) -> D3D12_CPU_DESCRIPTOR_HANDLE {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetCPUDescriptorHandleForHeapStart)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+    pub unsafe fn GetGPUDescriptorHandleForHeapStart(&self) -> D3D12_GPU_DESCRIPTOR_HANDLE {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetGPUDescriptorHandleForHeapStart)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12DescriptorHeap_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub GetDesc: unsafe extern "system" fn(*mut core::ffi::c_void, *mut D3D12_DESCRIPTOR_HEAP_DESC),
+    pub GetCPUDescriptorHandleForHeapStart:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *mut D3D12_CPU_DESCRIPTOR_HANDLE),
+    pub GetGPUDescriptorHandleForHeapStart:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *mut D3D12_GPU_DESCRIPTOR_HANDLE),
+}
+impl windows_core::RuntimeName for ID3D12DescriptorHeap {}
+windows_core::imp::define_interface!(
+    ID3D12Device,
+    ID3D12Device_Vtbl,
+    0x189819f1_1db6_4b57_be54_1821339b85f7
+);
+impl core::ops::Deref for ID3D12Device {
+    type Target = ID3D12Object;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(ID3D12Device, windows_core::IUnknown, ID3D12Object);
+impl ID3D12Device {
+    pub unsafe fn GetNodeCount(&self) -> u32 {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetNodeCount)(windows_core::Interface::as_raw(
+                self,
+            ))
+        }
+    }
+    pub unsafe fn CreateCommandQueue<T>(
+        &self,
+        pdesc: *const D3D12_COMMAND_QUEUE_DESC,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateCommandQueue)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateCommandAllocator<T>(
+        &self,
+        r#type: D3D12_COMMAND_LIST_TYPE,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateCommandAllocator)(
+                windows_core::Interface::as_raw(self),
+                r#type,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateGraphicsPipelineState<T>(
+        &self,
+        pdesc: *const D3D12_GRAPHICS_PIPELINE_STATE_DESC,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateGraphicsPipelineState)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateComputePipelineState<T>(
+        &self,
+        pdesc: *const D3D12_COMPUTE_PIPELINE_STATE_DESC,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateComputePipelineState)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateCommandList<P2, P3, T>(
+        &self,
+        nodemask: u32,
+        r#type: D3D12_COMMAND_LIST_TYPE,
+        pcommandallocator: P2,
+        pinitialstate: P3,
+    ) -> windows_core::Result<T>
+    where
+        P2: windows_core::Param<ID3D12CommandAllocator>,
+        P3: windows_core::Param<ID3D12PipelineState>,
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateCommandList)(
+                windows_core::Interface::as_raw(self),
+                nodemask,
+                r#type,
+                pcommandallocator.param().abi(),
+                pinitialstate.param().abi(),
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CheckFeatureSupport(
+        &self,
+        feature: D3D12_FEATURE,
+        pfeaturesupportdata: *mut core::ffi::c_void,
+        featuresupportdatasize: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).CheckFeatureSupport)(
+                windows_core::Interface::as_raw(self),
+                feature,
+                pfeaturesupportdata as _,
+                featuresupportdatasize,
+            )
+        }
+    }
+    pub unsafe fn CreateDescriptorHeap<T>(
+        &self,
+        pdescriptorheapdesc: *const D3D12_DESCRIPTOR_HEAP_DESC,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateDescriptorHeap)(
+                windows_core::Interface::as_raw(self),
+                pdescriptorheapdesc,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn GetDescriptorHandleIncrementSize(
+        &self,
+        descriptorheaptype: D3D12_DESCRIPTOR_HEAP_TYPE,
+    ) -> u32 {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetDescriptorHandleIncrementSize)(
+                windows_core::Interface::as_raw(self),
+                descriptorheaptype,
+            )
+        }
+    }
+    pub unsafe fn CreateRootSignature<T>(
+        &self,
+        nodemask: u32,
+        pblobwithrootsignature: &[u8],
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateRootSignature)(
+                windows_core::Interface::as_raw(self),
+                nodemask,
+                core::mem::transmute(pblobwithrootsignature.as_ptr()),
+                pblobwithrootsignature.len().try_into().unwrap(),
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateConstantBufferView(
+        &self,
+        pdesc: Option<*const D3D12_CONSTANT_BUFFER_VIEW_DESC>,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateConstantBufferView)(
+                windows_core::Interface::as_raw(self),
+                pdesc.unwrap_or(core::mem::zeroed()) as _,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CreateShaderResourceView<P0>(
+        &self,
+        presource: P0,
+        pdesc: Option<*const D3D12_SHADER_RESOURCE_VIEW_DESC>,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateShaderResourceView)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                pdesc.unwrap_or(core::mem::zeroed()) as _,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CreateUnorderedAccessView<P0, P1>(
+        &self,
+        presource: P0,
+        pcounterresource: P1,
+        pdesc: Option<*const D3D12_UNORDERED_ACCESS_VIEW_DESC>,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P1: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateUnorderedAccessView)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                pcounterresource.param().abi(),
+                pdesc.unwrap_or(core::mem::zeroed()) as _,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CreateRenderTargetView<P0>(
+        &self,
+        presource: P0,
+        pdesc: Option<*const D3D12_RENDER_TARGET_VIEW_DESC>,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateRenderTargetView)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                pdesc.unwrap_or(core::mem::zeroed()) as _,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CreateDepthStencilView<P0>(
+        &self,
+        presource: P0,
+        pdesc: Option<*const D3D12_DEPTH_STENCIL_VIEW_DESC>,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateDepthStencilView)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                pdesc.unwrap_or(core::mem::zeroed()) as _,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CreateSampler(
+        &self,
+        pdesc: *const D3D12_SAMPLER_DESC,
+        destdescriptor: D3D12_CPU_DESCRIPTOR_HANDLE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateSampler)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                destdescriptor,
+            );
+        }
+    }
+    pub unsafe fn CopyDescriptors(
+        &self,
+        numdestdescriptorranges: u32,
+        pdestdescriptorrangestarts: *const D3D12_CPU_DESCRIPTOR_HANDLE,
+        pdestdescriptorrangesizes: Option<*const u32>,
+        numsrcdescriptorranges: u32,
+        psrcdescriptorrangestarts: *const D3D12_CPU_DESCRIPTOR_HANDLE,
+        psrcdescriptorrangesizes: Option<*const u32>,
+        descriptorheapstype: D3D12_DESCRIPTOR_HEAP_TYPE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyDescriptors)(
+                windows_core::Interface::as_raw(self),
+                numdestdescriptorranges,
+                pdestdescriptorrangestarts,
+                pdestdescriptorrangesizes.unwrap_or(core::mem::zeroed()) as _,
+                numsrcdescriptorranges,
+                psrcdescriptorrangestarts,
+                psrcdescriptorrangesizes.unwrap_or(core::mem::zeroed()) as _,
+                descriptorheapstype,
+            );
+        }
+    }
+    pub unsafe fn CopyDescriptorsSimple(
+        &self,
+        numdescriptors: u32,
+        destdescriptorrangestart: D3D12_CPU_DESCRIPTOR_HANDLE,
+        srcdescriptorrangestart: D3D12_CPU_DESCRIPTOR_HANDLE,
+        descriptorheapstype: D3D12_DESCRIPTOR_HEAP_TYPE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyDescriptorsSimple)(
+                windows_core::Interface::as_raw(self),
+                numdescriptors,
+                destdescriptorrangestart,
+                srcdescriptorrangestart,
+                descriptorheapstype,
+            );
+        }
+    }
+    pub unsafe fn GetResourceAllocationInfo(
+        &self,
+        visiblemask: u32,
+        presourcedescs: &[D3D12_RESOURCE_DESC],
+    ) -> D3D12_RESOURCE_ALLOCATION_INFO {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetResourceAllocationInfo)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+                visiblemask,
+                presourcedescs.len().try_into().unwrap(),
+                presourcedescs.as_ptr(),
+            );
+            result__
+        }
+    }
+    pub unsafe fn GetCustomHeapProperties(
+        &self,
+        nodemask: u32,
+        heaptype: D3D12_HEAP_TYPE,
+    ) -> D3D12_HEAP_PROPERTIES {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetCustomHeapProperties)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+                nodemask,
+                heaptype,
+            );
+            result__
+        }
+    }
+    pub unsafe fn CreateCommittedResource<T>(
+        &self,
+        pheapproperties: *const D3D12_HEAP_PROPERTIES,
+        heapflags: D3D12_HEAP_FLAGS,
+        pdesc: *const D3D12_RESOURCE_DESC,
+        initialresourcestate: D3D12_RESOURCE_STATES,
+        poptimizedclearvalue: Option<*const D3D12_CLEAR_VALUE>,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateCommittedResource)(
+                windows_core::Interface::as_raw(self),
+                pheapproperties,
+                heapflags,
+                pdesc,
+                initialresourcestate,
+                poptimizedclearvalue.unwrap_or(core::mem::zeroed()) as _,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn CreateHeap<T>(
+        &self,
+        pdesc: *const D3D12_HEAP_DESC,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateHeap)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn CreatePlacedResource<P0, T>(
+        &self,
+        pheap: P0,
+        heapoffset: u64,
+        pdesc: *const D3D12_RESOURCE_DESC,
+        initialstate: D3D12_RESOURCE_STATES,
+        poptimizedclearvalue: Option<*const D3D12_CLEAR_VALUE>,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        P0: windows_core::Param<ID3D12Heap>,
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreatePlacedResource)(
+                windows_core::Interface::as_raw(self),
+                pheap.param().abi(),
+                heapoffset,
+                pdesc,
+                initialstate,
+                poptimizedclearvalue.unwrap_or(core::mem::zeroed()) as _,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn CreateReservedResource<T>(
+        &self,
+        pdesc: *const D3D12_RESOURCE_DESC,
+        initialstate: D3D12_RESOURCE_STATES,
+        poptimizedclearvalue: Option<*const D3D12_CLEAR_VALUE>,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateReservedResource)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                initialstate,
+                poptimizedclearvalue.unwrap_or(core::mem::zeroed()) as _,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn CreateSharedHandle<P0, P3>(
+        &self,
+        pobject: P0,
+        pattributes: Option<*const SECURITY_ATTRIBUTES>,
+        access: u32,
+        name: P3,
+    ) -> windows_core::Result<HANDLE>
+    where
+        P0: windows_core::Param<ID3D12DeviceChild>,
+        P3: windows_core::Param<windows_core::PCWSTR>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateSharedHandle)(
+                windows_core::Interface::as_raw(self),
+                pobject.param().abi(),
+                pattributes.unwrap_or(core::mem::zeroed()) as _,
+                access,
+                name.param().abi(),
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn OpenSharedHandle<T>(
+        &self,
+        nthandle: HANDLE,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).OpenSharedHandle)(
+                windows_core::Interface::as_raw(self),
+                nthandle,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn OpenSharedHandleByName<P0>(
+        &self,
+        name: P0,
+        access: u32,
+    ) -> windows_core::Result<HANDLE>
+    where
+        P0: windows_core::Param<windows_core::PCWSTR>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).OpenSharedHandleByName)(
+                windows_core::Interface::as_raw(self),
+                name.param().abi(),
+                access,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn MakeResident(
+        &self,
+        ppobjects: &[Option<ID3D12Pageable>],
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).MakeResident)(
+                windows_core::Interface::as_raw(self),
+                ppobjects.len().try_into().unwrap(),
+                core::mem::transmute(ppobjects.as_ptr()),
+            )
+        }
+    }
+    pub unsafe fn Evict(&self, ppobjects: &[Option<ID3D12Pageable>]) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Evict)(
+                windows_core::Interface::as_raw(self),
+                ppobjects.len().try_into().unwrap(),
+                core::mem::transmute(ppobjects.as_ptr()),
+            )
+        }
+    }
+    pub unsafe fn CreateFence<T>(
+        &self,
+        initialvalue: u64,
+        flags: D3D12_FENCE_FLAGS,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateFence)(
+                windows_core::Interface::as_raw(self),
+                initialvalue,
+                flags,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn GetDeviceRemovedReason(&self) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetDeviceRemovedReason)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+    pub unsafe fn GetCopyableFootprints(
+        &self,
+        presourcedesc: *const D3D12_RESOURCE_DESC,
+        firstsubresource: u32,
+        numsubresources: u32,
+        baseoffset: u64,
+        playouts: Option<*mut D3D12_PLACED_SUBRESOURCE_FOOTPRINT>,
+        pnumrows: Option<*mut u32>,
+        prowsizeinbytes: Option<*mut u64>,
+        ptotalbytes: Option<*mut u64>,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetCopyableFootprints)(
+                windows_core::Interface::as_raw(self),
+                presourcedesc,
+                firstsubresource,
+                numsubresources,
+                baseoffset,
+                playouts.unwrap_or(core::mem::zeroed()) as _,
+                pnumrows.unwrap_or(core::mem::zeroed()) as _,
+                prowsizeinbytes.unwrap_or(core::mem::zeroed()) as _,
+                ptotalbytes.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn CreateQueryHeap<T>(
+        &self,
+        pdesc: *const D3D12_QUERY_HEAP_DESC,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateQueryHeap)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn SetStablePowerState(&self, enable: bool) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetStablePowerState)(
+                windows_core::Interface::as_raw(self),
+                enable.into(),
+            )
+        }
+    }
+    pub unsafe fn CreateCommandSignature<P1, T>(
+        &self,
+        pdesc: *const D3D12_COMMAND_SIGNATURE_DESC,
+        prootsignature: P1,
+        result__: *mut Option<T>,
+    ) -> windows_core::Result<()>
+    where
+        P1: windows_core::Param<ID3D12RootSignature>,
+        T: windows_core::Interface,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CreateCommandSignature)(
+                windows_core::Interface::as_raw(self),
+                pdesc,
+                prootsignature.param().abi(),
+                &T::IID,
+                result__ as *mut _ as *mut _,
+            )
+            .ok()
+        }
+    }
+    pub unsafe fn GetResourceTiling<P0>(
+        &self,
+        ptiledresource: P0,
+        pnumtilesforentireresource: Option<*mut u32>,
+        ppackedmipdesc: Option<*mut D3D12_PACKED_MIP_INFO>,
+        pstandardtileshapefornonpackedmips: Option<*mut D3D12_TILE_SHAPE>,
+        pnumsubresourcetilings: Option<*mut u32>,
+        firstsubresourcetilingtoget: u32,
+        psubresourcetilingsfornonpackedmips: *mut D3D12_SUBRESOURCE_TILING,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetResourceTiling)(
+                windows_core::Interface::as_raw(self),
+                ptiledresource.param().abi(),
+                pnumtilesforentireresource.unwrap_or(core::mem::zeroed()) as _,
+                ppackedmipdesc.unwrap_or(core::mem::zeroed()) as _,
+                pstandardtileshapefornonpackedmips.unwrap_or(core::mem::zeroed()) as _,
+                pnumsubresourcetilings.unwrap_or(core::mem::zeroed()) as _,
+                firstsubresourcetilingtoget,
+                psubresourcetilingsfornonpackedmips as _,
+            );
+        }
+    }
+    pub unsafe fn GetAdapterLuid(&self) -> LUID {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetAdapterLuid)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12Device_Vtbl {
+    pub base__: ID3D12Object_Vtbl,
+    pub GetNodeCount: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32,
+    pub CreateCommandQueue: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_COMMAND_QUEUE_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateCommandAllocator: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_COMMAND_LIST_TYPE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateGraphicsPipelineState: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_GRAPHICS_PIPELINE_STATE_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateComputePipelineState: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_COMPUTE_PIPELINE_STATE_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateCommandList: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        D3D12_COMMAND_LIST_TYPE,
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CheckFeatureSupport: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_FEATURE,
+        *mut core::ffi::c_void,
+        u32,
+    ) -> windows_core::HRESULT,
+    pub CreateDescriptorHeap: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_DESCRIPTOR_HEAP_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub GetDescriptorHandleIncrementSize:
+        unsafe extern "system" fn(*mut core::ffi::c_void, D3D12_DESCRIPTOR_HEAP_TYPE) -> u32,
+    pub CreateRootSignature: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const core::ffi::c_void,
+        usize,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateConstantBufferView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_CONSTANT_BUFFER_VIEW_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CreateShaderResourceView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_SHADER_RESOURCE_VIEW_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CreateUnorderedAccessView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_UNORDERED_ACCESS_VIEW_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CreateRenderTargetView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_RENDER_TARGET_VIEW_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CreateDepthStencilView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_DEPTH_STENCIL_VIEW_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CreateSampler: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_SAMPLER_DESC,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub CopyDescriptors: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_CPU_DESCRIPTOR_HANDLE,
+        *const u32,
+        u32,
+        *const D3D12_CPU_DESCRIPTOR_HANDLE,
+        *const u32,
+        D3D12_DESCRIPTOR_HEAP_TYPE,
+    ),
+    pub CopyDescriptorsSimple: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        D3D12_DESCRIPTOR_HEAP_TYPE,
+    ),
+    pub GetResourceAllocationInfo: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut D3D12_RESOURCE_ALLOCATION_INFO,
+        u32,
+        u32,
+        *const D3D12_RESOURCE_DESC,
+    ),
+    pub GetCustomHeapProperties: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut D3D12_HEAP_PROPERTIES,
+        u32,
+        D3D12_HEAP_TYPE,
+    ),
+    pub CreateCommittedResource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_HEAP_PROPERTIES,
+        D3D12_HEAP_FLAGS,
+        *const D3D12_RESOURCE_DESC,
+        D3D12_RESOURCE_STATES,
+        *const D3D12_CLEAR_VALUE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateHeap: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_HEAP_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreatePlacedResource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u64,
+        *const D3D12_RESOURCE_DESC,
+        D3D12_RESOURCE_STATES,
+        *const D3D12_CLEAR_VALUE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateReservedResource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_RESOURCE_DESC,
+        D3D12_RESOURCE_STATES,
+        *const D3D12_CLEAR_VALUE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateSharedHandle: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const SECURITY_ATTRIBUTES,
+        u32,
+        windows_core::PCWSTR,
+        *mut HANDLE,
+    ) -> windows_core::HRESULT,
+    pub OpenSharedHandle: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        HANDLE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub OpenSharedHandleByName: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        windows_core::PCWSTR,
+        u32,
+        *mut HANDLE,
+    ) -> windows_core::HRESULT,
+    pub MakeResident: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub Evict: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub CreateFence: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u64,
+        D3D12_FENCE_FLAGS,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub GetDeviceRemovedReason:
+        unsafe extern "system" fn(*mut core::ffi::c_void) -> windows_core::HRESULT,
+    pub GetCopyableFootprints: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_RESOURCE_DESC,
+        u32,
+        u32,
+        u64,
+        *mut D3D12_PLACED_SUBRESOURCE_FOOTPRINT,
+        *mut u32,
+        *mut u64,
+        *mut u64,
+    ),
+    pub CreateQueryHeap: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_QUERY_HEAP_DESC,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub SetStablePowerState: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        windows_core::BOOL,
+    ) -> windows_core::HRESULT,
+    pub CreateCommandSignature: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_COMMAND_SIGNATURE_DESC,
+        *mut core::ffi::c_void,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub GetResourceTiling: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut u32,
+        *mut D3D12_PACKED_MIP_INFO,
+        *mut D3D12_TILE_SHAPE,
+        *mut u32,
+        u32,
+        *mut D3D12_SUBRESOURCE_TILING,
+    ),
+    pub GetAdapterLuid: unsafe extern "system" fn(*mut core::ffi::c_void, *mut LUID),
+}
+impl windows_core::RuntimeName for ID3D12Device {}
+windows_core::imp::define_interface!(
+    ID3D12DeviceChild,
+    ID3D12DeviceChild_Vtbl,
+    0x905db94b_a00c_4140_9df5_2b64ca9ea357
+);
+impl core::ops::Deref for ID3D12DeviceChild {
+    type Target = ID3D12Object;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(ID3D12DeviceChild, windows_core::IUnknown, ID3D12Object);
+#[repr(C)]
+pub struct ID3D12DeviceChild_Vtbl {
+    pub base__: ID3D12Object_Vtbl,
+    GetDevice: usize,
+}
+impl windows_core::RuntimeName for ID3D12DeviceChild {}
+windows_core::imp::define_interface!(
+    ID3D12Fence,
+    ID3D12Fence_Vtbl,
+    0x0a753dcf_c4d8_4b91_adf6_be5a60d95a76
+);
+impl core::ops::Deref for ID3D12Fence {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12Fence,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12Fence {
+    pub unsafe fn GetCompletedValue(&self) -> u64 {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetCompletedValue)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+    pub unsafe fn SetEventOnCompletion(&self, value: u64, hevent: HANDLE) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetEventOnCompletion)(
+                windows_core::Interface::as_raw(self),
+                value,
+                hevent,
+            )
+        }
+    }
+    pub unsafe fn Signal(&self, value: u64) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Signal)(
+                windows_core::Interface::as_raw(self),
+                value,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12Fence_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub GetCompletedValue: unsafe extern "system" fn(*mut core::ffi::c_void) -> u64,
+    pub SetEventOnCompletion:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u64, HANDLE) -> windows_core::HRESULT,
+    pub Signal: unsafe extern "system" fn(*mut core::ffi::c_void, u64) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for ID3D12Fence {}
+windows_core::imp::define_interface!(
+    ID3D12GraphicsCommandList,
+    ID3D12GraphicsCommandList_Vtbl,
+    0x5b160d0f_ac1b_4185_8ba8_b3ae42a5a455
+);
+impl core::ops::Deref for ID3D12GraphicsCommandList {
+    type Target = ID3D12CommandList;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12GraphicsCommandList,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12CommandList
+);
+impl ID3D12GraphicsCommandList {
+    pub unsafe fn Close(&self) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Close)(windows_core::Interface::as_raw(self))
+        }
+    }
+    pub unsafe fn Reset<P0, P1>(&self, pallocator: P0, pinitialstate: P1) -> windows_core::HRESULT
+    where
+        P0: windows_core::Param<ID3D12CommandAllocator>,
+        P1: windows_core::Param<ID3D12PipelineState>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).Reset)(
+                windows_core::Interface::as_raw(self),
+                pallocator.param().abi(),
+                pinitialstate.param().abi(),
+            )
+        }
+    }
+    pub unsafe fn ClearState<P0>(&self, ppipelinestate: P0)
+    where
+        P0: windows_core::Param<ID3D12PipelineState>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearState)(
+                windows_core::Interface::as_raw(self),
+                ppipelinestate.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn DrawInstanced(
+        &self,
+        vertexcountperinstance: u32,
+        instancecount: u32,
+        startvertexlocation: u32,
+        startinstancelocation: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawInstanced)(
+                windows_core::Interface::as_raw(self),
+                vertexcountperinstance,
+                instancecount,
+                startvertexlocation,
+                startinstancelocation,
+            );
+        }
+    }
+    pub unsafe fn DrawIndexedInstanced(
+        &self,
+        indexcountperinstance: u32,
+        instancecount: u32,
+        startindexlocation: u32,
+        basevertexlocation: i32,
+        startinstancelocation: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawIndexedInstanced)(
+                windows_core::Interface::as_raw(self),
+                indexcountperinstance,
+                instancecount,
+                startindexlocation,
+                basevertexlocation,
+                startinstancelocation,
+            );
+        }
+    }
+    pub unsafe fn Dispatch(
+        &self,
+        threadgroupcountx: u32,
+        threadgroupcounty: u32,
+        threadgroupcountz: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).Dispatch)(
+                windows_core::Interface::as_raw(self),
+                threadgroupcountx,
+                threadgroupcounty,
+                threadgroupcountz,
+            );
+        }
+    }
+    pub unsafe fn CopyBufferRegion<P0, P2>(
+        &self,
+        pdstbuffer: P0,
+        dstoffset: u64,
+        psrcbuffer: P2,
+        srcoffset: u64,
+        numbytes: u64,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P2: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyBufferRegion)(
+                windows_core::Interface::as_raw(self),
+                pdstbuffer.param().abi(),
+                dstoffset,
+                psrcbuffer.param().abi(),
+                srcoffset,
+                numbytes,
+            );
+        }
+    }
+    pub unsafe fn CopyTextureRegion(
+        &self,
+        pdst: *const D3D12_TEXTURE_COPY_LOCATION,
+        dstx: u32,
+        dsty: u32,
+        dstz: u32,
+        psrc: *const D3D12_TEXTURE_COPY_LOCATION,
+        psrcbox: Option<*const D3D12_BOX>,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyTextureRegion)(
+                windows_core::Interface::as_raw(self),
+                pdst,
+                dstx,
+                dsty,
+                dstz,
+                psrc,
+                psrcbox.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn CopyResource<P0, P1>(&self, pdstresource: P0, psrcresource: P1)
+    where
+        P0: windows_core::Param<ID3D12Resource>,
+        P1: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyResource)(
+                windows_core::Interface::as_raw(self),
+                pdstresource.param().abi(),
+                psrcresource.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn CopyTiles<P0, P3>(
+        &self,
+        ptiledresource: P0,
+        ptileregionstartcoordinate: *const D3D12_TILED_RESOURCE_COORDINATE,
+        ptileregionsize: *const D3D12_TILE_REGION_SIZE,
+        pbuffer: P3,
+        bufferstartoffsetinbytes: u64,
+        flags: D3D12_TILE_COPY_FLAGS,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P3: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).CopyTiles)(
+                windows_core::Interface::as_raw(self),
+                ptiledresource.param().abi(),
+                ptileregionstartcoordinate,
+                ptileregionsize,
+                pbuffer.param().abi(),
+                bufferstartoffsetinbytes,
+                flags,
+            );
+        }
+    }
+    pub unsafe fn ResolveSubresource<P0, P2>(
+        &self,
+        pdstresource: P0,
+        dstsubresource: u32,
+        psrcresource: P2,
+        srcsubresource: u32,
+        format: DXGI_FORMAT,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+        P2: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ResolveSubresource)(
+                windows_core::Interface::as_raw(self),
+                pdstresource.param().abi(),
+                dstsubresource,
+                psrcresource.param().abi(),
+                srcsubresource,
+                format,
+            );
+        }
+    }
+    pub unsafe fn IASetPrimitiveTopology(&self, primitivetopology: D3D12_PRIMITIVE_TOPOLOGY) {
+        unsafe {
+            (windows_core::Interface::vtable(self).IASetPrimitiveTopology)(
+                windows_core::Interface::as_raw(self),
+                primitivetopology,
+            );
+        }
+    }
+    pub unsafe fn RSSetViewports(&self, pviewports: &[D3D12_VIEWPORT]) {
+        unsafe {
+            (windows_core::Interface::vtable(self).RSSetViewports)(
+                windows_core::Interface::as_raw(self),
+                pviewports.len().try_into().unwrap(),
+                pviewports.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn RSSetScissorRects(&self, prects: &[D3D12_RECT]) {
+        unsafe {
+            (windows_core::Interface::vtable(self).RSSetScissorRects)(
+                windows_core::Interface::as_raw(self),
+                prects.len().try_into().unwrap(),
+                prects.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn OMSetBlendFactor(&self, blendfactor: Option<&[f32; 4]>) {
+        unsafe {
+            (windows_core::Interface::vtable(self).OMSetBlendFactor)(
+                windows_core::Interface::as_raw(self),
+                blendfactor.map_or(core::ptr::null(), |slice| slice.as_ptr()),
+            );
+        }
+    }
+    pub unsafe fn OMSetStencilRef(&self, stencilref: u32) {
+        unsafe {
+            (windows_core::Interface::vtable(self).OMSetStencilRef)(
+                windows_core::Interface::as_raw(self),
+                stencilref,
+            );
+        }
+    }
+    pub unsafe fn SetPipelineState<P0>(&self, ppipelinestate: P0)
+    where
+        P0: windows_core::Param<ID3D12PipelineState>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetPipelineState)(
+                windows_core::Interface::as_raw(self),
+                ppipelinestate.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn ResourceBarrier(&self, pbarriers: &[D3D12_RESOURCE_BARRIER]) {
+        unsafe {
+            (windows_core::Interface::vtable(self).ResourceBarrier)(
+                windows_core::Interface::as_raw(self),
+                pbarriers.len().try_into().unwrap(),
+                pbarriers.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn ExecuteBundle<P0>(&self, pcommandlist: P0)
+    where
+        P0: windows_core::Param<Self>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ExecuteBundle)(
+                windows_core::Interface::as_raw(self),
+                pcommandlist.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn SetDescriptorHeaps(&self, ppdescriptorheaps: &[Option<ID3D12DescriptorHeap>]) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetDescriptorHeaps)(
+                windows_core::Interface::as_raw(self),
+                ppdescriptorheaps.len().try_into().unwrap(),
+                core::mem::transmute(ppdescriptorheaps.as_ptr()),
+            );
+        }
+    }
+    pub unsafe fn SetComputeRootSignature<P0>(&self, prootsignature: P0)
+    where
+        P0: windows_core::Param<ID3D12RootSignature>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRootSignature)(
+                windows_core::Interface::as_raw(self),
+                prootsignature.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRootSignature<P0>(&self, prootsignature: P0)
+    where
+        P0: windows_core::Param<ID3D12RootSignature>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRootSignature)(
+                windows_core::Interface::as_raw(self),
+                prootsignature.param().abi(),
+            );
+        }
+    }
+    pub unsafe fn SetComputeRootDescriptorTable(
+        &self,
+        rootparameterindex: u32,
+        basedescriptor: D3D12_GPU_DESCRIPTOR_HANDLE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRootDescriptorTable)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                basedescriptor,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRootDescriptorTable(
+        &self,
+        rootparameterindex: u32,
+        basedescriptor: D3D12_GPU_DESCRIPTOR_HANDLE,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRootDescriptorTable)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                basedescriptor,
+            );
+        }
+    }
+    pub unsafe fn SetComputeRoot32BitConstant(
+        &self,
+        rootparameterindex: u32,
+        srcdata: u32,
+        destoffsetin32bitvalues: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRoot32BitConstant)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                srcdata,
+                destoffsetin32bitvalues,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRoot32BitConstant(
+        &self,
+        rootparameterindex: u32,
+        srcdata: u32,
+        destoffsetin32bitvalues: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRoot32BitConstant)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                srcdata,
+                destoffsetin32bitvalues,
+            );
+        }
+    }
+    pub unsafe fn SetComputeRoot32BitConstants(
+        &self,
+        rootparameterindex: u32,
+        num32bitvaluestoset: u32,
+        psrcdata: *const core::ffi::c_void,
+        destoffsetin32bitvalues: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRoot32BitConstants)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                num32bitvaluestoset,
+                psrcdata,
+                destoffsetin32bitvalues,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRoot32BitConstants(
+        &self,
+        rootparameterindex: u32,
+        num32bitvaluestoset: u32,
+        psrcdata: *const core::ffi::c_void,
+        destoffsetin32bitvalues: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRoot32BitConstants)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                num32bitvaluestoset,
+                psrcdata,
+                destoffsetin32bitvalues,
+            );
+        }
+    }
+    pub unsafe fn SetComputeRootConstantBufferView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRootConstantBufferView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRootConstantBufferView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRootConstantBufferView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn SetComputeRootShaderResourceView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRootShaderResourceView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRootShaderResourceView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRootShaderResourceView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn SetComputeRootUnorderedAccessView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetComputeRootUnorderedAccessView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn SetGraphicsRootUnorderedAccessView(
+        &self,
+        rootparameterindex: u32,
+        bufferlocation: D3D12_GPU_VIRTUAL_ADDRESS,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetGraphicsRootUnorderedAccessView)(
+                windows_core::Interface::as_raw(self),
+                rootparameterindex,
+                bufferlocation,
+            );
+        }
+    }
+    pub unsafe fn IASetIndexBuffer(&self, pview: Option<*const D3D12_INDEX_BUFFER_VIEW>) {
+        unsafe {
+            (windows_core::Interface::vtable(self).IASetIndexBuffer)(
+                windows_core::Interface::as_raw(self),
+                pview.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn IASetVertexBuffers(
+        &self,
+        startslot: u32,
+        pviews: Option<&[D3D12_VERTEX_BUFFER_VIEW]>,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).IASetVertexBuffers)(
+                windows_core::Interface::as_raw(self),
+                startslot,
+                pviews.map_or(0, |slice| slice.len().try_into().unwrap()),
+                pviews.map_or(core::ptr::null(), |slice| slice.as_ptr()),
+            );
+        }
+    }
+    pub unsafe fn SOSetTargets(
+        &self,
+        startslot: u32,
+        pviews: Option<&[D3D12_STREAM_OUTPUT_BUFFER_VIEW]>,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SOSetTargets)(
+                windows_core::Interface::as_raw(self),
+                startslot,
+                pviews.map_or(0, |slice| slice.len().try_into().unwrap()),
+                pviews.map_or(core::ptr::null(), |slice| slice.as_ptr()),
+            );
+        }
+    }
+    pub unsafe fn OMSetRenderTargets(
+        &self,
+        numrendertargetdescriptors: u32,
+        prendertargetdescriptors: Option<*const D3D12_CPU_DESCRIPTOR_HANDLE>,
+        rtssinglehandletodescriptorrange: bool,
+        pdepthstencildescriptor: Option<*const D3D12_CPU_DESCRIPTOR_HANDLE>,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).OMSetRenderTargets)(
+                windows_core::Interface::as_raw(self),
+                numrendertargetdescriptors,
+                prendertargetdescriptors.unwrap_or(core::mem::zeroed()) as _,
+                rtssinglehandletodescriptorrange.into(),
+                pdepthstencildescriptor.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn ClearDepthStencilView(
+        &self,
+        depthstencilview: D3D12_CPU_DESCRIPTOR_HANDLE,
+        clearflags: D3D12_CLEAR_FLAGS,
+        depth: f32,
+        stencil: u8,
+        prects: &[D3D12_RECT],
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearDepthStencilView)(
+                windows_core::Interface::as_raw(self),
+                depthstencilview,
+                clearflags,
+                depth,
+                stencil,
+                prects.len().try_into().unwrap(),
+                prects.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn ClearRenderTargetView(
+        &self,
+        rendertargetview: D3D12_CPU_DESCRIPTOR_HANDLE,
+        colorrgba: &[f32; 4],
+        prects: &[D3D12_RECT],
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearRenderTargetView)(
+                windows_core::Interface::as_raw(self),
+                rendertargetview,
+                colorrgba.as_ptr(),
+                prects.len().try_into().unwrap(),
+                prects.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn ClearUnorderedAccessViewUint<P2>(
+        &self,
+        viewgpuhandleincurrentheap: D3D12_GPU_DESCRIPTOR_HANDLE,
+        viewcpuhandle: D3D12_CPU_DESCRIPTOR_HANDLE,
+        presource: P2,
+        values: &[u32; 4],
+        prects: &[D3D12_RECT],
+    ) where
+        P2: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearUnorderedAccessViewUint)(
+                windows_core::Interface::as_raw(self),
+                viewgpuhandleincurrentheap,
+                viewcpuhandle,
+                presource.param().abi(),
+                values.as_ptr(),
+                prects.len().try_into().unwrap(),
+                prects.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn ClearUnorderedAccessViewFloat<P2>(
+        &self,
+        viewgpuhandleincurrentheap: D3D12_GPU_DESCRIPTOR_HANDLE,
+        viewcpuhandle: D3D12_CPU_DESCRIPTOR_HANDLE,
+        presource: P2,
+        values: &[f32; 4],
+        prects: &[D3D12_RECT],
+    ) where
+        P2: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearUnorderedAccessViewFloat)(
+                windows_core::Interface::as_raw(self),
+                viewgpuhandleincurrentheap,
+                viewcpuhandle,
+                presource.param().abi(),
+                values.as_ptr(),
+                prects.len().try_into().unwrap(),
+                prects.as_ptr(),
+            );
+        }
+    }
+    pub unsafe fn DiscardResource<P0>(
+        &self,
+        presource: P0,
+        pregion: Option<*const D3D12_DISCARD_REGION>,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).DiscardResource)(
+                windows_core::Interface::as_raw(self),
+                presource.param().abi(),
+                pregion.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn BeginQuery<P0>(&self, pqueryheap: P0, r#type: D3D12_QUERY_TYPE, index: u32)
+    where
+        P0: windows_core::Param<ID3D12QueryHeap>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).BeginQuery)(
+                windows_core::Interface::as_raw(self),
+                pqueryheap.param().abi(),
+                r#type,
+                index,
+            );
+        }
+    }
+    pub unsafe fn EndQuery<P0>(&self, pqueryheap: P0, r#type: D3D12_QUERY_TYPE, index: u32)
+    where
+        P0: windows_core::Param<ID3D12QueryHeap>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).EndQuery)(
+                windows_core::Interface::as_raw(self),
+                pqueryheap.param().abi(),
+                r#type,
+                index,
+            );
+        }
+    }
+    pub unsafe fn ResolveQueryData<P0, P4>(
+        &self,
+        pqueryheap: P0,
+        r#type: D3D12_QUERY_TYPE,
+        startindex: u32,
+        numqueries: u32,
+        pdestinationbuffer: P4,
+        aligneddestinationbufferoffset: u64,
+    ) where
+        P0: windows_core::Param<ID3D12QueryHeap>,
+        P4: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ResolveQueryData)(
+                windows_core::Interface::as_raw(self),
+                pqueryheap.param().abi(),
+                r#type,
+                startindex,
+                numqueries,
+                pdestinationbuffer.param().abi(),
+                aligneddestinationbufferoffset,
+            );
+        }
+    }
+    pub unsafe fn SetPredication<P0>(
+        &self,
+        pbuffer: P0,
+        alignedbufferoffset: u64,
+        operation: D3D12_PREDICATION_OP,
+    ) where
+        P0: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetPredication)(
+                windows_core::Interface::as_raw(self),
+                pbuffer.param().abi(),
+                alignedbufferoffset,
+                operation,
+            );
+        }
+    }
+    pub unsafe fn SetMarker(
+        &self,
+        metadata: u32,
+        pdata: Option<*const core::ffi::c_void>,
+        size: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetMarker)(
+                windows_core::Interface::as_raw(self),
+                metadata,
+                pdata.unwrap_or(core::mem::zeroed()) as _,
+                size,
+            );
+        }
+    }
+    pub unsafe fn BeginEvent(
+        &self,
+        metadata: u32,
+        pdata: Option<*const core::ffi::c_void>,
+        size: u32,
+    ) {
+        unsafe {
+            (windows_core::Interface::vtable(self).BeginEvent)(
+                windows_core::Interface::as_raw(self),
+                metadata,
+                pdata.unwrap_or(core::mem::zeroed()) as _,
+                size,
+            );
+        }
+    }
+    pub unsafe fn EndEvent(&self) {
+        unsafe {
+            (windows_core::Interface::vtable(self).EndEvent)(windows_core::Interface::as_raw(self));
+        }
+    }
+    pub unsafe fn ExecuteIndirect<P0, P2, P4>(
+        &self,
+        pcommandsignature: P0,
+        maxcommandcount: u32,
+        pargumentbuffer: P2,
+        argumentbufferoffset: u64,
+        pcountbuffer: P4,
+        countbufferoffset: u64,
+    ) where
+        P0: windows_core::Param<ID3D12CommandSignature>,
+        P2: windows_core::Param<ID3D12Resource>,
+        P4: windows_core::Param<ID3D12Resource>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).ExecuteIndirect)(
+                windows_core::Interface::as_raw(self),
+                pcommandsignature.param().abi(),
+                maxcommandcount,
+                pargumentbuffer.param().abi(),
+                argumentbufferoffset,
+                pcountbuffer.param().abi(),
+                countbufferoffset,
+            );
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12GraphicsCommandList_Vtbl {
+    pub base__: ID3D12CommandList_Vtbl,
+    pub Close: unsafe extern "system" fn(*mut core::ffi::c_void) -> windows_core::HRESULT,
+    pub Reset: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub ClearState: unsafe extern "system" fn(*mut core::ffi::c_void, *mut core::ffi::c_void),
+    pub DrawInstanced: unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, u32, u32),
+    pub DrawIndexedInstanced:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, u32, i32, u32),
+    pub Dispatch: unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, u32),
+    pub CopyBufferRegion: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u64,
+        *mut core::ffi::c_void,
+        u64,
+        u64,
+    ),
+    pub CopyTextureRegion: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const D3D12_TEXTURE_COPY_LOCATION,
+        u32,
+        u32,
+        u32,
+        *const D3D12_TEXTURE_COPY_LOCATION,
+        *const D3D12_BOX,
+    ),
+    pub CopyResource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ),
+    pub CopyTiles: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_TILED_RESOURCE_COORDINATE,
+        *const D3D12_TILE_REGION_SIZE,
+        *mut core::ffi::c_void,
+        u64,
+        D3D12_TILE_COPY_FLAGS,
+    ),
+    pub ResolveSubresource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u32,
+        *mut core::ffi::c_void,
+        u32,
+        DXGI_FORMAT,
+    ),
+    pub IASetPrimitiveTopology:
+        unsafe extern "system" fn(*mut core::ffi::c_void, D3D12_PRIMITIVE_TOPOLOGY),
+    pub RSSetViewports:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const D3D12_VIEWPORT),
+    pub RSSetScissorRects:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const D3D12_RECT),
+    pub OMSetBlendFactor: unsafe extern "system" fn(*mut core::ffi::c_void, *const f32),
+    pub OMSetStencilRef: unsafe extern "system" fn(*mut core::ffi::c_void, u32),
+    pub SetPipelineState: unsafe extern "system" fn(*mut core::ffi::c_void, *mut core::ffi::c_void),
+    pub ResourceBarrier:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const D3D12_RESOURCE_BARRIER),
+    pub ExecuteBundle: unsafe extern "system" fn(*mut core::ffi::c_void, *mut core::ffi::c_void),
+    pub SetDescriptorHeaps:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const *mut core::ffi::c_void),
+    pub SetComputeRootSignature:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *mut core::ffi::c_void),
+    pub SetGraphicsRootSignature:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *mut core::ffi::c_void),
+    pub SetComputeRootDescriptorTable:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_DESCRIPTOR_HANDLE),
+    pub SetGraphicsRootDescriptorTable:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_DESCRIPTOR_HANDLE),
+    pub SetComputeRoot32BitConstant:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, u32),
+    pub SetGraphicsRoot32BitConstant:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, u32),
+    pub SetComputeRoot32BitConstants:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, *const core::ffi::c_void, u32),
+    pub SetGraphicsRoot32BitConstants:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32, *const core::ffi::c_void, u32),
+    pub SetComputeRootConstantBufferView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub SetGraphicsRootConstantBufferView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub SetComputeRootShaderResourceView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub SetGraphicsRootShaderResourceView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub SetComputeRootUnorderedAccessView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub SetGraphicsRootUnorderedAccessView:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, D3D12_GPU_VIRTUAL_ADDRESS),
+    pub IASetIndexBuffer:
+        unsafe extern "system" fn(*mut core::ffi::c_void, *const D3D12_INDEX_BUFFER_VIEW),
+    pub IASetVertexBuffers: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        u32,
+        *const D3D12_VERTEX_BUFFER_VIEW,
+    ),
+    pub SOSetTargets: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        u32,
+        *const D3D12_STREAM_OUTPUT_BUFFER_VIEW,
+    ),
+    pub OMSetRenderTargets: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_CPU_DESCRIPTOR_HANDLE,
+        windows_core::BOOL,
+        *const D3D12_CPU_DESCRIPTOR_HANDLE,
+    ),
+    pub ClearDepthStencilView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        D3D12_CLEAR_FLAGS,
+        f32,
+        u8,
+        u32,
+        *const D3D12_RECT,
+    ),
+    pub ClearRenderTargetView: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        *const f32,
+        u32,
+        *const D3D12_RECT,
+    ),
+    pub ClearUnorderedAccessViewUint: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_GPU_DESCRIPTOR_HANDLE,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        *mut core::ffi::c_void,
+        *const u32,
+        u32,
+        *const D3D12_RECT,
+    ),
+    pub ClearUnorderedAccessViewFloat: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        D3D12_GPU_DESCRIPTOR_HANDLE,
+        D3D12_CPU_DESCRIPTOR_HANDLE,
+        *mut core::ffi::c_void,
+        *const f32,
+        u32,
+        *const D3D12_RECT,
+    ),
+    pub DiscardResource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *const D3D12_DISCARD_REGION,
+    ),
+    pub BeginQuery: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        D3D12_QUERY_TYPE,
+        u32,
+    ),
+    pub EndQuery: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        D3D12_QUERY_TYPE,
+        u32,
+    ),
+    pub ResolveQueryData: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        D3D12_QUERY_TYPE,
+        u32,
+        u32,
+        *mut core::ffi::c_void,
+        u64,
+    ),
+    pub SetPredication: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u64,
+        D3D12_PREDICATION_OP,
+    ),
+    pub SetMarker:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const core::ffi::c_void, u32),
+    pub BeginEvent:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const core::ffi::c_void, u32),
+    pub EndEvent: unsafe extern "system" fn(*mut core::ffi::c_void),
+    pub ExecuteIndirect: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u32,
+        *mut core::ffi::c_void,
+        u64,
+        *mut core::ffi::c_void,
+        u64,
+    ),
+}
+impl windows_core::RuntimeName for ID3D12GraphicsCommandList {}
+windows_core::imp::define_interface!(
+    ID3D12Heap,
+    ID3D12Heap_Vtbl,
+    0x6b3b2502_6e51_45b3_90ee_9884265e8df3
+);
+impl core::ops::Deref for ID3D12Heap {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12Heap,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+#[repr(C)]
+pub struct ID3D12Heap_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    GetDesc: usize,
+}
+impl windows_core::RuntimeName for ID3D12Heap {}
+windows_core::imp::define_interface!(
+    ID3D12Object,
+    ID3D12Object_Vtbl,
+    0xc4fec28f_7966_4e95_9f94_f431cb56c3b8
+);
+windows_core::imp::interface_hierarchy!(ID3D12Object, windows_core::IUnknown);
+#[repr(C)]
+pub struct ID3D12Object_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    GetPrivateData: usize,
+    SetPrivateData: usize,
+    SetPrivateDataInterface: usize,
+    SetName: usize,
+}
+impl windows_core::RuntimeName for ID3D12Object {}
+windows_core::imp::define_interface!(
+    ID3D12Pageable,
+    ID3D12Pageable_Vtbl,
+    0x63ee58fb_1268_4835_86da_f008ce62f0d6
+);
+impl core::ops::Deref for ID3D12Pageable {
+    type Target = ID3D12DeviceChild;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12Pageable,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild
+);
+#[repr(C)]
+pub struct ID3D12Pageable_Vtbl {
+    pub base__: ID3D12DeviceChild_Vtbl,
+}
+impl windows_core::RuntimeName for ID3D12Pageable {}
+windows_core::imp::define_interface!(
+    ID3D12PipelineState,
+    ID3D12PipelineState_Vtbl,
+    0x765a30f3_f624_4c6f_a828_ace948622445
+);
+impl core::ops::Deref for ID3D12PipelineState {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12PipelineState,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12PipelineState {
+    pub unsafe fn GetCachedBlob(&self) -> windows_core::Result<ID3D10Blob> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetCachedBlob)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12PipelineState_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub GetCachedBlob: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for ID3D12PipelineState {}
+windows_core::imp::define_interface!(
+    ID3D12QueryHeap,
+    ID3D12QueryHeap_Vtbl,
+    0x0d9658ae_ed45_469e_a61d_970ec583cab4
+);
+impl core::ops::Deref for ID3D12QueryHeap {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12QueryHeap,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+#[repr(C)]
+pub struct ID3D12QueryHeap_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+}
+impl windows_core::RuntimeName for ID3D12QueryHeap {}
+windows_core::imp::define_interface!(
+    ID3D12Resource,
+    ID3D12Resource_Vtbl,
+    0x696442be_a72e_4059_bc79_5b5c98040fad
+);
+impl core::ops::Deref for ID3D12Resource {
+    type Target = ID3D12Pageable;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12Resource,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild,
+    ID3D12Pageable
+);
+impl ID3D12Resource {
+    pub unsafe fn Map(
+        &self,
+        subresource: u32,
+        preadrange: Option<*const D3D12_RANGE>,
+        ppdata: *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Map)(
+                windows_core::Interface::as_raw(self),
+                subresource,
+                preadrange.unwrap_or(core::mem::zeroed()) as _,
+                ppdata as _,
+            )
+        }
+    }
+    pub unsafe fn Unmap(&self, subresource: u32, pwrittenrange: Option<*const D3D12_RANGE>) {
+        unsafe {
+            (windows_core::Interface::vtable(self).Unmap)(
+                windows_core::Interface::as_raw(self),
+                subresource,
+                pwrittenrange.unwrap_or(core::mem::zeroed()) as _,
+            );
+        }
+    }
+    pub unsafe fn GetDesc(&self) -> D3D12_RESOURCE_DESC {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetDesc)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            );
+            result__
+        }
+    }
+    pub unsafe fn GetGPUVirtualAddress(&self) -> D3D12_GPU_VIRTUAL_ADDRESS {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetGPUVirtualAddress)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+    pub unsafe fn WriteToSubresource(
+        &self,
+        dstsubresource: u32,
+        pdstbox: Option<*const D3D12_BOX>,
+        psrcdata: *const core::ffi::c_void,
+        srcrowpitch: u32,
+        srcdepthpitch: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).WriteToSubresource)(
+                windows_core::Interface::as_raw(self),
+                dstsubresource,
+                pdstbox.unwrap_or(core::mem::zeroed()) as _,
+                psrcdata,
+                srcrowpitch,
+                srcdepthpitch,
+            )
+        }
+    }
+    pub unsafe fn ReadFromSubresource(
+        &self,
+        pdstdata: *mut core::ffi::c_void,
+        dstrowpitch: u32,
+        dstdepthpitch: u32,
+        srcsubresource: u32,
+        psrcbox: Option<*const D3D12_BOX>,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).ReadFromSubresource)(
+                windows_core::Interface::as_raw(self),
+                pdstdata as _,
+                dstrowpitch,
+                dstdepthpitch,
+                srcsubresource,
+                psrcbox.unwrap_or(core::mem::zeroed()) as _,
+            )
+        }
+    }
+    pub unsafe fn GetHeapProperties(
+        &self,
+        pheapproperties: Option<*mut D3D12_HEAP_PROPERTIES>,
+        pheapflags: Option<*mut D3D12_HEAP_FLAGS>,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetHeapProperties)(
+                windows_core::Interface::as_raw(self),
+                pheapproperties.unwrap_or(core::mem::zeroed()) as _,
+                pheapflags.unwrap_or(core::mem::zeroed()) as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12Resource_Vtbl {
+    pub base__: ID3D12Pageable_Vtbl,
+    pub Map: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_RANGE,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub Unmap: unsafe extern "system" fn(*mut core::ffi::c_void, u32, *const D3D12_RANGE),
+    pub GetDesc: unsafe extern "system" fn(*mut core::ffi::c_void, *mut D3D12_RESOURCE_DESC),
+    pub GetGPUVirtualAddress:
+        unsafe extern "system" fn(*mut core::ffi::c_void) -> D3D12_GPU_VIRTUAL_ADDRESS,
+    pub WriteToSubresource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const D3D12_BOX,
+        *const core::ffi::c_void,
+        u32,
+        u32,
+    ) -> windows_core::HRESULT,
+    pub ReadFromSubresource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        u32,
+        u32,
+        u32,
+        *const D3D12_BOX,
+    ) -> windows_core::HRESULT,
+    pub GetHeapProperties: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut D3D12_HEAP_PROPERTIES,
+        *mut D3D12_HEAP_FLAGS,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for ID3D12Resource {}
+windows_core::imp::define_interface!(
+    ID3D12RootSignature,
+    ID3D12RootSignature_Vtbl,
+    0xc54a6b66_72df_4ee8_8be5_a946a1429214
+);
+impl core::ops::Deref for ID3D12RootSignature {
+    type Target = ID3D12DeviceChild;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    ID3D12RootSignature,
+    windows_core::IUnknown,
+    ID3D12Object,
+    ID3D12DeviceChild
+);
+#[repr(C)]
+pub struct ID3D12RootSignature_Vtbl {
+    pub base__: ID3D12DeviceChild_Vtbl,
+}
+impl windows_core::RuntimeName for ID3D12RootSignature {}
+pub const IDC_ARROW: windows_core::PCWSTR = windows_core::PCWSTR(32512 as _);
+windows_core::imp::define_interface!(
+    IDXGIAdapter,
+    IDXGIAdapter_Vtbl,
+    0x2411e7e1_12ac_4ccf_bd14_9798e8534dc0
+);
+impl core::ops::Deref for IDXGIAdapter {
+    type Target = IDXGIObject;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(IDXGIAdapter, windows_core::IUnknown, IDXGIObject);
+#[repr(C)]
+pub struct IDXGIAdapter_Vtbl {
+    pub base__: IDXGIObject_Vtbl,
+    EnumOutputs: usize,
+    GetDesc: usize,
+    CheckInterfaceSupport: usize,
+}
+impl windows_core::RuntimeName for IDXGIAdapter {}
+windows_core::imp::define_interface!(
+    IDXGIAdapter1,
+    IDXGIAdapter1_Vtbl,
+    0x29038f61_3839_4626_91fd_086879011a05
+);
+impl core::ops::Deref for IDXGIAdapter1 {
+    type Target = IDXGIAdapter;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIAdapter1,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIAdapter
+);
+impl IDXGIAdapter1 {
+    pub unsafe fn GetDesc1(&self, pdesc: *mut DXGI_ADAPTER_DESC1) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetDesc1)(
+                windows_core::Interface::as_raw(self),
+                pdesc as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGIAdapter1_Vtbl {
+    pub base__: IDXGIAdapter_Vtbl,
+    pub GetDesc1: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut DXGI_ADAPTER_DESC1,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IDXGIAdapter1 {}
+windows_core::imp::define_interface!(
+    IDXGIDeviceSubObject,
+    IDXGIDeviceSubObject_Vtbl,
+    0x3d3e0379_f9de_4d58_bb6c_18d62992f1a6
+);
+impl core::ops::Deref for IDXGIDeviceSubObject {
+    type Target = IDXGIObject;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(IDXGIDeviceSubObject, windows_core::IUnknown, IDXGIObject);
+#[repr(C)]
+pub struct IDXGIDeviceSubObject_Vtbl {
+    pub base__: IDXGIObject_Vtbl,
+    GetDevice: usize,
+}
+impl windows_core::RuntimeName for IDXGIDeviceSubObject {}
+windows_core::imp::define_interface!(
+    IDXGIFactory,
+    IDXGIFactory_Vtbl,
+    0x7b7166ec_21c7_44ae_b21a_c9ae321ae369
+);
+impl core::ops::Deref for IDXGIFactory {
+    type Target = IDXGIObject;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(IDXGIFactory, windows_core::IUnknown, IDXGIObject);
+impl IDXGIFactory {
+    pub unsafe fn MakeWindowAssociation(
+        &self,
+        windowhandle: HWND,
+        flags: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).MakeWindowAssociation)(
+                windows_core::Interface::as_raw(self),
+                windowhandle,
+                flags,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGIFactory_Vtbl {
+    pub base__: IDXGIObject_Vtbl,
+    EnumAdapters: usize,
+    pub MakeWindowAssociation:
+        unsafe extern "system" fn(*mut core::ffi::c_void, HWND, u32) -> windows_core::HRESULT,
+    GetWindowAssociation: usize,
+    CreateSwapChain: usize,
+    CreateSoftwareAdapter: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory {}
+windows_core::imp::define_interface!(
+    IDXGIFactory1,
+    IDXGIFactory1_Vtbl,
+    0x770aae78_f26f_4dba_a829_253c83d1b387
+);
+impl core::ops::Deref for IDXGIFactory1 {
+    type Target = IDXGIFactory;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory1,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory
+);
+#[repr(C)]
+pub struct IDXGIFactory1_Vtbl {
+    pub base__: IDXGIFactory_Vtbl,
+    EnumAdapters1: usize,
+    IsCurrent: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory1 {}
+windows_core::imp::define_interface!(
+    IDXGIFactory2,
+    IDXGIFactory2_Vtbl,
+    0x50c83a1c_e072_4c48_87b0_3630fa36a6d0
+);
+impl core::ops::Deref for IDXGIFactory2 {
+    type Target = IDXGIFactory1;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory2,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory,
+    IDXGIFactory1
+);
+impl IDXGIFactory2 {
+    pub unsafe fn CreateSwapChainForHwnd<P0, P4>(
+        &self,
+        pdevice: P0,
+        hwnd: HWND,
+        pdesc: *const DXGI_SWAP_CHAIN_DESC1,
+        pfullscreendesc: Option<*const DXGI_SWAP_CHAIN_FULLSCREEN_DESC>,
+        prestricttooutput: P4,
+    ) -> windows_core::Result<IDXGISwapChain1>
+    where
+        P0: windows_core::Param<windows_core::IUnknown>,
+        P4: windows_core::Param<IDXGIOutput>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateSwapChainForHwnd)(
+                windows_core::Interface::as_raw(self),
+                pdevice.param().abi(),
+                hwnd,
+                pdesc,
+                pfullscreendesc.unwrap_or(core::mem::zeroed()) as _,
+                prestricttooutput.param().abi(),
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGIFactory2_Vtbl {
+    pub base__: IDXGIFactory1_Vtbl,
+    IsWindowedStereoEnabled: usize,
+    pub CreateSwapChainForHwnd: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        HWND,
+        *const DXGI_SWAP_CHAIN_DESC1,
+        *const DXGI_SWAP_CHAIN_FULLSCREEN_DESC,
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    CreateSwapChainForCoreWindow: usize,
+    GetSharedResourceAdapterLuid: usize,
+    RegisterStereoStatusWindow: usize,
+    RegisterStereoStatusEvent: usize,
+    UnregisterStereoStatus: usize,
+    RegisterOcclusionStatusWindow: usize,
+    RegisterOcclusionStatusEvent: usize,
+    UnregisterOcclusionStatus: usize,
+    CreateSwapChainForComposition: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory2 {}
+windows_core::imp::define_interface!(
+    IDXGIFactory3,
+    IDXGIFactory3_Vtbl,
+    0x25483823_cd46_4c7d_86ca_47aa95b837bd
+);
+impl core::ops::Deref for IDXGIFactory3 {
+    type Target = IDXGIFactory2;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory3,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory,
+    IDXGIFactory1,
+    IDXGIFactory2
+);
+#[repr(C)]
+pub struct IDXGIFactory3_Vtbl {
+    pub base__: IDXGIFactory2_Vtbl,
+    GetCreationFlags: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory3 {}
+windows_core::imp::define_interface!(
+    IDXGIFactory4,
+    IDXGIFactory4_Vtbl,
+    0x1bc6ea02_ef36_464f_bf0c_21ca39e5168a
+);
+impl core::ops::Deref for IDXGIFactory4 {
+    type Target = IDXGIFactory3;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory4,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory,
+    IDXGIFactory1,
+    IDXGIFactory2,
+    IDXGIFactory3
+);
+#[repr(C)]
+pub struct IDXGIFactory4_Vtbl {
+    pub base__: IDXGIFactory3_Vtbl,
+    EnumAdapterByLuid: usize,
+    EnumWarpAdapter: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory4 {}
+windows_core::imp::define_interface!(
+    IDXGIFactory5,
+    IDXGIFactory5_Vtbl,
+    0x7632e1f5_ee65_4dca_87fd_84cd75f8838d
+);
+impl core::ops::Deref for IDXGIFactory5 {
+    type Target = IDXGIFactory4;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory5,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory,
+    IDXGIFactory1,
+    IDXGIFactory2,
+    IDXGIFactory3,
+    IDXGIFactory4
+);
+#[repr(C)]
+pub struct IDXGIFactory5_Vtbl {
+    pub base__: IDXGIFactory4_Vtbl,
+    CheckFeatureSupport: usize,
+}
+impl windows_core::RuntimeName for IDXGIFactory5 {}
+windows_core::imp::define_interface!(
+    IDXGIFactory6,
+    IDXGIFactory6_Vtbl,
+    0xc1b6694f_ff09_44a9_b03c_77900a0a1d17
+);
+impl core::ops::Deref for IDXGIFactory6 {
+    type Target = IDXGIFactory5;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIFactory6,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIFactory,
+    IDXGIFactory1,
+    IDXGIFactory2,
+    IDXGIFactory3,
+    IDXGIFactory4,
+    IDXGIFactory5
+);
+impl IDXGIFactory6 {
+    pub unsafe fn EnumAdapterByGpuPreference<T>(
+        &self,
+        adapter: u32,
+        gpupreference: DXGI_GPU_PREFERENCE,
+    ) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).EnumAdapterByGpuPreference)(
+                windows_core::Interface::as_raw(self),
+                adapter,
+                gpupreference,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGIFactory6_Vtbl {
+    pub base__: IDXGIFactory5_Vtbl,
+    pub EnumAdapterByGpuPreference: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        DXGI_GPU_PREFERENCE,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IDXGIFactory6 {}
+windows_core::imp::define_interface!(
+    IDXGIObject,
+    IDXGIObject_Vtbl,
+    0xaec22fb8_76f3_4639_9be0_28eb43a67a2e
+);
+windows_core::imp::interface_hierarchy!(IDXGIObject, windows_core::IUnknown);
+#[repr(C)]
+pub struct IDXGIObject_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    SetPrivateData: usize,
+    SetPrivateDataInterface: usize,
+    GetPrivateData: usize,
+    GetParent: usize,
+}
+impl windows_core::RuntimeName for IDXGIObject {}
+windows_core::imp::define_interface!(
+    IDXGIOutput,
+    IDXGIOutput_Vtbl,
+    0xae02eedb_c735_4690_8d52_5a8dc20213aa
+);
+impl core::ops::Deref for IDXGIOutput {
+    type Target = IDXGIObject;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(IDXGIOutput, windows_core::IUnknown, IDXGIObject);
+#[repr(C)]
+pub struct IDXGIOutput_Vtbl {
+    pub base__: IDXGIObject_Vtbl,
+    GetDesc: usize,
+    GetDisplayModeList: usize,
+    FindClosestMatchingMode: usize,
+    WaitForVBlank: usize,
+    TakeOwnership: usize,
+    ReleaseOwnership: usize,
+    GetGammaControlCapabilities: usize,
+    SetGammaControl: usize,
+    GetGammaControl: usize,
+    SetDisplaySurface: usize,
+    GetDisplaySurfaceData: usize,
+    GetFrameStatistics: usize,
+}
+impl windows_core::RuntimeName for IDXGIOutput {}
+windows_core::imp::define_interface!(
+    IDXGISwapChain,
+    IDXGISwapChain_Vtbl,
+    0x310d36a0_d2e7_4c0a_aa04_6a9d23b8886a
+);
+impl core::ops::Deref for IDXGISwapChain {
+    type Target = IDXGIDeviceSubObject;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGISwapChain,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIDeviceSubObject
+);
+impl IDXGISwapChain {
+    pub unsafe fn Present(&self, syncinterval: u32, flags: u32) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).Present)(
+                windows_core::Interface::as_raw(self),
+                syncinterval,
+                flags,
+            )
+        }
+    }
+    pub unsafe fn GetBuffer<T>(&self, buffer: u32) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).GetBuffer)(
+                windows_core::Interface::as_raw(self),
+                buffer,
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn ResizeBuffers(
+        &self,
+        buffercount: u32,
+        width: u32,
+        height: u32,
+        newformat: DXGI_FORMAT,
+        swapchainflags: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).ResizeBuffers)(
+                windows_core::Interface::as_raw(self),
+                buffercount,
+                width,
+                height,
+                newformat,
+                swapchainflags,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGISwapChain_Vtbl {
+    pub base__: IDXGIDeviceSubObject_Vtbl,
+    pub Present:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, u32) -> windows_core::HRESULT,
+    pub GetBuffer: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    SetFullscreenState: usize,
+    GetFullscreenState: usize,
+    GetDesc: usize,
+    pub ResizeBuffers: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        u32,
+        u32,
+        DXGI_FORMAT,
+        u32,
+    ) -> windows_core::HRESULT,
+    ResizeTarget: usize,
+    GetContainingOutput: usize,
+    GetFrameStatistics: usize,
+    GetLastPresentCount: usize,
+}
+impl windows_core::RuntimeName for IDXGISwapChain {}
+windows_core::imp::define_interface!(
+    IDXGISwapChain1,
+    IDXGISwapChain1_Vtbl,
+    0x790a45f7_0d42_4876_983a_0a55cfe6f4aa
+);
+impl core::ops::Deref for IDXGISwapChain1 {
+    type Target = IDXGISwapChain;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGISwapChain1,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIDeviceSubObject,
+    IDXGISwapChain
+);
+impl IDXGISwapChain1 {
+    pub unsafe fn GetDesc1(&self, pdesc: *mut DXGI_SWAP_CHAIN_DESC1) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetDesc1)(
+                windows_core::Interface::as_raw(self),
+                pdesc as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGISwapChain1_Vtbl {
+    pub base__: IDXGISwapChain_Vtbl,
+    pub GetDesc1: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut DXGI_SWAP_CHAIN_DESC1,
+    ) -> windows_core::HRESULT,
+    GetFullscreenDesc: usize,
+    GetHwnd: usize,
+    GetCoreWindow: usize,
+    Present1: usize,
+    IsTemporaryMonoSupported: usize,
+    GetRestrictToOutput: usize,
+    SetBackgroundColor: usize,
+    GetBackgroundColor: usize,
+    SetRotation: usize,
+    GetRotation: usize,
+}
+impl windows_core::RuntimeName for IDXGISwapChain1 {}
+windows_core::imp::define_interface!(
+    IDXGISwapChain2,
+    IDXGISwapChain2_Vtbl,
+    0xa8be2ac4_199f_4946_b331_79599fb98de7
+);
+impl core::ops::Deref for IDXGISwapChain2 {
+    type Target = IDXGISwapChain1;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGISwapChain2,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIDeviceSubObject,
+    IDXGISwapChain,
+    IDXGISwapChain1
+);
+#[repr(C)]
+pub struct IDXGISwapChain2_Vtbl {
+    pub base__: IDXGISwapChain1_Vtbl,
+    SetSourceSize: usize,
+    GetSourceSize: usize,
+    SetMaximumFrameLatency: usize,
+    GetMaximumFrameLatency: usize,
+    GetFrameLatencyWaitableObject: usize,
+    SetMatrixTransform: usize,
+    GetMatrixTransform: usize,
+}
+impl windows_core::RuntimeName for IDXGISwapChain2 {}
+windows_core::imp::define_interface!(
+    IDXGISwapChain3,
+    IDXGISwapChain3_Vtbl,
+    0x94d99bdb_f1f8_4ab0_b236_7da0170edab1
+);
+impl core::ops::Deref for IDXGISwapChain3 {
+    type Target = IDXGISwapChain2;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGISwapChain3,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIDeviceSubObject,
+    IDXGISwapChain,
+    IDXGISwapChain1,
+    IDXGISwapChain2
+);
+impl IDXGISwapChain3 {
+    pub unsafe fn GetCurrentBackBufferIndex(&self) -> u32 {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetCurrentBackBufferIndex)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+    pub unsafe fn CheckColorSpaceSupport(
+        &self,
+        colorspace: DXGI_COLOR_SPACE_TYPE,
+    ) -> windows_core::Result<u32> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CheckColorSpaceSupport)(
+                windows_core::Interface::as_raw(self),
+                colorspace,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn SetColorSpace1(
+        &self,
+        colorspace: DXGI_COLOR_SPACE_TYPE,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetColorSpace1)(
+                windows_core::Interface::as_raw(self),
+                colorspace,
+            )
+        }
+    }
+    pub unsafe fn ResizeBuffers1(
+        &self,
+        buffercount: u32,
+        width: u32,
+        height: u32,
+        format: DXGI_FORMAT,
+        swapchainflags: u32,
+        pcreationnodemask: *const u32,
+        pppresentqueue: *const Option<windows_core::IUnknown>,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).ResizeBuffers1)(
+                windows_core::Interface::as_raw(self),
+                buffercount,
+                width,
+                height,
+                format,
+                swapchainflags,
+                pcreationnodemask,
+                core::mem::transmute(pppresentqueue),
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGISwapChain3_Vtbl {
+    pub base__: IDXGISwapChain2_Vtbl,
+    pub GetCurrentBackBufferIndex: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32,
+    pub CheckColorSpaceSupport: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DXGI_COLOR_SPACE_TYPE,
+        *mut u32,
+    ) -> windows_core::HRESULT,
+    pub SetColorSpace1: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DXGI_COLOR_SPACE_TYPE,
+    ) -> windows_core::HRESULT,
+    pub ResizeBuffers1: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        u32,
+        u32,
+        DXGI_FORMAT,
+        u32,
+        *const u32,
+        *const *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IDXGISwapChain3 {}
+pub const INFINITE: u32 = 4294967295;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct LPARAM(pub isize);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct LRESULT(pub isize);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct LSTATUS(pub i32);
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct LUID {
+    pub LowPart: u32,
+    pub HighPart: i32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MSG {
+    pub hwnd: HWND,
+    pub message: u32,
+    pub wParam: WPARAM,
+    pub lParam: LPARAM,
+    pub time: u32,
+    pub pt: POINT,
+}
+pub const OUT_DEFAULT_PRECIS: i32 = 0;
+pub const PM_REMOVE: i32 = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct POINT {
+    pub x: i32,
+    pub y: i32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RECT {
+    pub left: i32,
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RGBQUAD {
+    pub rgbBlue: u8,
+    pub rgbGreen: u8,
+    pub rgbRed: u8,
+    pub rgbReserved: u8,
+}
+pub const RRF_RT_REG_SZ: i32 = 2;
+pub const RRF_SUBKEY_WOW6432KEY: i32 = 131072;
+pub const SC_KEYMENU: i32 = 61696;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SECURITY_ATTRIBUTES {
+    pub nLength: u32,
+    pub lpSecurityDescriptor: *mut core::ffi::c_void,
+    pub bInheritHandle: windows_core::BOOL,
+}
+pub const SM_CXSCREEN: i32 = 0;
+pub const SM_CYSCREEN: i32 = 1;
+pub const SWP_NOACTIVATE: i32 = 16;
+pub const SWP_NOZORDER: i32 = 4;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TEXTMETRICW {
+    pub tmHeight: i32,
+    pub tmAscent: i32,
+    pub tmDescent: i32,
+    pub tmInternalLeading: i32,
+    pub tmExternalLeading: i32,
+    pub tmAveCharWidth: i32,
+    pub tmMaxCharWidth: i32,
+    pub tmWeight: i32,
+    pub tmOverhang: i32,
+    pub tmDigitizedAspectX: i32,
+    pub tmDigitizedAspectY: i32,
+    pub tmFirstChar: u16,
+    pub tmLastChar: u16,
+    pub tmDefaultChar: u16,
+    pub tmBreakChar: u16,
+    pub tmItalic: u8,
+    pub tmUnderlined: u8,
+    pub tmStruckOut: u8,
+    pub tmPitchAndFamily: u8,
+    pub tmCharSet: u8,
+}
+pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct VS_FIXEDFILEINFO {
+    pub dwSignature: u32,
+    pub dwStrucVersion: u32,
+    pub dwFileVersionMS: u32,
+    pub dwFileVersionLS: u32,
+    pub dwProductVersionMS: u32,
+    pub dwProductVersionLS: u32,
+    pub dwFileFlagsMask: u32,
+    pub dwFileFlags: u32,
+    pub dwFileOS: u32,
+    pub dwFileType: u32,
+    pub dwFileSubtype: u32,
+    pub dwFileDateMS: u32,
+    pub dwFileDateLS: u32,
+}
+pub const WM_DESTROY: i32 = 2;
+pub const WM_DPICHANGED: i32 = 736;
+pub const WM_QUIT: i32 = 18;
+pub const WM_SIZE: i32 = 5;
+pub const WM_SYSCOMMAND: i32 = 274;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct WNDCLASSEXW {
+    pub cbSize: u32,
+    pub style: u32,
+    pub lpfnWndProc: WNDPROC,
+    pub cbClsExtra: i32,
+    pub cbWndExtra: i32,
+    pub hInstance: HINSTANCE,
+    pub hIcon: HICON,
+    pub hCursor: HCURSOR,
+    pub hbrBackground: HBRUSH,
+    pub lpszMenuName: windows_core::PCWSTR,
+    pub lpszClassName: windows_core::PCWSTR,
+    pub hIconSm: HICON,
+}
+pub type WNDPROC = Option<
+    unsafe extern "system" fn(param0: HWND, param1: u32, param2: WPARAM, param3: LPARAM) -> LRESULT,
+>;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct WPARAM(pub usize);
+pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
+pub const WS_VISIBLE: i32 = 268435456;
