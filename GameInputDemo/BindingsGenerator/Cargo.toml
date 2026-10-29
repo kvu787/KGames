@@ -1,0 +1,15 @@
+[package]
+name = "bindings_generator"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "BindingsGenerator"
+path = "Source/Main.rs"
+
+[dependencies]
+windows-bindgen = "0.100"
+
+# A standalone package, so the demo's normal builds never compile the generator.
+[workspace]
