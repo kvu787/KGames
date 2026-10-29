@@ -341,7 +341,7 @@ Clippy is clean now. Updating the README and `.gitignore`, then committing.
 
 The code is committed. Now updating the conversation record. The last turn's closing message in chat was worded differently from what I'd saved, so I'm making the record match what you actually saw.
 
-HelloDirect3D12 now uses generated bindings instead of the `windows` crate. The change is in three commits on `main` (not pushed):
+HelloDirect3D12 now uses generated bindings instead of the `windows` crate. Debug and release builds both work, and the build pulls in 4 crates instead of 15. The change is in three commits on `main` (not pushed):
 
 - `58906b2` Add HelloDirect3D12 bindings generator. [BindingsGenerator/](HelloDirect3D12/BindingsGenerator/) is a separate tool package that runs `windows-bindgen` 0.100 over the API names in [Filters.txt](HelloDirect3D12/BindingsGenerator/Filters.txt).
 - `f9b3404` Generate HelloDirect3D12 Windows API bindings. [Source/Bindings.rs](HelloDirect3D12/Source/Bindings.rs) is the generated output (168 KB).
@@ -356,20 +356,20 @@ HelloDirect3D12 now uses generated bindings instead of the `windows` crate. The 
 | Release exe             | 152 KB                  | 150 KB                     |
 | Source of the API data  | Win32Metadata project   | Windows SDK headers        |
 
-The four crates left are `windows-core`, `windows-link`, `windows-result` and `windows-strings`, all from windows-rs.
+The four remaining crates are `windows-core`, `windows-link`, `windows-result` and `windows-strings`, all from Microsoft's windows-rs project.
 
-I tested debug and release builds. In both, the triangle renders, the window survives a resize to 800x500, and the program exits with code 0. `cargo clippy` and `cargo fmt --check` are clean.
+In both debug and release builds, the triangle renders, the window survives a resize to 800x500, and the program exits with code 0. `cargo clippy` and `cargo fmt --check` report no problems.
 
 ## What changed in Main.rs
 
-As expected, the new bindings follow the C headers more literally:
+As expected, the new bindings follow the C headers more closely:
 
-- Win32 functions return raw values instead of `Result`. For example, `CreateWindowExW` returns an `HWND` that may be null. A small `check_handle` helper turns a null handle into the thread's last error, and `BOOL` results use `.ok()?`.
-- Some COM methods return an `HRESULT` instead of a `Result` (`Close`, `Reset`, `Signal`, `Present`, ...), so they also use `.ok()?`.
-- Many constants are plain `i32`, while the parameters that take them are `u32`, so there are casts like `PM_REMOVE as u32`. Flag parameters, like the one on `Present`, are plain `u32`.
-- A few values need wrapping in a newtype: `DXGI_USAGE(...)`, `D3D12_PRIMITIVE_TOPOLOGY(...)`, and the `ATOM` that `RegisterClassExW` returns.
+- **Win32 functions return raw values instead of `Result`.** For example, `CreateWindowExW` returns an `HWND` that may be null. A small `check_handle` helper turns a null handle into the thread's last Win32 error. Functions that return a `BOOL` are checked with `.ok()?`.
+- **Some COM methods return an `HRESULT` instead of a `Result`** (`Close`, `Reset`, `Signal`, `Present`, ...), so they're also checked with `.ok()?`.
+- **Constants need casts.** Many constants are plain `i32`, but the parameters that take them are `u32`, so there are casts like `PM_REMOVE as u32`. Flag parameters, like the one on `Present`, are now plain `u32` too.
+- **A few values need a wrapper type:** `DXGI_USAGE(...)`, `D3D12_PRIMITIVE_TOPOLOGY(...)`, and the `ATOM` that `RegisterClassExW` returns.
 
-One gotcha: naming an interface in `Filters.txt` only generates its own methods, not the ones it inherits. `Present` belongs to `IDXGISwapChain`, so the filter needs `IDXGISwapChain::{GetBuffer, Present, ResizeBuffers}` even though the code calls it on an `IDXGISwapChain3`. I noted this in `Filters.txt` and the README.
+One gotcha: listing an interface in `Filters.txt` only generates the methods it defines itself, not the ones it inherits. `Present` belongs to `IDXGISwapChain`, so the filter needs `IDXGISwapChain::{GetBuffer, Present, ResizeBuffers}` even though the code calls it on an `IDXGISwapChain3`. I noted this in `Filters.txt` and the README.
 
 ## Adding an API later
 
@@ -382,4 +382,74 @@ One gotcha: naming an interface in `Filters.txt` only generates its own methods,
 
 3. Commit `Filters.txt` and `Bindings.rs` together.
 
-The generator has its own `Cargo.lock` and `target/` folder, so it never affects game builds.
+The generator has its own `Cargo.lock` and `target/` folder, so it never affects the game's builds.
+
+I also corrected the conversation record. My closing message last turn was worded differently from the version I had saved, so the record now matches what you saw.
+
+## User
+
+i'm still confused about what i see in C:\Users\K\Repository\kGames\HelloDirect3D12\Cargo.toml.
+
+based on this crates.io page "C:\Users\K\Pictures\Screenshots\Screenshot 2026-10-29 003304.png", i expect to see just `windows-bindgen = "0.100.0"`. but that's not what i'm seeing.
+
+## AI
+
+You're reading the right page, but the "Install" box on the right doesn't describe what HelloDirect3D12 needs. Two things are going on.
+
+## 1. The Install box is generic
+
+crates.io shows the same "Install" box for every crate: `cargo add NAME`, or one `[dependencies]` line with the newest version. It doesn't know what kind of crate it is.
+
+The readme on the same page (left side, under "Add the generator as a build dependency...") shows the setup the windows-rs authors actually recommend. It has **two** entries, and neither is a plain `windows-bindgen = "0.100.0"` under `[dependencies]`:
+
+```toml
+[dependencies.windows-link]          # used by the generated code when the program runs
+version = "0.100"
+
+[build-dependencies.windows-bindgen] # used only by build.rs, to generate that code
+version = "0.100"
+```
+
+## 2. windows-bindgen is a tool, not a library the game calls
+
+`windows-bindgen` is a code generator. You run it, and it writes Rust source code (our `Source/Bindings.rs`). The game never calls `windows-bindgen`. It calls the functions in `Bindings.rs`, and *that* code uses `windows-core`.
+
+So there are two separate needs:
+
+| Who                                   | Needs             | Where it's listed              |
+| ------------------------------------- | ----------------- | ------------------------------ |
+| The program that writes `Bindings.rs` | `windows-bindgen` | `BindingsGenerator/Cargo.toml` |
+| The game, which uses `Bindings.rs`    | `windows-core`    | `HelloDirect3D12/Cargo.toml`   |
+
+If you open [BindingsGenerator/Cargo.toml](HelloDirect3D12/BindingsGenerator/Cargo.toml), you'll find the line you expected:
+
+```toml
+[dependencies]
+windows-bindgen = "0.100"
+```
+
+The readme instead puts the generator in the game's own `[build-dependencies]` and runs it from `build.rs` on every build. That works, but then every clean build of the game also compiles the generator and its 5 dependencies. I moved the generator into a separate package that you run by hand when `Filters.txt` changes, and committed its output, so the game's build doesn't include it at all.
+
+## Why windows-core instead of windows-link
+
+The readme's example generates `--sys` bindings: raw C-style functions only, which need just `windows-link`. Direct3D 12 is built on COM interfaces (`ID3D12Device` and so on), and `--sys` mode doesn't generate COM methods. I tried it, and it only produced each interface's ID constant. The default ("typed") mode does generate them, and its output depends on `windows-core`. `windows-core` in turn depends on `windows-link`, `windows-result` and `windows-strings`, which is where the 4 crates in the game's build come from.
+
+## Why it isn't one line
+
+These two forms mean exactly the same thing:
+
+```toml
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+```
+
+```toml
+[dependencies]
+windows-core = { version = "0.100", default-features = false, features = ["std"] }
+```
+
+A plain `windows-core = "0.100"` would also build. But it would turn on the crate's default features, including `proc-macros`, which brings back 6 build-time-only crates (`windows-implement`, `windows-interface`, `syn`, `quote`, `proc-macro2`, `unicode-ident`). We don't use those macros, so the extra lines turn the defaults off and turn `std` back on.
+
+One last detail: `"0.100"` and `"0.100.0"` are the same requirement. Both mean "at least 0.100.0, below 0.101.0". crates.io just prints the full version number.
