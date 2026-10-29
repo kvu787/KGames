@@ -6081,6 +6081,7 @@ pub const SWP_NOOWNERZORDER: i32 = 512;
 pub const SWP_NOSIZE: i32 = 1;
 pub const SWP_NOZORDER: i32 = 4;
 pub const SW_SHOW: i32 = 5;
+pub const SW_SHOWMAXIMIZED: i32 = 3;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TEXTMETRICW {
