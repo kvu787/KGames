@@ -6,6 +6,7 @@ namespace DisplayIdentification;
 // Win32 declarations. Constant names match the Windows SDK headers so that they are easy to look up.
 internal static partial class NativeMethods {
     internal const int ERROR_SUCCESS = 0;
+    internal const int ERROR_ACCESS_DENIED = 5;
     internal const int ERROR_INSUFFICIENT_BUFFER = 122;
 
     internal struct Luid {
