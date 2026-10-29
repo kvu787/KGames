@@ -206,13 +206,15 @@ i am concerned about the umbrella windows crate at https://crates.io/crates/wind
 
 Still researching: the windows-rs docs moved, so I'm reading the current readme and the latest monthly updates to see where the umbrella crate stands now.
 
-Your instinct is mostly right, and my earlier "use `windows`" advice needs an update.
+Tables are aligned now. Committing the conversation record, then I'll give you the explanation.
 
-- The `windows` umbrella crate's last release is 0.62.2, from 2025-10-06. On 2026-09-03 the windows-rs project released 0.100.0 of nearly all its other crates (`windows-core`, `windows-bindgen`, `windows-link` and others) but held back `windows` and `windows-sys`. Microsoft's August 2026 project update says they are still checking the quality of a new metadata pipeline, which now parses the Windows SDK headers directly, before publishing the umbrella crates. So `windows` is on hold, not abandoned, and its next version will have big breaking changes (new feature names, many changed signatures).
-- There are no per-API sub-crates like a `windows-d3d12`. The sub-crates you've seen are support crates (`windows-core`, `windows-result`, ...) and focused safe wrappers (`windows-registry`, `windows-window`, ...). Inside `windows`, *features* are what limit compilation to the parts you need.
-- Microsoft's current guidance: use a focused crate where one fits, and generate the remaining APIs with **`windows-bindgen`**. Reusable libraries should avoid the umbrella crates. Binary applications may still use them for convenience.
+Your instinct is mostly right, and I need to update my earlier "use `windows`" advice.
 
-For this project, an app that aims for minimal dependencies, I'd switch to `windows-bindgen`. The details are at the end, after the Cargo basics.
+- **On hold, not abandoned.** The last release of the `windows` umbrella crate is 0.62.2, from 2025-10-06. On 2026-09-03 the windows-rs project released version 0.100.0 of nearly all its other crates (`windows-core`, `windows-bindgen`, `windows-link` and others), but held back `windows` and `windows-sys`. Microsoft's August 2026 project update gives the reason: they're switching to new API descriptions generated directly from the Windows SDK headers, and they're still testing them before republishing the two big crates. The next `windows` release will have big breaking changes, including new feature names and many changed function signatures.
+- **There are no per-API sub-crates**, such as a `windows-d3d12`. The sub-crates you've seen are either support crates (`windows-core`, `windows-result`, ...) or focused safe wrappers (`windows-registry`, `windows-window`, ...). Inside `windows`, *features* are what limit compilation to the parts you need.
+- **Microsoft's current guidance:** use a focused crate where one fits, and generate everything else with **`windows-bindgen`**. Reusable libraries should avoid the umbrella crates. Applications may still use them for convenience.
+
+HelloDirect3D12 is an app that aims for minimal dependencies, so I'd switch it to `windows-bindgen`. Details are at the end, after the Cargo basics.
 
 ## How Cargo works
 
@@ -220,7 +222,7 @@ For this project, an app that aims for minimal dependencies, I'd switch to `wind
 
 - A **crate** is one unit of compilation: a library (`lib.rs`) or an executable (`main.rs`).
 - A **package** is a folder with a `Cargo.toml`. It holds at most one library crate and any number of binary crates. `HelloDirect3D12` is a package with one binary crate (`Source/Main.rs`) and a build script (`Build.rs`).
-- **Cargo** is Rust's build tool and package manager. It reads `Cargo.toml`, downloads dependencies, runs build scripts and calls `rustc` once per crate.
+- **Cargo** is Rust's build tool and package manager. It reads `Cargo.toml`, downloads dependencies, runs build scripts and calls the compiler (`rustc`) once per crate.
 
 ### Cargo.toml
 
@@ -236,20 +238,20 @@ For this project, an app that aims for minimal dependencies, I'd switch to `wind
 
 ### crates.io and downloads
 
-crates.io is the public registry. Crates are published as **source code**, and a published version can't be modified. An author can "yank" a version, which stops new lockfiles from choosing it but doesn't break existing ones. Cargo downloads sources to `%USERPROFILE%\.cargo\registry` and compiles them together with your code. Rust dependencies are statically linked, so there are no extra DLLs to ship.
+crates.io is the public registry. Crates are published as **source code**, and a published version can't be modified. An author can "yank" a version, which stops new lockfiles from choosing it but doesn't break existing ones. Cargo downloads sources to `%USERPROFILE%\.cargo\registry` and compiles them together with your code. Rust dependencies are linked into your exe, so there are no extra DLLs to ship.
 
 ### Version requirements
 
-`version = "0.62"` means `^0.62`. Cargo assumes semantic versioning:
+`version = "0.62"` is shorthand for `^0.62`. Cargo assumes semantic versioning:
 
 - `"1.2"` allows `>=1.2.0, <2.0.0`.
-- `"0.62"` allows `>=0.62.0, <0.63.0`. Before 1.0, the minor number counts as the breaking-change number.
+- `"0.62"` allows `>=0.62.0, <0.63.0`. Before 1.0, a change in the minor number means a breaking change.
 
 So going from 0.62 to 0.100 takes a deliberate edit to `Cargo.toml`. It never happens automatically.
 
 ### Cargo.lock
 
-`Cargo.lock` records the exact version and checksum of every crate in the graph. With it committed (HelloDirect3D12's is), every build uses the same code until you run `cargo update` or edit `Cargo.toml`. That's why a crate that stops getting releases can't silently break your build. It can only fall behind.
+`Cargo.lock` records the exact version and checksum of every crate in the graph. HelloDirect3D12's lockfile is committed, so every build uses the same code until you run `cargo update` or edit `Cargo.toml`. That's why a crate that stops getting releases can't silently break your build. It can only fall behind.
 
 ### Resolution and duplicates
 
@@ -257,7 +259,7 @@ Cargo picks one version per semver-compatible range, but **incompatible versions
 
 ### Features
 
-Features are compile-time switches that a crate defines. They are additive and **unified**: if any crate in the graph turns on a feature of `windows`, everyone gets it. The `windows` crate compiles almost nothing until you turn features on, so the 11 features in our `Cargo.toml` are what limit it to "only the functionality you need".
+Features are compile-time switches that a crate defines. They only ever add code, and they're **shared across the whole build**: if any crate in your project turns on a feature of `windows`, every crate gets it. The `windows` crate compiles almost nothing until you turn features on. The 11 features in our `Cargo.toml` are what limit it to "only the functionality you need".
 
 ### Build scripts and proc macros
 
@@ -297,18 +299,87 @@ windows 0.62.2
 └── windows-numerics         vector and matrix types (we don't use it)
 ```
 
-Eleven of them come from Microsoft's windows-rs project. The other four are the standard proc-macro helpers, used only at build time. Three of the crates are WinRT support that the umbrella crate always pulls in, even though we don't use them.
+Eleven of them come from Microsoft's windows-rs project. The other four are the standard proc-macro helpers, used only at build time. The `windows` crate always pulls in three crates for WinRT, the newer Windows API family, even though we don't use them.
 
 ## Options for this project
 
 | Option                                | Dependencies                      | Trade-off                                                                                       |
 | ------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Keep `windows` 0.62                   | 15 crates, as above               | Works today and is pinned by `Cargo.lock`. Older metadata, and a big migration when 0.100 ships |
-| `windows-bindgen` 0.100 (recommended) | `windows-core` and its small deps | Bindings for only the functions, interfaces and structs we use, from the current metadata       |
+| Keep `windows` 0.62                   | 15 crates, as above               | Works today and is pinned by `Cargo.lock`. Older API data, and a big migration when 0.100 ships |
+| `windows-bindgen` 0.100 (recommended) | `windows-core` and its small deps | Bindings for only the functions, interfaces and structs we use, from the current API data       |
 | Hand-written FFI                      | None                              | Zero dependencies, but you write and maintain every COM vtable yourself                         |
 
-How the bindgen route works: you list the APIs you use (`D3D12CreateDevice`, `ID3D12Device`, `CreateWindowExW`, ...) one per line in a filter file. `windows-bindgen` generates a Rust source file with just those, plus whatever types their signatures need. You can run it from `Build.rs` as a build-dependency. For minimal dependencies it's better to run it once and commit the generated file, so normal builds don't compile the generator at all. The generated code depends on `windows-core`, and with its `proc-macros` feature off, `windows-core` drops the proc-macro crates too.
+How the bindgen route works: you list the APIs you use (`D3D12CreateDevice`, `ID3D12Device`, `CreateWindowExW`, ...) one per line in a text file. `windows-bindgen` generates a Rust source file with just those, plus any types they need. You could run it from `Build.rs` on every build, but for minimal dependencies it's better to run it once and commit the generated file, so normal builds never compile the generator. The generated code depends on `windows-core`. With its `proc-macros` feature turned off, `windows-core` no longer pulls in the proc-macro crates either.
 
-Two caveats. The 0.100 bindings follow the C headers more literally: some calls return a raw `HRESULT` or take a pointer and a count instead of a slice, so the code gets slightly more C-like. And I haven't generated D3D12 bindings with 0.100 yet, so I'd confirm they compile as part of the switch.
+There are two caveats:
+- The 0.100 bindings follow the C headers more literally. Some calls return a raw `HRESULT`, and some take a pointer and a count instead of a slice, so the code gets a bit more C-like.
+- I haven't generated D3D12 bindings with 0.100 yet, so I'd confirm they compile as part of the switch.
 
-On your concern itself: a year without a release isn't dangerous for this kind of crate. D3D12 and Win32 have stable ABIs, and bindings from 2025 still call the same DLL functions correctly. The real costs are missing newer APIs and the breaking change that's coming. The bindgen route avoids both.
+As for your concern: going a year without a release isn't dangerous for this kind of crate. D3D12 and Win32 keep their binary interfaces stable, and bindings from 2025 still call the same DLL functions correctly. The real costs are missing newer APIs and the breaking change that's coming. The bindgen route avoids both.
+
+## User
+
+Yes, switch it
+
+## AI
+
+I've confirmed the approach works: windows-bindgen 0.100 generates typed COM bindings that only need `windows-core`, without its proc macros. Now I'm writing the generator tool and the list of APIs the sample uses.
+
+Generated bindings look right. I'm checking how inherited interface methods (like `Present` on the swap chain) come through before porting `Main.rs`.
+
+Inherited methods now come through. Porting `Main.rs` to the generated bindings next. Most changes are casts on constants and explicit error checks, since Win32 calls now return raw values.
+
+Now writing the ported `Main.rs` and switching `Cargo.toml` to `windows-core`.
+
+It builds with no warnings. Now running it, including a resize, and comparing the dependency tree.
+
+Down from 15 crates to 4, and both builds survive a resize. Most clippy warnings come from the generated file, so I'm silencing clippy there only and checking what's left in `Main.rs`.
+
+Rendering and resizing both look right. Re-reading the formatted `Main.rs` to apply the clippy change.
+
+Clippy is clean now. Updating the README and `.gitignore`, then committing.
+
+The code is committed. Now updating the conversation record. The last turn's closing message in chat was worded differently from what I'd saved, so I'm making the record match what you actually saw.
+
+HelloDirect3D12 now uses generated bindings instead of the `windows` crate. The change is in three commits on `main` (not pushed):
+
+- `58906b2` Add HelloDirect3D12 bindings generator. [BindingsGenerator/](HelloDirect3D12/BindingsGenerator/) is a separate tool package that runs `windows-bindgen` 0.100 over the API names in [Filters.txt](HelloDirect3D12/BindingsGenerator/Filters.txt).
+- `f9b3404` Generate HelloDirect3D12 Windows API bindings. [Source/Bindings.rs](HelloDirect3D12/Source/Bindings.rs) is the generated output (168 KB).
+- `c7bbab5` Switch HelloDirect3D12 from windows 0.62 to generated bindings: `Cargo.toml`, `Cargo.lock`, `Source/Main.rs` and the README.
+
+## Results
+
+| Measure                 | Before (`windows` 0.62) | After (generated bindings) |
+| ----------------------- | ----------------------- | -------------------------- |
+| Crates in the build     | 15                      | 4                          |
+| Build-time-only crates  | 6 (proc macros, `syn`)  | 0                          |
+| Release exe             | 152 KB                  | 150 KB                     |
+| Source of the API data  | Win32Metadata project   | Windows SDK headers        |
+
+The four crates left are `windows-core`, `windows-link`, `windows-result` and `windows-strings`, all from windows-rs.
+
+I tested debug and release builds. In both, the triangle renders, the window survives a resize to 800x500, and the program exits with code 0. `cargo clippy` and `cargo fmt --check` are clean.
+
+## What changed in Main.rs
+
+As expected, the new bindings follow the C headers more literally:
+
+- Win32 functions return raw values instead of `Result`. For example, `CreateWindowExW` returns an `HWND` that may be null. A small `check_handle` helper turns a null handle into the thread's last error, and `BOOL` results use `.ok()?`.
+- Some COM methods return an `HRESULT` instead of a `Result` (`Close`, `Reset`, `Signal`, `Present`, ...), so they also use `.ok()?`.
+- Many constants are plain `i32`, while the parameters that take them are `u32`, so there are casts like `PM_REMOVE as u32`. Flag parameters, like the one on `Present`, are plain `u32`.
+- A few values need wrapping in a newtype: `DXGI_USAGE(...)`, `D3D12_PRIMITIVE_TOPOLOGY(...)`, and the `ATOM` that `RegisterClassExW` returns.
+
+One gotcha: naming an interface in `Filters.txt` only generates its own methods, not the ones it inherits. `Present` belongs to `IDXGISwapChain`, so the filter needs `IDXGISwapChain::{GetBuffer, Present, ResizeBuffers}` even though the code calls it on an `IDXGISwapChain3`. I noted this in `Filters.txt` and the README.
+
+## Adding an API later
+
+1. Add its native name to `BindingsGenerator/Filters.txt`.
+2. Regenerate the bindings from the `HelloDirect3D12` folder:
+
+   ```bash
+   cargo run --manifest-path BindingsGenerator/Cargo.toml
+   ```
+
+3. Commit `Filters.txt` and `Bindings.rs` together.
+
+The generator has its own `Cargo.lock` and `target/` folder, so it never affects game builds.
