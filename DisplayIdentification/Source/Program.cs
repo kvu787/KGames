@@ -39,12 +39,12 @@ internal static class Program {
                                       its arguments.
 
         A <display> can be any of:
-          primary                The current primary display.
-          AUSAA0F-TCLMSV002189   A key from the list command. Recommended: it stays the same
-                                 across restarts, ports and Windows display numbers.
-          TCLMSV002189           A serial number.
-          PA278QGV               A name or model, if only one display has it.
-          DISPLAY5               A Windows display device name. These change over time.
+          primary           The current primary display.
+          DEL41B6-ABC1234   A key from the list command. Recommended: it stays the same across
+                            restarts, ports and Windows display numbers.
+          ABC1234           A serial number.
+          DELL U2720Q       A name or model, if only one display has it.
+          DISPLAY2          A Windows display device name. These change over time.
 
         """;
 
