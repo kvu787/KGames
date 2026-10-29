@@ -23,22 +23,6 @@ Use complete proper words. Don't use typical shortenings. Good: Source, Document
 
 Exceptions: README.md, LICENSE.md, TODO.md, README.txt, LICENSE.txt, TODO.txt, AGENTS.md
 
-# Conversations
-
-Record verbatim and commit all conversations between the user and AI (meaning all user prompts and AI responses) in a folder named `Conversations` located at the root of this Git repo.
-Record and commit at the end of every turn.
-Use one file per conversation.
-Prefix these files with the PowerShell evaluation of `[DateTime]::UtcNow.ToString("yyyy-MM-dd_HH-mm") + "_UTC"`.
-Separate commits that record conversations from other commits.
-Prefix these commits with `[cnv]`.
-The conversation file name must also include a human-readable subject line.
-So, the format for the conversation file name is: `<timestamp> <subject>.md`.
-
-If the conversation begins with `dnr`, then do not record the conversation.
-
-The purpose of this *IS NOT* for reasoning extraction, distillation, or anything that would violate terms of use.
-The purpose of this is to simply record as a backup the conversation between the user and agent.
-
 # PowerShell
 
 All PowerShell scripts must:
