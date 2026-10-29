@@ -1,4 +1,15 @@
 #[inline]
+pub unsafe fn AdjustWindowRectExForDpi(
+    lprect: *mut RECT,
+    dwstyle: u32,
+    bmenu: bool,
+    dwexstyle: u32,
+    dpi: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn AdjustWindowRectExForDpi(lprect : *mut RECT, dwstyle : u32, bmenu : windows_core::BOOL, dwexstyle : u32, dpi : u32) -> windows_core::BOOL);
+    unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
+}
+#[inline]
 pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
     windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
     unsafe { BeginPaint(hwnd, lppaint as _) }
@@ -291,11 +302,6 @@ pub unsafe fn GetDpiForMonitor(
     unsafe { GetDpiForMonitor(hmonitor, dpitype, dpix as _, dpiy as _) }
 }
 #[inline]
-pub unsafe fn GetDpiForSystem() -> u32 {
-    windows_core::link!("user32.dll" "system" fn GetDpiForSystem() -> u32);
-    unsafe { GetDpiForSystem() }
-}
-#[inline]
 pub unsafe fn GetDpiForWindow(hwnd: HWND) -> u32 {
     windows_core::link!("user32.dll" "system" fn GetDpiForWindow(hwnd : HWND) -> u32);
     unsafe { GetDpiForWindow(hwnd) }
@@ -385,11 +391,6 @@ where
 pub unsafe fn GetSystemDirectoryW(lpbuffer: Option<windows_core::PWSTR>, usize: u32) -> u32 {
     windows_core::link!("kernel32.dll" "system" fn GetSystemDirectoryW(lpbuffer : windows_core::PWSTR, usize : u32) -> u32);
     unsafe { GetSystemDirectoryW(lpbuffer.unwrap_or(core::mem::zeroed()) as _, usize) }
-}
-#[inline]
-pub unsafe fn GetSystemMetrics(nindex: i32) -> i32 {
-    windows_core::link!("user32.dll" "system" fn GetSystemMetrics(nindex : i32) -> i32);
-    unsafe { GetSystemMetrics(nindex) }
 }
 #[inline]
 pub unsafe fn GetTextMetricsW(hdc: HDC, lptm: *mut TEXTMETRICW) -> windows_core::BOOL {
@@ -715,7 +716,6 @@ pub const CLIP_DEFAULT_PRECIS: i32 = 0;
 pub struct COLORREF(pub u32);
 pub const CS_HREDRAW: i32 = 2;
 pub const CS_VREDRAW: i32 = 1;
-pub const CW_USEDEFAULT: i32 = -2147483648;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 10;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP: D3D_PRIMITIVE_TOPOLOGY = 3;
@@ -2509,6 +2509,7 @@ pub struct DXGI_USAGE(pub u32);
 pub const DXGI_USAGE_RENDER_TARGET_OUTPUT: u32 = 32;
 pub const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
 pub const ERROR_SUCCESS: i32 = 0;
+pub const E_FAIL: windows_core::HRESULT = windows_core::HRESULT(0x80004005_u32 as _);
 pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
 pub const FF_MODERN: i32 = 48;
 pub const FF_SWISS: i32 = 32;
@@ -6073,8 +6074,6 @@ pub struct SECURITY_ATTRIBUTES {
     pub lpSecurityDescriptor: *mut core::ffi::c_void,
     pub bInheritHandle: windows_core::BOOL,
 }
-pub const SM_CXSCREEN: i32 = 0;
-pub const SM_CYSCREEN: i32 = 1;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
@@ -6139,10 +6138,12 @@ pub struct WINDOWPLACEMENT {
     pub rcNormalPosition: RECT,
 }
 pub const WM_DESTROY: i32 = 2;
+pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_GETMINMAXINFO: i32 = 36;
 pub const WM_KEYDOWN: i32 = 256;
 pub const WM_LBUTTONDOWN: i32 = 513;
+pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;
 pub const WM_RBUTTONDOWN: i32 = 516;
