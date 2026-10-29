@@ -90,7 +90,10 @@ extern "system" fn window_procedure(
             }
             LRESULT(0)
         }
-        WM_GETMINMAXINFO => {
+        // In fullscreen, the window takes its monitor's size, whatever it is.
+        WM_GETMINMAXINFO
+            if unsafe { GetWindowLongPtrW(window, GWL_STYLE) } & WS_CAPTION as isize != 0 =>
+        {
             let info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
             let dpi = unsafe { GetDpiForWindow(window) };
             let [width, height] = MINIMUM_WINDOW_SIZE
@@ -109,6 +112,65 @@ extern "system" fn window_procedure(
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(window, message, wparam, lparam) },
+    }
+}
+
+// Switches between the normal window and a borderless one that covers its
+// monitor. Covering the monitor lets Windows flip the demo's frames straight
+// to the screen, instead of the desktop compositor copying them into its own
+// frame, which saves up to a refresh of latency and lets frames tear.
+// `windowed` keeps the normal window's placement while in fullscreen.
+unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>) -> Result<()> {
+    unsafe {
+        if let Some(placement) = windowed.take() {
+            SetWindowLongPtrW(
+                window,
+                GWL_STYLE,
+                (WS_OVERLAPPEDWINDOW | WS_VISIBLE) as isize,
+            );
+            SetWindowPlacement(window, &placement).ok()?;
+            // Makes the new style take effect.
+            SetWindowPos(
+                window,
+                None,
+                0,
+                0,
+                0,
+                0,
+                (SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER)
+                    as u32,
+            )
+            .ok()
+        } else {
+            let mut placement = WINDOWPLACEMENT {
+                length: size_of::<WINDOWPLACEMENT>() as u32,
+                ..Default::default()
+            };
+            GetWindowPlacement(window, &mut placement).ok()?;
+            let mut monitor = MONITORINFO {
+                cbSize: size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            GetMonitorInfoW(
+                MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST as u32),
+                &mut monitor,
+            )
+            .ok()?;
+            SetWindowLongPtrW(window, GWL_STYLE, (WS_POPUP | WS_VISIBLE as u32) as isize);
+            let area = monitor.rcMonitor;
+            SetWindowPos(
+                window,
+                None,
+                area.left,
+                area.top,
+                area.right - area.left,
+                area.bottom - area.top,
+                (SWP_FRAMECHANGED | SWP_NOOWNERZORDER) as u32,
+            )
+            .ok()?;
+            *windowed = Some(placement);
+            Ok(())
+        }
     }
 }
 
@@ -206,6 +268,7 @@ fn main() -> Result<()> {
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
+        let mut windowed = None;
 
         let mut message = MSG::default();
         loop {
@@ -252,6 +315,9 @@ fn main() -> Result<()> {
             frames.frame();
             if let Ok(input) = &mut input {
                 input.update();
+                if std::mem::take(&mut input.fullscreen_toggled) {
+                    toggle_fullscreen(window, &mut windowed)?;
+                }
             }
             let focused = GetForegroundWindow() == window;
             let mut canvas = Canvas::new(&font, &mut vertices);

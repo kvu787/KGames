@@ -20,6 +20,7 @@ const TRAIL_LENGTH: usize = 96;
 // Virtual-key codes of the demo's own shortcuts.
 const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
+const KEY_TOGGLE_FULLSCREEN: u8 = 0x7A; // F11
 
 // The device callback runs on one of GameInput's threads. It only queues the
 // event, and the main thread handles it in Input::update.
@@ -237,6 +238,9 @@ pub struct Input {
     pub reading_count: u64,
     pub rumble_enabled: bool,
     rumble_sent: GameInputRumbleParams,
+    // Set when the fullscreen shortcut is pressed. The main loop owns the
+    // window, so it does the switch and clears this.
+    pub fullscreen_toggled: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
 }
@@ -268,6 +272,7 @@ impl Input {
                 reading_count: 0,
                 rumble_enabled: false,
                 rumble_sent: GameInputRumbleParams::default(),
+                fullscreen_toggled: false,
                 shortcuts: Vec::new(),
             })
         }
@@ -498,6 +503,7 @@ impl Input {
                 match key {
                     KEY_TOGGLE_RUMBLE => self.toggle_rumble(),
                     KEY_CLEAR_LOG => self.log.clear(),
+                    KEY_TOGGLE_FULLSCREEN => self.fullscreen_toggled = true,
                     _ => {}
                 }
             }
@@ -630,7 +636,10 @@ impl Input {
             for key in &keys {
                 if !old.iter().any(|old| old.scanCode == key.scanCode) {
                     changes.push(format!("{} down", key_name(key)));
-                    if matches!(key.virtualKey, KEY_TOGGLE_RUMBLE | KEY_CLEAR_LOG) {
+                    if matches!(
+                        key.virtualKey,
+                        KEY_TOGGLE_RUMBLE | KEY_CLEAR_LOG | KEY_TOGGLE_FULLSCREEN
+                    ) {
                         self.shortcuts.push(key.virtualKey);
                     }
                 }

@@ -201,17 +201,14 @@ pub fn draw(
 
     let footer_y = height - margin - line_height;
     x = canvas.text(margin, footer_y, "F1", TEXT);
-    x = canvas.text(
-        x,
-        footer_y,
-        " rumble test (the triggers drive the motors)   ",
-        DIM,
-    );
+    x = canvas.text(x, footer_y, " rumble test   ", DIM);
     x = canvas.text(x, footer_y, "F2", TEXT);
+    x = canvas.text(x, footer_y, " clear the log   ", DIM);
+    x = canvas.text(x, footer_y, "F11", TEXT);
     canvas.text(
         x,
         footer_y,
-        " clear the log   The app's own shortcuts are read with GameInput too.",
+        " borderless fullscreen   The app's own shortcuts are read with GameInput too.",
         DIM,
     );
 
