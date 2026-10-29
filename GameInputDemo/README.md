@@ -60,6 +60,27 @@ cargo run --release -- --display KXGR16
 To open the demo without taking focus from the window you're typing in, add `--no-activate`.
 The window opens behind that one, and gets keyboard and mouse input once you click it.
 
+### Running it in the background
+
+`Scripts\RunInBackground.ps1` builds the demo, and opens it with `--display` and `--no-activate`.
+It then saves a screenshot of the window, and closes it. It's how coding agents run the demo
+while you work in other windows (see [AGENTS.md](AGENTS.md)).
+
+```powershell
+Scripts\RunInBackground.ps1 -Display KXGR16
+```
+
+| Parameter     | Value                                                                       |
+| ------------- | --------------------------------------------------------------------------- |
+| `-Display`    | The identifier of the display to open on. `CVVNY2` by default               |
+| `-Seconds`    | How long the demo runs before the screenshot. 3 by default                  |
+| `-Screenshot` | Where to save the screenshot, as a PNG. `target\Screenshot.png` by default  |
+| `-KeepOpen`   | Leaves the demo running after the screenshot                                |
+| `-DebugBuild` | Builds with Cargo's dev profile, which turns on the D3D12 debug layer       |
+
+The screenshot is of what the demo draws in its window, without the title bar. It comes
+from `PrintWindow`, so it doesn't matter if other windows are in front of the demo's.
+
 ## Displays and settings
 
 ### Display identifiers
@@ -293,5 +314,6 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Build.rs`                         | Compiles the shaders, and fetches and deploys the GameInput runtime              |
 | `BindingsGenerator/Filters.txt`    | The Windows APIs to generate bindings for                                        |
 | `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
+| `Scripts/RunInBackground.ps1`      | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes; not in Git           |
