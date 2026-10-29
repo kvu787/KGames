@@ -15,7 +15,10 @@ GetDpiForSystem
 GetDpiForWindow
 GetForegroundWindow
 GetModuleHandleW
+GetMonitorInfoW
 GetSystemMetrics
+GetWindowLongPtrW
+GetWindowPlacement
 IsIconic
 LoadCursorW
 MonitorFromWindow
@@ -23,6 +26,8 @@ PeekMessageW
 PostQuitMessage
 RegisterClassExW
 SetProcessDpiAwarenessContext
+SetWindowLongPtrW
+SetWindowPlacement
 SetWindowPos
 SetWindowTextW
 TranslateMessage
@@ -31,13 +36,18 @@ CS_HREDRAW
 CS_VREDRAW
 CW_USEDEFAULT
 DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+GWL_STYLE
 IDC_ARROW
 MONITOR_DEFAULTTONEAREST
 PM_REMOVE
 SC_KEYMENU
 SM_CXSCREEN
 SM_CYSCREEN
+SWP_FRAMECHANGED
 SWP_NOACTIVATE
+SWP_NOMOVE
+SWP_NOOWNERZORDER
+SWP_NOSIZE
 SWP_NOZORDER
 USER_DEFAULT_SCREEN_DPI
 WM_DESTROY
@@ -46,10 +56,14 @@ WM_GETMINMAXINFO
 WM_QUIT
 WM_SIZE
 WM_SYSCOMMAND
+WS_CAPTION
 WS_OVERLAPPEDWINDOW
+WS_POPUP
 WS_VISIBLE
 MINMAXINFO
+MONITORINFO
 RECT
+WINDOWPLACEMENT
 
 // Dark title bar, to match the dark panels
 DwmSetWindowAttribute

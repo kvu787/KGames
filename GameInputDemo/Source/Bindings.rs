@@ -269,6 +269,11 @@ where
     unsafe { GetModuleHandleW(lpmodulename.param().abi()) }
 }
 #[inline]
+pub unsafe fn GetMonitorInfoW(hmonitor: HMONITOR, lpmi: *mut MONITORINFO) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetMonitorInfoW(hmonitor : HMONITOR, lpmi : *mut MONITORINFO) -> windows_core::BOOL);
+    unsafe { GetMonitorInfoW(hmonitor, lpmi as _) }
+}
+#[inline]
 pub unsafe fn GetProcAddress<P1>(hmodule: HMODULE, lpprocname: P1) -> FARPROC
 where
     P1: windows_core::Param<windows_core::PCSTR>,
@@ -290,6 +295,28 @@ pub unsafe fn GetSystemMetrics(nindex: i32) -> i32 {
 pub unsafe fn GetTextMetricsW(hdc: HDC, lptm: *mut TEXTMETRICW) -> windows_core::BOOL {
     windows_core::link!("gdi32.dll" "system" fn GetTextMetricsW(hdc : HDC, lptm : *mut TEXTMETRICW) -> windows_core::BOOL);
     unsafe { GetTextMetricsW(hdc, lptm as _) }
+}
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "arm64ec",
+    target_arch = "x86_64"
+))]
+#[inline]
+pub unsafe fn GetWindowLongPtrW(hwnd: HWND, nindex: i32) -> isize {
+    windows_core::link!("user32.dll" "system" fn GetWindowLongPtrW(hwnd : HWND, nindex : i32) -> isize);
+    unsafe { GetWindowLongPtrW(hwnd, nindex) }
+}
+#[cfg(target_pointer_width = "32")]
+pub use GetWindowLongW as GetWindowLongPtrW;
+#[inline]
+pub unsafe fn GetWindowLongW(hwnd: HWND, nindex: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn GetWindowLongW(hwnd : HWND, nindex : i32) -> i32);
+    unsafe { GetWindowLongW(hwnd, nindex) }
+}
+#[inline]
+pub unsafe fn GetWindowPlacement(hwnd: HWND, lpwndpl: *mut WINDOWPLACEMENT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetWindowPlacement(hwnd : HWND, lpwndpl : *mut WINDOWPLACEMENT) -> windows_core::BOOL);
+    unsafe { GetWindowPlacement(hwnd, lpwndpl as _) }
 }
 #[inline]
 pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
@@ -414,6 +441,31 @@ pub unsafe fn SetProcessInformation(
 pub unsafe fn SetTextColor(hdc: HDC, color: COLORREF) -> COLORREF {
     windows_core::link!("gdi32.dll" "system" fn SetTextColor(hdc : HDC, color : COLORREF) -> COLORREF);
     unsafe { SetTextColor(hdc, color) }
+}
+#[cfg(any(
+    target_arch = "aarch64",
+    target_arch = "arm64ec",
+    target_arch = "x86_64"
+))]
+#[inline]
+pub unsafe fn SetWindowLongPtrW(hwnd: HWND, nindex: i32, dwnewlong: isize) -> isize {
+    windows_core::link!("user32.dll" "system" fn SetWindowLongPtrW(hwnd : HWND, nindex : i32, dwnewlong : isize) -> isize);
+    unsafe { SetWindowLongPtrW(hwnd, nindex, dwnewlong) }
+}
+#[cfg(target_pointer_width = "32")]
+pub use SetWindowLongW as SetWindowLongPtrW;
+#[inline]
+pub unsafe fn SetWindowLongW(hwnd: HWND, nindex: i32, dwnewlong: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn SetWindowLongW(hwnd : HWND, nindex : i32, dwnewlong : i32) -> i32);
+    unsafe { SetWindowLongW(hwnd, nindex, dwnewlong) }
+}
+#[inline]
+pub unsafe fn SetWindowPlacement(
+    hwnd: HWND,
+    lpwndpl: *const WINDOWPLACEMENT,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn SetWindowPlacement(hwnd : HWND, lpwndpl : *const WINDOWPLACEMENT) -> windows_core::BOOL);
+    unsafe { SetWindowPlacement(hwnd, lpwndpl) }
 }
 #[inline]
 pub unsafe fn SetWindowPos(
@@ -1960,6 +2012,7 @@ pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
 pub const FF_MODERN: i32 = 48;
 pub const FIXED_PITCH: i32 = 1;
 pub const FW_NORMAL: i32 = 400;
+pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HANDLE(pub *mut core::ffi::c_void);
@@ -5397,6 +5450,14 @@ pub struct MINMAXINFO {
     pub ptMinTrackSize: POINT,
     pub ptMaxTrackSize: POINT,
 }
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MONITORINFO {
+    pub cbSize: u32,
+    pub rcMonitor: RECT,
+    pub rcWork: RECT,
+    pub dwFlags: u32,
+}
 pub const MONITOR_DEFAULTTONEAREST: i32 = 2;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -5455,7 +5516,11 @@ pub struct SECURITY_ATTRIBUTES {
 }
 pub const SM_CXSCREEN: i32 = 0;
 pub const SM_CYSCREEN: i32 = 1;
+pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
+pub const SWP_NOMOVE: i32 = 2;
+pub const SWP_NOOWNERZORDER: i32 = 512;
+pub const SWP_NOSIZE: i32 = 1;
 pub const SWP_NOZORDER: i32 = 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -5501,6 +5566,16 @@ pub struct VS_FIXEDFILEINFO {
 }
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WAIT_TIMEOUT: i32 = 258;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WINDOWPLACEMENT {
+    pub length: u32,
+    pub flags: u32,
+    pub showCmd: u32,
+    pub ptMinPosition: POINT,
+    pub ptMaxPosition: POINT,
+    pub rcNormalPosition: RECT,
+}
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_GETMINMAXINFO: i32 = 36;
@@ -5529,5 +5604,7 @@ pub type WNDPROC = Option<
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct WPARAM(pub usize);
+pub const WS_CAPTION: i32 = 12582912;
 pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
+pub const WS_POPUP: u32 = 2147483648;
 pub const WS_VISIBLE: i32 = 268435456;
