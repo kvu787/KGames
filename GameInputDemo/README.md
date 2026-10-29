@@ -42,6 +42,7 @@ Shortcuts, which the demo also reads with GameInput:
 - Windows SDK (provides `dxc.exe` under `C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`)
 - Internet access for the first build, which downloads the GameInput runtime (see below)
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
+- Optional, for `Scripts\RunInBackground.ps1`: the .NET 10 SDK
 
 ## Build and run
 
@@ -67,16 +68,19 @@ It then saves a screenshot of the window, and closes it. It's how coding agents 
 while you work in other windows (see [AGENTS.md](AGENTS.md)).
 
 ```powershell
-Scripts\RunInBackground.ps1 -Display KXGR16
+Scripts\RunInBackground.ps1 --display KXGR16
 ```
 
-| Parameter     | Value                                                                       |
-| ------------- | --------------------------------------------------------------------------- |
-| `-Display`    | The identifier of the display to open on. `CVVNY2` by default               |
-| `-Seconds`    | How long the demo runs before the screenshot. 3 by default                  |
-| `-Screenshot` | Where to save the screenshot, as a PNG. `target\Screenshot.png` by default  |
-| `-KeepOpen`   | Leaves the demo running after the screenshot                                |
-| `-DebugBuild` | Builds with Cargo's dev profile, which turns on the D3D12 debug layer       |
+The script only runs `Scripts\RunInBackground.cs`, a .NET file-based app, with `dotnet run`,
+which builds it into its own cache first.
+
+| Option                | Value                                                                      |
+| --------------------- | -------------------------------------------------------------------------- |
+| `--display <id>`      | The identifier of the display to open on. `CVVNY2` by default              |
+| `--seconds <seconds>` | How long the demo runs before the screenshot. 3 by default                 |
+| `--screenshot <path>` | Where to save the screenshot, as a PNG. `target\Screenshot.png` by default |
+| `--keep-open`         | Leaves the demo running after the screenshot                               |
+| `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer      |
 
 The screenshot is of what the demo draws in its window, without the title bar. It comes
 from `PrintWindow`, so it doesn't matter if other windows are in front of the demo's.
@@ -314,6 +318,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Build.rs`                         | Compiles the shaders, and fetches and deploys the GameInput runtime              |
 | `BindingsGenerator/Filters.txt`    | The Windows APIs to generate bindings for                                        |
 | `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
-| `Scripts/RunInBackground.ps1`      | Runs the demo without taking focus, and saves a screenshot of its window         |
+| `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
+| `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
 | `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |
