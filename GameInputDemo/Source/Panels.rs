@@ -116,17 +116,28 @@ impl Lines {
     }
 }
 
+// What the header and footer show besides input.
+pub struct Status<'a> {
+    pub focused: bool,
+    pub frames: &'a FrameCounter,
+    // The display the window is on, like "KXGR16 (PA278QGV)".
+    pub display: &'a str,
+    // Problems with how the demo was started, one per paragraph.
+    pub notices: &'a [String],
+}
+
 pub fn draw(
     canvas: &mut Canvas,
     input: &Result<Input, String>,
-    focused: bool,
-    frames: &FrameCounter,
+    status: &Status,
     width: f32,
     height: f32,
 ) {
     let line_height = canvas.line_height();
     let char_width = canvas.char_width();
     let margin = (line_height * 0.6).round();
+    let frames = status.frames;
+    let focused = status.focused;
 
     // Header and footer.
     let mut x = canvas.text(margin, margin, "GameInput Demo", TITLE);
@@ -199,20 +210,37 @@ pub fn draw(
         if focused { PRESSED } else { WARNING },
     );
 
+    // Notices go under the status, wrapped to the window's width.
+    let mut header_bottom = status_y + line_height;
+    let columns = ((width - margin * 2.0) / char_width).floor().max(8.0) as usize;
+    for notice in status.notices {
+        for (index, line) in wrap(notice, columns, 2).iter().enumerate() {
+            let indent = if index == 0 { "" } else { "  " };
+            canvas.text(margin, header_bottom, &format!("{indent}{line}"), WARNING);
+            header_bottom += line_height;
+        }
+    }
+
+    // The display goes on the right of the footer.
     let footer_y = height - margin - line_height;
+    let display_x =
+        width - margin - canvas.text_width("Display: ") - canvas.text_width(status.display);
+    x = canvas.text(display_x, footer_y, "Display: ", DIM);
+    canvas.text(x, footer_y, status.display, TEXT);
     x = canvas.text(margin, footer_y, "F1", TEXT);
     x = canvas.text(x, footer_y, " rumble test   ", DIM);
     x = canvas.text(x, footer_y, "F2", TEXT);
     x = canvas.text(x, footer_y, " clear the log   ", DIM);
     x = canvas.text(x, footer_y, "F11", TEXT);
-    canvas.text(
+    canvas.text_clipped(
         x,
         footer_y,
         " borderless fullscreen   The app's own shortcuts are read with GameInput too.",
+        display_x - char_width * 3.0 - x,
         DIM,
     );
 
-    let top = margin * 2.0 + line_height * 2.0;
+    let top = margin + header_bottom;
     let bottom = footer_y - margin;
     let Ok(input) = input else {
         return;

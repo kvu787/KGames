@@ -24,6 +24,10 @@ mod game_input;
 
 #[path = "Canvas.rs"]
 mod canvas;
+// Shared with IdentifyDisplays, which uses parts of it that this doesn't.
+#[path = "Displays.rs"]
+#[allow(dead_code)]
+mod displays;
 #[path = "Font.rs"]
 mod font;
 #[path = "FrameCounter.rs"]
@@ -39,6 +43,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use bindings::*;
 use canvas::Canvas;
+use displays::Display;
 use font::Font;
 use frame_counter::FrameCounter;
 use input::Input;
@@ -47,6 +52,8 @@ use windows_core::{Error, PCWSTR, Result, w};
 
 // The em height of the font at 100% scaling, in pixels.
 const FONT_SIZE: u32 = 15;
+// The window's client area at 100% scaling, when it isn't fullscreen.
+const WINDOW_SIZE: [u32; 2] = [1280, 900];
 // The smallest window, at 100% scaling, that the panels fit in.
 const MINIMUM_WINDOW_SIZE: [u32; 2] = [1024, 820];
 
@@ -57,6 +64,9 @@ static CLIENT_HEIGHT: AtomicU32 = AtomicU32::new(0);
 static RESIZED: AtomicBool = AtomicBool::new(false);
 static DPI: AtomicU32 = AtomicU32::new(USER_DEFAULT_SCREEN_DPI as u32);
 static DPI_CHANGED: AtomicBool = AtomicBool::new(false);
+// The window may be on another display, or the displays changed.
+static MOVED: AtomicBool = AtomicBool::new(false);
+static DISPLAYS_CHANGED: AtomicBool = AtomicBool::new(false);
 
 extern "system" fn window_procedure(
     window: HWND,
@@ -69,6 +79,14 @@ extern "system" fn window_procedure(
             CLIENT_WIDTH.store((lparam.0 & 0xFFFF) as u32, Ordering::Relaxed);
             CLIENT_HEIGHT.store(((lparam.0 >> 16) & 0xFFFF) as u32, Ordering::Relaxed);
             RESIZED.store(true, Ordering::Relaxed);
+            LRESULT(0)
+        }
+        WM_MOVE => {
+            MOVED.store(true, Ordering::Relaxed);
+            LRESULT(0)
+        }
+        WM_DISPLAYCHANGE => {
+            DISPLAYS_CHANGED.store(true, Ordering::Relaxed);
             LRESULT(0)
         }
         // The window moved to a monitor with another scale. Take the size
@@ -96,8 +114,7 @@ extern "system" fn window_procedure(
         {
             let info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
             let dpi = unsafe { GetDpiForWindow(window) };
-            let [width, height] = MINIMUM_WINDOW_SIZE
-                .map(|size| (size * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32);
+            let [width, height] = MINIMUM_WINDOW_SIZE.map(|size| scale(size, dpi));
             info.ptMinTrackSize = POINT {
                 x: width,
                 y: height,
@@ -120,14 +137,12 @@ extern "system" fn window_procedure(
 // to the screen, instead of the desktop compositor copying them into its own
 // frame, which saves up to a refresh of latency and lets frames tear.
 // `windowed` keeps the normal window's placement while in fullscreen.
+// A hidden window stays hidden, so it can start in fullscreen.
 unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>) -> Result<()> {
     unsafe {
+        let visible = GetWindowLongPtrW(window, GWL_STYLE) & WS_VISIBLE as isize;
         if let Some(placement) = windowed.take() {
-            SetWindowLongPtrW(
-                window,
-                GWL_STYLE,
-                (WS_OVERLAPPEDWINDOW | WS_VISIBLE) as isize,
-            );
+            SetWindowLongPtrW(window, GWL_STYLE, WS_OVERLAPPEDWINDOW as isize | visible);
             SetWindowPlacement(window, &placement).ok()?;
             // Makes the new style take effect.
             SetWindowPos(
@@ -156,7 +171,7 @@ unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>
                 &mut monitor,
             )
             .ok()?;
-            SetWindowLongPtrW(window, GWL_STYLE, (WS_POPUP | WS_VISIBLE as u32) as isize);
+            SetWindowLongPtrW(window, GWL_STYLE, WS_POPUP as isize | visible);
             let area = monitor.rcMonitor;
             SetWindowPos(
                 window,
@@ -174,8 +189,69 @@ unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>
     }
 }
 
-fn font_pixel_height(dpi: u32) -> i32 {
-    (FONT_SIZE * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32
+// From pixels at 100% scaling to pixels at this DPI.
+fn scale(size: u32, dpi: u32) -> i32 {
+    (size * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32
+}
+
+// Where the window goes on a display when it isn't fullscreen: centered in
+// the display's work area, with a client area of `size` at 100% scaling,
+// but no smaller than the panels need, and no bigger than the work area.
+unsafe fn windowed_area(display: &Display, size: [u32; 2]) -> Result<RECT> {
+    let [width, height] = size.map(|size| scale(size, display.dpi));
+    let mut area = RECT {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+    };
+    unsafe {
+        AdjustWindowRectExForDpi(&mut area, WS_OVERLAPPEDWINDOW as u32, false, 0, display.dpi)
+    }
+    .ok()?;
+    let [minimum_width, minimum_height] = MINIMUM_WINDOW_SIZE.map(|size| scale(size, display.dpi));
+    let work = display.work_area;
+    let width = (area.right - area.left)
+        .max(minimum_width)
+        .min(work.right - work.left);
+    let height = (area.bottom - area.top)
+        .max(minimum_height)
+        .min(work.bottom - work.top);
+    let left = work.left + (work.right - work.left - width) / 2;
+    let top = work.top + (work.bottom - work.top - height) / 2;
+    Ok(RECT {
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+    })
+}
+
+// The display that the window is mostly on, for the footer, like
+// "KXGR16 (PA278QGV)". Clones share a monitor, so this names the first.
+unsafe fn display_label(window: HWND, displays: &[Display]) -> String {
+    let monitor = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST as u32) };
+    match displays.iter().find(|display| display.monitor == monitor) {
+        Some(display) => format!("{} ({})", display.identifier, display.name),
+        None => "unknown".to_string(),
+    }
+}
+
+// The identifier after --display, which IdentifyDisplays shows. Problems
+// with the command line go in `notices`.
+fn display_argument(notices: &mut Vec<String>) -> Option<String> {
+    let mut display = None;
+    let mut arguments = std::env::args().skip(1);
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--display" => match arguments.next() {
+                Some(identifier) => display = Some(identifier),
+                None => notices.push("--display needs a display identifier after it".to_string()),
+            },
+            _ => notices.push(format!("Unknown command-line argument: {argument}")),
+        }
+    }
+    display
 }
 
 fn main() -> Result<()> {
@@ -218,19 +294,37 @@ fn main() -> Result<()> {
             return Err(Error::from_thread());
         }
 
-        // 1280x900 at 100% scaling, but no more than 90% of the screen.
-        let scale = GetDpiForSystem() as f32 / USER_DEFAULT_SCREEN_DPI as f32;
-        let width = (1280.0 * scale).min(GetSystemMetrics(SM_CXSCREEN) as f32 * 0.9);
-        let height = (900.0 * scale).min(GetSystemMetrics(SM_CYSCREEN) as f32 * 0.9);
+        // Problems with the command line, which the header lists.
+        let mut notices = Vec::new();
+        let requested = display_argument(&mut notices);
+        let mut displays = displays::enumerate()?;
+        let display = requested
+            .as_deref()
+            .and_then(|identifier| {
+                let display = displays::find(&displays, identifier);
+                if display.is_none() {
+                    notices.push(format!(
+                        "Display {identifier} isn't connected, so the demo opened on the primary \
+                         display. IdentifyDisplays shows the displays' identifiers."
+                    ));
+                }
+                display
+            })
+            .or_else(|| displays::primary(&displays))
+            .ok_or_else(|| Error::new(E_FAIL, "Windows reports no displays"))?;
+
+        // The window stays hidden until it's in its place, and the renderer
+        // is ready to draw into it.
+        let area = windowed_area(display, WINDOW_SIZE)?;
         let window = CreateWindowExW(
             0,
             class_name,
             w!("GameInput Demo"),
-            (WS_OVERLAPPEDWINDOW | WS_VISIBLE) as u32,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            width as i32,
-            height as i32,
+            WS_OVERLAPPEDWINDOW as u32,
+            area.left,
+            area.top,
+            area.right - area.left,
+            area.bottom - area.top,
             None,
             None,
             Some(instance),
@@ -247,7 +341,7 @@ fn main() -> Result<()> {
             size_of::<windows_core::BOOL>() as u32,
         );
 
-        let mut font = Font::new(font_pixel_height(DPI.load(Ordering::Relaxed)))?;
+        let mut font = Font::new(scale(FONT_SIZE, DPI.load(Ordering::Relaxed)))?;
         let mut renderer = Renderer::new(window, &font)?;
         // The title bar says how frames are presented, as it affects latency.
         let mut title = format!("GameInput Demo - {}", renderer.adapter_name);
@@ -263,12 +357,14 @@ fn main() -> Result<()> {
         };
         let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
         SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
+        let _ = ShowWindow(window, SW_SHOW);
         // Without GameInput the window still opens, and says why there's no input.
         let mut input =
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         let mut windowed = None;
+        let mut display = display_label(window, &displays);
 
         let mut message = MSG::default();
         loop {
@@ -283,7 +379,7 @@ fn main() -> Result<()> {
             }
 
             if DPI_CHANGED.swap(false, Ordering::Relaxed) {
-                font = Font::new(font_pixel_height(DPI.load(Ordering::Relaxed)))?;
+                font = Font::new(scale(FONT_SIZE, DPI.load(Ordering::Relaxed)))?;
                 renderer.set_font(&font)?;
             }
             if RESIZED.swap(false, Ordering::Relaxed) {
@@ -291,6 +387,16 @@ fn main() -> Result<()> {
                     CLIENT_WIDTH.load(Ordering::Relaxed),
                     CLIENT_HEIGHT.load(Ordering::Relaxed),
                 )?;
+            }
+            if DISPLAYS_CHANGED.swap(false, Ordering::Relaxed) {
+                // If this fails, the old list only makes the footer stale.
+                if let Ok(list) = displays::enumerate() {
+                    displays = list;
+                }
+                MOVED.store(true, Ordering::Relaxed);
+            }
+            if MOVED.swap(false, Ordering::Relaxed) {
+                display = display_label(window, &displays);
             }
 
             if IsIconic(window).as_bool() {
@@ -321,11 +427,16 @@ fn main() -> Result<()> {
             }
             let focused = GetForegroundWindow() == window;
             let mut canvas = Canvas::new(&font, &mut vertices);
+            let status = panels::Status {
+                focused,
+                frames: &frames,
+                display: &display,
+                notices: &notices,
+            };
             panels::draw(
                 &mut canvas,
                 &input,
-                focused,
-                &frames,
+                &status,
                 renderer.width as f32,
                 renderer.height as f32,
             );
