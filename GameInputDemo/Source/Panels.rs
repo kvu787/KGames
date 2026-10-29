@@ -6,7 +6,10 @@ use std::collections::VecDeque;
 use crate::canvas::{Canvas, Color};
 use crate::frame_counter::FrameCounter;
 use crate::game_input::*;
-use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
+use crate::input::{
+    GAMEPAD_BUTTONS, Input, LEFT_DEAD_ZONE, Listen, MOUSE_BUTTONS, RIGHT_DEAD_ZONE, Source,
+    describe_key,
+};
 
 pub const BACKGROUND: [f32; 4] = [0.071, 0.078, 0.094, 1.0];
 const PANEL: Color = Color::rgb(0x1C1F26);
@@ -22,12 +25,6 @@ const PRESSED: Color = Color::rgb(0x3DDC84);
 const PRESSED_TEXT: Color = Color::rgb(0x0B2414);
 const WARNING: Color = Color::rgb(0xFFCC66);
 const ERROR: Color = Color::rgb(0xFF6B6B);
-
-// XInput's recommended dead zones, as fractions of full deflection
-// (XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE / 32767 and the right one).
-// GameInput reports raw stick values, so applying a dead zone is up to the game.
-const LEFT_DEAD_ZONE: f32 = 7849.0 / 32767.0;
-const RIGHT_DEAD_ZONE: f32 = 8689.0 / 32767.0;
 
 #[derive(Clone, Copy)]
 struct Rect {

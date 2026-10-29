@@ -14,9 +14,11 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
   whether the window has focus, and the frame rate with the time per frame. Under it,
   anything wrong with the [settings file](#settings-file) or the command line.
 - **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
-  XInput's recommended dead zone. A filled bar for each trigger. A chip for every
-  button that lights up while it's held. A select box after the panel's title picks
-  which [gamepads the demo listens to](#choosing-gamepads): any of them, one, or none.
+  XInput's recommended dead zone, which only the [rumble test](#rumble-test) applies.
+  Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
+  each trigger. A chip for every button that lights up while it's held. A select box
+  after the panel's title picks which [gamepads the demo listens to](#choosing-gamepads):
+  any of them, one, or none.
 - **Latest input event**: a text box describing the newest reading that changed
   something: its device, what changed, how long after that device's previous reading
   it came, and the device's whole state.
@@ -38,13 +40,20 @@ Shortcuts, which the demo also reads with GameInput:
 | `F2`  | Clear the event log                                                           |
 | `F11` | Borderless fullscreen on or off, for the lowest latency                       |
 
+### Rumble test
+
 The rumble test drives only the standard rumble: the low-frequency motor in the left grip
 and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most
 other gamepads with rumble have. The left stick drives the first and the right stick the
-second. A motor is off while its stick is at rest, and its strength grows in proportion
-to how far the stick is pushed from the center, in any direction, up to full at the edge.
-The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's "Motors"
-still lists every motor the gamepad has. With the rumble test off, no motor runs.
+second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's
+"Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs.
+
+A motor is off while its stick is inside the dead zone, the ring on the stick's graph.
+Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from running the
+motors. Past the ring, the motor's strength grows linearly with how far the stick is
+pushed, in any direction, from off at the ring to full at the edge. The dead zones are
+XInput's recommended ones: 24% of full deflection for the left stick, and 26.5% for the
+right. Nothing else in the demo applies a dead zone.
 
 ### Choosing gamepads
 

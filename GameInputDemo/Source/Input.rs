@@ -22,6 +22,14 @@ const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
 const KEY_TOGGLE_FULLSCREEN: u8 = 0x7A; // F11
 
+// XInput's recommended dead zones, as fractions of full deflection
+// (XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE / 32767 and the right one).
+// GameInput reports raw stick values, so applying a dead zone is up to the game.
+// The demo applies them only to the rumble test. Everything else, from the
+// panels to the log, shows the raw values, and the stick graphs draw these as rings.
+pub const LEFT_DEAD_ZONE: f32 = 7849.0 / 32767.0;
+pub const RIGHT_DEAD_ZONE: f32 = 8689.0 / 32767.0;
+
 // The device callback runs on one of GameInput's threads. It only queues the
 // event, and the main thread handles it in Input::update.
 static DEVICE_EVENTS: Mutex<Vec<(GameInputDeviceEvent, IGameInputDevice)>> = Mutex::new(Vec::new());
@@ -915,11 +923,13 @@ impl Input {
 
     // With the rumble test on, a gamepad's left stick drives its
     // low-frequency (left grip) motor and its right stick the high-frequency
-    // (right grip) one. Each motor is off with its stick at the center, and
-    // its strength grows in proportion to how far the stick is pushed, up to
-    // full at the edge. Only those two motors, the standard rumble that Xbox
-    // 360, PlayStation 4 and 5 and most other gamepads with rumble have. Xbox
-    // One and Series gamepads' trigger motors stay off.
+    // (right grip) one. Each motor is off while its stick is inside its dead
+    // zone, which keeps a stick at rest from running it with its noise. Past
+    // the dead zone, the motor's strength grows linearly with how far the
+    // stick is pushed, up to full at the edge. Only those two motors, the
+    // standard rumble that Xbox 360, PlayStation 4 and 5 and most other
+    // gamepads with rumble have. Xbox One and Series gamepads' trigger motors
+    // stay off.
     // Every gamepad drives its own motors, not just the one the panel shows.
     // Otherwise another gamepad's readings would stop the one in use, and a
     // DualSense sends readings about every millisecond from stick noise alone.
@@ -928,8 +938,8 @@ impl Input {
             let [left, right] = rumble.sticks;
             let params = if self.rumble_enabled {
                 GameInputRumbleParams {
-                    lowFrequency: left,
-                    highFrequency: right,
+                    lowFrequency: past_dead_zone(left, LEFT_DEAD_ZONE),
+                    highFrequency: past_dead_zone(right, RIGHT_DEAD_ZONE),
                     ..Default::default()
                 }
             } else {
@@ -1031,6 +1041,12 @@ pub fn kind_names(kinds: GameInputKind) -> String {
 // corners, many sticks read a little past 1, so that's cut off at 1.
 fn deflection(x: f32, y: f32) -> f32 {
     x.hypot(y).min(1.0)
+}
+
+// A stick's deflection rescaled to 0 at the dead zone's edge and 1 at the
+// stick's, and 0 inside the dead zone, so there's no jump where it starts.
+fn past_dead_zone(deflection: f32, dead_zone: f32) -> f32 {
+    ((deflection - dead_zone) / (1.0 - dead_zone)).max(0.0)
 }
 
 fn pair(x: f32, y: f32) -> String {
