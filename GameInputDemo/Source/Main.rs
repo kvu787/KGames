@@ -469,8 +469,8 @@ fn main() -> Result<()> {
         };
         let _ = ShowWindow(window, show);
         // Without GameInput the window still opens, and says why there's no input.
-        let mut input =
-            Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
+        let mut input = Input::new(settings.rumble_dead_zone)
+            .map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         let mut display = display_label(window, &displays);

@@ -22,14 +22,6 @@ const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
 const KEY_TOGGLE_FULLSCREEN: u8 = 0x7A; // F11
 
-// XInput's recommended dead zones, as fractions of full deflection
-// (XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE / 32767 and the right one).
-// GameInput reports raw stick values, so applying a dead zone is up to the game.
-// The demo applies them only to the rumble test. Everything else, from the
-// panels to the log, shows the raw values, and the stick graphs draw these as rings.
-pub const LEFT_DEAD_ZONE: f32 = 7849.0 / 32767.0;
-pub const RIGHT_DEAD_ZONE: f32 = 8689.0 / 32767.0;
-
 // The device callback runs on one of GameInput's threads. It only queues the
 // event, and the main thread handles it in Input::update.
 static DEVICE_EVENTS: Mutex<Vec<(GameInputDeviceEvent, IGameInputDevice)>> = Mutex::new(Vec::new());
@@ -279,6 +271,12 @@ pub struct Input {
     pub log: VecDeque<LogEntry>,
     pub reading_count: u64,
     pub rumble_enabled: bool,
+    // The rumble test's inner dead zone for both sticks, as a fraction of
+    // full deflection, from the settings. GameInput reports raw stick values,
+    // so applying a dead zone is up to the game. The demo applies this one
+    // only to the rumble test. Everything else, from the panels to the log,
+    // shows the raw values, and the stick graphs draw this as a ring.
+    pub rumble_dead_zone: f32,
     // One for each gamepad listened to that has sent a reading.
     rumbles: Vec<Rumble>,
     // Changed with set_listen.
@@ -291,7 +289,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new() -> Result<Self> {
+    pub fn new(rumble_dead_zone: f32) -> Result<Self> {
         let (game_input, runtime) = crate::game_input::create()?;
         unsafe {
             let callback_token = game_input.RegisterDeviceCallback(
@@ -316,6 +314,7 @@ impl Input {
                 log: VecDeque::new(),
                 reading_count: 0,
                 rumble_enabled: false,
+                rumble_dead_zone,
                 rumbles: Vec::new(),
                 listen: Listen::AnyGamepad,
                 fullscreen_toggled: false,
@@ -938,8 +937,8 @@ impl Input {
             let [left, right] = rumble.sticks;
             let params = if self.rumble_enabled {
                 GameInputRumbleParams {
-                    lowFrequency: past_dead_zone(left, LEFT_DEAD_ZONE),
-                    highFrequency: past_dead_zone(right, RIGHT_DEAD_ZONE),
+                    lowFrequency: past_dead_zone(left, self.rumble_dead_zone),
+                    highFrequency: past_dead_zone(right, self.rumble_dead_zone),
                     ..Default::default()
                 }
             } else {

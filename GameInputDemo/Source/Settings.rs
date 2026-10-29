@@ -7,7 +7,8 @@
 //         "WindowMode": "Windowed",
 //         "WindowWidth": 1280,
 //         "WindowHeight": 900,
-//         "AllowTearing": true
+//         "AllowTearing": true,
+//         "RumbleTestInnerDeadZone": 0.1
 //     }
 //
 // The demo writes that file, with the defaults, if it doesn't exist. A
@@ -54,6 +55,9 @@ pub struct Settings {
     // Whether frames may tear, which lets them reach the screen mid-refresh,
     // if the GPU's driver allows it.
     pub allow_tearing: bool,
+    // How far a stick must be from its center, as a fraction of full
+    // deflection, before it runs its motor in the rumble test.
+    pub rumble_dead_zone: f32,
 }
 
 impl Default for Settings {
@@ -63,6 +67,7 @@ impl Default for Settings {
             window_mode: WindowMode::Windowed,
             window_size: [1280, 900],
             allow_tearing: true,
+            rumble_dead_zone: 0.1,
         }
     }
 }
@@ -142,8 +147,20 @@ impl Settings {
                     }
                     _ => Err(format!("must be true or false, not {}", value.describe())),
                 },
+                // Less than 1, because the strength grows from the dead
+                // zone's edge to the stick's.
+                "RumbleTestInnerDeadZone" => match value {
+                    Value::Number(number) if (0.0..1.0).contains(number) => {
+                        self.rumble_dead_zone = *number as f32;
+                        Ok(())
+                    }
+                    _ => Err(format!(
+                        "must be a number from 0 to less than 1, not {}",
+                        value.describe()
+                    )),
+                },
                 _ => Err("isn't a setting. The settings are Display, WindowMode, WindowWidth, \
-                          WindowHeight and AllowTearing."
+                          WindowHeight, AllowTearing and RumbleTestInnerDeadZone."
                     .to_string()),
             };
             if let Err(problem) = result {
@@ -174,13 +191,15 @@ fn write_defaults(path: &Path) -> std::io::Result<()> {
     "WindowMode": "{}",
     "WindowWidth": {},
     "WindowHeight": {},
-    "AllowTearing": {}
+    "AllowTearing": {},
+    "RumbleTestInnerDeadZone": {}
 }}
 "#,
         defaults.window_mode.name(),
         defaults.window_size[0],
         defaults.window_size[1],
-        defaults.allow_tearing
+        defaults.allow_tearing,
+        defaults.rumble_dead_zone
     );
     std::fs::write(path, text)
 }

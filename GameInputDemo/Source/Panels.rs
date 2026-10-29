@@ -6,10 +6,7 @@ use std::collections::VecDeque;
 use crate::canvas::{Canvas, Color};
 use crate::frame_counter::FrameCounter;
 use crate::game_input::*;
-use crate::input::{
-    GAMEPAD_BUTTONS, Input, LEFT_DEAD_ZONE, Listen, MOUSE_BUTTONS, RIGHT_DEAD_ZONE, Source,
-    describe_key,
-};
+use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
 pub const BACKGROUND: [f32; 4] = [0.071, 0.078, 0.094, 1.0];
 const PANEL: Color = Color::rgb(0x1C1F26);
@@ -426,7 +423,7 @@ fn draw_gamepad(
         Rect::new(left_x, plots_y, graph, graph),
         left,
         &view.left_trail,
-        LEFT_DEAD_ZONE,
+        input.rumble_dead_zone,
         LEFT,
     );
     stick_graph(
@@ -434,7 +431,7 @@ fn draw_gamepad(
         Rect::new(right_x, plots_y, graph, graph),
         right,
         &view.right_trail,
-        RIGHT_DEAD_ZONE,
+        input.rumble_dead_zone,
         RIGHT,
     );
     trigger_bar(

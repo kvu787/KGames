@@ -14,8 +14,8 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
   whether the window has focus, and the frame rate with the time per frame. Under it,
   anything wrong with the [settings file](#settings-file) or the command line.
 - **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
-  XInput's recommended dead zone, which only the [rumble test](#rumble-test) applies.
-  Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
+  the dead zone of the [rumble test](#rumble-test), the only part of the demo that applies
+  one. Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
   each trigger. A chip for every button that lights up while it's held. A select box
   after the panel's title picks which [gamepads the demo listens to](#choosing-gamepads):
   any of them, one, or none.
@@ -48,12 +48,13 @@ other gamepads with rumble have. The left stick drives the first and the right s
 second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's
 "Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs.
 
-A motor is off while its stick is inside the dead zone, the ring on the stick's graph.
-Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from running the
-motors. Past the ring, the motor's strength grows linearly with how far the stick is
-pushed, in any direction, from off at the ring to full at the edge. The dead zones are
-XInput's recommended ones: 24% of full deflection for the left stick, and 26.5% for the
-right. Nothing else in the demo applies a dead zone.
+A motor is off while its stick is inside the inner dead zone, the ring on the stick's
+graph. Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from
+running the motors. Past the ring, the motor's strength grows linearly with how far the
+stick is pushed, in any direction, from off at the ring to full at the edge. Both sticks
+have the same dead zone: 10% of full deflection by default, set with
+`RumbleTestInnerDeadZone` in the [settings file](#settings-file). Nothing else in the
+demo applies a dead zone.
 
 ### Choosing gamepads
 
@@ -171,17 +172,19 @@ The file is in Git. If it doesn't exist, the demo writes it with the defaults:
     "WindowMode": "Windowed",
     "WindowWidth": 1280,
     "WindowHeight": 900,
-    "AllowTearing": true
+    "AllowTearing": true,
+    "RumbleTestInnerDeadZone": 0.1
 }
 ```
 
-| Setting        | Value                                                                       |
-| -------------- | --------------------------------------------------------------------------- |
-| `Display`      | `"Primary"`, or the identifier of the display to open on                    |
-| `WindowMode`   | `"Windowed"`, `"Maximized"` or `"BorderlessFullscreen"`                     |
-| `WindowWidth`  | The width of a `Windowed` window's contents, at 100% scaling, in pixels     |
-| `WindowHeight` | The height of a `Windowed` window's contents, at 100% scaling, in pixels    |
-| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh       |
+| Setting                   | Value                                                                       |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
+| `WindowMode`              | `"Windowed"`, `"Maximized"` or `"BorderlessFullscreen"`                     |
+| `WindowWidth`             | The width of a `Windowed` window's contents, at 100% scaling, in pixels     |
+| `WindowHeight`            | The height of a `Windowed` window's contents, at 100% scaling, in pixels    |
+| `AllowTearing`            | Whether frames may tear, which lets them reach the screen mid-refresh       |
+| `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
 - A `Windowed` window is centered in its display's work area. It's scaled with the
   display's DPI, and kept within the work area and no smaller than the panels need.
