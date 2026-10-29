@@ -48,7 +48,7 @@ All PowerShell scripts must:
 
 You can install any dependencies that are scoped to the repo.
 You must not install any dependencies that have a scope that is broader than repo-scope.
-If you want to install any dependencies that have a scope that is broader than repo-scope, you must request this from the user.
+If you want to install and use any dependencies that have a scope that is broader than repo-scope, you must request this from the user.
 
 # Git
 
