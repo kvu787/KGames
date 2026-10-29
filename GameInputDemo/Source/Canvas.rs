@@ -34,15 +34,19 @@ impl Color {
 pub struct Canvas<'a> {
     font: &'a Font,
     solid_uv: [f32; 2],
-    pub vertices: Vec<Vertex>,
+    pub vertices: &'a mut Vec<Vertex>,
 }
 
 impl<'a> Canvas<'a> {
-    pub fn new(font: &'a Font) -> Self {
+    // Takes the vertices to fill, so that one Vec can be reused every frame.
+    // A new one would be allocated fresh from the OS each frame, as it's large,
+    // and writing to its new memory would take a page fault every 4 KB.
+    pub fn new(font: &'a Font, vertices: &'a mut Vec<Vertex>) -> Self {
+        vertices.clear();
         Self {
             font,
             solid_uv: font.solid_uv(),
-            vertices: Vec::with_capacity(64 * 1024),
+            vertices,
         }
     }
 

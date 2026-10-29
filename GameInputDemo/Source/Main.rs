@@ -175,6 +175,7 @@ fn main() -> Result<()> {
         let mut input =
             Input::new().map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
+        let mut vertices = Vec::new();
 
         let mut message = MSG::default();
         loop {
@@ -223,7 +224,7 @@ fn main() -> Result<()> {
                 input.update();
             }
             let focused = GetForegroundWindow() == window;
-            let mut canvas = Canvas::new(&font);
+            let mut canvas = Canvas::new(&font, &mut vertices);
             panels::draw(
                 &mut canvas,
                 &input,
