@@ -240,20 +240,33 @@ unsafe fn display_label(window: HWND, displays: &[Display]) -> String {
     }
 }
 
+// What the command line asks for, besides the settings it overrides.
+struct Arguments {
+    // Whether the display came from --display, which must be connected.
+    display_required: bool,
+}
+
 // The command line, which overrides the settings file. --display and an
 // identifier that IdentifyDisplays shows, or "Primary", picks the display.
 // Problems go in `notices`.
-fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) {
+fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) -> Arguments {
+    let mut result = Arguments {
+        display_required: false,
+    };
     let mut arguments = std::env::args().skip(1);
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
             "--display" => match arguments.next() {
-                Some(display) => settings.display = settings::parse_display(&display),
+                Some(display) => {
+                    settings.display = settings::parse_display(&display);
+                    result.display_required = true;
+                }
                 None => notices.push("--display needs a display identifier after it".to_string()),
             },
             _ => notices.push(format!("Unknown command-line argument: {argument}")),
         }
     }
+    result
 }
 
 fn main() -> Result<()> {
@@ -299,21 +312,30 @@ fn main() -> Result<()> {
         // Problems with the settings and the command line, which the header lists.
         let mut notices = Vec::new();
         let mut settings = Settings::load(&mut notices);
-        apply_arguments(&mut settings, &mut notices);
+        let arguments = apply_arguments(&mut settings, &mut notices);
         let mut displays = displays::enumerate()?;
-        let display = settings
-            .display
-            .as_deref()
-            .and_then(|identifier| {
-                let display = displays::find(&displays, identifier);
-                if display.is_none() {
-                    notices.push(format!(
-                        "Display {identifier} isn't connected, so the demo opened on the primary \
-                         display. IdentifyDisplays shows the displays' identifiers."
+        let mut display = None;
+        if let Some(identifier) = settings.display.as_deref() {
+            display = displays::find(&displays, identifier);
+            if display.is_none() {
+                // A display from the command line is a request to open there
+                // and nowhere else.
+                if arguments.display_required {
+                    return Err(Error::new(
+                        E_FAIL,
+                        format!(
+                            "Display {identifier} isn't connected. IdentifyDisplays --list shows \
+                             the displays' identifiers."
+                        ),
                     ));
                 }
-                display
-            })
+                notices.push(format!(
+                    "Display {identifier} isn't connected, so the demo opened on the primary \
+                     display. IdentifyDisplays shows the displays' identifiers."
+                ));
+            }
+        }
+        let display = display
             .or_else(|| displays::primary(&displays))
             .ok_or_else(|| Error::new(E_FAIL, "Windows reports no displays"))?;
 

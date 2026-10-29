@@ -120,7 +120,9 @@ Git ignores the file. If it doesn't exist, the demo writes it with the defaults:
 - The demo never changes the file once it exists. Delete it to get the defaults back.
 
 `--display` and an identifier on the command line overrides `Display`. `--display Primary`
-opens on the primary display.
+opens on the primary display. Unlike `Display`, a display named with `--display` must be
+connected. If it isn't, the demo writes why to standard error and exits, instead of opening
+on the primary display.
 
 ## How it gets GameInput
 
