@@ -9,10 +9,24 @@ internal static class Program {
         Usage:
           DisplayIdentification list [--json]
           DisplayIdentification identify [--seconds <seconds>]
+          DisplayIdentification set-primary --display <display> [--check]
+          DisplayIdentification restore
 
         Commands:
-          list       List the active displays and their keys.
-          identify   Show each display's key on the display itself. Default: 15 seconds.
+          list          List the active displays and their keys.
+          identify      Show each display's key on the display itself. Default: 15 seconds.
+          set-primary   Make a display the primary display. With --check, only check that
+                        Windows accepts the change.
+          restore       Undo a temporary primary display change that an interrupted launch
+                        left behind.
+
+        A <display> can be any of:
+          primary                The current primary display.
+          AUSAA0F-TCLMSV002189   A key from the list command. Recommended: it stays the same
+                                 across restarts, ports and Windows display numbers.
+          TCLMSV002189           A serial number.
+          PA278QGV               A name or model, if only one display has it.
+          DISPLAY5               A Windows display device name. These change over time.
 
         """;
 
@@ -50,6 +64,8 @@ internal static class Program {
         return arguments[0].ToLowerInvariant() switch {
             "list" => ListCommand.Run(commandArguments),
             "identify" => IdentifyCommand.Run(commandArguments),
+            "set-primary" => SetPrimaryCommand.Run(commandArguments),
+            "restore" => RestoreCommand.Run(commandArguments),
             _ => throw new CommandException($"Unknown command \"{arguments[0]}\". Run \"DisplayIdentification help\" to see the commands."),
         };
     }
