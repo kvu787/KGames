@@ -9,6 +9,7 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
 
 ## What it shows
 
+- **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
 - **Header**: the GameInput runtime the demo loaded, how many readings it has handled,
   whether the window has focus, and the frame rate with the time per frame.
 - **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
@@ -26,10 +27,11 @@ Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the
 
 Shortcuts, which the demo also reads with GameInput:
 
-| Key  | Action                                                                         |
-| ---- | ------------------------------------------------------------------------------ |
-| `F1` | Rumble test on or off. The triggers then drive the active gamepad's motors     |
-| `F2` | Clear the event log                                                            |
+| Key   | Action                                                                        |
+| ----- | ----------------------------------------------------------------------------- |
+| `F1`  | Rumble test on or off. The triggers then drive the active gamepad's motors    |
+| `F2`  | Clear the event log                                                           |
+| `F11` | Borderless fullscreen on or off, for the lowest latency                       |
 
 ## Requirements
 
@@ -91,6 +93,60 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
 GameInput only gives a process keyboard and mouse input while one of its windows has focus.
 The header of the demo's window says whether it has focus.
 
+## Input latency
+
+The demo is built to show input on screen as soon as it can. Its part of the latency is
+the time from a reading reaching GameInput to a frame that shows it reaching the screen.
+The rest, like the device's own polling, its connection, and the monitor's scanout and
+response, is outside the demo.
+
+1. **No frame waits behind another.** The swap chain has a frame latency waitable object
+   and a maximum frame latency of 1, and only one frame is on the GPU at a time. By
+   default, DXGI lets 3 presented frames queue up, and each one delays the newest.
+2. **Input is read last.** Each frame, the main loop first waits until the GPU has finished
+   the previous frame and DXGI's queue has room. Only then does it read GameInput, build
+   the frame and present it, so no readings age during the wait.
+3. **The wait spins.** The loop polls both conditions instead of blocking on events, so it
+   notices them within microseconds, instead of waiting for Windows to wake its thread.
+   It keeps handling window messages while it spins.
+4. **Frames don't wait for vertical sync.** `Present(0, DXGI_PRESENT_ALLOW_TEARING)`
+   returns at once, so the demo draws thousands of frames a second, and whenever the
+   screen takes a frame, the newest one read its input a fraction of a millisecond earlier.
+   When Windows flips the demo's frames straight to the screen, a frame can replace the
+   one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
+   compositor shows the newest frame at its next refresh.
+5. **Borderless fullscreen.** `F11` makes the window cover its monitor, which lets Windows
+   flip the frames straight to the screen, instead of the compositor copying them into its
+   own frame. That saves up to a refresh, and lets frames tear. In a window, Windows can
+   only do that if the GPU supports multiplane overlays.
+6. **The monitor's GPU draws.** On a laptop whose screen is wired to the integrated GPU,
+   drawing with the discrete one would add a copy between the GPUs to every frame, and
+   keep Windows from flipping frames straight to the screen. So the demo draws with the GPU
+   that has the window's monitor as an output, which any GPU is fast enough for.
+7. **Little work between reading input and presenting.** On the development machine, an
+   RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a frame takes about 0.2 ms: about 30 µs
+   to build its geometry, 20 µs to record its commands, and 50 to 90 µs in `Present`.
+   One vertex Vec is reused for every frame. A new one, being large, came fresh from the
+   OS each frame, and filling it took a page fault every 4 KB, which made building the
+   frame 4 times slower.
+8. **No power throttling.** Windows lowers the quality of service of a process whose
+   windows aren't in focus. On a CPU with efficiency cores, that can move its threads
+   onto those, at lower clock speeds. GameInput still delivers gamepad input then, so the
+   demo opts out with `SetProcessInformation`.
+
+What it doesn't do:
+
+- **Raise its thread's priority.** The main thread never blocks, so above normal priority,
+  it could hold off the normal priority threads that deliver its input when every core is
+  busy: GameInput's own threads in the process, its raw input proxy, and its service.
+  Windows already favors the threads of the window in the foreground.
+- **Cap the frame rate.** Drawing one frame per refresh, timed to finish just before
+  vertical sync, would save power, but the input it shows would be older, and a frame
+  that finishes late waits a whole refresh.
+
+The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of
+frames a second, even when nothing changes. Minimizing the window stops both.
+
 ## Testing without a gamepad
 
 Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard" or
@@ -128,14 +184,14 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | Window, message loop and DPI changes                                             |
+| `Source/Main.rs`                   | Window, message loop, frame pacing, fullscreen and DPI changes                   |
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/GameInput.rs`              | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out and draws the panels                                                    |
 | `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
 | `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with GDI                                |
-| `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame                                |
+| `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
 | `Source/Bindings.rs`               | Generated Windows API bindings; don't edit by hand                               |
 | `Shaders/Canvas.hlsl`              | Vertex and pixel shaders, plus the embedded root signature                       |
 | `Build.rs`                         | Compiles the shaders, and fetches and deploys the GameInput runtime              |
