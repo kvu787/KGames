@@ -18,11 +18,13 @@ GetModuleHandleW
 GetSystemMetrics
 IsIconic
 LoadCursorW
+MonitorFromWindow
 PeekMessageW
 PostQuitMessage
 RegisterClassExW
 SetProcessDpiAwarenessContext
 SetWindowPos
+SetWindowTextW
 TranslateMessage
 WaitMessage
 CS_HREDRAW
@@ -30,6 +32,7 @@ CS_VREDRAW
 CW_USEDEFAULT
 DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 IDC_ARROW
+MONITOR_DEFAULTTONEAREST
 PM_REMOVE
 SC_KEYMENU
 SM_CXSCREEN
@@ -100,11 +103,13 @@ OUT_DEFAULT_PRECIS
 
 // DXGI
 CreateDXGIFactory2
+IDXGIAdapter::EnumOutputs
 IDXGIAdapter1
 IDXGIFactory::MakeWindowAssociation
 IDXGIFactory2::CreateSwapChainForHwnd
 IDXGIFactory5::CheckFeatureSupport
 IDXGIFactory6
+IDXGIOutput::GetDesc
 IDXGISwapChain::{GetBuffer, Present, ResizeBuffers}
 IDXGISwapChain1::GetDesc1
 IDXGISwapChain2::{GetFrameLatencyWaitableObject, SetMaximumFrameLatency}

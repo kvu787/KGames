@@ -313,6 +313,11 @@ where
     unsafe { LoadLibraryW(lplibfilename.param().abi()) }
 }
 #[inline]
+pub unsafe fn MonitorFromWindow(hwnd: HWND, dwflags: u32) -> HMONITOR {
+    windows_core::link!("user32.dll" "system" fn MonitorFromWindow(hwnd : HWND, dwflags : u32) -> HMONITOR);
+    unsafe { MonitorFromWindow(hwnd, dwflags) }
+}
+#[inline]
 pub unsafe fn PeekMessageW(
     lpmsg: *mut MSG,
     hwnd: Option<HWND>,
@@ -410,6 +415,14 @@ pub unsafe fn SetWindowPos(
             uflags,
         )
     }
+}
+#[inline]
+pub unsafe fn SetWindowTextW<P1>(hwnd: HWND, lpstring: P1) -> windows_core::BOOL
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("user32.dll" "system" fn SetWindowTextW(hwnd : HWND, lpstring : windows_core::PCWSTR) -> windows_core::BOOL);
+    unsafe { SetWindowTextW(hwnd, lpstring.param().abi()) }
 }
 #[inline]
 pub unsafe fn TextOutW(hdc: HDC, x: i32, y: i32, lpstring: &[u16]) -> windows_core::BOOL {
@@ -1842,9 +1855,24 @@ pub type DXGI_GPU_PREFERENCE = i32;
 pub const DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE: DXGI_GPU_PREFERENCE = 2;
 pub const DXGI_GPU_PREFERENCE_MINIMUM_POWER: DXGI_GPU_PREFERENCE = 1;
 pub const DXGI_GPU_PREFERENCE_UNSPECIFIED: DXGI_GPU_PREFERENCE = 0;
+pub type DXGI_MODE_ROTATION = i32;
 pub type DXGI_MODE_SCALING = i32;
 pub type DXGI_MODE_SCANLINE_ORDER = i32;
 pub const DXGI_MWA_NO_ALT_ENTER: i32 = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DXGI_OUTPUT_DESC {
+    pub DeviceName: [u16; 32],
+    pub DesktopCoordinates: RECT,
+    pub AttachedToDesktop: windows_core::BOOL,
+    pub Rotation: DXGI_MODE_ROTATION,
+    pub Monitor: HMONITOR,
+}
+impl Default for DXGI_OUTPUT_DESC {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
 pub const DXGI_PRESENT_ALLOW_TEARING: u32 = 512;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1943,6 +1971,9 @@ pub const HKEY_LOCAL_MACHINE: HKEY = HKEY(-2147483646 as _);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HMENU(pub *mut core::ffi::c_void);
 pub type HMODULE = HINSTANCE;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HMONITOR(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HWND(pub *mut core::ffi::c_void);
@@ -4604,10 +4635,29 @@ impl core::ops::Deref for IDXGIAdapter {
     }
 }
 windows_core::imp::interface_hierarchy!(IDXGIAdapter, windows_core::IUnknown, IDXGIObject);
+impl IDXGIAdapter {
+    pub unsafe fn EnumOutputs(
+        &self,
+        output: u32,
+        ppoutput: *mut Option<IDXGIOutput>,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).EnumOutputs)(
+                windows_core::Interface::as_raw(self),
+                output,
+                core::mem::transmute(ppoutput),
+            )
+        }
+    }
+}
 #[repr(C)]
 pub struct IDXGIAdapter_Vtbl {
     pub base__: IDXGIObject_Vtbl,
-    EnumOutputs: usize,
+    pub EnumOutputs: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     GetDesc: usize,
     CheckInterfaceSupport: usize,
 }
@@ -4982,10 +5032,23 @@ impl core::ops::Deref for IDXGIOutput {
     }
 }
 windows_core::imp::interface_hierarchy!(IDXGIOutput, windows_core::IUnknown, IDXGIObject);
+impl IDXGIOutput {
+    pub unsafe fn GetDesc(&self, pdesc: *mut DXGI_OUTPUT_DESC) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetDesc)(
+                windows_core::Interface::as_raw(self),
+                pdesc as _,
+            )
+        }
+    }
+}
 #[repr(C)]
 pub struct IDXGIOutput_Vtbl {
     pub base__: IDXGIObject_Vtbl,
-    GetDesc: usize,
+    pub GetDesc: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut DXGI_OUTPUT_DESC,
+    ) -> windows_core::HRESULT,
     GetDisplayModeList: usize,
     FindClosestMatchingMode: usize,
     WaitForVBlank: usize,
@@ -5312,6 +5375,7 @@ pub struct MINMAXINFO {
     pub ptMinTrackSize: POINT,
     pub ptMaxTrackSize: POINT,
 }
+pub const MONITOR_DEFAULTTONEAREST: i32 = 2;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MSG {
