@@ -394,6 +394,8 @@ based on this crates.io page "C:\Users\K\Pictures\Screenshots\Screenshot 2026-10
 
 ## AI
 
+I noticed my last closing message in chat again didn't match the saved record word for word, so I'm fixing that section before committing.
+
 You're reading the right page, but the "Install" box on the right doesn't describe what HelloDirect3D12 needs. Two things are going on.
 
 ## 1. The Install box is generic
