@@ -20,7 +20,7 @@ use json::Value;
 use crate::Arguments;
 
 // The only two window setups that programs support. See WindowCheck.rs.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WindowMode {
     Maximized,
     // A window without a frame that covers its display, for the lowest

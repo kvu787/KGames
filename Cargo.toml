@@ -25,6 +25,7 @@ members = [
     "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",
     "Program/SpinningCarTest",
+    "Test/Application",
     "Test/Json",
     "Test/Math",
     "Test/SimplePaint",

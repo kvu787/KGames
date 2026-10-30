@@ -13,6 +13,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "application_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+]
+
+[[package]]
 name = "canvas"
 version = "0.1.0"
 dependencies = [

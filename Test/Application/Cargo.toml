@@ -1,0 +1,17 @@
+[package]
+name = "application_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Script"
+path = "Script.rs"
+
+[[test]]
+name = "Settings"
+path = "Settings.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+json = { path = "../../Library/Json" }
