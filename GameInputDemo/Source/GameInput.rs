@@ -553,7 +553,10 @@ pub fn create() -> Result<(IGameInput, Runtime)> {
     } else if let Some(directory) = redist_directory() {
         candidates.push(directory.join("GameInputRedist.dll"));
     }
-    if let Some(directory) = std::env::current_exe()?.parent() {
+    // Like in GameInput.cpp, not finding the app's folder only skips it.
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(directory) = exe.parent()
+    {
         candidates.push(directory.join("GameInputRedist.dll"));
     }
 
@@ -604,7 +607,11 @@ pub fn create() -> Result<(IGameInput, Runtime)> {
 
 fn system_directory() -> Result<PathBuf> {
     unsafe {
+        // The size, including the terminating zero.
         let length = GetSystemDirectoryW(None, 0);
+        if length == 0 {
+            return Err(Error::from_thread());
+        }
         let mut buffer = vec![0u16; length as usize];
         let length = GetSystemDirectoryW(Some(windows_core::PWSTR(buffer.as_mut_ptr())), length);
         if length == 0 {
