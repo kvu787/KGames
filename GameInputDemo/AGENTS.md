@@ -1,3 +1,17 @@
+# Supported window setups
+
+The demo only supports the user's own setup, to keep development simple. It supports exactly two window setups, both on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same:
+
+- **Maximized**, with a client area of 2560 × 1369. The taskbar takes 48 pixels at the bottom of the monitor, which leaves a 2560 × 1392 work area. The title bar takes the top 23 pixels of that, so the client area runs from screen y = 23 down to the bottom of the work area: 1392 − 23 = 1369.
+- **Borderless fullscreen**, with a client area of 2560 × 1440 that covers the whole monitor. `F11` switches between the two.
+
+In any other setup, the window shows an error that says what's wrong, instead of the panels. `Source/WindowCheck.rs` does the check.
+
+So:
+
+- Lay out in fixed pixels for these two client areas. `Source/Panels.rs` has the layout's constants. The only difference between the two is 71 pixels of height, which go to the bottom row of panels and the event log.
+- Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep the demo working in other setups beyond showing the error.
+
 # Non-disruptive workflow
 
 While working:

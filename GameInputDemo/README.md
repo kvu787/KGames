@@ -7,6 +7,22 @@ API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 It's built like [HelloDirect3D12](../HelloDirect3D12/README.md): no frameworks, and
 Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the only dependency.
 
+## Supported window setups
+
+The demo is built for one machine, and supports exactly two window setups. Both are on a
+2560 × 1440 monitor at 100% scaling (96 DPI), so logical and physical pixels are the same,
+and the panels have fixed places in pixels:
+
+| Setup                 | Client area | What makes it                                                              |
+| --------------------- | ----------- | -------------------------------------------------------------------------- |
+| Maximized             | 2560 × 1369 | A 48-pixel taskbar at the bottom leaves a 2560 × 1392 work area, and the   |
+|                       |             | title bar takes its top 23 pixels                                          |
+| Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the whole monitor                     |
+
+In any other setup, like a restored window, another monitor, another scale, or a moved
+taskbar, the window shows what's wrong instead of the panels. It checks again whenever the
+window moves or changes size, or the displays, the scale or the taskbar change.
+
 ## What it shows
 
 - **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
@@ -38,7 +54,7 @@ Shortcuts, which the demo also reads with GameInput:
 | ----- | ----------------------------------------------------------------------------- |
 | `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors        |
 | `F2`  | Clear the event log                                                           |
-| `F11` | Borderless fullscreen on or off, for the lowest latency                       |
+| `F11` | Switches between maximized and borderless fullscreen, for the lowest latency  |
 
 ### Rumble test
 
@@ -168,9 +184,7 @@ The file is in Git. If it doesn't exist, the demo writes it with the defaults:
 ```json
 {
     "Display": "Primary",
-    "WindowMode": "Windowed",
-    "WindowWidth": 1280,
-    "WindowHeight": 900,
+    "WindowMode": "Maximized",
     "AllowTearing": true,
     "RumbleTestInnerDeadZone": 0.1
 }
@@ -179,17 +193,12 @@ The file is in Git. If it doesn't exist, the demo writes it with the defaults:
 | Setting                   | Value                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
-| `WindowMode`              | `"Windowed"`, `"Maximized"` or `"BorderlessFullscreen"`                     |
-| `WindowWidth`             | The width of a `Windowed` window's contents, at 100% scaling, in pixels     |
-| `WindowHeight`            | The height of a `Windowed` window's contents, at 100% scaling, in pixels    |
+| `WindowMode`              | `"Maximized"` or `"BorderlessFullscreen"`, the two supported setups         |
 | `AllowTearing`            | Whether frames may tear, which lets them reach the screen mid-refresh       |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-- A `Windowed` window is centered in its display's work area. It's scaled with the
-  display's DPI, and kept within the work area and no smaller than the panels need.
 - If `Display` names a display that isn't connected, the demo opens on the primary display.
-- `F11` switches between borderless fullscreen and the window mode the demo opened in,
-  or `Windowed` if it opened in fullscreen.
+- `F11` switches between the two window modes, whichever the demo opened in.
 - A setting that's missing keeps its default. So does one that's wrong, and the header
   says what's wrong with it. If the file isn't valid JSON, the header says where, and the
   demo uses the defaults. Values that are words, like `"Maximized"`, ignore case, but
@@ -350,7 +359,8 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen and DPI changes |
+| `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen                 |
+| `Source/WindowCheck.rs`            | Checks that the window is in one of the two supported setups                     |
 | `Source/Settings.rs`               | Reads the settings file, and writes it with the defaults if it doesn't exist     |
 | `Source/Json.rs`                   | Parses JSON, for the settings file                                               |
 | `Source/Displays.rs`               | Finds the displays and makes their identifiers, for both programs                |
@@ -358,7 +368,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/GameInput.rs`              | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
-| `Source/Panels.rs`                 | Lays out and draws the panels                                                    |
+| `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
 | `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
 | `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with GDI                                |
 | `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
