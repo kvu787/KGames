@@ -8,10 +8,12 @@
 // so no finished frame waits behind another, and frames are presented
 // without waiting for vertical sync.
 
+use std::path::{Path, PathBuf};
+
 use windows_api::*;
 use windows_core::{Error, Interface, PCWSTR, Result};
 
-use crate::{create_texture, transition};
+use crate::{create_buffer, create_texture, save_png, transition};
 
 // The fewest a flip model swap chain allows: one on screen, one being drawn.
 const BUFFER_COUNT: u32 = 2;
@@ -56,6 +58,8 @@ pub struct Renderer {
     queue_has_room: bool,
     // The back buffer that is_ready started recording the next frame for.
     recording: Option<usize>,
+    // Where to save the frame being recorded, once it's presented.
+    capture: Option<PathBuf>,
     pub width: u32,
     pub height: u32,
 }
@@ -225,6 +229,7 @@ impl Renderer {
                 frame_latency_event,
                 queue_has_room: false,
                 recording: None,
+                capture: None,
                 width: actual.Width,
                 height: actual.Height,
             };
@@ -497,6 +502,14 @@ impl Renderer {
         }
     }
 
+    // Saves the frame being recorded as a PNG at `path`, as the window shows
+    // it, once present has presented it. Present then waits for the GPU, so
+    // it's for tests, like a script's checkpoints, not for every frame.
+    pub fn capture(&mut self, path: &Path) -> Result<()> {
+        self.capture = Some(path.to_path_buf());
+        Ok(())
+    }
+
     // Finishes the frame that is_ready started, and presents it.
     pub unsafe fn present(&mut self) -> Result<()> {
         unsafe {
@@ -504,12 +517,66 @@ impl Renderer {
                 .recording
                 .take()
                 .expect("present is called once is_ready is true");
+            let back_buffer = &self.back_buffers[index];
             let list = &self.command_list;
-            list.ResourceBarrier(&[transition(
-                &self.back_buffers[index],
-                D3D12_RESOURCE_STATE_RENDER_TARGET,
-                D3D12_RESOURCE_STATE_PRESENT,
-            )]);
+            // A capture copies the frame into memory the CPU can read.
+            let capture = match self.capture.take() {
+                Some(path) => {
+                    let description = back_buffer.GetDesc();
+                    let mut footprint = D3D12_PLACED_SUBRESOURCE_FOOTPRINT::default();
+                    let mut size = 0u64;
+                    self.device.GetCopyableFootprints(
+                        &description,
+                        0,
+                        1,
+                        0,
+                        Some(&mut footprint),
+                        None,
+                        None,
+                        Some(&mut size),
+                    );
+                    let readback = create_buffer(
+                        &self.device,
+                        size,
+                        D3D12_HEAP_TYPE_READBACK,
+                        D3D12_RESOURCE_STATE_COPY_DEST,
+                    )?;
+                    list.ResourceBarrier(&[transition(
+                        back_buffer,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        D3D12_RESOURCE_STATE_COPY_SOURCE,
+                    )]);
+                    let destination = D3D12_TEXTURE_COPY_LOCATION {
+                        pResource: std::mem::transmute_copy(&readback),
+                        Type: D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+                        Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
+                            PlacedFootprint: footprint,
+                        },
+                    };
+                    let source = D3D12_TEXTURE_COPY_LOCATION {
+                        pResource: std::mem::transmute_copy(back_buffer),
+                        Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+                        Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
+                            SubresourceIndex: 0,
+                        },
+                    };
+                    list.CopyTextureRegion(&destination, 0, 0, 0, &source, None);
+                    list.ResourceBarrier(&[transition(
+                        back_buffer,
+                        D3D12_RESOURCE_STATE_COPY_SOURCE,
+                        D3D12_RESOURCE_STATE_PRESENT,
+                    )]);
+                    Some((path, readback, footprint, size))
+                }
+                None => {
+                    list.ResourceBarrier(&[transition(
+                        back_buffer,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        D3D12_RESOURCE_STATE_PRESENT,
+                    )]);
+                    None
+                }
+            };
             list.Close().ok()?;
 
             self.queue.ExecuteCommandLists(&[Some(list.cast()?)]);
@@ -529,7 +596,39 @@ impl Renderer {
             self.last_fence_value += 1;
             self.queue.Signal(&self.fence, self.last_fence_value).ok()?;
             self.report_debug_messages();
+            if let Some((path, readback, footprint, size)) = capture {
+                self.wait_for_fence(self.last_fence_value)?;
+                self.save_capture(&path, &readback, &footprint, size)?;
+            }
             Ok(())
+        }
+    }
+
+    // Writes a copied frame, whose bytes are red, green, blue and alpha, as
+    // a PNG, without alpha, which the window doesn't show.
+    unsafe fn save_capture(
+        &self,
+        path: &Path,
+        readback: &ID3D12Resource,
+        footprint: &D3D12_PLACED_SUBRESOURCE_FOOTPRINT,
+        size: u64,
+    ) -> Result<()> {
+        unsafe {
+            let (width, height) = (footprint.Footprint.Width, footprint.Footprint.Height);
+            let mut mapped = std::ptr::null_mut();
+            readback
+                .Map(0, Some(&D3D12_RANGE { Begin: 0, End: size as usize }), &mut mapped)
+                .ok()?;
+            let bytes = std::slice::from_raw_parts(mapped as *const u8, size as usize);
+            let mut pixels = Vec::with_capacity(width as usize * height as usize * 3);
+            for row in 0..height as usize {
+                let start = footprint.Offset as usize + row * footprint.Footprint.RowPitch as usize;
+                for pixel in bytes[start..start + width as usize * 4].chunks_exact(4) {
+                    pixels.extend([pixel[2], pixel[1], pixel[0]]);
+                }
+            }
+            readback.Unmap(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }));
+            save_png(path, width, height, &pixels)
         }
     }
 

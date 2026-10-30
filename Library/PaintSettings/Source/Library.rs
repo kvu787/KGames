@@ -73,6 +73,18 @@ pub fn parse(value: &Value, defaults: &Parameters) -> Result<Parameters, String>
     Ok(parameters)
 }
 
+// The material as a JSON value, in the same format.
+pub fn to_value(parameters: &Parameters) -> Value {
+    json::object([
+        ("BaseColor", parameters.base_color_srgb.into()),
+        ("Brightness", parameters.brightness.into()),
+        ("Shift", parameters.shift.into()),
+        ("RotationDegrees", parameters.rotation_degrees.into()),
+        ("DarkPoint", parameters.dark_point.into()),
+        ("LightPoint", parameters.light_point.into()),
+    ])
+}
+
 // The material as a JSON object, over several lines, with the lines after
 // the first indented by `indent` spaces, for nesting in a settings file.
 // Numbers are written so that they read back exactly.

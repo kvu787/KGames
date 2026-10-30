@@ -5,7 +5,6 @@
 // depth buffer between them. Camera, sizes and timing are the C++ scene's.
 
 use std::path::Path;
-use std::time::Instant;
 
 use graphics::{BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer, bytecode, load_image, upload_texture};
 use math::Matrix;
@@ -60,9 +59,6 @@ pub struct Scene {
     srv_heap: ID3D12DescriptorHeap,
     // Kept alive for the view in srv_heap.
     _background: ID3D12Resource,
-    start: Instant,
-    // The C++ scene's S: the car stays in the middle, facing +X.
-    pub stationary: bool,
 }
 
 impl Scene {
@@ -160,30 +156,13 @@ impl Scene {
                 background_pipeline,
                 srv_heap,
                 _background: texture,
-                start: Instant::now(),
-                stationary: false,
             })
         }
     }
 
-    // Where the car is along X, and how far it has turned, from the time
-    // since the scene started. It goes from the middle to +7, back to -7,
-    // and again, 28 units a cycle.
-    fn car_placement(&self) -> (f32, f32) {
-        if self.stationary {
-            // The mesh faces +Z. Facing +X puts the headlights at the lower
-            // right in the fixed 45-degree camera.
-            return (0.0, std::f32::consts::FRAC_PI_2);
-        }
-        let elapsed = self.start.elapsed().as_secs_f64();
-        let phase = (elapsed * SPEED + TRAVEL_DISTANCE) % (TRAVEL_DISTANCE * 4.0);
-        let position = TRAVEL_DISTANCE - (phase - TRAVEL_DISTANCE * 2.0).abs();
-        let turn = (elapsed * TURN_SPEED) % std::f64::consts::TAU;
-        (position as f32, turn as f32)
-    }
-
-    // Records the scene into the frame, over the whole window.
-    pub unsafe fn draw(&self, renderer: &Renderer) -> Result<()> {
+    // Records the scene into the frame, over the whole window, with the car
+    // where car_placement says.
+    pub unsafe fn draw(&self, renderer: &Renderer, (position, turn): (f32, f32)) -> Result<()> {
         unsafe {
             let (width, height) = (renderer.width as f32, renderer.height as f32);
             let eye = [
@@ -195,7 +174,6 @@ impl Scene {
             let aspect = (width / height).min(BACKGROUND_ASPECT);
             let projection = make_projection(VIEW_HEIGHT * aspect, VIEW_HEIGHT, 1.0, 20.0)
                 .map_err(|error| Error::new(E_INVALIDARG, error.0))?;
-            let (position, turn) = self.car_placement();
             let worlds = [
                 Matrix::scaling(CAR_SCALE, CAR_SCALE, CAR_SCALE)
                     * Matrix::rotation_y(turn)
@@ -243,4 +221,19 @@ impl Scene {
             Ok(())
         }
     }
+}
+
+// Where the car is along X, and how far it has turned, `seconds` after the
+// program started. It goes from the middle to +7, back to -7, and again, 28
+// units a cycle. The C++ scene's S makes it `stationary`.
+pub fn car_placement(seconds: f64, stationary: bool) -> (f32, f32) {
+    if stationary {
+        // The mesh faces +Z. Facing +X puts the headlights at the lower
+        // right in the fixed 45-degree camera.
+        return (0.0, std::f32::consts::FRAC_PI_2);
+    }
+    let phase = (seconds * SPEED + TRAVEL_DISTANCE) % (TRAVEL_DISTANCE * 4.0);
+    let position = TRAVEL_DISTANCE - (phase - TRAVEL_DISTANCE * 2.0).abs();
+    let turn = (seconds * TURN_SPEED) % std::f64::consts::TAU;
+    (position as f32, turn as f32)
 }

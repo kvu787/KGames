@@ -17,6 +17,8 @@ use std::path::Path;
 
 use json::Value;
 
+use crate::Arguments;
+
 // The only two window setups that programs support. See WindowCheck.rs.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {
@@ -95,6 +97,25 @@ impl ProgramSettings for () {
 }
 
 impl Settings {
+    // The settings for a program started with these arguments: the file's,
+    // or the defaults in a scripted run, so that the run doesn't depend on
+    // what the file says. --display overrides either.
+    pub fn for_program<T: ProgramSettings>(
+        path: &Path,
+        arguments: &Arguments,
+        notices: &mut Vec<String>,
+    ) -> (Self, T) {
+        let (mut settings, program) = if arguments.scripted() {
+            T::defaults()
+        } else {
+            Self::load(path, notices)
+        };
+        if let Some(display) = &arguments.display {
+            settings.display = parse_display(display);
+        }
+        (settings, program)
+    }
+
     // Reads the settings file at `path`, or writes one with the defaults if
     // there's none. Problems go in `notices`.
     pub fn load<T: ProgramSettings>(path: &Path, notices: &mut Vec<String>) -> (Self, T) {

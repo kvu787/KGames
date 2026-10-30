@@ -7,7 +7,6 @@ mod scene;
 mod settings;
 
 use std::path::Path;
-use std::time::Instant;
 
 use application::{Arguments, Event, FrameCounter, Settings, Window};
 use canvas::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
@@ -31,10 +30,10 @@ fn main() -> Result<()> {
         // Problems with the settings and the command line, which the text
         // over the scene lists.
         let mut notices = Vec::new();
+        let arguments = Arguments::parse(&mut notices);
         let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-        let (mut settings, scene_settings) =
-            Settings::load::<SceneSettings>(settings_path, &mut notices);
-        let arguments = Arguments::parse(&mut settings, &mut notices);
+        let (settings, scene_settings) =
+            Settings::for_program::<SceneSettings>(settings_path, &arguments, &mut notices);
         let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
 
         let font = Font::new(FONT_SIZE)?;
@@ -48,8 +47,8 @@ fn main() -> Result<()> {
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         let mut show_text = true;
-        // When the last frame read the time, for how far the sphere moves.
-        let mut last_frame: Option<Instant> = None;
+        // The last frame's time, for how far the sphere moves.
+        let mut last_seconds: Option<f64> = None;
 
         // Handle all pending messages, then render one frame once the
         // renderer is ready for it.
@@ -63,7 +62,7 @@ fn main() -> Result<()> {
                 // spinning. The sphere doesn't jump ahead afterward.
                 window.wait_for_message()?;
                 frames.pause();
-                last_frame = None;
+                last_seconds = None;
                 continue;
             }
 
@@ -77,13 +76,13 @@ fn main() -> Result<()> {
 
             // Read the time and input only now, right before drawing, so the
             // frame shows the newest.
-            frames.frame();
-            let now = Instant::now();
-            if let Some(last) = last_frame {
-                scene.advance((now - last).as_secs_f32());
+            let frame = window.begin_frame();
+            frames.frame(frame.seconds);
+            if let Some(last) = last_seconds {
+                scene.advance((frame.seconds - last) as f32);
             }
-            last_frame = Some(now);
-            for event in window.take_events() {
+            last_seconds = Some(frame.seconds);
+            for &event in &frame.events {
                 if let Event::Key { key, .. } = event {
                     match key {
                         KEY_TOGGLE_TEXT => show_text = !show_text,
@@ -103,7 +102,7 @@ fn main() -> Result<()> {
                         Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
                         None => "measuring".to_string(),
                     };
-                    let focus = if window.focused() {
+                    let focus = if frame.focused {
                         ("Window has focus".to_string(), SUCCESS)
                     } else {
                         ("Window doesn't have focus: input is ignored".to_string(), WARNING)
@@ -135,9 +134,15 @@ fn main() -> Result<()> {
                 draw_window_problems(&mut canvas, &window.supported, &window.problems, width);
             }
             overlay.draw(&renderer, canvas.vertices);
+            window.handle_checkpoints(
+                &frame,
+                |path| renderer.capture(path),
+                || json::object([("SpherePosition", scene.position.into()), ("TextShown", show_text.into())]),
+            )?;
             renderer.present()?;
         }
         // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()
+        renderer.wait_for_gpu()?;
+        window.finish()
     }
 }

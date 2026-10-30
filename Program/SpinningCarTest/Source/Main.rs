@@ -34,18 +34,18 @@ fn main() -> Result<()> {
         // Problems with the settings and the command line, which the text
         // over the scene lists.
         let mut notices = Vec::new();
+        let arguments = Arguments::parse(&mut notices);
         let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
         let background_path =
             Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Assets\SceneBackground.png"));
-        let (mut settings, scene_settings) =
-            Settings::load::<SceneSettings>(settings_path, &mut notices);
-        let arguments = Arguments::parse(&mut settings, &mut notices);
+        let (settings, scene_settings) =
+            Settings::for_program::<SceneSettings>(settings_path, &arguments, &mut notices);
         let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
 
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, true)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let mut scene = Scene::new(&mut renderer, &scene_settings, background_path)?;
+        let scene = Scene::new(&mut renderer, &scene_settings, background_path)?;
         // The title bar says how frames are presented, as it affects latency.
         let description = renderer.description();
         window.set_title(&format!("{NAME} - {description}"))?;
@@ -53,6 +53,7 @@ fn main() -> Result<()> {
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         let mut show_text = true;
+        let mut stationary = false;
 
         // Handle all pending messages, then render one frame once the
         // renderer is ready for it.
@@ -79,12 +80,13 @@ fn main() -> Result<()> {
 
             // Read input only now, right before drawing, so the frame shows
             // the newest. The scene reads the time as it draws.
-            frames.frame();
-            for event in window.take_events() {
+            let frame = window.begin_frame();
+            frames.frame(frame.seconds);
+            for &event in &frame.events {
                 if let Event::Key { key, .. } = event {
                     match key {
                         KEY_TOGGLE_TEXT => show_text = !show_text,
-                        KEY_STATIONARY => scene.stationary = !scene.stationary,
+                        KEY_STATIONARY => stationary = !stationary,
                         key if key == VK_F11 as u32 => window.toggle_fullscreen()?,
                         _ => {}
                     }
@@ -94,19 +96,20 @@ fn main() -> Result<()> {
             let mut canvas = Canvas::new(&font, &mut vertices);
             let (width, height) = (renderer.width as f32, renderer.height as f32);
             renderer.clear(theme::BACKGROUND);
+            let placement = scene::car_placement(frame.seconds, stationary);
             if window.problems.is_empty() {
-                scene.draw(&renderer)?;
+                scene.draw(&renderer, placement)?;
                 if show_text {
                     let rate = match frames.per_second {
                         Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
                         None => "measuring".to_string(),
                     };
-                    let focus = if window.focused() {
+                    let focus = if frame.focused {
                         ("Window has focus".to_string(), SUCCESS)
                     } else {
                         ("Window doesn't have focus: input is ignored".to_string(), WARNING)
                     };
-                    let car = if scene.stationary { "stationary" } else { "moving" };
+                    let car = if stationary { "stationary" } else { "moving" };
                     let piece = |text: &str, color| (text.to_string(), color);
                     let mut lines = vec![
                         vec![
@@ -137,9 +140,22 @@ fn main() -> Result<()> {
                 draw_window_problems(&mut canvas, &window.supported, &window.problems, width);
             }
             overlay.draw(&renderer, canvas.vertices);
+            window.handle_checkpoints(
+                &frame,
+                |path| renderer.capture(path),
+                || {
+                    json::object([
+                        ("CarPosition", placement.0.into()),
+                        ("CarTurn", placement.1.into()),
+                        ("Stationary", stationary.into()),
+                        ("TextShown", show_text.into()),
+                    ])
+                },
+            )?;
             renderer.present()?;
         }
         // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()
+        renderer.wait_for_gpu()?;
+        window.finish()
     }
 }

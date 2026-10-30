@@ -8,6 +8,7 @@
 use std::path::Path;
 
 use application::Event;
+use json::Value;
 use simple_paint::{GpuMaterial, Material, Parameters};
 use windows_api::*;
 
@@ -222,6 +223,45 @@ impl Editor {
             (Some(_), None) => self.dragging = None,
             _ => {}
         }
+    }
+
+    // What the editor holds, for scripted runs to save and check, with
+    // where the last frame's clickable places are, for writing scripts.
+    pub fn state(&self, targets: &[Target]) -> Value {
+        let m = &self.material;
+        let targets: Vec<Value> = targets
+            .iter()
+            .map(|target| {
+                let name = match target.click {
+                    Click::Slider(index) => SLIDERS[index].name.to_string(),
+                    Click::Reset => "Reset".to_string(),
+                    Click::Save => "Save".to_string(),
+                };
+                let area = target.area;
+                json::object([
+                    ("Name", name.into()),
+                    ("Area", [area.x, area.y, area.width, area.height].into()),
+                    ("Track", target.track.into()),
+                ])
+            })
+            .collect();
+        json::object([
+            ("Parameters", paint_settings::to_value(&self.parameters)),
+            ("Selected", SLIDERS[self.selected].name.into()),
+            ("Dragging", self.dragging.map(|index| SLIDERS[index].name).into()),
+            ("Saved", self.status.as_ref().map(|(_, failed)| !failed).into()),
+            (
+                "Constants",
+                json::object([
+                    ("Warp", m.warp.into()),
+                    ("NumeratorDark", m.numerator_dark.into()),
+                    ("NumeratorLight", m.numerator_light.into()),
+                    ("ComplementDark", m.complement_dark.into()),
+                    ("ComplementLight", m.complement_light.into()),
+                ]),
+            ),
+            ("Targets", Value::Array(targets)),
+        ])
     }
 
     fn save(&mut self, path: &Path) {

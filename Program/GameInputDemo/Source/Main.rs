@@ -28,9 +28,10 @@ fn main() -> Result<()> {
         application::prepare_process()?;
         // Problems with the settings and the command line, which the header lists.
         let mut notices = Vec::new();
+        let arguments = Arguments::parse(&mut notices);
         let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-        let (mut settings, demo) = Settings::load::<DemoSettings>(settings_path, &mut notices);
-        let arguments = Arguments::parse(&mut settings, &mut notices);
+        let (settings, demo) =
+            Settings::for_program::<DemoSettings>(settings_path, &arguments, &mut notices);
         let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
 
         let font = Font::new(FONT_SIZE)?;
@@ -78,19 +79,21 @@ fn main() -> Result<()> {
 
             // Read input only now, right before drawing, so the frame shows
             // the newest readings.
-            frames.frame();
-            let focused = window.focused();
+            let frame = window.begin_frame();
+            frames.frame(frame.seconds);
+            let focused = frame.focused;
             // The select box reads the mouse from the window's messages, not
             // from GameInput, because they say where the cursor is in the window.
-            let events = window.take_events();
+            let events = &frame.events;
             if let Ok(input) = &mut input {
-                input.update(focused);
+                // A script is the only input in a scripted run.
+                input.update(focused && !window.scripted());
                 if std::mem::take(&mut input.fullscreen_toggled) {
                     window.toggle_fullscreen()?;
                 }
                 // A click on the select box opens or closes its list, and a
                 // click on the list picks what it's on. Any other click closes it.
-                for event in &events {
+                for event in events {
                     if let Event::Press(point) = *event {
                         match targets.at(point) {
                             Some(panels::Click::Picker) => picker_open = !picker_open,
@@ -118,7 +121,7 @@ fn main() -> Result<()> {
                 notices: &notices,
                 supported: &window.supported,
                 window_problems: &window.problems,
-                cursor: window.cursor(),
+                cursor: frame.cursor,
                 picker_open,
             };
             targets = panels::draw(
@@ -130,9 +133,15 @@ fn main() -> Result<()> {
             );
             renderer.clear(theme::BACKGROUND);
             overlay.draw(&renderer, canvas.vertices);
+            window.handle_checkpoints(
+                &frame,
+                |path| renderer.capture(path),
+                || json::object([("PickerOpen", picker_open.into())]),
+            )?;
             renderer.present()?;
         }
         // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()
+        renderer.wait_for_gpu()?;
+        window.finish()
     }
 }

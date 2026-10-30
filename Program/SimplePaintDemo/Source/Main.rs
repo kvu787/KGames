@@ -28,11 +28,12 @@ fn main() -> Result<()> {
         // Problems with the settings, the command line and Paint.json, which
         // the header lists.
         let mut notices = Vec::new();
-        let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-        let paint_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Paint.json"));
-        let (mut settings, ()) = Settings::load::<()>(settings_path, &mut notices);
-        let arguments = Arguments::parse(&mut settings, &mut notices);
-        let mut editor = Editor::new(editor::load(paint_path, &mut notices));
+        let arguments = Arguments::parse(&mut notices);
+        let folder = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let (settings, ()) =
+            Settings::for_program::<()>(&folder.join("Settings.json"), &arguments, &mut notices);
+        let paint_path = arguments.file(folder, "Paint.json");
+        let mut editor = Editor::new(editor::load(&paint_path, &mut notices));
         let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
 
         let font = Font::new(FONT_SIZE)?;
@@ -72,18 +73,19 @@ fn main() -> Result<()> {
 
             // Read input only now, right before drawing, so the frame shows
             // the newest. Without focus, there's none.
-            frames.frame();
-            for event in window.take_events() {
-                if let Action::ToggleFullscreen = editor.handle(&event, &targets, paint_path) {
+            let frame = window.begin_frame();
+            frames.frame(frame.seconds);
+            for event in &frame.events {
+                if let Action::ToggleFullscreen = editor.handle(event, &targets, &paint_path) {
                     window.toggle_fullscreen()?;
                 }
             }
-            let cursor = window.cursor();
+            let cursor = frame.cursor;
             editor.follow(cursor, &targets);
 
             let mut canvas = Canvas::new(&font, &mut vertices);
             let status = panels::Status {
-                focused: window.focused(),
+                focused: frame.focused,
                 frames: &frames,
                 display: &window.display,
                 adapter: &description,
@@ -109,9 +111,11 @@ fn main() -> Result<()> {
             {
                 preview.draw(&renderer, &editor.material, [x, y]);
             }
+            window.handle_checkpoints(&frame, |path| renderer.capture(path), || editor.state(&targets))?;
             renderer.present()?;
         }
         // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()
+        renderer.wait_for_gpu()?;
+        window.finish()
     }
 }

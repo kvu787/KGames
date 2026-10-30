@@ -10,7 +10,11 @@
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //
-// Without focus, programs ignore all input.
+// Without focus, programs ignore all input. To test input, it runs scripts
+// instead: with --script, the program reads its input from a script, saves
+// the frames and state that the script asks for, checks its state against
+// what the script expects, and exits. A run fails if the program's window
+// ever becomes the foreground window, which would take focus from the user.
 //
 // This is a .NET file-based app, which RunInBackground.ps1 runs with
 // dotnet run. It builds into dotnet's own cache, not next to this file.
@@ -43,6 +47,11 @@ const string Usage = """
       --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds with Cargo's dev profile, which turns on the
                               D3D12 debug layer
+
+      --script <path>         Runs a script of input instead, and saves what it
+                              captures in target\RunInBackground\<program>\<script>
+      --all-scripts           Runs every script in Test\<program>\Scripts
+      --timeout <seconds>     How long a script may run. 60 by default
     """;
 
 try {
@@ -60,6 +69,9 @@ static void Run(string[] arguments) {
     string? screenshot = null;
     var keepOpen = false;
     var debugBuild = false;
+    var scripts = new List<string>();
+    var allScripts = false;
+    var timeout = 60.0;
     for (var i = 0; i < arguments.Length; i++) {
         switch (arguments[i]) {
         case "--display":
@@ -78,6 +90,18 @@ static void Run(string[] arguments) {
             break;
         case "--debug-build":
             debugBuild = true;
+            break;
+        case "--script":
+            // A path given on the command line is relative to the current directory.
+            scripts.Add(Path.GetFullPath(Value(arguments, ref i)));
+            break;
+        case "--all-scripts":
+            allScripts = true;
+            break;
+        case "--timeout":
+            if (!double.TryParse(Value(arguments, ref i), NumberStyles.Float, CultureInfo.InvariantCulture, out timeout) || timeout <= 0) {
+                throw new FailureException($"--timeout needs a number of seconds after it, not {arguments[i]}");
+            }
             break;
         case "--help":
             Console.WriteLine(Usage);
@@ -116,6 +140,18 @@ static void Run(string[] arguments) {
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
 
+    if (allScripts) {
+        var folder = Path.Combine(repository, "Test", program, "Scripts");
+        if (!Directory.Exists(folder)) {
+            throw new FailureException($"{program} has no scripts in {folder}");
+        }
+        scripts.AddRange(Directory.GetFiles(folder, "*.json").Order(StringComparer.OrdinalIgnoreCase));
+    }
+    if (scripts.Count > 0) {
+        RunScripts(program, exe, display, scripts, Path.Combine(output, program), timeout);
+        return;
+    }
+
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
@@ -135,7 +171,13 @@ static void Run(string[] arguments) {
         window = ProgramWindow.Find(process.Id);
     }
 
-    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    using (var watch = new FocusWatch(process.Id)) {
+        Thread.Sleep(TimeSpan.FromSeconds(seconds));
+        if (watch.TookFocus) {
+            process.Kill();
+            throw new FailureException($"{program}'s window took focus, so it was stopped");
+        }
+    }
     if (process.HasExited) {
         throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
     }
@@ -173,6 +215,54 @@ static void Run(string[] arguments) {
     }
 }
 
+// Runs each script, one at a time, and says which passed. A script fails if
+// the program exits with an error, which includes expectations it didn't
+// meet, if it runs past the timeout, or if its window takes focus.
+static void RunScripts(string program, string exe, string display, List<string> scripts, string output, double timeout) {
+    var failed = new List<string>();
+    foreach (var script in scripts) {
+        var name = Path.GetFileNameWithoutExtension(script);
+        var folder = Path.Combine(output, name);
+        if (Directory.Exists(folder)) {
+            Directory.Delete(folder, true);
+        }
+        Directory.CreateDirectory(folder);
+        var outputLog = Path.Combine(folder, "Output.log");
+        var errorLog = Path.Combine(folder, "Errors.log");
+        string? failure = null;
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog)) {
+            using (var watch = new FocusWatch(process.Id)) {
+                if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
+                    process.Kill();
+                    process.WaitForExit();
+                    failure = $"it didn't finish within {timeout} seconds, so it was stopped";
+                }
+                if (watch.TookFocus) {
+                    failure = "its window took focus";
+                }
+            }
+            if (failure == null && process.ExitCode != 0) {
+                failure = $"{program} exited with code {process.ExitCode}:\n{ReadLog(errorLog).TrimEnd()}";
+            }
+        }
+        var captures = Directory.GetFiles(folder, "*.png").Order(StringComparer.OrdinalIgnoreCase).ToList();
+        if (failure == null) {
+            Console.WriteLine($"Passed: {name}");
+        } else {
+            Console.WriteLine($"Failed: {name}: {failure}");
+            failed.Add(name);
+        }
+        foreach (var capture in captures) {
+            Console.WriteLine($"  {capture}");
+        }
+    }
+    var summary = $"{scripts.Count - failed.Count} of {scripts.Count} scripts passed";
+    if (failed.Count > 0) {
+        throw new FailureException($"{summary}. Failed: {string.Join(", ", failed)}");
+    }
+    Console.WriteLine(summary);
+}
+
 // The argument after the option at index, which it moves past.
 static string Value(string[] arguments, ref int index) {
     if (index + 1 >= arguments.Length) {
@@ -189,6 +279,37 @@ static string ReadLog(string path) {
         return reader.ReadToEnd();
     } catch (FileNotFoundException) {
         return "";
+    }
+}
+
+// Watches, until it's disposed, whether a window of the process is ever the
+// foreground window, which would mean that it took focus from the user.
+sealed class FocusWatch : IDisposable {
+    readonly int processId;
+    readonly Thread thread;
+    volatile bool stopped;
+    volatile bool tookFocus;
+
+    public FocusWatch(int processId) {
+        this.processId = processId;
+        this.thread = new Thread(this.Watch) { IsBackground = true };
+        this.thread.Start();
+    }
+
+    public bool TookFocus => this.tookFocus;
+
+    void Watch() {
+        while (!this.stopped) {
+            if (ProgramWindow.ForegroundProcess() == this.processId) {
+                this.tookFocus = true;
+            }
+            Thread.Sleep(5);
+        }
+    }
+
+    public void Dispose() {
+        this.stopped = true;
+        this.thread.Join();
     }
 }
 
@@ -317,6 +438,8 @@ static partial class ProgramWindow {
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool PostMessageW(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetForegroundWindow();
 
     const uint PW_CLIENTONLY = 1;
     // Asks the desktop compositor for the window's contents, which is the
@@ -335,6 +458,16 @@ static partial class ProgramWindow {
             }
         }
         return IntPtr.Zero;
+    }
+
+    // The ID of the process whose window is the foreground window, or 0.
+    public static uint ForegroundProcess() {
+        var window = GetForegroundWindow();
+        if (window == IntPtr.Zero) {
+            return 0;
+        }
+        _ = GetWindowThreadProcessId(window, out var process);
+        return process;
     }
 
     public static string Title(IntPtr window) {

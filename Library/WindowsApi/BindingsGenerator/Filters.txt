@@ -8,6 +8,7 @@
 // in Library/GameInput instead.
 
 // Window and message loop
+AdjustWindowRectExForDpi
 ClientToScreen
 CreateWindowExW
 DefWindowProcW
@@ -48,7 +49,9 @@ SWP_NOOWNERZORDER
 SWP_NOSIZE
 SWP_NOZORDER
 SW_SHOWMAXIMIZED
+SW_HIDE
 SW_SHOWNA
+SW_SHOWNOACTIVATE
 USER_DEFAULT_SCREEN_DPI
 WM_DESTROY
 WM_DISPLAYCHANGE
@@ -181,20 +184,27 @@ RRF_RT_REG_SZ
 RRF_SUBKEY_WOW6432KEY
 VS_FIXEDFILEINFO
 
-// Decoding images with the Windows Imaging Component
+// Decoding and encoding images with the Windows Imaging Component
 CoCreateInstance
 CoInitializeEx
 CoUninitialize
 IWICBitmapDecoder::GetFrame
+IWICBitmapEncoder::{Commit, CreateNewFrame, Initialize}
+IWICBitmapFrameEncode::{Commit, Initialize, SetPixelFormat, SetSize, WritePixels}
 IWICBitmapSource::{CopyPixels, GetSize}
 IWICFormatConverter::Initialize
-IWICImagingFactory::{CreateDecoderFromFilename, CreateFormatConverter}
+IWICImagingFactory::{CreateDecoderFromFilename, CreateEncoder, CreateFormatConverter, CreateStream}
+IWICStream::InitializeFromFilename
 CLSCTX
 CLSID_WICImagingFactory
 COINIT
 GENERIC_READ
+GENERIC_WRITE
+GUID_ContainerFormatPng
+GUID_WICPixelFormat24bppBGR
 GUID_WICPixelFormat32bppRGBA
 WICBitmapDitherType
+WICBitmapEncoderCacheOption
 WICBitmapPaletteType
 WICDecodeOptions
 

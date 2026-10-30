@@ -139,9 +139,11 @@ impl From<f64> for Value {
     }
 }
 
+// The f32's shortest decimal, like 0.1, rather than its exact binary value,
+// like 0.10000000149011612, which reads worse and is no more useful.
 impl From<f32> for Value {
     fn from(value: f32) -> Self {
-        Value::Number(value as f64)
+        Value::Number(value.to_string().parse().unwrap_or(value as f64))
     }
 }
 
