@@ -134,8 +134,12 @@ HTCLIENT
 MA_ACTIVATEANDEAT
 TME_LEAVE
 VK_CONTROL
+VK_DOWN
 VK_F11
+VK_LEFT
+VK_RIGHT
 VK_SHIFT
+VK_UP
 WHEEL_DELTA
 WM_CAPTURECHANGED
 WM_LBUTTONUP
@@ -230,7 +234,7 @@ ID3D12Debug
 ID3D12DescriptorHeap
 ID3D12Device
 ID3D12Fence
-ID3D12InfoQueue::{GetMessage, GetNumStoredMessages}
+ID3D12InfoQueue::{ClearStoredMessages, GetMessage, GetNumStoredMessages}
 ID3D12GraphicsCommandList
 ID3D12PipelineState
 ID3D12QueryHeap

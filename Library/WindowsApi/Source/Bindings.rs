@@ -5057,6 +5057,13 @@ windows_core::imp::define_interface!(
 );
 windows_core::imp::interface_hierarchy!(ID3D12InfoQueue, windows_core::IUnknown);
 impl ID3D12InfoQueue {
+    pub unsafe fn ClearStoredMessages(&self) {
+        unsafe {
+            (windows_core::Interface::vtable(self).ClearStoredMessages)(
+                windows_core::Interface::as_raw(self),
+            );
+        }
+    }
     pub unsafe fn GetMessage(
         &self,
         messageindex: u64,
@@ -5084,7 +5091,7 @@ impl ID3D12InfoQueue {
 pub struct ID3D12InfoQueue_Vtbl {
     pub base__: windows_core::IUnknown_Vtbl,
     SetMessageCountLimit: usize,
-    ClearStoredMessages: usize,
+    pub ClearStoredMessages: unsafe extern "system" fn(*mut core::ffi::c_void),
     pub GetMessage: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         u64,
@@ -6717,9 +6724,13 @@ pub struct TRACKMOUSEEVENT {
 pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
 pub const VK_CONTROL: i32 = 17;
+pub const VK_DOWN: i32 = 40;
 pub const VK_ESCAPE: i32 = 27;
 pub const VK_F11: i32 = 122;
+pub const VK_LEFT: i32 = 37;
+pub const VK_RIGHT: i32 = 39;
 pub const VK_SHIFT: i32 = 16;
+pub const VK_UP: i32 = 38;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct VS_FIXEDFILEINFO {

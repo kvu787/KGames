@@ -132,6 +132,7 @@ fn main() -> Result<()> {
             overlay.draw(&renderer, canvas.vertices);
             renderer.present()?;
         }
-        Ok(())
+        // What the frames used is dropped before the renderer.
+        renderer.wait_for_gpu()
     }
 }

@@ -24,6 +24,8 @@ pub const DEPTH_FORMAT: DXGI_FORMAT = DXGI_FORMAT_D32_FLOAT;
 pub struct Renderer {
     pub device: ID3D12Device,
     pub queue: ID3D12CommandQueue,
+    // The debug layer's messages, in debug builds where it's installed.
+    debug_messages: Option<ID3D12InfoQueue>,
     swap_chain: IDXGISwapChain3,
     // Two views of each back buffer: as stored, then as sRGB.
     rtv_heap: ID3D12DescriptorHeap,
@@ -110,6 +112,11 @@ impl Renderer {
             let mut device: Option<ID3D12Device> = None;
             D3D12CreateDevice(&adapter, D3D_FEATURE_LEVEL_12_0, &mut device)?;
             let device = device.unwrap();
+            let debug_messages = if factory_flags != 0 {
+                device.cast().ok()
+            } else {
+                None
+            };
 
             let queue: ID3D12CommandQueue =
                 device.CreateCommandQueue(&D3D12_COMMAND_QUEUE_DESC {
@@ -199,6 +206,7 @@ impl Renderer {
             let mut renderer = Self {
                 device,
                 queue,
+                debug_messages,
                 swap_chain,
                 rtv_heap,
                 rtv_increment,
@@ -294,6 +302,16 @@ impl Renderer {
             self.last_fence_value += 1;
             self.queue.Signal(&self.fence, self.last_fence_value).ok()?;
             self.wait_for_fence(self.last_fence_value)
+        }
+    }
+
+    // Waits until the GPU has finished every frame, so that the resources
+    // they used can be released. Programs call it once their main loop ends,
+    // as what they made for their draws is dropped before the renderer.
+    pub fn wait_for_gpu(&mut self) -> Result<()> {
+        unsafe {
+            self.discard_frame()?;
+            self.wait_for_idle()
         }
     }
 
@@ -510,7 +528,34 @@ impl Renderer {
 
             self.last_fence_value += 1;
             self.queue.Signal(&self.fence, self.last_fence_value).ok()?;
+            self.report_debug_messages();
             Ok(())
+        }
+    }
+
+    // Writes the debug layer's warnings and errors to standard error, where
+    // RunInBackground keeps them in a log, and forgets every message.
+    fn report_debug_messages(&self) {
+        let Some(messages) = &self.debug_messages else {
+            return;
+        };
+        unsafe {
+            for index in 0..messages.GetNumStoredMessages() {
+                let mut size = 0;
+                if messages.GetMessage(index, None, &mut size).is_err() {
+                    continue;
+                }
+                // u64s, so the message is aligned for its pointer fields.
+                let mut storage = vec![0u64; size.div_ceil(8)];
+                let message = storage.as_mut_ptr() as *mut D3D12_MESSAGE;
+                if messages.GetMessage(index, Some(message), &mut size).is_ok()
+                    && (*message).Severity <= D3D12_MESSAGE_SEVERITY_WARNING
+                {
+                    let description = std::ffi::CStr::from_ptr((*message).pDescription);
+                    eprintln!("D3D12: {}", description.to_string_lossy());
+                }
+            }
+            messages.ClearStoredMessages();
         }
     }
 }

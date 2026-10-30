@@ -91,6 +91,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "meshes"
+version = "0.1.0"
+dependencies = [
+ "simple_paint",
+]
+
+[[package]]
+name = "paint_settings"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "simple_paint",
+]
+
+[[package]]
 name = "shader_compiler"
 version = "0.1.0"
 
@@ -100,6 +115,23 @@ version = "0.1.0"
 dependencies = [
  "graphics",
  "math",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
+name = "simple_paint_demo"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "graphics",
+ "json",
+ "math",
+ "meshes",
+ "paint_settings",
+ "shader_compiler",
+ "simple_paint",
  "windows-core",
  "windows_api",
 ]
