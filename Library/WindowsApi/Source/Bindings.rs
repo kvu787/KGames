@@ -14,6 +14,42 @@ pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
     unsafe { CloseHandle(hobject) }
 }
 #[inline]
+pub unsafe fn CoCreateInstance<P1, T>(
+    rclsid: *const windows_core::GUID,
+    punkouter: P1,
+    dwclscontext: u32,
+) -> windows_core::Result<T>
+where
+    P1: windows_core::Param<windows_core::IUnknown>,
+    T: windows_core::Interface,
+{
+    windows_core::link!("ole32.dll" "system" fn CoCreateInstance(rclsid : *const windows_core::GUID, punkouter : *mut core::ffi::c_void, dwclscontext : u32, riid : *const windows_core::GUID, ppv : *mut *mut core::ffi::c_void) -> windows_core::HRESULT);
+    let mut result__ = core::ptr::null_mut();
+    unsafe {
+        CoCreateInstance(
+            rclsid,
+            punkouter.param().abi(),
+            dwclscontext,
+            &T::IID,
+            &mut result__,
+        )
+        .and_then(|| windows_core::imp::Type::from_abi(result__))
+    }
+}
+#[inline]
+pub unsafe fn CoInitializeEx(
+    pvreserved: Option<*const core::ffi::c_void>,
+    dwcoinit: u32,
+) -> windows_core::HRESULT {
+    windows_core::link!("ole32.dll" "system" fn CoInitializeEx(pvreserved : *const core::ffi::c_void, dwcoinit : u32) -> windows_core::HRESULT);
+    unsafe { CoInitializeEx(pvreserved.unwrap_or(core::mem::zeroed()) as _, dwcoinit) }
+}
+#[inline]
+pub unsafe fn CoUninitialize() {
+    windows_core::link!("ole32.dll" "system" fn CoUninitialize());
+    unsafe { CoUninitialize() }
+}
+#[inline]
 pub unsafe fn CreateCompatibleDC(hdc: Option<HDC>) -> HDC {
     windows_core::link!("gdi32.dll" "system" fn CreateCompatibleDC(hdc : HDC) -> HDC);
     unsafe { CreateCompatibleDC(hdc.unwrap_or(core::mem::zeroed()) as _) }
@@ -660,6 +696,44 @@ pub unsafe fn WaitMessage() -> windows_core::BOOL {
 pub struct ATOM(pub u16);
 pub const CLEARTYPE_QUALITY: i32 = 5;
 pub const CLIP_DEFAULT_PRECIS: i32 = 0;
+pub type CLSCTX = u32;
+pub const CLSCTX_ACTIVATE_32_BIT_SERVER: CLSCTX = 262144;
+pub const CLSCTX_ACTIVATE_64_BIT_SERVER: CLSCTX = 524288;
+pub const CLSCTX_ACTIVATE_AAA_AS_IU: CLSCTX = 8388608;
+pub const CLSCTX_ACTIVATE_ARM32_SERVER: CLSCTX = 33554432;
+pub const CLSCTX_ACTIVATE_X86_SERVER: CLSCTX = 262144;
+pub const CLSCTX_ALLOW_LOWER_TRUST_REGISTRATION: CLSCTX = 67108864;
+pub const CLSCTX_APPCONTAINER: CLSCTX = 4194304;
+pub const CLSCTX_DISABLE_AAA: CLSCTX = 32768;
+pub const CLSCTX_DO_NOT_ELEVATE_SERVER: CLSCTX = 268435456;
+pub const CLSCTX_ENABLE_AAA: CLSCTX = 65536;
+pub const CLSCTX_ENABLE_CLOAKING: CLSCTX = 1048576;
+pub const CLSCTX_ENABLE_CODE_DOWNLOAD: CLSCTX = 8192;
+pub const CLSCTX_FROM_DEFAULT_CONTEXT: CLSCTX = 131072;
+pub const CLSCTX_INPROC_HANDLER: CLSCTX = 2;
+pub const CLSCTX_INPROC_HANDLER16: CLSCTX = 32;
+pub const CLSCTX_INPROC_SERVER: CLSCTX = 1;
+pub const CLSCTX_INPROC_SERVER16: CLSCTX = 8;
+pub const CLSCTX_LOCAL_SERVER: CLSCTX = 4;
+pub const CLSCTX_NO_CODE_DOWNLOAD: CLSCTX = 1024;
+pub const CLSCTX_NO_CUSTOM_MARSHAL: CLSCTX = 4096;
+pub const CLSCTX_NO_FAILURE_LOG: CLSCTX = 16384;
+pub const CLSCTX_PS_DLL: CLSCTX = 2147483648;
+pub const CLSCTX_REMOTE_SERVER: CLSCTX = 16;
+pub const CLSCTX_RESERVED1: CLSCTX = 64;
+pub const CLSCTX_RESERVED2: CLSCTX = 128;
+pub const CLSCTX_RESERVED3: CLSCTX = 256;
+pub const CLSCTX_RESERVED4: CLSCTX = 512;
+pub const CLSCTX_RESERVED5: CLSCTX = 2048;
+pub const CLSCTX_RESERVED6: CLSCTX = 16777216;
+pub const CLSCTX_SERVER_MUST_BE_EQUAL_OR_GREATER_PRIVILEGE: CLSCTX = 134217728;
+pub const CLSID_WICImagingFactory: windows_core::GUID =
+    windows_core::GUID::from_u128(0xcacaf262_9370_4615_a13b_9f5539da4c0a);
+pub type COINIT = i32;
+pub const COINIT_APARTMENTTHREADED: COINIT = 2;
+pub const COINIT_DISABLE_OLE1DDE: COINIT = 4;
+pub const COINIT_MULTITHREADED: COINIT = 0;
+pub const COINIT_SPEED_OVER_MEMORY: COINIT = 8;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct COLORREF(pub u32);
@@ -2635,6 +2709,9 @@ pub const FF_SWISS: i32 = 32;
 pub const FIXED_PITCH: i32 = 1;
 pub const FW_BOLD: i32 = 700;
 pub const FW_NORMAL: i32 = 400;
+pub const GENERIC_READ: u32 = 2147483648;
+pub const GUID_WICPixelFormat32bppRGBA: windows_core::GUID =
+    windows_core::GUID::from_u128(0xf5c7ad2d_6a8d_43dd_a7a8_a29935261ae9);
 pub const GWLP_USERDATA: i32 = -21;
 pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
@@ -6576,6 +6653,284 @@ pub struct IDXGISwapChain3_Vtbl {
 }
 impl windows_core::RuntimeName for IDXGISwapChain3 {}
 pub const INFINITE: u32 = 4294967295;
+windows_core::imp::define_interface!(
+    IWICBitmapDecoder,
+    IWICBitmapDecoder_Vtbl,
+    0x9edde9e7_8dee_47ea_99df_e6faf2ed44bf
+);
+windows_core::imp::interface_hierarchy!(IWICBitmapDecoder, windows_core::IUnknown);
+impl IWICBitmapDecoder {
+    pub unsafe fn GetFrame(&self, index: u32) -> windows_core::Result<IWICBitmapFrameDecode> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetFrame)(
+                windows_core::Interface::as_raw(self),
+                index,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct IWICBitmapDecoder_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    QueryCapability: usize,
+    Initialize: usize,
+    GetContainerFormat: usize,
+    GetDecoderInfo: usize,
+    CopyPalette: usize,
+    GetMetadataQueryReader: usize,
+    GetPreview: usize,
+    GetColorContexts: usize,
+    GetThumbnail: usize,
+    GetFrameCount: usize,
+    pub GetFrame: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IWICBitmapDecoder {}
+windows_core::imp::define_interface!(
+    IWICBitmapFrameDecode,
+    IWICBitmapFrameDecode_Vtbl,
+    0x3b16811b_6a43_4ec9_a813_3d930c13b940
+);
+impl core::ops::Deref for IWICBitmapFrameDecode {
+    type Target = IWICBitmapSource;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IWICBitmapFrameDecode,
+    windows_core::IUnknown,
+    IWICBitmapSource
+);
+#[repr(C)]
+pub struct IWICBitmapFrameDecode_Vtbl {
+    pub base__: IWICBitmapSource_Vtbl,
+    GetMetadataQueryReader: usize,
+    GetColorContexts: usize,
+    GetThumbnail: usize,
+}
+impl windows_core::RuntimeName for IWICBitmapFrameDecode {}
+windows_core::imp::define_interface!(
+    IWICBitmapSource,
+    IWICBitmapSource_Vtbl,
+    0x00000120_a8f2_4877_ba0a_fd2b6645fb94
+);
+windows_core::imp::interface_hierarchy!(IWICBitmapSource, windows_core::IUnknown);
+impl IWICBitmapSource {
+    pub unsafe fn GetSize(&self, puiwidth: *mut u32, puiheight: *mut u32) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetSize)(
+                windows_core::Interface::as_raw(self),
+                puiwidth as _,
+                puiheight as _,
+            )
+        }
+    }
+    pub unsafe fn CopyPixels(
+        &self,
+        prc: *const WICRect,
+        cbstride: u32,
+        cbbuffersize: u32,
+    ) -> windows_core::Result<u8> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CopyPixels)(
+                windows_core::Interface::as_raw(self),
+                prc,
+                cbstride,
+                cbbuffersize,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+}
+#[repr(C)]
+pub struct IWICBitmapSource_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    pub GetSize: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut u32,
+        *mut u32,
+    ) -> windows_core::HRESULT,
+    GetPixelFormat: usize,
+    GetResolution: usize,
+    CopyPalette: usize,
+    pub CopyPixels: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const WICRect,
+        u32,
+        u32,
+        *mut u8,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IWICBitmapSource {}
+windows_core::imp::define_interface!(
+    IWICFormatConverter,
+    IWICFormatConverter_Vtbl,
+    0x00000301_a8f2_4877_ba0a_fd2b6645fb94
+);
+impl core::ops::Deref for IWICFormatConverter {
+    type Target = IWICBitmapSource;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IWICFormatConverter,
+    windows_core::IUnknown,
+    IWICBitmapSource
+);
+impl IWICFormatConverter {
+    pub unsafe fn Initialize<P0, P3>(
+        &self,
+        pisource: P0,
+        dstformat: REFWICPixelFormatGUID,
+        dither: WICBitmapDitherType,
+        pipalette: P3,
+        alphathresholdpercent: f64,
+        palettetranslate: WICBitmapPaletteType,
+    ) -> windows_core::HRESULT
+    where
+        P0: windows_core::Param<IWICBitmapSource>,
+        P3: windows_core::Param<IWICPalette>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).Initialize)(
+                windows_core::Interface::as_raw(self),
+                pisource.param().abi(),
+                dstformat,
+                dither,
+                pipalette.param().abi(),
+                alphathresholdpercent,
+                palettetranslate,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IWICFormatConverter_Vtbl {
+    pub base__: IWICBitmapSource_Vtbl,
+    pub Initialize: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        REFWICPixelFormatGUID,
+        WICBitmapDitherType,
+        *mut core::ffi::c_void,
+        f64,
+        WICBitmapPaletteType,
+    ) -> windows_core::HRESULT,
+    CanConvert: usize,
+}
+impl windows_core::RuntimeName for IWICFormatConverter {}
+windows_core::imp::define_interface!(
+    IWICImagingFactory,
+    IWICImagingFactory_Vtbl,
+    0xec5ec8a9_c395_4314_9c77_54d7a935ff70
+);
+windows_core::imp::interface_hierarchy!(IWICImagingFactory, windows_core::IUnknown);
+impl IWICImagingFactory {
+    pub unsafe fn CreateDecoderFromFilename<P0>(
+        &self,
+        wzfilename: P0,
+        pguidvendor: *const windows_core::GUID,
+        dwdesiredaccess: u32,
+        metadataoptions: WICDecodeOptions,
+    ) -> windows_core::Result<IWICBitmapDecoder>
+    where
+        P0: windows_core::Param<windows_core::PCWSTR>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateDecoderFromFilename)(
+                windows_core::Interface::as_raw(self),
+                wzfilename.param().abi(),
+                pguidvendor,
+                dwdesiredaccess,
+                metadataoptions,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateFormatConverter(&self) -> windows_core::Result<IWICFormatConverter> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateFormatConverter)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct IWICImagingFactory_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    pub CreateDecoderFromFilename: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        windows_core::PCWSTR,
+        *const windows_core::GUID,
+        u32,
+        WICDecodeOptions,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    CreateDecoderFromStream: usize,
+    CreateDecoderFromFileHandle: usize,
+    CreateComponentInfo: usize,
+    CreateDecoder: usize,
+    CreateEncoder: usize,
+    CreatePalette: usize,
+    pub CreateFormatConverter: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    CreateBitmapScaler: usize,
+    CreateBitmapClipper: usize,
+    CreateBitmapFlipRotator: usize,
+    CreateStream: usize,
+    CreateColorContext: usize,
+    CreateColorTransformer: usize,
+    CreateBitmap: usize,
+    CreateBitmapFromSource: usize,
+    CreateBitmapFromSourceRect: usize,
+    CreateBitmapFromMemory: usize,
+    CreateBitmapFromHBITMAP: usize,
+    CreateBitmapFromHICON: usize,
+    CreateComponentEnumerator: usize,
+    CreateFastMetadataEncoderFromDecoder: usize,
+    CreateFastMetadataEncoderFromFrameDecode: usize,
+    CreateQueryWriter: usize,
+    CreateQueryWriterFromReader: usize,
+}
+impl windows_core::RuntimeName for IWICImagingFactory {}
+windows_core::imp::define_interface!(
+    IWICPalette,
+    IWICPalette_Vtbl,
+    0x00000040_a8f2_4877_ba0a_fd2b6645fb94
+);
+windows_core::imp::interface_hierarchy!(IWICPalette, windows_core::IUnknown);
+#[repr(C)]
+pub struct IWICPalette_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    InitializePredefined: usize,
+    InitializeCustom: usize,
+    InitializeFromBitmap: usize,
+    InitializeFromPalette: usize,
+    GetType: usize,
+    GetColorCount: usize,
+    GetColors: usize,
+    IsBlackWhite: usize,
+    IsGrayscale: usize,
+    HasAlpha: usize,
+}
+impl windows_core::RuntimeName for IWICPalette {}
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LPARAM(pub isize);
@@ -6693,6 +7048,7 @@ pub struct RECTL {
     pub right: i32,
     pub bottom: i32,
 }
+pub type REFWICPixelFormatGUID = *const windows_core::GUID;
 pub const RRF_RT_REG_SZ: i32 = 2;
 pub const RRF_SUBKEY_WOW6432KEY: i32 = 131072;
 pub const SC_KEYMENU: i32 = 61696;
@@ -6751,6 +7107,46 @@ pub struct VS_FIXEDFILEINFO {
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WAIT_TIMEOUT: i32 = 258;
 pub const WHEEL_DELTA: i32 = 120;
+pub const WICBITMAPDITHERTYPE_FORCE_DWORD: WICBitmapDitherType = 2147483647;
+pub const WICBITMAPPALETTETYPE_FORCE_DWORD: WICBitmapPaletteType = 2147483647;
+pub type WICBitmapDitherType = i32;
+pub const WICBitmapDitherTypeDualSpiral4x4: WICBitmapDitherType = 6;
+pub const WICBitmapDitherTypeDualSpiral8x8: WICBitmapDitherType = 7;
+pub const WICBitmapDitherTypeErrorDiffusion: WICBitmapDitherType = 8;
+pub const WICBitmapDitherTypeNone: WICBitmapDitherType = 0;
+pub const WICBitmapDitherTypeOrdered16x16: WICBitmapDitherType = 3;
+pub const WICBitmapDitherTypeOrdered4x4: WICBitmapDitherType = 1;
+pub const WICBitmapDitherTypeOrdered8x8: WICBitmapDitherType = 2;
+pub const WICBitmapDitherTypeSolid: WICBitmapDitherType = 0;
+pub const WICBitmapDitherTypeSpiral4x4: WICBitmapDitherType = 4;
+pub const WICBitmapDitherTypeSpiral8x8: WICBitmapDitherType = 5;
+pub type WICBitmapPaletteType = i32;
+pub const WICBitmapPaletteTypeCustom: WICBitmapPaletteType = 0;
+pub const WICBitmapPaletteTypeFixedBW: WICBitmapPaletteType = 2;
+pub const WICBitmapPaletteTypeFixedGray16: WICBitmapPaletteType = 11;
+pub const WICBitmapPaletteTypeFixedGray256: WICBitmapPaletteType = 12;
+pub const WICBitmapPaletteTypeFixedGray4: WICBitmapPaletteType = 10;
+pub const WICBitmapPaletteTypeFixedHalftone125: WICBitmapPaletteType = 6;
+pub const WICBitmapPaletteTypeFixedHalftone216: WICBitmapPaletteType = 7;
+pub const WICBitmapPaletteTypeFixedHalftone252: WICBitmapPaletteType = 8;
+pub const WICBitmapPaletteTypeFixedHalftone256: WICBitmapPaletteType = 9;
+pub const WICBitmapPaletteTypeFixedHalftone27: WICBitmapPaletteType = 4;
+pub const WICBitmapPaletteTypeFixedHalftone64: WICBitmapPaletteType = 5;
+pub const WICBitmapPaletteTypeFixedHalftone8: WICBitmapPaletteType = 3;
+pub const WICBitmapPaletteTypeFixedWebPalette: WICBitmapPaletteType = 7;
+pub const WICBitmapPaletteTypeMedianCut: WICBitmapPaletteType = 1;
+pub const WICDecodeMetadataCacheOnDemand: WICDecodeOptions = 0;
+pub const WICDecodeMetadataCacheOnLoad: WICDecodeOptions = 1;
+pub type WICDecodeOptions = i32;
+pub const WICMETADATACACHEOPTION_FORCE_DWORD: WICDecodeOptions = 2147483647;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WICRect {
+    pub X: i32,
+    pub Y: i32,
+    pub Width: i32,
+    pub Height: i32,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct WINDOWPLACEMENT {

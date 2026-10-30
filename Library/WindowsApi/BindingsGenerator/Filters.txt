@@ -181,6 +181,23 @@ RRF_RT_REG_SZ
 RRF_SUBKEY_WOW6432KEY
 VS_FIXEDFILEINFO
 
+// Decoding images with the Windows Imaging Component
+CoCreateInstance
+CoInitializeEx
+CoUninitialize
+IWICBitmapDecoder::GetFrame
+IWICBitmapSource::{CopyPixels, GetSize}
+IWICFormatConverter::Initialize
+IWICImagingFactory::{CreateDecoderFromFilename, CreateFormatConverter}
+CLSCTX
+CLSID_WICImagingFactory
+COINIT
+GENERIC_READ
+GUID_WICPixelFormat32bppRGBA
+WICBitmapDitherType
+WICBitmapPaletteType
+WICDecodeOptions
+
 // Font atlas, rasterized with DirectWrite
 DWriteCreateFactory
 IDWriteFactory::GetSystemFontCollection

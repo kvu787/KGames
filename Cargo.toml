@@ -24,6 +24,7 @@ members = [
     "Program/IdentifyDisplays",
     "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",
+    "Program/SpinningCarTest",
     "Test/Math",
     "Test/SimplePaint",
 ]

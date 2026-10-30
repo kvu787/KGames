@@ -166,6 +166,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "spinning_car_test"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "graphics",
+ "json",
+ "math",
+ "meshes",
+ "paint_settings",
+ "shader_compiler",
+ "simple_paint",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

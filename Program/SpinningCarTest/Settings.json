@@ -1,0 +1,57 @@
+{
+    "Display": "Primary",
+    "WindowMode": "Maximized",
+    "AllowTearing": true,
+    "SimplePaintShader_Axles": {
+        "BaseColor": [0.2159017, 0.21590173, 0.2159017],
+        "Brightness": 0.5,
+        "Shift": 0.0,
+        "RotationDegrees": 0.0,
+        "DarkPoint": 0.0,
+        "LightPoint": 1.0
+    },
+    "SimplePaintShader_Body": {
+        "BaseColor": [0.103999995, 0.3592001, 0.8],
+        "Brightness": 0.20996094,
+        "Shift": 0.4140625,
+        "RotationDegrees": 35.600586,
+        "DarkPoint": 0.0,
+        "LightPoint": 1.0
+    },
+    "SimplePaintShader_Cabin": {
+        "BaseColor": [0.37600002, 0.5314668, 0.8],
+        "Brightness": 0.26464844,
+        "Shift": 0.36132813,
+        "RotationDegrees": 28.935547,
+        "DarkPoint": 0.2000000095,
+        "LightPoint": 1.0
+    },
+    "SimplePaintShader_Headlights": {
+        "BaseColor": [0.98, 0.74676, 0.15680003],
+        "Brightness": 0.48242188,
+        "Shift": 0.6484375,
+        "RotationDegrees": 49.7666,
+        "DarkPoint": 0.0,
+        "LightPoint": 0.8999766052025
+    },
+    "SimplePaintShader_Wheels": {
+        "BaseColor": [0.27022192, 0.27022192, 0.27022186],
+        "Brightness": 0.41796875,
+        "Shift": 0.2841797,
+        "RotationDegrees": 224.49902,
+        "DarkPoint": 0.12890625,
+        "LightPoint": 0.78222656
+    },
+    "SimplePaintShader_Sphere": {
+        "BaseColor": [0.107, 0.223, 0.578],
+        "Brightness": 0.126,
+        "Shift": 0.0,
+        "RotationDegrees": 0.0,
+        "DarkPoint": 0.0,
+        "LightPoint": 1.0
+    },
+    "Sphere": {
+        "UResolution": 64,
+        "VResolution": 32
+    }
+}
