@@ -27,3 +27,15 @@ This decision was primarily motivated by my experience working with those depend
 - Avoid opinionated workflows and fundamental design decisions that I don't like that are imposed by dependencies.
 - Avoid maintenance burden, bugs, churn, etc introduced by new versions of dependencies that don't benefit my specific usage.
 - Make it easier to configure a non-disruptive agent workflow.
+
+# Design
+
+This is a work-in-progress and shouldn't be applied to the repo yet.
+
+- Folders
+  - Program: Contains things that are runnable.
+  - Library: Contains things that aren't runnable and are shared.
+  - Test: Contains all tests.
+- GUI apps
+  - If the window isn't focused, the app must ignore all input.
+  - Use Win32 and Rust
