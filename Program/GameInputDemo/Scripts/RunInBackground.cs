@@ -83,7 +83,8 @@ static void Run(string[] arguments) {
 
     var scripts = (string)AppContext.GetData("EntryPointFileDirectoryPath")!;
     var project = Path.GetFullPath(Path.Combine(scripts, ".."));
-    var target = Path.Combine(project, "target");
+    // The repository's Cargo workspace keeps every package's build in its own target folder.
+    var target = Path.GetFullPath(Path.Combine(project, "..", "..", "target"));
     // A path given on the command line is relative to the current directory.
     screenshot = Path.GetFullPath(screenshot ?? Path.Combine(target, "Screenshot.png"));
 

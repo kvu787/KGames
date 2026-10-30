@@ -1,0 +1,12 @@
+# One Cargo workspace for every Rust package in the repo. They share this
+# folder's Cargo.lock and target folder, so the Library crates build once for
+# all of the programs and tests that use them.
+#
+# The bindings generators aren't members. Each is a workspace of its own, so
+# that normal builds never compile windows-bindgen.
+[workspace]
+resolver = "3"
+members = [
+    "Program/GameInputDemo",
+    "Program/HelloDirect3D12",
+]
