@@ -1,0 +1,10 @@
+{
+    "FrameSeconds": 0.125,
+    "Steps": [
+        { "Frame": 4, "Expect": { "CarPosition": 4.0, "CarTurn": 0.7853982, "Stationary": false } },
+        { "Frame": 7, "Expect": { "CarPosition": 7.0 } },
+        { "Frame": 14, "Expect": { "CarPosition": 0.0 } },
+        { "Frame": 14, "Capture": "Middle" },
+        { "Frame": 21, "Expect": { "CarPosition": -7.0 } }
+    ]
+}

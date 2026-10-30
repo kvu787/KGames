@@ -1,0 +1,17 @@
+{
+    "FrameSeconds": 0.125,
+    "Steps": [
+        { "Frame": 3, "Key": "S" },
+        { "Frame": 4, "Expect": { "Stationary": true, "CarPosition": 0.0, "CarTurn": 1.5707964 } },
+        { "Frame": 4, "Capture": "Stationary" },
+        { "Frame": 5, "Key": "S" },
+        { "Frame": 6, "Expect": { "Stationary": false, "CarPosition": 6.0 } },
+        { "Frame": 7, "Key": "F1" },
+        { "Frame": 8, "Expect": { "TextShown": false } },
+        { "Frame": 9, "Key": "F11" },
+        { "Frame": 19, "Expect": { "Window": { "Fullscreen": true, "Problems": [] } } },
+        { "Frame": 19, "Capture": "Fullscreen" },
+        { "Frame": 20, "Key": "F11" },
+        { "Frame": 30, "Expect": { "Window": { "Fullscreen": false, "Problems": [] } } }
+    ]
+}

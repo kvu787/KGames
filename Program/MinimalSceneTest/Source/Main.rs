@@ -1,28 +1,17 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "Scene.rs"]
-mod scene;
-#[path = "Settings.rs"]
-mod settings;
-
 use std::path::Path;
 
-use application::{Arguments, Event, FrameCounter, Settings, Window};
+use application::{Arguments, FrameCounter, Settings, Window};
 use canvas::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
 use canvas::{Canvas, Font, MARGIN, PADDING, draw_window_problems, text_box, theme};
 use graphics::Renderer;
-use scene::Scene;
-use settings::SceneSettings;
-use windows_api::*;
+use minimal_scene_test::controls::{self, Action};
+use minimal_scene_test::scene::{Motion, Scene};
+use minimal_scene_test::settings::SceneSettings;
+use minimal_scene_test::{FONT_SIZE, NAME};
 use windows_core::Result;
-
-const NAME: &str = "Minimal Scene Test";
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-const FONT_SIZE: i32 = 15;
-// F1 shows or hides the text over the scene.
-const KEY_TOGGLE_TEXT: u32 = 0x70;
 
 fn main() -> Result<()> {
     unsafe {
@@ -39,7 +28,8 @@ fn main() -> Result<()> {
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, true)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let mut scene = Scene::new(&renderer, &scene_settings)?;
+        let scene = Scene::new(&renderer, &scene_settings)?;
+        let mut motion = Motion::default();
         // The title bar says how frames are presented, as it affects latency.
         let description = renderer.description();
         window.set_title(&format!("{NAME} - {description}"))?;
@@ -79,16 +69,14 @@ fn main() -> Result<()> {
             let frame = window.begin_frame();
             frames.frame(frame.seconds);
             if let Some(last) = last_seconds {
-                scene.advance((frame.seconds - last) as f32);
+                motion.advance((frame.seconds - last) as f32);
             }
             last_seconds = Some(frame.seconds);
-            for &event in &frame.events {
-                if let Event::Key { key, .. } = event {
-                    match key {
-                        KEY_TOGGLE_TEXT => show_text = !show_text,
-                        key if key == VK_F11 as u32 => window.toggle_fullscreen()?,
-                        _ => {}
-                    }
+            for event in &frame.events {
+                match controls::action(event) {
+                    Some(Action::ToggleText) => show_text = !show_text,
+                    Some(Action::ToggleFullscreen) => window.toggle_fullscreen()?,
+                    None => {}
                 }
             }
 
@@ -96,7 +84,7 @@ fn main() -> Result<()> {
             let (width, height) = (renderer.width as f32, renderer.height as f32);
             renderer.clear(theme::BACKGROUND);
             if window.problems.is_empty() {
-                scene.draw(&renderer)?;
+                scene.draw(&renderer, motion.position)?;
                 if show_text {
                     let rate = match frames.per_second {
                         Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
@@ -137,7 +125,13 @@ fn main() -> Result<()> {
             window.handle_checkpoints(
                 &frame,
                 |path| renderer.capture(path),
-                || json::object([("SpherePosition", scene.position.into()), ("TextShown", show_text.into())]),
+                || {
+                    json::object([
+                        ("SpherePosition", motion.position.into()),
+                        ("SphereDirection", motion.direction.into()),
+                        ("TextShown", show_text.into()),
+                    ])
+                },
             )?;
             renderer.present()?;
         }

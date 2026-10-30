@@ -130,6 +130,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal_scene_test_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "minimal_scene_test",
+ "simple_paint",
+]
+
+[[package]]
 name = "paint_settings"
 version = "0.1.0"
 dependencies = [
@@ -206,6 +216,16 @@ dependencies = [
  "simple_paint",
  "windows-core",
  "windows_api",
+]
+
+[[package]]
+name = "spinning_car_test_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "simple_paint",
+ "spinning_car_test",
 ]
 
 [[package]]

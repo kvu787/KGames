@@ -28,6 +28,8 @@ members = [
     "Test/Application",
     "Test/Json",
     "Test/Math",
+    "Test/MinimalSceneTest",
     "Test/SimplePaint",
     "Test/SimplePaintDemo",
+    "Test/SpinningCarTest",
 ]

@@ -1,0 +1,14 @@
+{
+    "Steps": [
+        { "Frame": 1, "Expect": { "TextShown": true, "Window": { "Fullscreen": true, "Problems": [] } } },
+        { "Frame": 2, "Key": "F1" },
+        { "Frame": 3, "Expect": { "TextShown": false } },
+        { "Frame": 3, "Capture": "TextHidden" },
+        { "Frame": 4, "Key": "F1" },
+        { "Frame": 5, "Key": "F11" },
+        { "Frame": 15, "Expect": { "TextShown": true, "Window": { "Fullscreen": false, "Problems": [] } } },
+        { "Frame": 15, "Capture": "Maximized" },
+        { "Frame": 16, "Key": "F11" },
+        { "Frame": 26, "Expect": { "Window": { "Fullscreen": true, "Problems": [] } } }
+    ]
+}

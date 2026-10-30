@@ -1,0 +1,11 @@
+{
+    "FrameSeconds": 0.125,
+    "Steps": [
+        { "Frame": 4, "Expect": { "SpherePosition": 4.0, "SphereDirection": 1.0 } },
+        { "Frame": 8, "Expect": { "SpherePosition": 8.0, "SphereDirection": -1.0 } },
+        { "Frame": 16, "Expect": { "SpherePosition": 0.0, "SphereDirection": -1.0 } },
+        { "Frame": 16, "Capture": "Middle" },
+        { "Frame": 24, "Expect": { "SpherePosition": -8.0, "SphereDirection": 1.0 } },
+        { "Frame": 26, "Expect": { "SpherePosition": -6.0 } }
+    ]
+}

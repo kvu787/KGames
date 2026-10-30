@@ -43,9 +43,34 @@ pub struct Scene {
     // buffer's start. The GPU has finished with them when a frame is ready.
     constants: UploadBuffer,
     materials: [GpuMaterial; MATERIAL_COUNT],
-    // The sphere's X, and which way it's moving along X.
+}
+
+// Where the sphere is along X, and which way it's moving: +1 or -1.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Motion {
     pub position: f32,
-    direction: f32,
+    pub direction: f32,
+}
+
+impl Default for Motion {
+    // Sphere.gd starts the sphere in the middle, moving toward +X.
+    fn default() -> Self {
+        Self {
+            position: 0.0,
+            direction: 1.0,
+        }
+    }
+}
+
+impl Motion {
+    // Moves the sphere by `seconds` since the last frame, like Sphere.gd's
+    // _process: it turns back once it's past the travel distance.
+    pub fn advance(&mut self, seconds: f32) {
+        self.position += self.direction * SPEED * seconds;
+        if self.position.abs() > TRAVEL_DISTANCE {
+            self.direction = if self.position > 0.0 { -1.0 } else { 1.0 };
+        }
+    }
 }
 
 impl Scene {
@@ -88,23 +113,13 @@ impl Scene {
                     compile(&settings.ground)?,
                     compile(&settings.cube)?,
                 ],
-                position: 0.0,
-                direction: 1.0,
             })
         }
     }
 
-    // Moves the sphere by `seconds` since the last frame, like Sphere.gd's
-    // _process: it turns back once it's past the travel distance.
-    pub fn advance(&mut self, seconds: f32) {
-        self.position += self.direction * SPEED * seconds;
-        if self.position.abs() > TRAVEL_DISTANCE {
-            self.direction = if self.position > 0.0 { -1.0 } else { 1.0 };
-        }
-    }
-
-    // Records the scene into the frame, over the whole window.
-    pub unsafe fn draw(&self, renderer: &Renderer) -> Result<()> {
+    // Records the scene into the frame, over the whole window, with the
+    // sphere at `sphere_x` along X.
+    pub unsafe fn draw(&self, renderer: &Renderer, sphere_x: f32) -> Result<()> {
         unsafe {
             let aspect = renderer.width as f32 / renderer.height as f32;
             let projection = make_projection(VIEW_HEIGHT * aspect, VIEW_HEIGHT, 1.0, 20.0)
@@ -113,7 +128,7 @@ impl Scene {
             let view = Matrix::look_at_rh(eye, [0.0; 3], CAMERA_UP);
             let worlds = [
                 Matrix::scaling(SPHERE_RADIUS, SPHERE_RADIUS, SPHERE_RADIUS)
-                    * Matrix::translation(self.position, SPHERE_RADIUS, 0.0),
+                    * Matrix::translation(sphere_x, SPHERE_RADIUS, 0.0),
                 Matrix::IDENTITY,
                 Matrix::translation(0.0, 0.5, -1.5),
             ];

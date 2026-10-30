@@ -1,32 +1,17 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "CarMesh.rs"]
-mod car_mesh;
-#[path = "Scene.rs"]
-mod scene;
-#[path = "Settings.rs"]
-mod settings;
-
 use std::path::Path;
 
-use application::{Arguments, Event, FrameCounter, Settings, Window};
+use application::{Arguments, FrameCounter, Settings, Window};
 use canvas::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
 use canvas::{Canvas, Font, MARGIN, PADDING, draw_window_problems, text_box, theme};
 use graphics::Renderer;
-use scene::Scene;
-use settings::SceneSettings;
-use windows_api::*;
+use spinning_car_test::controls::{self, Action};
+use spinning_car_test::scene::{self, Scene};
+use spinning_car_test::settings::SceneSettings;
+use spinning_car_test::{FONT_SIZE, NAME};
 use windows_core::Result;
-
-const NAME: &str = "Spinning Car Test";
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-const FONT_SIZE: i32 = 15;
-// F1 shows or hides the text over the scene, and S, as in the C++ scene,
-// keeps the car in the middle.
-const KEY_TOGGLE_TEXT: u32 = 0x70;
-const KEY_STATIONARY: u32 = 'S' as u32;
 
 fn main() -> Result<()> {
     unsafe {
@@ -82,14 +67,12 @@ fn main() -> Result<()> {
             // the newest. The scene reads the time as it draws.
             let frame = window.begin_frame();
             frames.frame(frame.seconds);
-            for &event in &frame.events {
-                if let Event::Key { key, .. } = event {
-                    match key {
-                        KEY_TOGGLE_TEXT => show_text = !show_text,
-                        KEY_STATIONARY => stationary = !stationary,
-                        key if key == VK_F11 as u32 => window.toggle_fullscreen()?,
-                        _ => {}
-                    }
+            for event in &frame.events {
+                match controls::action(event) {
+                    Some(Action::ToggleText) => show_text = !show_text,
+                    Some(Action::ToggleStationary) => stationary = !stationary,
+                    Some(Action::ToggleFullscreen) => window.toggle_fullscreen()?,
+                    None => {}
                 }
             }
 
