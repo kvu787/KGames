@@ -1,0 +1,25 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } } },
+        { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, -0.25], "RightTrigger": 0.75, "Buttons": ["A", "LB"] } } },
+        {
+            "Frame": 3,
+            "Expect": {
+                "Listen": "Pad",
+                "ReadingCount": 1,
+                "Gamepad": { "Device": "Pad", "LeftStick": [0.5, -0.25], "RightTrigger": 0.75, "Buttons": ["A", "LB"] },
+                "Latest": ["A pressed", "LB pressed", "left stick (+0.500, -0.250)", "right trigger 0.750"]
+            }
+        },
+        { "Frame": 3, "Capture": "Pressed" },
+        { "Frame": 4, "Program": { "Gamepad": { "Id": 1 } } },
+        {
+            "Frame": 5,
+            "Expect": {
+                "ReadingCount": 2,
+                "Gamepad": { "LeftStick": [0.0, 0.0], "RightTrigger": 0.0, "Buttons": [] },
+                "Latest": ["A released", "LB released", "left stick (+0.000, +0.000)", "right trigger 0.000"]
+            }
+        }
+    ]
+}

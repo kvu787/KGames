@@ -1,0 +1,19 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad One", "Input": ["Gamepad"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Pad Two", "Input": ["Gamepad"] } } },
+        { "Frame": 2, "Expect": { "Listen": "Pad One", "PickerOpen": false } },
+        { "Frame": 3, "Press": [144, 117] },
+        { "Frame": 4, "Expect": { "PickerOpen": true } },
+        { "Frame": 4, "Capture": "Open" },
+        { "Frame": 5, "Press": [224, 166] },
+        { "Frame": 6, "Expect": { "Listen": "Pad Two", "PickerOpen": false } },
+        { "Frame": 7, "Program": { "Gamepad": { "Id": 1, "Buttons": ["A"] } } },
+        { "Frame": 8, "Expect": { "ReadingCount": 0, "Gamepad": { "Buttons": [] } } },
+        { "Frame": 9, "Program": { "Gamepad": { "Id": 2, "Buttons": ["B"] } } },
+        { "Frame": 10, "Expect": { "ReadingCount": 1, "Gamepad": { "Device": "Pad Two", "Buttons": ["B"] } } },
+        { "Frame": 11, "Press": [144, 117] },
+        { "Frame": 12, "Key": "Escape" },
+        { "Frame": 13, "Expect": { "PickerOpen": false } }
+    ]
+}

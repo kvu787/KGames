@@ -60,6 +60,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "game_input_demo_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "game_input",
+ "game_input_demo",
+ "json",
+]
+
+[[package]]
 name = "graphics"
 version = "0.1.0"
 dependencies = [

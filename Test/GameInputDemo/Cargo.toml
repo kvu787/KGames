@@ -1,0 +1,20 @@
+[package]
+name = "game_input_demo_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Input"
+path = "Input.rs"
+
+[[test]]
+name = "Panels"
+path = "Panels.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+canvas = { path = "../../Library/Canvas" }
+game_input = { path = "../../Library/GameInput" }
+game_input_demo = { path = "../../Program/GameInputDemo" }
+json = { path = "../../Library/Json" }

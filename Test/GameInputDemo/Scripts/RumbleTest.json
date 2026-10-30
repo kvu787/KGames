@@ -1,0 +1,14 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
+        { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+        { "Frame": 3, "Program": { "Keyboard": { "Id": 2, "Down": [] } } },
+        { "Frame": 4, "Expect": { "RumbleTest": true } },
+        { "Frame": 5, "Program": { "Gamepad": { "Id": 1, "LeftStick": [1.0, 0.0], "RightStick": [0.05, 0.0] } } },
+        { "Frame": 6, "Expect": { "Rumble": [{ "Device": "Pad", "LowFrequency": 1.0, "HighFrequency": 0.0 }] } },
+        { "Frame": 6, "Capture": "Rumbling" },
+        { "Frame": 7, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+        { "Frame": 8, "Expect": { "RumbleTest": false, "Rumble": [{ "LowFrequency": 0.0, "HighFrequency": 0.0 }] } }
+    ]
+}

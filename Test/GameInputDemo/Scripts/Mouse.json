@@ -1,0 +1,13 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Rodent", "Input": ["Mouse"] } } },
+        { "Frame": 2, "Program": { "Mouse": { "Id": 1 } } },
+        { "Frame": 3, "Program": { "Mouse": { "Id": 1, "Motion": [10, -5] } } },
+        { "Frame": 4, "Expect": { "Mouse": { "Device": "Rodent", "Delta": [10, -5] }, "Latest": ["moved (+10, -5)"] } },
+        { "Frame": 5, "Program": { "Mouse": { "Id": 1, "Buttons": ["Left"] } } },
+        { "Frame": 6, "Expect": { "Mouse": { "Buttons": ["Left"], "Delta": [0, 0] }, "Latest": ["Left pressed"] } },
+        { "Frame": 7, "Program": { "Mouse": { "Id": 1, "Wheel": [0, 120] } } },
+        { "Frame": 8, "Expect": { "Mouse": { "Buttons": [], "Wheel": [0, 120] }, "Latest": ["Left released", "wheel +120"] } },
+        { "Frame": 8, "Capture": "AfterWheel" }
+    ]
+}

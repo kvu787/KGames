@@ -1,0 +1,19 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Keys", "Input": ["Keyboard"] } } },
+        { "Frame": 2, "Program": { "Keyboard": { "Id": 1, "Down": ["A"] } } },
+        { "Frame": 3, "Expect": { "Keyboard": { "Device": "Keys", "Keys": ["A"] }, "Latest": ["A down"] } },
+        { "Frame": 4, "Program": { "Keyboard": { "Id": 1, "Down": ["A", "Left"] } } },
+        { "Frame": 5, "Expect": { "Keyboard": { "Keys": ["A", "Left"] }, "Latest": ["Left down"] } },
+        { "Frame": 5, "Capture": "TwoKeys" },
+        { "Frame": 6, "Program": { "Keyboard": { "Id": 1, "Down": [] } } },
+        { "Frame": 7, "Expect": { "Keyboard": { "Keys": [] }, "Latest": ["A up", "Left up"] } },
+        { "Frame": 8, "Program": { "Keyboard": { "Id": 1, "Down": ["F2"] } } },
+        { "Frame": 9, "Expect": { "Log": [] } },
+        { "Frame": 10, "Program": { "Keyboard": { "Id": 1, "Down": ["F11"] } } },
+        { "Frame": 20, "Expect": { "Window": { "Fullscreen": true, "Problems": [] } } },
+        { "Frame": 21, "Program": { "Keyboard": { "Id": 1, "Down": [] } } },
+        { "Frame": 22, "Program": { "Keyboard": { "Id": 1, "Down": ["F11"] } } },
+        { "Frame": 32, "Expect": { "Window": { "Fullscreen": false, "Problems": [] } } }
+    ]
+}
