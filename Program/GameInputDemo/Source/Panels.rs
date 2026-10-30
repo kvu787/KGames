@@ -1,6 +1,6 @@
 // Lays out and draws the demo's panels onto a Canvas. The demo only supports
 // two client areas, 2560 x 1369 when maximized and 2560 x 1440 in borderless
-// fullscreen (see WindowCheck.rs), so the panels have fixed places in pixels.
+// fullscreen (see Library/Application), so the panels have fixed places in pixels.
 // The bottom row and the log are taller in fullscreen, and the footer stays
 // at the bottom.
 
