@@ -41,6 +41,10 @@ window moves or changes size, or the displays, the scale or the taskbar change.
 - **Keyboard**: the keys held down, with each key's name, scan code, virtual-key code and character.
 - **Mouse**: the buttons held, the motion and wheel, and a pad that moves with the
   raw relative motion, which has no pointer acceleration.
+
+  Each of the two shows the last device whose keys, or mouse input, changed. A device can
+  be both, like a keyboard with a touchpad, and its readings then have both kinds of
+  input. A key press on it doesn't move the Mouse panel to it.
 - **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback.
   The gamepad that the panel shows is blue, and gamepads that the demo ignores are faint.
 - **Event log**: everything above as it happens, newest first.

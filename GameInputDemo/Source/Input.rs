@@ -232,8 +232,14 @@ unsafe fn is_gamepad(device: &IGameInputDevice) -> bool {
     unsafe { device.GetSupportedInput() & GameInputKindGamepad != 0 }
 }
 
+// The keyboard and mouse panels each show one device: the last one whose
+// reading changed their kind of input. A reading can have several kinds, like
+// one from a keyboard that is also a mouse, and a reading that doesn't change
+// a panel's kind leaves the panel showing the device it was showing. The rate
+// counts the readings that the panel took.
 #[derive(Default)]
 pub struct KeyboardView {
+    pub device: Option<IGameInputDevice>,
     pub label: String,
     pub keys: Vec<GameInputKeyState>,
     pub rate: RateCounter,
@@ -241,6 +247,7 @@ pub struct KeyboardView {
 
 #[derive(Default)]
 pub struct MouseView {
+    pub device: Option<IGameInputDevice>,
     pub label: String,
     pub state: GameInputMouseState,
     pub delta: [i64; 2],
@@ -601,7 +608,15 @@ impl Input {
             {
                 return;
             }
-            self.reading_count += 1;
+            // A reading with several kinds of input comes up once for each,
+            // so it's counted only for the first.
+            let first_kind = READING_KINDS
+                .iter()
+                .map(|&(_, kind)| kind)
+                .find(|&kind| reading.GetInputKind() & kind != 0);
+            if first_kind == Some(kind) {
+                self.reading_count += 1;
+            }
             let time = self.seconds(reading.GetTimestamp());
             // The same device's reading before this one. There's none for the
             // first reading of a device, or when it's no longer in the history.
@@ -616,7 +631,9 @@ impl Input {
                 Source::Gamepad => {
                     self.handle_gamepad(time, reading, previous.as_ref(), device.as_ref())
                 }
-                Source::Keyboard => self.handle_keyboard(time, reading, previous.as_ref(), &label),
+                Source::Keyboard => {
+                    self.handle_keyboard(time, reading, previous.as_ref(), device.as_ref(), &label)
+                }
                 _ => self.handle_mouse(time, reading, previous.as_ref(), device.as_ref(), &label),
             };
             // A reading can repeat the previous state, or change only
@@ -787,6 +804,7 @@ impl Input {
         time: f64,
         reading: &IGameInputReading,
         previous: Option<&IGameInputReading>,
+        device: Option<&IGameInputDevice>,
         label: &str,
     ) -> (Vec<String>, Vec<String>, bool) {
         unsafe {
@@ -794,7 +812,6 @@ impl Input {
             let old = previous
                 .map(|previous| key_states(previous))
                 .unwrap_or_default();
-            self.keyboard.rate.add(time);
 
             let mut changes = Vec::new();
             for key in &keys {
@@ -818,8 +835,13 @@ impl Input {
             if summary.is_empty() {
                 summary.push("No keys down".to_string());
             }
-            self.keyboard.label = label.to_string();
-            self.keyboard.keys = keys;
+            let view = &mut self.keyboard;
+            if !changes.is_empty() || view.device.as_ref() == device {
+                view.rate.add(time);
+                view.device = device.cloned();
+                view.label = label.to_string();
+                view.keys = keys;
+            }
             (changes, summary, false)
         }
     }
@@ -840,7 +862,6 @@ impl Input {
                 previous.GetMouseState(&mut old);
                 old
             });
-            self.mouse.rate.add(time);
 
             let mut changes = Vec::new();
             let old_buttons = old.map_or(0, |old| old.buttons);
@@ -888,21 +909,25 @@ impl Input {
             }
 
             let view = &mut self.mouse;
-            view.label = label.to_string();
-            view.state = state;
-            view.delta = delta;
-            view.sample_rate = self
-                .devices
-                .iter()
-                .find(|info| Some(&info.device) == device)
-                .and_then(|info| info.mouse_sample_rate);
-            // 400 counts cross half the pad. Raw counts have no pointer
-            // acceleration, unlike the cursor.
-            for (pad, delta) in view.pad.iter_mut().zip(delta) {
-                *pad = (*pad + delta as f32 / 400.0).clamp(-1.0, 1.0);
-            }
-            if delta != [0, 0] {
-                push_trail(&mut view.pad_trail, [view.pad[0], -view.pad[1]]);
+            if !changes.is_empty() || view.device.as_ref() == device {
+                view.rate.add(time);
+                view.device = device.cloned();
+                view.label = label.to_string();
+                view.state = state;
+                view.delta = delta;
+                view.sample_rate = self
+                    .devices
+                    .iter()
+                    .find(|info| Some(&info.device) == device)
+                    .and_then(|info| info.mouse_sample_rate);
+                // 400 counts cross half the pad. Raw counts have no pointer
+                // acceleration, unlike the cursor.
+                for (pad, delta) in view.pad.iter_mut().zip(delta) {
+                    *pad = (*pad + delta as f32 / 400.0).clamp(-1.0, 1.0);
+                }
+                if delta != [0, 0] {
+                    push_trail(&mut view.pad_trail, [view.pad[0], -view.pad[1]]);
+                }
             }
 
             let held: Vec<&str> = MOUSE_BUTTONS
