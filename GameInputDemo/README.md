@@ -48,7 +48,7 @@ window moves or changes size, or the displays, the scale or the taskbar change.
 - **Footer**: the shortcuts, and the [identifier](#display-identifiers) and model of the
   display the window is on.
 
-Shortcuts, which the demo also reads with GameInput:
+Shortcuts, which the demo also reads with GameInput, while its window has focus:
 
 | Key   | Action                                                                        |
 | ----- | ----------------------------------------------------------------------------- |
@@ -254,8 +254,12 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
 3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
    to work out what changed.
 
-GameInput only gives a process keyboard and mouse input while one of its windows has focus.
-The header of the demo's window says whether it has focus.
+The demo only handles keyboard and mouse input while its window has focus, and the header
+says whether it has focus. GameInput is meant to give that input only to the window in focus,
+but the 4.0.306 runtime that the demo loads from its folder gives it to the demo without focus
+too, even after `EnableBackgroundInput(false)`. So the demo drops it itself. Otherwise it
+would show and log what's typed into other windows, and its shortcuts would run when they're
+pressed in other apps. Gamepad input is handled with or without focus.
 
 ## Input latency
 

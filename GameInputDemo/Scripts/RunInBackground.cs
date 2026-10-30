@@ -8,8 +8,8 @@
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //
-// Without focus, GameInput gives the demo no keyboard or mouse input, but
-// gamepads still work.
+// Without focus, the demo ignores keyboard and mouse input, but gamepads
+// still work.
 //
 // This is a .NET file-based app, which RunInBackground.ps1 runs with
 // dotnet run. It builds into dotnet's own cache, not next to this file.

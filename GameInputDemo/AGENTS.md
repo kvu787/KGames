@@ -27,4 +27,4 @@ While working:
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.
 - With `--keep-open`, the demo keeps running after the script ends. Stop it with `Stop-Process` and the process ID the script prints, once you're done with it.
 - Run `IdentifyDisplays` only with `--list`. Without it, it puts a box on every display.
-- Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and the demo gets no keyboard or mouse input from GameInput without focus anyway. Ask the user to try changes to keyboard and mouse handling.
+- Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and the demo ignores keyboard and mouse input without focus anyway. Ask the user to try changes to keyboard and mouse handling.

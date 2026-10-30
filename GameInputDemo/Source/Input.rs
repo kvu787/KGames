@@ -285,6 +285,9 @@ pub struct Input {
     pub fullscreen_toggled: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
+    // Whether the window had focus at the last update, so keyboard and mouse
+    // input was handled.
+    focused: bool,
 }
 
 impl Input {
@@ -319,6 +322,7 @@ impl Input {
                 listen_picked: false,
                 fullscreen_toggled: false,
                 shortcuts: Vec::new(),
+                focused: false,
             })
         }
     }
@@ -327,8 +331,17 @@ impl Input {
         timestamp.saturating_sub(self.start_timestamp) as f64 / 1_000_000.0
     }
 
-    pub fn update(&mut self) {
+    // `focused` is whether the window has focus. Keyboard and mouse input is
+    // only handled while it does, see handle_reading.
+    pub fn update(&mut self, focused: bool) {
         unsafe {
+            if self.focused && !focused {
+                // Keys and buttons let go of after the window lost focus are
+                // never seen, so stop showing them as held.
+                self.keyboard.keys.clear();
+                self.mouse.state.buttons = 0;
+            }
+            self.focused = focused;
             self.now = self.seconds(self.game_input.GetCurrentTimestamp());
             let events: Vec<_> = DEVICE_EVENTS.lock().unwrap().drain(..).collect();
             for (event, device) in events {
@@ -574,6 +587,14 @@ impl Input {
         reading: &IGameInputReading,
     ) {
         unsafe {
+            // Keyboard and mouse input is meant for the window in focus.
+            // GameInput 4.0.306, loaded from the exe's folder, gives it to
+            // the demo without focus too, even with EnableBackgroundInput(false),
+            // so the demo drops it itself. Otherwise it would show and log what
+            // is typed into other windows, and run its shortcuts for them.
+            if !self.focused && matches!(source, Source::Keyboard | Source::Mouse) {
+                return;
+            }
             let device = reading.GetDevice();
             if let Some(device) = &device
                 && !self.listen.includes(device)

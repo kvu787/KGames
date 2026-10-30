@@ -467,8 +467,9 @@ fn main() -> Result<()> {
             // Read input only now, right before drawing, so the frame shows
             // the newest readings.
             frames.frame();
+            let focused = GetForegroundWindow() == window;
             if let Ok(input) = &mut input {
-                input.update();
+                input.update(focused);
                 if std::mem::take(&mut input.fullscreen_toggled) {
                     toggle_fullscreen(window, &mut windowed)?;
                 }
@@ -485,7 +486,6 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            let focused = GetForegroundWindow() == window;
             // So do Esc, and the window losing focus.
             if ESCAPE_PRESSED.swap(false, Ordering::Relaxed) || !focused {
                 picker_open = false;

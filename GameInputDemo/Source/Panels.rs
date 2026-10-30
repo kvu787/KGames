@@ -258,7 +258,7 @@ pub fn draw(
     let focus_text = if focused {
         "Window has focus"
     } else {
-        "Window doesn't have focus: GameInput stops keyboard and mouse input"
+        "Window doesn't have focus: keyboard and mouse input is ignored"
     };
     let focus_width = canvas.text_width(focus_text);
     canvas.text(
