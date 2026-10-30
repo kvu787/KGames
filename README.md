@@ -1,3 +1,28 @@
 This repo will contain some of the games I make.
 
 Currently, I plan to develop the latest versions of Veehiicuul and Automatou in here.
+
+# TODO
+
+- Implement in-app and logged measurement for these
+  - Input latency
+  - Frame time
+  - Jitters
+- Implement in-app frame rate limiter
+- Implement vsync option
+
+# Motivation
+
+This repo aims to minimize dependencies on things like game engines and UI frameworks like Unity,
+Godot, WPF, Dear ImGui, Electron, etc.
+
+This decision was primarily made by my experience with those dependencies, but here are a summary
+of the reasons:
+
+- Agents are now good enough to handle the significantly increased development burden of using low-level APIs.
+- Maintain precise control over window behavior, input latency, vsync behavior.
+- Avoid memory performance issues and frametime spikes caused by garbage collection.
+- Avoid annoying bugs and quirks caused by dependencies.
+- Avoid opinionated workflows and fundamental design decisions that I don't like that are imposed by dependencies.
+- Avoid maintenance burden, bugs, churn, etc introduced by new versions of dependencies that don't benefit my specific usage.
+- Make it easier to configure a non-disruptive agent workflow.
