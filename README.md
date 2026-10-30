@@ -38,4 +38,5 @@ This is a work-in-progress and shouldn't be applied to the repo yet.
   - Test: Contains all tests.
 - GUI apps
   - If the window isn't focused, the app must ignore all input.
-  - Use Win32 and Rust
+  - Use Win32, Rust, Direct3D 12, DirectWrite
+  - Use a light theme by default
