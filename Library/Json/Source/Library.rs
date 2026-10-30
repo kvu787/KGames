@@ -1,6 +1,8 @@
-// A JSON parser, for settings files, since KGames depends on no crates besides
-// windows-core. It follows RFC 8259, and says where in the text a mistake is.
+// A JSON parser and writer, for settings files and test scripts, since KGames
+// depends on no crates besides windows-core. The parser follows RFC 8259, and
+// says where in the text a mistake is.
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
     Bool(bool),
@@ -23,8 +25,181 @@ impl Value {
             Value::Object(_) => "an object".to_string(),
         }
     }
+
+    // A member of an object, if this is one and it has the member.
+    pub fn get(&self, name: &str) -> Option<&Value> {
+        match self {
+            Value::Object(members) => members
+                .iter()
+                .find(|(member, _)| member == name)
+                .map(|(_, value)| value),
+            _ => None,
+        }
+    }
+
+    // As JSON text, with each object member on its own line, indented by
+    // four spaces a level. Arrays of numbers, strings and the like stay on
+    // one line. Numbers are written so that they parse back exactly. JSON has
+    // no infinities or NaN, so those are written as null.
+    pub fn to_json(&self) -> String {
+        let mut text = String::new();
+        self.write(&mut text, 0);
+        text
+    }
+
+    fn write(&self, text: &mut String, depth: usize) {
+        match self {
+            Value::Null => text.push_str("null"),
+            Value::Bool(value) => text.push_str(if *value { "true" } else { "false" }),
+            Value::Number(value) if value.is_finite() => text.push_str(&format!("{value:?}")),
+            Value::Number(_) => text.push_str("null"),
+            Value::String(value) => write_string(text, value),
+            Value::Array(values) if values.is_empty() => text.push_str("[]"),
+            Value::Array(values) => {
+                let flat = values
+                    .iter()
+                    .all(|value| !matches!(value, Value::Array(_) | Value::Object(_)));
+                text.push('[');
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        text.push(',');
+                    }
+                    if !flat {
+                        newline(text, depth + 1);
+                    } else if index > 0 {
+                        text.push(' ');
+                    }
+                    value.write(text, depth + 1);
+                }
+                if !flat {
+                    newline(text, depth);
+                }
+                text.push(']');
+            }
+            Value::Object(members) if members.is_empty() => text.push_str("{}"),
+            Value::Object(members) => {
+                text.push('{');
+                for (index, (name, value)) in members.iter().enumerate() {
+                    if index > 0 {
+                        text.push(',');
+                    }
+                    newline(text, depth + 1);
+                    write_string(text, name);
+                    text.push_str(": ");
+                    value.write(text, depth + 1);
+                }
+                newline(text, depth);
+                text.push('}');
+            }
+        }
+    }
 }
 
+fn newline(text: &mut String, depth: usize) {
+    text.push('\n');
+    text.push_str(&"    ".repeat(depth));
+}
+
+fn write_string(text: &mut String, value: &str) {
+    text.push('"');
+    for character in value.chars() {
+        match character {
+            '"' => text.push_str("\\\""),
+            '\\' => text.push_str("\\\\"),
+            '\n' => text.push_str("\\n"),
+            '\r' => text.push_str("\\r"),
+            '\t' => text.push_str("\\t"),
+            '\0'..='\u{1F}' => text.push_str(&format!("\\u{:04X}", character as u32)),
+            _ => text.push(character),
+        }
+    }
+    text.push('"');
+}
+
+// An object with these members, in this order, like
+// object([("Shift", 0.5.into()), ("Name", "Body".into())]).
+pub fn object<const N: usize>(members: [(&str, Value); N]) -> Value {
+    Value::Object(
+        members
+            .into_iter()
+            .map(|(name, value)| (name.to_string(), value))
+            .collect(),
+    )
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Bool(value)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Value::Number(value)
+    }
+}
+
+impl From<f32> for Value {
+    fn from(value: f32) -> Self {
+        Value::Number(value as f64)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Value::Number(value as f64)
+    }
+}
+
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value::Number(value as f64)
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Value::Number(value as f64)
+    }
+}
+
+impl From<usize> for Value {
+    fn from(value: usize) -> Self {
+        Value::Number(value as f64)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Value::String(value.to_string())
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::String(value)
+    }
+}
+
+impl<T: Into<Value>> From<Option<T>> for Value {
+    fn from(value: Option<T>) -> Self {
+        value.map_or(Value::Null, Into::into)
+    }
+}
+
+impl<T: Into<Value>> From<Vec<T>> for Value {
+    fn from(values: Vec<T>) -> Self {
+        Value::Array(values.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<T: Into<Value>, const N: usize> From<[T; N]> for Value {
+    fn from(values: [T; N]) -> Self {
+        Value::Array(values.into_iter().map(Into::into).collect())
+    }
+}
+
+#[derive(Debug)]
 pub struct Error {
     pub line: usize,
     pub column: usize,

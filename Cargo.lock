@@ -80,6 +80,13 @@ name = "json"
 version = "0.1.0"
 
 [[package]]
+name = "json_tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+]
+
+[[package]]
 name = "math"
 version = "0.1.0"
 
