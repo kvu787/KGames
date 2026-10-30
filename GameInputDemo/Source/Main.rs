@@ -42,6 +42,8 @@ mod panels;
 mod renderer;
 #[path = "Settings.rs"]
 mod settings;
+#[path = "WindowCheck.rs"]
+mod window_check;
 
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
@@ -55,20 +57,18 @@ use renderer::{Renderer, check_handle};
 use settings::{Settings, WindowMode};
 use windows_core::{Error, PCWSTR, Result, w};
 
-// The em height of the font at 100% scaling, in pixels.
-const FONT_SIZE: u32 = 15;
-// The smallest window, at 100% scaling, that the panels fit in.
-const MINIMUM_WINDOW_SIZE: [u32; 2] = [1024, 820];
+// The em height of the font, in pixels. The demo only supports 100% scaling
+// (see WindowCheck.rs), so this never changes.
+const FONT_SIZE: i32 = 15;
 
 // The window procedure only records what happened; the main loop reacts.
 // This keeps renderer state out of the callback.
 static CLIENT_WIDTH: AtomicU32 = AtomicU32::new(0);
 static CLIENT_HEIGHT: AtomicU32 = AtomicU32::new(0);
 static RESIZED: AtomicBool = AtomicBool::new(false);
-static DPI: AtomicU32 = AtomicU32::new(USER_DEFAULT_SCREEN_DPI as u32);
-static DPI_CHANGED: AtomicBool = AtomicBool::new(false);
-// The window may be on another display, or the displays changed.
-static MOVED: AtomicBool = AtomicBool::new(false);
+// The window may have moved, been resized, or changed DPI, or the displays or
+// the work area changed, so it may no longer be in a supported setup.
+static WINDOW_CHANGED: AtomicBool = AtomicBool::new(true);
 static DISPLAYS_CHANGED: AtomicBool = AtomicBool::new(false);
 // The mouse, for the gamepad select box: the cursor's position in the window,
 // and where the left button was last pressed, packed by pack_point. GameInput
@@ -107,46 +107,19 @@ extern "system" fn window_procedure(
             CLIENT_WIDTH.store((lparam.0 & 0xFFFF) as u32, Ordering::Relaxed);
             CLIENT_HEIGHT.store(((lparam.0 >> 16) & 0xFFFF) as u32, Ordering::Relaxed);
             RESIZED.store(true, Ordering::Relaxed);
+            WINDOW_CHANGED.store(true, Ordering::Relaxed);
             LRESULT(0)
         }
-        WM_MOVE => {
-            MOVED.store(true, Ordering::Relaxed);
+        // A change to the taskbar sends WM_SETTINGCHANGE, as it changes the
+        // work area. The window keeps its size when its DPI changes, as the
+        // demo only supports 96 DPI, and says what's wrong instead.
+        WM_MOVE | WM_DPICHANGED | WM_SETTINGCHANGE => {
+            WINDOW_CHANGED.store(true, Ordering::Relaxed);
             LRESULT(0)
         }
         WM_DISPLAYCHANGE => {
             DISPLAYS_CHANGED.store(true, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        // The window moved to a monitor with another scale. Take the size
-        // Windows suggests for it, and redraw the font at the new size.
-        WM_DPICHANGED => {
-            DPI.store((wparam.0 & 0xFFFF) as u32, Ordering::Relaxed);
-            DPI_CHANGED.store(true, Ordering::Relaxed);
-            let suggested = unsafe { &*(lparam.0 as *const RECT) };
-            unsafe {
-                let _ = SetWindowPos(
-                    window,
-                    None,
-                    suggested.left,
-                    suggested.top,
-                    suggested.right - suggested.left,
-                    suggested.bottom - suggested.top,
-                    (SWP_NOZORDER | SWP_NOACTIVATE) as u32,
-                );
-            }
-            LRESULT(0)
-        }
-        // In fullscreen, the window takes its monitor's size, whatever it is.
-        WM_GETMINMAXINFO
-            if unsafe { GetWindowLongPtrW(window, GWL_STYLE) } & WS_CAPTION as isize != 0 =>
-        {
-            let info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
-            let dpi = unsafe { GetDpiForWindow(window) };
-            let [width, height] = MINIMUM_WINDOW_SIZE.map(|size| scale(size, dpi));
-            info.ptMinTrackSize = POINT {
-                x: width,
-                y: height,
-            };
+            WINDOW_CHANGED.store(true, Ordering::Relaxed);
             LRESULT(0)
         }
         // A tap of Alt or F10 would otherwise enter the window menu's modal
@@ -191,19 +164,21 @@ extern "system" fn window_procedure(
     }
 }
 
-// Switches between the normal window and a borderless one that covers its
+// Switches between the maximized window and a borderless one that covers its
 // monitor. Covering the monitor lets Windows flip the demo's frames straight
 // to the screen, instead of the desktop compositor copying them into its own
 // frame, which saves up to a refresh of latency and lets frames tear.
-// `windowed` keeps the normal window's placement while in fullscreen.
+// `windowed` keeps the maximized window's placement while in fullscreen.
 // A hidden window stays hidden, so it can start in fullscreen. Entering
 // fullscreen doesn't activate the window: F11 only reaches the demo while its
 // window is active, and activating it before it's shown would take focus.
 unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>) -> Result<()> {
     unsafe {
         let visible = GetWindowLongPtrW(window, GWL_STYLE) & WS_VISIBLE as isize;
-        if let Some(placement) = windowed.take() {
+        if let Some(mut placement) = windowed.take() {
             SetWindowLongPtrW(window, GWL_STYLE, WS_OVERLAPPEDWINDOW as isize | visible);
+            // Maximized is the only other supported setup.
+            placement.showCmd = SW_SHOWMAXIMIZED as u32;
             SetWindowPlacement(window, &placement).ok()?;
             // Makes the new style take effect.
             SetWindowPos(
@@ -248,44 +223,6 @@ unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>
             Ok(())
         }
     }
-}
-
-// From pixels at 100% scaling to pixels at this DPI.
-fn scale(size: u32, dpi: u32) -> i32 {
-    (size * dpi).div_ceil(USER_DEFAULT_SCREEN_DPI as u32) as i32
-}
-
-// Where the window goes on a display when it's Windowed: centered in the
-// display's work area, with a client area of `size` at 100% scaling,
-// but no smaller than the panels need, and no bigger than the work area.
-unsafe fn windowed_area(display: &Display, size: [u32; 2]) -> Result<RECT> {
-    let [width, height] = size.map(|size| scale(size, display.dpi));
-    let mut area = RECT {
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: height,
-    };
-    unsafe {
-        AdjustWindowRectExForDpi(&mut area, WS_OVERLAPPEDWINDOW as u32, false, 0, display.dpi)
-    }
-    .ok()?;
-    let [minimum_width, minimum_height] = MINIMUM_WINDOW_SIZE.map(|size| scale(size, display.dpi));
-    let work = display.work_area;
-    let width = (area.right - area.left)
-        .max(minimum_width)
-        .min(work.right - work.left);
-    let height = (area.bottom - area.top)
-        .max(minimum_height)
-        .min(work.bottom - work.top);
-    let left = work.left + (work.right - work.left - width) / 2;
-    let top = work.top + (work.bottom - work.top - height) / 2;
-    Ok(RECT {
-        left,
-        top,
-        right: left + width,
-        bottom: top + height,
-    })
 }
 
 // The display that the window is mostly on, for the footer, like
@@ -334,7 +271,8 @@ fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) -> Argume
 
 fn main() -> Result<()> {
     unsafe {
-        // Without this, Windows bitmap-stretches the window on high-DPI displays.
+        // So that GetDpiForWindow says the monitor's real DPI, which
+        // WindowCheck needs, instead of 96 in a window that Windows stretches.
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2).ok()?;
         // Windows lowers the quality of service of a process whose windows
         // aren't in focus, which on a CPU with efficiency cores can move its
@@ -403,22 +341,21 @@ fn main() -> Result<()> {
             .ok_or_else(|| Error::new(E_FAIL, "Windows reports no displays"))?;
 
         // The window stays hidden until it's in its place, and the renderer
-        // is ready to draw into it. A Maximized window is maximized while
-        // it's hidden, so that showing it doesn't have to activate it.
-        let area = windowed_area(display, settings.window_size)?;
-        let mut style = WS_OVERLAPPEDWINDOW as u32;
-        if settings.window_mode == WindowMode::Maximized {
-            style |= WS_MAXIMIZE as u32;
-        }
+        // is ready to draw into it. It's maximized while it's hidden, so that
+        // showing it doesn't have to activate it. Restored, it's half the
+        // work area's size in its middle, which the demo doesn't support, so
+        // it says so.
+        let work = display.work_area;
+        let (width, height) = ((work.right - work.left) / 2, (work.bottom - work.top) / 2);
         let window = CreateWindowExW(
             0,
             class_name,
             w!("GameInput Demo"),
-            style,
-            area.left,
-            area.top,
-            area.right - area.left,
-            area.bottom - area.top,
+            (WS_OVERLAPPEDWINDOW | WS_MAXIMIZE) as u32,
+            work.left + width / 2,
+            work.top + height / 2,
+            width,
+            height,
             None,
             None,
             Some(instance),
@@ -430,7 +367,6 @@ fn main() -> Result<()> {
         if settings.window_mode == WindowMode::BorderlessFullscreen {
             toggle_fullscreen(window, &mut windowed)?;
         }
-        DPI.store(GetDpiForWindow(window), Ordering::Relaxed);
         // Cosmetic, so a failure doesn't matter.
         let dark = windows_core::BOOL(1);
         let _ = DwmSetWindowAttribute(
@@ -440,7 +376,7 @@ fn main() -> Result<()> {
             size_of::<windows_core::BOOL>() as u32,
         );
 
-        let mut font = Font::new(scale(FONT_SIZE, DPI.load(Ordering::Relaxed)))?;
+        let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window, &font, settings.allow_tearing)?;
         // The title bar says how frames are presented, as it affects latency.
         let mut title = format!("GameInput Demo - {}", renderer.adapter_name);
@@ -473,7 +409,10 @@ fn main() -> Result<()> {
             .map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
-        let mut display = display_label(window, &displays);
+        let mut display = String::new();
+        // What's wrong with the window's setup, if it isn't one of the two
+        // that the demo supports. Then the window shows only that.
+        let mut window_problems = Vec::new();
         // Where clicks do something in the last frame drawn, and whether the
         // gamepad select box's list is open.
         let mut targets = panels::Targets::default();
@@ -491,10 +430,6 @@ fn main() -> Result<()> {
                 DispatchMessageW(&message);
             }
 
-            if DPI_CHANGED.swap(false, Ordering::Relaxed) {
-                font = Font::new(scale(FONT_SIZE, DPI.load(Ordering::Relaxed)))?;
-                renderer.set_font(&font)?;
-            }
             if RESIZED.swap(false, Ordering::Relaxed) {
                 renderer.resize(
                     CLIENT_WIDTH.load(Ordering::Relaxed),
@@ -506,10 +441,10 @@ fn main() -> Result<()> {
                 if let Ok(list) = displays::enumerate() {
                     displays = list;
                 }
-                MOVED.store(true, Ordering::Relaxed);
             }
-            if MOVED.swap(false, Ordering::Relaxed) {
+            if WINDOW_CHANGED.swap(false, Ordering::Relaxed) {
                 display = display_label(window, &displays);
+                window_problems = window_check::problems(window);
             }
 
             if IsIconic(window).as_bool() {
@@ -561,6 +496,7 @@ fn main() -> Result<()> {
                 frames: &frames,
                 display: &display,
                 notices: &notices,
+                window_problems: &window_problems,
                 cursor: unpack_point(CURSOR.load(Ordering::Relaxed)),
                 picker_open,
             };

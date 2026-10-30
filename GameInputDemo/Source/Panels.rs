@@ -1,5 +1,8 @@
-// Lays out and draws the demo's panels onto a Canvas. Sizes come from the
-// font's cell size, so the layout scales with the monitor's DPI.
+// Lays out and draws the demo's panels onto a Canvas. The demo only supports
+// two client areas, 2560 x 1369 when maximized and 2560 x 1440 in borderless
+// fullscreen (see WindowCheck.rs), so the panels have fixed places in pixels.
+// The bottom row and the log are taller in fullscreen, and the footer stays
+// at the bottom.
 
 use std::collections::VecDeque;
 
@@ -22,6 +25,31 @@ const PRESSED: Color = Color::rgb(0x3DDC84);
 const PRESSED_TEXT: Color = Color::rgb(0x0B2414);
 const WARNING: Color = Color::rgb(0xFFCC66);
 const ERROR: Color = Color::rgb(0xFF6B6B);
+
+// The layout, in pixels. Three columns: the gamepad over the keyboard and
+// mouse, the latest event over the devices, and the log.
+const MARGIN: f32 = 16.0;
+// Around the header's and footer's text.
+const EDGE: f32 = 12.0;
+// Inside a panel, around its contents.
+const PADDING: f32 = 12.0;
+// The header has a title, a status line, and room for this many lines of
+// notices, so the panels start at the same place whether there are any.
+const NOTICE_LINES: usize = 2;
+const PANELS_TOP: f32 = 96.0;
+const GAMEPAD_X: f32 = MARGIN;
+const GAMEPAD_WIDTH: f32 = 980.0;
+const LATEST_X: f32 = GAMEPAD_X + GAMEPAD_WIDTH + MARGIN;
+const LATEST_WIDTH: f32 = 640.0;
+const LOG_X: f32 = LATEST_X + LATEST_WIDTH + MARGIN;
+const KEYBOARD_WIDTH: f32 = (GAMEPAD_WIDTH - MARGIN) / 2.0;
+const MOUSE_X: f32 = GAMEPAD_X + KEYBOARD_WIDTH + MARGIN;
+const MOUSE_WIDTH: f32 = GAMEPAD_WIDTH - KEYBOARD_WIDTH - MARGIN;
+// The stick graphs are square, and the trigger bars as tall.
+const STICK_GRAPH_SIZE: f32 = 400.0;
+const TRIGGER_BAR_WIDTH: f32 = 40.0;
+const GAMEPAD_GAP: f32 = 24.0;
+const MOUSE_PAD_SIZE: f32 = 200.0;
 
 #[derive(Clone, Copy)]
 struct Rect {
@@ -143,6 +171,9 @@ pub struct Status<'a> {
     pub display: &'a str,
     // Problems with how the demo was started, one per paragraph.
     pub notices: &'a [String],
+    // What's wrong with the window's setup, if it isn't one of the two that
+    // the demo supports. Then only these are drawn.
+    pub window_problems: &'a [String],
     // Where the mouse cursor is in the window, if it's over the window.
     pub cursor: Option<[f32; 2]>,
     // Whether the gamepad select box's list is open.
@@ -157,12 +188,15 @@ pub fn draw(
     width: f32,
     height: f32,
 ) -> Targets {
+    if !status.window_problems.is_empty() {
+        draw_window_problems(canvas, status.window_problems, width);
+        return Targets::default();
+    }
     let line_height = canvas.line_height();
     let char_width = canvas.char_width();
-    let margin = (line_height * 0.6).round();
+    let margin = EDGE;
     let frames = status.frames;
     let focused = status.focused;
-
     // Header and footer.
     let mut x = canvas.text(margin, margin, "GameInput Demo", TITLE);
     canvas.text(
@@ -234,15 +268,26 @@ pub fn draw(
         if focused { PRESSED } else { WARNING },
     );
 
-    // Notices go under the status, wrapped to the window's width.
-    let mut header_bottom = status_y + line_height;
-    let columns = ((width - margin * 2.0) / char_width).floor().max(8.0) as usize;
+    // Notices go under the status, wrapped to the window's width, in the
+    // lines the header has for them.
+    let mut lines = Vec::new();
+    let columns = ((width - margin * 2.0) / char_width).floor() as usize;
     for notice in status.notices {
-        for (index, line) in wrap(notice, columns, 2).iter().enumerate() {
-            let indent = if index == 0 { "" } else { "  " };
-            canvas.text(margin, header_bottom, &format!("{indent}{line}"), WARNING);
-            header_bottom += line_height;
+        for (index, line) in wrap(notice, columns, 2).into_iter().enumerate() {
+            lines.push(if index == 0 {
+                line
+            } else {
+                format!("  {line}")
+            });
         }
+    }
+    if lines.len() > NOTICE_LINES {
+        lines.truncate(NOTICE_LINES);
+        lines[NOTICE_LINES - 1] += " ...";
+    }
+    for (index, line) in lines.iter().enumerate() {
+        let y = status_y + line_height * (index + 1) as f32;
+        canvas.text_clipped(margin, y, line, width - margin * 2.0, WARNING);
     }
 
     // The display goes on the right of the footer.
@@ -264,109 +309,66 @@ pub fn draw(
         DIM,
     );
 
-    let top = margin + header_bottom;
     let bottom = footer_y - margin;
     let Ok(input) = input else {
         return Targets::default();
     };
 
-    // Columns: gamepad, keyboard and mouse on the left; the latest event and
-    // the devices on the right; the log across the bottom.
-    let right_width = (width * 0.36).clamp(char_width * 40.0, char_width * 72.0);
-    let left_width = width - margin * 3.0 - right_width;
-    let right_x = margin * 2.0 + left_width;
-    let padding = (line_height * 0.5).round();
-    // A panel's padding above and below, and its title.
-    let title_height = padding * 2.0 + line_height * 1.4;
-
-    // Rows are as tall as their contents, including however many rows of
-    // chips the width needs. The stick graphs grow into the space that's
-    // left, and the log gets the rest.
+    // The gamepad panel is as tall as its contents: captions, the graphs,
+    // two lines of values, the chips and a status line. The latest event
+    // panel beside it is as tall. The rows under them, and the log, go down
+    // to the footer.
     let gamepad_names: Vec<&str> = GAMEPAD_BUTTONS.iter().map(|(_, name)| *name).collect();
-    let (_, gamepad_chips) = chip_layout(canvas, left_width - padding * 2.0, &gamepad_names);
-    // Captions, two lines of values and a status line, around the graphs and chips.
-    let gamepad_height_without_graph = title_height + line_height * 4.6 + padding + gamepad_chips;
-
-    let keyboard_width = ((left_width - margin) * 0.45).floor();
-    let mouse_width = left_width - margin - keyboard_width;
-    let mouse_names: Vec<&str> = MOUSE_BUTTONS.iter().map(|(_, name)| *name).collect();
-    let (_, mouse_chips) = chip_layout(
-        canvas,
-        mouse_text_width(mouse_width - padding * 2.0, line_height, padding),
-        &mouse_names,
+    let (_, gamepad_chips) = chip_layout(canvas, GAMEPAD_WIDTH - PADDING * 2.0, &gamepad_names);
+    let title_height = PADDING * 2.0 + line_height * 1.4;
+    let gamepad_height =
+        title_height + line_height * 4.6 + PADDING + gamepad_chips + STICK_GRAPH_SIZE;
+    let gamepad_area = Rect::new(GAMEPAD_X, PANELS_TOP, GAMEPAD_WIDTH, gamepad_height);
+    let lower_y = gamepad_area.bottom() + MARGIN;
+    let lower_height = bottom - lower_y;
+    let keyboard_area = Rect::new(GAMEPAD_X, lower_y, KEYBOARD_WIDTH, lower_height);
+    let mouse_area = Rect::new(MOUSE_X, lower_y, MOUSE_WIDTH, lower_height);
+    let latest_area = Rect::new(LATEST_X, PANELS_TOP, LATEST_WIDTH, gamepad_height);
+    let devices_area = Rect::new(LATEST_X, lower_y, LATEST_WIDTH, lower_height);
+    let log_area = Rect::new(
+        LOG_X,
+        PANELS_TOP,
+        width - MARGIN - LOG_X,
+        bottom - PANELS_TOP,
     );
-    // The mouse's chips, four lines of values and a status line, or its
-    // motion pad and caption, whichever is taller.
-    let middle_height = title_height + (mouse_chips + line_height * 5.2).max(line_height * 6.1);
-
-    let bar_width = (char_width * 5.0).round();
-    let inner_gap = padding * 2.0;
-    let available = bottom - top;
-    let log_minimum = title_height + line_height * 3.0;
-    let graph_by_width = (left_width - padding * 2.0 - bar_width * 2.0 - inner_gap * 3.0) / 2.0;
-    let graph_by_height =
-        (available - gamepad_height_without_graph - middle_height - margin * 2.0 - log_minimum)
-            .min(available * 0.3);
-    // At least wide enough for the values under it, like "x +0.000  y +0.000".
-    let graph = graph_by_width
-        .min(graph_by_height)
-        .clamp(char_width * 16.0, line_height * 14.0)
-        .floor();
-
-    let gamepad_height = gamepad_height_without_graph + graph;
-    let gamepad_area = Rect::new(margin, top, left_width, gamepad_height);
-    let middle_y = gamepad_area.bottom() + margin;
-    let keyboard_area = Rect::new(margin, middle_y, keyboard_width, middle_height);
-    let mouse_area = Rect::new(
-        margin * 2.0 + keyboard_width,
-        middle_y,
-        mouse_width,
-        middle_height,
-    );
-    let latest_area = Rect::new(right_x, top, right_width, gamepad_height);
-    let devices_area = Rect::new(right_x, middle_y, right_width, middle_height);
-    let log_y = middle_y + middle_height + margin;
-    let log_area = Rect::new(margin, log_y, width - margin * 2.0, bottom - log_y);
 
     let mut targets = Targets::default();
-    let picker = draw_gamepad(
-        canvas,
-        input,
-        status,
-        gamepad_area,
-        padding,
-        graph,
-        bar_width,
-        inner_gap,
-    );
+    let picker = draw_gamepad(canvas, input, status, gamepad_area);
     targets.0.push((picker, Click::Picker));
-    draw_latest(canvas, input, latest_area, padding);
-    draw_keyboard(canvas, input, keyboard_area, padding);
-    draw_mouse(canvas, input, mouse_area, padding);
-    draw_devices(canvas, input, devices_area, padding);
-    if log_area.height > line_height * 2.0 {
-        draw_log(canvas, input, log_area, padding);
-    }
+    draw_latest(canvas, input, latest_area);
+    draw_keyboard(canvas, input, keyboard_area);
+    draw_mouse(canvas, input, mouse_area);
+    draw_devices(canvas, input, devices_area);
+    draw_log(canvas, input, log_area);
     // Last, so the list covers the panels under it.
     if status.picker_open {
-        draw_picker_list(canvas, input, status, picker, width - margin, &mut targets);
+        draw_picker_list(canvas, input, status, picker, width - MARGIN, &mut targets);
     }
     targets
 }
 
-// Draws a panel's background and title, and returns the area under the title.
-fn panel(canvas: &mut Canvas, area: Rect, padding: f32, title: &str, subtitle: &str) -> Rect {
-    panel_with(canvas, area, padding, title, subtitle, DIM)
+// Instead of the panels, when the window isn't in a supported setup.
+fn draw_window_problems(canvas: &mut Canvas, problems: &[String], width: f32) {
+    let line_height = canvas.line_height();
+    let area = Rect::new(MARGIN, MARGIN, width - MARGIN * 2.0, f32::INFINITY);
+    let mut lines = Lines::new(area, line_height);
+    lines.line(canvas, "Unsupported window", ERROR);
+    lines.gap(0.5);
+    lines.wrapped(canvas, crate::window_check::SUPPORTED, "", TEXT);
+    lines.gap(0.5);
+    for problem in problems {
+        lines.wrapped(canvas, &format!("- {problem}"), "  ", WARNING);
+    }
 }
 
-fn panel_with(
-    canvas: &mut Canvas,
-    area: Rect,
-    padding: f32,
-    title: &str,
-    subtitle: &str,
-    color: Color,
-) -> Rect {
+// Draws a panel's background and title, and returns the area under the title.
+fn panel(canvas: &mut Canvas, area: Rect, title: &str, subtitle: &str) -> Rect {
+    let padding = PADDING;
     canvas.rect(area.x, area.y, area.width, area.height, PANEL);
     canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
     let x = canvas.text(area.x + padding, area.y + padding, title, TITLE);
@@ -376,7 +378,7 @@ fn panel_with(
             area.y + padding,
             &format!("  {subtitle}"),
             area.right() - padding - x,
-            color,
+            DIM,
         );
     }
     let top = area.y + padding + canvas.line_height() * 1.4;
@@ -389,20 +391,12 @@ fn panel_with(
 }
 
 // Returns the area of the select box for which gamepad to listen to.
-fn draw_gamepad(
-    canvas: &mut Canvas,
-    input: &Input,
-    status: &Status,
-    area: Rect,
-    padding: f32,
-    graph: f32,
-    bar_width: f32,
-    gap: f32,
-) -> Rect {
+fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect) -> Rect {
     let view = &input.gamepad;
     let line_height = canvas.line_height();
-    let inner = panel(canvas, area, padding, "Gamepad", "");
-    let picker = draw_picker_box(canvas, input, status, area, padding);
+    let (graph, bar_width, gap) = (STICK_GRAPH_SIZE, TRIGGER_BAR_WIDTH, GAMEPAD_GAP);
+    let inner = panel(canvas, area, "Gamepad", "");
+    let picker = draw_picker_box(canvas, input, status, area);
     let state = &view.state;
 
     // Stick graphs and trigger bars, with a caption above and values below.
@@ -480,7 +474,7 @@ fn draw_gamepad(
     );
 
     // A chip per button. Buttons the gamepad says it lacks are faint.
-    let chips_y = values_y + line_height * 2.0 + padding;
+    let chips_y = values_y + line_height * 2.0 + PADDING;
     let chips_area = Rect::new(
         inner.x,
         chips_y,
@@ -512,13 +506,8 @@ fn draw_gamepad(
 
 // The select box after the gamepad panel's title, which shows which gamepads
 // the demo listens to, and after it, what the panel shows. Returns its area.
-fn draw_picker_box(
-    canvas: &mut Canvas,
-    input: &Input,
-    status: &Status,
-    area: Rect,
-    padding: f32,
-) -> Rect {
+fn draw_picker_box(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect) -> Rect {
+    let padding = PADDING;
     let line_height = canvas.line_height();
     let char_width = canvas.char_width();
     let text_y = area.y + padding;
@@ -807,9 +796,10 @@ fn chips(canvas: &mut Canvas, area: Rect, items: &[(&str, bool, bool)]) -> f32 {
     height
 }
 
-fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
+fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect) {
+    let padding = PADDING;
     let line_height = canvas.line_height();
-    let inner = panel(canvas, area, padding, "Latest input event", "");
+    let inner = panel(canvas, area, "Latest input event", "");
     // A text box: an inset area that holds the description.
     canvas.rect(inner.x, inner.y, inner.width, inner.height, PLOT);
     canvas.rect_outline(inner.x, inner.y, inner.width, inner.height, 1.0, BORDER);
@@ -871,10 +861,10 @@ fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     }
 }
 
-fn draw_keyboard(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
+fn draw_keyboard(canvas: &mut Canvas, input: &Input, area: Rect) {
     let view = &input.keyboard;
     let line_height = canvas.line_height();
-    let inner = panel(canvas, area, padding, "Keyboard", &view.label);
+    let inner = panel(canvas, area, "Keyboard", &view.label);
     let mut lines = Lines::new(
         Rect::new(inner.x, inner.y, inner.width, inner.height - line_height),
         line_height,
@@ -909,16 +899,14 @@ fn draw_keyboard(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     );
 }
 
-fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
+fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
     let view = &input.mouse;
     let state = &view.state;
     let line_height = canvas.line_height();
-    let inner = panel(canvas, area, padding, "Mouse", &view.label);
+    let inner = panel(canvas, area, "Mouse", &view.label);
 
     // Raw relative motion, without the pointer acceleration the cursor has.
-    let pad_size = mouse_pad_size(inner.width, line_height)
-        .min(inner.height - line_height * 1.1)
-        .floor();
+    let pad_size = MOUSE_PAD_SIZE;
     let pad_area = Rect::new(
         inner.right() - pad_size,
         inner.y + line_height * 1.1,
@@ -938,7 +926,7 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     let text_area = Rect::new(
         inner.x,
         inner.y,
-        inner.width - pad_size - padding,
+        inner.width - pad_size - PADDING,
         inner.height - line_height,
     );
     let buttons: Vec<_> = MOUSE_BUTTONS
@@ -994,23 +982,11 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     );
 }
 
-// The mouse panel's motion pad is at most 5 lines tall, so that the panel
-// isn't taller than its values need.
-fn mouse_pad_size(inner_width: f32, line_height: f32) -> f32 {
-    (inner_width * 0.4).min(line_height * 5.0).floor()
-}
-
-// The width beside the motion pad, for the mouse's chips and values.
-fn mouse_text_width(inner_width: f32, line_height: f32, padding: f32) -> f32 {
-    inner_width - mouse_pad_size(inner_width, line_height) - padding
-}
-
-fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
+fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect) {
     let line_height = canvas.line_height();
     let inner = panel(
         canvas,
         area,
-        padding,
         "Devices",
         &format!("{} connected", input.devices.len()),
     );
@@ -1055,12 +1031,11 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
     }
 }
 
-fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect, padding: f32) {
+fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect) {
     let line_height = canvas.line_height();
     let inner = panel(
         canvas,
         area,
-        padding,
         "Event log",
         "newest first; repeated motion from one device shares a line",
     );

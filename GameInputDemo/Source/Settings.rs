@@ -4,9 +4,7 @@
 //
 //     {
 //         "Display": "Primary",
-//         "WindowMode": "Windowed",
-//         "WindowWidth": 1280,
-//         "WindowHeight": 900,
+//         "WindowMode": "Maximized",
 //         "AllowTearing": true,
 //         "RumbleTestInnerDeadZone": 0.1
 //     }
@@ -19,26 +17,21 @@ use std::path::{Path, PathBuf};
 
 use crate::json::{self, Value};
 
+// The only two window setups the demo supports. See WindowCheck.rs.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {
-    Windowed,
     Maximized,
     // A window without a frame that covers its display, for the lowest
-    // latency. F11 switches between it and the others.
+    // latency. F11 switches between it and Maximized.
     BorderlessFullscreen,
 }
 
 impl WindowMode {
-    const ALL: [WindowMode; 3] = [
-        WindowMode::Windowed,
-        WindowMode::Maximized,
-        WindowMode::BorderlessFullscreen,
-    ];
+    const ALL: [WindowMode; 2] = [WindowMode::Maximized, WindowMode::BorderlessFullscreen];
 
     // As the settings file names it.
     fn name(self) -> &'static str {
         match self {
-            WindowMode::Windowed => "Windowed",
             WindowMode::Maximized => "Maximized",
             WindowMode::BorderlessFullscreen => "BorderlessFullscreen",
         }
@@ -50,8 +43,6 @@ pub struct Settings {
     // it, or None for the primary display, which the file calls "Primary".
     pub display: Option<String>,
     pub window_mode: WindowMode,
-    // The window's client area at 100% scaling, when it's Windowed.
-    pub window_size: [u32; 2],
     // Whether frames may tear, which lets them reach the screen mid-refresh,
     // if the GPU's driver allows it.
     pub allow_tearing: bool,
@@ -64,8 +55,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             display: None,
-            window_mode: WindowMode::Windowed,
-            window_size: [1280, 900],
+            window_mode: WindowMode::Maximized,
             allow_tearing: true,
             rumble_dead_zone: 0.1,
         }
@@ -132,14 +122,12 @@ impl Settings {
                         .find(|mode| mode.name().eq_ignore_ascii_case(text));
                     self.window_mode = mode.ok_or_else(|| {
                         format!(
-                            "must be \"Windowed\", \"Maximized\" or \"BorderlessFullscreen\", not {}",
+                            "must be \"Maximized\" or \"BorderlessFullscreen\", not {}",
                             value.describe()
                         )
                     })?;
                     Ok(())
                 }),
-                "WindowWidth" => size(value).map(|width| self.window_size[0] = width),
-                "WindowHeight" => size(value).map(|height| self.window_size[1] = height),
                 "AllowTearing" => match value {
                     Value::Bool(allow) => {
                         self.allow_tearing = *allow;
@@ -159,9 +147,11 @@ impl Settings {
                         value.describe()
                     )),
                 },
-                _ => Err("isn't a setting. The settings are Display, WindowMode, WindowWidth, \
-                          WindowHeight, AllowTearing and RumbleTestInnerDeadZone."
-                    .to_string()),
+                _ => Err(
+                    "isn't a setting. The settings are Display, WindowMode, AllowTearing \
+                          and RumbleTestInnerDeadZone."
+                        .to_string(),
+                ),
             };
             if let Err(problem) = result {
                 problems.push(format!("{name} {problem}"));
@@ -189,15 +179,11 @@ fn write_defaults(path: &Path) -> std::io::Result<()> {
         r#"{{
     "Display": "Primary",
     "WindowMode": "{}",
-    "WindowWidth": {},
-    "WindowHeight": {},
     "AllowTearing": {},
     "RumbleTestInnerDeadZone": {}
 }}
 "#,
         defaults.window_mode.name(),
-        defaults.window_size[0],
-        defaults.window_size[1],
         defaults.allow_tearing,
         defaults.rumble_dead_zone
     );
@@ -208,18 +194,5 @@ fn string(value: &Value) -> Result<&str, String> {
     match value {
         Value::String(text) => Ok(text),
         _ => Err(format!("must be a string, not {}", value.describe())),
-    }
-}
-
-// A window dimension, in pixels at 100% scaling.
-fn size(value: &Value) -> Result<u32, String> {
-    match value {
-        Value::Number(number) if number.fract() == 0.0 && (1.0..=16384.0).contains(number) => {
-            Ok(*number as u32)
-        }
-        _ => Err(format!(
-            "must be a whole number from 1 to 16384, not {}",
-            value.describe()
-        )),
     }
 }

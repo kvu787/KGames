@@ -8,10 +8,11 @@
 // in Source/GameInput.rs instead.
 
 // Window and message loop
-AdjustWindowRectExForDpi
+ClientToScreen
 CreateWindowExW
 DefWindowProcW
 DispatchMessageW
+GetClientRect
 GetDpiForWindow
 GetForegroundWindow
 GetModuleHandleW
@@ -19,6 +20,7 @@ GetMonitorInfoW
 GetWindowLongPtrW
 GetWindowPlacement
 IsIconic
+IsZoomed
 LoadCursorW
 MonitorFromWindow
 PeekMessageW
@@ -51,9 +53,9 @@ USER_DEFAULT_SCREEN_DPI
 WM_DESTROY
 WM_DISPLAYCHANGE
 WM_DPICHANGED
-WM_GETMINMAXINFO
 WM_MOVE
 WM_QUIT
+WM_SETTINGCHANGE
 WM_SIZE
 WM_SYSCOMMAND
 WS_CAPTION
@@ -61,7 +63,6 @@ WS_MAXIMIZE
 WS_OVERLAPPEDWINDOW
 WS_POPUP
 WS_VISIBLE
-MINMAXINFO
 MONITORINFO
 RECT
 WINDOWPLACEMENT

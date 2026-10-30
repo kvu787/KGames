@@ -333,7 +333,7 @@ impl Renderer {
     }
 
     // Uploads the font's atlas into a new texture and points the shader at it.
-    pub unsafe fn set_font(&mut self, font: &Font) -> Result<()> {
+    unsafe fn set_font(&mut self, font: &Font) -> Result<()> {
         unsafe {
             // The GPU might still be drawing with the old atlas.
             self.discard_frame()?;

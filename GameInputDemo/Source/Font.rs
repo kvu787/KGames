@@ -1,6 +1,6 @@
 // Rasterizes a monospaced font into a texture atlas with GDI, so the renderer
-// can draw text as textured quads without a font library. It runs at startup
-// and again when the window moves to a monitor with a different DPI.
+// can draw text as textured quads without a font library. It runs once, at
+// startup: the demo only supports 100% scaling, so the font never changes size.
 
 use crate::bindings::*;
 use windows_core::{Error, Result, w};

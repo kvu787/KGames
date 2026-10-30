@@ -1,18 +1,12 @@
 #[inline]
-pub unsafe fn AdjustWindowRectExForDpi(
-    lprect: *mut RECT,
-    dwstyle: u32,
-    bmenu: bool,
-    dwexstyle: u32,
-    dpi: u32,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn AdjustWindowRectExForDpi(lprect : *mut RECT, dwstyle : u32, bmenu : windows_core::BOOL, dwexstyle : u32, dpi : u32) -> windows_core::BOOL);
-    unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
-}
-#[inline]
 pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
     windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
     unsafe { BeginPaint(hwnd, lppaint as _) }
+}
+#[inline]
+pub unsafe fn ClientToScreen(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ClientToScreen(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
+    unsafe { ClientToScreen(hwnd, lppoint as _) }
 }
 #[inline]
 pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
@@ -272,6 +266,11 @@ pub unsafe fn GdiFlush() -> windows_core::BOOL {
     unsafe { GdiFlush() }
 }
 #[inline]
+pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
+    unsafe { GetClientRect(hwnd, lprect as _) }
+}
+#[inline]
 pub unsafe fn GetCurrentProcess() -> HANDLE {
     windows_core::link!("kernel32.dll" "system" fn GetCurrentProcess() -> HANDLE);
     unsafe { GetCurrentProcess() }
@@ -423,6 +422,11 @@ pub unsafe fn GetWindowPlacement(hwnd: HWND, lpwndpl: *mut WINDOWPLACEMENT) -> w
 pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
     unsafe { IsIconic(hwnd) }
+}
+#[inline]
+pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn IsZoomed(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { IsZoomed(hwnd) }
 }
 #[inline]
 pub unsafe fn LoadCursorW<P1>(hinstance: Option<HINSTANCE>, lpcursorname: P1) -> HCURSOR
@@ -5955,15 +5959,6 @@ pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
 pub const MDT_RAW_DPI: MONITOR_DPI_TYPE = 2;
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct MINMAXINFO {
-    pub ptReserved: POINT,
-    pub ptMaxSize: POINT,
-    pub ptMaxPosition: POINT,
-    pub ptMinTrackSize: POINT,
-    pub ptMaxTrackSize: POINT,
-}
 pub type MONITORENUMPROC = Option<
     unsafe extern "system" fn(
         param0: HMONITOR,
@@ -6156,7 +6151,6 @@ pub struct WINDOWPLACEMENT {
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
-pub const WM_GETMINMAXINFO: i32 = 36;
 pub const WM_KEYDOWN: i32 = 256;
 pub const WM_LBUTTONDOWN: i32 = 513;
 pub const WM_MOUSELEAVE: i32 = 675;
@@ -6165,6 +6159,7 @@ pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;
 pub const WM_RBUTTONDOWN: i32 = 516;
+pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
 pub const WM_SYSCOMMAND: i32 = 274;
 #[repr(C)]
