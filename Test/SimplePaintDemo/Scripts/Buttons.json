@@ -1,0 +1,14 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [1899.2, 331.2] },
+        { "Frame": 2, "Release": [1899.2, 331.2] },
+        { "Frame": 3, "Expect": { "Parameters": { "Shift": 0.6 } } },
+        { "Frame": 4, "Press": [1300, 555] },
+        { "Frame": 5, "Release": [1300, 555] },
+        { "Frame": 6, "Expect": { "Saved": true } },
+        { "Frame": 7, "Press": [1230, 555] },
+        { "Frame": 8, "Release": [1230, 555] },
+        { "Frame": 9, "Expect": { "Parameters": { "Shift": 0.0 }, "Saved": null } },
+        { "Frame": 9, "Capture": "AfterReset" }
+    ]
+}

@@ -1,26 +1,15 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "Editor.rs"]
-mod editor;
-#[path = "Panels.rs"]
-mod panels;
-#[path = "Preview.rs"]
-mod preview;
-
 use std::path::Path;
 
 use application::{Arguments, FrameCounter, Settings, Window};
 use canvas::{Canvas, Font, theme};
-use editor::{Action, Editor};
 use graphics::Renderer;
-use preview::{IMAGE_SIZE, Preview};
+use simple_paint_demo::editor::{self, Action, Editor};
+use simple_paint_demo::preview::{IMAGE_SIZE, Preview};
+use simple_paint_demo::{FONT_SIZE, NAME, panels};
 use windows_core::Result;
-
-const NAME: &str = "SimplePaint Demo";
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-const FONT_SIZE: i32 = 15;
 
 fn main() -> Result<()> {
     unsafe {

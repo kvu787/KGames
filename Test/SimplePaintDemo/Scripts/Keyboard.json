@@ -1,0 +1,16 @@
+{
+    "Steps": [
+        { "Frame": 1, "Key": "Down" },
+        { "Frame": 1, "Key": "Down" },
+        { "Frame": 1, "Key": "Down" },
+        { "Frame": 1, "Key": "Down" },
+        { "Frame": 2, "Expect": { "Selected": "Shift" } },
+        { "Frame": 3, "Key": "Right" },
+        { "Frame": 3, "Key": "Right" },
+        { "Frame": 4, "Key": "Right", "Shift": true },
+        { "Frame": 5, "Expect": { "Parameters": { "Shift": 0.012 } } },
+        { "Frame": 6, "Key": "S", "Control": true },
+        { "Frame": 7, "Expect": { "Saved": true } },
+        { "Frame": 7, "Capture": "Saved" }
+    ]
+}

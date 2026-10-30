@@ -169,6 +169,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple_paint_demo_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "json",
+ "simple_paint",
+ "simple_paint_demo",
+]
+
+[[package]]
 name = "simple_paint_tests"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,22 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [1899.2, 331.2] },
+        { "Frame": 2, "Release": [1899.2, 331.2] },
+        { "Frame": 3, "Press": [1456.5, 375.2] },
+        { "Frame": 4, "Release": [1456.5, 375.2] },
+        { "Frame": 5, "Press": [1386.6, 419.2] },
+        { "Frame": 6, "Release": [1386.6, 419.2] },
+        { "Frame": 7, "Press": [2225.4, 463.2] },
+        { "Frame": 8, "Move": [2225.4, 600] },
+        { "Frame": 9, "Release": [2225.4, 600] },
+        {
+            "Frame": 10,
+            "Expect": {
+                "Parameters": { "Shift": 0.6, "RotationDegrees": 45.0, "DarkPoint": 0.05, "LightPoint": 0.95 },
+                "Selected": "Light Point",
+                "Constants": { "Warp": [0.70710677, -0.70710677, 0.5, 1.0] }
+            }
+        },
+        { "Frame": 10, "Capture": "ShiftedHighlight" }
+    ]
+}

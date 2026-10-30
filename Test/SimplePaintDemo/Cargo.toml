@@ -1,0 +1,16 @@
+[package]
+name = "simple_paint_demo_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Editor"
+path = "Editor.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+canvas = { path = "../../Library/Canvas" }
+json = { path = "../../Library/Json" }
+simple_paint = { path = "../../Library/SimplePaint" }
+simple_paint_demo = { path = "../../Program/SimplePaintDemo" }

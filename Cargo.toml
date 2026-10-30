@@ -29,4 +29,5 @@ members = [
     "Test/Json",
     "Test/Math",
     "Test/SimplePaint",
+    "Test/SimplePaintDemo",
 ]

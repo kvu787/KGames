@@ -1,0 +1,14 @@
+{
+    "FrameSeconds": 0.01,
+    "Steps": [
+        { "Frame": 1, "Capture": "Start" },
+        { "Frame": 2, "Move": [1806, 155] },
+        { "Frame": 3, "Press": [1806, 155] },
+        { "Frame": 4, "Expect": { "Parameters": { "BaseColor": [0.5, 0.223, 0.578] }, "Dragging": "R" } },
+        { "Frame": 5, "Move": [3000, 155] },
+        { "Frame": 6, "Expect": { "Parameters": { "BaseColor": [0.999, 0.223, 0.578] } } },
+        { "Frame": 7, "Release": [3000, 155] },
+        { "Frame": 8, "Expect": { "Dragging": null } },
+        { "Frame": 8, "Capture": "End" }
+    ]
+}
