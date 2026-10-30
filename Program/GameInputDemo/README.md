@@ -5,7 +5,8 @@ A Rust program that reads gamepads, keyboards and mice with Microsoft's
 API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
 It's built like [HelloDirect3D12](../HelloDirect3D12/README.md): no frameworks, and
-Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the only dependency.
+Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the only dependency
+besides the repo's own [Library](../../Library) crates.
 
 ## Supported window setups
 
@@ -349,17 +350,8 @@ There's no such way to test the gamepad panel. The virtual gamepad that Windows'
 
 ## Using more APIs
 
-For Windows APIs, which `windows-bindgen` generates:
-
-1. Add the API's native name to `BindingsGenerator/Filters.txt`.
-   For a method that an interface inherits, name the base interface, like `IDXGISwapChain::Present`.
-2. Regenerate `Source/Bindings.rs`:
-
-   ```powershell
-   cargo run --manifest-path BindingsGenerator/Cargo.toml
-   ```
-
-3. Commit `Filters.txt` and `Bindings.rs` together.
+For Windows APIs, which `windows-bindgen` generates, see
+[Library/WindowsApi](../../Library/WindowsApi/README.md).
 
 For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the method's
 `usize` placeholder in the vtable with its function pointer type, and add a method that calls it.
@@ -381,11 +373,8 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
 | `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with DirectWrite                        |
 | `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
-| `Source/Bindings.rs`               | Generated Windows API bindings; don't edit by hand                               |
 | `Shaders/Canvas.hlsl`              | Vertex and pixel shaders, plus the embedded root signature                       |
 | `Build.rs`                         | Compiles the shaders, and fetches and deploys the GameInput runtime              |
-| `BindingsGenerator/Filters.txt`    | The Windows APIs to generate bindings for                                        |
-| `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |

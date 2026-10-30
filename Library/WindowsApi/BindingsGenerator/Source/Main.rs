@@ -1,9 +1,9 @@
 // Regenerates Source/Bindings.rs from the API names listed in Filters.txt.
-// Run it from the GameInputDemo folder after changing Filters.txt:
+// Run it from the WindowsApi folder after changing Filters.txt:
 //
 //     cargo run --manifest-path BindingsGenerator/Cargo.toml
 //
-// The generated file is committed, so building the game doesn't need this tool.
+// The generated file is committed, so building the programs doesn't need this tool.
 
 use std::path::Path;
 

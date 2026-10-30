@@ -10,7 +10,7 @@
 // and a monitor keeps its identifier across restarts, but gets a new one if
 // it's plugged into another output.
 
-use crate::bindings::*;
+use windows_api::*;
 use windows_core::{BOOL, Result};
 
 // Crockford's Base32 alphabet. It leaves out I, L, O and U, so an identifier

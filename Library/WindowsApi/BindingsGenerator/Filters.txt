@@ -1,11 +1,11 @@
-// Windows APIs that GameInputDemo uses, one native name per line.
+// Windows APIs that KGames uses, one native name per line.
 // Types needed by these signatures are included automatically.
 // An enum type name brings in all of its values.
 // An interface name brings in all of its own methods, but not the methods it
 // inherits. Select those from the base interface, like IDXGISwapChain::Present.
 //
 // GameInput isn't in the Windows metadata, so its bindings are written by hand
-// in Source/GameInput.rs instead.
+// in Library/GameInput instead.
 
 // Window and message loop
 ClientToScreen

@@ -3,7 +3,7 @@
 // once, at startup: the demo only supports 100% scaling, so the font never
 // changes size.
 
-use crate::bindings::*;
+use windows_api::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
 const COLUMNS: u32 = 16;

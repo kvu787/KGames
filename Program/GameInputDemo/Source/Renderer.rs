@@ -10,7 +10,7 @@
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
 
-use crate::bindings::*;
+use windows_api::*;
 use crate::canvas::Vertex;
 use crate::font::Font;
 use windows_core::{Error, Interface, PCWSTR, Result, s};

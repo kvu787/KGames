@@ -9,7 +9,7 @@
 //
 // Anything else gets an error in the window instead of the panels.
 
-use crate::bindings::*;
+use windows_api::*;
 
 pub const MONITOR_SIZE: [i32; 2] = [2560, 1440];
 pub const WORK_AREA_SIZE: [i32; 2] = [2560, 1392];

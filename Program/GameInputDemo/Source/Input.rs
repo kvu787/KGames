@@ -11,7 +11,7 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use crate::bindings::*;
+use windows_api::*;
 use crate::game_input::*;
 use windows_core::{Interface, Result};
 

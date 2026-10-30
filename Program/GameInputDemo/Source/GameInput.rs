@@ -10,7 +10,7 @@
 use core::ffi::c_void;
 use std::path::{Path, PathBuf};
 
-use crate::bindings::*;
+use windows_api::*;
 use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s, w};
 
 pub type GameInputKind = i32;
