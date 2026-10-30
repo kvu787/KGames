@@ -10,6 +10,8 @@ Currently, I plan to develop the latest versions of Veehiicuul and Automatou in 
   - Jitters
 - Implement in-app frame rate limiter
 - Implement vsync option
+- Implement a scene that displays nothing or almost nothing to measure base fps
+- Figure out how to design or constrain UI
 
 # Motivation
 
