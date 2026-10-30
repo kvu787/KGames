@@ -95,6 +95,28 @@ name = "shader_compiler"
 version = "0.1.0"
 
 [[package]]
+name = "simple_paint"
+version = "0.1.0"
+dependencies = [
+ "graphics",
+ "math",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
+name = "simple_paint_tests"
+version = "0.1.0"
+dependencies = [
+ "graphics",
+ "math",
+ "shader_compiler",
+ "simple_paint",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -854,6 +854,15 @@ pub struct D3D12_COMMAND_SIGNATURE_DESC {
     pub NodeMask: u32,
 }
 pub type D3D12_COMPARISON_FUNC = i32;
+pub const D3D12_COMPARISON_FUNC_ALWAYS: D3D12_COMPARISON_FUNC = 8;
+pub const D3D12_COMPARISON_FUNC_EQUAL: D3D12_COMPARISON_FUNC = 3;
+pub const D3D12_COMPARISON_FUNC_GREATER: D3D12_COMPARISON_FUNC = 5;
+pub const D3D12_COMPARISON_FUNC_GREATER_EQUAL: D3D12_COMPARISON_FUNC = 7;
+pub const D3D12_COMPARISON_FUNC_LESS: D3D12_COMPARISON_FUNC = 2;
+pub const D3D12_COMPARISON_FUNC_LESS_EQUAL: D3D12_COMPARISON_FUNC = 4;
+pub const D3D12_COMPARISON_FUNC_NEVER: D3D12_COMPARISON_FUNC = 1;
+pub const D3D12_COMPARISON_FUNC_NONE: D3D12_COMPARISON_FUNC = 0;
+pub const D3D12_COMPARISON_FUNC_NOT_EQUAL: D3D12_COMPARISON_FUNC = 6;
 #[repr(C)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct D3D12_COMPUTE_PIPELINE_STATE_DESC {
@@ -936,6 +945,8 @@ impl Default for D3D12_DEPTH_STENCIL_VIEW_DESC_0 {
     }
 }
 pub type D3D12_DEPTH_WRITE_MASK = i32;
+pub const D3D12_DEPTH_WRITE_MASK_ALL: D3D12_DEPTH_WRITE_MASK = 1;
+pub const D3D12_DEPTH_WRITE_MASK_ZERO: D3D12_DEPTH_WRITE_MASK = 0;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct D3D12_DESCRIPTOR_HEAP_DESC {
@@ -1144,6 +1155,23 @@ pub type D3D12_LOGIC_OP = i32;
 pub type D3D12_MEMORY_POOL = i32;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct D3D12_MESSAGE {
+    pub Category: D3D12_MESSAGE_CATEGORY,
+    pub Severity: D3D12_MESSAGE_SEVERITY,
+    pub ID: D3D12_MESSAGE_ID,
+    pub pDescription: *const i8,
+    pub DescriptionByteLength: usize,
+}
+pub type D3D12_MESSAGE_CATEGORY = i32;
+pub type D3D12_MESSAGE_ID = i32;
+pub type D3D12_MESSAGE_SEVERITY = i32;
+pub const D3D12_MESSAGE_SEVERITY_CORRUPTION: D3D12_MESSAGE_SEVERITY = 0;
+pub const D3D12_MESSAGE_SEVERITY_ERROR: D3D12_MESSAGE_SEVERITY = 1;
+pub const D3D12_MESSAGE_SEVERITY_INFO: D3D12_MESSAGE_SEVERITY = 3;
+pub const D3D12_MESSAGE_SEVERITY_MESSAGE: D3D12_MESSAGE_SEVERITY = 4;
+pub const D3D12_MESSAGE_SEVERITY_WARNING: D3D12_MESSAGE_SEVERITY = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct D3D12_PACKED_MIP_INFO {
     pub NumStandardMips: u8,
     pub NumPackedMips: u8,
@@ -1175,7 +1203,24 @@ pub struct D3D12_QUERY_HEAP_DESC {
     pub NodeMask: u32,
 }
 pub type D3D12_QUERY_HEAP_TYPE = i32;
+pub const D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP: D3D12_QUERY_HEAP_TYPE = 5;
+pub const D3D12_QUERY_HEAP_TYPE_OCCLUSION: D3D12_QUERY_HEAP_TYPE = 0;
+pub const D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS: D3D12_QUERY_HEAP_TYPE = 2;
+pub const D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS1: D3D12_QUERY_HEAP_TYPE = 7;
+pub const D3D12_QUERY_HEAP_TYPE_SO_STATISTICS: D3D12_QUERY_HEAP_TYPE = 3;
+pub const D3D12_QUERY_HEAP_TYPE_TIMESTAMP: D3D12_QUERY_HEAP_TYPE = 1;
+pub const D3D12_QUERY_HEAP_TYPE_VIDEO_DECODE_STATISTICS: D3D12_QUERY_HEAP_TYPE = 4;
 pub type D3D12_QUERY_TYPE = i32;
+pub const D3D12_QUERY_TYPE_BINARY_OCCLUSION: D3D12_QUERY_TYPE = 1;
+pub const D3D12_QUERY_TYPE_OCCLUSION: D3D12_QUERY_TYPE = 0;
+pub const D3D12_QUERY_TYPE_PIPELINE_STATISTICS: D3D12_QUERY_TYPE = 3;
+pub const D3D12_QUERY_TYPE_PIPELINE_STATISTICS1: D3D12_QUERY_TYPE = 10;
+pub const D3D12_QUERY_TYPE_SO_STATISTICS_STREAM0: D3D12_QUERY_TYPE = 4;
+pub const D3D12_QUERY_TYPE_SO_STATISTICS_STREAM1: D3D12_QUERY_TYPE = 5;
+pub const D3D12_QUERY_TYPE_SO_STATISTICS_STREAM2: D3D12_QUERY_TYPE = 6;
+pub const D3D12_QUERY_TYPE_SO_STATISTICS_STREAM3: D3D12_QUERY_TYPE = 7;
+pub const D3D12_QUERY_TYPE_TIMESTAMP: D3D12_QUERY_TYPE = 2;
+pub const D3D12_QUERY_TYPE_VIDEO_DECODE_STATISTICS: D3D12_QUERY_TYPE = 8;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct D3D12_RANGE {
@@ -2583,6 +2628,7 @@ pub const DXGI_USAGE_RENDER_TARGET_OUTPUT: u32 = 32;
 pub const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
 pub const ERROR_SUCCESS: i32 = 0;
 pub const E_FAIL: windows_core::HRESULT = windows_core::HRESULT(0x80004005_u32 as _);
+pub const E_INVALIDARG: windows_core::HRESULT = windows_core::HRESULT(0x80070057_u32 as _);
 pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
 pub const FF_MODERN: i32 = 48;
 pub const FF_SWISS: i32 = 32;
@@ -5005,6 +5051,81 @@ pub struct ID3D12Heap_Vtbl {
 }
 impl windows_core::RuntimeName for ID3D12Heap {}
 windows_core::imp::define_interface!(
+    ID3D12InfoQueue,
+    ID3D12InfoQueue_Vtbl,
+    0x0742a90b_c387_483f_b946_30a7e4e61458
+);
+windows_core::imp::interface_hierarchy!(ID3D12InfoQueue, windows_core::IUnknown);
+impl ID3D12InfoQueue {
+    pub unsafe fn GetMessage(
+        &self,
+        messageindex: u64,
+        pmessage: Option<*mut D3D12_MESSAGE>,
+        pmessagebytelength: *mut usize,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetMessage)(
+                windows_core::Interface::as_raw(self),
+                messageindex,
+                pmessage.unwrap_or(core::mem::zeroed()) as _,
+                pmessagebytelength as _,
+            )
+        }
+    }
+    pub unsafe fn GetNumStoredMessages(&self) -> u64 {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetNumStoredMessages)(
+                windows_core::Interface::as_raw(self),
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct ID3D12InfoQueue_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    SetMessageCountLimit: usize,
+    ClearStoredMessages: usize,
+    pub GetMessage: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u64,
+        *mut D3D12_MESSAGE,
+        *mut usize,
+    ) -> windows_core::HRESULT,
+    GetNumMessagesAllowedByStorageFilter: usize,
+    GetNumMessagesDeniedByStorageFilter: usize,
+    pub GetNumStoredMessages: unsafe extern "system" fn(*mut core::ffi::c_void) -> u64,
+    GetNumStoredMessagesAllowedByRetrievalFilter: usize,
+    GetNumMessagesDiscardedByMessageCountLimit: usize,
+    GetMessageCountLimit: usize,
+    AddStorageFilterEntries: usize,
+    GetStorageFilter: usize,
+    ClearStorageFilter: usize,
+    PushEmptyStorageFilter: usize,
+    PushCopyOfStorageFilter: usize,
+    PushStorageFilter: usize,
+    PopStorageFilter: usize,
+    GetStorageFilterStackSize: usize,
+    AddRetrievalFilterEntries: usize,
+    GetRetrievalFilter: usize,
+    ClearRetrievalFilter: usize,
+    PushEmptyRetrievalFilter: usize,
+    PushCopyOfRetrievalFilter: usize,
+    PushRetrievalFilter: usize,
+    PopRetrievalFilter: usize,
+    GetRetrievalFilterStackSize: usize,
+    AddMessage: usize,
+    AddApplicationMessage: usize,
+    SetBreakOnCategory: usize,
+    SetBreakOnSeverity: usize,
+    SetBreakOnID: usize,
+    GetBreakOnCategory: usize,
+    GetBreakOnSeverity: usize,
+    GetBreakOnID: usize,
+    SetMuteDebugOutput: usize,
+    GetMuteDebugOutput: usize,
+}
+impl windows_core::RuntimeName for ID3D12InfoQueue {}
+windows_core::imp::define_interface!(
     ID3D12Object,
     ID3D12Object_Vtbl,
     0xc4fec28f_7966_4e95_9f94_f431cb56c3b8
@@ -5970,11 +6091,31 @@ windows_core::imp::interface_hierarchy!(
     IDXGIFactory2,
     IDXGIFactory3
 );
+impl IDXGIFactory4 {
+    pub unsafe fn EnumWarpAdapter<T>(&self) -> windows_core::Result<T>
+    where
+        T: windows_core::Interface,
+    {
+        let mut result__ = core::ptr::null_mut();
+        unsafe {
+            (windows_core::Interface::vtable(self).EnumWarpAdapter)(
+                windows_core::Interface::as_raw(self),
+                &T::IID,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+}
 #[repr(C)]
 pub struct IDXGIFactory4_Vtbl {
     pub base__: IDXGIFactory3_Vtbl,
     EnumAdapterByLuid: usize,
-    EnumWarpAdapter: usize,
+    pub EnumWarpAdapter: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const windows_core::GUID,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
 }
 impl windows_core::RuntimeName for IDXGIFactory4 {}
 windows_core::imp::define_interface!(
