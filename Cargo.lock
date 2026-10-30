@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "application"
+version = "0.1.0"
+dependencies = [
+ "displays",
+ "json",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
 name = "canvas"
 version = "0.1.0"
 dependencies = [
@@ -32,8 +42,8 @@ dependencies = [
 name = "game_input_demo"
 version = "0.1.0"
 dependencies = [
+ "application",
  "canvas",
- "displays",
  "game_input",
  "graphics",
  "json",

@@ -7,6 +7,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "Library/Application",
     "Library/Canvas",
     "Library/Displays",
     "Library/GameInput",

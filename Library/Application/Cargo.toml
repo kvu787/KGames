@@ -1,0 +1,17 @@
+[package]
+name = "application"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+displays = { path = "../Displays" }
+json = { path = "../Json" }
+windows_api = { path = "../WindowsApi" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]

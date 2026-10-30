@@ -8,8 +8,8 @@ name = "GameInputDemo"
 path = "Source/Main.rs"
 
 [dependencies]
+application = { path = "../../Library/Application" }
 canvas = { path = "../../Library/Canvas" }
-displays = { path = "../../Library/Displays" }
 game_input = { path = "../../Library/GameInput" }
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }

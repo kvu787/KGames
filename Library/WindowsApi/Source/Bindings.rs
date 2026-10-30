@@ -320,6 +320,11 @@ pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsiz
     unsafe { GetKeyNameTextW(lparam, lpstring, cchsize) }
 }
 #[inline]
+pub unsafe fn GetKeyState(nvirtkey: i32) -> i16 {
+    windows_core::link!("user32.dll" "system" fn GetKeyState(nvirtkey : i32) -> i16);
+    unsafe { GetKeyState(nvirtkey) }
+}
+#[inline]
 pub unsafe fn GetMessageW(
     lpmsg: *mut MSG,
     hwnd: Option<HWND>,
@@ -498,6 +503,16 @@ pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
     unsafe { RegisterClassExW(param0) }
 }
 #[inline]
+pub unsafe fn ReleaseCapture() -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ReleaseCapture() -> windows_core::BOOL);
+    unsafe { ReleaseCapture() }
+}
+#[inline]
+pub unsafe fn ScreenToClient(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ScreenToClient(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
+    unsafe { ScreenToClient(hwnd, lppoint as _) }
+}
+#[inline]
 pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
     windows_core::link!("gdi32.dll" "system" fn SelectObject(hdc : HDC, h : HGDIOBJ) -> HGDIOBJ);
     unsafe { SelectObject(hdc, h) }
@@ -506,6 +521,11 @@ pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
 pub unsafe fn SetBkMode(hdc: HDC, mode: i32) -> i32 {
     windows_core::link!("gdi32.dll" "system" fn SetBkMode(hdc : HDC, mode : i32) -> i32);
     unsafe { SetBkMode(hdc, mode) }
+}
+#[inline]
+pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
+    windows_core::link!("user32.dll" "system" fn SetCapture(hwnd : HWND) -> HWND);
+    unsafe { SetCapture(hwnd) }
 }
 #[inline]
 pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
@@ -2604,6 +2624,7 @@ pub type HMODULE = HINSTANCE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HMONITOR(pub *mut core::ffi::c_void);
+pub const HTCLIENT: i32 = 1;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HWND(pub *mut core::ffi::c_void);
@@ -6422,6 +6443,7 @@ pub struct LUID {
     pub LowPart: u32,
     pub HighPart: i32,
 }
+pub const MA_ACTIVATEANDEAT: i32 = 2;
 pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
@@ -6553,7 +6575,10 @@ pub struct TRACKMOUSEEVENT {
 }
 pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_CONTROL: i32 = 17;
 pub const VK_ESCAPE: i32 = 27;
+pub const VK_F11: i32 = 122;
+pub const VK_SHIFT: i32 = 16;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct VS_FIXEDFILEINFO {
@@ -6573,6 +6598,7 @@ pub struct VS_FIXEDFILEINFO {
 }
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WAIT_TIMEOUT: i32 = 258;
+pub const WHEEL_DELTA: i32 = 120;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct WINDOWPLACEMENT {
@@ -6583,13 +6609,17 @@ pub struct WINDOWPLACEMENT {
     pub ptMaxPosition: POINT,
     pub rcNormalPosition: RECT,
 }
+pub const WM_CAPTURECHANGED: i32 = 533;
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_KEYDOWN: i32 = 256;
 pub const WM_LBUTTONDOWN: i32 = 513;
+pub const WM_LBUTTONUP: i32 = 514;
+pub const WM_MOUSEACTIVATE: i32 = 33;
 pub const WM_MOUSELEAVE: i32 = 675;
 pub const WM_MOUSEMOVE: i32 = 512;
+pub const WM_MOUSEWHEEL: i32 = 522;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;
@@ -6597,6 +6627,7 @@ pub const WM_RBUTTONDOWN: i32 = 516;
 pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
 pub const WM_SYSCOMMAND: i32 = 274;
+pub const WM_SYSKEYDOWN: i32 = 260;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {

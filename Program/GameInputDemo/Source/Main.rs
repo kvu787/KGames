@@ -1,403 +1,67 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "FrameCounter.rs"]
-mod frame_counter;
 #[path = "Input.rs"]
 mod input;
 #[path = "Panels.rs"]
 mod panels;
 #[path = "Settings.rs"]
 mod settings;
-#[path = "WindowCheck.rs"]
-mod window_check;
 
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::path::Path;
 
-use windows_api::*;
+use application::{Arguments, Event, FrameCounter, Settings, Window};
 use canvas::{Canvas, Font, theme};
-use displays::Display;
-use frame_counter::FrameCounter;
-use input::Input;
 use graphics::Renderer;
-use settings::{Settings, WindowMode};
-use windows_core::{Error, PCWSTR, Result, w};
+use input::Input;
+use settings::DemoSettings;
+use windows_api::*;
+use windows_core::Result;
 
-// The em height of the font, in pixels. The demo only supports 100% scaling
-// (see WindowCheck.rs), so this never changes.
+const NAME: &str = "GameInput Demo";
+// The em height of the font, in pixels. Programs only support 100% scaling
+// (see Library/Application), so this never changes.
 const FONT_SIZE: i32 = 15;
-
-// The window procedure only records what happened; the main loop reacts.
-// This keeps renderer state out of the callback.
-static CLIENT_WIDTH: AtomicU32 = AtomicU32::new(0);
-static CLIENT_HEIGHT: AtomicU32 = AtomicU32::new(0);
-static RESIZED: AtomicBool = AtomicBool::new(false);
-// The window may have moved, been resized, or changed DPI, or the displays or
-// the work area changed, so it may no longer be in a supported setup.
-static WINDOW_CHANGED: AtomicBool = AtomicBool::new(true);
-static DISPLAYS_CHANGED: AtomicBool = AtomicBool::new(false);
-// The mouse, for the gamepad select box: the cursor's position in the window,
-// and where the left button was last pressed, packed by pack_point. GameInput
-// doesn't say where the cursor is in a window, so these come from messages.
-static CURSOR: AtomicU64 = AtomicU64::new(NO_POINT);
-static CLICK: AtomicU64 = AtomicU64::new(NO_POINT);
-// Whether Windows will send WM_MOUSELEAVE when the cursor leaves the window.
-static TRACKING_MOUSE: AtomicBool = AtomicBool::new(false);
-static ESCAPE_PRESSED: AtomicBool = AtomicBool::new(false);
-
-const NO_POINT: u64 = u64::MAX;
-
-// A mouse message's position in the window, from the low and high words of
-// its LPARAM, as one value for an atomic.
-fn pack_point(lparam: LPARAM) -> u64 {
-    (lparam.0 as u64) & 0xFFFF_FFFF
-}
-
-fn unpack_point(packed: u64) -> Option<[f32; 2]> {
-    (packed != NO_POINT).then_some([
-        (packed as u16 as i16) as f32,
-        ((packed >> 16) as u16 as i16) as f32,
-    ])
-}
-
-extern "system" fn window_procedure(
-    window: HWND,
-    message: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    match message as i32 {
-        WM_SIZE => {
-            CLIENT_WIDTH.store((lparam.0 & 0xFFFF) as u32, Ordering::Relaxed);
-            CLIENT_HEIGHT.store(((lparam.0 >> 16) & 0xFFFF) as u32, Ordering::Relaxed);
-            RESIZED.store(true, Ordering::Relaxed);
-            WINDOW_CHANGED.store(true, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        // A change to the taskbar sends WM_SETTINGCHANGE, as it changes the
-        // work area. The window keeps its size when its DPI changes, as the
-        // demo only supports 96 DPI, and says what's wrong instead.
-        WM_MOVE | WM_DPICHANGED | WM_SETTINGCHANGE => {
-            WINDOW_CHANGED.store(true, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        WM_DISPLAYCHANGE => {
-            DISPLAYS_CHANGED.store(true, Ordering::Relaxed);
-            WINDOW_CHANGED.store(true, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        // A tap of Alt or F10 would otherwise enter the window menu's modal
-        // loop, which stalls the frame loop until the next key press.
-        WM_SYSCOMMAND if (wparam.0 & 0xFFF0) as i32 == SC_KEYMENU => LRESULT(0),
-        // Windows only reports that the cursor left the window if asked, and
-        // the request ends with the WM_MOUSELEAVE it sends.
-        WM_MOUSEMOVE => {
-            CURSOR.store(pack_point(lparam), Ordering::Relaxed);
-            if !TRACKING_MOUSE.swap(true, Ordering::Relaxed) {
-                let mut track = TRACKMOUSEEVENT {
-                    cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
-                    dwFlags: TME_LEAVE as u32,
-                    hwndTrack: window,
-                    dwHoverTime: 0,
-                };
-                unsafe {
-                    let _ = TrackMouseEvent(&mut track);
-                }
-            }
-            LRESULT(0)
-        }
-        WM_MOUSELEAVE => {
-            CURSOR.store(NO_POINT, Ordering::Relaxed);
-            TRACKING_MOUSE.store(false, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        WM_LBUTTONDOWN => {
-            CURSOR.store(pack_point(lparam), Ordering::Relaxed);
-            CLICK.store(pack_point(lparam), Ordering::Relaxed);
-            LRESULT(0)
-        }
-        WM_KEYDOWN if wparam.0 == VK_ESCAPE as usize => {
-            ESCAPE_PRESSED.store(true, Ordering::Relaxed);
-            LRESULT(0)
-        }
-        WM_DESTROY => {
-            unsafe { PostQuitMessage(0) };
-            LRESULT(0)
-        }
-        _ => unsafe { DefWindowProcW(window, message, wparam, lparam) },
-    }
-}
-
-// Switches between the maximized window and a borderless one that covers its
-// monitor. Covering the monitor lets Windows flip the demo's frames straight
-// to the screen, instead of the desktop compositor copying them into its own
-// frame, which saves up to a refresh of latency and lets frames tear.
-// `windowed` keeps the maximized window's placement while in fullscreen.
-// A hidden window stays hidden, so it can start in fullscreen. Entering
-// fullscreen doesn't activate the window: F11 only reaches the demo while its
-// window is active, and activating it before it's shown would take focus.
-unsafe fn toggle_fullscreen(window: HWND, windowed: &mut Option<WINDOWPLACEMENT>) -> Result<()> {
-    unsafe {
-        let visible = GetWindowLongPtrW(window, GWL_STYLE) & WS_VISIBLE as isize;
-        if let Some(mut placement) = windowed.take() {
-            SetWindowLongPtrW(window, GWL_STYLE, WS_OVERLAPPEDWINDOW as isize | visible);
-            // Maximized is the only other supported setup.
-            placement.showCmd = SW_SHOWMAXIMIZED as u32;
-            SetWindowPlacement(window, &placement).ok()?;
-            // Makes the new style take effect.
-            SetWindowPos(
-                window,
-                None,
-                0,
-                0,
-                0,
-                0,
-                (SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER)
-                    as u32,
-            )
-            .ok()
-        } else {
-            let mut placement = WINDOWPLACEMENT {
-                length: size_of::<WINDOWPLACEMENT>() as u32,
-                ..Default::default()
-            };
-            GetWindowPlacement(window, &mut placement).ok()?;
-            let mut monitor = MONITORINFO {
-                cbSize: size_of::<MONITORINFO>() as u32,
-                ..Default::default()
-            };
-            GetMonitorInfoW(
-                MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST as u32),
-                &mut monitor,
-            )
-            .ok()?;
-            SetWindowLongPtrW(window, GWL_STYLE, WS_POPUP as isize | visible);
-            let area = monitor.rcMonitor;
-            SetWindowPos(
-                window,
-                None,
-                area.left,
-                area.top,
-                area.right - area.left,
-                area.bottom - area.top,
-                (SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_NOACTIVATE) as u32,
-            )
-            .ok()?;
-            *windowed = Some(placement);
-            Ok(())
-        }
-    }
-}
-
-// The display that the window is mostly on, for the footer, like
-// "KXGR16 (PA278QGV)". Clones share a monitor, so this names the first.
-unsafe fn display_label(window: HWND, displays: &[Display]) -> String {
-    let monitor = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST as u32) };
-    match displays.iter().find(|display| display.monitor == monitor) {
-        Some(display) => format!("{} ({})", display.identifier, display.name),
-        None => "unknown".to_string(),
-    }
-}
-
-// What the command line asks for, besides the settings it overrides.
-struct Arguments {
-    // Whether the display came from --display, which must be connected.
-    display_required: bool,
-    // Whether the window takes focus when it opens. --no-activate opens it
-    // behind the window that has focus, so typing there stays there.
-    activate: bool,
-}
-
-// The command line, which overrides the settings file. --display and an
-// identifier that IdentifyDisplays shows, or "Primary", picks the display.
-// Problems go in `notices`.
-fn apply_arguments(settings: &mut Settings, notices: &mut Vec<String>) -> Arguments {
-    let mut result = Arguments {
-        display_required: false,
-        activate: true,
-    };
-    let mut arguments = std::env::args().skip(1);
-    while let Some(argument) = arguments.next() {
-        match argument.as_str() {
-            "--display" => match arguments.next() {
-                Some(display) => {
-                    settings.display = settings::parse_display(&display);
-                    result.display_required = true;
-                }
-                None => notices.push("--display needs a display identifier after it".to_string()),
-            },
-            "--no-activate" => result.activate = false,
-            _ => notices.push(format!("Unknown command-line argument: {argument}")),
-        }
-    }
-    result
-}
 
 fn main() -> Result<()> {
     unsafe {
-        // So that GetDpiForWindow says the monitor's real DPI, which
-        // WindowCheck needs, instead of 96 in a window that Windows stretches.
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2).ok()?;
-        // Windows lowers the quality of service of a process whose windows
-        // aren't in focus, which on a CPU with efficiency cores can move its
-        // threads onto those, at lower clock speeds. GameInput still delivers
-        // gamepad input then, so opt out of that throttling.
-        let throttling = PROCESS_POWER_THROTTLING_STATE {
-            Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION as u32,
-            ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED as u32,
-            StateMask: 0,
-        };
-        SetProcessInformation(
-            GetCurrentProcess(),
-            ProcessPowerThrottling,
-            (&raw const throttling).cast(),
-            size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
-        )
-        .ok()?;
-
-        let instance = GetModuleHandleW(PCWSTR::null());
-        check_handle(instance.0)?;
-        let cursor = LoadCursorW(None, IDC_ARROW);
-        check_handle(cursor.0)?;
-
-        let class_name = w!("MainWindow");
-        let class = WNDCLASSEXW {
-            cbSize: size_of::<WNDCLASSEXW>() as u32,
-            style: (CS_HREDRAW | CS_VREDRAW) as u32,
-            lpfnWndProc: Some(window_procedure),
-            hInstance: instance,
-            hCursor: cursor,
-            lpszClassName: class_name,
-            ..Default::default()
-        };
-        if RegisterClassExW(&class).0 == 0 {
-            return Err(Error::from_thread());
-        }
-
+        application::prepare_process()?;
         // Problems with the settings and the command line, which the header lists.
         let mut notices = Vec::new();
-        let mut settings = Settings::load(&mut notices);
-        let arguments = apply_arguments(&mut settings, &mut notices);
-        let mut displays = displays::enumerate()?;
-        let mut display = None;
-        if let Some(identifier) = settings.display.as_deref() {
-            display = displays::find(&displays, identifier);
-            if display.is_none() {
-                // A display from the command line is a request to open there
-                // and nowhere else.
-                if arguments.display_required {
-                    return Err(Error::new(
-                        E_FAIL,
-                        format!(
-                            "Display {identifier} isn't connected. IdentifyDisplays --list shows \
-                             the displays' identifiers."
-                        ),
-                    ));
-                }
-                notices.push(format!(
-                    "Display {identifier} isn't connected, so the demo opened on the primary \
-                     display. IdentifyDisplays shows the displays' identifiers."
-                ));
-            }
-        }
-        let display = display
-            .or_else(|| displays::primary(&displays))
-            .ok_or_else(|| Error::new(E_FAIL, "Windows reports no displays"))?;
-
-        // The window stays hidden until it's in its place, and the renderer
-        // is ready to draw into it. It's maximized while it's hidden, so that
-        // showing it doesn't have to activate it. Restored, it's half the
-        // work area's size in its middle, which the demo doesn't support, so
-        // it says so.
-        let work = display.work_area;
-        let (width, height) = ((work.right - work.left) / 2, (work.bottom - work.top) / 2);
-        let window = CreateWindowExW(
-            0,
-            class_name,
-            w!("GameInput Demo"),
-            (WS_OVERLAPPEDWINDOW | WS_MAXIMIZE) as u32,
-            work.left + width / 2,
-            work.top + height / 2,
-            width,
-            height,
-            None,
-            None,
-            Some(instance),
-            None,
-        );
-        check_handle(window.0)?;
-        // Before the renderer, so its swap chain starts at the display's size.
-        let mut windowed = None;
-        if settings.window_mode == WindowMode::BorderlessFullscreen {
-            toggle_fullscreen(window, &mut windowed)?;
-        }
+        let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
+        let (mut settings, demo) = Settings::load::<DemoSettings>(settings_path, &mut notices);
+        let arguments = Arguments::parse(&mut settings, &mut notices);
+        let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
 
         let font = Font::new(FONT_SIZE)?;
-        let mut renderer = Renderer::new(window, settings.allow_tearing, false)?;
+        let mut renderer = Renderer::new(window.handle, settings.allow_tearing, false)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
         // The title bar says how frames are presented, as it affects latency.
-        let title = format!("GameInput Demo - {}", renderer.description());
-        let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
-        SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
-        // SW_SHOWNA shows the window as it is, maximized or not, without
-        // activating it. The others activate it.
-        let show = if !arguments.activate {
-            SW_SHOWNA
-        } else if settings.window_mode == WindowMode::Maximized {
-            SW_SHOWMAXIMIZED
-        } else {
-            SW_SHOW
-        };
-        let _ = ShowWindow(window, show);
+        window.set_title(&format!("{NAME} - {}", renderer.description()))?;
+        window.show(arguments.activate);
         // Without GameInput the window still opens, and says why there's no input.
-        let mut input = Input::new(settings.rumble_dead_zone)
+        let mut input = Input::new(demo.rumble_dead_zone)
             .map_err(|error| format!("{} ({})", error.message(), error.code()));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
-        let mut display = String::new();
-        // What's wrong with the window's setup, if it isn't one of the two
-        // that the demo supports. Then the window shows only that.
-        let mut window_problems = Vec::new();
         // Where clicks do something in the last frame drawn, and whether the
         // gamepad select box's list is open.
         let mut targets = panels::Targets::default();
         let mut picker_open = false;
 
-        let mut message = MSG::default();
-        loop {
-            // Drain all pending messages, then render one frame once the
-            // renderer is ready for it.
-            while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE as u32).as_bool() {
-                if message.message == WM_QUIT as u32 {
-                    return Ok(());
-                }
-                let _ = TranslateMessage(&message);
-                DispatchMessageW(&message);
+        // Handle all pending messages, then render one frame once the
+        // renderer is ready for it.
+        while window.handle_messages() {
+            if let Some([width, height]) = window.take_resize() {
+                renderer.resize(width, height)?;
             }
 
-            if RESIZED.swap(false, Ordering::Relaxed) {
-                renderer.resize(
-                    CLIENT_WIDTH.load(Ordering::Relaxed),
-                    CLIENT_HEIGHT.load(Ordering::Relaxed),
-                )?;
-            }
-            if DISPLAYS_CHANGED.swap(false, Ordering::Relaxed) {
-                // If this fails, the old list only makes the footer stale.
-                if let Ok(list) = displays::enumerate() {
-                    displays = list;
-                }
-            }
-            if WINDOW_CHANGED.swap(false, Ordering::Relaxed) {
-                display = display_label(window, &displays);
-                window_problems = window_check::problems(window);
-            }
-
-            if IsIconic(window).as_bool() {
+            if window.minimized() {
                 // Minimized: sleep until something happens instead of spinning.
                 if let Ok(input) = &mut input {
                     input.stop_rumble();
                 }
-                WaitMessage().ok()?;
+                window.wait_for_message()?;
                 frames.pause();
                 continue;
             }
@@ -415,37 +79,46 @@ fn main() -> Result<()> {
             // Read input only now, right before drawing, so the frame shows
             // the newest readings.
             frames.frame();
-            let focused = GetForegroundWindow() == window;
+            let focused = window.focused();
+            // The select box reads the mouse from the window's messages, not
+            // from GameInput, because they say where the cursor is in the window.
+            let events = window.take_events();
             if let Ok(input) = &mut input {
                 input.update(focused);
                 if std::mem::take(&mut input.fullscreen_toggled) {
-                    toggle_fullscreen(window, &mut windowed)?;
+                    window.toggle_fullscreen()?;
                 }
                 // A click on the select box opens or closes its list, and a
                 // click on the list picks what it's on. Any other click closes it.
-                if let Some(point) = unpack_point(CLICK.swap(NO_POINT, Ordering::Relaxed)) {
-                    match targets.at(point) {
-                        Some(panels::Click::Picker) => picker_open = !picker_open,
-                        Some(panels::Click::Choose(listen)) => {
-                            input.pick_listen(listen.clone());
-                            picker_open = false;
+                for event in &events {
+                    if let Event::Press(point) = *event {
+                        match targets.at(point) {
+                            Some(panels::Click::Picker) => picker_open = !picker_open,
+                            Some(panels::Click::Choose(listen)) => {
+                                input.pick_listen(listen.clone());
+                                picker_open = false;
+                            }
+                            None => picker_open = false,
                         }
-                        None => picker_open = false,
                     }
                 }
             }
             // So do Esc, and the window losing focus.
-            if ESCAPE_PRESSED.swap(false, Ordering::Relaxed) || !focused {
+            let escape = events.iter().any(
+                |event| matches!(event, Event::Key { key, .. } if *key == VK_ESCAPE as u32),
+            );
+            if escape || !focused {
                 picker_open = false;
             }
             let mut canvas = Canvas::new(&font, &mut vertices);
             let status = panels::Status {
                 focused,
                 frames: &frames,
-                display: &display,
+                display: &window.display,
                 notices: &notices,
-                window_problems: &window_problems,
-                cursor: unpack_point(CURSOR.load(Ordering::Relaxed)),
+                supported: &window.supported,
+                window_problems: &window.problems,
+                cursor: window.cursor(),
                 picker_open,
             };
             targets = panels::draw(
@@ -459,5 +132,6 @@ fn main() -> Result<()> {
             overlay.draw(&renderer, canvas.vertices);
             renderer.present()?;
         }
+        Ok(())
     }
 }

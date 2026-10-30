@@ -123,11 +123,26 @@ WM_RBUTTONDOWN
 WS_EX_TOOLWINDOW
 WS_EX_TOPMOST
 
-// The gamepad select box, which takes the mouse from window messages
+// Mouse and keyboard input from window messages
+GetKeyState
+ReleaseCapture
+ScreenToClient
+SetCapture
 TrackMouseEvent
+HTCLIENT
+MA_ACTIVATEANDEAT
 TME_LEAVE
+VK_CONTROL
+VK_F11
+VK_SHIFT
+WHEEL_DELTA
+WM_CAPTURECHANGED
+WM_LBUTTONUP
+WM_MOUSEACTIVATE
 WM_MOUSELEAVE
 WM_MOUSEMOVE
+WM_MOUSEWHEEL
+WM_SYSKEYDOWN
 
 // Key names for the keyboard panel
 GetKeyNameTextW

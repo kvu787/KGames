@@ -6,13 +6,13 @@
 
 use std::collections::VecDeque;
 
+use application::FrameCounter;
 use canvas::theme::{BORDER, DIM, ERROR, FAINT, PANEL, TEXT, TITLE, WARNING};
 use canvas::{
     Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, theme, wrap,
 };
 use game_input::*;
 
-use crate::frame_counter::FrameCounter;
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
 const PLOT: Color = theme::INSET;
@@ -74,6 +74,8 @@ pub struct Status<'a> {
     pub display: &'a str,
     // Problems with how the demo was started, one per paragraph.
     pub notices: &'a [String],
+    // Which window setups the demo supports, for when it isn't in one.
+    pub supported: &'a str,
     // What's wrong with the window's setup, if it isn't one of the two that
     // the demo supports. Then only these are drawn.
     pub window_problems: &'a [String],
@@ -94,7 +96,7 @@ pub fn draw(
     if !status.window_problems.is_empty() {
         draw_window_problems(
             canvas,
-            crate::window_check::SUPPORTED,
+            status.supported,
             status.window_problems,
             width,
         );

@@ -1,5 +1,5 @@
-// The demo supports exactly two window setups, both on a 2560 x 1440 monitor
-// at 100% scaling (96 DPI), so that the panels can be laid out in fixed pixels:
+// Programs support exactly two window setups, both on a 2560 x 1440 monitor
+// at 100% scaling (96 DPI), so that they can lay out in fixed pixels:
 //
 // - Maximized, with a 48-pixel taskbar at the bottom of the monitor. That
 //   leaves a 2560 x 1392 work area, and the title bar takes its top 23 pixels,
@@ -7,7 +7,7 @@
 // - Borderless fullscreen, where the client area covers the whole monitor:
 //   2560 x 1440.
 //
-// Anything else gets an error in the window instead of the panels.
+// Anything else gets an error in the window instead of the program's panels.
 
 use windows_api::*;
 
@@ -15,10 +15,16 @@ pub const MONITOR_SIZE: [i32; 2] = [2560, 1440];
 pub const WORK_AREA_SIZE: [i32; 2] = [2560, 1392];
 pub const TITLE_BAR_HEIGHT: i32 = 23;
 
-pub const SUPPORTED: &str = "GameInput Demo only supports two window setups, both on a \
-    2560 x 1440 monitor at 100% scaling (96 DPI): maximized, with a 48-pixel taskbar at the \
-    bottom, which leaves a 2560 x 1369 client area under the title bar; or borderless \
-    fullscreen (F11), with a 2560 x 1440 client area that covers the monitor.";
+// Says which setups the program supports, like "GameInput Demo only supports
+// two window setups ...".
+pub fn supported(program: &str) -> String {
+    format!(
+        "{program} only supports two window setups, both on a 2560 x 1440 monitor at 100% \
+         scaling (96 DPI): maximized, with a 48-pixel taskbar at the bottom, which leaves a \
+         2560 x 1369 client area under the title bar; or borderless fullscreen (F11), with a \
+         2560 x 1440 client area that covers the monitor."
+    )
+}
 
 fn size(rect: &RECT) -> [i32; 2] {
     [rect.right - rect.left, rect.bottom - rect.top]
@@ -30,7 +36,7 @@ fn describe(rect: &RECT) -> String {
 }
 
 // What's wrong with the window's setup, one problem per item, or nothing if
-// it's one of the two that the demo supports.
+// it's one of the two that programs support.
 pub unsafe fn problems(window: HWND) -> Vec<String> {
     let mut problems = Vec::new();
     unsafe {

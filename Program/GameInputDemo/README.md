@@ -312,10 +312,8 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen                 |
-| `Source/WindowCheck.rs`            | Checks that the window is in one of the two supported setups                     |
-| `Source/Settings.rs`               | Reads the settings file, and writes it with the defaults if it doesn't exist     |
-| `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
+| `Source/Main.rs`                   | The main loop: settings, window, input, and drawing each frame                   |
+| `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |

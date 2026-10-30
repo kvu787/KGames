@@ -5,7 +5,7 @@ The demo only supports the user's own setup, to keep development simple. It supp
 - **Maximized**, with a client area of 2560 × 1369. The taskbar takes 48 pixels at the bottom of the monitor, which leaves a 2560 × 1392 work area. The title bar takes the top 23 pixels of that, so the client area runs from screen y = 23 down to the bottom of the work area: 1392 − 23 = 1369.
 - **Borderless fullscreen**, with a client area of 2560 × 1440 that covers the whole monitor. `F11` switches between the two.
 
-In any other setup, the window shows an error that says what's wrong, instead of the panels. `Source/WindowCheck.rs` does the check.
+In any other setup, the window shows an error that says what's wrong, instead of the panels. [Library/Application](../../Library/Application/README.md) does the check.
 
 So:
 
