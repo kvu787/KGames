@@ -50,6 +50,27 @@ the primary display. `--display` and `--no-activate` work as in every program, a
 [RunInBackground](../RunInBackground/README.md) runs it for coding agents. `Settings.json` has
 the settings that every program has.
 
+## Testing
+
+```powershell
+cargo test -p simple_paint_demo_tests
+Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
+```
+
+The tests in `Test/SimplePaintDemo` drive the editor through the panels' real layout, which a
+canvas builds without a window or a GPU: clicks, drags past a track's ends, the wheel, the arrow
+keys, Ctrl+S, **Save**, **Reset**, losing focus mid-drag, a bad `Paint.json`, and thousands of
+random inputs that must leave a valid material. They also check that the panels fit both
+window heights.
+
+The scripts in `Test/SimplePaintDemo/Scripts` run the same kinds of input through the real
+window and renderer, as [Library/Application](../../Library/Application/README.md#scripts)
+describes, including F11 there and back. A scripted run starts from SimplePaint's default
+material, and saves `Paint.json` in its output folder, not in the demo's. The state that scripts
+save and check has the material's `Parameters`, the `Selected` slider, whether one is
+`Dragging`, whether it's `Saved`, the shader's `Constants`, and where each slider's track and
+each button are, as `Targets`.
+
 ## How it draws
 
 Each frame, after the renderer is ready, the demo reads the window's input, builds the
@@ -65,7 +86,8 @@ looks round and its normals interpolate smoothly.
 | Path                | Contents                                                                    |
 | ------------------- | --------------------------------------------------------------------------- |
 | `Source/Main.rs`    | The main loop: settings, window, input, and drawing each frame              |
-| `Source/Editor.rs`  | The material, its sliders, what input does to them, and `Paint.json`       |
+| `Source/Library.rs` | The demo's parts, as a library that `Test/SimplePaintDemo` tests            |
+| `Source/Editor.rs`  | The material, its sliders, what input does to them, and `Paint.json`        |
 | `Source/Panels.rs`  | Lays out the panels in fixed pixels, and draws them                         |
 | `Source/Preview.rs` | Draws the sphere with SimplePaint, and copies it into the frame             |
 | `Build.rs`          | Compiles SimplePaint's shaders for one material                             |

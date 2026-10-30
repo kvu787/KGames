@@ -87,5 +87,16 @@ How:
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.
 - With `--keep-open`, the program keeps running after the script ends. Stop it with `Stop-Process` and the process ID the script prints, once you're done with it.
 - Run `IdentifyDisplays` only with `--list`. Without it, it puts a box on every display.
-- Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Ask the user to try changes to input handling.
+- Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Test input with tests and scripts instead, as below.
 - Tests that use the GPU, like `cargo test -p simple_paint_tests`, draw offscreen, without a window, so run them freely.
+
+## Testing input
+
+Test what programs do with input in two layers, which never touch the user's input or focus:
+
+1. **Tests**, in `Test/<program>`. Each GUI program is a library (`Source/Library.rs`) and a small `Source/Main.rs`, so tests drive its parts without a window: what input does, where clicks land in the panels' real layout, which a canvas builds without a GPU, and its motion and settings. Put a program's logic in its library, and test it there. Run them with `cargo test --workspace`.
+2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll and press keys in the window, save frames and the program's state, and check the state. `Library/Application/Source/Script.rs` describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
+
+To write a script, run one that captures, and read the state it saves: programs with click targets save where they are, like SimplePaintDemo's sliders. GameInputDemo's scripts also connect and press gamepads, keyboards and mice, which its README describes.
+
+After changing a program, run `cargo test --workspace` and its scripts with `--all-scripts`. Neither covers real devices, Windows' input path, the user taking or giving focus, or input latency. Ask the user to try those.

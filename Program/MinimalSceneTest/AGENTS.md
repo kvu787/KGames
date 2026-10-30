@@ -4,3 +4,4 @@ Follow the rules for GUI programs in the [AGENTS.md](../../AGENTS.md) at the roo
 
 - Keep the scene as VsyncStutterTest's `Godot/Main.tscn` and `Godot/Sphere.gd` have it. The README lists what differs, and why.
 - The 3D view fills the window at either supported height. Keep the text box out of the sphere's path.
+- Test changes with the tests and scripts in `Test/MinimalSceneTest`, as the [README](README.md#testing) says. A script's fixed clock puts the sphere where you want it, like `Test/MinimalSceneTest/Scripts/Motion.json` does, without guessing `--seconds`.

@@ -142,6 +142,9 @@ work in other windows (see [AGENTS.md](AGENTS.md)).
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --display KXGR16
 ```
 
+With `--all-scripts`, it runs the demo with the scripts in `Test/GameInputDemo/Scripts`
+instead (see [Testing](#testing)).
+
 ## Displays and settings
 
 ### Display identifiers
@@ -206,6 +209,9 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
    reading with `GetPreviousReading` to find the ones it hasn't handled.
 3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
    to work out what changed.
+
+`Source/GameInputSource.rs` does this, and hands the devices and readings on as plain data, so
+that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)).
 
 Like every KGames program, the demo only handles input while its window has focus, and the
 header says whether it has focus. GameInput gives gamepad input to windows without focus. It's
@@ -283,14 +289,71 @@ What it doesn't do:
 The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of
 frames a second, even when nothing changes. Minimizing the window stops both.
 
-## Testing without a gamepad
+## Testing
+
+The demo reads devices and readings from an `InputSource`: GameInput's in a normal run, and a
+scripted one, in `Source/ScriptedSource.rs`, in tests and scripted runs. So everything after
+GameInput, from which gamepad it listens to, to dropping input without focus, the rumble test,
+the shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
+
+```powershell
+cargo test -p game_input_demo_tests
+Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
+```
+
+The tests in `Test/GameInputDemo` feed the demo's input directly, and check where the select
+box and its list are in the panels' real layout. The scripts in `Test/GameInputDemo/Scripts`
+run the real demo, in its window, as
+[Library/Application](../../Library/Application/README.md#scripts) describes. Their `Program`
+steps connect and disconnect devices, and give their readings:
+
+```json
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"],
+                                                "Motors": ["LowFrequency", "HighFrequency"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
+        { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } } },
+        { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+        { "Frame": 3, "Program": { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120] } } },
+        { "Frame": 4, "Program": { "Disconnect": 1 } },
+        { "Frame": 5, "Expect": { "Listen": "Pad", "RumbleTest": true } }
+    ]
+}
+```
+
+Each reading is a device's whole state, as GameInput's are: what a step leaves out is at rest,
+except that a mouse's `Motion` and `Wheel` add to its totals, as a real mouse's do.
+
+| Step         | Members                                                                         |
+| ------------ | ------------------------------------------------------------------------------- |
+| `Connect`    | `Id`, a whole number from 1, `Name`, `Input` from `Gamepad`, `Keyboard` and     |
+|              | `Mouse`, and `Motors` from `LowFrequency`, `HighFrequency`, `LeftTrigger` and   |
+|              | `RightTrigger`                                                                  |
+| `Gamepad`    | `Id`, `LeftStick` and `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`,  |
+|              | and `Buttons`, named as the gamepad panel names them                            |
+| `Keyboard`   | `Id`, and the keys `Down`, like `F1`, `A` or `Left`                             |
+| `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the mouse panel |
+|              | names them                                                                      |
+| `Disconnect` | The device's `Id`                                                               |
+
+The state that scripts save and check has what the panels show, the log's 10 newest lines, the
+rumble that the demo sends each gamepad, whether the select box's list is open, as
+`PickerOpen`, and where the select box and each of its choices are, as `Targets`.
+
+What only real devices show still needs a person: GameInput's own readings and device events,
+how the motors feel, and focus changing while a gamepad is held.
+
+### With SendInput
 
 Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard" or
 "Unidentified mouse" with ID `0000:0000`. Injected input can be lost for about half a
-second after the demo starts, while GameInput adds that device.
+second after the demo starts, while GameInput adds that device. It goes to the window that
+has focus, so it's for trying the demo by hand, not for coding agents.
 
-There's no such way to test the gamepad panel. The virtual gamepad that Windows'
-`InputInjector.InitializeGamepadInjection` creates doesn't reach GameInput, so it needs a real gamepad.
+The virtual gamepad that Windows' `InputInjector.InitializeGamepadInjection` creates doesn't
+reach GameInput.
 
 ## Using more APIs
 
@@ -304,8 +367,12 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
 | `Source/Main.rs`                   | The main loop: settings, window, input, and drawing each frame                   |
+| `Source/Library.rs`                | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
 | `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
-| `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
+| `Source/Devices.rs`                | Devices and readings as plain data, and `InputSource`, which gives them          |
+| `Source/GameInputSource.rs`        | Reads devices and readings with GameInput                                        |
+| `Source/ScriptedSource.rs`         | Devices and readings from tests and scripts, instead of GameInput                |
+| `Source/Input.rs`                  | Keeps what the panels show, from the devices and readings                        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |

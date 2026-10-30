@@ -1,12 +1,15 @@
 # RunInBackground
 
 Builds one of the GUI programs in `Program`, opens it on one display without taking focus,
-saves a screenshot of its window, and closes it. It's how coding agents run the programs
-while you work in other windows (see the [AGENTS.md](../../AGENTS.md) at the root).
+saves a screenshot of its window, and closes it. Or runs it with scripts of input, which test
+it without your mouse and keyboard. It's how coding agents run the programs while you work in
+other windows (see the [AGENTS.md](../../AGENTS.md) at the root).
 
 ```powershell
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --display KXGR16 --keep-open
+Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\SimplePaintDemo\Scripts\DragSlider.json
+Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
 The program opens with `--display` and `--no-activate`, which every program built on
@@ -26,8 +29,28 @@ builds it into its own cache first. It needs the .NET 10 SDK.
 |                       | `target\RunInBackground\<program>.png` by default                          |
 | `--keep-open`         | Leaves the program running after the screenshot                            |
 | `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer      |
+| `--script <path>`     | Runs the program with a script of input instead, and saves what it         |
+|                       | captures in `target\RunInBackground\<program>\<script>`                    |
+| `--all-scripts`       | Runs every script in `Test\<program>\Scripts`, one at a time               |
+| `--timeout <seconds>` | How long a script may run before it fails. 60 by default                   |
 
 The screenshot is of what the program draws in its window, without the title bar. It comes
 from `PrintWindow`, so it doesn't matter if other windows are in front of the program's. What
 the program writes to standard output and standard error, like why it couldn't start, goes to
 `target\RunInBackground\<program>Output.log` and `<program>Errors.log`.
+
+## Scripts
+
+A script run passes the program `--script` and `--output`, and the program takes its input
+from the script instead of you, on a fixed clock, as
+[Library/Application](../../Library/Application/README.md#scripts) describes. It opens on the
+display without taking focus, like any run, and exits after the script's last step. The run
+fails if the program exits with an error, which includes expectations in the script that
+weren't met, if it runs past `--timeout`, or if its window ever becomes the foreground window,
+which would mean that it took focus from you. RunInBackground checks that every 5 ms while
+the program runs.
+
+RunInBackground prints whether each script passed, and the frames it captured. Each script's
+folder in `target\RunInBackground\<program>` has its captures, as `<name>.png`, the program's
+state at each, as `<name>.json`, and `Output.log` and `Errors.log`. Files that the program
+writes, like SimplePaintDemo's `Paint.json`, go there too, not in the program's folder.

@@ -52,11 +52,26 @@ by default, and the SimplePaint material of the `Sphere`, the `Ground` and the `
 format of [Library/PaintSettings](../../Library/PaintSettings/README.md). Tune a material in
 [SimplePaintDemo](../SimplePaintDemo/README.md), save it, and copy it from its `Paint.json`.
 
+## Testing
+
+```powershell
+cargo test -p minimal_scene_test_tests
+Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
+```
+
+The tests in `Test/MinimalSceneTest` check the sphere's motion against `Sphere.gd`'s, the keys,
+and the settings file, without a window. The scripts in `Test/MinimalSceneTest/Scripts` run the
+real test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
+describes, and check where the sphere is frame by frame, and what F1 and F11 do. The state that
+scripts save and check has `SpherePosition`, `SphereDirection` and `TextShown`.
+
 ## Layout
 
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
 | `Source/Main.rs`     | The main loop: settings, window, time, input, and drawing each frame       |
+| `Source/Library.rs`  | The test's parts, as a library that `Test/MinimalSceneTest` tests          |
+| `Source/Controls.rs` | What each key does                                                         |
 | `Source/Scene.rs`    | The camera, the objects, and the sphere's motion, drawn with SimplePaint   |
 | `Source/Settings.rs` | The objects' materials, and their defaults from the Godot materials        |
 | `Build.rs`           | Compiles SimplePaint's shaders for three materials                         |

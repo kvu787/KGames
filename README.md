@@ -53,7 +53,7 @@ agents, like how to run programs without disrupting you.
 | [GameInputDemo](Program/GameInputDemo/README.md)              | Shows what gamepads, keyboards and mice send through GameInput    |
 | [SimplePaintDemo](Program/SimplePaintDemo/README.md)          | Edits a SimplePaint material live on a UV sphere                  |
 | [MinimalSceneTest](Program/MinimalSceneTest/README.md)        | A sphere moving over a ground plane, for checking smooth motion   |
-| [SpinningCarTest](Program/SpinningCarTest/README.md)          | A car that moves and spins past a sphere, painted with SimplePaint |
+| [SpinningCarTest](Program/SpinningCarTest/README.md)          | A car moving and spinning past a sphere, painted with SimplePaint |
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md)        | Shows each display's identifier, for the programs' `--display`    |
 | [RunInBackground](Program/RunInBackground/README.md)          | Runs a GUI program without taking focus, and screenshots it       |
 | [HelloDirect3D12](Program/HelloDirect3D12/README.md)          | A minimal triangle with Direct3D 12, on its own bindings          |
@@ -77,12 +77,17 @@ agents, like how to run programs without disrupting you.
 
 ## Test
 
-Each folder in `Test` tests the library of the same name. Every Rust package is in one Cargo
-workspace, whose `Cargo.lock` and `target` folder are at the root.
+Each folder in `Test` tests the library or program of the same name. A GUI program's folder
+also has `Scripts`, which run the real program with input from a script instead of yours, on a
+fixed clock, without taking focus (see [RunInBackground](Program/RunInBackground/README.md#scripts)).
+Every Rust package is in one Cargo workspace, whose `Cargo.lock` and `target` folder are at the
+root.
 
 ```powershell
 cargo build --release --workspace
 cargo test --workspace
+Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The GPU tests need a GPU with Shader Model 6.0, and run on WARP too.
+The GPU tests need a GPU with Shader Model 6.0, and run on WARP too. Scripts open the program
+on display CVVNY2 unless `--display` names another.

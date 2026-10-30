@@ -66,11 +66,27 @@ of the car and for the sphere, in the format of
 Tune a material in [SimplePaintDemo](../SimplePaintDemo/README.md), save it, and copy it from
 its `Paint.json`.
 
+## Testing
+
+```powershell
+cargo test -p spinning_car_test_tests
+Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
+```
+
+The tests in `Test/SpinningCarTest` check the car's path and turn against the C++ scene's,
+the stationary car, the keys, the settings file, and that the converted car mesh is what
+SimplePaint accepts, without a window. The scripts in `Test/SpinningCarTest/Scripts` run the
+real test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
+describes, and check where the car is frame by frame, and what F1, F11 and S do. The state
+that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`.
+
 ## Layout
 
 | Path                         | Contents                                                               |
 | ---------------------------- | ---------------------------------------------------------------------- |
 | `Source/Main.rs`             | The main loop: settings, window, input, and drawing each frame         |
+| `Source/Library.rs`          | The test's parts, as a library that `Test/SpinningCarTest` tests       |
+| `Source/Controls.rs`         | What each key does                                                     |
 | `Source/Scene.rs`            | The background, the car and the sphere, the camera and the animation   |
 | `Source/CarMesh.rs`          | The car mesh, converted from the C++ scene's generated header          |
 | `Source/Settings.rs`         | The materials and the sphere's resolution, with the C++ defaults       |
