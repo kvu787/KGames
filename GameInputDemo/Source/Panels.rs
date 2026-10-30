@@ -713,7 +713,10 @@ fn stick_graph(
     );
     canvas.ring(center, radius, 1.5, FAINT);
     canvas.ring(center, radius * 0.5, 1.0, FAINT.alpha(0.5));
-    canvas.ring(center, radius * dead_zone, 1.0, WARNING.alpha(0.45));
+    // The mouse pad has no dead zone, and a ring of radius 0 would be a dot.
+    if dead_zone > 0.0 {
+        canvas.ring(center, radius * dead_zone, 1.0, WARNING.alpha(0.45));
+    }
 
     // The recent path fades out with age.
     let points: Vec<[f32; 2]> = trail.iter().map(|&point| to_screen(point)).collect();

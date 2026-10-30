@@ -62,19 +62,35 @@ impl<'a> Canvas<'a> {
         text.chars().count() as f32 * self.char_width()
     }
 
-    fn vertex(&mut self, position: [f32; 2], color: Color) {
-        self.vertices.push(Vertex {
-            position,
-            uv: self.solid_uv,
-            color: color.0,
-        });
+    // A solid triangle. Shapes add their vertices a triangle or a quad at a
+    // time, which is faster than one at a time.
+    fn triangle(&mut self, corners: [[f32; 2]; 3], colors: [Color; 3]) {
+        let uv = self.solid_uv;
+        let vertex = |index: usize| Vertex {
+            position: corners[index],
+            uv,
+            color: colors[index].0,
+        };
+        self.vertices
+            .extend_from_slice(&[vertex(0), vertex(1), vertex(2)]);
     }
 
     // Two triangles. The corners go around the quad in order.
     fn quad(&mut self, corners: [[f32; 2]; 4], colors: [Color; 4]) {
-        for index in [0, 1, 2, 0, 2, 3] {
-            self.vertex(corners[index], colors[index]);
-        }
+        let uv = self.solid_uv;
+        let vertex = |index: usize| Vertex {
+            position: corners[index],
+            uv,
+            color: colors[index].0,
+        };
+        self.vertices.extend_from_slice(&[
+            vertex(0),
+            vertex(1),
+            vertex(2),
+            vertex(0),
+            vertex(2),
+            vertex(3),
+        ]);
     }
 
     pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
@@ -146,24 +162,27 @@ impl<'a> Canvas<'a> {
         }
     }
 
+    // Each segment's edge directions are worked out once, and the second is
+    // the next segment's first, as cos and sin are most of a circle's cost.
     pub fn circle(&mut self, center: [f32; 2], radius: f32, color: Color) {
         let inner = (radius - 0.5).max(0.0);
         let clear = color.alpha(0.0);
         let segments = segment_count(radius);
+        let mut a = direction(0, segments);
         for segment in 0..segments {
-            let (a, b) = (angle(segment, segments), angle(segment + 1, segments));
-            self.vertex(center, color);
-            self.vertex(on_circle(center, inner, a), color);
-            self.vertex(on_circle(center, inner, b), color);
+            let b = direction(segment + 1, segments);
+            let (inner_a, inner_b) = (along(center, inner, a), along(center, inner, b));
+            self.triangle([center, inner_a, inner_b], [color; 3]);
             self.quad(
                 [
-                    on_circle(center, inner, a),
-                    on_circle(center, radius + 0.5, a),
-                    on_circle(center, radius + 0.5, b),
-                    on_circle(center, inner, b),
+                    inner_a,
+                    along(center, radius + 0.5, a),
+                    along(center, radius + 0.5, b),
+                    inner_b,
                 ],
                 [color, clear, clear, color],
             );
+            a = b;
         }
     }
 
@@ -173,8 +192,9 @@ impl<'a> Canvas<'a> {
         let solid = color.alpha(width.min(1.0));
         let clear = color.alpha(0.0);
         let segments = segment_count(radius);
+        let mut a = direction(0, segments);
         for segment in 0..segments {
-            let (a, b) = (angle(segment, segments), angle(segment + 1, segments));
+            let b = direction(segment + 1, segments);
             for (near, far, near_color, far_color) in [
                 (-outer, -inner, clear, solid),
                 (-inner, inner, solid, solid),
@@ -182,14 +202,15 @@ impl<'a> Canvas<'a> {
             ] {
                 self.quad(
                     [
-                        on_circle(center, radius + near, a),
-                        on_circle(center, radius + near, b),
-                        on_circle(center, radius + far, b),
-                        on_circle(center, radius + far, a),
+                        along(center, radius + near, a),
+                        along(center, radius + near, b),
+                        along(center, radius + far, b),
+                        along(center, radius + far, a),
                     ],
                     [near_color, near_color, far_color, far_color],
                 );
             }
+            a = b;
         }
     }
 
@@ -208,13 +229,19 @@ impl<'a> Canvas<'a> {
                     [x, y + height],
                 ];
                 let uvs = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
-                for index in [0, 1, 2, 0, 2, 3] {
-                    self.vertices.push(Vertex {
-                        position: corners[index],
-                        uv: uvs[index],
-                        color: color.0,
-                    });
-                }
+                let vertex = |index: usize| Vertex {
+                    position: corners[index],
+                    uv: uvs[index],
+                    color: color.0,
+                };
+                self.vertices.extend_from_slice(&[
+                    vertex(0),
+                    vertex(1),
+                    vertex(2),
+                    vertex(0),
+                    vertex(2),
+                    vertex(3),
+                ]);
             }
             x += width;
         }
@@ -246,13 +273,15 @@ fn segment_count(radius: f32) -> u32 {
     (radius * 0.8).clamp(16.0, 128.0) as u32
 }
 
-fn angle(segment: u32, segments: u32) -> f32 {
-    segment as f32 / segments as f32 * std::f32::consts::TAU
+// The unit vector to the start of a segment: its angle's cos and sin.
+fn direction(segment: u32, segments: u32) -> [f32; 2] {
+    let angle = segment as f32 / segments as f32 * std::f32::consts::TAU;
+    [angle.cos(), angle.sin()]
 }
 
-fn on_circle(center: [f32; 2], radius: f32, angle: f32) -> [f32; 2] {
+fn along(center: [f32; 2], distance: f32, direction: [f32; 2]) -> [f32; 2] {
     [
-        center[0] + radius * angle.cos(),
-        center[1] + radius * angle.sin(),
+        center[0] + distance * direction[0],
+        center[1] + distance * direction[1],
     ]
 }
