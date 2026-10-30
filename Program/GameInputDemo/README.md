@@ -335,7 +335,6 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen                 |
 | `Source/WindowCheck.rs`            | Checks that the window is in one of the two supported setups                     |
 | `Source/Settings.rs`               | Reads the settings file, and writes it with the defaults if it doesn't exist     |
-| `Source/Json.rs`                   | Parses JSON, for the settings file                                               |
 | `Source/Displays.rs`               | Finds the displays and makes their identifiers, for both programs                |
 | `Source/IdentifyDisplays.rs`       | The `IdentifyDisplays` program, which shows each display's identifier on it      |
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |

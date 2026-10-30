@@ -1,4 +1,4 @@
-// A JSON parser for the settings file, since the demo's only dependency is
+// A JSON parser, for settings files, since KGames depends on no crates besides
 // windows-core. It follows RFC 8259, and says where in the text a mistake is.
 
 pub enum Value {

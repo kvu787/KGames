@@ -15,7 +15,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::json::{self, Value};
+use json::Value;
 
 // The only two window setups the demo supports. See WindowCheck.rs.
 #[derive(Clone, Copy, PartialEq, Eq)]

@@ -16,6 +16,7 @@ path = "Source/IdentifyDisplays.rs"
 
 [dependencies]
 game_input = { path = "../../Library/GameInput" }
+json = { path = "../../Library/Json" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 # Its proc macros (for implementing COM interfaces in Rust) aren't needed.

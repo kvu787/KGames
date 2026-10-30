@@ -13,8 +13,6 @@ mod font;
 mod frame_counter;
 #[path = "Input.rs"]
 mod input;
-#[path = "Json.rs"]
-mod json;
 #[path = "Panels.rs"]
 mod panels;
 #[path = "Renderer.rs"]
