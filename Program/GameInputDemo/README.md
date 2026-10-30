@@ -106,7 +106,7 @@ GameInput, because they say where the cursor is in the window.
 - Internet access for the first build, which downloads the GameInput runtime (see
   [Library/GameInput](../../Library/GameInput/README.md))
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
-- Optional, for `Scripts\RunInBackground.ps1`: the .NET 10 SDK
+- Optional, for [RunInBackground](../RunInBackground/README.md): the .NET 10 SDK
 
 ## Build and run
 
@@ -116,7 +116,7 @@ cargo run --release
 
 Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people
 who want to use the demo, not for coding agents, which use
-[`Scripts\RunInBackground.ps1`](#running-it-in-the-background). It runs `HumanRun.ps1`,
+[RunInBackground](#running-it-in-the-background). It runs `HumanRun.ps1`,
 which does the same as above with `--display Primary`, so the demo opens on the primary
 display whatever `Settings.json` says. Other arguments go to the demo.
 
@@ -133,27 +133,13 @@ The window opens behind that one, and gets keyboard and mouse input once you cli
 
 ### Running it in the background
 
-`Scripts\RunInBackground.ps1` builds the demo, and opens it with `--display` and `--no-activate`.
-It then saves a screenshot of the window, and closes it. It's how coding agents run the demo
-while you work in other windows (see [AGENTS.md](AGENTS.md)).
+[RunInBackground](../RunInBackground/README.md) builds the demo, opens it without taking focus,
+saves a screenshot of its window, and closes it. It's how coding agents run the demo while you
+work in other windows (see [AGENTS.md](AGENTS.md)).
 
 ```powershell
-Scripts\RunInBackground.ps1 --display KXGR16
+Program\RunInBackground\RunInBackground.ps1 GameInputDemo --display KXGR16
 ```
-
-The script only runs `Scripts\RunInBackground.cs`, a .NET file-based app, with `dotnet run`,
-which builds it into its own cache first.
-
-| Option                | Value                                                                      |
-| --------------------- | -------------------------------------------------------------------------- |
-| `--display <id>`      | The identifier of the display to open on. `CVVNY2` by default              |
-| `--seconds <seconds>` | How long the demo runs before the screenshot. 3 by default                 |
-| `--screenshot <path>` | Where to save the screenshot, as a PNG. `target\Screenshot.png` by default |
-| `--keep-open`         | Leaves the demo running after the screenshot                               |
-| `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer      |
-
-The screenshot is of what the demo draws in its window, without the title bar. It comes
-from `PrintWindow`, so it doesn't matter if other windows are in front of the demo's.
 
 ## Displays and settings
 
@@ -316,8 +302,6 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
-| `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
-| `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |

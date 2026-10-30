@@ -1,15 +1,16 @@
-// Builds GameInputDemo, runs it on one display without taking focus, saves a
-// screenshot of its window, and closes it. This is how coding agents run the
-// demo while someone works in other windows (see AGENTS.md):
+// Builds one of the GUI programs in Program, runs it on one display without
+// taking focus, saves a screenshot of its window, and closes it. This is how
+// coding agents run the programs while someone works in other windows (see
+// the AGENTS.md at the root of the repository):
 //
-//   - The demo opens with --display, so it opens on that display or not at all.
+//   - The program opens with --display, so it opens on that display or not
+//     at all.
 //   - It opens with --no-activate, so it opens behind the window that has
 //     focus, and typing there stays there.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //
-// Without focus, the demo ignores keyboard and mouse input, but gamepads
-// still work.
+// Without focus, programs ignore all input.
 //
 // This is a .NET file-based app, which RunInBackground.ps1 runs with
 // dotnet run. It builds into dotnet's own cache, not next to this file.
@@ -27,15 +28,19 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 
 const string Usage = """
-    Usage: RunInBackground.ps1 [options]
+    Usage: RunInBackground.ps1 <program> [options]
+
+      <program>               The program to run, like GameInputDemo: the name
+                              of its folder in Program, and of its exe
 
       --display <identifier>  The display to open on, as IdentifyDisplays --list
                               shows it. CVVNY2 by default
-      --seconds <seconds>     How long the demo runs before the screenshot. 3 by
-                              default
+      --seconds <seconds>     How long the program runs before the screenshot. 3
+                              by default
       --screenshot <path>     Where to save the screenshot of the window's
-                              contents, as a PNG. target\Screenshot.png by default
-      --keep-open             Leaves the demo running after the screenshot
+                              contents, as a PNG.
+                              target\RunInBackground\<program>.png by default
+      --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds with Cargo's dev profile, which turns on the
                               D3D12 debug layer
     """;
@@ -49,6 +54,7 @@ try {
 }
 
 static void Run(string[] arguments) {
+    string? program = null;
     var display = "CVVNY2";
     var seconds = 3.0;
     string? screenshot = null;
@@ -77,18 +83,28 @@ static void Run(string[] arguments) {
             Console.WriteLine(Usage);
             return;
         default:
-            throw new FailureException($"Unknown argument {arguments[i]}\n\n{Usage}");
+            if (program != null || arguments[i].StartsWith('-')) {
+                throw new FailureException($"Unknown argument {arguments[i]}\n\n{Usage}");
+            }
+            program = arguments[i];
+            break;
         }
     }
+    if (program == null) {
+        throw new FailureException($"Name the program to run\n\n{Usage}");
+    }
 
-    var scripts = (string)AppContext.GetData("EntryPointFileDirectoryPath")!;
-    var project = Path.GetFullPath(Path.Combine(scripts, ".."));
-    // The repository's Cargo workspace keeps every package's build in its own target folder.
-    var target = Path.GetFullPath(Path.Combine(project, "..", "..", "target"));
+    // This file is in Program\RunInBackground. The repository's Cargo
+    // workspace builds every program into the target folder at its root.
+    var here = (string)AppContext.GetData("EntryPointFileDirectoryPath")!;
+    var repository = Path.GetFullPath(Path.Combine(here, "..", ".."));
+    var target = Path.Combine(repository, "target");
+    var output = Path.Combine(target, "RunInBackground");
+    Directory.CreateDirectory(output);
     // A path given on the command line is relative to the current directory.
-    screenshot = Path.GetFullPath(screenshot ?? Path.Combine(target, "Screenshot.png"));
+    screenshot = Path.GetFullPath(screenshot ?? Path.Combine(output, $"{program}.png"));
 
-    var build = new List<string> { "build", "--manifest-path", Path.Combine(project, "Cargo.toml"), "--bin", "GameInputDemo" };
+    var build = new List<string> { "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
     if (!debugBuild) {
         build.Add("--release");
     }
@@ -98,61 +114,61 @@ static void Run(string[] arguments) {
             throw new FailureException($"cargo build failed with exit code {cargo.ExitCode}");
         }
     }
-    var exe = Path.Combine(target, debugBuild ? "debug" : "release", "GameInputDemo.exe");
+    var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
 
-    // The demo has no console, but writes why it couldn't start to standard error.
-    var outputLog = Path.Combine(target, "RunInBackgroundOutput.log");
-    var errorLog = Path.Combine(target, "RunInBackgroundErrors.log");
-    using var process = DemoProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog);
+    // The program has no console, but writes why it couldn't start to standard error.
+    var outputLog = Path.Combine(output, $"{program}Output.log");
+    var errorLog = Path.Combine(output, $"{program}Errors.log");
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog);
 
     var window = IntPtr.Zero;
     var waiting = Stopwatch.StartNew();
     while (window == IntPtr.Zero) {
         if (process.HasExited) {
-            throw new FailureException($"GameInputDemo exited with code {process.ExitCode} before opening its window. {ReadLog(errorLog)}");
+            throw new FailureException($"{program} exited with code {process.ExitCode} before opening its window. {ReadLog(errorLog)}");
         }
         if (waiting.Elapsed > TimeSpan.FromSeconds(30)) {
             process.Kill();
-            throw new FailureException("GameInputDemo didn't open its window within 30 seconds, so it was stopped");
+            throw new FailureException($"{program} didn't open its window within 30 seconds, so it was stopped");
         }
         Thread.Sleep(100);
-        window = DemoWindow.Find(process.Id);
+        window = ProgramWindow.Find(process.Id);
     }
 
     Thread.Sleep(TimeSpan.FromSeconds(seconds));
     if (process.HasExited) {
-        throw new FailureException($"GameInputDemo exited with code {process.ExitCode}. {ReadLog(errorLog)}");
+        throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
     }
-    var (width, height) = DemoWindow.ClientSize(window);
+    var (width, height) = ProgramWindow.ClientSize(window);
     if (width <= 0 || height <= 0) {
-        throw new FailureException("GameInputDemo's window has no contents to capture");
+        throw new FailureException($"{program}'s window has no contents to capture");
     }
     // GDI leaves alpha at 0, so the bitmap has none.
     using (var bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb)) {
         bool printed;
         using (var graphics = Graphics.FromImage(bitmap)) {
             var dc = graphics.GetHdc();
-            printed = DemoWindow.Print(window, dc);
+            printed = ProgramWindow.Print(window, dc);
             graphics.ReleaseHdc(dc);
         }
         if (!printed) {
-            throw new FailureException("PrintWindow couldn't capture GameInputDemo's window");
+            throw new FailureException($"PrintWindow couldn't capture {program}'s window");
         }
         bitmap.Save(screenshot, ImageFormat.Png);
     }
-    Console.WriteLine($"Title: {DemoWindow.Title(window)}");
+    Console.WriteLine($"Title: {ProgramWindow.Title(window)}");
     Console.WriteLine($"Screenshot: {screenshot}");
 
     if (keepOpen) {
-        Console.WriteLine($"GameInputDemo is still running, with process ID {process.Id}");
+        Console.WriteLine($"{program} is still running, with process ID {process.Id}");
     } else {
-        DemoWindow.Close(window);
+        ProgramWindow.Close(window);
         if (!process.WaitForExit(10000)) {
             process.Kill();
-            throw new FailureException("GameInputDemo didn't close within 10 seconds, so it was stopped");
+            throw new FailureException($"{program} didn't close within 10 seconds, so it was stopped");
         }
         if (process.ExitCode != 0) {
-            throw new FailureException($"GameInputDemo exited with code {process.ExitCode}. {ReadLog(errorLog)}");
+            throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
         }
     }
 }
@@ -165,7 +181,7 @@ static string Value(string[] arguments, ref int index) {
     return arguments[++index];
 }
 
-// A log the demo may still be writing to.
+// A log the program may still be writing to.
 static string ReadLog(string path) {
     try {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -179,12 +195,12 @@ static string ReadLog(string path) {
 // An error to show without a stack trace.
 sealed class FailureException(string message) : Exception(message);
 
-// Starts the demo with its standard output and standard error going to files.
+// Starts the program with its standard output and standard error going to files.
 // CreateProcess passes on every inheritable handle unless it's given a list of
-// them, and Process.Start gives none. Then the demo would get a copy of the pipe
+// them, and Process.Start gives none. Then the program would get a copy of the pipe
 // that this program's output goes to, and whatever reads that output would wait
-// until the demo closed.
-static partial class DemoProcess {
+// until the program closed.
+static partial class ProgramProcess {
     [StructLayout(LayoutKind.Sequential)]
     struct STARTUPINFOEX {
         public int cb;
@@ -255,7 +271,7 @@ static partial class DemoProcess {
             }
             var process = Process.GetProcessById(information.dwProcessId);
             // The Process opens its own handle, which keeps the exit code
-            // readable after the demo exits.
+            // readable after the program exits.
             _ = process.Handle;
             _ = CloseHandle(information.hThread);
             _ = CloseHandle(information.hProcess);
@@ -269,7 +285,7 @@ static partial class DemoProcess {
         }
     }
 
-    // A file the demo writes to, which this program can read while it does.
+    // A file the program writes to, which this program can read while it does.
     static FileStream Open(string path) {
         var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
         if (!SetHandleInformation(stream.SafeFileHandle.DangerousGetHandle(), HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)) {
@@ -279,7 +295,7 @@ static partial class DemoProcess {
     }
 }
 
-static partial class DemoWindow {
+static partial class ProgramWindow {
     [StructLayout(LayoutKind.Sequential)]
     struct RECT { public int Left, Top, Right, Bottom; }
 
@@ -308,8 +324,8 @@ static partial class DemoWindow {
     const uint PW_RENDERFULLCONTENT = 2;
     const uint WM_CLOSE = 0x0010;
 
-    // The demo's window: a visible top-level window of the process, of the
-    // class that Main.rs registers. The process has other windows.
+    // The program's window: a visible top-level window of the process, of the
+    // class that Library/Application registers. The process has other windows.
     public static IntPtr Find(int processId) {
         var window = IntPtr.Zero;
         while ((window = FindWindowExW(IntPtr.Zero, window, "MainWindow", null)) != IntPtr.Zero) {
