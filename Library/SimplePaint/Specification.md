@@ -236,7 +236,7 @@ Run the module's four tests with `cargo test -p simple_paint_tests`, as [Usage.m
 | OrthographicTransforms | 4,000 packed transform comparisons and near/far depth endpoints                  |
 | Gpu                    | 30,208 production VS/PS samples on the preferred hardware adapter, then the      |
 |                        | same 30,208 samples on WARP                                                      |
-| ShaderCompilation      | The adapter with the default material count of one, an explicit three, and a    |
+| ShaderCompilation      | The adapter with the default material count of one, an explicit three, and a     |
 |                        | rejected zero                                                                    |
 
 The tests live in their own package and use only the crate's public interface, as any host does. No host application sources are required.
