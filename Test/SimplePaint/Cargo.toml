@@ -1,0 +1,43 @@
+[package]
+name = "simple_paint_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+build = "Build.rs"
+
+# Each test is its own program, like the C++ module's test executables, and
+# prints what it measured.
+[[test]]
+name = "Contract"
+path = "Contract.rs"
+harness = false
+
+[[test]]
+name = "OrthographicTransforms"
+path = "OrthographicTransforms.rs"
+harness = false
+
+[[test]]
+name = "Gpu"
+path = "Gpu.rs"
+harness = false
+
+[[test]]
+name = "ShaderCompilation"
+path = "ShaderCompilation.rs"
+harness = false
+
+[dependencies]
+graphics = { path = "../../Library/Graphics" }
+math = { path = "../../Library/Math" }
+shader_compiler = { path = "../../Library/ShaderCompiler" }
+simple_paint = { path = "../../Library/SimplePaint" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../../Library/ShaderCompiler" }
