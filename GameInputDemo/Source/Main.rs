@@ -88,12 +88,10 @@ fn pack_point(lparam: LPARAM) -> u64 {
 }
 
 fn unpack_point(packed: u64) -> Option<[f32; 2]> {
-    (packed != NO_POINT).then(|| {
-        [
-            (packed as u16 as i16) as f32,
-            ((packed >> 16) as u16 as i16) as f32,
-        ]
-    })
+    (packed != NO_POINT).then_some([
+        (packed as u16 as i16) as f32,
+        ((packed >> 16) as u16 as i16) as f32,
+    ])
 }
 
 extern "system" fn window_procedure(
