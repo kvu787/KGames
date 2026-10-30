@@ -6,6 +6,8 @@ edition = "2024"
 [[bin]]
 name = "GameInputDemo"
 path = "Source/Main.rs"
+# Every test is in Test.
+test = false
 
 [dependencies]
 application = { path = "../../Library/Application" }

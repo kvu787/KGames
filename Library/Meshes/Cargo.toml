@@ -5,6 +5,9 @@ edition = "2024"
 
 [lib]
 path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
 
 [dependencies]
 simple_paint = { path = "../SimplePaint" }

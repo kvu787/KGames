@@ -7,6 +7,8 @@ build = "Build.rs"
 [[bin]]
 name = "MinimalSceneTest"
 path = "Source/Main.rs"
+# Every test is in Test.
+test = false
 
 [dependencies]
 application = { path = "../../Library/Application" }

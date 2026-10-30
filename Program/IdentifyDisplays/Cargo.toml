@@ -6,6 +6,8 @@ edition = "2024"
 [[bin]]
 name = "IdentifyDisplays"
 path = "Source/Main.rs"
+# Every test is in Test.
+test = false
 
 [dependencies]
 displays = { path = "../../Library/Displays" }
