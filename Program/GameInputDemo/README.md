@@ -68,7 +68,8 @@ and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and
 other gamepads with rumble have. The left stick drives the first and the right stick the
 second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's
 "Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs,
-and while the window is minimized, which stops the demo from reading the sticks, none does either.
+and while the window doesn't have focus or is minimized, which stops the demo from reading the
+sticks, none does either.
 
 A motor is off while its stick is inside the inner dead zone, the ring on the stick's
 graph. Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from
@@ -206,12 +207,15 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
 3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
    to work out what changed.
 
-The demo only handles keyboard and mouse input while its window has focus, and the header
-says whether it has focus. GameInput is meant to give that input only to the window in focus,
-but the 4.0.306 runtime that the demo loads from its folder gives it to the demo without focus
-too, even after `EnableBackgroundInput(false)`. So the demo drops it itself. Otherwise it
-would show and log what's typed into other windows, and its shortcuts would run when they're
-pressed in other apps. Gamepad input is handled with or without focus.
+Like every KGames program, the demo only handles input while its window has focus, and the
+header says whether it has focus. GameInput gives gamepad input to windows without focus. It's
+meant to give keyboard and mouse input only to the window in focus, but the 4.0.306 runtime
+that the demo loads from its folder gives it to the demo without focus too, even after
+`EnableBackgroundInput(false)`. So the demo drops it all itself: readings that come while the
+window doesn't have focus, and from before it got focus, like the click that gave it. Otherwise
+it would show and log what's typed into other windows, and its shortcuts would run when they're
+pressed in other apps. When the window loses focus, the panels stop showing keys, buttons and
+sticks as held.
 
 ## Input latency
 
@@ -258,8 +262,9 @@ response, is outside the demo.
    frame 4 times slower.
 8. **No power throttling.** Windows lowers the quality of service of a process whose
    windows aren't in focus. On a CPU with efficiency cores, that can move its threads
-   onto those, at lower clock speeds. GameInput still delivers gamepad input then, so the
-   demo opts out with `SetProcessInformation`.
+   onto those, at lower clock speeds. The demo ignores input then, but keeps drawing, so it
+   opts out with `SetProcessInformation`, which keeps its frames paced the same in the
+   background as in the foreground.
 
 What it doesn't do:
 

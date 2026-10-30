@@ -292,9 +292,11 @@ pub struct Input {
     pub fullscreen_toggled: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
-    // Whether the window had focus at the last update, so keyboard and mouse
-    // input was handled.
+    // Whether the window had focus at the last update, so input was handled.
     focused: bool,
+    // When the window last got focus, in GameInput's clock. Readings from
+    // before then are input without focus too, like the click that gave it.
+    focus_timestamp: u64,
 }
 
 impl Input {
@@ -330,6 +332,7 @@ impl Input {
                 fullscreen_toggled: false,
                 shortcuts: Vec::new(),
                 focused: false,
+                focus_timestamp: u64::MAX,
             })
         }
     }
@@ -338,15 +341,23 @@ impl Input {
         timestamp.saturating_sub(self.start_timestamp) as f64 / 1_000_000.0
     }
 
-    // `focused` is whether the window has focus. Keyboard and mouse input is
-    // only handled while it does, see handle_reading.
+    // `focused` is whether the window has focus. Input is only handled while
+    // it does, see handle_reading.
     pub fn update(&mut self, focused: bool) {
         unsafe {
             if self.focused && !focused {
-                // Keys and buttons let go of after the window lost focus are
-                // never seen, so stop showing them as held.
+                // Keys, buttons and sticks let go of after the window lost
+                // focus are never seen, so stop showing them as held.
                 self.keyboard.keys.clear();
                 self.mouse.state.buttons = 0;
+                let device = self.gamepad.device.clone();
+                self.view_gamepad(device.as_ref());
+                for rumble in &mut self.rumbles {
+                    rumble.sticks = [0.0; 2];
+                }
+            }
+            if !self.focused && focused {
+                self.focus_timestamp = self.game_input.GetCurrentTimestamp();
             }
             self.focused = focused;
             self.now = self.seconds(self.game_input.GetCurrentTimestamp());
@@ -372,7 +383,12 @@ impl Input {
             self.gamepad.rate.tick(self.now);
             self.keyboard.rate.tick(self.now);
             self.mouse.rate.tick(self.now);
-            self.update_rumble();
+            // Without focus, the sticks don't drive the motors.
+            if focused {
+                self.update_rumble();
+            } else {
+                self.stop_rumble();
+            }
         }
     }
 
@@ -594,12 +610,15 @@ impl Input {
         reading: &IGameInputReading,
     ) {
         unsafe {
-            // Keyboard and mouse input is meant for the window in focus.
-            // GameInput 4.0.306, loaded from the exe's folder, gives it to
-            // the demo without focus too, even with EnableBackgroundInput(false),
-            // so the demo drops it itself. Otherwise it would show and log what
-            // is typed into other windows, and run its shortcuts for them.
-            if !self.focused && matches!(source, Source::Keyboard | Source::Mouse) {
+            // KGames programs ignore all input while their window doesn't
+            // have focus. GameInput gives gamepad input to windows without
+            // focus. It's meant to give keyboard and mouse input only to the
+            // window in focus, but GameInput 4.0.306, loaded from the exe's
+            // folder, gives that to the demo without focus too, even with
+            // EnableBackgroundInput(false). So the demo drops it all itself.
+            // Otherwise it would show and log what is typed into other
+            // windows, and run its shortcuts for them.
+            if !self.focused || reading.GetTimestamp() < self.focus_timestamp {
                 return;
             }
             let device = reading.GetDevice();
@@ -1018,7 +1037,8 @@ impl Input {
 
     // Stops every motor, for while the window is minimized, when update isn't
     // called and the motors would otherwise keep running at their last
-    // strength. The next update starts them again from the sticks.
+    // strength, and while it doesn't have focus. The next update with focus
+    // starts them again from the sticks.
     pub fn stop_rumble(&mut self) {
         let off = GameInputRumbleParams::default();
         for rumble in &mut self.rumbles {
