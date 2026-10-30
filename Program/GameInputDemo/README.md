@@ -103,7 +103,8 @@ GameInput, because they say where the cursor is in the window.
 
 - Rust with the `x86_64-pc-windows-msvc` toolchain
 - Windows SDK (provides `dxc.exe` under `C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`)
-- Internet access for the first build, which downloads the GameInput runtime (see below)
+- Internet access for the first build, which downloads the GameInput runtime (see
+  [Library/GameInput](../../Library/GameInput/README.md))
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
 - Optional, for `Scripts\RunInBackground.ps1`: the .NET 10 SDK
 
@@ -218,30 +219,9 @@ on the primary display.
 
 ## How it gets GameInput
 
-GameInput has two parts: a header that a game compiles against, and a runtime DLL.
-
-**The API.** This demo uses API version 4, from `native/include/v4/GameInput.h` in the
-[Microsoft.GameInput](https://www.nuget.org/packages/Microsoft.GameInput) NuGet package.
-GameInput isn't in the Windows metadata that `windows-bindgen` reads, so
-`Source/GameInput.rs` declares the parts the demo uses by hand, in the same shape as the
-generated bindings. Every vtable slot is listed in header order, so it can be checked
-against the header.
-
-Microsoft's online reference still shows older signatures for some methods. For example,
-its `RegisterDeviceCallback` has the `statusFilter` and `enumerationKind` parameters that
-v4 removed. When they differ, the v4 header is right.
-
-**The runtime.** Windows 11 ships a `GameInput.dll` that only supports API version 0.
-Newer runtimes come from the NuGet package, either installed with `GameInputRedist.msi`,
-or as a `GameInputRedist.dll` that sits next to the game's exe. The demo does the second:
-`Build.rs` downloads the package version it pins and checks its SHA-512 against NuGet's.
-It then copies `GameInputRedist.dll` and its helper `GameInputRawInputProxy.exe` next to the exe.
-The package is kept in `Packages`, which Git ignores.
-
-C++ games find the runtime by linking `GameInput.lib`, whose source is in the package
-as `native/src/GameInput.cpp`. `game_input::create` is a Rust port of it: of the copy
-built into Windows, an installed redistributable, and one in the exe's folder, it loads
-the newest. The header of the demo's window shows which one it loaded.
+The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, finds
+and loads the newest runtime, and puts the runtime from Microsoft's NuGet package next to the
+demo's exe. The header of the demo's window shows which runtime it loaded.
 
 ## How it reads input
 
@@ -341,20 +321,12 @@ second after the demo starts, while GameInput adds that device.
 There's no such way to test the gamepad panel. The virtual gamepad that Windows'
 `InputInjector.InitializeGamepadInjection` creates doesn't reach GameInput, so it needs a real gamepad.
 
-## Updating GameInput
-
-1. Set `GAME_INPUT_VERSION` in `Build.rs` to the new version, and `GAME_INPUT_SHA512` to its hash.
-   The hash is the `packageHash` in the version's NuGet catalog entry, which is Base64, written as hex.
-2. If the package has a new API version, compare its header with `Source/GameInput.rs`,
-   change the interface IDs and vtables to match, and update this file.
-
 ## Using more APIs
 
 For Windows APIs, which `windows-bindgen` generates, see
 [Library/WindowsApi](../../Library/WindowsApi/README.md).
 
-For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the method's
-`usize` placeholder in the vtable with its function pointer type, and add a method that calls it.
+For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#using-more-apis).
 
 ## Layout
 
@@ -367,17 +339,15 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Source/Displays.rs`               | Finds the displays and makes their identifiers, for both programs                |
 | `Source/IdentifyDisplays.rs`       | The `IdentifyDisplays` program, which shows each display's identifier on it      |
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
-| `Source/GameInput.rs`              | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
 | `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
 | `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with DirectWrite                        |
 | `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
 | `Shaders/Canvas.hlsl`              | Vertex and pixel shaders, plus the embedded root signature                       |
-| `Build.rs`                         | Compiles the shaders, and fetches and deploys the GameInput runtime              |
+| `Build.rs`                         | Compiles the shaders                                                             |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
-| `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |

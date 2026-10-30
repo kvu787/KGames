@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 
 use windows_api::*;
-use crate::game_input::*;
+use game_input::*;
 use windows_core::{Interface, Result};
 
 const LOG_CAPACITY: usize = 200;
@@ -299,7 +299,7 @@ pub struct Input {
 
 impl Input {
     pub fn new(rumble_dead_zone: f32) -> Result<Self> {
-        let (game_input, runtime) = crate::game_input::create()?;
+        let (game_input, runtime) = game_input::create()?;
         unsafe {
             let callback_token = game_input.RegisterDeviceCallback(
                 None,

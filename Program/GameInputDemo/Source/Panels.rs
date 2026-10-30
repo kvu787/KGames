@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 
 use crate::canvas::{Canvas, Color};
 use crate::frame_counter::FrameCounter;
-use crate::game_input::*;
+use game_input::*;
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
 pub const BACKGROUND: [f32; 4] = [0.933, 0.941, 0.953, 1.0];

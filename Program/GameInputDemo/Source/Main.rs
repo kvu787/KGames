@@ -1,16 +1,6 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-// Written by hand from GameInput.h, keeping its native names.
-#[path = "GameInput.rs"]
-#[allow(
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    dead_code
-)]
-mod game_input;
-
 #[path = "Canvas.rs"]
 mod canvas;
 // Shared with IdentifyDisplays, which uses parts of it that this doesn't.

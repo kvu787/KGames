@@ -1,0 +1,18 @@
+[package]
+name = "game_input"
+version = "0.1.0"
+edition = "2024"
+build = "Build.rs"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+windows_api = { path = "../WindowsApi" }
+
+# Source/Library.rs is written by hand from GameInput.h, in the shape of
+# windows-bindgen's output, and needs only windows-core.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]

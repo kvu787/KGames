@@ -1,11 +1,14 @@
 // Hand-written bindings for the GameInput v4 API, transcribed from
 // native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package
 // (Build.rs pins the version). GameInput isn't in the Windows metadata that
-// windows-bindgen reads, so this file copies the shape of its output instead.
+// windows-bindgen reads, so this file copies the shape of its output instead,
+// and keeps GameInput's native names.
 //
-// Only what the demo uses is wrapped in methods. Every vtable slot is still
+// Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
 // unused slots are usize placeholders, the way windows-bindgen writes them.
+
+#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code)]
 
 use core::ffi::c_void;
 use std::path::{Path, PathBuf};
