@@ -18,8 +18,7 @@ Currently, I plan to develop the latest versions of Veehiicuul and Automatou in 
 This repo aims to minimize dependencies on things like game engines and UI frameworks like Unity,
 Godot, WPF, Dear ImGui, Electron, etc.
 
-This decision was primarily made by my experience with those dependencies, but here are a summary
-of the reasons:
+This decision was primarily motivated by my experience working with those dependencies, but here are a summary of the reasons:
 
 - Agents are now good enough to handle the significantly increased development burden of using low-level APIs.
 - Maintain precise control over window behavior, input latency, vsync behavior.
