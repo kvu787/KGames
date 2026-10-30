@@ -3,10 +3,6 @@
 
 #[path = "Canvas.rs"]
 mod canvas;
-// Shared with IdentifyDisplays, which uses parts of it that this doesn't.
-#[path = "Displays.rs"]
-#[allow(dead_code)]
-mod displays;
 #[path = "Font.rs"]
 mod font;
 #[path = "FrameCounter.rs"]

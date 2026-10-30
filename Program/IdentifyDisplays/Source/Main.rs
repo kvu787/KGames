@@ -1,19 +1,14 @@
 // Shows each display's identifier on that display, and writes the
-// identifiers to the console. Set "Display" in GameInputDemo's settings file
-// to an identifier, or run it with --display and the identifier, to open it
-// on that display.
+// identifiers to the console. Set "Display" in a program's settings file to
+// an identifier, or run the program with --display and the identifier, to
+// open it on that display.
 //
 // Each display gets a box in its middle, drawn with GDI. The boxes close when
 // one is clicked, or when Esc is pressed while one has focus. With --list, it
 // only writes to the console.
 
-// Shared with GameInputDemo, which uses parts of it that this doesn't.
-#[path = "Displays.rs"]
-#[allow(dead_code)]
-mod displays;
-
-use windows_api::*;
 use displays::Display;
+use windows_api::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
 // Sizes at 100% scaling, in pixels.
@@ -24,7 +19,7 @@ const HINT_SIZE: i32 = 16;
 const PADDING: i32 = 32;
 const BORDER: i32 = 4;
 
-// GameInputDemo's colors.
+// The colors of the programs' light theme, from Library/Canvas.
 const BACKGROUND: COLORREF = rgb(0xFFFFFF);
 const ACCENT: COLORREF = rgb(0x0969DA);
 const TITLE: COLORREF = rgb(0x14171C);
@@ -254,11 +249,9 @@ fn print(displays: &[Display], boxes: bool) {
         );
         println!("{indent}{}", display.device_path);
     }
-    // Where GameInputDemo's Settings.rs keeps its settings.
-    let settings = concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json");
     println!();
-    println!("To open GameInputDemo on a display, set \"Display\" in {settings} to the");
-    println!("display's identifier, or run GameInputDemo with --display and the identifier.");
+    println!("To open a program on a display, set \"Display\" in the Settings.json in its");
+    println!("folder to the display's identifier, or run it with --display and the identifier.");
     if boxes {
         println!();
         println!("Click an identifier on screen, or press Esc, to close them.");

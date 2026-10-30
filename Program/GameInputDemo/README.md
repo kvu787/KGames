@@ -159,28 +159,8 @@ from `PrintWindow`, so it doesn't matter if other windows are in front of the de
 
 ### Display identifiers
 
-`IdentifyDisplays` is a second program in this package. It puts a box in the middle of
-each display with the display's identifier, like `KXGR16`, its model and its mode. It writes
-the same to the console, with each monitor's device path. Click a box, or press `Esc`
-while one has focus, to close them. With `--list`, it only writes to the console.
-
-An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
-which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an
-FNV-1a hash of the monitor's device path, like
-`\\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8454#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
-Windows makes that path from the monitor's model, from its EDID, and from the GPU output
-it's plugged into. So an identifier:
-
-- Stays the same across restarts, and when the display's resolution, scale or position changes.
-- Differs between two monitors of the same model. On the development machine, three
-  ASUS PA278QGV monitors are `CVVNY2`, `9XH36C` and `KXGR16`.
-- Changes when the monitor is plugged into another output or GPU.
-
-The demo matches identifiers without regard to case. Monitors that clone each other show
-the same part of the desktop, so `IdentifyDisplays` puts all of their identifiers in one
-box, and any of them opens the demo there. Without a monitor device path, like over
-Remote Desktop, the identifier comes from the GDI device name, like `\\.\DISPLAY1`,
-which can change between restarts.
+[IdentifyDisplays](../IdentifyDisplays/README.md) shows each display's identifier, like
+`KXGR16`, on that display. The demo matches identifiers without regard to case.
 
 ### Settings file
 
@@ -335,8 +315,6 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/Main.rs`                   | Window and its placement, message loop, frame pacing, fullscreen                 |
 | `Source/WindowCheck.rs`            | Checks that the window is in one of the two supported setups                     |
 | `Source/Settings.rs`               | Reads the settings file, and writes it with the defaults if it doesn't exist     |
-| `Source/Displays.rs`               | Finds the displays and makes their identifiers, for both programs                |
-| `Source/IdentifyDisplays.rs`       | The `IdentifyDisplays` program, which shows each display's identifier on it      |
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |

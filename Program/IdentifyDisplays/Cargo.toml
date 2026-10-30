@@ -1,0 +1,17 @@
+[package]
+name = "identify_displays"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "IdentifyDisplays"
+path = "Source/Main.rs"
+
+[dependencies]
+displays = { path = "../../Library/Displays" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]

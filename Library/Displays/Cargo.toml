@@ -1,0 +1,15 @@
+[package]
+name = "displays"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+windows_api = { path = "../WindowsApi" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
