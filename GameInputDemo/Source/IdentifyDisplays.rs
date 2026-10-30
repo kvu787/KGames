@@ -36,11 +36,11 @@ const PADDING: i32 = 32;
 const BORDER: i32 = 4;
 
 // GameInputDemo's colors.
-const BACKGROUND: COLORREF = rgb(0x1C1F26);
-const ACCENT: COLORREF = rgb(0x4FC1FF);
-const TITLE: COLORREF = rgb(0xFFFFFF);
-const TEXT: COLORREF = rgb(0xD7DAE0);
-const DIM: COLORREF = rgb(0x8B93A1);
+const BACKGROUND: COLORREF = rgb(0xFFFFFF);
+const ACCENT: COLORREF = rgb(0x0969DA);
+const TITLE: COLORREF = rgb(0x14171C);
+const TEXT: COLORREF = rgb(0x2E343C);
+const DIM: COLORREF = rgb(0x646C78);
 
 // GDI colors are 0x00BBGGRR.
 const fn rgb(hex: u32) -> COLORREF {

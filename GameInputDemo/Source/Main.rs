@@ -365,14 +365,6 @@ fn main() -> Result<()> {
         if settings.window_mode == WindowMode::BorderlessFullscreen {
             toggle_fullscreen(window, &mut windowed)?;
         }
-        // Cosmetic, so a failure doesn't matter.
-        let dark = windows_core::BOOL(1);
-        let _ = DwmSetWindowAttribute(
-            window,
-            DWMWA_USE_IMMERSIVE_DARK_MODE as u32,
-            &raw const dark as _,
-            size_of::<windows_core::BOOL>() as u32,
-        );
 
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window, &font, settings.allow_tearing)?;

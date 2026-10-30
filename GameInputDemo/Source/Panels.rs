@@ -11,20 +11,21 @@ use crate::frame_counter::FrameCounter;
 use crate::game_input::*;
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
-pub const BACKGROUND: [f32; 4] = [0.071, 0.078, 0.094, 1.0];
-const PANEL: Color = Color::rgb(0x1C1F26);
-const PLOT: Color = Color::rgb(0x15171C);
-const BORDER: Color = Color::rgb(0x2E333D);
-const TITLE: Color = Color::rgb(0xFFFFFF);
-const TEXT: Color = Color::rgb(0xD7DAE0);
-const DIM: Color = Color::rgb(0x8B93A1);
-const FAINT: Color = Color::rgb(0x4A515E);
-const LEFT: Color = Color::rgb(0x4FC1FF);
-const RIGHT: Color = Color::rgb(0xFF9F43);
-const PRESSED: Color = Color::rgb(0x3DDC84);
-const PRESSED_TEXT: Color = Color::rgb(0x0B2414);
-const WARNING: Color = Color::rgb(0xFFCC66);
-const ERROR: Color = Color::rgb(0xFF6B6B);
+pub const BACKGROUND: [f32; 4] = [0.933, 0.941, 0.953, 1.0];
+const PANEL: Color = Color::rgb(0xFFFFFF);
+const PLOT: Color = Color::rgb(0xF4F6F8);
+const BORDER: Color = Color::rgb(0xD0D7DE);
+const TITLE: Color = Color::rgb(0x14171C);
+const TEXT: Color = Color::rgb(0x2E343C);
+const DIM: Color = Color::rgb(0x646C78);
+const FAINT: Color = Color::rgb(0xADB4BE);
+const LEFT: Color = Color::rgb(0x0969DA);
+const RIGHT: Color = Color::rgb(0xC2550A);
+const PRESSED: Color = Color::rgb(0x1A7F37);
+const PRESSED_TEXT: Color = Color::rgb(0xFFFFFF);
+const WARNING: Color = Color::rgb(0x9A6700);
+const ERROR: Color = Color::rgb(0xCF222E);
+const KEYBOARD: Color = Color::rgb(0x8250DF);
 
 // The layout, in pixels. Three columns: the gamepad over the keyboard and
 // mouse, the latest event over the devices, and the log.
@@ -630,7 +631,7 @@ fn draw_picker_list(
         list.y + 3.0,
         list.width,
         list.height,
-        Color::rgb(0x000000).alpha(0.5),
+        Color::rgb(0x000000).alpha(0.15),
     );
     canvas.rect(list.x, list.y, list.width, list.height, PANEL);
     canvas.rect_outline(list.x, list.y, list.width, list.height, 1.0, DIM);
@@ -1066,7 +1067,7 @@ fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect) {
 fn source_color(source: Source) -> Color {
     match source {
         Source::Gamepad => LEFT,
-        Source::Keyboard => Color::rgb(0xC792EA),
+        Source::Keyboard => KEYBOARD,
         Source::Mouse => WARNING,
         Source::Device => PRESSED,
         Source::Demo => DIM,

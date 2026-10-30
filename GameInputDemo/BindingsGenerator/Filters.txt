@@ -129,10 +129,6 @@ TME_LEAVE
 WM_MOUSELEAVE
 WM_MOUSEMOVE
 
-// Dark title bar, to match the dark panels
-DwmSetWindowAttribute
-DWMWA_USE_IMMERSIVE_DARK_MODE
-
 // Key names for the keyboard panel
 GetKeyNameTextW
 

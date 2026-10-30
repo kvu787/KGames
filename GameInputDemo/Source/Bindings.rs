@@ -210,16 +210,6 @@ where
     unsafe { DrawTextW(hdc, lpchtext.param().abi(), cchtext, lprc as _, format) }
 }
 #[inline]
-pub unsafe fn DwmSetWindowAttribute(
-    hwnd: HWND,
-    dwattribute: u32,
-    pvattribute: *const core::ffi::c_void,
-    cbattribute: u32,
-) -> windows_core::HRESULT {
-    windows_core::link!("dwmapi.dll" "system" fn DwmSetWindowAttribute(hwnd : HWND, dwattribute : u32, pvattribute : *const core::ffi::c_void, cbattribute : u32) -> windows_core::HRESULT);
-    unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
-}
-#[inline]
 pub unsafe fn EndPaint(hwnd: HWND, lppaint: *const PAINTSTRUCT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn EndPaint(hwnd : HWND, lppaint : *const PAINTSTRUCT) -> windows_core::BOOL);
     unsafe { EndPaint(hwnd, lppaint) }
@@ -2212,8 +2202,6 @@ pub const DT_CALCRECT: i32 = 1024;
 pub const DT_CENTER: i32 = 1;
 pub const DT_NOPREFIX: i32 = 2048;
 pub const DT_SINGLELINE: i32 = 32;
-pub const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = 20;
-pub type DWMWINDOWATTRIBUTE = i32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
