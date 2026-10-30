@@ -98,6 +98,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal_scene_test"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "graphics",
+ "json",
+ "math",
+ "meshes",
+ "paint_settings",
+ "shader_compiler",
+ "simple_paint",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
 name = "paint_settings"
 version = "0.1.0"
 dependencies = [

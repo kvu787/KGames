@@ -22,6 +22,7 @@ members = [
     "Program/GameInputDemo",
     "Program/HelloDirect3D12",
     "Program/IdentifyDisplays",
+    "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",
     "Test/Math",
     "Test/SimplePaint",

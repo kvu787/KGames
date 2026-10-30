@@ -1,0 +1,29 @@
+[package]
+name = "minimal_scene_test"
+version = "0.1.0"
+edition = "2024"
+build = "Build.rs"
+
+[[bin]]
+name = "MinimalSceneTest"
+path = "Source/Main.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+canvas = { path = "../../Library/Canvas" }
+graphics = { path = "../../Library/Graphics" }
+json = { path = "../../Library/Json" }
+math = { path = "../../Library/Math" }
+meshes = { path = "../../Library/Meshes" }
+paint_settings = { path = "../../Library/PaintSettings" }
+simple_paint = { path = "../../Library/SimplePaint" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../../Library/ShaderCompiler" }

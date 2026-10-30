@@ -1,0 +1,29 @@
+{
+    "Display": "Primary",
+    "WindowMode": "BorderlessFullscreen",
+    "AllowTearing": true,
+    "Sphere": {
+        "BaseColor": [0.17000002, 0.47433347, 0.9990234375],
+        "Brightness": 0.5,
+        "Shift": 0.0,
+        "RotationDegrees": 0.0,
+        "DarkPoint": 0.5,
+        "LightPoint": 0.5
+    },
+    "Ground": {
+        "BaseColor": [0.08900002, 0.89, 0.48950002],
+        "Brightness": 0.5,
+        "Shift": 0.0,
+        "RotationDegrees": 0.0,
+        "DarkPoint": 0.05,
+        "LightPoint": 0.7
+    },
+    "Cube": {
+        "BaseColor": [0.88, 0.1672, 0.17907982],
+        "Brightness": 0.5,
+        "Shift": 0.0,
+        "RotationDegrees": 0.0,
+        "DarkPoint": 0.05,
+        "LightPoint": 0.7
+    }
+}

@@ -165,3 +165,28 @@ pub fn wrap(text: &str, columns: usize, indent: usize) -> Vec<String> {
     lines.push(line);
     lines
 }
+
+// A box of text over a 3D view, at (x, y), as big as its lines need. Each
+// line is pieces of text in their colors. Returns the box's area.
+pub fn text_box(canvas: &mut Canvas, x: f32, y: f32, lines: &[Vec<(String, Color)>]) -> Rect {
+    let line_height = canvas.line_height();
+    let width = lines
+        .iter()
+        .map(|line| line.iter().map(|(text, _)| canvas.text_width(text)).sum::<f32>())
+        .fold(0.0, f32::max);
+    let area = Rect::new(
+        x,
+        y,
+        width + PADDING * 2.0,
+        line_height * lines.len() as f32 + PADDING * 2.0,
+    );
+    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
+    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
+    for (index, line) in lines.iter().enumerate() {
+        let mut end = area.x + PADDING;
+        for (text, color) in line {
+            end = canvas.text(end, area.y + PADDING + line_height * index as f32, text, *color);
+        }
+    }
+    area
+}
