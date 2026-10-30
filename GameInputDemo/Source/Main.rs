@@ -449,6 +449,9 @@ fn main() -> Result<()> {
 
             if IsIconic(window).as_bool() {
                 // Minimized: sleep until something happens instead of spinning.
+                if let Ok(input) = &mut input {
+                    input.stop_rumble();
+                }
                 WaitMessage().ok()?;
                 frames.pause();
                 continue;

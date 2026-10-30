@@ -66,7 +66,8 @@ The rumble test drives only the standard rumble: the low-frequency motor in the 
 and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most
 other gamepads with rumble have. The left stick drives the first and the right stick the
 second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's
-"Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs.
+"Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs,
+and while the window is minimized, which stops the demo from reading the sticks, none does either.
 
 A motor is off while its stick is inside the inner dead zone, the ring on the stick's
 graph. Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from

@@ -1015,6 +1015,19 @@ impl Input {
             }
         }
     }
+
+    // Stops every motor, for while the window is minimized, when update isn't
+    // called and the motors would otherwise keep running at their last
+    // strength. The next update starts them again from the sticks.
+    pub fn stop_rumble(&mut self) {
+        let off = GameInputRumbleParams::default();
+        for rumble in &mut self.rumbles {
+            if rumble.sent != off {
+                unsafe { rumble.device.SetRumbleState(None) };
+                rumble.sent = off;
+            }
+        }
+    }
 }
 
 impl Drop for Input {
