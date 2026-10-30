@@ -1,0 +1,12 @@
+[package]
+name = "math_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Matrices"
+path = "Matrices.rs"
+
+[dependencies]
+math = { path = "../../Library/Math" }

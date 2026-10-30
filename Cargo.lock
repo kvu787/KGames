@@ -80,6 +80,17 @@ name = "json"
 version = "0.1.0"
 
 [[package]]
+name = "math"
+version = "0.1.0"
+
+[[package]]
+name = "math_tests"
+version = "0.1.0"
+dependencies = [
+ "math",
+]
+
+[[package]]
 name = "shader_compiler"
 version = "0.1.0"
 

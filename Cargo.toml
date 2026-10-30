@@ -13,9 +13,11 @@ members = [
     "Library/GameInput",
     "Library/Graphics",
     "Library/Json",
+    "Library/Math",
     "Library/ShaderCompiler",
     "Library/WindowsApi",
     "Program/GameInputDemo",
     "Program/HelloDirect3D12",
     "Program/IdentifyDisplays",
+    "Test/Math",
 ]
