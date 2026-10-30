@@ -318,11 +318,6 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/FrameCounter.rs`           | Counts frames per second, for the header                                         |
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
-| `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
-| `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with DirectWrite                        |
-| `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
-| `Shaders/Canvas.hlsl`              | Vertex and pixel shaders, plus the embedded root signature                       |
-| `Build.rs`                         | Compiles the shaders                                                             |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |

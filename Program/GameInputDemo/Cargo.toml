@@ -2,15 +2,16 @@
 name = "game_input_demo"
 version = "0.1.0"
 edition = "2024"
-build = "Build.rs"
 
 [[bin]]
 name = "GameInputDemo"
 path = "Source/Main.rs"
 
 [dependencies]
+canvas = { path = "../../Library/Canvas" }
 displays = { path = "../../Library/Displays" }
 game_input = { path = "../../Library/GameInput" }
+graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 windows_api = { path = "../../Library/WindowsApi" }
 

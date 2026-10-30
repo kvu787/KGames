@@ -7,9 +7,12 @@
 [workspace]
 resolver = "3"
 members = [
+    "Library/Canvas",
     "Library/Displays",
     "Library/GameInput",
+    "Library/Graphics",
     "Library/Json",
+    "Library/ShaderCompiler",
     "Library/WindowsApi",
     "Program/GameInputDemo",
     "Program/HelloDirect3D12",

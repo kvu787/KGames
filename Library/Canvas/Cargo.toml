@@ -1,0 +1,20 @@
+[package]
+name = "canvas"
+version = "0.1.0"
+edition = "2024"
+build = "Build.rs"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+graphics = { path = "../Graphics" }
+windows_api = { path = "../WindowsApi" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../ShaderCompiler" }

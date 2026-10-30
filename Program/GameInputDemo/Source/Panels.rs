@@ -6,34 +6,27 @@
 
 use std::collections::VecDeque;
 
-use crate::canvas::{Canvas, Color};
-use crate::frame_counter::FrameCounter;
+use canvas::theme::{BORDER, DIM, ERROR, FAINT, PANEL, TEXT, TITLE, WARNING};
+use canvas::{
+    Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, theme, wrap,
+};
 use game_input::*;
+
+use crate::frame_counter::FrameCounter;
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
 
-pub const BACKGROUND: [f32; 4] = [0.933, 0.941, 0.953, 1.0];
-const PANEL: Color = Color::rgb(0xFFFFFF);
-const PLOT: Color = Color::rgb(0xF4F6F8);
-const BORDER: Color = Color::rgb(0xD0D7DE);
-const TITLE: Color = Color::rgb(0x14171C);
-const TEXT: Color = Color::rgb(0x2E343C);
-const DIM: Color = Color::rgb(0x646C78);
-const FAINT: Color = Color::rgb(0xADB4BE);
-const LEFT: Color = Color::rgb(0x0969DA);
-const RIGHT: Color = Color::rgb(0xC2550A);
-const PRESSED: Color = Color::rgb(0x1A7F37);
-const PRESSED_TEXT: Color = Color::rgb(0xFFFFFF);
-const WARNING: Color = Color::rgb(0x9A6700);
-const ERROR: Color = Color::rgb(0xCF222E);
-const KEYBOARD: Color = Color::rgb(0x8250DF);
+const PLOT: Color = theme::INSET;
+// The left and right sticks and triggers.
+const LEFT: Color = theme::ACCENT;
+const RIGHT: Color = theme::ORANGE;
+const PRESSED: Color = theme::SUCCESS;
+const PRESSED_TEXT: Color = theme::ON_COLOR;
+const KEYBOARD: Color = theme::PURPLE;
 
 // The layout, in pixels. Three columns: the gamepad over the keyboard and
-// mouse, the latest event over the devices, and the log.
-const MARGIN: f32 = 16.0;
-// Around the header's and footer's text.
-const EDGE: f32 = 12.0;
-// Inside a panel, around its contents.
-const PADDING: f32 = 12.0;
+// mouse, the latest event over the devices, and the log. MARGIN, EDGE and
+// PADDING come from the canvas, which all programs share.
+//
 // The header has a title, a status line, and room for this many lines of
 // notices, so the panels start at the same place whether there are any.
 const NOTICE_LINES: usize = 2;
@@ -51,37 +44,6 @@ const STICK_GRAPH_SIZE: f32 = 400.0;
 const TRIGGER_BAR_WIDTH: f32 = 40.0;
 const GAMEPAD_GAP: f32 = 24.0;
 const MOUSE_PAD_SIZE: f32 = 200.0;
-
-#[derive(Clone, Copy)]
-struct Rect {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-}
-
-impl Rect {
-    fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Self {
-            x,
-            y,
-            width: width.max(0.0),
-            height: height.max(0.0),
-        }
-    }
-
-    fn bottom(&self) -> f32 {
-        self.y + self.height
-    }
-
-    fn right(&self) -> f32 {
-        self.x + self.width
-    }
-
-    fn contains(&self, [x, y]: [f32; 2]) -> bool {
-        x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
-    }
-}
 
 // What a click does at a place in the window.
 pub enum Click {
@@ -101,66 +63,6 @@ impl Targets {
             .rev()
             .find(|(area, _)| area.contains(point))
             .map(|(_, click)| click)
-    }
-}
-
-// Writes lines of text downward, and stops once they no longer fit.
-struct Lines {
-    x: f32,
-    y: f32,
-    bottom: f32,
-    width: f32,
-    line_height: f32,
-}
-
-impl Lines {
-    fn new(area: Rect, line_height: f32) -> Self {
-        Self {
-            x: area.x,
-            y: area.y,
-            bottom: area.bottom(),
-            width: area.width,
-            line_height,
-        }
-    }
-
-    fn has_room(&self) -> bool {
-        self.y + self.line_height <= self.bottom + 0.5
-    }
-
-    fn line(&mut self, canvas: &mut Canvas, text: &str, color: Color) {
-        if self.has_room() {
-            canvas.text_clipped(self.x, self.y, text, self.width, color);
-            self.y += self.line_height;
-        }
-    }
-
-    // A label in one color followed by a value in another.
-    fn pair(&mut self, canvas: &mut Canvas, label: &str, value: &str, color: Color) {
-        if self.has_room() {
-            let end = canvas.text(self.x, self.y, label, DIM);
-            canvas.text_clipped(end, self.y, value, self.right() - end, color);
-            self.y += self.line_height;
-        }
-    }
-
-    fn wrapped(&mut self, canvas: &mut Canvas, text: &str, indent: &str, color: Color) {
-        let columns = (self.width / canvas.char_width()).floor().max(8.0) as usize;
-        for (index, line) in wrap(text, columns, indent.chars().count())
-            .iter()
-            .enumerate()
-        {
-            let prefix = if index == 0 { "" } else { indent };
-            self.line(canvas, &format!("{prefix}{line}"), color);
-        }
-    }
-
-    fn gap(&mut self, fraction: f32) {
-        self.y += self.line_height * fraction;
-    }
-
-    fn right(&self) -> f32 {
-        self.x + self.width
     }
 }
 
@@ -190,7 +92,12 @@ pub fn draw(
     height: f32,
 ) -> Targets {
     if !status.window_problems.is_empty() {
-        draw_window_problems(canvas, status.window_problems, width);
+        draw_window_problems(
+            canvas,
+            crate::window_check::SUPPORTED,
+            status.window_problems,
+            width,
+        );
         return Targets::default();
     }
     let line_height = canvas.line_height();
@@ -351,44 +258,6 @@ pub fn draw(
         draw_picker_list(canvas, input, status, picker, width - MARGIN, &mut targets);
     }
     targets
-}
-
-// Instead of the panels, when the window isn't in a supported setup.
-fn draw_window_problems(canvas: &mut Canvas, problems: &[String], width: f32) {
-    let line_height = canvas.line_height();
-    let area = Rect::new(MARGIN, MARGIN, width - MARGIN * 2.0, f32::INFINITY);
-    let mut lines = Lines::new(area, line_height);
-    lines.line(canvas, "Unsupported window", ERROR);
-    lines.gap(0.5);
-    lines.wrapped(canvas, crate::window_check::SUPPORTED, "", TEXT);
-    lines.gap(0.5);
-    for problem in problems {
-        lines.wrapped(canvas, &format!("- {problem}"), "  ", WARNING);
-    }
-}
-
-// Draws a panel's background and title, and returns the area under the title.
-fn panel(canvas: &mut Canvas, area: Rect, title: &str, subtitle: &str) -> Rect {
-    let padding = PADDING;
-    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
-    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
-    let x = canvas.text(area.x + padding, area.y + padding, title, TITLE);
-    if !subtitle.is_empty() {
-        canvas.text_clipped(
-            x,
-            area.y + padding,
-            &format!("  {subtitle}"),
-            area.right() - padding - x,
-            DIM,
-        );
-    }
-    let top = area.y + padding + canvas.line_height() * 1.4;
-    Rect::new(
-        area.x + padding,
-        top,
-        area.width - padding * 2.0,
-        area.bottom() - padding - top,
-    )
 }
 
 // Returns the area of the select box for which gamepad to listen to.
@@ -1096,28 +965,4 @@ fn file_name(path: &std::path::Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default()
-}
-
-// Splits text into lines of at most `columns` characters at spaces. Lines
-// after the first are `indent` characters narrower, for a hanging indent.
-fn wrap(text: &str, columns: usize, indent: usize) -> Vec<String> {
-    let mut lines = Vec::new();
-    let mut line = String::new();
-    for word in text.split(' ') {
-        let limit = if lines.is_empty() {
-            columns
-        } else {
-            columns.saturating_sub(indent).max(1)
-        };
-        let length = line.chars().count();
-        if length > 0 && length + 1 + word.chars().count() > limit {
-            lines.push(std::mem::take(&mut line));
-        }
-        if !line.is_empty() {
-            line.push(' ');
-        }
-        line.push_str(word);
-    }
-    lines.push(line);
-    lines
 }

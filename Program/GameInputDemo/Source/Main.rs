@@ -1,18 +1,12 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "Canvas.rs"]
-mod canvas;
-#[path = "Font.rs"]
-mod font;
 #[path = "FrameCounter.rs"]
 mod frame_counter;
 #[path = "Input.rs"]
 mod input;
 #[path = "Panels.rs"]
 mod panels;
-#[path = "Renderer.rs"]
-mod renderer;
 #[path = "Settings.rs"]
 mod settings;
 #[path = "WindowCheck.rs"]
@@ -21,12 +15,11 @@ mod window_check;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 use windows_api::*;
-use canvas::Canvas;
+use canvas::{Canvas, Font, theme};
 use displays::Display;
-use font::Font;
 use frame_counter::FrameCounter;
 use input::Input;
-use renderer::{Renderer, check_handle};
+use graphics::Renderer;
 use settings::{Settings, WindowMode};
 use windows_core::{Error, PCWSTR, Result, w};
 
@@ -340,21 +333,10 @@ fn main() -> Result<()> {
         }
 
         let font = Font::new(FONT_SIZE)?;
-        let mut renderer = Renderer::new(window, &font, settings.allow_tearing)?;
+        let mut renderer = Renderer::new(window, settings.allow_tearing, false)?;
+        let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
         // The title bar says how frames are presented, as it affects latency.
-        let mut title = format!("GameInput Demo - {}", renderer.adapter_name);
-        title += if renderer.adapter_drives_monitor {
-            " (the monitor's GPU)"
-        } else {
-            " (no GPU reports the monitor)"
-        };
-        title += if renderer.tearing {
-            ", tearing allowed"
-        } else if settings.allow_tearing {
-            ", tearing not supported"
-        } else {
-            ", tearing off in the settings"
-        };
+        let title = format!("GameInput Demo - {}", renderer.description());
         let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
         SetWindowTextW(window, PCWSTR(title.as_ptr())).ok()?;
         // SW_SHOWNA shows the window as it is, maximized or not, without
@@ -473,7 +455,9 @@ fn main() -> Result<()> {
                 renderer.width as f32,
                 renderer.height as f32,
             );
-            renderer.render(canvas.vertices, panels::BACKGROUND)?;
+            renderer.clear(theme::BACKGROUND);
+            overlay.draw(&renderer, canvas.vertices);
+            renderer.present()?;
         }
     }
 }
