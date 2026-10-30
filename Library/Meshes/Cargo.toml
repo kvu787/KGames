@@ -1,0 +1,10 @@
+[package]
+name = "meshes"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+simple_paint = { path = "../SimplePaint" }

@@ -1,0 +1,11 @@
+[package]
+name = "paint_settings"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+
+[dependencies]
+json = { path = "../Json" }
+simple_paint = { path = "../SimplePaint" }
