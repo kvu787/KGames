@@ -1,10 +1,7 @@
 // The test's own settings, after the ones every program has (see
-// Library/Application), in Settings.json next to Cargo.toml. They're the
-// paint and sphere settings of the C++ scene's Assets/Settings.json, with the
-// same names: the SimplePaint material of each part of the car and of the
-// sphere, in Library/PaintSettings' format, and the sphere's resolution.
-// The C++ scene's RenderPipeline settings don't apply: every KGames program
-// paces its frames for the lowest latency, as Library/Graphics does.
+// Library/Application), in Settings.json next to Cargo.toml: the SimplePaint
+// material of each part of the car and of the sphere, in
+// Library/PaintSettings' format, and the sphere's resolution.
 
 use application::{ProgramSettings, Settings};
 use json::Value;
@@ -47,7 +44,6 @@ impl ProgramSettings for SceneSettings {
         "Sphere",
     ];
 
-    // The C++ scene's Assets/Settings.json.
     fn defaults() -> (Settings, Self) {
         (
             Settings::default(),

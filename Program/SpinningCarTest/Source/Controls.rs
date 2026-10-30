@@ -8,7 +8,7 @@ pub enum Action {
     ToggleText,
     // F11: switches between maximized and borderless fullscreen.
     ToggleFullscreen,
-    // S, as in the C++ scene: keeps the car in the middle, or lets it move.
+    // S: keeps the car in the middle, or lets it move.
     ToggleStationary,
 }
 

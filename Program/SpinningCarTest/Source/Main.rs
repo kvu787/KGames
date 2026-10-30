@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 
             if window.minimized() {
                 // Minimized: sleep until something happens instead of
-                // spinning. The car keeps time meanwhile, like in the C++ scene.
+                // spinning. The car keeps time meanwhile.
                 window.wait_for_message()?;
                 frames.pause();
                 continue;
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
                     let mut lines = vec![
                         vec![
                             piece(NAME, TITLE),
-                            piece("  3dTestScene_CppDx12's car, at 8 units and 90 degrees per second", DIM),
+                            piece("  A car moving at 8 units and turning at 90 degrees per second", DIM),
                         ],
                         vec![piece("FPS: ", DIM), piece(&rate, TEXT)],
                         vec![piece("GPU: ", DIM), piece(&description, TEXT)],

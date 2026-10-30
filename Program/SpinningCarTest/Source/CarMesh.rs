@@ -1,7 +1,4 @@
-// The car mesh, converted from Source/Generated/CarMesh.generated.h in
-// Veehiicuul's 3dTestScene_CppDx12, which Tools/GenerateAssets.py makes from
-// Blender/Car.blend there, with Y up. Every number is as written there.
-// Its vertex/index SHA-256 there: 187701d56bd6e77ccd27990d79bd7b0061ab17de5a13e1b451b32e7a09b5df9e
+// The car mesh, made in Blender, with Y up.
 
 // The numbers keep the digits that Blender wrote, past what f32 holds.
 #![allow(clippy::excessive_precision)]

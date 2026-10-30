@@ -1,6 +1,5 @@
-// SpinningCarTest without a window: where the car is over time, which ports
-// the C++ scene's animation, the keys, the settings file, and the car mesh
-// converted from the C++ scene's generated header.
+// SpinningCarTest without a window: where the car is over time, the keys, the
+// settings file, and the car mesh.
 
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::path::Path;
@@ -69,11 +68,11 @@ fn the_car_mesh_is_what_simple_paint_accepts() {
 }
 
 #[test]
-fn the_defaults_are_the_c_plus_plus_scene_s() {
+fn the_defaults_are_materials_that_simple_paint_accepts() {
     let (settings, scene) = SceneSettings::defaults();
     assert_eq!(settings.display, None);
     assert_eq!(scene.sphere_resolution, [64, 32]);
-    // Body, from the C++ scene's Assets/Settings.json.
+    // The body's.
     assert_eq!(scene.materials[1].base_color_srgb, [0.103999995, 0.3592001, 0.8]);
     assert_eq!(scene.materials[1].rotation_degrees, 35.600586);
     for material in &scene.materials {

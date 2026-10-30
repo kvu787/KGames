@@ -1,8 +1,7 @@
-// The scene of Veehiicuul's 3dTestScene_CppDx12: a baked image of the
-// backdrop, the green ground and the red cube, then a car that moves back
-// and forth along X at 8 units per second while it turns at 90 degrees per
-// second, and a sphere that stays put, both painted with SimplePaint, with a
-// depth buffer between them. Camera, sizes and timing are the C++ scene's.
+// The scene: a baked image of the backdrop, the green ground and the red cube,
+// then a car that moves back and forth along X at 8 units per second while
+// it turns at 90 degrees per second, and a sphere that stays put, both
+// painted with SimplePaint, with a depth buffer between them.
 
 use std::path::Path;
 
@@ -225,7 +224,7 @@ impl Scene {
 
 // Where the car is along X, and how far it has turned, `seconds` after the
 // program started. It goes from the middle to +7, back to -7, and again, 28
-// units a cycle. The C++ scene's S makes it `stationary`.
+// units a cycle. S makes it `stationary`.
 pub fn car_placement(seconds: f64, stationary: bool) -> (f32, f32) {
     if stationary {
         // The mesh faces +Z. Facing +X puts the headlights at the lower

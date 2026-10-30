@@ -1,31 +1,28 @@
 # SpinningCarTest
 
-A port of Veehiicuul's `3dTestScene_CppDx12`, a C++ Direct3D 12 scene, onto KGames' own stack:
-a car moves back and forth at 8 units per second while it turns at 90 degrees per second, past
-a sphere, over a baked image of the backdrop, the green ground and the red cube, seen by an
+A car moves back and forth at 8 units per second while it turns at 90 degrees per second, past a
+sphere, over a baked image of the backdrop, the green ground and the red cube, seen by an
 orthographic camera. The car and the sphere are painted with
-[SimplePaint](../../Library/SimplePaint/README.md), whose canonical home moved from that scene
-to KGames. Like every KGames GUI program, it's built from the [Library](../../Library) crates on
-Win32 and Direct3D 12, ignores input without focus, and supports the two window setups in
+[SimplePaint](../../Library/SimplePaint/README.md). Like every KGames GUI program, it's built
+from the [Library](../../Library) crates on Win32 and Direct3D 12, ignores input without focus,
+and supports the two window setups in
 [Library/Application](../../Library/Application/README.md#supported-window-setups).
 
-## From the C++ scene
+## Scene
 
-| C++ scene                                          | Here                                                   |
-| -------------------------------------------------- | ------------------------------------------------------ |
-| Camera, car and sphere placement, and timing       | The same, in `Source/Scene.rs`                         |
-| `Source/Generated/CarMesh.generated.h`             | `Source/CarMesh.rs`, converted with every number as    |
-|                                                    | written                                                |
-| `Assets/SceneBackground.png`, drawn by             | The same image and shader, with the root signature     |
-| `Source/Shaders/Background.hlsl`                   | embedded in the shader                                 |
-| The paint and sphere settings in `Settings.json`   | The same names and values, in this folder's            |
-|                                                    | `Settings.json`                                        |
-| `RenderPipeline` settings, and `V` for VSync       | Gone: frames go through Library/Graphics' renderer,    |
-|                                                    | paced for the lowest latency, without waiting for      |
-|                                                    | vertical sync                                          |
-| A 1280 x 720 window                                | Maximized, or borderless fullscreen with `F11`         |
-| `S` for a stationary car                           | The same                                               |
-| `Esc` to quit                                      | Gone, as in the other programs                         |
+| Part       | What it is                                                                  |
+| ---------- | --------------------------------------------------------------------------- |
+| Camera     | Orthographic, 5 units tall, from 1 to 20 units in front of it. It looks at  |
+|            | the origin from 5 units away, 45 degrees above the horizon and 45 degrees   |
+|            | from +Z toward +X                                                           |
+| Car        | The mesh in `Source/CarMesh.rs`, at a quarter of its size. It goes from the |
+|            | middle to X = 7, back to -7, and again, at 8 units per second, and turns    |
+|            | at 90 degrees per second. `S` keeps it in the middle, facing +X             |
+| Sphere     | Radius 0.4, on the ground at X = 1.5 and Z = -1.5                           |
+| Background | `Assets/SceneBackground.png`, a baked image of the backdrop, the ground and |
+|            | the cube, drawn by `Shaders/Background.hlsl`                                |
+| Frames     | Through Library/Graphics' renderer, paced for the lowest latency, without   |
+|            | waiting for vertical sync                                                   |
 
 The background is a 32:9 image, center-cropped to the window, so the camera's vertical scale
 stays the same at any width. It's drawn first, without depth, and the car and the sphere go
@@ -73,9 +70,8 @@ cargo test -p spinning_car_test_tests
 Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 
-The tests in `Test/SpinningCarTest` check the car's path and turn against the C++ scene's,
-the stationary car, the keys, the settings file, and that the converted car mesh is what
-SimplePaint accepts, without a window. The scripts in `Test/SpinningCarTest/Scripts` run the
+The tests in `Test/SpinningCarTest` check the car's path and turn, the stationary car, the keys,
+the settings file, and that the car mesh is what SimplePaint accepts, without a window. The scripts in `Test/SpinningCarTest/Scripts` run the
 real test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
 describes, and check where the car is frame by frame, and what F1, F11 and S do. The state
 that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`.
@@ -88,10 +84,10 @@ that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `Text
 | `Source/Library.rs`          | The test's parts, as a library that `Test/SpinningCarTest` tests       |
 | `Source/Controls.rs`         | What each key does                                                     |
 | `Source/Scene.rs`            | The background, the car and the sphere, the camera and the animation   |
-| `Source/CarMesh.rs`          | The car mesh, converted from the C++ scene's generated header          |
-| `Source/Settings.rs`         | The materials and the sphere's resolution, with the C++ defaults       |
+| `Source/CarMesh.rs`          | The car mesh                                                           |
+| `Source/Settings.rs`         | The materials and the sphere's resolution, and their defaults          |
 | `Shaders/Background.hlsl`    | Draws the background image, center-cropped, with its root signature    |
-| `Assets/SceneBackground.png` | The baked background, from the C++ scene                               |
+| `Assets/SceneBackground.png` | The baked background                                                   |
 | `Build.rs`                   | Compiles SimplePaint's shaders for six materials, and the background's |
 | `HumanRun.ps1`               | Builds the test and runs it on the primary display, for people to use  |
 | `HumanRun.cmd`               | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
