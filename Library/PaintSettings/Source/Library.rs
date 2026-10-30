@@ -1,6 +1,5 @@
-// SimplePaint materials in programs' JSON files, in the format of the
-// settings of Veehiicuul's C++ scene, so that a material can be copied
-// between programs:
+// SimplePaint materials in programs' JSON files, in one format, so that a
+// material can be copied between programs:
 //
 //     {
 //         "BaseColor": [0.107, 0.223, 0.578],

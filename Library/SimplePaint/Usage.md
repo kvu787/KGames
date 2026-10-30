@@ -4,7 +4,7 @@ SimplePaint makes it easy to color 3D models in a way that looks good from any a
 
 SimplePaint is an unlit, opaque, orthographic-only surface shader. It colors a surface from its normal relative to the camera. Lights, shadows, distance from the camera, and world position do not enter the paint calculation. Rotating a model changes which surfaces face the camera; moving it sideways does not change its paint.
 
-This guide describes the module in this folder, the canonical home of SimplePaint for KGames. [Specification.md](Specification.md) defines its contract; [README.md](README.md) provides a short integration checklist. The supported development and target platform is Windows 11 x64.
+This guide describes the module in this folder. [Specification.md](Specification.md) defines its contract; [README.md](README.md) provides a short integration checklist. The supported development and target platform is Windows 11 x64.
 
 ## Controls
 

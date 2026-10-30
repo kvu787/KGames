@@ -1,8 +1,8 @@
 # PaintSettings
 
 Reads and writes [SimplePaint](../SimplePaint/README.md) materials in programs' JSON files, in
-the format of the settings of Veehiicuul's C++ scene, so that a material can be copied between
-programs, like from SimplePaintDemo's `Paint.json` into another program's `Settings.json`:
+one format, so that a material can be copied between programs, like from SimplePaintDemo's
+`Paint.json` into another program's `Settings.json`:
 
 ```json
 {

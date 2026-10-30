@@ -12,7 +12,7 @@ pub struct Mesh {
 
 // A sphere of radius 1 around the origin, with its poles on the Y axis:
 // `longitudes` vertices around each ring, and `latitudes` bands from pole to
-// pole. A port of UVSphere.h from Veehiicuul's 3dTestScene_CppDx12.
+// pole.
 pub fn uv_sphere(longitudes: u32, latitudes: u32, material_index: u32) -> Mesh {
     assert!(
         (3..=512).contains(&longitudes) && (2..=512).contains(&latitudes),

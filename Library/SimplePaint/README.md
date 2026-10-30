@@ -1,9 +1,8 @@
 # SimplePaint shader
 
-This folder is the canonical home of SimplePaint, the shader that KGames' programs color 3D
-models with. SimplePaint makes it easy to color 3D models in a way that looks good from any
-angle: it's an unlit, opaque, orthographic-only surface shader that paints a surface from its
-normal relative to the camera.
+SimplePaint is the shader that KGames' programs color 3D models with. It makes it easy to color
+3D models in a way that looks good from any angle: it's an unlit, opaque, orthographic-only
+surface shader that paints a surface from its normal relative to the camera.
 
 [Specification.md](Specification.md) defines the mathematics, supported inputs, GPU layout,
 and verification criteria. The Rust/HLSL sources implement that contract, and
@@ -11,9 +10,6 @@ and verification criteria. The Rust/HLSL sources implement that contract, and
 and tests aligned when changing the shader. [Usage.md](Usage.md) explains the controls and
 integration, and [SimplePaintDemo](../../Program/SimplePaintDemo/README.md) edits a material
 live on a sphere.
-
-It's a port of the C++20 module in Veehiicuul's `3dTestScene_CppDx12`, with the same shaders,
-except that the DX12 adapter now embeds its root signature.
 
 ## Compile a material
 

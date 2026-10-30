@@ -5,8 +5,7 @@ edition = "2024"
 publish = false
 build = "Build.rs"
 
-# Each test is its own program, like the C++ module's test executables, and
-# prints what it measured.
+# Each test is its own program, and prints what it measured.
 [[test]]
 name = "Contract"
 path = "Contract.rs"
