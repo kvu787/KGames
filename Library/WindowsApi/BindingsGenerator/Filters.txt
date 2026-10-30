@@ -152,8 +152,10 @@ WM_MOUSEMOVE
 WM_MOUSEWHEEL
 WM_SYSKEYDOWN
 
-// Key names for the keyboard panel
+// Key names for the keyboard panel, and scan codes for scripted keys
 GetKeyNameTextW
+MapVirtualKeyW
+MAPVK_VK_TO_VSC_EX
 
 // Opting out of power throttling
 GetCurrentProcess

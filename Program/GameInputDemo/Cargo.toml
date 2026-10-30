@@ -3,6 +3,14 @@ name = "game_input_demo"
 version = "0.1.0"
 edition = "2024"
 
+# The demo's parts, which Test/GameInputDemo tests without a window, and
+# without GameInput.
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
 [[bin]]
 name = "GameInputDemo"
 path = "Source/Main.rs"

@@ -468,6 +468,11 @@ where
     unsafe { LoadLibraryW(lplibfilename.param().abi()) }
 }
 #[inline]
+pub unsafe fn MapVirtualKeyW(ucode: u32, umaptype: u32) -> u32 {
+    windows_core::link!("user32.dll" "system" fn MapVirtualKeyW(ucode : u32, umaptype : u32) -> u32);
+    unsafe { MapVirtualKeyW(ucode, umaptype) }
+}
+#[inline]
 pub unsafe fn MonitorFromWindow(hwnd: HWND, dwflags: u32) -> HMONITOR {
     windows_core::link!("user32.dll" "system" fn MonitorFromWindow(hwnd : HWND, dwflags : u32) -> HMONITOR);
     unsafe { MonitorFromWindow(hwnd, dwflags) }
@@ -7254,6 +7259,7 @@ pub struct LUID {
     pub LowPart: u32,
     pub HighPart: i32,
 }
+pub const MAPVK_VK_TO_VSC_EX: i32 = 4;
 pub const MA_ACTIVATEANDEAT: i32 = 2;
 pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;

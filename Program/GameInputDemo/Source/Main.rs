@@ -1,27 +1,20 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-#[path = "Input.rs"]
-mod input;
-#[path = "Panels.rs"]
-mod panels;
-#[path = "Settings.rs"]
-mod settings;
-
 use std::path::Path;
 
 use application::{Arguments, Event, FrameCounter, Settings, Window};
 use canvas::{Canvas, Font, theme};
+use game_input_demo::devices::InputSource;
+use game_input_demo::game_input_source::GameInputSource;
+use game_input_demo::input::Input;
+use game_input_demo::panels;
+use game_input_demo::scripted_source::ScriptedSource;
+use game_input_demo::settings::DemoSettings;
+use game_input_demo::{FONT_SIZE, NAME};
 use graphics::Renderer;
-use input::Input;
-use settings::DemoSettings;
 use windows_api::*;
-use windows_core::Result;
-
-const NAME: &str = "GameInput Demo";
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-const FONT_SIZE: i32 = 15;
+use windows_core::{Error, Result};
 
 fn main() -> Result<()> {
     unsafe {
@@ -40,9 +33,17 @@ fn main() -> Result<()> {
         // The title bar says how frames are presented, as it affects latency.
         window.set_title(&format!("{NAME} - {}", renderer.description()))?;
         window.show(arguments.activate);
-        // Without GameInput the window still opens, and says why there's no input.
-        let mut input = Input::new(demo.rumble_dead_zone)
-            .map_err(|error| format!("{} ({})", error.message(), error.code()));
+        // A scripted run reads the script's devices and readings instead of
+        // GameInput's. Without GameInput the window still opens, and says why
+        // there's no input.
+        let source: std::result::Result<Box<dyn InputSource>, String> = if window.scripted() {
+            Ok(Box::new(ScriptedSource::default()))
+        } else {
+            GameInputSource::new()
+                .map(|source| Box::new(source) as Box<dyn InputSource>)
+                .map_err(|error| format!("{} ({})", error.message(), error.code()))
+        };
+        let mut input = source.map(|source| Input::new(source, demo.rumble_dead_zone));
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
         // Where clicks do something in the last frame drawn, and whether the
@@ -86,8 +87,15 @@ fn main() -> Result<()> {
             // from GameInput, because they say where the cursor is in the window.
             let events = &frame.events;
             if let Ok(input) = &mut input {
-                // A script is the only input in a scripted run.
-                input.update(focused && !window.scripted());
+                if let Some(scripted) = input.scripted() {
+                    scripted.now = (frame.seconds * 1_000_000.0) as u64;
+                    for step in &frame.program_steps {
+                        scripted.apply(step).map_err(|problem| {
+                            Error::new(E_INVALIDARG, format!("Frame {}: {problem}", frame.number))
+                        })?;
+                    }
+                }
+                input.update(focused);
                 if std::mem::take(&mut input.fullscreen_toggled) {
                     window.toggle_fullscreen()?;
                 }
@@ -136,7 +144,17 @@ fn main() -> Result<()> {
             window.handle_checkpoints(
                 &frame,
                 |path| renderer.capture(path),
-                || json::object([("PickerOpen", picker_open.into())]),
+                || {
+                    let mut state = match &input {
+                        Ok(input) => input.state(),
+                        Err(_) => json::Value::Object(Vec::new()),
+                    };
+                    if let json::Value::Object(members) = &mut state {
+                        members.push(("PickerOpen".to_string(), picker_open.into()));
+                        members.push(("Targets".to_string(), targets.state()));
+                    }
+                    state
+                },
             )?;
             renderer.present()?;
         }

@@ -64,6 +64,25 @@ impl Targets {
             .find(|(area, _)| area.contains(point))
             .map(|(_, click)| click)
     }
+
+    // Where they are, for scripted runs to save, for writing scripts.
+    pub fn state(&self) -> json::Value {
+        json::Value::Array(
+            self.0
+                .iter()
+                .map(|(area, click)| {
+                    let name = match click {
+                        Click::Picker => "Select box".to_string(),
+                        Click::Choose(listen) => format!("Choose {}", listen.label()),
+                    };
+                    json::object([
+                        ("Name", name.into()),
+                        ("Area", [area.x, area.y, area.width, area.height].into()),
+                    ])
+                })
+                .collect(),
+        )
+    }
 }
 
 // What the header and footer show besides input.
@@ -133,25 +152,25 @@ pub fn draw(
     let status_right = rate_x - char_width * 3.0;
     match input {
         Ok(input) => {
-            let version = input.runtime.version.map(|part| part.to_string()).join(".");
             x = canvas.text(margin, status_y, "Runtime: ", DIM);
-            x = canvas.text(
-                x,
-                status_y,
-                &format!("{} {}", file_name(&input.runtime.path), version),
-                TEXT,
-            );
-            let location = input
-                .runtime
-                .path
-                .parent()
-                .map(|path| path.display().to_string())
-                .unwrap_or_default();
+            let (runtime, location) = match input.runtime() {
+                Some(runtime) => {
+                    let version = runtime.version.map(|part| part.to_string()).join(".");
+                    let location = runtime
+                        .path
+                        .parent()
+                        .map(|path| format!(" in {}", path.display()))
+                        .unwrap_or_default();
+                    (format!("{} {}", file_name(&runtime.path), version), location)
+                }
+                None => ("none".to_string(), ", the input comes from a script".to_string()),
+            };
+            x = canvas.text(x, status_y, &runtime, TEXT);
             let count = input.reading_count.to_string();
             let count_label = "   Readings handled: ";
             let count_width = canvas.text_width(count_label) + canvas.text_width(&count);
             let location_width = (status_right - x - count_width).min(width * 0.45);
-            x = canvas.text_clipped(x, status_y, &format!(" in {location}"), location_width, DIM);
+            x = canvas.text_clipped(x, status_y, &location, location_width, DIM);
             x = canvas.text(x, status_y, count_label, DIM);
             canvas.text(x, status_y, &count, TEXT);
         }
@@ -388,9 +407,9 @@ fn draw_picker_box(canvas: &mut Canvas, input: &Input, status: &Status, area: Re
     let y = (text_y - (height - line_height) * 0.5).round();
     let inset = (line_height * 0.4).round();
     let arrow_width = line_height;
-    let text = listen_label(input, &input.listen);
+    let text = input.listen.label();
     let width =
-        (canvas.text_width(&text) + inset * 2.0 + arrow_width).min(area.right() - padding - x);
+        (canvas.text_width(text) + inset * 2.0 + arrow_width).min(area.right() - padding - x);
     let picker = Rect::new(x, y, width, height);
 
     let hovered = status.cursor.is_some_and(|point| picker.contains(point));
@@ -407,7 +426,7 @@ fn draw_picker_box(canvas: &mut Canvas, input: &Input, status: &Status, area: Re
             BORDER
         },
     );
-    canvas.text_clipped(x + inset, text_y, &text, width - inset - arrow_width, TEXT);
+    canvas.text_clipped(x + inset, text_y, text, width - inset - arrow_width, TEXT);
     chevron(
         canvas,
         [picker.right() - arrow_width * 0.5, y + height * 0.5],
@@ -418,7 +437,7 @@ fn draw_picker_box(canvas: &mut Canvas, input: &Input, status: &Status, area: Re
 
     // Until a choice is picked, the demo switches to a gamepad as soon as one connects.
     let (note, color) = match &input.listen {
-        Listen::Gamepad(device) if !input.gamepads().any(|info| info.device == *device) => (
+        Listen::Gamepad(device) if !input.gamepads().any(|info| info.id == device.id) => (
             if input.listen_picked {
                 "Disconnected: waiting for it to reconnect"
             } else {
@@ -459,22 +478,22 @@ fn draw_picker_list(
     // Each choice, and a few words about it.
     let mut choices = Vec::new();
     for info in input.gamepads() {
-        let listen = Listen::Gamepad(info.device.clone());
+        let listen = Listen::Gamepad(info.clone());
         choices.push((listen, info.label.clone(), info.family_name().to_string()));
     }
     // A chosen gamepad stays in the list while it's disconnected.
     if let Listen::Gamepad(device) = &input.listen
-        && !input.gamepads().any(|info| info.device == *device)
+        && !input.gamepads().any(|info| info.id == device.id)
     {
         choices.push((
             input.listen.clone(),
-            listen_label(input, &input.listen),
+            input.listen.label().to_string(),
             "disconnected".to_string(),
         ));
     }
     choices.push((
         Listen::NoGamepad,
-        listen_label(input, &Listen::NoGamepad),
+        Listen::NoGamepad.label().to_string(),
         "ignores all gamepads".to_string(),
     ));
 
@@ -538,13 +557,6 @@ fn draw_picker_list(
             DIM,
         );
         targets.0.push((row, Click::Choose(listen)));
-    }
-}
-
-fn listen_label(input: &Input, listen: &Listen) -> String {
-    match listen {
-        Listen::Gamepad(device) => input.label_of(Some(device)),
-        Listen::NoGamepad => "None".to_string(),
     }
 }
 
@@ -879,7 +891,7 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect) {
     };
     // The gamepad the panel shows is highlighted, and those ignored are faint.
     for info in input.devices.iter().take(shown) {
-        let color = if input.gamepad.device.as_ref() == Some(&info.device) {
+        let color = if input.gamepad.device == Some(info.id) {
             LEFT
         } else if !input.listens_to(info) {
             FAINT
