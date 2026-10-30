@@ -48,7 +48,7 @@ pub fn validate_mesh<V: PaintVertex>(
     material_count: u32,
 ) -> Result<(), Error> {
     let error = |message: &str| Err(Error(message.to_string()));
-    if vertices.is_empty() || indices.is_empty() || indices.len() % 3 != 0 || material_count == 0 {
+    if vertices.is_empty() || indices.is_empty() || !indices.len().is_multiple_of(3) || material_count == 0 {
         return error("SimplePaint requires a nonempty indexed triangle mesh and materials.");
     }
     for vertex in vertices {
@@ -69,11 +69,11 @@ pub fn validate_mesh<V: PaintVertex>(
             );
         }
     }
-    for triangle in indices.chunks_exact(3) {
+    for triangle in indices.as_chunks::<3>().0 {
         if triangle.iter().any(|&index| index as usize >= vertices.len()) {
             return error("SimplePaint mesh index is out of bounds.");
         }
-        let corners: [&V; 3] = std::array::from_fn(|k| &vertices[triangle[k] as usize]);
+        let corners = triangle.map(|index| &vertices[index as usize]);
         let material = corners[0].material_index();
         if corners.iter().any(|corner| corner.material_index() != material) {
             return error("SimplePaint triangles must have one material.");

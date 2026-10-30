@@ -97,6 +97,7 @@ impl UploadBuffer {
 }
 
 // A 2D texture in GPU memory, for render targets, depth buffers and images.
+#[allow(clippy::too_many_arguments)]
 pub unsafe fn create_texture(
     device: &ID3D12Device,
     width: u32,
