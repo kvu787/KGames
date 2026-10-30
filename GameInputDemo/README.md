@@ -388,7 +388,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `BindingsGenerator/Source/Main.rs` | Runs `windows-bindgen` to write `Source/Bindings.rs`                             |
 | `Scripts/RunInBackground.cs`       | Runs the demo without taking focus, and saves a screenshot of its window         |
 | `Scripts/RunInBackground.ps1`      | Runs `RunInBackground.cs`                                                        |
-| `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it        |
+| `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
 | `Packages`                         | The downloaded GameInput NuGet package; not in Git                               |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |
