@@ -3,9 +3,8 @@
 // material of each object, in Library/PaintSettings' format, which
 // SimplePaintDemo saves, so a material can be tuned there and copied here.
 //
-// The defaults come from VsyncStutterTest's Godot materials. Their colors
-// are Godot's albedo colors, and the sphere's material is unshaded, which
-// SimplePaint paints with equal Dark and Light Points: a constant color.
+// By default, the ground and the cube are lit, and the sphere is a constant
+// color, which SimplePaint paints with equal Dark and Light Points.
 
 use application::{ProgramSettings, Settings, WindowMode};
 use json::Value;
@@ -17,8 +16,8 @@ pub struct SceneSettings {
     pub cube: Parameters,
 }
 
-// Godot's lit materials, painted with their color on faces that face up,
-// like the scene's sunlight does, and darker sides.
+// A lit material, painted with its color on faces that face up, as if lit
+// from above, and darker sides.
 fn lit(base_color_srgb: [f64; 3]) -> Parameters {
     Parameters {
         base_color_srgb,
@@ -35,14 +34,14 @@ impl ProgramSettings for SceneSettings {
 
     fn defaults() -> (Settings, Self) {
         (
-            // Like the Godot project, which opens fullscreen.
+            // Unlike other programs, it opens borderless fullscreen.
             Settings {
                 window_mode: WindowMode::BorderlessFullscreen,
                 ..Default::default()
             },
             Self {
-                // Godot's blue is 1.0, which SimplePaint's sRGB channels
-                // exclude, so it's the largest that they accept.
+                // Blue is the largest that SimplePaint's sRGB channels
+                // accept, 1 - 1/1024.
                 sphere: Parameters {
                     base_color_srgb: [0.17000002, 0.47433347, 0.9990234375],
                     brightness: 0.5,

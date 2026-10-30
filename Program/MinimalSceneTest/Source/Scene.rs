@@ -1,7 +1,6 @@
-// VsyncStutterTest's Godot scene, drawn with SimplePaint: a sphere that moves
-// back and forth along X, above a ground plane, past a cube, seen by an
-// orthographic camera from above and to the side. Positions and sizes are
-// Main.tscn's, in Godot's units.
+// The scene, drawn with SimplePaint: a sphere that moves back and forth along
+// X, above a ground plane, past a cube, seen by an orthographic camera from
+// above and to the side.
 
 use graphics::{DEPTH_FORMAT, Renderer, UploadBuffer, BACK_BUFFER_SRGB_FORMAT};
 use math::Matrix;
@@ -21,15 +20,15 @@ static PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePai
 const MATERIAL_COUNT: usize = 3;
 const OBJECT_COUNT: usize = 3;
 
-// Sphere.gd: units per second, and how far from the middle it turns back.
+// The sphere's units per second, and how far from the middle it turns back.
 const SPEED: f32 = 8.0;
 const TRAVEL_DISTANCE: f32 = 7.0;
-// Godot's default SphereMesh: radius 0.5, with 64 segments around and 32 rings.
+// Its mesh has 64 vertices around each ring, and 32 bands from pole to pole.
 const SPHERE_RADIUS: f32 = 0.5;
 
-// The camera, from CameraPivot's basis in Main.tscn and the camera 5 units
-// along the pivot's Z: an orthographic view 5 units tall, from 1 to 20 units
-// in front of it.
+// The camera looks at the origin from 5 units away, 47.5 degrees above the
+// horizon and 30 degrees from +Z toward +X: an orthographic view 5 units
+// tall, from 1 to 20 units in front of it.
 const CAMERA_BACKWARD: [f32; 3] = [0.3377951, 0.7372773, 0.5850783];
 const CAMERA_UP: [f32; 3] = [-0.36863866, 0.6755902, -0.63850087];
 const CAMERA_DISTANCE: f32 = 5.0;
@@ -53,7 +52,7 @@ pub struct Motion {
 }
 
 impl Default for Motion {
-    // Sphere.gd starts the sphere in the middle, moving toward +X.
+    // The sphere starts in the middle, moving toward +X.
     fn default() -> Self {
         Self {
             position: 0.0,
@@ -63,8 +62,8 @@ impl Default for Motion {
 }
 
 impl Motion {
-    // Moves the sphere by `seconds` since the last frame, like Sphere.gd's
-    // _process: it turns back once it's past the travel distance.
+    // Moves the sphere by `seconds` since the last frame. It turns back once
+    // it's past the travel distance.
     pub fn advance(&mut self, seconds: f32) {
         self.position += self.direction * SPEED * seconds;
         if self.position.abs() > TRAVEL_DISTANCE {

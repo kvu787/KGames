@@ -1,5 +1,5 @@
-// MinimalSceneTest without a window: the sphere's motion, which ports
-// VsyncStutterTest's Sphere.gd, the keys, and the settings file.
+// MinimalSceneTest without a window: the sphere's motion, the keys, and the
+// settings file.
 
 use std::path::Path;
 
@@ -28,8 +28,8 @@ fn the_sphere_starts_in_the_middle_moving_at_8_units_a_second() {
 #[test]
 fn the_sphere_turns_back_once_it_is_past_7() {
     let mut motion = Motion::default();
-    // Like Godot's _process, it moves by the frame's delta, and only turns
-    // back after a frame that took it past the end.
+    // It moves by the frame's time, and only turns back after a frame that
+    // took it past the end.
     for _ in 0..7 {
         motion.advance(0.125);
     }
@@ -69,11 +69,11 @@ fn f1_toggles_the_text_and_f11_fullscreen() {
 }
 
 #[test]
-fn the_defaults_are_the_godot_scene_s() {
+fn the_defaults_open_fullscreen_with_a_constant_color_sphere() {
     let (settings, scene) = SceneSettings::defaults();
     assert_eq!(settings.window_mode, WindowMode::BorderlessFullscreen);
-    // Godot's unshaded blue sphere: equal Dark and Light Points paint a
-    // constant color, which is the base color at tone 1 - Brightness.
+    // Equal Dark and Light Points paint a constant color, which is the base
+    // color at tone 1 - Brightness.
     assert_eq!(scene.sphere.dark_point, scene.sphere.light_point);
     assert_eq!(scene.sphere.dark_point, 1.0 - scene.sphere.brightness);
     for material in [&scene.sphere, &scene.ground, &scene.cube] {

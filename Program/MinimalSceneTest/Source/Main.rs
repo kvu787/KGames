@@ -99,7 +99,7 @@ fn main() -> Result<()> {
                     let mut lines = vec![
                         vec![
                             piece(NAME, TITLE),
-                            piece("  VsyncStutterTest's scene, a sphere moving at 8 units per second", DIM),
+                            piece("  A sphere moving at 8 units per second", DIM),
                         ],
                         vec![piece("FPS: ", DIM), piece(&rate, TEXT)],
                         vec![piece("GPU: ", DIM), piece(&description, TEXT)],

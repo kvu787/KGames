@@ -1,4 +1,4 @@
-// Checks Library/Math against values that DirectXMath and Godot agree on.
+// Checks Library/Math against values that DirectXMath agrees on.
 
 use math::{Matrix, Vector3, cross, dot, length};
 
@@ -13,8 +13,8 @@ fn assert_near(actual: &[f32], expected: &[f32]) {
     );
 }
 
-// The camera of VsyncStutterTest's Godot scene, which MinimalSceneTest ports:
-// its pivot's basis, from Main.tscn, and the camera 5 units along its Z.
+// MinimalSceneTest's camera, 5 units along BACKWARD from the origin: 47.5
+// degrees above the horizon, and 30 degrees from +Z toward +X.
 const RIGHT: Vector3 = [0.8660254, 0.0, -0.5];
 const UP: Vector3 = [-0.36863866, 0.6755902, -0.63850087];
 const BACKWARD: Vector3 = [0.3377951, 0.7372773, 0.5850783];
