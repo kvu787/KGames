@@ -12,6 +12,8 @@ I plan to develop the latest versions of Veehiicuul and Automatou in here.
 - Implement vsync option
 - Implement a scene that displays nothing or almost nothing to measure base fps
 - Figure out how to design or constrain UI
+- Specify a policy for handling user input when the window isn't focused
+  - How does this affect non-disruptive agent dev?
 
 # Motivation
 
