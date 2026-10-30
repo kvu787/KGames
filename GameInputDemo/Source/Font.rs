@@ -1,9 +1,10 @@
-// Rasterizes a monospaced font into a texture atlas with GDI, so the renderer
-// can draw text as textured quads without a font library. It runs once, at
-// startup: the demo only supports 100% scaling, so the font never changes size.
+// Rasterizes a monospaced font into a texture atlas with DirectWrite, so the
+// renderer can draw text as textured quads without a font library. It runs
+// once, at startup: the demo only supports 100% scaling, so the font never
+// changes size.
 
 use crate::bindings::*;
-use windows_core::{Error, Result, w};
+use windows_core::{Error, PCWSTR, Result, w};
 
 const COLUMNS: u32 = 16;
 // Cell 0 is solid white for shapes, so shapes and text share one texture and
@@ -24,88 +25,98 @@ impl Font {
     // pixel_height is the em height in physical pixels.
     pub fn new(pixel_height: i32) -> Result<Self> {
         unsafe {
-            let dc = CreateCompatibleDC(None);
-            if dc.0.is_null() {
-                return Err(Error::from_thread());
-            }
-            let font = CreateFontW(
-                -pixel_height,
-                0,
-                0,
-                0,
-                FW_NORMAL,
-                0,
-                0,
-                0,
-                DEFAULT_CHARSET as u32,
-                OUT_DEFAULT_PRECIS as u32,
-                CLIP_DEFAULT_PRECIS as u32,
-                // Grayscale antialiasing. ClearType's colored fringes would
-                // be wrong once the coverage is tinted and blended.
-                ANTIALIASED_QUALITY as u32,
-                (FIXED_PITCH | FF_MODERN) as u32,
-                w!("Consolas"),
-            );
-            let old_font = SelectObject(dc, HGDIOBJ(font.0));
+            let factory: IDWriteFactory2 = DWriteCreateFactory(DWRITE_FACTORY_TYPE_ISOLATED)?;
+            let face = find_font_face(&factory, w!("Consolas"))?;
+            let em_size = pixel_height as f32;
 
-            let mut metrics = TEXTMETRICW::default();
-            GetTextMetricsW(dc, &mut metrics).ok()?;
-            let cell_width = metrics.tmAveCharWidth as u32;
-            let cell_height = metrics.tmHeight as u32;
+            let characters: Vec<char> = (' '..='~').chain('\u{A0}'..='\u{FF}').collect();
+            let code_points: Vec<u32> = characters.iter().map(|&c| c as u32).collect();
+            let mut glyphs = vec![0u16; characters.len()];
+            face.GetGlyphIndices(
+                code_points.as_ptr(),
+                code_points.len() as u32,
+                glyphs.as_mut_ptr(),
+            )
+            .ok()?;
+
+            // The cell is as wide as a glyph's advance, which is the same for
+            // every glyph of a monospaced font, rounded to whole pixels. It's
+            // as tall as the font's ascent and descent, each rounded up.
+            let mut metrics = DWRITE_FONT_METRICS::default();
+            face.GetMetrics(&mut metrics);
+            let scale = em_size / metrics.designUnitsPerEm as f32;
+            let mut glyph_metrics = DWRITE_GLYPH_METRICS::default();
+            face.GetDesignGlyphMetrics(&glyphs[0], 1, &mut glyph_metrics, false)
+                .ok()?;
+            let advance = glyph_metrics.advanceWidth as f32 * scale;
+            let ascent = (metrics.ascent as f32 * scale).ceil();
+            let descent = (metrics.descent as f32 * scale).ceil();
+            let cell_width = advance.round() as u32;
+            let cell_height = (ascent + descent) as u32;
             let atlas_width = COLUMNS * cell_width;
             let atlas_height = CELL_COUNT.div_ceil(COLUMNS) * cell_height;
 
-            // A top-down 32-bit DIB that GDI draws into and the CPU can read.
-            let info = BITMAPINFO {
-                bmiHeader: BITMAPINFOHEADER {
-                    biSize: size_of::<BITMAPINFOHEADER>() as u32,
-                    biWidth: atlas_width as i32,
-                    biHeight: -(atlas_height as i32),
-                    biPlanes: 1,
-                    biBitCount: 32,
-                    biCompression: BI_RGB as u32,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            let mut bits = core::ptr::null_mut();
-            let bitmap =
-                CreateDIBSection(Some(dc), &info, DIB_RGB_COLORS as u32, &mut bits, None, 0);
-            if bitmap.0.is_null() {
-                return Err(Error::from_thread());
-            }
-            let old_bitmap = SelectObject(dc, HGDIOBJ(bitmap.0));
-
-            // White on black, so any color channel is the glyph's coverage.
-            SetTextColor(dc, COLORREF(0x00FF_FFFF));
-            SetBkColor(dc, COLORREF(0));
-            for character in (' '..='~').chain('\u{A0}'..='\u{FF}') {
-                let index = glyph_index(character).unwrap();
-                let x = (index % COLUMNS * cell_width) as i32;
-                let y = (index / COLUMNS * cell_height) as i32;
-                let mut utf16 = [0u16; 2];
-                let _ = TextOutW(dc, x, y, character.encode_utf16(&mut utf16));
-            }
-            GdiFlush().ok()?;
-
-            let texel_count = (atlas_width * atlas_height) as usize;
-            let bgra = core::slice::from_raw_parts(bits as *const u8, texel_count * 4);
-            let mut pixels: Vec<u8> = bgra
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|texel| texel[1])
-                .collect();
+            let mut pixels = vec![0u8; (atlas_width * atlas_height) as usize];
             for y in 0..cell_height {
                 let row = (y * atlas_width) as usize;
                 pixels[row..row + cell_width as usize].fill(255);
             }
 
-            SelectObject(dc, old_bitmap);
-            SelectObject(dc, old_font);
-            let _ = DeleteObject(HGDIOBJ(bitmap.0));
-            let _ = DeleteObject(HGDIOBJ(font.0));
-            let _ = DeleteDC(dc);
+            for (&character, glyph) in characters.iter().zip(&glyphs) {
+                let run = DWRITE_GLYPH_RUN {
+                    // Borrow the font face without touching its reference count.
+                    fontFace: std::mem::transmute_copy(&face),
+                    fontEmSize: em_size,
+                    glyphCount: 1,
+                    glyphIndices: glyph,
+                    ..Default::default()
+                };
+                // Grayscale antialiasing. ClearType's colored fringes would
+                // be wrong once the coverage is tinted and blended. The
+                // glyph is centered across the cell, as the cell's width is
+                // its advance rounded to whole pixels.
+                let analysis = factory.CreateGlyphRunAnalysis(
+                    &run,
+                    None,
+                    DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC,
+                    DWRITE_MEASURING_MODE_NATURAL,
+                    DWRITE_GRID_FIT_MODE_ENABLED,
+                    DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE,
+                    (cell_width as f32 - advance) * 0.5,
+                    ascent,
+                )?;
+                // Despite its name, ALIASED_1x1 is the texture type for
+                // grayscale antialiasing too: one byte of coverage per pixel.
+                let bounds = analysis.GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1)?;
+                let width = (bounds.right - bounds.left) as usize;
+                let height = (bounds.bottom - bounds.top) as usize;
+                if width == 0 || height == 0 {
+                    continue;
+                }
+                let mut coverage = vec![0u8; width * height];
+                analysis
+                    .CreateAlphaTexture(
+                        DWRITE_TEXTURE_ALIASED_1x1,
+                        &bounds,
+                        coverage.as_mut_ptr(),
+                        coverage.len() as u32,
+                    )
+                    .ok()?;
+
+                // The bounds are relative to the cell's top left. Anything
+                // outside the cell is cut off.
+                let index = glyph_index(character).unwrap();
+                let cell_x = (index % COLUMNS * cell_width) as i32;
+                let cell_y = (index / COLUMNS * cell_height) as i32;
+                for y in bounds.top.max(0)..bounds.bottom.min(cell_height as i32) {
+                    for x in bounds.left.max(0)..bounds.right.min(cell_width as i32) {
+                        let source = (y - bounds.top) as usize * width + (x - bounds.left) as usize;
+                        let destination =
+                            (cell_y + y) as usize * atlas_width as usize + (cell_x + x) as usize;
+                        pixels[destination] = coverage[source];
+                    }
+                }
+            }
 
             Ok(Self {
                 cell_width,
@@ -141,6 +152,36 @@ impl Font {
 
     pub fn has_glyph(character: char) -> bool {
         glyph_index(character).is_some()
+    }
+}
+
+// The regular face of an installed font family.
+unsafe fn find_font_face(factory: &IDWriteFactory2, family: PCWSTR) -> Result<IDWriteFontFace> {
+    unsafe {
+        let mut collection = None;
+        factory
+            .GetSystemFontCollection(&mut collection, false)
+            .ok()?;
+        let collection = collection.unwrap();
+        let mut index = 0;
+        let mut exists = windows_core::BOOL(0);
+        collection
+            .FindFamilyName(family, &mut index, &mut exists)
+            .ok()?;
+        if !exists.as_bool() {
+            return Err(Error::new(
+                E_FAIL,
+                format!("the font {} isn't installed", family.display()),
+            ));
+        }
+        collection
+            .GetFontFamily(index)?
+            .GetFirstMatchingFont(
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+            )?
+            .CreateFontFace()
     }
 }
 

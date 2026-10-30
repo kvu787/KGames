@@ -87,20 +87,31 @@ QDC_ONLY_ACTIVE_PATHS
 
 // IdentifyDisplays' windows, drawn with GDI
 BeginPaint
+CreateCompatibleDC
+CreateFontW
 CreateSolidBrush
+DeleteDC
 DrawTextW
 EndPaint
 FillRect
 GetMessageW
+SelectObject
 SetBkMode
+SetTextColor
 ShowWindow
 CLEARTYPE_QUALITY
+CLIP_DEFAULT_PRECIS
+DEFAULT_CHARSET
 DT_CALCRECT
 DT_CENTER
 DT_NOPREFIX
 DT_SINGLELINE
+FF_MODERN
 FF_SWISS
+FIXED_PITCH
 FW_BOLD
+FW_NORMAL
+OUT_DEFAULT_PRECIS
 GWLP_USERDATA
 SW_SHOW
 TRANSPARENT
@@ -154,27 +165,24 @@ RRF_RT_REG_SZ
 RRF_SUBKEY_WOW6432KEY
 VS_FIXEDFILEINFO
 
-// Font atlas, rasterized with GDI
-CreateCompatibleDC
-CreateDIBSection
-CreateFontW
-DeleteDC
-DeleteObject
-GdiFlush
-GetTextMetricsW
-SelectObject
-SetBkColor
-SetTextColor
-TextOutW
-ANTIALIASED_QUALITY
-BI_RGB
-CLIP_DEFAULT_PRECIS
-DEFAULT_CHARSET
-DIB_RGB_COLORS
-FF_MODERN
-FIXED_PITCH
-FW_NORMAL
-OUT_DEFAULT_PRECIS
+// Font atlas, rasterized with DirectWrite
+DWriteCreateFactory
+IDWriteFactory::GetSystemFontCollection
+IDWriteFactory2::CreateGlyphRunAnalysis
+IDWriteFont::CreateFontFace
+IDWriteFontCollection::{FindFamilyName, GetFontFamily}
+IDWriteFontFace::{GetDesignGlyphMetrics, GetGlyphIndices, GetMetrics}
+IDWriteFontFamily::GetFirstMatchingFont
+IDWriteGlyphRunAnalysis::{CreateAlphaTexture, GetAlphaTextureBounds}
+DWRITE_FACTORY_TYPE
+DWRITE_FONT_STRETCH
+DWRITE_FONT_STYLE
+DWRITE_FONT_WEIGHT
+DWRITE_GRID_FIT_MODE
+DWRITE_MEASURING_MODE
+DWRITE_RENDERING_MODE
+DWRITE_TEXT_ANTIALIAS_MODE
+DWRITE_TEXTURE_TYPE
 
 // DXGI
 CreateDXGIFactory2

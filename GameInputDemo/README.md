@@ -379,7 +379,7 @@ For GameInput APIs, add them to `Source/GameInput.rs` by hand: replace the metho
 | `Source/Input.rs`                  | Reads devices and readings with GameInput, and keeps what the panels show        |
 | `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
 | `Source/Canvas.rs`                 | Builds each frame's rectangles, antialiased lines and circles, and text          |
-| `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with GDI                                |
+| `Source/Font.rs`                   | Rasterizes Consolas into a texture atlas with DirectWrite                        |
 | `Source/Renderer.rs`               | The Direct3D 12 renderer: one draw call per frame, and one frame in flight       |
 | `Source/Bindings.rs`               | Generated Windows API bindings; don't edit by hand                               |
 | `Shaders/Canvas.hlsl`              | Vertex and pixel shaders, plus the embedded root signature                       |
