@@ -62,12 +62,16 @@ impl Default for Motion {
 }
 
 impl Motion {
-    // Moves the sphere by `seconds` since the last frame. It turns back once
-    // it's past the travel distance.
+    // Moves the sphere by `seconds` since the last frame. Past the travel
+    // distance, it bounces back by as much as it went past, as many times as
+    // the frame's time takes it, so that a long frame, like after Windows
+    // held the window still while its title bar was dragged, doesn't take it
+    // off the screen.
     pub fn advance(&mut self, seconds: f32) {
         self.position += self.direction * SPEED * seconds;
-        if self.position.abs() > TRAVEL_DISTANCE {
-            self.direction = if self.position > 0.0 { -1.0 } else { 1.0 };
+        while self.position.abs() > TRAVEL_DISTANCE {
+            self.position = 2.0 * TRAVEL_DISTANCE.copysign(self.position) - self.position;
+            self.direction = -self.direction;
         }
     }
 }

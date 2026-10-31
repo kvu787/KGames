@@ -15,8 +15,8 @@ and supports the two window setups in
 |            | the origin from 5 units away, 47.5 degrees above the horizon and 30 degrees |
 |            | from +Z toward +X                                                           |
 | Sphere     | Radius 0.5, on the ground. X moves by 8 units per second times the time     |
-|            | since the last frame, and turns back past 7. It doesn't jump ahead after    |
-|            | the window was minimized                                                    |
+|            | since the last frame, and bounces back from 7 by as far as it went past. It |
+|            | doesn't jump ahead after the window was minimized                           |
 | Ground     | A plane 10 units along X and 5 along Z                                      |
 | Cube       | 1 unit on each side, on the ground at Z = -1.5                              |
 | Materials  | [SimplePaint](../../Library/SimplePaint/README.md) materials: the ground's  |
