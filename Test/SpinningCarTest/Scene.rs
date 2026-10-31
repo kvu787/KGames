@@ -109,6 +109,7 @@ fn the_settings_file_checks_the_sphere_s_resolution() {
         (r#"{ "VResolution": 513 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 513")),
         (r#"{ "UResolution": 64.5 }"#, [64, 32], Some("UResolution must be a whole number from 3 to 512, not 64.5")),
         (r#"{ "Radius": 1 }"#, [64, 32], Some("Radius isn't a sphere setting. They're UResolution and VResolution.")),
+        (r#"{ "UResolution": 128, "VResolution": 600 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 600")),
     ] {
         std::fs::write(&path, format!(r#"{{ "Sphere": {sphere} }}"#)).unwrap();
         let mut notices = Vec::new();

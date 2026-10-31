@@ -94,6 +94,9 @@ impl ProgramSettings for SceneSettings {
                 value.describe()
             ));
         };
+        // Applied only if every member is right, so that a wrong one keeps
+        // both at their defaults.
+        let mut resolution = self.sphere_resolution;
         for (member, value) in members {
             let (index, range) = match member.as_str() {
                 "UResolution" => (0, 3..=512),
@@ -104,7 +107,7 @@ impl ProgramSettings for SceneSettings {
                 Value::Number(number)
                     if number.fract() == 0.0 && range.contains(&(*number as i64)) =>
                 {
-                    self.sphere_resolution[index] = *number as u32;
+                    resolution[index] = *number as u32;
                 }
                 _ => {
                     return Err(format!(
@@ -116,6 +119,7 @@ impl ProgramSettings for SceneSettings {
                 }
             }
         }
+        self.sphere_resolution = resolution;
         Ok(())
     }
 
