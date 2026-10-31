@@ -44,6 +44,19 @@ fn says_where_a_mistake_is() {
 }
 
 #[test]
+fn fails_on_deep_nesting_instead_of_overflowing_the_stack() {
+    let nested = |depth: usize| "[".repeat(depth) + &"]".repeat(depth);
+    assert!(parse(&nested(128)).is_ok());
+    let error = parse(&nested(129)).unwrap_err();
+    assert_eq!(
+        (error.line, error.column, error.message.as_str()),
+        (1, 129, "arrays and objects are nested too deeply")
+    );
+    // Deep enough to overflow the stack without the limit.
+    assert!(parse(&"[{\"a\":".repeat(100_000)).is_err());
+}
+
+#[test]
 fn writes_what_parses_back_the_same() {
     let value = object([
         ("Numbers", [0.1, 1.0 / 3.0, -0.0, 1e-300, 123456789.0].into()),

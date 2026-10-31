@@ -208,8 +208,17 @@ pub struct Error {
     pub message: String,
 }
 
+// How deep arrays and objects can nest. The parser recurses for each level,
+// so a file nested much deeper would overflow the stack instead of failing.
+// No settings file or script comes close.
+const MAX_DEPTH: usize = 128;
+
 pub fn parse(text: &str) -> Result<Value, Error> {
-    let mut parser = Parser { text, position: 0 };
+    let mut parser = Parser {
+        text,
+        position: 0,
+        depth: 0,
+    };
     let value = parser.value()?;
     parser.skip_whitespace();
     if parser.position < text.len() {
@@ -222,6 +231,8 @@ struct Parser<'a> {
     text: &'a str,
     // A byte offset into text.
     position: usize,
+    // How many arrays and objects the position is in.
+    depth: usize,
 }
 
 impl Parser<'_> {
@@ -257,8 +268,15 @@ impl Parser<'_> {
     fn value(&mut self) -> Result<Value, Error> {
         self.skip_whitespace();
         match self.peek() {
-            Some('{') => self.object(),
-            Some('[') => self.array(),
+            Some(bracket @ ('{' | '[')) => {
+                if self.depth == MAX_DEPTH {
+                    return Err(self.error("arrays and objects are nested too deeply"));
+                }
+                self.depth += 1;
+                let value = if bracket == '{' { self.object() } else { self.array() };
+                self.depth -= 1;
+                value
+            }
             Some('"') => self.string().map(Value::String),
             Some('-' | '0'..='9') => self.number(),
             Some(_) => {
