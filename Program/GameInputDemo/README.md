@@ -392,6 +392,12 @@ Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard"
 second after the demo starts, while GameInput adds that device. It goes to the window that
 has focus, so it's for trying the demo by hand, not for coding agents.
 
+A precision touchpad, like a laptop's, moves the pointer the same way. Windows' touchpad
+driver reads where the fingers are, and moves the pointer with mouse input of its own, which
+doesn't say what device it came from. So the touchpad is the "Unidentified mouse" too: it's
+only in the Devices panel once it's used, its tooltip has no PnP path, and its input can't be
+told apart from `SendInput`'s.
+
 The virtual gamepad that Windows' `InputInjector.InitializeGamepadInjection` creates doesn't
 reach GameInput.
 
