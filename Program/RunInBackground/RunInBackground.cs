@@ -158,6 +158,8 @@ static void Run(string[] arguments) {
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
     using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog);
+    // From the start, as a window could take focus as soon as it opens.
+    using var watch = new FocusWatch(process.Id);
 
     var window = IntPtr.Zero;
     var waiting = Stopwatch.StartNew();
@@ -173,12 +175,10 @@ static void Run(string[] arguments) {
         window = ProgramWindow.Find(process.Id);
     }
 
-    using (var watch = new FocusWatch(process.Id)) {
-        Thread.Sleep(TimeSpan.FromSeconds(seconds));
-        if (watch.TookFocus) {
-            process.Kill();
-            throw new FailureException($"{program}'s window took focus, so it was stopped");
-        }
+    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    if (watch.TookFocus) {
+        process.Kill();
+        throw new FailureException($"{program}'s window took focus, so it was stopped");
     }
     if (process.HasExited) {
         throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
@@ -213,6 +213,9 @@ static void Run(string[] arguments) {
         }
         if (process.ExitCode != 0) {
             throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
+        }
+        if (watch.TookFocus) {
+            throw new FailureException($"{program}'s window took focus");
         }
     }
 }
@@ -284,33 +287,102 @@ static string ReadLog(string path) {
     }
 }
 
-// Watches, until it's disposed, whether a window of the process is ever the
-// foreground window, which would mean that it took focus from the user.
-sealed class FocusWatch : IDisposable {
-    readonly int processId;
+// Watches, until it's disposed, whether a window of the process ever becomes
+// the foreground window, which would mean that it took focus from the user.
+// Windows reports every change of the foreground window to the watch's
+// thread, so even one that lasts a moment counts, unlike with checking now
+// and then.
+sealed unsafe partial class FocusWatch : IDisposable {
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSG {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam, lParam;
+        public uint time;
+        public int x, y;
+        public uint lPrivate;
+    }
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, delegate* unmanaged<IntPtr, uint, IntPtr, int, int, uint, uint, void> callback, uint processId, uint threadId, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnhookWinEvent(IntPtr hook);
+    [LibraryImport("user32.dll")]
+    private static partial int GetMessageW(out MSG message, IntPtr window, uint filterMin, uint filterMax);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PeekMessageW(out MSG message, IntPtr window, uint filterMin, uint filterMax, uint remove);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostThreadMessageW(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetCurrentThreadId();
+
+    const uint EVENT_SYSTEM_FOREGROUND = 3;
+    const uint WINEVENT_OUTOFCONTEXT = 0;
+    const uint PM_NOREMOVE = 0;
+    const uint WM_QUIT = 0x0012;
+
+    // Windows calls OnForeground on the thread that watches, while it waits
+    // for messages.
+    [ThreadStatic]
+    static FocusWatch? watching;
+
+    readonly uint processId;
     readonly Thread thread;
-    volatile bool stopped;
+    readonly ManualResetEventSlim started = new();
+    uint threadId;
+    bool hooked;
     volatile bool tookFocus;
 
     public FocusWatch(int processId) {
-        this.processId = processId;
+        this.processId = (uint)processId;
         this.thread = new Thread(this.Watch) { IsBackground = true };
         this.thread.Start();
+        this.started.Wait();
+        if (!this.hooked) {
+            this.thread.Join();
+            throw new FailureException("Couldn't watch which window has focus");
+        }
     }
 
     public bool TookFocus => this.tookFocus;
 
     void Watch() {
-        while (!this.stopped) {
-            if (ProgramWindow.ForegroundProcess() == this.processId) {
-                this.tookFocus = true;
-            }
-            Thread.Sleep(5);
+        watching = this;
+        // Makes the thread's message queue, so that Dispose can post to it.
+        _ = PeekMessageW(out _, IntPtr.Zero, 0, 0, PM_NOREMOVE);
+        this.threadId = GetCurrentThreadId();
+        var hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, &OnForeground, 0, 0, WINEVENT_OUTOFCONTEXT);
+        this.hooked = hook != IntPtr.Zero;
+        this.started.Set();
+        if (!this.hooked) {
+            return;
+        }
+        // The window with focus before the first change.
+        this.Check(ProgramWindow.Foreground());
+        // Windows calls OnForeground from within GetMessageW, until Dispose
+        // posts WM_QUIT.
+        while (GetMessageW(out _, IntPtr.Zero, 0, 0) > 0) {
+        }
+        this.Check(ProgramWindow.Foreground());
+        _ = UnhookWinEvent(hook);
+    }
+
+    [UnmanagedCallersOnly]
+    static void OnForeground(IntPtr hook, uint winEvent, IntPtr window, int objectId, int childId, uint eventThread, uint time) {
+        watching?.Check(window);
+    }
+
+    void Check(IntPtr window) {
+        if (ProgramWindow.Owner(window) == this.processId) {
+            this.tookFocus = true;
         }
     }
 
     public void Dispose() {
-        this.stopped = true;
+        _ = PostThreadMessageW(this.threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         this.thread.Join();
     }
 }
@@ -462,13 +534,16 @@ static partial class ProgramWindow {
         return IntPtr.Zero;
     }
 
-    // The ID of the process whose window is the foreground window, or 0.
-    public static uint ForegroundProcess() {
-        var window = GetForegroundWindow();
-        if (window == IntPtr.Zero) {
+    // The window that has focus, or none.
+    public static IntPtr Foreground() {
+        return GetForegroundWindow();
+    }
+
+    // The ID of the process that owns a window, or 0 for none.
+    public static uint Owner(IntPtr window) {
+        if (window == IntPtr.Zero || GetWindowThreadProcessId(window, out var process) == 0) {
             return 0;
         }
-        _ = GetWindowThreadProcessId(window, out var process);
         return process;
     }
 
