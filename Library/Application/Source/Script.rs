@@ -200,7 +200,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         "Key" => {
             let key = match value {
                 Value::String(name) => virtual_key(name).ok_or_else(|| format!("{name} isn't a key"))?,
-                Value::Number(code) if (1.0..255.0).contains(code) => *code as u32,
+                Value::Number(code) if (1.0..255.0).contains(code) && code.fract() == 0.0 => *code as u32,
                 other => return Err(format!("Key must be a key's name, like \"F11\", not {}", other.describe())),
             };
             Action::Event(Event::Key {
@@ -262,7 +262,11 @@ pub fn virtual_key(name: &str) -> Option<u32> {
     if named.is_some() {
         return named;
     }
-    if let Some(number) = name.strip_prefix('F').and_then(|digits| digits.parse::<u32>().ok()) {
+    if let Some(number) = name
+        .strip_prefix('F')
+        .filter(|digits| !digits.is_empty() && digits.bytes().all(|digit| digit.is_ascii_digit()))
+        .and_then(|digits| digits.parse::<u32>().ok())
+    {
         return (1..=24).contains(&number).then(|| 0x70 + number - 1);
     }
     let mut characters = name.chars();

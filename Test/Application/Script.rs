@@ -99,6 +99,7 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [{ "Frame": 1, "Press": [1] }] }"#, "step 1: a point must be [x, y], not a list of 1"),
         (r#"{ "Steps": [{ "Frame": 1, "Capture": "a/b" }] }"#, "step 1: Capture must be a name of letters and digits, for its files, not \"a/b\""),
         (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Control": 1 }] }"#, "step 1: Control must be true or false, not 1"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": 65.7 }] }"#, "step 1: Key must be a key's name, like \"F11\", not 65.7"),
         (r#"{ "Steps": [{ "Frame": 2, "Key": "S" }, { "Frame": 1, "Key": "S" }] }"#, "step 2 comes before the step above it"),
         ("{ \"Steps\": [", "line 1, column 13: expected a value, but the file ended"),
     ] {
@@ -113,6 +114,8 @@ fn names_keys_like_scripts_do() {
         ("F11", Some(0x7A)),
         ("F24", Some(0x87)),
         ("F25", None),
+        ("F+1", None),
+        ("F", Some(0x46)),
         ("S", Some(0x53)),
         ("7", Some(0x37)),
         ("s", None),
