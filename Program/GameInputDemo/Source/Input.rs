@@ -486,7 +486,9 @@ impl Input {
         let info = self.devices.iter().find(|info| Some(info.id) == device);
         self.gamepad = GamepadView {
             device,
-            layout: info.and_then(|info| info.gamepad_layout),
+            layout: info
+                .and_then(|info| info.gamepad)
+                .map(|gamepad| gamepad.supportedLayout),
             rumble_motors: info.map_or(0, |info| info.rumble_motors),
             ..Default::default()
         };
@@ -910,7 +912,7 @@ impl Input {
             .devices
             .iter()
             .find(|info| Some(info.id) == device)
-            .and_then(|info| info.mouse_sample_rate);
+            .and_then(|info| info.mouse_sample_rate());
         let view = &mut self.mouse;
         if !changes.is_empty() || view.device == device {
             view.rate.add(time);

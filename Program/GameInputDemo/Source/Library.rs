@@ -2,6 +2,8 @@
 // what the demo makes of readings, and where clicks go, without a window,
 // and without GameInput. Main.rs is the program.
 
+#[path = "DeviceTree.rs"]
+pub mod device_tree;
 #[path = "Devices.rs"]
 pub mod devices;
 #[path = "GameInputSource.rs"]

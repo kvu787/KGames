@@ -5,6 +5,10 @@ edition = "2024"
 publish = false
 
 [[test]]
+name = "Devices"
+path = "Devices.rs"
+
+[[test]]
 name = "Input"
 path = "Input.rs"
 
@@ -18,3 +22,8 @@ canvas = { path = "../../Library/Canvas" }
 game_input = { path = "../../Library/GameInput" }
 game_input_demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
