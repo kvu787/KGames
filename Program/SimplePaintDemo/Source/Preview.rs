@@ -9,6 +9,10 @@
 // is smooth. The texture is resolved, averaging the samples in linear light
 // through an sRGB format, then copied into the back buffer. The copy keeps
 // the bytes, which are sRGB, as the back buffer is.
+//
+// The resolved image is kept, and the sphere is drawn again only when the
+// material changes. Every frame copies the image, as each frame's back
+// buffer starts cleared.
 
 use graphics::{Renderer, UploadBuffer, create_texture, transition};
 use math::Matrix;
@@ -45,6 +49,8 @@ pub struct Preview {
     multisampled: ID3D12Resource,
     resolved: ID3D12Resource,
     rtv_heap: ID3D12DescriptorHeap,
+    // The material that the resolved image has the sphere in, once it has one.
+    drawn: Option<GpuMaterial>,
 }
 
 impl Preview {
@@ -123,13 +129,53 @@ impl Preview {
                 multisampled,
                 resolved,
                 rtv_heap,
+                drawn: None,
             })
         }
     }
 
-    // Records the sphere with this material, and copies the image into the
-    // frame's back buffer with its top left at `corner`, over what's there.
-    pub unsafe fn draw(&self, renderer: &Renderer, material: &GpuMaterial, corner: [u32; 2]) {
+    // Copies the image of the sphere with this material into the frame's
+    // back buffer with its top left at `corner`, over what's there. Records
+    // the sphere first if the image has another material.
+    pub unsafe fn draw(&mut self, renderer: &Renderer, material: &GpuMaterial, corner: [u32; 2]) {
+        unsafe {
+            if self.drawn != Some(*material) {
+                self.draw_sphere(renderer, material);
+                self.drawn = Some(*material);
+            }
+            let list = &renderer.command_list;
+            let back_buffer = renderer.back_buffer();
+            list.ResourceBarrier(&[transition(
+                back_buffer,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+            )]);
+            let destination = D3D12_TEXTURE_COPY_LOCATION {
+                pResource: std::mem::transmute_copy(back_buffer),
+                Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
+                    SubresourceIndex: 0,
+                },
+            };
+            let source = D3D12_TEXTURE_COPY_LOCATION {
+                pResource: std::mem::transmute_copy(&self.resolved),
+                Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
+                    SubresourceIndex: 0,
+                },
+            };
+            list.CopyTextureRegion(&destination, corner[0], corner[1], 0, &source, None);
+            list.ResourceBarrier(&[transition(
+                back_buffer,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+            )]);
+        }
+    }
+
+    // Records the sphere with this material into the resolved image, which
+    // ends ready to copy from.
+    unsafe fn draw_sphere(&self, renderer: &Renderer, material: &GpuMaterial) {
         unsafe {
             self.constants.write(OBJECT_SIZE, &[*material]);
             let list = &renderer.command_list;
@@ -168,7 +214,6 @@ impl Preview {
                 ),
             ]);
             list.ResolveSubresource(&self.resolved, 0, &self.multisampled, 0, VIEW_FORMAT);
-            let back_buffer = renderer.back_buffer();
             list.ResourceBarrier(&[
                 transition(
                     &self.multisampled,
@@ -180,32 +225,7 @@ impl Preview {
                     D3D12_RESOURCE_STATE_RESOLVE_DEST,
                     D3D12_RESOURCE_STATE_COPY_SOURCE,
                 ),
-                transition(
-                    back_buffer,
-                    D3D12_RESOURCE_STATE_RENDER_TARGET,
-                    D3D12_RESOURCE_STATE_COPY_DEST,
-                ),
             ]);
-            let destination = D3D12_TEXTURE_COPY_LOCATION {
-                pResource: std::mem::transmute_copy(back_buffer),
-                Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
-                    SubresourceIndex: 0,
-                },
-            };
-            let source = D3D12_TEXTURE_COPY_LOCATION {
-                pResource: std::mem::transmute_copy(&self.resolved),
-                Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
-                    SubresourceIndex: 0,
-                },
-            };
-            list.CopyTextureRegion(&destination, corner[0], corner[1], 0, &source, None);
-            list.ResourceBarrier(&[transition(
-                back_buffer,
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_RENDER_TARGET,
-            )]);
         }
     }
 }
