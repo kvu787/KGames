@@ -6,10 +6,14 @@
 //
 // The preview panel is drawn with a white middle, which the sphere's image
 // is copied over after the canvas is drawn.
+//
+// The tone curve panel's curves and color ramp are most of the panels'
+// vertices and math, so they're drawn only when the base color or Brightness
+// changes, and their vertices are kept for the frames in between. See Cache.
 
 use application::FrameCounter;
 use canvas::theme::{ACCENT, BORDER, DIM, ERROR, FAINT, INSET, PANEL, SUCCESS, TEXT, TITLE, WARNING};
-use canvas::{Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, wrap};
+use canvas::{Cached, Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, wrap};
 use simple_paint::Parameters;
 
 use crate::editor::{Click, Editor, SLIDERS, Target};
@@ -54,7 +58,26 @@ pub struct Layout {
     pub image: Option<[u32; 2]>,
 }
 
-pub fn draw(canvas: &mut Canvas, editor: &Editor, status: &Status, width: f32, height: f32) -> Layout {
+// What draw keeps from frame to frame, for one font: the tone curve panel's
+// curves and color ramp, each by what it shows (see CurveKey).
+#[derive(Default)]
+pub struct Cache {
+    curves: Cached<CurveKey>,
+    ramp: Cached<CurveKey>,
+}
+
+// The base color and Brightness, which the color curve depends on, and the
+// area it's drawn in.
+type CurveKey = ([f64; 3], f64, [f32; 4]);
+
+pub fn draw(
+    canvas: &mut Canvas,
+    cache: &mut Cache,
+    editor: &Editor,
+    status: &Status,
+    width: f32,
+    height: f32,
+) -> Layout {
     let mut layout = Layout {
         targets: Vec::new(),
         image: None,
@@ -152,7 +175,7 @@ pub fn draw(canvas: &mut Canvas, editor: &Editor, status: &Status, width: f32, h
     let constants_y = curve.bottom() + MARGIN;
     let constants = Rect::new(EDITOR_X, constants_y, editor_width, bottom - constants_y);
     draw_settings(canvas, editor, status.cursor, settings, &mut layout.targets);
-    draw_curve(canvas, &editor.parameters, curve);
+    draw_curve(canvas, cache, &editor.parameters, curve);
     draw_constants(canvas, editor, constants);
     layout
 }
@@ -266,7 +289,7 @@ fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>,
 
 // The color curve of each channel over the tone, as it's displayed, with the
 // tones that the sphere shows marked, and a ramp of the colors.
-fn draw_curve(canvas: &mut Canvas, parameters: &Parameters, area: Rect) {
+fn draw_curve(canvas: &mut Canvas, cache: &mut Cache, parameters: &Parameters, area: Rect) {
     let inner = panel(
         canvas,
         area,
@@ -295,16 +318,25 @@ fn draw_curve(canvas: &mut Canvas, parameters: &Parameters, area: Rect) {
 
     // Each channel's curve, as displayed: the shader's linear output, encoded to sRGB.
     const SEGMENTS: usize = 256;
-    for (channel, color) in CHANNELS.iter().enumerate() {
-        let base = parameters.base_color_srgb[channel];
-        let point = |segment: usize| {
-            let tone = segment as f64 / SEGMENTS as f64;
-            [x_of(tone), y_of(srgb(curve(base, parameters.brightness, tone)))]
-        };
-        for segment in 0..SEGMENTS {
-            canvas.line(point(segment), point(segment + 1), 2.0, *color);
+    let curves = parameters.base_color_srgb.map(|base| curve(base, parameters.brightness));
+    let key = |place: Rect| {
+        (
+            parameters.base_color_srgb,
+            parameters.brightness,
+            [place.x, place.y, place.width, place.height],
+        )
+    };
+    cache.curves.draw(canvas, key(plot), |canvas| {
+        for (curve, color) in curves.iter().zip(CHANNELS) {
+            let mut from = [x_of(0.0), y_of(srgb(curve(0.0)))];
+            for segment in 1..=SEGMENTS {
+                let tone = segment as f64 / SEGMENTS as f64;
+                let to = [x_of(tone), y_of(srgb(curve(tone)))];
+                canvas.line(from, to, 2.0, color);
+                from = to;
+            }
         }
-    }
+    });
     canvas.rect_outline(plot.x, plot.y, plot.width, plot.height, 1.0, BORDER);
 
     // Labels under the plot, at the marks.
@@ -334,16 +366,18 @@ fn draw_curve(canvas: &mut Canvas, parameters: &Parameters, area: Rect) {
 
     // The colors along the curve, with the sphere's tones marked.
     let ramp = Rect::new(plot.x, y, plot.width, RAMP_HEIGHT);
-    let columns = ramp.width as usize;
-    for column in 0..columns {
-        let tone = (column as f64 + 0.5) / columns as f64;
-        let byte = |channel: usize| {
-            let value = srgb(curve(parameters.base_color_srgb[channel], parameters.brightness, tone));
-            (value.clamp(0.0, 1.0) * 255.0).round() as u32
-        };
-        let color = Color::rgb((byte(0) << 16) | (byte(1) << 8) | byte(2));
-        canvas.rect(ramp.x + column as f32, ramp.y, 1.0, ramp.height, color);
-    }
+    cache.ramp.draw(canvas, key(ramp), |canvas| {
+        let columns = ramp.width as usize;
+        for column in 0..columns {
+            let tone = (column as f64 + 0.5) / columns as f64;
+            let [red, green, blue] = curves.each_ref().map(|curve| {
+                let value = srgb(curve(tone));
+                (value.clamp(0.0, 1.0) * 255.0).round() as u32
+            });
+            let color = Color::rgb((red << 16) | (green << 8) | blue);
+            canvas.rect(ramp.x + column as f32, ramp.y, 1.0, ramp.height, color);
+        }
+    });
     canvas.rect_outline(ramp.x, ramp.y, ramp.width, ramp.height, 1.0, BORDER);
     for tone in [low, high] {
         canvas.rect(x_of(tone) - 1.0, ramp.y - 4.0, 2.0, ramp.height + 8.0, TITLE);
@@ -413,12 +447,13 @@ fn srgb(linear: f64) -> f64 {
     }
 }
 
-// SimplePaint's color curve for one channel, from Specification.md.
-fn curve(color_srgb: f64, brightness: f64, tone: f64) -> f64 {
+// SimplePaint's color curve for one channel, from Specification.md, as a
+// function of the tone, with what doesn't depend on the tone worked out once.
+fn curve(color_srgb: f64, brightness: f64) -> impl Fn(f64) -> f64 {
     let c = linear(color_srgb);
     let a = c * brightness;
     let b = (1.0 - c) * (1.0 - brightness);
-    a * tone / (a * tone + b * (1.0 - tone))
+    move |tone| a * tone / (a * tone + b * (1.0 - tone))
 }
 
 fn fixed(value: f64) -> String {

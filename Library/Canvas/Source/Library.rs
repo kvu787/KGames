@@ -14,7 +14,7 @@ mod pipeline;
 #[path = "Theme.rs"]
 pub mod theme;
 
-pub use canvas::{Canvas, Color, Vertex};
+pub use canvas::{Cached, Canvas, Color, Vertex};
 pub use font::Font;
 pub use layout::*;
 pub use pipeline::Pipeline;

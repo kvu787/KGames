@@ -35,6 +35,7 @@ fn main() -> Result<()> {
         window.show(arguments.activate);
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
+        let mut cache = panels::Cache::default();
         // Where clicks do something in the last frame drawn.
         let mut targets = Vec::new();
 
@@ -85,6 +86,7 @@ fn main() -> Result<()> {
             };
             let layout = panels::draw(
                 &mut canvas,
+                &mut cache,
                 &editor,
                 &status,
                 renderer.width as f32,

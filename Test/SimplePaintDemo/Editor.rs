@@ -37,7 +37,7 @@ fn layout(editor: &Editor, height: f32) -> Layout {
         window_problems: &[],
         cursor: None,
     };
-    panels::draw(&mut canvas, editor, &status, WIDTH, height)
+    panels::draw(&mut canvas, &mut panels::Cache::default(), editor, &status, WIDTH, height)
 }
 
 fn targets(editor: &Editor) -> Vec<Target> {
