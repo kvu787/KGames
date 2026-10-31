@@ -2,8 +2,8 @@
 # folder's Cargo.lock and target folder, so the Library crates build once for
 # all of the programs and tests that use them.
 #
-# The bindings generators aren't members. Each is a workspace of its own, so
-# that normal builds never compile windows-bindgen.
+# The bindings generator in Library/WindowsApi isn't a member. It's a workspace
+# of its own, so that normal builds never compile windows-bindgen.
 [workspace]
 resolver = "3"
 members = [
@@ -20,7 +20,6 @@ members = [
     "Library/SimplePaint",
     "Library/WindowsApi",
     "Program/GameInputDemo",
-    "Program/HelloDirect3D12",
     "Program/IdentifyDisplays",
     "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",

@@ -79,13 +79,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hello_direct3d12"
-version = "0.1.0"
-dependencies = [
- "windows-core",
-]
-
-[[package]]
 name = "identify_displays"
 version = "0.1.0"
 dependencies = [
