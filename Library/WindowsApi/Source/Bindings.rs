@@ -15,6 +15,75 @@ pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
     unsafe { BeginPaint(hwnd, lppaint as _) }
 }
 #[inline]
+pub unsafe fn CM_Get_DevNode_PropertyW(
+    dndevinst: DEVINST,
+    propertykey: *const DEVPROPKEY,
+    propertytype: *mut DEVPROPTYPE,
+    propertybuffer: Option<*mut u8>,
+    propertybuffersize: *mut u32,
+    ulflags: u32,
+) -> CONFIGRET {
+    windows_core::link!("cfgmgr32.dll" "system" fn CM_Get_DevNode_PropertyW(dndevinst : DEVINST, propertykey : *const DEVPROPKEY, propertytype : *mut DEVPROPTYPE, propertybuffer : *mut u8, propertybuffersize : *mut u32, ulflags : u32) -> CONFIGRET);
+    unsafe {
+        CM_Get_DevNode_PropertyW(
+            dndevinst,
+            propertykey,
+            propertytype as _,
+            propertybuffer.unwrap_or(core::mem::zeroed()) as _,
+            propertybuffersize as _,
+            ulflags,
+        )
+    }
+}
+#[inline]
+pub unsafe fn CM_Get_Device_Interface_PropertyW<P0>(
+    pszdeviceinterface: P0,
+    propertykey: *const DEVPROPKEY,
+    propertytype: *mut DEVPROPTYPE,
+    propertybuffer: Option<*mut u8>,
+    propertybuffersize: *mut u32,
+    ulflags: u32,
+) -> CONFIGRET
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("cfgmgr32.dll" "system" fn CM_Get_Device_Interface_PropertyW(pszdeviceinterface : windows_core::PCWSTR, propertykey : *const DEVPROPKEY, propertytype : *mut DEVPROPTYPE, propertybuffer : *mut u8, propertybuffersize : *mut u32, ulflags : u32) -> CONFIGRET);
+    unsafe {
+        CM_Get_Device_Interface_PropertyW(
+            pszdeviceinterface.param().abi(),
+            propertykey,
+            propertytype as _,
+            propertybuffer.unwrap_or(core::mem::zeroed()) as _,
+            propertybuffersize as _,
+            ulflags,
+        )
+    }
+}
+#[inline]
+pub unsafe fn CM_Get_Parent(
+    pdndevinst: *mut DEVNODE,
+    dndevinst: DEVINST,
+    ulflags: u32,
+) -> CONFIGRET {
+    windows_core::link!("setupapi.dll" "system" fn CM_Get_Parent(pdndevinst : *mut DEVNODE, dndevinst : DEVINST, ulflags : u32) -> CONFIGRET);
+    unsafe { CM_Get_Parent(pdndevinst as _, dndevinst, ulflags) }
+}
+#[inline]
+pub unsafe fn CM_Locate_DevNodeW(
+    pdndevinst: *mut DEVNODE,
+    pdeviceid: Option<*const u16>,
+    ulflags: u32,
+) -> CONFIGRET {
+    windows_core::link!("setupapi.dll" "system" fn CM_Locate_DevNodeW(pdndevinst : *mut DEVNODE, pdeviceid : *const u16, ulflags : u32) -> CONFIGRET);
+    unsafe {
+        CM_Locate_DevNodeW(
+            pdndevinst as _,
+            pdeviceid.unwrap_or(core::mem::zeroed()) as _,
+            ulflags,
+        )
+    }
+}
+#[inline]
 pub unsafe fn ClientToScreen(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn ClientToScreen(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
     unsafe { ClientToScreen(hwnd, lppoint as _) }
@@ -745,6 +814,7 @@ pub const CLSCTX_RESERVED6: CLSCTX = 16777216;
 pub const CLSCTX_SERVER_MUST_BE_EQUAL_OR_GREATER_PRIVILEGE: CLSCTX = 134217728;
 pub const CLSID_WICImagingFactory: windows_core::GUID =
     windows_core::GUID::from_u128(0xcacaf262_9370_4615_a13b_9f5539da4c0a);
+pub const CM_LOCATE_DEVNODE_NORMAL: i32 = 0;
 pub type COINIT = i32;
 pub const COINIT_APARTMENTTHREADED: COINIT = 2;
 pub const COINIT_DISABLE_OLE1DDE: COINIT = 4;
@@ -753,6 +823,9 @@ pub const COINIT_SPEED_OVER_MEMORY: COINIT = 8;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct COLORREF(pub u32);
+pub type CONFIGRET = RETURN_TYPE;
+pub const CR_BUFFER_SMALL: i32 = 26;
+pub const CR_SUCCESS: i32 = 0;
 pub const CS_HREDRAW: i32 = 2;
 pub const CS_VREDRAW: i32 = 1;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
@@ -1996,6 +2069,67 @@ pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
 pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
 pub const D3D_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
 pub const DEFAULT_CHARSET: i32 = 1;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DEVINST(pub u32);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DEVNODE(pub u32);
+pub const DEVPKEY_Device_BusReportedDeviceDesc: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0x540b947e_8b40_45bc_a8a2_6a0b894cbda2),
+    pid: DEVPROPID(4),
+};
+pub const DEVPKEY_Device_Class: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(9),
+};
+pub const DEVPKEY_Device_DeviceDesc: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(2),
+};
+pub const DEVPKEY_Device_DriverInfPath: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa8b865dd_2e3d_4094_ad97_e593a70c75d6),
+    pid: DEVPROPID(5),
+};
+pub const DEVPKEY_Device_FriendlyName: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(14),
+};
+pub const DEVPKEY_Device_HardwareIds: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(3),
+};
+pub const DEVPKEY_Device_InstanceId: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0x78c34fc8_104a_4aca_9ea4_524d52996e57),
+    pid: DEVPROPID(256),
+};
+pub const DEVPKEY_Device_LocationInfo: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(15),
+};
+pub const DEVPKEY_Device_Manufacturer: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(13),
+};
+pub const DEVPKEY_Device_Service: DEVPROPKEY = DEVPROPKEY {
+    fmtid: windows_core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+    pid: DEVPROPID(6),
+};
+pub type DEVPROPGUID = windows_core::GUID;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DEVPROPID(pub u32);
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DEVPROPKEY {
+    pub fmtid: DEVPROPGUID,
+    pub pid: DEVPROPID,
+}
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DEVPROPTYPE(pub u32);
+pub const DEVPROP_TYPE_STRING: i32 = 18;
+pub const DEVPROP_TYPE_STRING_LIST: i32 = 8210;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DISPLAYCONFIG_2DREGION {
@@ -7363,6 +7497,9 @@ pub struct RECTL {
     pub bottom: i32,
 }
 pub type REFWICPixelFormatGUID = *const windows_core::GUID;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct RETURN_TYPE(pub u32);
 pub const RRF_RT_REG_SZ: i32 = 2;
 pub const RRF_SUBKEY_WOW6432KEY: i32 = 131072;
 pub const SC_KEYMENU: i32 = 61696;
