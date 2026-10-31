@@ -261,10 +261,15 @@ impl<'a> Canvas<'a> {
         if text.chars().count() <= fit {
             return self.text(x, y, text, color);
         }
-        let mut shortened: String = text.chars().take(fit.saturating_sub(3)).collect();
-        shortened.push_str("...");
-        let shortened: String = shortened.chars().take(fit).collect();
-        self.text(x, y, &shortened, color)
+        // As much of the text as fits with the dots, then as many of the
+        // dots as fit.
+        let dots = fit.min(3);
+        let end = text
+            .char_indices()
+            .nth(fit - dots)
+            .map_or(text.len(), |(index, _)| index);
+        let x = self.text(x, y, &text[..end], color);
+        self.text(x, y, &"..."[..dots], color)
     }
 }
 
