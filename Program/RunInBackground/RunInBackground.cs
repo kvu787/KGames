@@ -128,6 +128,15 @@ static void Run(string[] arguments) {
     // A path given on the command line is relative to the current directory.
     screenshot = Path.GetFullPath(screenshot ?? Path.Combine(output, $"{program}.png"));
 
+    if (allScripts) {
+        var folder = Path.Combine(repository, "Test", program, "Scripts");
+        var found = Directory.Exists(folder) ? Directory.GetFiles(folder, "*.json") : [];
+        if (found.Length == 0) {
+            throw new FailureException($"{program} has no scripts in {folder}");
+        }
+        scripts.AddRange(found.Order(StringComparer.OrdinalIgnoreCase));
+    }
+
     var build = new List<string> { "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
     if (!debugBuild) {
         build.Add("--release");
@@ -140,13 +149,6 @@ static void Run(string[] arguments) {
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
 
-    if (allScripts) {
-        var folder = Path.Combine(repository, "Test", program, "Scripts");
-        if (!Directory.Exists(folder)) {
-            throw new FailureException($"{program} has no scripts in {folder}");
-        }
-        scripts.AddRange(Directory.GetFiles(folder, "*.json").Order(StringComparer.OrdinalIgnoreCase));
-    }
     if (scripts.Count > 0) {
         RunScripts(program, exe, display, scripts, Path.Combine(output, program), timeout);
         return;
