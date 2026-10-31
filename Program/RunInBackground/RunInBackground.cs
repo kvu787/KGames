@@ -9,6 +9,7 @@
 //     window that has it, and typing there stays there.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
+//   - It runs in a job that ends it if this program stops partway.
 //
 // Without focus, programs ignore all input. To test input, it runs scripts
 // instead: with --script, the program reads its input from a script, saves
@@ -157,7 +158,7 @@ static void Run(string[] arguments) {
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog);
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process.Id);
 
@@ -235,7 +236,7 @@ static void RunScripts(string program, string exe, string display, List<string> 
         var outputLog = Path.Combine(folder, "Output.log");
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
-        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog)) {
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
             using (var watch = new FocusWatch(process.Id)) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
                     process.Kill();
@@ -395,7 +396,24 @@ sealed class FailureException(string message) : Exception(message);
 // them, and Process.Start gives none. Then the program would get a copy of the pipe
 // that this program's output goes to, and whatever reads that output would wait
 // until the program closed.
+//
+// Unless it's to keep running, the program starts in a job that ends it when
+// this program exits, however that happens. Otherwise a run that's stopped
+// partway, like by Ctrl+C or a coding agent's time limit, would leave it
+// running on the display, drawing as fast as it can, until someone noticed.
 static partial class ProgramProcess {
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+        public long PerProcessUserTimeLimit, PerJobUserTimeLimit;
+        public uint LimitFlags;
+        public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
+        public uint ActiveProcessLimit;
+        public UIntPtr Affinity;
+        public uint PriorityClass, SchedulingClass;
+        public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount;
+        public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     struct STARTUPINFOEX {
         public int cb;
@@ -429,30 +447,61 @@ static partial class ProgramProcess {
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr handle);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial IntPtr CreateJobObjectW(IntPtr attributes, IntPtr name);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetInformationJobObject(IntPtr job, int informationClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION information, int size);
 
     const uint HANDLE_FLAG_INHERIT = 1;
     const int STARTF_USESTDHANDLES = 0x100;
     const uint EXTENDED_STARTUPINFO_PRESENT = 0x80000;
+    const int JobObjectExtendedLimitInformation = 9;
+    const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
     static readonly IntPtr PROC_THREAD_ATTRIBUTE_HANDLE_LIST = new(0x20002);
+    static readonly IntPtr PROC_THREAD_ATTRIBUTE_JOB_LIST = new(0x2000D);
 
-    public static Process Start(string commandLine, string outputPath, string errorPath) {
+    // Its handle closes only when this program exits.
+    static readonly Lazy<IntPtr> job = new(CreateJob);
+
+    static IntPtr CreateJob() {
+        var job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
+        if (job == IntPtr.Zero) {
+            throw new Win32Exception();
+        }
+        var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION { LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE };
+        if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref limits, Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>())) {
+            throw new Win32Exception();
+        }
+        return job;
+    }
+
+    public static Process Start(string commandLine, string outputPath, string errorPath, bool keepRunning) {
         using var output = Open(outputPath);
         using var error = Open(errorPath);
         var handles = new[] { output.SafeFileHandle.DangerousGetHandle(), error.SafeFileHandle.DangerousGetHandle() };
+        var attributes = keepRunning ? 1 : 2;
         var size = IntPtr.Zero;
         // This call only gets the size, and fails because the list is missing.
-        _ = InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+        _ = InitializeProcThreadAttributeList(IntPtr.Zero, attributes, 0, ref size);
         var list = Marshal.AllocHGlobal(size);
         var handleList = Marshal.AllocHGlobal(IntPtr.Size * handles.Length);
+        var jobList = Marshal.AllocHGlobal(IntPtr.Size);
         var initialized = false;
         try {
-            if (!InitializeProcThreadAttributeList(list, 1, 0, ref size)) {
+            if (!InitializeProcThreadAttributeList(list, attributes, 0, ref size)) {
                 throw new Win32Exception();
             }
             initialized = true;
             Marshal.Copy(handles, 0, handleList, handles.Length);
             if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handleList, new IntPtr(IntPtr.Size * handles.Length), IntPtr.Zero, IntPtr.Zero)) {
                 throw new Win32Exception();
+            }
+            if (!keepRunning) {
+                Marshal.WriteIntPtr(jobList, job.Value);
+                if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, jobList, new IntPtr(IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) {
+                    throw new Win32Exception();
+                }
             }
             var startupInfo = new STARTUPINFOEX {
                 cb = Marshal.SizeOf<STARTUPINFOEX>(),
@@ -475,6 +524,7 @@ static partial class ProgramProcess {
             if (initialized) {
                 DeleteProcThreadAttributeList(list);
             }
+            Marshal.FreeHGlobal(jobList);
             Marshal.FreeHGlobal(handleList);
             Marshal.FreeHGlobal(list);
         }
