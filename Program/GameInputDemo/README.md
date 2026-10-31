@@ -47,6 +47,7 @@ window moves or changes size, or the displays, the scale or the taskbar change.
   input. A key press on it doesn't move the Mouse panel to it.
 - **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback.
   The gamepad that the panel shows is blue, and gamepads that the demo ignores are faint.
+  The cursor on a device's row shows a [tooltip](#device-tooltips) of everything known about it.
 - **Event log**: everything above as it happens, newest first.
   A run of analog motion from one device shares a line, with a count.
 - **Footer**: the shortcuts, and the [identifier](#display-identifiers) and model of the
@@ -98,6 +99,33 @@ gamepad it finds connected. If that one disconnects, it switches to another that
 connected, or else to the next one that connects. Before any gamepad connects, the select
 box shows `None`. The select box reads the mouse from the window's messages, not from
 GameInput, because they say where the cursor is in the window.
+
+### Device tooltips
+
+A device's name and IDs often don't say what it is. Two keyboards can both be
+`HID Keyboard Device (0000:0000)`, for example. So while the cursor is on a row of the Devices
+panel, a tooltip shows all that GameInput and Windows say about that device, in three parts:
+
+| Part              | What it has                                                                     |
+| ----------------- | ------------------------------------------------------------------------------- |
+| GameInput         | The device's family, kinds of input, vendor, product and revision IDs, HID      |
+|                   | usage, versions, what its keyboard, mouse or gamepad has, its motors, its       |
+|                   | container, and the PnP path of its device interface                             |
+| Windows           | The device's node in Windows' device tree, from that PnP path, as Device        |
+|                   | Manager shows it: its instance ID, names, manufacturer, class, driver and       |
+|                   | hardware IDs                                                                    |
+| Connected through | The nodes above it, nearest first, up to the computer's own buses, like a USB   |
+|                   | hub, or a driver like the Intel HID Event Filter that makes up devices for a    |
+|                   | laptop's buttons                                                                |
+
+Devices that share a container are parts of one physical device, like a mouse and the
+keyboard it has for its macros. Windows gives devices built into the computer the container
+`{00000000-0000-0000-FFFF-FFFFFFFFFFFF}`.
+
+Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread
+of its own does that for each device as it connects, instead of the main loop. The tooltip
+reads what it found. The cursor comes from the window's messages, like the select box's, so
+the tooltip only shows while the window has focus.
 
 ## Requirements
 
@@ -348,7 +376,11 @@ except that a mouse's `Motion` and `Wheel` add to its totals, as a real mouse's 
 
 The state that scripts save and check has what the panels show, the log's 10 newest lines, the
 rumble that the demo sends each gamepad, whether the select box's list is open, as
-`PickerOpen`, and where the select box and each of its choices are, as `Targets`.
+`PickerOpen`, and where the select box and each of its choices are, as `Targets`. It also has
+where each device's row is in the Devices panel, as `DeviceRows`, for a `Move` step to put the
+cursor on one, and which device's tooltip shows, and where, as `Tooltip`, which is `null`
+without one. A device from a script has no PnP path, so its tooltip only has what the
+`Connect` step gives, and says that Windows has nothing on it.
 
 What only real devices show still needs a person: GameInput's own readings and device events,
 how the motors feel, and focus changing while a gamepad is held.
@@ -378,6 +410,7 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/Library.rs`                | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
 | `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
 | `Source/Devices.rs`                | Devices and readings as plain data, and `InputSource`, which gives them          |
+| `Source/DeviceTree.rs`             | Looks up a device's nodes in Windows' device tree, from its PnP path             |
 | `Source/GameInputSource.rs`        | Reads devices and readings with GameInput                                        |
 | `Source/ScriptedSource.rs`         | Devices and readings from tests and scripts, instead of GameInput                |
 | `Source/Input.rs`                  | Keeps what the panels show, from the devices and readings                        |

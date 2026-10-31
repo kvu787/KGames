@@ -159,6 +159,8 @@ fn main() -> Result<()> {
                     if let json::Value::Object(members) = &mut state {
                         members.push(("PickerOpen".to_string(), picker_open.into()));
                         members.push(("Targets".to_string(), targets.state()));
+                        members.push(("DeviceRows".to_string(), targets.device_rows_state()));
+                        members.push(("Tooltip".to_string(), targets.tooltip_state()));
                     }
                     state
                 },

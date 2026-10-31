@@ -1,0 +1,16 @@
+{
+    "Steps": [
+        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
+        { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
+        { "Frame": 2, "Expect": { "Tooltip": null } },
+        { "Frame": 3, "Move": [1300, 771] },
+        { "Frame": 3, "Expect": { "Tooltip": { "Name": "Keys" } } },
+        { "Frame": 3, "Capture": "Keys" },
+        { "Frame": 4, "Move": [1300, 753] },
+        { "Frame": 4, "Expect": { "Tooltip": { "Name": "Pad" } } },
+        { "Frame": 4, "Capture": "Pad" },
+        { "Frame": 5, "Move": [1300, 820] },
+        { "Frame": 5, "Expect": { "Tooltip": null } }
+    ]
+}
