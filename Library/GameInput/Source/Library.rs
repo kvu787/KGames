@@ -98,6 +98,19 @@ pub const GameInputFamilyHid: GameInputDeviceFamily = 3;
 pub const GameInputFamilyI8042: GameInputDeviceFamily = 4;
 pub const GameInputFamilyAggregate: GameInputDeviceFamily = 5;
 
+pub type GameInputKeyboardKind = i32;
+pub const GameInputUnknownKeyboard: GameInputKeyboardKind = -1;
+pub const GameInputAnsiKeyboard: GameInputKeyboardKind = 0;
+pub const GameInputIsoKeyboard: GameInputKeyboardKind = 1;
+pub const GameInputKsKeyboard: GameInputKeyboardKind = 2;
+pub const GameInputAbntKeyboard: GameInputKeyboardKind = 3;
+pub const GameInputJisKeyboard: GameInputKeyboardKind = 4;
+
+pub type GameInputSystemButtons = i32;
+pub const GameInputSystemButtonNone: GameInputSystemButtons = 0x00000000;
+pub const GameInputSystemButtonGuide: GameInputSystemButtons = 0x00000001;
+pub const GameInputSystemButtonShare: GameInputSystemButtons = 0x00000002;
+
 pub type GameInputRumbleMotors = i32;
 pub const GameInputRumbleNone: GameInputRumbleMotors = 0x00000000;
 pub const GameInputRumbleLowFrequency: GameInputRumbleMotors = 0x00000001;
@@ -152,6 +165,34 @@ pub struct GameInputGamepadState {
     pub leftThumbstickY: f32,
     pub rightThumbstickX: f32,
     pub rightThumbstickY: f32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GameInputVersion {
+    pub major: u16,
+    pub minor: u16,
+    pub build: u16,
+    pub revision: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GameInputUsage {
+    pub page: u16,
+    pub id: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GameInputKeyboardInfo {
+    pub kind: GameInputKeyboardKind,
+    pub layout: u32,
+    pub keyCount: u32,
+    pub functionKeyCount: u32,
+    pub maxSimultaneousKeys: u32,
+    pub platformType: u32,
+    pub platformSubtype: u32,
 }
 
 #[repr(C)]
@@ -213,6 +254,15 @@ pub const GAMEINPUT_E_REFERENCE_READING_TOO_OLD: HRESULT = HRESULT(0x838A0004_u3
 
 fn device_abi(device: Option<&IGameInputDevice>) -> *mut c_void {
     device.map_or(core::ptr::null_mut(), |device| device.as_raw())
+}
+
+// A null pointer for an empty buffer, which asks how big it must be.
+fn optional_buffer(buffer: &mut [u8]) -> *mut u8 {
+    if buffer.is_empty() {
+        core::ptr::null_mut()
+    } else {
+        buffer.as_mut_ptr()
+    }
 }
 
 windows_core::imp::define_interface!(
@@ -428,6 +478,18 @@ impl IGameInputDevice {
     pub unsafe fn GetProductId(&self) -> u16 {
         unsafe { (Interface::vtable(self).GetProductId)(Interface::as_raw(self)) }
     }
+    pub unsafe fn GetRevisionNumber(&self) -> u16 {
+        unsafe { (Interface::vtable(self).GetRevisionNumber)(Interface::as_raw(self)) }
+    }
+    pub unsafe fn GetUsage(&self, usage: &mut GameInputUsage) {
+        unsafe { (Interface::vtable(self).GetUsage)(Interface::as_raw(self), usage) }
+    }
+    pub unsafe fn GetHardwareVersion(&self, version: &mut GameInputVersion) {
+        unsafe { (Interface::vtable(self).GetHardwareVersion)(Interface::as_raw(self), version) }
+    }
+    pub unsafe fn GetFirmwareVersion(&self, version: &mut GameInputVersion) {
+        unsafe { (Interface::vtable(self).GetFirmwareVersion)(Interface::as_raw(self), version) }
+    }
     pub unsafe fn GetDeviceFamily(&self) -> GameInputDeviceFamily {
         unsafe { (Interface::vtable(self).GetDeviceFamily)(Interface::as_raw(self)) }
     }
@@ -437,6 +499,12 @@ impl IGameInputDevice {
     pub unsafe fn GetSupportedRumbleMotors(&self) -> GameInputRumbleMotors {
         unsafe { (Interface::vtable(self).GetSupportedRumbleMotors)(Interface::as_raw(self)) }
     }
+    pub unsafe fn GetSupportedSystemButtons(&self) -> GameInputSystemButtons {
+        unsafe { (Interface::vtable(self).GetSupportedSystemButtons)(Interface::as_raw(self)) }
+    }
+    pub unsafe fn GetContainerId(&self, containerid: &mut GUID) {
+        unsafe { (Interface::vtable(self).GetContainerId)(Interface::as_raw(self), containerid) }
+    }
     // Returns the size in bytes of the UTF-8 name, including its terminating
     // zero. Pass an empty buffer to ask for the size.
     pub unsafe fn GetDisplayName(&self, buffer: &mut [u8]) -> u32 {
@@ -444,16 +512,26 @@ impl IGameInputDevice {
             (Interface::vtable(self).GetDisplayName)(
                 Interface::as_raw(self),
                 buffer.len() as u32,
-                if buffer.is_empty() {
-                    core::ptr::null_mut()
-                } else {
-                    buffer.as_mut_ptr()
-                },
+                optional_buffer(buffer),
+            )
+        }
+    }
+    // Like GetDisplayName, for the device interface's path, which Windows'
+    // configuration manager functions take.
+    pub unsafe fn GetPnpPath(&self, buffer: &mut [u8]) -> u32 {
+        unsafe {
+            (Interface::vtable(self).GetPnpPath)(
+                Interface::as_raw(self),
+                buffer.len() as u32,
+                optional_buffer(buffer),
             )
         }
     }
     pub unsafe fn GetXInputDeviceIndex(&self, index: &mut u32) -> bool {
         unsafe { (Interface::vtable(self).GetXInputDeviceIndex)(Interface::as_raw(self), index) }
+    }
+    pub unsafe fn GetKeyboardInfo(&self, info: &mut GameInputKeyboardInfo) -> bool {
+        unsafe { (Interface::vtable(self).GetKeyboardInfo)(Interface::as_raw(self), info) }
     }
     pub unsafe fn GetMouseInfo(&self, info: &mut GameInputMouseInfo) -> bool {
         unsafe { (Interface::vtable(self).GetMouseInfo)(Interface::as_raw(self), info) }
@@ -475,23 +553,23 @@ pub struct IGameInputDevice_Vtbl {
     pub base__: windows_core::IUnknown_Vtbl,
     pub GetVendorId: unsafe extern "system" fn(*mut c_void) -> u16,
     pub GetProductId: unsafe extern "system" fn(*mut c_void) -> u16,
-    GetRevisionNumber: usize,
-    GetUsage: usize,
-    GetHardwareVersion: usize,
-    GetFirmwareVersion: usize,
+    pub GetRevisionNumber: unsafe extern "system" fn(*mut c_void) -> u16,
+    pub GetUsage: unsafe extern "system" fn(*mut c_void, *mut GameInputUsage),
+    pub GetHardwareVersion: unsafe extern "system" fn(*mut c_void, *mut GameInputVersion),
+    pub GetFirmwareVersion: unsafe extern "system" fn(*mut c_void, *mut GameInputVersion),
     GetDeviceId: usize,
     GetDeviceRootId: usize,
     pub GetDeviceFamily: unsafe extern "system" fn(*mut c_void) -> GameInputDeviceFamily,
     pub GetSupportedInput: unsafe extern "system" fn(*mut c_void) -> GameInputKind,
     pub GetSupportedRumbleMotors: unsafe extern "system" fn(*mut c_void) -> GameInputRumbleMotors,
-    GetSupportedSystemButtons: usize,
+    pub GetSupportedSystemButtons: unsafe extern "system" fn(*mut c_void) -> GameInputSystemButtons,
     GetSupportedLightingGroups: usize,
     GetSupportedLightingGroupSize: usize,
-    GetContainerId: usize,
+    pub GetContainerId: unsafe extern "system" fn(*mut c_void, *mut GUID),
     pub GetDisplayName: unsafe extern "system" fn(*mut c_void, u32, *mut u8) -> u32,
-    GetPnpPath: usize,
+    pub GetPnpPath: unsafe extern "system" fn(*mut c_void, u32, *mut u8) -> u32,
     pub GetXInputDeviceIndex: unsafe extern "system" fn(*mut c_void, *mut u32) -> bool,
-    GetKeyboardInfo: usize,
+    pub GetKeyboardInfo: unsafe extern "system" fn(*mut c_void, *mut GameInputKeyboardInfo) -> bool,
     pub GetMouseInfo: unsafe extern "system" fn(*mut c_void, *mut GameInputMouseInfo) -> bool,
     GetSensorsInfo: usize,
     GetControllerAxisCount: usize,
