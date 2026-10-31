@@ -456,6 +456,9 @@ static partial class ProgramProcess {
     const uint HANDLE_FLAG_INHERIT = 1;
     const int STARTF_USESTDHANDLES = 0x100;
     const uint EXTENDED_STARTUPINFO_PRESENT = 0x80000;
+    // A program with a console, which none of the GUI programs have, gets
+    // none, instead of a console window that could take focus.
+    const uint CREATE_NO_WINDOW = 0x8000000;
     const int JobObjectExtendedLimitInformation = 9;
     const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
     static readonly IntPtr PROC_THREAD_ATTRIBUTE_HANDLE_LIST = new(0x20002);
@@ -510,7 +513,7 @@ static partial class ProgramProcess {
                 hStdError = handles[1],
                 lpAttributeList = list,
             };
-            if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT, IntPtr.Zero, null, ref startupInfo, out var information)) {
+            if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, out var information)) {
                 throw new Win32Exception();
             }
             var process = Process.GetProcessById(information.dwProcessId);
