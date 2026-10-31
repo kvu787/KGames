@@ -267,7 +267,9 @@ impl Input {
     }
 
     // `focused` is whether the window has focus. Input is only handled while
-    // it does, see handle_reading.
+    // it does, see handle_reading. A minimized window doesn't have it, so the
+    // main loop calls this with false then, and restoring the window counts
+    // as getting focus.
     pub fn update(&mut self, focused: bool) {
         if self.focused && !focused {
             // Keys, buttons and sticks let go of after the window lost focus
@@ -829,11 +831,11 @@ impl Input {
         }
     }
 
-    // Stops every motor, for while the window is minimized, when update isn't
-    // called and the motors would otherwise keep running at their last
-    // strength, and while it doesn't have focus. The next update with focus
-    // starts them again from the sticks.
-    pub fn stop_rumble(&mut self) {
+    // Stops every motor, for while the window doesn't have focus, or is
+    // minimized. Otherwise they would keep running at their last strength,
+    // as the sticks aren't read then. The sticks count as at rest from then
+    // on, so the motors start again only once a stick moves with focus.
+    fn stop_rumble(&mut self) {
         let off = GameInputRumbleParams::default();
         for rumble in &mut self.rumbles {
             if rumble.sent != off {

@@ -179,6 +179,37 @@ fn losing_focus_lets_go_of_held_input() {
 }
 
 #[test]
+fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    step(&mut input, KEYS);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
+    input.update(true);
+    assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
+
+    // Minimized, the window doesn't have focus, and the main loop says so.
+    // The motors stop.
+    wait(&mut input, 1000);
+    input.update(false);
+    assert!(source(&mut input).rumble(1).is_none());
+
+    // F11, pressed in another window while the demo is minimized, doesn't
+    // switch it to fullscreen once it's restored.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+    assert!(!input.fullscreen_toggled);
+    assert!(!log(&input).iter().any(|line| line.contains("F11")), "{:?}", log(&input));
+    // The sticks count as at rest until they move with focus.
+    assert!(source(&mut input).rumble(1).is_none());
+}
+
+#[test]
 fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     let mut input = input();
     step(&mut input, PAD_ONE);

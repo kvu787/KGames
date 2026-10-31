@@ -59,10 +59,17 @@ fn main() -> Result<()> {
             }
 
             if window.minimized() {
-                // Minimized: sleep until something happens instead of spinning.
+                // A minimized window doesn't have focus, but minimizing it
+                // takes its focus in the same messages, so no frame sees it
+                // without focus. Without this, its input would still count as
+                // focused when it's restored, and what was typed into other
+                // windows meanwhile would be handled then. This drops that,
+                // stops the motors, and makes restoring it count as getting
+                // focus.
                 if let Ok(input) = &mut input {
-                    input.stop_rumble();
+                    input.update(false);
                 }
+                // Then sleep until something happens instead of spinning.
                 window.wait_for_message()?;
                 frames.pause();
                 continue;
