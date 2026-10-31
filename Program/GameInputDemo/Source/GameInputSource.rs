@@ -3,8 +3,9 @@
 // GameInput doesn't report events. It keeps a short history of readings,
 // where each reading is a snapshot of one device's whole state with a
 // timestamp. This walks that history with GetNextReading, so no reading is
-// missed between frames, and gives each reading with the same device's
-// previous one (GetPreviousReading), so Input.rs can say what changed.
+// missed between frames. Input.rs keeps each device's last reading itself,
+// to say what changed, as GetPreviousReading fails once the reading before
+// has left the history, like after a pause in input.
 
 use std::sync::Mutex;
 
@@ -64,12 +65,29 @@ impl GameInputSource {
 
     // The device's data, from what's known about it, or from GameInput.
     unsafe fn device(&mut self, device: &IGameInputDevice) -> Device {
-        if let Some((_, known)) = self.devices.iter().find(|(object, _)| object == device) {
-            return known.clone();
+        match self.known(device) {
+            Some(index) => self.devices[index].1.clone(),
+            None => {
+                let described = unsafe { describe(device) };
+                self.devices.push((device.clone(), described.clone()));
+                described
+            }
         }
-        let described = unsafe { describe(device) };
-        self.devices.push((device.clone(), described.clone()));
-        described
+    }
+
+    // The device's ID, for a reading of it. Its object is kept, even if
+    // its device event hasn't come yet, so that no other device can get its
+    // address, and with it its ID.
+    unsafe fn device_id(&mut self, device: &IGameInputDevice) -> usize {
+        if self.known(device).is_none() {
+            let described = unsafe { describe(device) };
+            self.devices.push((device.clone(), described));
+        }
+        device.as_raw() as usize
+    }
+
+    fn known(&self, device: &IGameInputDevice) -> Option<usize> {
+        self.devices.iter().position(|(object, _)| object == device)
     }
 
     unsafe fn object(&self, id: usize) -> Option<&IGameInputDevice> {
@@ -83,7 +101,7 @@ impl GameInputSource {
         unsafe {
             let kinds = reading.GetInputKind();
             let mut data = Reading {
-                device: reading.GetDevice().map(|device| self.device(&device)),
+                device: reading.GetDevice().map(|device| self.device_id(&device)),
                 timestamp: reading.GetTimestamp(),
                 kinds,
                 ..Default::default()
@@ -192,36 +210,10 @@ impl InputSource for GameInputSource {
         result
     }
 
-    fn readings(&mut self, kind: GameInputKind) -> Vec<(Reading, Option<Reading>)> {
+    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading> {
         unsafe {
             let readings = self.new_readings(kind);
-            let mut result = Vec::with_capacity(readings.len());
-            for reading in readings {
-                // The same device's reading before this one. There's none for
-                // the first reading of a device, or when it's no longer in the
-                // history.
-                let previous = reading.GetDevice().and_then(|device| {
-                    self.game_input
-                        .GetPreviousReading(&reading, kind, Some(&device))
-                        .ok()
-                });
-                let previous = previous.map(|previous| self.reading(&previous));
-                result.push((self.reading(&reading), previous));
-            }
-            result
-        }
-    }
-
-    fn gamepad_state(&mut self, device: usize) -> Option<GameInputGamepadState> {
-        unsafe {
-            let object = self.object(device)?;
-            let reading = self
-                .game_input
-                .GetCurrentReading(GameInputKindGamepad, Some(object))
-                .ok()?;
-            let mut state = GameInputGamepadState::default();
-            reading.GetGamepadState(&mut state);
-            Some(state)
+            readings.iter().map(|reading| self.reading(reading)).collect()
         }
     }
 

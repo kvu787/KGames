@@ -1,7 +1,7 @@
 // Rasterizes a monospaced font into a texture atlas with DirectWrite, so the
 // renderer can draw text as textured quads without a font library. It runs
-// once, at startup: the demo only supports 100% scaling, so the font never
-// changes size.
+// once, at startup: programs only support 100% scaling (see
+// Library/Application), so the font never changes size.
 
 use windows_api::*;
 use windows_core::{Error, PCWSTR, Result, w};

@@ -129,10 +129,13 @@ fn uses_the_defaults_in_a_scripted_run_and_the_command_line_s_display() {
     let path = folder("Scripted").join("Settings.json");
     std::fs::write(&path, "{ \"WindowMode\": \"BorderlessFullscreen\", \"Volume\": 1 }").unwrap();
     let mut notices = Vec::new();
-    let (scripted, _) = arguments(&["--script", "Steps.json", "--output", "Out", "--display", "Primary"]);
+    let (scripted, _) = arguments(&["--script", "Steps.json", "--output", "Out", "--display", "CVVNY2"]);
     let (settings, volume) = Settings::for_program::<Volume>(&path, &scripted, &mut notices);
     assert_eq!((settings.window_mode, volume), (WindowMode::Maximized, Volume(0.5)));
-    assert_eq!(settings.display, None);
+    assert_eq!(settings.display.as_deref(), Some("CVVNY2"));
+    let (scripted, _) = arguments(&["--script", "Steps.json", "--output", "Out", "--display", "Primary"]);
+    let (settings, _) = Settings::for_program::<Volume>(&path, &scripted, &mut notices);
+    assert_eq!(settings.display, None, "Primary is the primary display");
     let (plain, _) = arguments(&["--display", "KXGR16"]);
     let (settings, volume) = Settings::for_program::<Volume>(&path, &plain, &mut notices);
     assert_eq!((settings.window_mode, volume), (WindowMode::BorderlessFullscreen, Volume(1.0)));

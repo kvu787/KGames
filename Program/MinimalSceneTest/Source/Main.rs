@@ -28,7 +28,7 @@ fn main() -> Result<()> {
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, true)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let scene = Scene::new(&renderer, &scene_settings)?;
+        let scene = Scene::new(&mut renderer, &scene_settings)?;
         let mut motion = Motion::default();
         // The title bar says how frames are presented, as it affects latency.
         let description = renderer.description();

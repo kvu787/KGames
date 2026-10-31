@@ -14,8 +14,16 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
 The program opens with `--display` and `--no-activate`, which every program built on
-[Library/Application](../../Library/Application/README.md) takes, so it opens behind the window
-that has focus, and typing there stays there. Without focus, programs ignore all input.
+[Library/Application](../../Library/Application/README.md) takes, so it opens on top of the
+other windows on that display, but without taking focus, and typing in the window that has
+focus stays there. Without focus, programs ignore all input. A run fails if the program's
+window ever becomes the foreground window, which would mean that it took focus from you.
+Windows reports every change of the foreground window to RunInBackground, so even one that
+lasts a moment counts.
+
+The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
+to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
+limit, doesn't leave it running on the display.
 
 The script only runs `RunInBackground.cs`, a .NET file-based app, with `dotnet run`, which
 builds it into its own cache first. It needs the .NET 10 SDK.
@@ -47,9 +55,7 @@ from the script instead of you, on a fixed clock, as
 [Library/Application](../../Library/Application/README.md#scripts) describes. It opens on the
 display without taking focus, like any run, and exits after the script's last step. The run
 fails if the program exits with an error, which includes expectations in the script that
-weren't met, if it runs past `--timeout`, or if its window ever becomes the foreground window,
-which would mean that it took focus from you. RunInBackground checks that every 5 ms while
-the program runs.
+weren't met, if it runs past `--timeout`, or if its window ever becomes the foreground window.
 
 RunInBackground prints whether each script passed, and the frames it captured. Each script's
 folder in `target\RunInBackground\<program>` has its captures, as `<name>.png`, the program's

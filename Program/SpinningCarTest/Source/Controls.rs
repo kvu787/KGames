@@ -16,11 +16,12 @@ const F1: u32 = 0x70;
 const F11: u32 = 0x7A;
 const S: u32 = 'S' as u32;
 
+// Holding a key down repeats it, which does nothing more.
 pub fn action(event: &Event) -> Option<Action> {
     match event {
-        Event::Key { key: F1, .. } => Some(Action::ToggleText),
-        Event::Key { key: F11, .. } => Some(Action::ToggleFullscreen),
-        Event::Key { key: S, .. } => Some(Action::ToggleStationary),
+        Event::Key { key: F1, repeat: false, .. } => Some(Action::ToggleText),
+        Event::Key { key: F11, repeat: false, .. } => Some(Action::ToggleFullscreen),
+        Event::Key { key: S, repeat: false, .. } => Some(Action::ToggleStationary),
         _ => None,
     }
 }

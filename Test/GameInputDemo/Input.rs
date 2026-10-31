@@ -179,6 +179,212 @@ fn losing_focus_lets_go_of_held_input() {
 }
 
 #[test]
+fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    step(&mut input, KEYS);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
+    input.update(true);
+    assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
+
+    // Minimized, the window doesn't have focus, and the main loop says so.
+    // The motors stop.
+    wait(&mut input, 1000);
+    input.update(false);
+    assert!(source(&mut input).rumble(1).is_none());
+
+    // F11, pressed in another window while the demo is minimized, doesn't
+    // switch it to fullscreen once it's restored.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+    assert!(!input.fullscreen_toggled);
+    assert!(!log(&input).iter().any(|line| line.contains("F11")), "{:?}", log(&input));
+    // The sticks count as at rest until they move with focus.
+    assert!(source(&mut input).rumble(1).is_none());
+}
+
+#[test]
+fn the_click_that_gives_focus_does_only_that() {
+    let mut input = input();
+    step(&mut input, RODENT);
+    input.update(false);
+    // The press that gives the window focus comes just before it has it.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Buttons": ["Left"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+
+    // While it's still held, the button doesn't show as held, but motion does.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Motion": [5, 0], "Buttons": ["Left"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": [], "Delta": [5, 0] }, "Latest": ["moved (+5, +0)"] }"#);
+
+    // Letting go of it isn't reported either.
+    step(&mut input, r#"{ "Mouse": { "Id": 4 } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": [] }, "Latest": ["moved (+5, +0)"] }"#);
+    assert!(!log(&input).iter().any(|line| line.contains("Left")), "{:?}", log(&input));
+
+    // Pressed again, it's a click like any other.
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Buttons": ["Left"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": ["Left"] }, "Latest": ["Left pressed"] }"#);
+}
+
+#[test]
+fn keys_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    input.update(true);
+    // Held from before the window loses focus, through it getting it back.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift"] } }"#);
+    input.update(true);
+    input.update(false);
+    // F1 held down in another window, and the Alt of the Alt+Tab that
+    // switches back to the demo.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": [] } }"#);
+
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt", "A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["A"] }, "Latest": ["A down"], "RumbleTest": false }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": [] }, "Latest": ["A up"] }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["A up"], "RumbleTest": false }"#);
+
+    // Once let go of, F1 works again.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["F1"] }, "Latest": ["F1 down"], "RumbleTest": true }"#);
+}
+
+#[test]
+fn gamepad_buttons_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(false);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0], "Buttons": ["A"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+
+    // The stick shows as usual, without A.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A", "B"] } }"#);
+    input.update(true);
+    expect(
+        &input,
+        r#"{ "Gamepad": { "LeftStick": [0.5, 0.0], "Buttons": ["B"] },
+             "Latest": ["B pressed", "left stick (+0.500, +0.000)"] }"#,
+    );
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": [] }, "Latest": ["B released"] }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": ["A"] }, "Latest": ["A pressed"] }"#);
+}
+
+#[test]
+fn a_gamepad_listened_to_shows_none_of_its_input_from_without_focus() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    step(&mut input, PAD_TWO);
+    input.update(false);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 2, "LeftStick": [1, 0], "Buttons": ["A"] } }"#);
+    input.update(false);
+    // The demo switches to Pad Two while it doesn't have focus, and shows
+    // it at rest.
+    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    input.update(false);
+    let idle = r#"{ "Listen": "Pad Two", "Gamepad": { "Device": "Pad Two", "LeftStick": [0.0, 0.0], "Buttons": [] } }"#;
+    expect(&input, idle);
+    wait(&mut input, 1000);
+    input.update(true);
+    expect(&input, idle);
+
+    // With focus, a gamepad picked shows its last reading, if the window had
+    // focus for it.
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["B"] } }"#);
+    input.update(true);
+    input.pick_listen(gamepad(&input, "Pad One"));
+    expect(&input, r#"{ "Gamepad": { "Device": "Pad One", "LeftStick": [0.0, 1.0], "Buttons": ["B"] } }"#);
+    input.pick_listen(gamepad(&input, "Pad Two"));
+    expect(&input, idle);
+}
+
+#[test]
+fn readings_of_a_disconnected_gamepad_are_ignored() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    // Its last reading comes in the same frame as its disconnect.
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0], "Buttons": ["A"] } }"#);
+    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    input.update(true);
+    expect(
+        &input,
+        r#"{ "ReadingCount": 0, "Listen": "Pad One", "Gamepad": { "Device": null, "Buttons": [] }, "Rumble": [] }"#,
+    );
+    assert_eq!(log(&input)[0], "Disconnected: Pad One");
+}
+
+#[test]
+fn readings_are_compared_with_the_devices_own_last_one() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    step(&mut input, RODENT);
+    input.update(true);
+    // GameInput forgets readings after a short while, so after a pause, it
+    // no longer has the one before. The demo keeps it, so a key held through
+    // the pause isn't pressed again, and the first motion after it moves.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift"] } }"#);
+    step(&mut input, r#"{ "Mouse": { "Id": 4 } }"#);
+    input.update(true);
+    wait(&mut input, 10_000_000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "A"] } }"#);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Motion": [3, 4] } }"#);
+    input.update(true);
+    assert_eq!(log(&input)[..2], ["Rodent: moved (+3, +4)", "Keys: A down"]);
+
+    // Readings without focus count too, so a key let go of meanwhile isn't
+    // let go of again.
+    input.update(false);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["B"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["B down"] }"#);
+
+    // A device that reconnects starts at rest.
+    step(&mut input, r#"{ "Disconnect": 3 }"#);
+    step(&mut input, KEYS);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["B"] } }"#);
+    input.update(true);
+    assert_eq!(log(&input)[..2], ["Keys: B down", "Connected: Keys [keyboard]"]);
+}
+
+#[test]
 fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     let mut input = input();
     step(&mut input, PAD_ONE);
@@ -259,6 +465,11 @@ fn shortcuts_run_once_for_each_press() {
     input.update(true);
     assert!(input.fullscreen_toggled);
 
+    // The main loop switches the window and clears this before scripts save
+    // the state, so the state leaves it out. The window's own says whether
+    // it's in fullscreen.
+    assert!(input.state().get("FullscreenToggled").is_none());
+
     // The log is cleared after the key press is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F2"] } }"#);
     input.update(true);
@@ -332,20 +543,17 @@ fn scripted_readings_are_whole_states() {
     // What a step leaves out is at rest.
     step(&mut source, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } }"#);
     step(&mut source, r#"{ "Gamepad": { "Id": 1, "RightTrigger": 1 } }"#);
-    let state = source.gamepad_state(1).unwrap();
+    let state = source.readings(GameInputKindGamepad)[1].gamepad;
     assert_eq!((state.leftThumbstickX, state.buttons, state.rightTrigger), (0.0, 0, 1.0));
 
-    // A mouse's motion adds up, and each reading has the one before it.
+    // A mouse's motion adds up.
     step(&mut source, r#"{ "Mouse": { "Id": 4, "Motion": [10, 0] } }"#);
     step(&mut source, r#"{ "Mouse": { "Id": 4, "Motion": [10, 0] } }"#);
     let readings = source.readings(GameInputKindMouse);
-    let totals: Vec<_> = readings
-        .iter()
-        .map(|(reading, previous)| (reading.mouse.positionX, previous.as_ref().map(|previous| previous.mouse.positionX)))
-        .collect();
-    assert_eq!(totals, [(10, None), (20, Some(10))]);
+    let totals: Vec<_> = readings.iter().map(|reading| (reading.device, reading.mouse.positionX)).collect();
+    assert_eq!(totals, [(Some(4), 10), (Some(4), 20)]);
     // Later readings have later timestamps, even at the same time.
-    assert!(readings[1].0.timestamp > readings[0].0.timestamp);
+    assert!(readings[1].timestamp > readings[0].timestamp);
     assert!(source.readings(GameInputKindMouse).is_empty());
 
     let events = source.device_events();

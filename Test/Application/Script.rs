@@ -27,6 +27,7 @@ fn gives_each_frame_its_steps_and_time() {
                 { "Frame": 1, "Move": [10, 20] },
                 { "Frame": 2, "Press": [30, 40] },
                 { "Frame": 2, "Key": "F11", "Shift": true },
+                { "Frame": 3, "Key": "Left", "Repeat": true },
                 { "Frame": 4, "Wheel": [50, 60], "Notches": -2 },
                 { "Frame": 4, "Capture": "End" },
                 { "Frame": 4, "Expect": { "A": 1 } },
@@ -48,9 +49,19 @@ fn gives_each_frame_its_steps_and_time() {
             Event::Key {
                 key: 0x7A,
                 control: false,
-                shift: true
+                shift: true,
+                repeat: false
             }
         ]
+    );
+    assert_eq!(
+        frames[3].events,
+        [Event::Key {
+            key: 0x25,
+            control: false,
+            shift: false,
+            repeat: true
+        }]
     );
     // A click moves the cursor to it, like the window's messages do.
     assert_eq!(frames[2].cursor, Some([30.0, 40.0]));
@@ -88,6 +99,7 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [{ "Frame": 1, "Press": [1] }] }"#, "step 1: a point must be [x, y], not a list of 1"),
         (r#"{ "Steps": [{ "Frame": 1, "Capture": "a/b" }] }"#, "step 1: Capture must be a name of letters and digits, for its files, not \"a/b\""),
         (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Control": 1 }] }"#, "step 1: Control must be true or false, not 1"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": 65.7 }] }"#, "step 1: Key must be a key's name, like \"F11\", not 65.7"),
         (r#"{ "Steps": [{ "Frame": 2, "Key": "S" }, { "Frame": 1, "Key": "S" }] }"#, "step 2 comes before the step above it"),
         ("{ \"Steps\": [", "line 1, column 13: expected a value, but the file ended"),
     ] {
@@ -102,6 +114,8 @@ fn names_keys_like_scripts_do() {
         ("F11", Some(0x7A)),
         ("F24", Some(0x87)),
         ("F25", None),
+        ("F+1", None),
+        ("F", Some(0x46)),
         ("S", Some(0x53)),
         ("7", Some(0x37)),
         ("s", None),
@@ -132,6 +146,11 @@ fn compares_only_what_is_expected() {
     assert_eq!(matches(r#"{ "Missing": 1 }"#), ["Missing is missing"]);
     assert_eq!(matches(r#"{ "Flag": "true" }"#), ["Flag is true, not \"true\""]);
     assert_eq!(matches(r#"{ "Extra": 0 }"#), ["Extra is null, not 0.0"]);
+    // A state that went wrong enough to be infinite or NaN matches nothing.
+    for wrong in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+        let differences = compare(&object([("X", 4.0.into())]), &object([("X", wrong.into())]));
+        assert_eq!(differences, [format!("X is {wrong}, not 4")]);
+    }
     assert_eq!(
         compare(&Value::from(1.0), &Value::from("one")),
         ["the state is \"one\", not 1.0"]

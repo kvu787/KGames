@@ -6,6 +6,8 @@
         { "Frame": 3, "Capture": "TextHidden" },
         { "Frame": 4, "Key": "F1" },
         { "Frame": 5, "Key": "F11" },
+        { "Frame": 6, "Key": "F11", "Repeat": true },
+        { "Frame": 7, "Key": "F11", "Repeat": true },
         { "Frame": 15, "Expect": { "TextShown": true, "Window": { "Fullscreen": false, "Problems": [] } } },
         { "Frame": 15, "Capture": "Maximized" },
         { "Frame": 16, "Key": "F11" },

@@ -4,9 +4,8 @@ A Rust program that reads gamepads, keyboards and mice with Microsoft's
 [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview)
 API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
-It's built like [HelloDirect3D12](../HelloDirect3D12/README.md): no frameworks, and
-Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the only dependency
-besides the repo's own [Library](../../Library) crates.
+It uses no frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate
+is the only dependency besides the repo's own [Library](../../Library) crates.
 
 ## Supported window setups
 
@@ -130,7 +129,8 @@ cargo run --release -- --display KXGR16
 ```
 
 To open the demo without taking focus from the window you're typing in, add `--no-activate`.
-The window opens behind that one, and gets keyboard and mouse input once you click it.
+The window opens without taking focus from that one, and gets keyboard and mouse input once
+you click it.
 
 ### Running it in the background
 
@@ -207,21 +207,29 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
    handled has left the history, and `GetNextReading` fails with
    `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from the newest
    reading with `GetPreviousReading` to find the ones it hasn't handled.
-3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
-   to work out what changed.
+3. Compares each reading with the same device's previous one to work out what changed. It
+   keeps every device's last reading itself for that, including the ones it drops without
+   focus. `GetPreviousReading` would give it too, but only while it's still in the history,
+   so after a pause a held key would show as pressed again.
 
-`Source/GameInputSource.rs` does this, and hands the devices and readings on as plain data, so
-that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)).
+`Source/GameInputSource.rs` does the first two, and hands the devices and readings on as plain
+data, so that the rest of the demo also runs on input from tests and scripts (see
+[Testing](#testing)).
 
 Like every KGames program, the demo only handles input while its window has focus, and the
 header says whether it has focus. GameInput gives gamepad input to windows without focus. It's
 meant to give keyboard and mouse input only to the window in focus, but the 4.0.306 runtime
 that the demo loads from its folder gives it to the demo without focus too, even after
 `EnableBackgroundInput(false)`. So the demo drops it all itself: readings that come while the
-window doesn't have focus, and from before it got focus, like the click that gave it. Otherwise
-it would show and log what's typed into other windows, and its shortcuts would run when they're
-pressed in other apps. When the window loses focus, the panels stop showing keys, buttons and
-sticks as held.
+window doesn't have focus or is minimized, and from before it got focus. Otherwise it would
+show and log what's typed into other windows, and its shortcuts would run when they're pressed
+in other apps. When the window loses focus, the panels stop showing keys, buttons and sticks
+as held, and a gamepad that the demo switches to then shows at rest.
+
+Keys and buttons that are still held when the window gets focus, like the button of the click
+that gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go
+of: they don't show as held, and neither their press nor their release is logged. After that,
+they work as usual. Sticks, triggers and mouse motion show as usual right away.
 
 ## Input latency
 

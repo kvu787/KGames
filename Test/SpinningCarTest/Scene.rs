@@ -49,12 +49,23 @@ fn f1_toggles_the_text_f11_fullscreen_and_s_the_car() {
         key,
         control: false,
         shift: false,
+        repeat: false,
     };
     assert_eq!(action(&key(0x70)), Some(Action::ToggleText));
     assert_eq!(action(&key(0x7A)), Some(Action::ToggleFullscreen));
     assert_eq!(action(&key('S' as u32)), Some(Action::ToggleStationary));
     assert_eq!(action(&key('V' as u32)), None, "VSync isn't a setting here");
     assert_eq!(action(&key(0x1B)), None, "Esc doesn't quit");
+    // Holding a key down doesn't flip it back and forth.
+    for code in [0x70, 0x7A, 'S' as u32] {
+        let held = Event::Key {
+            key: code,
+            control: false,
+            shift: false,
+            repeat: true,
+        };
+        assert_eq!(action(&held), None);
+    }
 }
 
 #[test]
@@ -98,6 +109,7 @@ fn the_settings_file_checks_the_sphere_s_resolution() {
         (r#"{ "VResolution": 513 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 513")),
         (r#"{ "UResolution": 64.5 }"#, [64, 32], Some("UResolution must be a whole number from 3 to 512, not 64.5")),
         (r#"{ "Radius": 1 }"#, [64, 32], Some("Radius isn't a sphere setting. They're UResolution and VResolution.")),
+        (r#"{ "UResolution": 128, "VResolution": 600 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 600")),
     ] {
         std::fs::write(&path, format!(r#"{{ "Sphere": {sphere} }}"#)).unwrap();
         let mut notices = Vec::new();

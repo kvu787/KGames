@@ -56,7 +56,6 @@ agents, like how to run programs without disrupting you.
 | [SpinningCarTest](Program/SpinningCarTest/README.md)          | A car moving and spinning past a sphere, painted with SimplePaint |
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md)        | Shows each display's identifier, for the programs' `--display`    |
 | [RunInBackground](Program/RunInBackground/README.md)          | Runs a GUI program without taking focus, and screenshots it       |
-| [HelloDirect3D12](Program/HelloDirect3D12/README.md)          | A minimal triangle with Direct3D 12, on its own bindings          |
 
 ## Library
 

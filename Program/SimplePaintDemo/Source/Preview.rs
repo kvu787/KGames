@@ -48,9 +48,9 @@ pub struct Preview {
 }
 
 impl Preview {
-    pub unsafe fn new(renderer: &Renderer) -> Result<Self> {
+    pub unsafe fn new(renderer: &mut Renderer) -> Result<Self> {
         unsafe {
-            let device = &renderer.device;
+            let device = &renderer.device.clone();
             let pipeline = Pipeline::new(
                 device,
                 VERTEX_SHADER,
@@ -65,7 +65,7 @@ impl Preview {
                 },
             )?;
             let mesh = meshes::uv_sphere(LONGITUDES, LATITUDES, 0);
-            let sphere = Mesh::new(device, &mesh.vertices, &mesh.indices, 1)?;
+            let sphere = Mesh::new(renderer, &mesh.vertices, &mesh.indices, 1)?;
 
             let constants = UploadBuffer::new(device, OBJECT_SIZE + materials_size(1))?;
             // The camera is 3 units in front of the sphere, looking at it.

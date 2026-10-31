@@ -28,7 +28,7 @@ fn main() -> Result<()> {
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, false)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let preview = Preview::new(&renderer)?;
+        let preview = Preview::new(&mut renderer)?;
         // The title bar says how frames are presented, as it affects latency.
         let description = renderer.description();
         window.set_title(&format!("{NAME} - {description}"))?;

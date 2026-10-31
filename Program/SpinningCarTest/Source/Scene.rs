@@ -75,10 +75,10 @@ impl Scene {
                     cull_mode: D3D12_CULL_MODE_NONE,
                 },
             )?;
-            let car = Mesh::new(&device, &car_mesh::VERTICES, &car_mesh::INDICES, MATERIAL_COUNT as u32)?;
+            let car = Mesh::new(renderer, &car_mesh::VERTICES, &car_mesh::INDICES, MATERIAL_COUNT as u32)?;
             let [longitudes, latitudes] = settings.sphere_resolution;
             let sphere = meshes::uv_sphere(longitudes, latitudes, SPHERE_MATERIAL);
-            let sphere = Mesh::new(&device, &sphere.vertices, &sphere.indices, MATERIAL_COUNT as u32)?;
+            let sphere = Mesh::new(renderer, &sphere.vertices, &sphere.indices, MATERIAL_COUNT as u32)?;
             let mut materials = [GpuMaterial::default(); MATERIAL_COUNT];
             for (material, parameters) in materials.iter_mut().zip(&settings.materials) {
                 *material = *Material::compile(parameters)

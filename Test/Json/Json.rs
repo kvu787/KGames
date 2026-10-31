@@ -31,6 +31,7 @@ fn says_where_a_mistake_is() {
         ("{\n  \"a\": 1,\n}", 3, 1, "JSON doesn't allow a comma before '}'"),
         ("[01]", 1, 2, "numbers can't start with 0, like 01"),
         ("\"\\ud800\"", 1, 4, "unpaired UTF-16 surrogate"),
+        ("\"\\udc00\"", 1, 4, "unpaired UTF-16 surrogate"),
         ("{} x", 1, 4, "expected the end of the file"),
         ("[1 2]", 1, 4, "expected ',' or ']'"),
     ] {
@@ -41,6 +42,19 @@ fn says_where_a_mistake_is() {
             "for {text:?}"
         );
     }
+}
+
+#[test]
+fn fails_on_deep_nesting_instead_of_overflowing_the_stack() {
+    let nested = |depth: usize| "[".repeat(depth) + &"]".repeat(depth);
+    assert!(parse(&nested(128)).is_ok());
+    let error = parse(&nested(129)).unwrap_err();
+    assert_eq!(
+        (error.line, error.column, error.message.as_str()),
+        (1, 129, "arrays and objects are nested too deeply")
+    );
+    // Deep enough to overflow the stack without the limit.
+    assert!(parse(&"[{\"a\":".repeat(100_000)).is_err());
 }
 
 #[test]

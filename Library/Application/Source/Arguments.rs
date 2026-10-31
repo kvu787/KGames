@@ -7,7 +7,8 @@ pub struct Arguments {
     // It must be connected.
     pub display: Option<String>,
     // Whether the window takes focus when it opens. --no-activate opens it
-    // behind the window that has focus, so typing there stays there.
+    // without taking focus from the window that has it, so typing there
+    // stays there.
     pub activate: bool,
     // With --script, a script to run instead of the user's input, for
     // testing, and with --output, the folder for what it captures. See

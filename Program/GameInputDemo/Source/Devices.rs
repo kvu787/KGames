@@ -51,8 +51,10 @@ impl Device {
 // short history of these, and doesn't send events.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Reading {
-    // None when GameInput doesn't say which device it's from.
-    pub device: Option<Device>,
+    // The ID of the device it's from (see Device), or None when GameInput
+    // doesn't say. The device's data comes with its device events, so a
+    // reading doesn't copy it.
+    pub device: Option<usize>,
     // On GameInput's clock, in microseconds.
     pub timestamp: u64,
     // Which kinds of input the reading has, like a gamepad's, or both a
@@ -78,11 +80,9 @@ pub trait InputSource {
     fn device_events(&mut self) -> Vec<(GameInputDeviceEvent, Device)>;
 
     // The readings with this kind of input since the last call, oldest
-    // first, each with the same device's reading before it, if there was one.
-    fn readings(&mut self, kind: GameInputKind) -> Vec<(Reading, Option<Reading>)>;
-
-    // A gamepad's newest state, if there's a reading of it.
-    fn gamepad_state(&mut self, device: usize) -> Option<GameInputGamepadState>;
+    // first. Input.rs compares each with the same device's reading before
+    // it, which it keeps itself.
+    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading>;
 
     // Runs a gamepad's motors, or stops them with None.
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>);

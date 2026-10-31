@@ -14,6 +14,7 @@ fn key(key: u32, control: bool) -> Event {
         key,
         control,
         shift: false,
+        repeat: false,
     }
 }
 
@@ -26,26 +27,39 @@ fn the_sphere_starts_in_the_middle_moving_at_8_units_a_second() {
 }
 
 #[test]
-fn the_sphere_turns_back_once_it_is_past_7() {
+fn the_sphere_bounces_back_from_7_by_as_far_as_it_went_past() {
     let mut motion = Motion::default();
-    // It moves by the frame's time, and only turns back after a frame that
-    // took it past the end.
     for _ in 0..7 {
         motion.advance(0.125);
     }
     assert_eq!((motion.position, motion.direction), (7.0, 1.0));
     motion.advance(0.125);
-    assert_eq!((motion.position, motion.direction), (8.0, -1.0));
-    for _ in 0..16 {
+    assert_eq!((motion.position, motion.direction), (6.0, -1.0));
+    for _ in 0..14 {
         motion.advance(0.125);
     }
-    assert_eq!((motion.position, motion.direction), (-8.0, 1.0));
+    assert_eq!((motion.position, motion.direction), (-6.0, 1.0));
     motion.advance(0.125);
-    assert_eq!(motion.position, -7.0);
+    assert_eq!(motion.position, -5.0);
 }
 
 #[test]
-fn small_frames_keep_the_sphere_near_its_path() {
+fn a_long_frame_keeps_the_sphere_on_its_path() {
+    // Like a frame after Windows held the window still for 2 seconds: from
+    // 5, 16 units take it to 7 and back to -7.
+    let mut motion = Motion {
+        position: 5.0,
+        direction: 1.0,
+    };
+    motion.advance(2.0);
+    assert_eq!((motion.position, motion.direction), (-7.0, -1.0));
+    // Many trips back and forth.
+    motion.advance(1000.0);
+    assert!(motion.position.abs() <= 7.0, "{}", motion.position);
+}
+
+#[test]
+fn small_frames_keep_the_sphere_on_its_path() {
     let mut motion = Motion::default();
     let frame = 1.0 / 3000.0;
     let mut turns = 0;
@@ -53,7 +67,7 @@ fn small_frames_keep_the_sphere_near_its_path() {
         let direction = motion.direction;
         motion.advance(frame);
         turns += (motion.direction != direction) as u32;
-        assert!(motion.position.abs() <= 7.0 + 8.0 * frame + 1e-4, "{}", motion.position);
+        assert!(motion.position.abs() <= 7.0, "{}", motion.position);
     }
     // 80 units in 10 seconds, 14 units between turns, after 7 to the first.
     assert_eq!(turns, 6);
@@ -66,6 +80,16 @@ fn f1_toggles_the_text_and_f11_fullscreen() {
     assert_eq!(action(&key(0x7A, false)), Some(Action::ToggleFullscreen));
     assert_eq!(action(&key('S' as u32, false)), None);
     assert_eq!(action(&Event::Press([10.0, 10.0])), None);
+    // Holding a key down doesn't flip it back and forth.
+    for code in [0x70, 0x7A] {
+        let held = Event::Key {
+            key: code,
+            control: false,
+            shift: false,
+            repeat: true,
+        };
+        assert_eq!(action(&held), None);
+    }
 }
 
 #[test]

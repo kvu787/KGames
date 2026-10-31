@@ -63,6 +63,17 @@ fn key(key: u32) -> Event {
         key,
         control: false,
         shift: false,
+        repeat: false,
+    }
+}
+
+// The same key, as Windows repeats it while it's held.
+fn repeated(key: u32) -> Event {
+    Event::Key {
+        key,
+        control: false,
+        shift: false,
+        repeat: true,
     }
 }
 
@@ -157,6 +168,32 @@ fn the_wheel_moves_a_slider_by_its_smallest_step() {
 }
 
 #[test]
+fn parts_of_a_notch_add_up_over_the_same_slider() {
+    // Like a touchpad, which turns the wheel by a quarter of a notch at a time.
+    let mut editor = Editor::new(Parameters::default());
+    let targets = targets(&editor);
+    let rotation = along(&slider(&targets, "Rotation"), 0.0);
+    for _ in 0..3 {
+        editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
+    }
+    assert_eq!(editor.parameters.rotation_degrees, 0.0);
+    editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
+    assert_eq!(editor.parameters.rotation_degrees, 0.1);
+    for _ in 0..6 {
+        editor.handle(&Event::Wheel(rotation, -0.5), &targets, &nowhere());
+        editor.handle(&Event::Wheel(rotation, 1.0), &targets, &nowhere());
+    }
+    assert_eq!(editor.parameters.rotation_degrees, 0.4);
+    // What's left over one slider doesn't carry over to another.
+    editor.handle(&Event::Wheel(rotation, 0.5), &targets, &nowhere());
+    assert_eq!(editor.parameters.rotation_degrees, 0.4);
+    let shift = along(&slider(&targets, "Shift"), 0.0);
+    editor.handle(&Event::Wheel(shift, 0.5), &targets, &nowhere());
+    editor.handle(&Event::Wheel(shift, 0.25), &targets, &nowhere());
+    assert_eq!(editor.parameters.shift, 0.0);
+}
+
+#[test]
 fn arrow_keys_select_and_move_a_slider() {
     let mut editor = Editor::new(Parameters::default());
     let targets = targets(&editor);
@@ -171,6 +208,7 @@ fn arrow_keys_select_and_move_a_slider() {
             key: RIGHT,
             control: false,
             shift: true,
+            repeat: false,
         },
         &targets,
         &nowhere(),
@@ -188,6 +226,26 @@ fn arrow_keys_select_and_move_a_slider() {
 }
 
 #[test]
+fn holding_an_arrow_repeats_it_but_holding_f11_or_ctrl_s_does_not() {
+    let path = file("Repeat", "Paint.json");
+    let mut editor = Editor::new(Parameters::default());
+    let targets = targets(&editor);
+    editor.handle(&key(RIGHT), &targets, &path);
+    editor.handle(&repeated(RIGHT), &targets, &path);
+    assert_eq!(editor.parameters.base_color_srgb[0], 0.109);
+    assert!(matches!(editor.handle(&repeated(F11), &targets, &path), Action::None));
+    let held_save = Event::Key {
+        key: 'S' as u32,
+        control: true,
+        shift: false,
+        repeat: true,
+    };
+    editor.handle(&held_save, &targets, &path);
+    assert_eq!(editor.status, None);
+    assert!(!path.exists());
+}
+
+#[test]
 fn ctrl_s_and_save_write_paint_json_and_it_loads_back() {
     let path = file("Save", "Paint.json");
     let mut editor = Editor::new(Parameters::default());
@@ -198,6 +256,7 @@ fn ctrl_s_and_save_write_paint_json_and_it_loads_back() {
         key: 'S' as u32,
         control: true,
         shift: false,
+        repeat: false,
     };
     editor.handle(&save, &targets, &path);
     assert_eq!(editor.status, Some((format!("Saved to {}", path.display()), false)));
@@ -266,12 +325,13 @@ fn any_input_leaves_a_valid_material() {
         let event = match (next() * 5.0) as u32 {
             0 => Event::Press(point),
             1 => Event::Release(point),
-            2 => Event::Wheel(point, (next() * 20.0 - 10.0).round()),
+            2 => Event::Wheel(point, next() * 20.0 - 10.0),
             3 => key([LEFT, RIGHT, UP, DOWN][(next() * 4.0) as usize % 4]),
             _ => Event::Key {
                 key: [LEFT, RIGHT][(next() * 2.0) as usize % 2],
                 control: false,
                 shift: true,
+                repeat: next() < 0.5,
             },
         };
         editor.handle(&event, &targets, &nowhere());

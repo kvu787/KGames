@@ -178,7 +178,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
     };
     let actions: Vec<&(String, Value)> = members
         .iter()
-        .filter(|(name, _)| !matches!(name.as_str(), "Frame" | "Notches" | "Control" | "Shift"))
+        .filter(|(name, _)| !matches!(name.as_str(), "Frame" | "Notches" | "Control" | "Shift" | "Repeat"))
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
@@ -200,13 +200,14 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         "Key" => {
             let key = match value {
                 Value::String(name) => virtual_key(name).ok_or_else(|| format!("{name} isn't a key"))?,
-                Value::Number(code) if (1.0..255.0).contains(code) => *code as u32,
+                Value::Number(code) if (1.0..255.0).contains(code) && code.fract() == 0.0 => *code as u32,
                 other => return Err(format!("Key must be a key's name, like \"F11\", not {}", other.describe())),
             };
             Action::Event(Event::Key {
                 key,
                 control: flag("Control")?,
                 shift: flag("Shift")?,
+                repeat: flag("Repeat")?,
             })
         }
         "Capture" => match value {
@@ -261,7 +262,11 @@ pub fn virtual_key(name: &str) -> Option<u32> {
     if named.is_some() {
         return named;
     }
-    if let Some(number) = name.strip_prefix('F').and_then(|digits| digits.parse::<u32>().ok()) {
+    if let Some(number) = name
+        .strip_prefix('F')
+        .filter(|digits| !digits.is_empty() && digits.bytes().all(|digit| digit.is_ascii_digit()))
+        .and_then(|digits| digits.parse::<u32>().ok())
+    {
         return (1..=24).contains(&number).then(|| 0x70 + number - 1);
     }
     let mut characters = name.chars();
@@ -276,7 +281,9 @@ pub fn virtual_key(name: &str) -> Option<u32> {
 // How `actual` differs from `expected`, one difference per item, or nothing
 // if it matches. Only what `expected` has matters: an object can have
 // members that `expected` leaves out. Lists must have the same length.
-// Numbers match within a billionth of their size, for rounding.
+// Numbers match within a billionth of the expected number's size, for
+// rounding. An infinite or NaN number in the state matches nothing, as a
+// script's numbers are always finite.
 pub fn compare(expected: &Value, actual: &Value) -> Vec<String> {
     let mut differences = Vec::new();
     compare_at("", expected, actual, &mut differences);
@@ -314,8 +321,8 @@ fn compare_at(path: &str, expected: &Value, actual: &Value, differences: &mut Ve
             }
         }
         (Value::Number(expected_number), Value::Number(actual_number)) => {
-            let scale = expected_number.abs().max(actual_number.abs()).max(1.0);
-            if (expected_number - actual_number).abs() > 1e-9 * scale {
+            let tolerance = 1e-9 * expected_number.abs().max(1.0);
+            if !actual_number.is_finite() || (expected_number - actual_number).abs() > tolerance {
                 differences.push(format!("{at} is {actual_number}, not {expected_number}"));
             }
         }

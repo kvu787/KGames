@@ -58,8 +58,9 @@ pub enum Event {
     // The mouse wheel turned, by notches, positive away from the user.
     Wheel([f32; 2], f32),
     // A key went down, by its virtual-key code, like VK_F11. It repeats
-    // while the key is held.
-    Key { key: u32, control: bool, shift: bool },
+    // while the key is held, with `repeat`, which keys that switch something
+    // on and off ignore, so that holding them doesn't flip it back and forth.
+    Key { key: u32, control: bool, shift: bool, repeat: bool },
 }
 
 // A mouse message's position in the window, from the low and high words of
@@ -181,6 +182,8 @@ extern "system" fn window_procedure(
                 key: wparam.0 as u32,
                 control: held(VK_CONTROL),
                 shift: held(VK_SHIFT),
+                // Bit 30 says whether the key was already down.
+                repeat: lparam.0 & (1 << 30) != 0,
             });
             // Alt+F4 is a system key, which closes the window.
             unsafe { DefWindowProcW(window, message, wparam, lparam) }
@@ -349,8 +352,8 @@ impl Window {
         unsafe { SetWindowTextW(self.handle, PCWSTR(title.as_ptr())) }.ok()
     }
 
-    // Shows the window in its mode. Without `activate`, it opens behind the
-    // window that has focus, and doesn't take it.
+    // Shows the window in its mode. Without `activate`, it doesn't take focus
+    // from the window that has it, though it opens on top of the others.
     pub fn show(&self, activate: bool) {
         // SW_SHOWNA shows the window as it is, maximized or not, without
         // activating it. The others activate it.

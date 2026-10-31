@@ -5,10 +5,11 @@
 //
 //   - The program opens with --display, so it opens on that display or not
 //     at all.
-//   - It opens with --no-activate, so it opens behind the window that has
-//     focus, and typing there stays there.
+//   - It opens with --no-activate, so it opens without taking focus from the
+//     window that has it, and typing there stays there.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
+//   - It runs in a job that ends it if this program stops partway.
 //
 // Without focus, programs ignore all input. To test input, it runs scripts
 // instead: with --script, the program reads its input from a script, saves
@@ -128,6 +129,15 @@ static void Run(string[] arguments) {
     // A path given on the command line is relative to the current directory.
     screenshot = Path.GetFullPath(screenshot ?? Path.Combine(output, $"{program}.png"));
 
+    if (allScripts) {
+        var folder = Path.Combine(repository, "Test", program, "Scripts");
+        var found = Directory.Exists(folder) ? Directory.GetFiles(folder, "*.json") : [];
+        if (found.Length == 0) {
+            throw new FailureException($"{program} has no scripts in {folder}");
+        }
+        scripts.AddRange(found.Order(StringComparer.OrdinalIgnoreCase));
+    }
+
     var build = new List<string> { "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
     if (!debugBuild) {
         build.Add("--release");
@@ -140,13 +150,6 @@ static void Run(string[] arguments) {
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
 
-    if (allScripts) {
-        var folder = Path.Combine(repository, "Test", program, "Scripts");
-        if (!Directory.Exists(folder)) {
-            throw new FailureException($"{program} has no scripts in {folder}");
-        }
-        scripts.AddRange(Directory.GetFiles(folder, "*.json").Order(StringComparer.OrdinalIgnoreCase));
-    }
     if (scripts.Count > 0) {
         RunScripts(program, exe, display, scripts, Path.Combine(output, program), timeout);
         return;
@@ -155,7 +158,9 @@ static void Run(string[] arguments) {
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog);
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog, keepOpen);
+    // From the start, as a window could take focus as soon as it opens.
+    using var watch = new FocusWatch(process.Id);
 
     var window = IntPtr.Zero;
     var waiting = Stopwatch.StartNew();
@@ -171,12 +176,10 @@ static void Run(string[] arguments) {
         window = ProgramWindow.Find(process.Id);
     }
 
-    using (var watch = new FocusWatch(process.Id)) {
-        Thread.Sleep(TimeSpan.FromSeconds(seconds));
-        if (watch.TookFocus) {
-            process.Kill();
-            throw new FailureException($"{program}'s window took focus, so it was stopped");
-        }
+    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    if (watch.TookFocus) {
+        process.Kill();
+        throw new FailureException($"{program}'s window took focus, so it was stopped");
     }
     if (process.HasExited) {
         throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
@@ -212,6 +215,9 @@ static void Run(string[] arguments) {
         if (process.ExitCode != 0) {
             throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
         }
+        if (watch.TookFocus) {
+            throw new FailureException($"{program}'s window took focus");
+        }
     }
 }
 
@@ -230,7 +236,7 @@ static void RunScripts(string program, string exe, string display, List<string> 
         var outputLog = Path.Combine(folder, "Output.log");
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
-        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog)) {
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
             using (var watch = new FocusWatch(process.Id)) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
                     process.Kill();
@@ -282,33 +288,102 @@ static string ReadLog(string path) {
     }
 }
 
-// Watches, until it's disposed, whether a window of the process is ever the
-// foreground window, which would mean that it took focus from the user.
-sealed class FocusWatch : IDisposable {
-    readonly int processId;
+// Watches, until it's disposed, whether a window of the process ever becomes
+// the foreground window, which would mean that it took focus from the user.
+// Windows reports every change of the foreground window to the watch's
+// thread, so even one that lasts a moment counts, unlike with checking now
+// and then.
+sealed unsafe partial class FocusWatch : IDisposable {
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSG {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam, lParam;
+        public uint time;
+        public int x, y;
+        public uint lPrivate;
+    }
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, delegate* unmanaged<IntPtr, uint, IntPtr, int, int, uint, uint, void> callback, uint processId, uint threadId, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnhookWinEvent(IntPtr hook);
+    [LibraryImport("user32.dll")]
+    private static partial int GetMessageW(out MSG message, IntPtr window, uint filterMin, uint filterMax);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PeekMessageW(out MSG message, IntPtr window, uint filterMin, uint filterMax, uint remove);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostThreadMessageW(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetCurrentThreadId();
+
+    const uint EVENT_SYSTEM_FOREGROUND = 3;
+    const uint WINEVENT_OUTOFCONTEXT = 0;
+    const uint PM_NOREMOVE = 0;
+    const uint WM_QUIT = 0x0012;
+
+    // Windows calls OnForeground on the thread that watches, while it waits
+    // for messages.
+    [ThreadStatic]
+    static FocusWatch? watching;
+
+    readonly uint processId;
     readonly Thread thread;
-    volatile bool stopped;
+    readonly ManualResetEventSlim started = new();
+    uint threadId;
+    bool hooked;
     volatile bool tookFocus;
 
     public FocusWatch(int processId) {
-        this.processId = processId;
+        this.processId = (uint)processId;
         this.thread = new Thread(this.Watch) { IsBackground = true };
         this.thread.Start();
+        this.started.Wait();
+        if (!this.hooked) {
+            this.thread.Join();
+            throw new FailureException("Couldn't watch which window has focus");
+        }
     }
 
     public bool TookFocus => this.tookFocus;
 
     void Watch() {
-        while (!this.stopped) {
-            if (ProgramWindow.ForegroundProcess() == this.processId) {
-                this.tookFocus = true;
-            }
-            Thread.Sleep(5);
+        watching = this;
+        // Makes the thread's message queue, so that Dispose can post to it.
+        _ = PeekMessageW(out _, IntPtr.Zero, 0, 0, PM_NOREMOVE);
+        this.threadId = GetCurrentThreadId();
+        var hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, &OnForeground, 0, 0, WINEVENT_OUTOFCONTEXT);
+        this.hooked = hook != IntPtr.Zero;
+        this.started.Set();
+        if (!this.hooked) {
+            return;
+        }
+        // The window with focus before the first change.
+        this.Check(ProgramWindow.Foreground());
+        // Windows calls OnForeground from within GetMessageW, until Dispose
+        // posts WM_QUIT.
+        while (GetMessageW(out _, IntPtr.Zero, 0, 0) > 0) {
+        }
+        this.Check(ProgramWindow.Foreground());
+        _ = UnhookWinEvent(hook);
+    }
+
+    [UnmanagedCallersOnly]
+    static void OnForeground(IntPtr hook, uint winEvent, IntPtr window, int objectId, int childId, uint eventThread, uint time) {
+        watching?.Check(window);
+    }
+
+    void Check(IntPtr window) {
+        if (ProgramWindow.Owner(window) == this.processId) {
+            this.tookFocus = true;
         }
     }
 
     public void Dispose() {
-        this.stopped = true;
+        _ = PostThreadMessageW(this.threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         this.thread.Join();
     }
 }
@@ -321,7 +396,24 @@ sealed class FailureException(string message) : Exception(message);
 // them, and Process.Start gives none. Then the program would get a copy of the pipe
 // that this program's output goes to, and whatever reads that output would wait
 // until the program closed.
+//
+// Unless it's to keep running, the program starts in a job that ends it when
+// this program exits, however that happens. Otherwise a run that's stopped
+// partway, like by Ctrl+C or a coding agent's time limit, would leave it
+// running on the display, drawing as fast as it can, until someone noticed.
 static partial class ProgramProcess {
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+        public long PerProcessUserTimeLimit, PerJobUserTimeLimit;
+        public uint LimitFlags;
+        public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
+        public uint ActiveProcessLimit;
+        public UIntPtr Affinity;
+        public uint PriorityClass, SchedulingClass;
+        public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount;
+        public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     struct STARTUPINFOEX {
         public int cb;
@@ -351,34 +443,68 @@ static partial class ProgramProcess {
     // CreateProcessW may write to the command line, so it isn't a string.
     [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool CreateProcessW(string? application, char[] commandLine, IntPtr processAttributes, IntPtr threadAttributes, [MarshalAs(UnmanagedType.Bool)] bool inheritHandles, uint flags, IntPtr environment, string? directory, ref STARTUPINFOEX startupInfo, out PROCESS_INFORMATION information);
+    private static partial bool CreateProcessW(string? application, [In, Out] char[] commandLine, IntPtr processAttributes, IntPtr threadAttributes, [MarshalAs(UnmanagedType.Bool)] bool inheritHandles, uint flags, IntPtr environment, string? directory, ref STARTUPINFOEX startupInfo, out PROCESS_INFORMATION information);
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr handle);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial IntPtr CreateJobObjectW(IntPtr attributes, IntPtr name);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetInformationJobObject(IntPtr job, int informationClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION information, int size);
 
     const uint HANDLE_FLAG_INHERIT = 1;
     const int STARTF_USESTDHANDLES = 0x100;
     const uint EXTENDED_STARTUPINFO_PRESENT = 0x80000;
+    // A program with a console, which none of the GUI programs have, gets
+    // none, instead of a console window that could take focus.
+    const uint CREATE_NO_WINDOW = 0x8000000;
+    const int JobObjectExtendedLimitInformation = 9;
+    const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
     static readonly IntPtr PROC_THREAD_ATTRIBUTE_HANDLE_LIST = new(0x20002);
+    static readonly IntPtr PROC_THREAD_ATTRIBUTE_JOB_LIST = new(0x2000D);
 
-    public static Process Start(string commandLine, string outputPath, string errorPath) {
+    // Its handle closes only when this program exits.
+    static readonly Lazy<IntPtr> job = new(CreateJob);
+
+    static IntPtr CreateJob() {
+        var job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
+        if (job == IntPtr.Zero) {
+            throw new Win32Exception();
+        }
+        var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION { LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE };
+        if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref limits, Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>())) {
+            throw new Win32Exception();
+        }
+        return job;
+    }
+
+    public static Process Start(string commandLine, string outputPath, string errorPath, bool keepRunning) {
         using var output = Open(outputPath);
         using var error = Open(errorPath);
         var handles = new[] { output.SafeFileHandle.DangerousGetHandle(), error.SafeFileHandle.DangerousGetHandle() };
+        var attributes = keepRunning ? 1 : 2;
         var size = IntPtr.Zero;
         // This call only gets the size, and fails because the list is missing.
-        _ = InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+        _ = InitializeProcThreadAttributeList(IntPtr.Zero, attributes, 0, ref size);
         var list = Marshal.AllocHGlobal(size);
         var handleList = Marshal.AllocHGlobal(IntPtr.Size * handles.Length);
+        var jobList = Marshal.AllocHGlobal(IntPtr.Size);
         var initialized = false;
         try {
-            if (!InitializeProcThreadAttributeList(list, 1, 0, ref size)) {
+            if (!InitializeProcThreadAttributeList(list, attributes, 0, ref size)) {
                 throw new Win32Exception();
             }
             initialized = true;
             Marshal.Copy(handles, 0, handleList, handles.Length);
             if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handleList, new IntPtr(IntPtr.Size * handles.Length), IntPtr.Zero, IntPtr.Zero)) {
                 throw new Win32Exception();
+            }
+            if (!keepRunning) {
+                Marshal.WriteIntPtr(jobList, job.Value);
+                if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, jobList, new IntPtr(IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) {
+                    throw new Win32Exception();
+                }
             }
             var startupInfo = new STARTUPINFOEX {
                 cb = Marshal.SizeOf<STARTUPINFOEX>(),
@@ -387,7 +513,7 @@ static partial class ProgramProcess {
                 hStdError = handles[1],
                 lpAttributeList = list,
             };
-            if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT, IntPtr.Zero, null, ref startupInfo, out var information)) {
+            if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW, IntPtr.Zero, null, ref startupInfo, out var information)) {
                 throw new Win32Exception();
             }
             var process = Process.GetProcessById(information.dwProcessId);
@@ -401,6 +527,7 @@ static partial class ProgramProcess {
             if (initialized) {
                 DeleteProcThreadAttributeList(list);
             }
+            Marshal.FreeHGlobal(jobList);
             Marshal.FreeHGlobal(handleList);
             Marshal.FreeHGlobal(list);
         }
@@ -460,13 +587,16 @@ static partial class ProgramWindow {
         return IntPtr.Zero;
     }
 
-    // The ID of the process whose window is the foreground window, or 0.
-    public static uint ForegroundProcess() {
-        var window = GetForegroundWindow();
-        if (window == IntPtr.Zero) {
+    // The window that has focus, or none.
+    public static IntPtr Foreground() {
+        return GetForegroundWindow();
+    }
+
+    // The ID of the process that owns a window, or 0 for none.
+    public static uint Owner(IntPtr window) {
+        if (window == IntPtr.Zero || GetWindowThreadProcessId(window, out var process) == 0) {
             return 0;
         }
-        _ = GetWindowThreadProcessId(window, out var process);
         return process;
     }
 

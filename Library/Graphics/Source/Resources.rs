@@ -149,6 +149,14 @@ pub unsafe fn upload_texture(
     pixels: &[u8],
     state: D3D12_RESOURCE_STATES,
 ) -> Result<ID3D12Resource> {
+    let row_bytes = width as usize * bytes_per_pixel;
+    // The copy below reads whole rows, so a short slice would be read past.
+    assert!(
+        pixels.len() >= row_bytes * height as usize,
+        "upload_texture needs {} bytes of pixels, not {}",
+        row_bytes * height as usize,
+        pixels.len()
+    );
     unsafe {
         let device = renderer.device.clone();
         let texture = create_texture(
@@ -181,7 +189,6 @@ pub unsafe fn upload_texture(
         let mut mapped = std::ptr::null_mut();
         upload.Map(0, None, &mut mapped).ok()?;
         let row_pitch = footprint.Footprint.RowPitch as usize;
-        let row_bytes = width as usize * bytes_per_pixel;
         for row in 0..height as usize {
             std::ptr::copy_nonoverlapping(
                 pixels[row * row_bytes..].as_ptr(),

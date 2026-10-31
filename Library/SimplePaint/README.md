@@ -58,7 +58,9 @@ names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package
   required.
 
 `direct3d12::Pipeline` creates the adapter's pipeline for a render target, and
-`direct3d12::Mesh` validates a mesh, uploads it, and draws it with its constant buffers.
+`direct3d12::Mesh` validates a mesh, copies it into the GPU's own memory once with
+`Renderer::run`, and draws it with its constant buffers. The copy waits for the GPU, so make
+meshes at setup.
 
 ## Validate geometry and transforms
 

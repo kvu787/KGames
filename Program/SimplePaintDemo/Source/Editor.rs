@@ -124,6 +124,9 @@ pub struct Editor {
     pub dragging: Option<usize>,
     // What happened at the last save, and whether it failed.
     pub status: Option<(String, bool)>,
+    // The slider that the wheel last turned over, and how much it turned
+    // there that didn't make a whole step yet.
+    wheel: (usize, f32),
 }
 
 impl Editor {
@@ -136,6 +139,7 @@ impl Editor {
             selected: 0,
             dragging: None,
             status: None,
+            wheel: (0, 0.0),
         }
     }
 
@@ -188,25 +192,36 @@ impl Editor {
                 None => {}
             },
             Event::Release(_) => self.dragging = None,
+            // A notch is a step. Touchpads and smooth-scrolling mice turn
+            // by parts of a notch, which add up over the same slider.
             Event::Wheel(point, notches) => {
                 if let Some(Click::Slider(slider)) = at(point).map(|target| target.click) {
                     self.selected = slider;
-                    self.nudge(slider, notches.round() as f64);
+                    let (last, part) = self.wheel;
+                    let turned = notches + if last == slider { part } else { 0.0 };
+                    let steps = turned.trunc();
+                    self.wheel = (slider, turned - steps);
+                    if steps != 0.0 {
+                        self.nudge(slider, steps as f64);
+                    }
                 }
             }
+            // Holding an arrow key repeats it. Holding F11 or Ctrl+S does
+            // nothing more.
             Event::Key {
                 key,
                 control,
                 shift,
+                repeat,
             } => {
                 let steps = if shift { 10.0 } else { 1.0 };
                 match key as i32 {
-                    VK_F11 => return Action::ToggleFullscreen,
+                    VK_F11 if !repeat => return Action::ToggleFullscreen,
                     VK_LEFT => self.nudge(self.selected, -steps),
                     VK_RIGHT => self.nudge(self.selected, steps),
                     VK_UP => self.selected = self.selected.saturating_sub(1),
                     VK_DOWN => self.selected = (self.selected + 1).min(SLIDERS.len() - 1),
-                    _ if control && key == 'S' as u32 => self.save(paint_path),
+                    _ if control && !repeat && key == 'S' as u32 => self.save(paint_path),
                     _ => {}
                 }
             }
