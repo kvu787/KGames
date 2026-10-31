@@ -349,8 +349,8 @@ impl Window {
         unsafe { SetWindowTextW(self.handle, PCWSTR(title.as_ptr())) }.ok()
     }
 
-    // Shows the window in its mode. Without `activate`, it opens behind the
-    // window that has focus, and doesn't take it.
+    // Shows the window in its mode. Without `activate`, it doesn't take focus
+    // from the window that has it, though it opens on top of the others.
     pub fn show(&self, activate: bool) {
         // SW_SHOWNA shows the window as it is, maximized or not, without
         // activating it. The others activate it.

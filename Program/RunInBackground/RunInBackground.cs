@@ -5,8 +5,8 @@
 //
 //   - The program opens with --display, so it opens on that display or not
 //     at all.
-//   - It opens with --no-activate, so it opens behind the window that has
-//     focus, and typing there stays there.
+//   - It opens with --no-activate, so it opens without taking focus from the
+//     window that has it, and typing there stays there.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //

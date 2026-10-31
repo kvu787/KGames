@@ -129,7 +129,8 @@ cargo run --release -- --display KXGR16
 ```
 
 To open the demo without taking focus from the window you're typing in, add `--no-activate`.
-The window opens behind that one, and gets keyboard and mouse input once you click it.
+The window opens without taking focus from that one, and gets keyboard and mouse input once
+you click it.
 
 ### Running it in the background
 

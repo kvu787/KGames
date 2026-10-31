@@ -14,8 +14,9 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
 The program opens with `--display` and `--no-activate`, which every program built on
-[Library/Application](../../Library/Application/README.md) takes, so it opens behind the window
-that has focus, and typing there stays there. Without focus, programs ignore all input.
+[Library/Application](../../Library/Application/README.md) takes, so it opens on top of the
+other windows on that display, but without taking focus, and typing in the window that has
+focus stays there. Without focus, programs ignore all input.
 
 The script only runs `RunInBackground.cs`, a .NET file-based app, with `dotnet run`, which
 builds it into its own cache first. It needs the .NET 10 SDK.
