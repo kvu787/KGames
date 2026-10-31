@@ -4,7 +4,10 @@
 // or a test.
 //
 // Each reading is a snapshot of one device's whole state, so this compares
-// each one with the same device's reading before it to say what changed.
+// each one with the same device's reading before it to say what changed. It
+// keeps every device's last reading itself for that, because GameInput's
+// GetPreviousReading fails once that reading has left its short history,
+// like after a pause in input. Then a held key would show as pressed again.
 
 use std::collections::VecDeque;
 
@@ -69,8 +72,9 @@ pub struct LatestEvent {
     pub state: Vec<String>,
     // GameInput's own timestamp, in microseconds.
     pub timestamp: u64,
-    // Since the same device's previous reading. None when there was no
-    // earlier reading to compare with, so the changes are from an idle state.
+    // Since the same device's previous reading. None for the first reading
+    // of the device that the demo has seen, so the changes are from an idle
+    // state.
     pub interval: Option<f64>,
 }
 
@@ -120,6 +124,13 @@ struct Rumble {
     device: usize,
     sticks: [f32; 2],
     sent: GameInputRumbleParams,
+}
+
+// A device's newest reading with one kind of input, handled or not, which
+// its next one is compared with.
+struct LastReading {
+    kind: GameInputKind,
+    reading: Reading,
 }
 
 // Which gamepad the demo listens to, if any, chosen in the gamepad panel's
@@ -209,6 +220,10 @@ pub struct Input {
     pub rumble_dead_zone: f32,
     // One for each gamepad listened to that has sent a reading.
     rumbles: Vec<Rumble>,
+    // For each device and kind of input it has sent a reading of. A device's
+    // are dropped when it disconnects, so one that reconnects starts from an
+    // idle state.
+    last_readings: Vec<LastReading>,
     // Changed with pick_listen, or by listen_by_default until then.
     pub listen: Listen,
     // Whether listen was picked in the select box.
@@ -242,6 +257,7 @@ impl Input {
             rumble_enabled: false,
             rumble_dead_zone,
             rumbles: Vec::new(),
+            last_readings: Vec::new(),
             listen: Listen::NoGamepad,
             listen_picked: false,
             fullscreen_toggled: false,
@@ -267,7 +283,7 @@ impl Input {
     }
 
     // `focused` is whether the window has focus. Input is only handled while
-    // it does, see handle_reading. A minimized window doesn't have it, so the
+    // it does, see take_reading. A minimized window doesn't have it, so the
     // main loop calls this with false then, and restoring the window counts
     // as getting focus.
     pub fn update(&mut self, focused: bool) {
@@ -297,13 +313,13 @@ impl Input {
         // timestamp order, so the log interleaves devices correctly.
         let mut readings = Vec::new();
         for &(source, kind) in READING_KINDS.iter() {
-            for (reading, previous) in self.source.readings(kind) {
-                readings.push((source, kind, reading, previous));
+            for reading in self.source.readings(kind) {
+                readings.push((source, kind, reading));
             }
         }
-        readings.sort_by_key(|(_, _, reading, _)| reading.timestamp);
-        for (source, kind, reading, previous) in readings {
-            self.handle_reading(source, kind, &reading, previous.as_ref());
+        readings.sort_by_key(|(_, _, reading)| reading.timestamp);
+        for (source, kind, reading) in readings {
+            self.take_reading(source, kind, reading);
         }
 
         self.gamepad.rate.tick(self.now);
@@ -346,6 +362,8 @@ impl Input {
                     self.gamepad = GamepadView::default();
                 }
                 self.rumbles.retain(|rumble| rumble.device != device.id);
+                self.last_readings
+                    .retain(|last| last.reading.device != Some(device.id));
                 format!("Disconnected: {label}")
             }
             GameInputDeviceEventKeyboardLayoutUpdated => {
@@ -429,8 +447,7 @@ impl Input {
             Listen::Gamepad(device) => {
                 if self.gamepad.device != Some(device.id) {
                     self.view_gamepad(Some(device.id));
-                    // Its current state, if there's still a reading of it.
-                    if let Some(state) = self.source.gamepad_state(device.id) {
+                    if let Some(state) = self.gamepad_state(device.id) {
                         self.gamepad.state = state;
                     }
                 }
@@ -444,6 +461,36 @@ impl Input {
         self.log(self.now, Source::Demo, text, None);
     }
 
+    // A gamepad's state from its last reading, to show it as soon as it's
+    // listened to.
+    fn gamepad_state(&self, device: usize) -> Option<GameInputGamepadState> {
+        let last = self.last_readings.iter().find(|last| {
+            last.kind == GameInputKindGamepad && last.reading.device == Some(device)
+        })?;
+        Some(last.reading.gamepad)
+    }
+
+    // Handles a reading if the window had focus for it, and keeps it as its
+    // device's last reading of this kind, which the next one is compared with.
+    fn take_reading(&mut self, source: Source, kind: GameInputKind, reading: Reading) {
+        let index = self.last_readings.iter().position(|last| {
+            last.kind == kind && last.reading.device == reading.device
+        });
+        let previous = index.map(|index| self.last_readings.swap_remove(index).reading);
+        // KGames programs ignore all input while their window doesn't have
+        // focus. GameInput gives gamepad input to windows without focus. It's
+        // meant to give keyboard and mouse input only to the window in focus,
+        // but GameInput 4.0.306, loaded from the exe's folder, gives that to
+        // the demo without focus too, even with EnableBackgroundInput(false).
+        // So the demo drops it all itself, along with input from before the
+        // window got focus. Otherwise it would show and log what is typed
+        // into other windows, and run its shortcuts for them.
+        if self.focused && reading.timestamp >= self.focus_timestamp {
+            self.handle_reading(source, kind, &reading, previous.as_ref());
+        }
+        self.last_readings.push(LastReading { kind, reading });
+    }
+
     fn handle_reading(
         &mut self,
         source: Source,
@@ -451,22 +498,23 @@ impl Input {
         reading: &Reading,
         previous: Option<&Reading>,
     ) {
-        // KGames programs ignore all input while their window doesn't have
-        // focus. GameInput gives gamepad input to windows without focus. It's
-        // meant to give keyboard and mouse input only to the window in focus,
-        // but GameInput 4.0.306, loaded from the exe's folder, gives that to
-        // the demo without focus too, even with EnableBackgroundInput(false).
-        // So the demo drops it all itself. Otherwise it would show and log
-        // what is typed into other windows, and run its shortcuts for them.
-        if !self.focused || reading.timestamp < self.focus_timestamp {
-            return;
-        }
-        let device = reading.device.as_ref();
+        let device = match reading.device {
+            Some(id) => match self.devices.iter().find(|info| info.id == id) {
+                Some(device) => Some(device),
+                // It isn't connected: it has disconnected, like when its
+                // reading came just before its disconnect was handled, or its
+                // connection hasn't been reported yet. Readings of a device
+                // that's gone would bring back its view and its rumble.
+                None => return,
+            },
+            None => None,
+        };
         if let Some(device) = device
             && !self.listen.includes(device)
         {
             return;
         }
+        let label = device.map_or_else(|| "Unknown device".to_string(), |device| device.label.clone());
         // A reading with several kinds of input comes up once for each, so
         // it's counted only for the first.
         let first_kind = READING_KINDS
@@ -477,8 +525,7 @@ impl Input {
             self.reading_count += 1;
         }
         let time = self.seconds(reading.timestamp);
-        let label = device.map_or_else(|| "Unknown device".to_string(), |device| device.label.clone());
-        let id = device.map(|device| device.id);
+        let id = reading.device;
 
         let (changes, state, motion_only) = match source {
             Source::Gamepad => self.handle_gamepad(time, reading, previous, id),

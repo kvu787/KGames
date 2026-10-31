@@ -207,11 +207,14 @@ reading is a timestamped snapshot of one device's whole state. Every frame, the 
    handled has left the history, and `GetNextReading` fails with
    `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from the newest
    reading with `GetPreviousReading` to find the ones it hasn't handled.
-3. Compares each reading with the same device's previous one, from `GetPreviousReading`,
-   to work out what changed.
+3. Compares each reading with the same device's previous one to work out what changed. It
+   keeps every device's last reading itself for that, including the ones it drops without
+   focus. `GetPreviousReading` would give it too, but only while it's still in the history,
+   so after a pause a held key would show as pressed again.
 
-`Source/GameInputSource.rs` does this, and hands the devices and readings on as plain data, so
-that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)).
+`Source/GameInputSource.rs` does the first two, and hands the devices and readings on as plain
+data, so that the rest of the demo also runs on input from tests and scripts (see
+[Testing](#testing)).
 
 Like every KGames program, the demo only handles input while its window has focus, and the
 header says whether it has focus. GameInput gives gamepad input to windows without focus. It's

@@ -34,10 +34,9 @@ pub struct ScriptedSource {
     pub now: u64,
     connected: Vec<Device>,
     events: Vec<(GameInputDeviceEvent, Device)>,
-    // Readings not handed out yet, by kind of input, oldest first, each with
-    // the device's reading before it.
-    queues: Vec<(GameInputKind, Vec<(Reading, Option<Reading>)>)>,
-    // Each device's newest reading.
+    // Readings not handed out yet, by kind of input, oldest first.
+    queues: Vec<(GameInputKind, Vec<Reading>)>,
+    // Each device's newest reading, which the next one starts from.
     latest: Vec<Reading>,
     // Each gamepad's rumble, as the demo last set it.
     rumble: Vec<(usize, Option<GameInputRumbleParams>)>,
@@ -60,33 +59,33 @@ impl ScriptedSource {
     // A new reading of a connected device's state: its last state, changed
     // by `change`.
     pub fn read(&mut self, id: usize, change: impl FnOnce(&mut Reading)) -> Result<(), String> {
-        let device = self
+        let supported_input = self
             .connected
             .iter()
             .find(|device| device.id == id)
-            .cloned()
+            .map(|device| device.supported_input)
             .ok_or_else(|| format!("device {id} isn't connected"))?;
-        let previous = self
+        let mut reading = self
             .latest
             .iter()
-            .find(|reading| reading.device.as_ref().is_some_and(|known| known.id == id))
-            .cloned();
-        let mut reading = previous.clone().unwrap_or_default();
+            .find(|reading| reading.device == Some(id))
+            .cloned()
+            .unwrap_or_default();
         // Later than every earlier reading, so the order stays.
         let newest = self.latest.iter().map(|reading| reading.timestamp).max();
         reading.timestamp = newest.map_or(self.now, |newest| self.now.max(newest + 1));
-        reading.kinds = device.supported_input;
-        reading.device = Some(device);
+        reading.kinds = supported_input;
+        reading.device = Some(id);
         change(&mut reading);
-        self.latest.retain(|known| known.device.as_ref().is_none_or(|known| known.id != id));
+        self.latest.retain(|known| known.device != Some(id));
         self.latest.push(reading.clone());
         for kind in [GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse] {
             if reading.kinds & kind == 0 {
                 continue;
             }
             match self.queues.iter_mut().find(|(queued, _)| *queued == kind) {
-                Some((_, queue)) => queue.push((reading.clone(), previous.clone())),
-                None => self.queues.push((kind, vec![(reading.clone(), previous.clone())])),
+                Some((_, queue)) => queue.push(reading.clone()),
+                None => self.queues.push((kind, vec![reading.clone()])),
             }
         }
         Ok(())
@@ -201,19 +200,12 @@ impl InputSource for ScriptedSource {
         std::mem::take(&mut self.events)
     }
 
-    fn readings(&mut self, kind: GameInputKind) -> Vec<(Reading, Option<Reading>)> {
+    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading> {
         self.queues
             .iter_mut()
             .find(|(queued, _)| *queued == kind)
             .map(|(_, queue)| std::mem::take(queue))
             .unwrap_or_default()
-    }
-
-    fn gamepad_state(&mut self, device: usize) -> Option<GameInputGamepadState> {
-        self.latest
-            .iter()
-            .find(|reading| reading.device.as_ref().is_some_and(|known| known.id == device))
-            .map(|reading| reading.gamepad)
     }
 
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {
