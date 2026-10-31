@@ -79,9 +79,13 @@ fn download_package(package: &Path) {
 
     // A .nupkg file is a zip file, which Windows' own tar.exe can extract.
     // Extract beside the final folder and rename it into place, so an
-    // interrupted build never leaves a half-extracted package behind.
-    let staging =
-        package.with_file_name(format!("Microsoft.GameInput.{GAME_INPUT_VERSION}.Partial"));
+    // interrupted build never leaves a half-extracted package behind. Each
+    // build extracts into its own folder, as two can run at once with
+    // different target folders, like rust-analyzer's and Cargo's.
+    let staging = package.with_file_name(format!(
+        "Microsoft.GameInput.{GAME_INPUT_VERSION}.Partial{}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&staging);
     std::fs::create_dir_all(&staging).unwrap();
     run(Command::new(system_tool("tar.exe"))
@@ -89,7 +93,11 @@ fn download_package(package: &Path) {
         .arg(&archive)
         .arg("-C")
         .arg(&staging));
-    std::fs::rename(&staging, package).unwrap();
+    if let Err(error) = std::fs::rename(&staging, package) {
+        // The other build may have put its copy in place first.
+        let _ = std::fs::remove_dir_all(&staging);
+        assert!(package.exists(), "couldn't move {} into place: {error}", staging.display());
+    }
 }
 
 fn sha512(file: &Path) -> String {
