@@ -845,7 +845,9 @@ impl Input {
         }
     }
 
-    // What the panels show, for scripted runs to save and check.
+    // What the panels show, for scripted runs to save and check. Not whether
+    // F11 was pressed, as the main loop has switched the window by the time
+    // it's saved: the window's own state says whether it's in fullscreen.
     pub fn state(&self) -> Value {
         let gamepad = &self.gamepad;
         let label = |device: Option<usize>| {
@@ -911,7 +913,6 @@ impl Input {
                         .collect(),
                 ),
             ),
-            ("FullscreenToggled", self.fullscreen_toggled.into()),
         ])
     }
 }

@@ -290,6 +290,11 @@ fn shortcuts_run_once_for_each_press() {
     input.update(true);
     assert!(input.fullscreen_toggled);
 
+    // The main loop switches the window and clears this before scripts save
+    // the state, so the state leaves it out. The window's own says whether
+    // it's in fullscreen.
+    assert!(input.state().get("FullscreenToggled").is_none());
+
     // The log is cleared after the key press is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F2"] } }"#);
     input.update(true);
