@@ -90,13 +90,13 @@ How:
 - Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Test input with tests and scripts instead, as below.
 - Tests that use the GPU, like `cargo test -p simple_paint_tests`, draw offscreen, without a window, so run them freely.
 
-## While the machine is locked
+## Power and locking
 
-All of the above works the same while the user's machine is locked, so keep working as usual while the user is away:
+Assume that Windows' "Turn my screen off after", "Make my device sleep after" and "Make my device hibernate after" are all set to "Never", both plugged in and on battery. The machine may be locked or unlocked, though, and may lock or unlock while the agent works.
 
-- Builds, `cargo test --workspace`, and RunInBackground's screenshots and scripts work, and draw the same frames. The lock screen has focus, so programs never do, as in any run.
-- About 20 seconds after the displays turn off, the DisplayPort monitors, 9XH36C and KXGR16, drop off the desktop. CVVNY2 is on HDMI, so it stays, at 2560 × 1440 with the same work area, and programs open on it as usual. It becomes the primary display at 0, 0, and `IdentifyDisplays --list` also lists the laptop's built-in screen, S0S7NM, at the same place.
-- Leave the machine's power alone: don't lock or unlock it, wake or turn off its displays, or change its power settings.
+- Work the same either way. Builds, `cargo test --workspace`, and RunInBackground's screenshots and scripts all work while the machine is locked, and draw the same frames.
+- While it's locked, the lock screen has focus, so a program never does, as in any run.
+- Don't lock or unlock the machine, wake or turn off its displays, or change its power settings.
 
 ## Testing input
 
