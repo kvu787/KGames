@@ -29,7 +29,7 @@ window moves or changes size, or the displays, the scale or the taskbar change.
 - **Header**: the GameInput runtime the demo loaded, how many readings it has handled,
   whether the window has focus, and the frame rate with the time per frame. Under it,
   anything wrong with the [settings file](#settings-file) or the command line.
-- **Gamepad**: an XY graph for each stick, with its recent path, the unit circle, and
+- **Gamepad**: an XY graph for each stick, with the unit circle and
   the dead zone of the [rumble test](#rumble-test), the only part of the demo that applies
   one. Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
   each trigger. A chip for every button that lights up while it's held. A select box

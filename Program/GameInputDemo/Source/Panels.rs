@@ -4,8 +4,6 @@
 // The bottom row and the log are taller in fullscreen, and the footer stays
 // at the bottom.
 
-use std::collections::VecDeque;
-
 use application::FrameCounter;
 use canvas::theme::{BORDER, DIM, ERROR, FAINT, PANEL, TEXT, TITLE, WARNING};
 use canvas::{
@@ -350,7 +348,6 @@ fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect)
         canvas,
         Rect::new(left_x, plots_y, graph, graph),
         left,
-        &view.left_trail,
         input.rumble_dead_zone,
         LEFT,
     );
@@ -358,7 +355,6 @@ fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect)
         canvas,
         Rect::new(right_x, plots_y, graph, graph),
         right,
-        &view.right_trail,
         input.rumble_dead_zone,
         RIGHT,
     );
@@ -614,7 +610,6 @@ fn stick_graph(
     canvas: &mut Canvas,
     area: Rect,
     value: [f32; 2],
-    trail: &VecDeque<[f32; 2]>,
     dead_zone: f32,
     color: Color,
 ) {
@@ -643,13 +638,6 @@ fn stick_graph(
     // The mouse pad has no dead zone, and a ring of radius 0 would be a dot.
     if dead_zone > 0.0 {
         canvas.ring(center, radius * dead_zone, 1.0, WARNING.alpha(0.45));
-    }
-
-    // The recent path fades out with age.
-    let points: Vec<[f32; 2]> = trail.iter().map(|&point| to_screen(point)).collect();
-    for (index, pair) in points.windows(2).enumerate() {
-        let age = 1.0 - index as f32 / points.len() as f32;
-        canvas.line(pair[0], pair[1], 2.0, color.alpha(0.6 * (1.0 - age)));
     }
 
     let position = to_screen(value);
@@ -848,7 +836,6 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
         canvas,
         pad_area,
         [view.pad[0], -view.pad[1]],
-        &view.pad_trail,
         0.0,
         WARNING,
     );

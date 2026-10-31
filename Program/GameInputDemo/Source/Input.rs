@@ -19,7 +19,6 @@ use crate::devices::{Device, InputSource, Reading};
 use crate::scripted_source::ScriptedSource;
 
 const LOG_CAPACITY: usize = 200;
-const TRAIL_LENGTH: usize = 96;
 // Virtual-key codes of the demo's own shortcuts.
 const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
@@ -132,8 +131,6 @@ pub struct GamepadView {
     pub layout: Option<GameInputGamepadButtons>,
     pub rumble_motors: GameInputRumbleMotors,
     pub state: GameInputGamepadState,
-    pub left_trail: VecDeque<[f32; 2]>,
-    pub right_trail: VecDeque<[f32; 2]>,
     pub rate: RateCounter,
 }
 
@@ -289,7 +286,6 @@ pub struct MouseView {
     pub delta: [i64; 2],
     // Relative motion added up and kept inside -1..1, for the motion pad.
     pub pad: [f32; 2],
-    pub pad_trail: VecDeque<[f32; 2]>,
     pub sample_rate: Option<u32>,
     pub rate: RateCounter,
 }
@@ -741,14 +737,6 @@ impl Input {
         }
         let view = &mut self.gamepad;
         view.state = state;
-        push_trail(
-            &mut view.left_trail,
-            [state.leftThumbstickX, state.leftThumbstickY],
-        );
-        push_trail(
-            &mut view.right_trail,
-            [state.rightThumbstickX, state.rightThumbstickY],
-        );
 
         let mut changes = Vec::new();
         for &(button, name) in GAMEPAD_BUTTONS {
@@ -925,9 +913,6 @@ impl Input {
             // acceleration, unlike the cursor.
             for (pad, delta) in view.pad.iter_mut().zip(delta) {
                 *pad = (*pad + delta as f32 / 400.0).clamp(-1.0, 1.0);
-            }
-            if delta != [0, 0] {
-                push_trail(&mut view.pad_trail, [view.pad[0], -view.pad[1]]);
             }
         }
 
@@ -1203,15 +1188,6 @@ fn past_dead_zone(deflection: f32, dead_zone: f32) -> f32 {
 
 fn pair(x: f32, y: f32) -> String {
     format!("({x:+.3}, {y:+.3})")
-}
-
-fn push_trail(trail: &mut VecDeque<[f32; 2]>, point: [f32; 2]) {
-    if trail.back() != Some(&point) {
-        trail.push_back(point);
-        if trail.len() > TRAIL_LENGTH {
-            trail.pop_front();
-        }
-    }
 }
 
 // The key's name in the current keyboard layout, like "Left Shift" or "Num 7".
