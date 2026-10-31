@@ -301,3 +301,24 @@ D3D12_RTV_DIMENSION
 D3D12_SRV_DIMENSION
 D3D12_TEXTURE_COPY_TYPE
 D3D12_TEXTURE_LAYOUT
+
+// Describing an input device from Windows' device tree
+CM_Get_Device_Interface_PropertyW
+CM_Get_DevNode_PropertyW
+CM_Get_Parent
+CM_Locate_DevNodeW
+CM_LOCATE_DEVNODE_NORMAL
+CR_BUFFER_SMALL
+CR_SUCCESS
+DEVPKEY_Device_BusReportedDeviceDesc
+DEVPKEY_Device_Class
+DEVPKEY_Device_DeviceDesc
+DEVPKEY_Device_DriverInfPath
+DEVPKEY_Device_FriendlyName
+DEVPKEY_Device_HardwareIds
+DEVPKEY_Device_InstanceId
+DEVPKEY_Device_LocationInfo
+DEVPKEY_Device_Manufacturer
+DEVPKEY_Device_Service
+DEVPROP_TYPE_STRING
+DEVPROP_TYPE_STRING_LIST

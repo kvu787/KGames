@@ -13,6 +13,7 @@ use canvas::{
 };
 use game_input::*;
 
+use crate::devices::{Device, rumble_motor_names};
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source};
 
 const PLOT: Color = theme::INSET;
@@ -45,6 +46,10 @@ const TRIGGER_BAR_WIDTH: f32 = 40.0;
 const GAMEPAD_GAP: f32 = 24.0;
 const MOUSE_PAD_SIZE: f32 = 200.0;
 
+// At most this many characters of a value fit on one of a tooltip's lines.
+// Longer values wrap at spaces, and words longer than this stay whole.
+const TOOLTIP_COLUMNS: usize = 100;
+
 // What a click does at a place in the window.
 pub enum Click {
     // Opens or closes the gamepad select box's list.
@@ -52,37 +57,68 @@ pub enum Click {
     Choose(Listen),
 }
 
-// The places in the last frame drawn that react to clicks, topmost last.
+// The places in the last frame drawn that react to the mouse: where clicks
+// do something, topmost last, and the Devices panel's rows, each of which
+// shows a tooltip about its device while the cursor is over it.
 #[derive(Default)]
-pub struct Targets(Vec<(Rect, Click)>);
+pub struct Targets {
+    clicks: Vec<(Rect, Click)>,
+    // Each row's area, and its device's label.
+    device_rows: Vec<(Rect, String)>,
+    // The device whose tooltip the frame shows, and the tooltip's area.
+    tooltip: Option<(String, Rect)>,
+}
 
 impl Targets {
     pub fn at(&self, point: [f32; 2]) -> Option<&Click> {
-        self.0
+        self.clicks
             .iter()
             .rev()
             .find(|(area, _)| area.contains(point))
             .map(|(_, click)| click)
     }
 
-    // Where they are, for scripted runs to save, for writing scripts.
+    // Where the clicks go, for scripted runs to save, for writing scripts.
     pub fn state(&self) -> json::Value {
         json::Value::Array(
-            self.0
+            self.clicks
                 .iter()
                 .map(|(area, click)| {
                     let name = match click {
                         Click::Picker => "Select box".to_string(),
                         Click::Choose(listen) => format!("Choose {}", listen.label()),
                     };
-                    json::object([
-                        ("Name", name.into()),
-                        ("Area", [area.x, area.y, area.width, area.height].into()),
-                    ])
+                    area_state(name, *area)
                 })
                 .collect(),
         )
     }
+
+    // Where the device rows are, for scripted runs to save, for moving the
+    // cursor onto one.
+    pub fn device_rows_state(&self) -> json::Value {
+        json::Value::Array(
+            self.device_rows
+                .iter()
+                .map(|(area, label)| area_state(label.clone(), *area))
+                .collect(),
+        )
+    }
+
+    // The device whose tooltip shows, and where, or null.
+    pub fn tooltip_state(&self) -> json::Value {
+        self.tooltip
+            .as_ref()
+            .map(|(label, area)| area_state(label.clone(), *area))
+            .into()
+    }
+}
+
+fn area_state(name: String, area: Rect) -> json::Value {
+    json::object([
+        ("Name", name.into()),
+        ("Area", [area.x, area.y, area.width, area.height].into()),
+    ])
 }
 
 // What the header and footer show besides input.
@@ -268,15 +304,22 @@ pub fn draw(
 
     let mut targets = Targets::default();
     let picker = draw_gamepad(canvas, input, status, gamepad_area);
-    targets.0.push((picker, Click::Picker));
+    targets.clicks.push((picker, Click::Picker));
     draw_latest(canvas, input, latest_area);
     draw_keyboard(canvas, input, keyboard_area);
     draw_mouse(canvas, input, mouse_area);
-    draw_devices(canvas, input, devices_area);
+    let hovered = draw_devices(canvas, input, status, devices_area, &mut targets);
     draw_log(canvas, input, log_area);
     // Last, so the list covers the panels under it.
     if status.picker_open {
         draw_picker_list(canvas, input, status, picker, width - MARGIN, &mut targets);
+    }
+    // And the tooltip covers everything, unless the cursor is on the list.
+    if let (Some(device), Some(cursor)) = (hovered, status.cursor)
+        && targets.at(cursor).is_none()
+    {
+        let area = draw_tooltip(canvas, device, cursor, width, height);
+        targets.tooltip = Some((device.label.clone(), area));
     }
     targets
 }
@@ -556,7 +599,7 @@ fn draw_picker_list(
             row.right() - inset - detail_x,
             DIM,
         );
-        targets.0.push((row, Click::Choose(listen)));
+        targets.clicks.push((row, Click::Choose(listen)));
     }
 }
 
@@ -869,7 +912,15 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
     );
 }
 
-fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect) {
+// Adds a target for each device's row, and returns the device whose row the
+// cursor is over, if any.
+fn draw_devices<'a>(
+    canvas: &mut Canvas,
+    input: &'a Input,
+    status: &Status,
+    area: Rect,
+    targets: &mut Targets,
+) -> Option<&'a Device> {
     let line_height = canvas.line_height();
     let inner = panel(
         canvas,
@@ -889,8 +940,21 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect) {
     } else {
         input.devices.len()
     };
+    let mut hovered = None;
     // The gamepad the panel shows is highlighted, and those ignored are faint.
     for info in input.devices.iter().take(shown) {
+        // Each row reaches halfway into the panel's padding on both sides.
+        let row = Rect::new(
+            inner.x - PADDING * 0.5,
+            lines.y,
+            inner.width + PADDING,
+            line_height,
+        );
+        if status.cursor.is_some_and(|point| row.contains(point)) {
+            canvas.rect(row.x, row.y, row.width, row.height, BORDER);
+            hovered = Some(info);
+        }
+        targets.device_rows.push((row, info.label.clone()));
         let color = if input.gamepad.device == Some(info.id) {
             LEFT
         } else if !input.listens_to(info) {
@@ -916,6 +980,79 @@ fn draw_devices(canvas: &mut Canvas, input: &Input, area: Rect) {
             DIM,
         );
     }
+    hovered
+}
+
+// What's known about a device, in a box by the cursor: under it, or above
+// it if there isn't room, and always inside the window. Returns its area.
+fn draw_tooltip(
+    canvas: &mut Canvas,
+    device: &Device,
+    cursor: [f32; 2],
+    width: f32,
+    height: f32,
+) -> Rect {
+    let line_height = canvas.line_height();
+    let char_width = canvas.char_width();
+    let indent = char_width * 2.0;
+    let section_gap = (line_height * 0.4).round();
+
+    // Lay out the text first, from the box's top left, to know its size.
+    let mut texts: Vec<([f32; 2], String, Color)> = Vec::new();
+    let mut y = 0.0;
+    let mut right: f32 = canvas.text_width(&device.label);
+    texts.push(([0.0, y], device.label.clone(), TITLE));
+    y += line_height;
+    for section in device.details() {
+        y += section_gap;
+        right = right.max(canvas.text_width(&section.title));
+        texts.push(([0.0, y], section.title, theme::ACCENT));
+        y += line_height;
+        // The values line up after the section's longest name.
+        let value_x = indent
+            + section
+                .rows
+                .iter()
+                .map(|(name, _)| canvas.text_width(name))
+                .fold(0.0, f32::max)
+            + char_width * 2.0;
+        for (name, value) in section.rows {
+            texts.push(([indent, y], name, DIM));
+            for part in value.split('\n') {
+                for line in wrap(part, TOOLTIP_COLUMNS, 0) {
+                    right = right.max(value_x + canvas.text_width(&line));
+                    texts.push(([value_x, y], line, TEXT));
+                    y += line_height;
+                }
+            }
+        }
+    }
+
+    let (box_width, box_height) = (right + PADDING * 2.0, y + PADDING * 2.0);
+    let below = cursor[1] + line_height * 1.4;
+    let top = if below + box_height <= height - MARGIN {
+        below
+    } else {
+        (cursor[1] - line_height * 0.6 - box_height).max(MARGIN)
+    };
+    let left = (cursor[0] + char_width)
+        .min(width - MARGIN - box_width)
+        .max(MARGIN);
+    let area = Rect::new(left, top, box_width, box_height);
+    // A shadow, like the select box's list has.
+    canvas.rect(
+        area.x + 3.0,
+        area.y + 3.0,
+        area.width,
+        area.height,
+        Color::rgb(0x000000).alpha(0.15),
+    );
+    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
+    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, DIM);
+    for ([x, y], text, color) in texts {
+        canvas.text(area.x + PADDING + x, area.y + PADDING + y, &text, color);
+    }
+    area
 }
 
 fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect) {
@@ -951,24 +1088,6 @@ fn source_color(source: Source) -> Color {
         Source::Mouse => WARNING,
         Source::Device => PRESSED,
         Source::Demo => DIM,
-    }
-}
-
-fn rumble_motor_names(motors: GameInputRumbleMotors) -> String {
-    let names: Vec<&str> = [
-        (GameInputRumbleLowFrequency, "low frequency"),
-        (GameInputRumbleHighFrequency, "high frequency"),
-        (GameInputRumbleLeftTrigger, "left trigger"),
-        (GameInputRumbleRightTrigger, "right trigger"),
-    ]
-    .iter()
-    .filter(|(motor, _)| motors & motor != 0)
-    .map(|(_, name)| *name)
-    .collect();
-    if names.is_empty() {
-        "none".to_string()
-    } else {
-        names.join(", ")
     }
 }
 

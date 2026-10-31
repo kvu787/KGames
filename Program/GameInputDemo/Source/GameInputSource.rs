@@ -11,8 +11,9 @@ use std::ffi::c_void;
 use std::sync::Mutex;
 
 use game_input::*;
-use windows_core::{HRESULT, Interface, Result};
+use windows_core::{GUID, HRESULT, Interface, Result};
 
+use crate::device_tree::Tree;
 use crate::devices::{Device, InputSource, Reading};
 
 // The device callback runs on one of GameInput's threads. It only queues the
@@ -280,44 +281,62 @@ unsafe fn returned(code: HRESULT, reading: *mut c_void) -> std::result::Result<I
     }
 }
 
-// A device's data, from GameInput.
+// A device's data, from GameInput, and from Windows' device tree.
 unsafe fn describe(device: &IGameInputDevice) -> Device {
     unsafe {
-        let size = device.GetDisplayName(&mut []);
-        let mut name = vec![0u8; size as usize];
-        device.GetDisplayName(&mut name);
-        let name = String::from_utf8_lossy(&name)
-            .trim_end_matches('\0')
-            .to_string();
+        let name = utf8(|buffer| device.GetDisplayName(buffer));
         let name = if name.is_empty() {
             "Unnamed device".to_string()
         } else {
             name
         };
+        let pnp_path = utf8(|buffer| device.GetPnpPath(buffer));
+        let (vendor_id, product_id) = (device.GetVendorId(), device.GetProductId());
 
+        let mut usage = GameInputUsage::default();
+        device.GetUsage(&mut usage);
+        let mut hardware_version = GameInputVersion::default();
+        device.GetHardwareVersion(&mut hardware_version);
+        let mut firmware_version = GameInputVersion::default();
+        device.GetFirmwareVersion(&mut firmware_version);
+        let mut container_id = GUID::zeroed();
+        device.GetContainerId(&mut container_id);
         let mut xinput_index = 0;
-        let mut mouse_info = GameInputMouseInfo::default();
-        let mut gamepad_info = GameInputGamepadInfo::default();
+        let mut keyboard = GameInputKeyboardInfo::default();
+        let mut mouse = GameInputMouseInfo::default();
+        let mut gamepad = GameInputGamepadInfo::default();
         Device {
             id: device.as_raw() as usize,
-            label: format!(
-                "{name} ({:04X}:{:04X})",
-                device.GetVendorId(),
-                device.GetProductId()
-            ),
+            label: format!("{name} ({vendor_id:04X}:{product_id:04X})"),
+            vendor_id,
+            product_id,
+            revision: device.GetRevisionNumber(),
+            usage,
+            hardware_version,
+            firmware_version,
             family: device.GetDeviceFamily(),
             supported_input: device.GetSupportedInput(),
             rumble_motors: device.GetSupportedRumbleMotors(),
+            system_buttons: device.GetSupportedSystemButtons(),
+            container_id,
+            tree: Tree::look_up(pnp_path.clone()),
+            pnp_path,
             xinput_index: device
                 .GetXInputDeviceIndex(&mut xinput_index)
                 .then_some(xinput_index),
-            mouse_sample_rate: device
-                .GetMouseInfo(&mut mouse_info)
-                .then_some(mouse_info.sampleRate)
-                .filter(|&rate| rate > 0),
-            gamepad_layout: device
-                .GetGamepadInfo(&mut gamepad_info)
-                .then_some(gamepad_info.supportedLayout),
+            keyboard: device.GetKeyboardInfo(&mut keyboard).then_some(keyboard),
+            mouse: device.GetMouseInfo(&mut mouse).then_some(mouse),
+            gamepad: device.GetGamepadInfo(&mut gamepad).then_some(gamepad),
         }
     }
+}
+
+// A string that a GameInput method writes as UTF-8 with a terminating zero,
+// after saying how big it is when given an empty buffer.
+fn utf8(get: impl Fn(&mut [u8]) -> u32) -> String {
+    let mut buffer = vec![0u8; get(&mut []) as usize];
+    get(&mut buffer);
+    String::from_utf8_lossy(&buffer)
+        .trim_end_matches('\0')
+        .to_string()
 }

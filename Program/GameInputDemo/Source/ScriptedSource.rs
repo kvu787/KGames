@@ -24,7 +24,9 @@ use application::virtual_key;
 use game_input::*;
 use json::Value;
 use windows_api::{MAPVK_VK_TO_VSC_EX, MapVirtualKeyW};
+use windows_core::GUID;
 
+use crate::device_tree::Tree;
 use crate::devices::{Device, InputSource, Reading};
 use crate::input::{GAMEPAD_BUTTONS, MOUSE_BUTTONS};
 
@@ -135,12 +137,24 @@ impl ScriptedSource {
                 self.connect(Device {
                     id: id(value)?,
                     label,
+                    vendor_id: 0,
+                    product_id: 0,
+                    revision: 0,
+                    usage: GameInputUsage::default(),
+                    hardware_version: GameInputVersion::default(),
+                    firmware_version: GameInputVersion::default(),
                     family: GameInputFamilyVirtual,
                     supported_input,
                     rumble_motors,
+                    system_buttons: GameInputSystemButtonNone,
+                    container_id: GUID::zeroed(),
+                    pnp_path: String::new(),
                     xinput_index: None,
-                    mouse_sample_rate: None,
-                    gamepad_layout: (supported_input & GameInputKindGamepad != 0).then_some(0),
+                    keyboard: None,
+                    mouse: None,
+                    gamepad: (supported_input & GameInputKindGamepad != 0)
+                        .then(GameInputGamepadInfo::default),
+                    tree: Tree::known(Err("the device comes from a script".to_string())),
                 });
                 Ok(())
             }

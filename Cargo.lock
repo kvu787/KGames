@@ -68,6 +68,7 @@ dependencies = [
  "game_input",
  "game_input_demo",
  "json",
+ "windows-core",
 ]
 
 [[package]]
