@@ -4,9 +4,8 @@ A Rust program that reads gamepads, keyboards and mice with Microsoft's
 [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview)
 API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
-It's built like [HelloDirect3D12](../HelloDirect3D12/README.md): no frameworks, and
-Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate is the only dependency
-besides the repo's own [Library](../../Library) crates.
+It uses no frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate
+is the only dependency besides the repo's own [Library](../../Library) crates.
 
 ## Supported window setups
 

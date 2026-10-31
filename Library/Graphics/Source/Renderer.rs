@@ -1,7 +1,6 @@
 // The Direct3D 12 renderer that every program's frames go through: the device,
 // a flip model swap chain for the window, and the pacing of frames. Programs
-// record their own draws into each frame, between is_ready and present. Its
-// setup follows HelloDirect3D12.
+// record their own draws into each frame, between is_ready and present.
 //
 // It's set up so that input reaches the screen as soon as possible: a frame
 // only reads input once the previous one has left the GPU and DXGI's queue,
