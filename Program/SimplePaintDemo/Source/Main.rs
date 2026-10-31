@@ -60,6 +60,8 @@ fn main() -> Result<()> {
                 std::hint::spin_loop();
                 continue;
             }
+            // The frame's setup, before the input is read.
+            renderer.begin_frame()?;
 
             // Read input only now, right before drawing, so the frame shows
             // the newest. Without focus, there's none.

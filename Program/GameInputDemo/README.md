@@ -270,10 +270,8 @@ response, is outside the demo.
    and a maximum frame latency of 1, and only one frame is on the GPU at a time. By
    default, DXGI lets 3 presented frames queue up, and each one delays the newest.
 2. **Input is read last.** Each frame, the main loop first waits until the GPU has finished
-   the previous frame and DXGI's queue has room. Only then does it read GameInput, build
-   the frame and present it, so no readings age during the wait. The GPU finishes about
-   45 µs before DXGI's queue has room, and the demo records the commands that don't depend
-   on input in between.
+   the previous frame and DXGI's queue has room. Only then does it start the frame, read
+   GameInput, build the frame and present it, so no readings age during the wait.
 3. **The wait spins.** The loop polls both conditions instead of blocking on events, so it
    notices them within microseconds, instead of waiting for Windows to wake its thread.
    It keeps handling window messages while it spins.

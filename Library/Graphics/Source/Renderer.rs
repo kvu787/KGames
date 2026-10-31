@@ -1,6 +1,6 @@
 // The Direct3D 12 renderer that every program's frames go through: the device,
 // a flip model swap chain for the window, and the pacing of frames. Programs
-// record their own draws into each frame, between is_ready and present.
+// record their own draws into each frame, between begin_frame and present.
 //
 // It's set up so that input reaches the screen as soon as possible: a frame
 // only reads input once the previous one has left the GPU and DXGI's queue,
@@ -53,9 +53,8 @@ pub struct Renderer {
     swap_chain_flags: u32,
     // Signaled when DXGI's queue of presented frames has room for another.
     frame_latency_event: HANDLE,
-    // Whether frame_latency_event has been waited on since the last Present.
-    queue_has_room: bool,
-    // The back buffer that is_ready started recording the next frame for.
+    // The back buffer of the frame being recorded, between begin_frame and
+    // present.
     recording: Option<usize>,
     // Where to save the frame being recorded, once it's presented.
     capture: Option<PathBuf>,
@@ -226,7 +225,6 @@ impl Renderer {
                 allow_tearing,
                 swap_chain_flags,
                 frame_latency_event,
-                queue_has_room: false,
                 recording: None,
                 capture: None,
                 width: actual.Width,
@@ -313,28 +311,16 @@ impl Renderer {
     // they used can be released. Programs call it once their main loop ends,
     // as what they made for their draws is dropped before the renderer.
     pub fn wait_for_gpu(&mut self) -> Result<()> {
-        unsafe {
-            self.discard_frame()?;
-            self.wait_for_idle()
-        }
+        unsafe { self.wait_for_idle() }
     }
 
-    // Drops the frame that is_ready started recording, if any, so that the
-    // command allocator can be reset and the back buffers released.
-    unsafe fn discard_frame(&mut self) -> Result<()> {
-        if self.recording.take().is_some() {
-            unsafe { self.command_list.Close() }.ok()?;
-        }
-        Ok(())
-    }
-
+    // Call it between frames, not between begin_frame and present.
     pub unsafe fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         unsafe {
             if width == 0 || height == 0 || (width == self.width && height == self.height) {
                 return Ok(());
             }
             // All references to the old back buffers must be gone before ResizeBuffers.
-            self.discard_frame()?;
             self.wait_for_idle()?;
             self.back_buffers.clear();
             self.swap_chain
@@ -355,12 +341,11 @@ impl Renderer {
         }
     }
 
-    // Records commands with the command list outside of a frame, like the
-    // copy that uploads a texture, runs them, and waits for the GPU to finish.
+    // Records commands with the command list between frames, like the copy
+    // that uploads a texture, runs them, and waits for the GPU to finish.
     // It's for setup, not for frames.
     pub unsafe fn run(&mut self, record: impl FnOnce(&ID3D12GraphicsCommandList)) -> Result<()> {
         unsafe {
-            self.discard_frame()?;
             self.wait_for_idle()?;
             self.allocator.Reset().ok()?;
             self.command_list.Reset(&self.allocator, None).ok()?;
@@ -374,37 +359,32 @@ impl Renderer {
 
     // Whether a frame drawn now would reach the screen without waiting behind
     // an older one: the GPU has finished the previous frame, and DXGI's queue
-    // has room. It doesn't block, so the caller can keep reading the newest
-    // input until it's true, then draw with it.
-    //
-    // The GPU usually finishes tens of microseconds before DXGI's queue has
-    // room. In between, this starts the frame: it resets the command list,
-    // transitions the back buffer to a render target, and sets it as the
-    // render target, with the viewport and scissor rectangle, so that isn't
-    // left for between reading input and presenting. Programs record all of
-    // their own draws after it's true.
-    pub unsafe fn is_ready(&mut self) -> Result<bool> {
+    // has room. It doesn't block, so the caller can keep polling it, and read
+    // the newest input once it's true. A true answer is for one frame: waiting
+    // on the event takes the room in DXGI's queue, like a semaphore, so draw
+    // and present that frame before asking again.
+    pub unsafe fn is_ready(&self) -> Result<bool> {
         unsafe {
-            if self.recording.is_none() {
-                if self.fence.GetCompletedValue() < self.last_fence_value {
-                    return Ok(false);
-                }
-                self.begin_frame()?;
+            if self.fence.GetCompletedValue() < self.last_fence_value {
+                return Ok(false);
             }
-            if !self.queue_has_room {
-                match WaitForSingleObject(self.frame_latency_event, 0) as i32 {
-                    WAIT_OBJECT_0 => self.queue_has_room = true,
-                    WAIT_TIMEOUT => {}
-                    _ => return Err(Error::from_thread()),
-                }
+            match WaitForSingleObject(self.frame_latency_event, 0) as i32 {
+                WAIT_OBJECT_0 => Ok(true),
+                WAIT_TIMEOUT => Ok(false),
+                _ => Err(Error::from_thread()),
             }
-            Ok(self.queue_has_room)
         }
     }
 
-    // Starts recording a frame, with the back buffer as the render target.
-    // The GPU must have finished with the command allocator.
-    unsafe fn begin_frame(&mut self) -> Result<()> {
+    // Starts the frame once is_ready is true: resets the command list,
+    // transitions the back buffer to a render target, and sets it as the
+    // render target, with the viewport and scissor rectangle. Programs call
+    // it before reading input, then record their draws, then present.
+    pub unsafe fn begin_frame(&mut self) -> Result<()> {
+        assert!(
+            self.recording.is_none(),
+            "begin_frame is called once per frame, before present"
+        );
         unsafe {
             let index = self.swap_chain.GetCurrentBackBufferIndex() as usize;
             self.allocator.Reset().ok()?;
@@ -422,7 +402,7 @@ impl Renderer {
 
     fn frame_index(&self) -> usize {
         self.recording
-            .expect("frames are recorded once is_ready is true, until present")
+            .expect("frames are recorded between begin_frame and present")
     }
 
     // The back buffer of the frame being recorded. It's in the render target
@@ -512,13 +492,13 @@ impl Renderer {
         Ok(())
     }
 
-    // Finishes the frame that is_ready started, and presents it.
+    // Finishes the frame that begin_frame started, and presents it.
     pub unsafe fn present(&mut self) -> Result<()> {
         unsafe {
             let index = self
                 .recording
                 .take()
-                .expect("present is called once is_ready is true");
+                .expect("present is called once per frame, after begin_frame");
             let back_buffer = &self.back_buffers[index];
             let list = &self.command_list;
             // A capture copies the frame into memory the CPU can read.
@@ -593,7 +573,6 @@ impl Renderer {
                 0
             };
             self.swap_chain.Present(0, flags).ok()?;
-            self.queue_has_room = false;
 
             self.last_fence_value += 1;
             self.queue.Signal(&self.fence, self.last_fence_value).ok()?;

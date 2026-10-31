@@ -63,6 +63,8 @@ fn main() -> Result<()> {
                 std::hint::spin_loop();
                 continue;
             }
+            // The frame's setup, before the time and input are read.
+            renderer.begin_frame()?;
 
             // Read the time and input only now, right before drawing, so the
             // frame shows the newest.

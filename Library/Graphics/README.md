@@ -8,19 +8,18 @@ frames, which gets input to the screen as soon as possible:
 
 - It draws with the GPU that the window's monitor is connected to.
 - One frame is in flight at a time, and DXGI's queue holds at most one presented frame.
-- `Renderer::is_ready` doesn't block. A program's main loop spins on it, and reads input only
-  once it's true, right before recording and presenting the frame. While it waits for DXGI's
-  queue, it starts the frame: it resets the command list, transitions the back buffer to a
-  render target, and sets it as the render target, with the viewport and scissor rectangle.
-  Programs record all of their own draws after it's true.
+- `Renderer::is_ready` doesn't block. A program's main loop spins on it. Once it's true,
+  `Renderer::begin_frame` resets the command list, transitions the back buffer to a render
+  target, and sets it as the render target, with the viewport and scissor rectangle. Only then
+  does the program read input and record its draws, so the input is as new as it can be.
 - `Renderer::present` doesn't wait for vertical sync, and lets frames tear if the driver allows
   it and the program asks for it.
 
 [GameInputDemo's README](../../Program/GameInputDemo/README.md#input-latency) explains each of
 these choices.
 
-Each frame, a program records its draws into `Renderer::command_list`, between `is_ready` and
-`present`. The back buffer has two views: `render_target`, as it's stored, for colors that are
+Each frame, a program records its draws into `Renderer::command_list`, between `begin_frame`
+and `present`. The back buffer has two views: `render_target`, as it's stored, for colors that are
 already sRGB, like the theme's; and `srgb_render_target`, which encodes linear colors to sRGB,
 for shaders like SimplePaint's. A renderer made with a depth buffer also has `depth_stencil`.
 

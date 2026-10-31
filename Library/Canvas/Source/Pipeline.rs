@@ -77,7 +77,7 @@ impl Pipeline {
 
     // Draws the triangles over the frame that the renderer is recording,
     // with the back buffer viewed as it's stored, as the canvas's colors are
-    // sRGB already. Call it between is_ready and present.
+    // sRGB already. Call it between begin_frame and present.
     pub unsafe fn draw(&self, renderer: &Renderer, vertices: &[Vertex]) {
         unsafe {
             // The GPU has finished the previous frame, so it's done reading
