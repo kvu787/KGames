@@ -3,7 +3,8 @@
 Builds one of the GUI programs in `Program`, opens it on one display without taking focus,
 saves a screenshot of its window, and closes it. Or runs it with scripts of input, which test
 it without your mouse and keyboard. It's how coding agents run the programs while you work in
-other windows (see the [AGENTS.md](../../AGENTS.md) at the root).
+other windows (see the [AGENTS.md](../../AGENTS.md) at the root), or while your machine is
+locked, which works the same.
 
 ```powershell
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo

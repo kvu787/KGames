@@ -90,6 +90,14 @@ How:
 - Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Test input with tests and scripts instead, as below.
 - Tests that use the GPU, like `cargo test -p simple_paint_tests`, draw offscreen, without a window, so run them freely.
 
+## While the machine is locked
+
+All of the above works the same while the user's machine is locked, so keep working as usual while the user is away:
+
+- Builds, `cargo test --workspace`, and RunInBackground's screenshots and scripts work, and draw the same frames. The lock screen has focus, so programs never do, as in any run.
+- About 20 seconds after the displays turn off, the DisplayPort monitors, 9XH36C and KXGR16, drop off the desktop. CVVNY2 is on HDMI, so it stays, at 2560 × 1440 with the same work area, and programs open on it as usual. It becomes the primary display at 0, 0, and `IdentifyDisplays --list` also lists the laptop's built-in screen, S0S7NM, at the same place.
+- Leave the machine's power alone: don't lock or unlock it, wake or turn off its displays, or change its power settings.
+
 ## Testing input
 
 Test what programs do with input in two layers, which never touch the user's input or focus:
