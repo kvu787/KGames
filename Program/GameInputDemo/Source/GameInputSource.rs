@@ -7,10 +7,11 @@
 // to say what changed, as GetPreviousReading fails once the reading before
 // has left the history, like after a pause in input.
 
+use std::ffi::c_void;
 use std::sync::Mutex;
 
 use game_input::*;
-use windows_core::{Interface, Result};
+use windows_core::{HRESULT, Interface, Result};
 
 use crate::devices::{Device, InputSource, Reading};
 
@@ -128,7 +129,7 @@ impl GameInputSource {
         unsafe {
             let Some(index) = self.last_readings.iter().position(|(last_kind, _)| *last_kind == kind) else {
                 // The first time, start from the newest reading.
-                if let Ok(current) = self.game_input.GetCurrentReading(kind, None) {
+                if let Ok(current) = self.current_reading(kind) {
                     self.last_readings.push((kind, current.clone()));
                     readings.push(current);
                 }
@@ -136,7 +137,7 @@ impl GameInputSource {
             };
             let mut last = self.last_readings[index].1.clone();
             loop {
-                match self.game_input.GetNextReading(&last, kind, None) {
+                match self.next_reading(&last, kind) {
                     Ok(next) => {
                         readings.push(next.clone());
                         last = next;
@@ -144,7 +145,7 @@ impl GameInputSource {
                     // GameInput keeps readings for only a short time, so after
                     // a pause in input the last reading handled is no longer in
                     // its history. Find the ones after it from the newest end.
-                    Err(error) if error.code() == GAMEINPUT_E_REFERENCE_READING_TOO_OLD => {
+                    Err(GAMEINPUT_E_REFERENCE_READING_TOO_OLD) => {
                         readings.extend(self.readings_after(last.GetTimestamp(), kind));
                         break;
                     }
@@ -157,6 +158,43 @@ impl GameInputSource {
             }
         }
         readings
+    }
+
+    // GetCurrentReading and GetNextReading, with the HRESULT that GameInput
+    // returns. They fail every frame for each kind of input with nothing new
+    // to read, and the bindings' Result makes each failure a
+    // windows_core::Error, which asks COM for the thread's error info.
+    unsafe fn current_reading(&self, kind: GameInputKind) -> std::result::Result<IGameInputReading, HRESULT> {
+        let game_input = &self.game_input;
+        let mut reading = std::ptr::null_mut();
+        unsafe {
+            let code = (Interface::vtable(game_input).GetCurrentReading)(
+                game_input.as_raw(),
+                kind,
+                std::ptr::null_mut(),
+                &mut reading,
+            );
+            returned(code, reading)
+        }
+    }
+
+    unsafe fn next_reading(
+        &self,
+        last: &IGameInputReading,
+        kind: GameInputKind,
+    ) -> std::result::Result<IGameInputReading, HRESULT> {
+        let game_input = &self.game_input;
+        let mut reading = std::ptr::null_mut();
+        unsafe {
+            let code = (Interface::vtable(game_input).GetNextReading)(
+                game_input.as_raw(),
+                last.as_raw(),
+                kind,
+                std::ptr::null_mut(),
+                &mut reading,
+            );
+            returned(code, reading)
+        }
     }
 
     // Readings of one kind newer than a timestamp, oldest first. Walks back
@@ -229,6 +267,16 @@ impl InputSource for GameInputSource {
 impl Drop for GameInputSource {
     fn drop(&mut self) {
         unsafe { self.game_input.UnregisterCallback(self.callback_token) };
+    }
+}
+
+// The reading that a GameInput call returned, which is now ours to release,
+// or the HRESULT that it failed with.
+unsafe fn returned(code: HRESULT, reading: *mut c_void) -> std::result::Result<IGameInputReading, HRESULT> {
+    if code.is_ok() {
+        Ok(unsafe { IGameInputReading::from_raw(reading) })
+    } else {
+        Err(code)
     }
 }
 

@@ -261,10 +261,49 @@ impl<'a> Canvas<'a> {
         if text.chars().count() <= fit {
             return self.text(x, y, text, color);
         }
-        let mut shortened: String = text.chars().take(fit.saturating_sub(3)).collect();
-        shortened.push_str("...");
-        let shortened: String = shortened.chars().take(fit).collect();
-        self.text(x, y, &shortened, color)
+        // As much of the text as fits with the dots, then as many of the
+        // dots as fit.
+        let dots = fit.min(3);
+        let end = text
+            .char_indices()
+            .nth(fit - dots)
+            .map_or(text.len(), |(index, _)| index);
+        let x = self.text(x, y, &text[..end], color);
+        self.text(x, y, &"..."[..dots], color)
+    }
+}
+
+// The vertices that a part of a frame was drawn with, to add again in later
+// frames instead of drawing it again, while what it shows stays the same:
+// while its key, made of everything it depends on, is the same. They have
+// the font's texture coordinates, so one Cached is for canvases with one font.
+pub struct Cached<K> {
+    key: Option<K>,
+    vertices: Vec<Vertex>,
+}
+
+impl<K> Default for Cached<K> {
+    fn default() -> Self {
+        Self {
+            key: None,
+            vertices: Vec::new(),
+        }
+    }
+}
+
+impl<K: PartialEq> Cached<K> {
+    // Adds the vertices kept from the last call if it had the same key, or
+    // else draws with `draw`, and keeps what it added.
+    pub fn draw(&mut self, canvas: &mut Canvas, key: K, draw: impl FnOnce(&mut Canvas)) {
+        if self.key.as_ref() == Some(&key) {
+            canvas.vertices.extend_from_slice(&self.vertices);
+            return;
+        }
+        let start = canvas.vertices.len();
+        draw(canvas);
+        self.vertices.clear();
+        self.vertices.extend_from_slice(&canvas.vertices[start..]);
+        self.key = Some(key);
     }
 }
 

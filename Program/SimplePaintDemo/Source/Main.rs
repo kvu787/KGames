@@ -28,13 +28,14 @@ fn main() -> Result<()> {
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, false)?;
         let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let preview = Preview::new(&mut renderer)?;
+        let mut preview = Preview::new(&mut renderer)?;
         // The title bar says how frames are presented, as it affects latency.
         let description = renderer.description();
         window.set_title(&format!("{NAME} - {description}"))?;
         window.show(arguments.activate);
         let mut frames = FrameCounter::default();
         let mut vertices = Vec::new();
+        let mut cache = panels::Cache::default();
         // Where clicks do something in the last frame drawn.
         let mut targets = Vec::new();
 
@@ -85,6 +86,7 @@ fn main() -> Result<()> {
             };
             let layout = panels::draw(
                 &mut canvas,
+                &mut cache,
                 &editor,
                 &status,
                 renderer.width as f32,

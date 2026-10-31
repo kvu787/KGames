@@ -58,7 +58,26 @@ pub struct LogEntry {
     pub text: String,
     // How many readings were merged into this entry. See Input::log.
     pub count: u32,
+    // The entry as the log panel shows it, made when the entry changes
+    // instead of every frame: the time, the source from `source_at`, and the
+    // text and count from `text_at`.
+    pub line: String,
+    pub source_at: usize,
+    pub text_at: usize,
     merge_key: Option<(Source, usize)>,
+}
+
+impl LogEntry {
+    fn format_line(&mut self) {
+        let time = format!("{:>8.3}  ", self.time);
+        let source = format!("{:<9}", self.source.name());
+        self.source_at = time.len();
+        self.text_at = time.len() + source.len();
+        self.line = time + &source + &self.text;
+        if self.count > 1 {
+            self.line += &format!("  (x{})", self.count);
+        }
+    }
 }
 
 // The most recent reading that changed something, described in full.
@@ -255,6 +274,10 @@ pub struct KeyboardView {
     pub device: Option<usize>,
     pub label: String,
     pub keys: Vec<GameInputKeyState>,
+    // Each key's describe_key, in the same order, made when the keys change
+    // instead of every frame, as GetKeyNameTextW and the formatting take a
+    // third of a microsecond a key.
+    pub descriptions: Vec<String>,
     pub rate: RateCounter,
 }
 
@@ -363,6 +386,7 @@ impl Input {
             // Keys, buttons and sticks let go of after the window lost focus
             // are never seen, so stop showing them as held.
             self.keyboard.keys.clear();
+            self.keyboard.descriptions.clear();
             self.mouse.state.buttons = 0;
             let device = self.gamepad.device;
             self.view_gamepad(device);
@@ -812,7 +836,8 @@ impl Input {
             }
         }
 
-        let mut summary: Vec<String> = keys.iter().map(describe_key).collect();
+        let descriptions: Vec<String> = keys.iter().map(describe_key).collect();
+        let mut summary = descriptions.clone();
         if summary.is_empty() {
             summary.push("No keys down".to_string());
         }
@@ -822,6 +847,7 @@ impl Input {
             view.device = device;
             view.label = label.to_string();
             view.keys = keys;
+            view.descriptions = descriptions;
         }
         (changes, summary, false)
     }
@@ -938,15 +964,21 @@ impl Input {
             last.time = time;
             last.text = text;
             last.count += 1;
+            last.format_line();
             return;
         }
-        self.log.push_front(LogEntry {
+        let mut entry = LogEntry {
             time,
             source,
             text,
             count: 1,
+            line: String::new(),
+            source_at: 0,
+            text_at: 0,
             merge_key,
-        });
+        };
+        entry.format_line();
+        self.log.push_front(entry);
         self.log.truncate(LOG_CAPACITY);
     }
 

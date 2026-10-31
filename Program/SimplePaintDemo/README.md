@@ -74,12 +74,16 @@ each button are, as `Targets`.
 ## How it draws
 
 Each frame, after the renderer is ready, the demo reads the window's input, builds the
-panels on a canvas, and draws them in one draw call. It then draws the sphere into its own
-4x multisampled texture, through an sRGB view, so the shader's linear output is encoded once,
-and resolves it, which averages the samples in linear light. It copies the result into the
-back buffer over the preview panel. The copy keeps the bytes, which are sRGB, as the back
-buffer's are. The sphere has 256 vertices around and 128 bands from pole to pole, so its edge
-looks round and its normals interpolate smoothly.
+panels on a canvas, and draws them in one draw call. The tone curve's lines and color ramp
+are most of the panels' vertices and math, so the demo keeps their vertices, and builds them
+again only when the base color or Brightness changes.
+
+The demo draws the sphere into its own 4x multisampled texture, through an sRGB view, so the
+shader's linear output is encoded once, and resolves it, which averages the samples in linear
+light. It keeps the result, and draws the sphere again only when the material changes. Each
+frame, it copies the result into the back buffer over the preview panel. The copy keeps the
+bytes, which are sRGB, as the back buffer's are. The sphere has 256 vertices around and 128
+bands from pole to pole, so its edge looks round and its normals interpolate smoothly.
 
 ## Layout
 

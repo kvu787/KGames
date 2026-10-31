@@ -13,7 +13,7 @@ use canvas::{
 };
 use game_input::*;
 
-use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source, describe_key};
+use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source};
 
 const PLOT: Color = theme::INSET;
 // The left and right sticks and triggers.
@@ -767,8 +767,8 @@ fn draw_keyboard(canvas: &mut Canvas, input: &Input, area: Rect) {
     } else {
         rows.saturating_sub(3).max(1)
     };
-    for key in view.keys.iter().take(room) {
-        lines.line(canvas, &format!("  {}", describe_key(key)), PRESSED);
+    for description in view.descriptions.iter().take(room) {
+        lines.line(canvas, &format!("  {description}"), PRESSED);
     }
     if view.keys.len() > room {
         lines.line(
@@ -931,18 +931,15 @@ fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect) {
         if !lines.has_room() {
             break;
         }
-        let mut x = canvas.text(lines.x, lines.y, &format!("{:>8.3}  ", entry.time), DIM);
+        let line = &entry.line;
+        let mut x = canvas.text(lines.x, lines.y, &line[..entry.source_at], DIM);
         x = canvas.text(
             x,
             lines.y,
-            &format!("{:<9}", entry.source.name()),
+            &line[entry.source_at..entry.text_at],
             source_color(entry.source),
         );
-        let mut text = entry.text.clone();
-        if entry.count > 1 {
-            text += &format!("  (x{})", entry.count);
-        }
-        canvas.text_clipped(x, lines.y, &text, inner.right() - x, TEXT);
+        canvas.text_clipped(x, lines.y, &line[entry.text_at..], inner.right() - x, TEXT);
         lines.y += line_height;
     }
 }
