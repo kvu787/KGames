@@ -131,6 +131,78 @@ struct Rumble {
 struct LastReading {
     kind: GameInputKind,
     reading: Reading,
+    masked: Masked,
+}
+
+// One device's keys or buttons of one kind of input that were held when the
+// window got focus, or while it didn't have it, and haven't been let go of
+// since. The demo ignores them until they are: it doesn't show them as held,
+// and doesn't say they were pressed or let go of. So the click that gives the
+// window focus, or the Alt of the Alt+Tab that switches to it, does only
+// that, and a shortcut held down in another window doesn't run here.
+#[derive(Default)]
+struct Masked {
+    // Gamepad or mouse buttons.
+    buttons: i32,
+    // Keyboard keys, by scan code.
+    keys: Vec<u32>,
+}
+
+impl Masked {
+    // Everything held in the reading, of this kind of input.
+    fn held(kind: GameInputKind, reading: &Reading) -> Self {
+        Self {
+            buttons: buttons(kind, reading),
+            keys: if kind == GameInputKindKeyboard {
+                reading.keys.iter().map(|key| key.scanCode).collect()
+            } else {
+                Vec::new()
+            },
+        }
+    }
+
+    // Of these, what's still held in the reading.
+    fn still_held(&self, kind: GameInputKind, reading: &Reading) -> Self {
+        Self {
+            buttons: self.buttons & buttons(kind, reading),
+            keys: self
+                .keys
+                .iter()
+                .copied()
+                .filter(|&code| reading.keys.iter().any(|key| key.scanCode == code))
+                .collect(),
+        }
+    }
+
+    // The state without what's masked.
+    fn gamepad(&self, mut state: GameInputGamepadState) -> GameInputGamepadState {
+        state.buttons &= !self.buttons;
+        state
+    }
+
+    fn mouse(&self, mut state: GameInputMouseState) -> GameInputMouseState {
+        state.buttons &= !self.buttons;
+        state
+    }
+
+    fn keys(&self, keys: &[GameInputKeyState]) -> Vec<GameInputKeyState> {
+        keys.iter()
+            .filter(|key| !self.keys.contains(&key.scanCode))
+            .copied()
+            .collect()
+    }
+}
+
+// The buttons held in the reading, of this kind of input. Keys aren't
+// buttons.
+fn buttons(kind: GameInputKind, reading: &Reading) -> i32 {
+    if kind == GameInputKindGamepad {
+        reading.gamepad.buttons
+    } else if kind == GameInputKindMouse {
+        reading.mouse.buttons
+    } else {
+        0
+    }
 }
 
 // Which gamepad the demo listens to, if any, chosen in the gamepad panel's
@@ -301,6 +373,10 @@ impl Input {
         let now = self.source.now();
         if !self.focused && focused {
             self.focus_timestamp = now;
+            // What's held now was pressed without focus.
+            for last in &mut self.last_readings {
+                last.masked = Masked::held(last.kind, &last.reading);
+            }
         }
         self.focused = focused;
         self.now = self.seconds(now);
@@ -461,13 +537,13 @@ impl Input {
         self.log(self.now, Source::Demo, text, None);
     }
 
-    // A gamepad's state from its last reading, to show it as soon as it's
-    // listened to.
+    // A gamepad's state from its last reading, without what's masked, to
+    // show it as soon as it's listened to.
     fn gamepad_state(&self, device: usize) -> Option<GameInputGamepadState> {
         let last = self.last_readings.iter().find(|last| {
             last.kind == GameInputKindGamepad && last.reading.device == Some(device)
         })?;
-        Some(last.reading.gamepad)
+        Some(last.masked.gamepad(last.reading.gamepad))
     }
 
     // Handles a reading if the window had focus for it, and keeps it as its
@@ -476,7 +552,13 @@ impl Input {
         let index = self.last_readings.iter().position(|last| {
             last.kind == kind && last.reading.device == reading.device
         });
-        let previous = index.map(|index| self.last_readings.swap_remove(index).reading);
+        let (previous, masked_before) = match index {
+            Some(index) => {
+                let last = self.last_readings.swap_remove(index);
+                (Some(last.reading), last.masked)
+            }
+            None => (None, Masked::default()),
+        };
         // KGames programs ignore all input while their window doesn't have
         // focus. GameInput gives gamepad input to windows without focus. It's
         // meant to give keyboard and mouse input only to the window in focus,
@@ -485,18 +567,32 @@ impl Input {
         // So the demo drops it all itself, along with input from before the
         // window got focus. Otherwise it would show and log what is typed
         // into other windows, and run its shortcuts for them.
-        if self.focused && reading.timestamp >= self.focus_timestamp {
-            self.handle_reading(source, kind, &reading, previous.as_ref());
+        let focused = self.focused && reading.timestamp >= self.focus_timestamp;
+        let masked = if focused {
+            masked_before.still_held(kind, &reading)
+        } else {
+            Masked::held(kind, &reading)
+        };
+        if focused {
+            self.handle_reading(source, kind, &reading, previous.as_ref(), &masked_before, &masked);
         }
-        self.last_readings.push(LastReading { kind, reading });
+        self.last_readings.push(LastReading {
+            kind,
+            reading,
+            masked,
+        });
     }
 
+    // `masked_before` is what was masked for the previous reading, and
+    // `masked` what is for this one.
     fn handle_reading(
         &mut self,
         source: Source,
         kind: GameInputKind,
         reading: &Reading,
         previous: Option<&Reading>,
+        masked_before: &Masked,
+        masked: &Masked,
     ) {
         let device = match reading.device {
             Some(id) => match self.devices.iter().find(|info| info.id == id) {
@@ -527,10 +623,24 @@ impl Input {
         let time = self.seconds(reading.timestamp);
         let id = reading.device;
 
+        // Both readings without what's masked, so it's neither reported nor
+        // shown.
         let (changes, state, motion_only) = match source {
-            Source::Gamepad => self.handle_gamepad(time, reading, previous, id),
-            Source::Keyboard => self.handle_keyboard(time, reading, previous, id, &label),
-            _ => self.handle_mouse(time, reading, previous, id, &label),
+            Source::Gamepad => {
+                let state = masked.gamepad(reading.gamepad);
+                let old = previous.map(|previous| masked_before.gamepad(previous.gamepad));
+                self.handle_gamepad(time, state, old.unwrap_or_default(), id)
+            }
+            Source::Keyboard => {
+                let keys = masked.keys(&reading.keys);
+                let old = previous.map(|previous| masked_before.keys(&previous.keys));
+                self.handle_keyboard(time, keys, old.unwrap_or_default(), id, &label)
+            }
+            _ => {
+                let state = masked.mouse(reading.mouse);
+                let old = previous.map(|previous| masked_before.mouse(previous.mouse));
+                self.handle_mouse(time, state, old, id, &label)
+            }
         };
         // A reading can repeat the previous state, or change only another
         // kind of input on a device with several kinds. Those are counted but
@@ -569,15 +679,14 @@ impl Input {
         }
     }
 
+    // `old` is the state of the device's previous reading, or idle.
     fn handle_gamepad(
         &mut self,
         time: f64,
-        reading: &Reading,
-        previous: Option<&Reading>,
+        state: GameInputGamepadState,
+        old: GameInputGamepadState,
         device: Option<usize>,
     ) -> (Vec<String>, Vec<String>, bool) {
-        let state = reading.gamepad;
-        let old = previous.map(|previous| previous.gamepad).unwrap_or_default();
         self.gamepad.rate.add(time);
         if let Some(device) = device {
             let sticks = [
@@ -671,17 +780,15 @@ impl Input {
         (changes, summary, motion_only)
     }
 
+    // `old` is the keys of the device's previous reading, or none.
     fn handle_keyboard(
         &mut self,
         time: f64,
-        reading: &Reading,
-        previous: Option<&Reading>,
+        keys: Vec<GameInputKeyState>,
+        old: Vec<GameInputKeyState>,
         device: Option<usize>,
         label: &str,
     ) -> (Vec<String>, Vec<String>, bool) {
-        let keys = reading.keys.clone();
-        let old = previous.map(|previous| previous.keys.clone()).unwrap_or_default();
-
         let mut changes = Vec::new();
         for key in &keys {
             if !old.iter().any(|old| old.scanCode == key.scanCode) {
@@ -714,17 +821,15 @@ impl Input {
         (changes, summary, false)
     }
 
+    // `old` is the state of the device's previous reading, if there was one.
     fn handle_mouse(
         &mut self,
         time: f64,
-        reading: &Reading,
-        previous: Option<&Reading>,
+        state: GameInputMouseState,
+        old: Option<GameInputMouseState>,
         device: Option<usize>,
         label: &str,
     ) -> (Vec<String>, Vec<String>, bool) {
-        let state = reading.mouse;
-        let old = previous.map(|previous| previous.mouse);
-
         let mut changes = Vec::new();
         let old_buttons = old.map_or(0, |old| old.buttons);
         for &(button, name) in MOUSE_BUTTONS {

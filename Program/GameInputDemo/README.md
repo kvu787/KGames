@@ -221,10 +221,15 @@ header says whether it has focus. GameInput gives gamepad input to windows witho
 meant to give keyboard and mouse input only to the window in focus, but the 4.0.306 runtime
 that the demo loads from its folder gives it to the demo without focus too, even after
 `EnableBackgroundInput(false)`. So the demo drops it all itself: readings that come while the
-window doesn't have focus or is minimized, and from before it got focus, like the click that
-gave it. Otherwise it would show and log what's typed into other windows, and its shortcuts
-would run when they're pressed in other apps. When the window loses focus, the panels stop
-showing keys, buttons and sticks as held.
+window doesn't have focus or is minimized, and from before it got focus. Otherwise it would
+show and log what's typed into other windows, and its shortcuts would run when they're pressed
+in other apps. When the window loses focus, the panels stop showing keys, buttons and sticks
+as held.
+
+Keys and buttons that are still held when the window gets focus, like the button of the click
+that gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go
+of: they don't show as held, and neither their press nor their release is logged. After that,
+they work as usual. Sticks, triggers and mouse motion show as usual right away.
 
 ## Input latency
 

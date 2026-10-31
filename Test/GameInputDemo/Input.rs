@@ -210,6 +210,96 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
 }
 
 #[test]
+fn the_click_that_gives_focus_does_only_that() {
+    let mut input = input();
+    step(&mut input, RODENT);
+    input.update(false);
+    // The press that gives the window focus comes just before it has it.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Buttons": ["Left"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+
+    // While it's still held, the button doesn't show as held, but motion does.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Motion": [5, 0], "Buttons": ["Left"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": [], "Delta": [5, 0] }, "Latest": ["moved (+5, +0)"] }"#);
+
+    // Letting go of it isn't reported either.
+    step(&mut input, r#"{ "Mouse": { "Id": 4 } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": [] }, "Latest": ["moved (+5, +0)"] }"#);
+    assert!(!log(&input).iter().any(|line| line.contains("Left")), "{:?}", log(&input));
+
+    // Pressed again, it's a click like any other.
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Buttons": ["Left"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Mouse": { "Buttons": ["Left"] }, "Latest": ["Left pressed"] }"#);
+}
+
+#[test]
+fn keys_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    input.update(true);
+    // Held from before the window loses focus, through it getting it back.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift"] } }"#);
+    input.update(true);
+    input.update(false);
+    // F1 held down in another window, and the Alt of the Alt+Tab that
+    // switches back to the demo.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": [] } }"#);
+
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt", "A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["A"] }, "Latest": ["A down"], "RumbleTest": false }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": [] }, "Latest": ["A up"] }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["A up"], "RumbleTest": false }"#);
+
+    // Once let go of, F1 works again.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["F1"] }, "Latest": ["F1 down"], "RumbleTest": true }"#);
+}
+
+#[test]
+fn gamepad_buttons_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(false);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0], "Buttons": ["A"] } }"#);
+    wait(&mut input, 1000);
+    input.update(true);
+
+    // The stick shows as usual, without A.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A", "B"] } }"#);
+    input.update(true);
+    expect(
+        &input,
+        r#"{ "Gamepad": { "LeftStick": [0.5, 0.0], "Buttons": ["B"] },
+             "Latest": ["B pressed", "left stick (+0.500, +0.000)"] }"#,
+    );
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": [] }, "Latest": ["B released"] }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": ["A"] }, "Latest": ["A pressed"] }"#);
+}
+
+#[test]
 fn readings_of_a_disconnected_gamepad_are_ignored() {
     let mut input = input();
     step(&mut input, PAD_ONE);
