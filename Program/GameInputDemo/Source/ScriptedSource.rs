@@ -238,7 +238,7 @@ pub fn key_state(name: &str) -> Option<GameInputKeyState> {
         scanCode: scan_code,
         codePoint: character,
         virtualKey: key as u8,
-        isDeadKey: false.into(),
+        isDeadKey: false,
     })
 }
 
