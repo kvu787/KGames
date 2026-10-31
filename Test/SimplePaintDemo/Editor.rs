@@ -67,6 +67,16 @@ fn key(key: u32) -> Event {
     }
 }
 
+// The same key, as Windows repeats it while it's held.
+fn repeated(key: u32) -> Event {
+    Event::Key {
+        key,
+        control: false,
+        shift: false,
+        repeat: true,
+    }
+}
+
 const LEFT: u32 = 0x25;
 const UP: u32 = 0x26;
 const RIGHT: u32 = 0x27;
@@ -187,6 +197,26 @@ fn arrow_keys_select_and_move_a_slider() {
     editor.handle(&key(RIGHT), &targets, &nowhere());
     assert_eq!(editor.parameters.light_point, 1.0);
     assert!(matches!(editor.handle(&key(F11), &targets, &nowhere()), Action::ToggleFullscreen));
+}
+
+#[test]
+fn holding_an_arrow_repeats_it_but_holding_f11_or_ctrl_s_does_not() {
+    let path = file("Repeat", "Paint.json");
+    let mut editor = Editor::new(Parameters::default());
+    let targets = targets(&editor);
+    editor.handle(&key(RIGHT), &targets, &path);
+    editor.handle(&repeated(RIGHT), &targets, &path);
+    assert_eq!(editor.parameters.base_color_srgb[0], 0.109);
+    assert!(matches!(editor.handle(&repeated(F11), &targets, &path), Action::None));
+    let held_save = Event::Key {
+        key: 'S' as u32,
+        control: true,
+        shift: false,
+        repeat: true,
+    };
+    editor.handle(&held_save, &targets, &path);
+    assert_eq!(editor.status, None);
+    assert!(!path.exists());
 }
 
 #[test]

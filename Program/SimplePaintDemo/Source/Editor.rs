@@ -194,20 +194,22 @@ impl Editor {
                     self.nudge(slider, notches.round() as f64);
                 }
             }
+            // Holding an arrow key repeats it. Holding F11 or Ctrl+S does
+            // nothing more.
             Event::Key {
                 key,
                 control,
                 shift,
-                ..
+                repeat,
             } => {
                 let steps = if shift { 10.0 } else { 1.0 };
                 match key as i32 {
-                    VK_F11 => return Action::ToggleFullscreen,
+                    VK_F11 if !repeat => return Action::ToggleFullscreen,
                     VK_LEFT => self.nudge(self.selected, -steps),
                     VK_RIGHT => self.nudge(self.selected, steps),
                     VK_UP => self.selected = self.selected.saturating_sub(1),
                     VK_DOWN => self.selected = (self.selected + 1).min(SLIDERS.len() - 1),
-                    _ if control && key == 'S' as u32 => self.save(paint_path),
+                    _ if control && !repeat && key == 'S' as u32 => self.save(paint_path),
                     _ => {}
                 }
             }

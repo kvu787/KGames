@@ -67,6 +67,16 @@ fn f1_toggles_the_text_and_f11_fullscreen() {
     assert_eq!(action(&key(0x7A, false)), Some(Action::ToggleFullscreen));
     assert_eq!(action(&key('S' as u32, false)), None);
     assert_eq!(action(&Event::Press([10.0, 10.0])), None);
+    // Holding a key down doesn't flip it back and forth.
+    for code in [0x70, 0x7A] {
+        let held = Event::Key {
+            key: code,
+            control: false,
+            shift: false,
+            repeat: true,
+        };
+        assert_eq!(action(&held), None);
+    }
 }
 
 #[test]

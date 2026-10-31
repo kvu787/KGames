@@ -56,6 +56,16 @@ fn f1_toggles_the_text_f11_fullscreen_and_s_the_car() {
     assert_eq!(action(&key('S' as u32)), Some(Action::ToggleStationary));
     assert_eq!(action(&key('V' as u32)), None, "VSync isn't a setting here");
     assert_eq!(action(&key(0x1B)), None, "Esc doesn't quit");
+    // Holding a key down doesn't flip it back and forth.
+    for code in [0x70, 0x7A, 'S' as u32] {
+        let held = Event::Key {
+            key: code,
+            control: false,
+            shift: false,
+            repeat: true,
+        };
+        assert_eq!(action(&held), None);
+    }
 }
 
 #[test]

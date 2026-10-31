@@ -13,10 +13,11 @@ pub enum Action {
 const F1: u32 = 0x70;
 const F11: u32 = 0x7A;
 
+// Holding a key down repeats it, which does nothing more.
 pub fn action(event: &Event) -> Option<Action> {
     match event {
-        Event::Key { key: F1, .. } => Some(Action::ToggleText),
-        Event::Key { key: F11, .. } => Some(Action::ToggleFullscreen),
+        Event::Key { key: F1, repeat: false, .. } => Some(Action::ToggleText),
+        Event::Key { key: F11, repeat: false, .. } => Some(Action::ToggleFullscreen),
         _ => None,
     }
 }
