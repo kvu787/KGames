@@ -77,11 +77,11 @@ impl Motion {
 }
 
 impl Scene {
-    pub unsafe fn new(renderer: &Renderer, settings: &SceneSettings) -> Result<Self> {
+    pub unsafe fn new(renderer: &mut Renderer, settings: &SceneSettings) -> Result<Self> {
         unsafe {
-            let device = &renderer.device;
+            let device = renderer.device.clone();
             let pipeline = Pipeline::new(
-                device,
+                &device,
                 VERTEX_SHADER,
                 PIXEL_SHADER,
                 &Target {
@@ -91,8 +91,8 @@ impl Scene {
                     cull_mode: D3D12_CULL_MODE_NONE,
                 },
             )?;
-            let upload = |mesh: meshes::Mesh| {
-                Mesh::new(device, &mesh.vertices, &mesh.indices, MATERIAL_COUNT as u32)
+            let mut upload = |mesh: meshes::Mesh| {
+                Mesh::new(renderer, &mesh.vertices, &mesh.indices, MATERIAL_COUNT as u32)
             };
             let meshes = [
                 upload(meshes::uv_sphere(64, 32, 0))?,
@@ -108,7 +108,7 @@ impl Scene {
                 pipeline,
                 meshes,
                 constants: UploadBuffer::new(
-                    device,
+                    &device,
                     OBJECT_SIZE * OBJECT_COUNT + materials_size(MATERIAL_COUNT),
                 )?,
                 materials: [

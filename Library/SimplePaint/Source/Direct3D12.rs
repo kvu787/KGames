@@ -4,7 +4,7 @@
 // the adapter with its material count (see Usage.md), owns the constant
 // buffers, and keeps them from changing while the GPU reads them.
 
-use graphics::{UploadBuffer, bytecode};
+use graphics::{Renderer, UploadBuffer, bytecode, create_buffer, transition};
 use windows_api::*;
 use windows_core::{Error, Result, s};
 
@@ -138,10 +138,11 @@ impl Pipeline {
     }
 }
 
-// An indexed triangle mesh in GPU memory. It stays in an upload heap, which
-// the GPU reads in place, as meshes are small and never change.
+// An indexed triangle mesh in the GPU's own memory. Meshes never change, so
+// it's copied there once, instead of the GPU reading it from an upload heap
+// in system memory, across PCIe, every frame.
 pub struct Mesh {
-    _buffer: UploadBuffer,
+    _buffer: ID3D12Resource,
     vertex_view: D3D12_VERTEX_BUFFER_VIEW,
     index_view: D3D12_INDEX_BUFFER_VIEW,
     pub index_count: u32,
@@ -149,9 +150,10 @@ pub struct Mesh {
 
 impl Mesh {
     // Validates the mesh with validate_mesh for `material_count` materials
-    // first, and fails with its reason.
+    // first, and fails with its reason. The copy waits for the GPU, so it's
+    // for setup, not for frames.
     pub unsafe fn new(
-        device: &ID3D12Device,
+        renderer: &mut Renderer,
         vertices: &[Vertex],
         indices: &[u32],
         material_count: u32,
@@ -159,19 +161,40 @@ impl Mesh {
         validate_mesh(vertices, indices, material_count)
             .map_err(|error| Error::new(E_INVALIDARG, error.0))?;
         unsafe {
+            let device = renderer.device.clone();
             let vertex_bytes = size_of_val(vertices);
             let index_bytes = size_of_val(indices);
-            let buffer = UploadBuffer::new(device, vertex_bytes + index_bytes)?;
-            buffer.write(0, vertices);
-            buffer.write(vertex_bytes, indices);
+            let size = vertex_bytes + index_bytes;
+            let upload = UploadBuffer::new(&device, size)?;
+            upload.write(0, vertices);
+            upload.write(vertex_bytes, indices);
+            // Buffers are created in the common state, and the copy promotes
+            // it to COPY_DEST.
+            let buffer = create_buffer(
+                &device,
+                size as u64,
+                D3D12_HEAP_TYPE_DEFAULT,
+                D3D12_RESOURCE_STATE_COMMON,
+            )?;
+            // The upload buffer must outlive the copy, which run waits for.
+            renderer.run(|list| {
+                list.CopyBufferRegion(&buffer, 0, &upload.resource, 0, size as u64);
+                list.ResourceBarrier(&[transition(
+                    &buffer,
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+                        | D3D12_RESOURCE_STATE_INDEX_BUFFER,
+                )]);
+            })?;
+            let start = buffer.GetGPUVirtualAddress().0;
             Ok(Self {
                 vertex_view: D3D12_VERTEX_BUFFER_VIEW {
-                    BufferLocation: buffer.address(0),
+                    BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS(start),
                     SizeInBytes: vertex_bytes as u32,
                     StrideInBytes: size_of::<Vertex>() as u32,
                 },
                 index_view: D3D12_INDEX_BUFFER_VIEW {
-                    BufferLocation: buffer.address(vertex_bytes),
+                    BufferLocation: D3D12_GPU_VIRTUAL_ADDRESS(start + vertex_bytes as u64),
                     SizeInBytes: index_bytes as u32,
                     Format: DXGI_FORMAT_R32_UINT,
                 },
