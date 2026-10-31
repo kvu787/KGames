@@ -63,6 +63,7 @@ fn key(key: u32) -> Event {
         key,
         control: false,
         shift: false,
+        repeat: false,
     }
 }
 
@@ -171,6 +172,7 @@ fn arrow_keys_select_and_move_a_slider() {
             key: RIGHT,
             control: false,
             shift: true,
+            repeat: false,
         },
         &targets,
         &nowhere(),
@@ -198,6 +200,7 @@ fn ctrl_s_and_save_write_paint_json_and_it_loads_back() {
         key: 'S' as u32,
         control: true,
         shift: false,
+        repeat: false,
     };
     editor.handle(&save, &targets, &path);
     assert_eq!(editor.status, Some((format!("Saved to {}", path.display()), false)));
@@ -272,6 +275,7 @@ fn any_input_leaves_a_valid_material() {
                 key: [LEFT, RIGHT][(next() * 2.0) as usize % 2],
                 control: false,
                 shift: true,
+                repeat: next() < 0.5,
             },
         };
         editor.handle(&event, &targets, &nowhere());

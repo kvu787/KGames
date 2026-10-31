@@ -27,6 +27,7 @@ fn gives_each_frame_its_steps_and_time() {
                 { "Frame": 1, "Move": [10, 20] },
                 { "Frame": 2, "Press": [30, 40] },
                 { "Frame": 2, "Key": "F11", "Shift": true },
+                { "Frame": 3, "Key": "Left", "Repeat": true },
                 { "Frame": 4, "Wheel": [50, 60], "Notches": -2 },
                 { "Frame": 4, "Capture": "End" },
                 { "Frame": 4, "Expect": { "A": 1 } },
@@ -48,9 +49,19 @@ fn gives_each_frame_its_steps_and_time() {
             Event::Key {
                 key: 0x7A,
                 control: false,
-                shift: true
+                shift: true,
+                repeat: false
             }
         ]
+    );
+    assert_eq!(
+        frames[3].events,
+        [Event::Key {
+            key: 0x25,
+            control: false,
+            shift: false,
+            repeat: true
+        }]
     );
     // A click moves the cursor to it, like the window's messages do.
     assert_eq!(frames[2].cursor, Some([30.0, 40.0]));

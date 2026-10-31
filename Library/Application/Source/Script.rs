@@ -178,7 +178,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
     };
     let actions: Vec<&(String, Value)> = members
         .iter()
-        .filter(|(name, _)| !matches!(name.as_str(), "Frame" | "Notches" | "Control" | "Shift"))
+        .filter(|(name, _)| !matches!(name.as_str(), "Frame" | "Notches" | "Control" | "Shift" | "Repeat"))
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
@@ -207,6 +207,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
                 key,
                 control: flag("Control")?,
                 shift: flag("Shift")?,
+                repeat: flag("Repeat")?,
             })
         }
         "Capture" => match value {

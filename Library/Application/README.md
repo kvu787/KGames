@@ -74,7 +74,8 @@ every run draws the same frames. Each step happens at a frame:
 | `Press`   | Moves there, and presses the left button                                       |
 | `Release` | Moves there, and lets go of it                                                 |
 | `Wheel`   | Turns the wheel there by `Notches`, positive away from the user                |
-| `Key`     | Presses a key by name, like `F11`, `Left` or `A`, with `Control` and `Shift`   |
+| `Key`     | Presses a key by name, like `F11`, `Left` or `A`, with `Control` and `Shift`.  |
+|           | `Repeat` makes it a repeat of a key that's held, which toggles ignore          |
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
 |           | the output folder                                                              |
 | `Expect`  | Checks the program's state: the members it lists, and only those. Numbers are  |

@@ -49,6 +49,7 @@ fn f1_toggles_the_text_f11_fullscreen_and_s_the_car() {
         key,
         control: false,
         shift: false,
+        repeat: false,
     };
     assert_eq!(action(&key(0x70)), Some(Action::ToggleText));
     assert_eq!(action(&key(0x7A)), Some(Action::ToggleFullscreen));

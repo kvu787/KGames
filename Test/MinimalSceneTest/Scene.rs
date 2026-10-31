@@ -14,6 +14,7 @@ fn key(key: u32, control: bool) -> Event {
         key,
         control,
         shift: false,
+        repeat: false,
     }
 }
 

@@ -198,6 +198,7 @@ impl Editor {
                 key,
                 control,
                 shift,
+                ..
             } => {
                 let steps = if shift { 10.0 } else { 1.0 };
                 match key as i32 {
