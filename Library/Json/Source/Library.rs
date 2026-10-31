@@ -400,8 +400,12 @@ impl Parser<'_> {
         let start = self.position;
         let first = self.hex_digits()?;
         if !(0xD800..0xDC00).contains(&first) {
-            // Fails for a low surrogate on its own.
-            return char::from_u32(first).ok_or_else(|| self.error("unpaired UTF-16 surrogate"));
+            // None for a low surrogate on its own.
+            if let Some(character) = char::from_u32(first) {
+                return Ok(character);
+            }
+            self.position = start;
+            return Err(self.error("unpaired UTF-16 surrogate"));
         }
         let second = if self.text[self.position..].starts_with("\\u") {
             self.position += 2;

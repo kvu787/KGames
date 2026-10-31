@@ -31,6 +31,7 @@ fn says_where_a_mistake_is() {
         ("{\n  \"a\": 1,\n}", 3, 1, "JSON doesn't allow a comma before '}'"),
         ("[01]", 1, 2, "numbers can't start with 0, like 01"),
         ("\"\\ud800\"", 1, 4, "unpaired UTF-16 surrogate"),
+        ("\"\\udc00\"", 1, 4, "unpaired UTF-16 surrogate"),
         ("{} x", 1, 4, "expected the end of the file"),
         ("[1 2]", 1, 4, "expected ',' or ']'"),
     ] {
