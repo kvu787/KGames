@@ -143,6 +143,11 @@ fn compares_only_what_is_expected() {
     assert_eq!(matches(r#"{ "Missing": 1 }"#), ["Missing is missing"]);
     assert_eq!(matches(r#"{ "Flag": "true" }"#), ["Flag is true, not \"true\""]);
     assert_eq!(matches(r#"{ "Extra": 0 }"#), ["Extra is null, not 0.0"]);
+    // A state that went wrong enough to be infinite or NaN matches nothing.
+    for wrong in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+        let differences = compare(&object([("X", 4.0.into())]), &object([("X", wrong.into())]));
+        assert_eq!(differences, [format!("X is {wrong}, not 4")]);
+    }
     assert_eq!(
         compare(&Value::from(1.0), &Value::from("one")),
         ["the state is \"one\", not 1.0"]

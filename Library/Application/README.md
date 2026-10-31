@@ -79,7 +79,7 @@ every run draws the same frames. Each step happens at a frame:
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
 |           | the output folder                                                              |
 | `Expect`  | Checks the program's state: the members it lists, and only those. Numbers are  |
-|           | equal within a relative 1e-9                                                   |
+|           | equal within a relative 1e-9, and an infinite or NaN number never is           |
 | `Program` | Goes to the program as it is, for input that doesn't come from the window      |
 
 Frames count from 0, and clicks hit what the frame before them drew, so they start at frame 1.
