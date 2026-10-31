@@ -168,6 +168,32 @@ fn the_wheel_moves_a_slider_by_its_smallest_step() {
 }
 
 #[test]
+fn parts_of_a_notch_add_up_over_the_same_slider() {
+    // Like a touchpad, which turns the wheel by a quarter of a notch at a time.
+    let mut editor = Editor::new(Parameters::default());
+    let targets = targets(&editor);
+    let rotation = along(&slider(&targets, "Rotation"), 0.0);
+    for _ in 0..3 {
+        editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
+    }
+    assert_eq!(editor.parameters.rotation_degrees, 0.0);
+    editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
+    assert_eq!(editor.parameters.rotation_degrees, 0.1);
+    for _ in 0..6 {
+        editor.handle(&Event::Wheel(rotation, -0.5), &targets, &nowhere());
+        editor.handle(&Event::Wheel(rotation, 1.0), &targets, &nowhere());
+    }
+    assert_eq!(editor.parameters.rotation_degrees, 0.4);
+    // What's left over one slider doesn't carry over to another.
+    editor.handle(&Event::Wheel(rotation, 0.5), &targets, &nowhere());
+    assert_eq!(editor.parameters.rotation_degrees, 0.4);
+    let shift = along(&slider(&targets, "Shift"), 0.0);
+    editor.handle(&Event::Wheel(shift, 0.5), &targets, &nowhere());
+    editor.handle(&Event::Wheel(shift, 0.25), &targets, &nowhere());
+    assert_eq!(editor.parameters.shift, 0.0);
+}
+
+#[test]
 fn arrow_keys_select_and_move_a_slider() {
     let mut editor = Editor::new(Parameters::default());
     let targets = targets(&editor);
@@ -299,7 +325,7 @@ fn any_input_leaves_a_valid_material() {
         let event = match (next() * 5.0) as u32 {
             0 => Event::Press(point),
             1 => Event::Release(point),
-            2 => Event::Wheel(point, (next() * 20.0 - 10.0).round()),
+            2 => Event::Wheel(point, next() * 20.0 - 10.0),
             3 => key([LEFT, RIGHT, UP, DOWN][(next() * 4.0) as usize % 4]),
             _ => Event::Key {
                 key: [LEFT, RIGHT][(next() * 2.0) as usize % 2],

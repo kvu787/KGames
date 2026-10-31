@@ -124,6 +124,9 @@ pub struct Editor {
     pub dragging: Option<usize>,
     // What happened at the last save, and whether it failed.
     pub status: Option<(String, bool)>,
+    // The slider that the wheel last turned over, and how much it turned
+    // there that didn't make a whole step yet.
+    wheel: (usize, f32),
 }
 
 impl Editor {
@@ -136,6 +139,7 @@ impl Editor {
             selected: 0,
             dragging: None,
             status: None,
+            wheel: (0, 0.0),
         }
     }
 
@@ -188,10 +192,18 @@ impl Editor {
                 None => {}
             },
             Event::Release(_) => self.dragging = None,
+            // A notch is a step. Touchpads and smooth-scrolling mice turn
+            // by parts of a notch, which add up over the same slider.
             Event::Wheel(point, notches) => {
                 if let Some(Click::Slider(slider)) = at(point).map(|target| target.click) {
                     self.selected = slider;
-                    self.nudge(slider, notches.round() as f64);
+                    let (last, part) = self.wheel;
+                    let turned = notches + if last == slider { part } else { 0.0 };
+                    let steps = turned.trunc();
+                    self.wheel = (slider, turned - steps);
+                    if steps != 0.0 {
+                        self.nudge(slider, steps as f64);
+                    }
                 }
             }
             // Holding an arrow key repeats it. Holding F11 or Ctrl+S does
