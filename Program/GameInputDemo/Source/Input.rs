@@ -538,12 +538,17 @@ impl Input {
     }
 
     // A gamepad's state from its last reading, without what's masked, to
-    // show it as soon as it's listened to.
+    // show it as soon as it's listened to. None without focus, or when that
+    // reading came before the window got focus, as that's input without it.
     fn gamepad_state(&self, device: usize) -> Option<GameInputGamepadState> {
+        if !self.focused {
+            return None;
+        }
         let last = self.last_readings.iter().find(|last| {
             last.kind == GameInputKindGamepad && last.reading.device == Some(device)
         })?;
-        Some(last.masked.gamepad(last.reading.gamepad))
+        (last.reading.timestamp >= self.focus_timestamp)
+            .then(|| last.masked.gamepad(last.reading.gamepad))
     }
 
     // Handles a reading if the window had focus for it, and keeps it as its

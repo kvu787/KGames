@@ -224,7 +224,7 @@ that the demo loads from its folder gives it to the demo without focus too, even
 window doesn't have focus or is minimized, and from before it got focus. Otherwise it would
 show and log what's typed into other windows, and its shortcuts would run when they're pressed
 in other apps. When the window loses focus, the panels stop showing keys, buttons and sticks
-as held.
+as held, and a gamepad that the demo switches to then shows at rest.
 
 Keys and buttons that are still held when the window gets focus, like the button of the click
 that gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go

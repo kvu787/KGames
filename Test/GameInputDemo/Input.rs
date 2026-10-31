@@ -300,6 +300,37 @@ fn gamepad_buttons_held_when_the_window_gets_focus_are_ignored_until_let_go_of()
 }
 
 #[test]
+fn a_gamepad_listened_to_shows_none_of_its_input_from_without_focus() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    step(&mut input, PAD_TWO);
+    input.update(false);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Gamepad": { "Id": 2, "LeftStick": [1, 0], "Buttons": ["A"] } }"#);
+    input.update(false);
+    // The demo switches to Pad Two while it doesn't have focus, and shows
+    // it at rest.
+    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    input.update(false);
+    let idle = r#"{ "Listen": "Pad Two", "Gamepad": { "Device": "Pad Two", "LeftStick": [0.0, 0.0], "Buttons": [] } }"#;
+    expect(&input, idle);
+    wait(&mut input, 1000);
+    input.update(true);
+    expect(&input, idle);
+
+    // With focus, a gamepad picked shows its last reading, if the window had
+    // focus for it.
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["B"] } }"#);
+    input.update(true);
+    input.pick_listen(gamepad(&input, "Pad One"));
+    expect(&input, r#"{ "Gamepad": { "Device": "Pad One", "LeftStick": [0.0, 1.0], "Buttons": ["B"] } }"#);
+    input.pick_listen(gamepad(&input, "Pad Two"));
+    expect(&input, idle);
+}
+
+#[test]
 fn readings_of_a_disconnected_gamepad_are_ignored() {
     let mut input = input();
     step(&mut input, PAD_ONE);
