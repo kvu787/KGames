@@ -10,7 +10,9 @@ frames, which gets input to the screen as soon as possible:
 - One frame is in flight at a time, and DXGI's queue holds at most one presented frame.
 - `Renderer::is_ready` doesn't block. A program's main loop spins on it, and reads input only
   once it's true, right before recording and presenting the frame. While it waits for DXGI's
-  queue, it records the commands that don't depend on input.
+  queue, it starts the frame: it resets the command list, transitions the back buffer to a
+  render target, and sets it as the render target, with the viewport and scissor rectangle.
+  Programs record all of their own draws after it's true.
 - `Renderer::present` doesn't wait for vertical sync, and lets frames tear if the driver allows
   it and the program asks for it.
 

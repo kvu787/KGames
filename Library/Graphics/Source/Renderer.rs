@@ -378,8 +378,11 @@ impl Renderer {
     // input until it's true, then draw with it.
     //
     // The GPU usually finishes tens of microseconds before DXGI's queue has
-    // room. In between, this records the commands that don't depend on input,
-    // so they aren't left for between reading input and presenting.
+    // room. In between, this starts the frame: it resets the command list,
+    // transitions the back buffer to a render target, and sets it as the
+    // render target, with the viewport and scissor rectangle, so that isn't
+    // left for between reading input and presenting. Programs record all of
+    // their own draws after it's true.
     pub unsafe fn is_ready(&mut self) -> Result<bool> {
         unsafe {
             if self.recording.is_none() {
