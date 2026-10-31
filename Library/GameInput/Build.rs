@@ -58,6 +58,14 @@ fn download_package(package: &Path) {
             "--silent",
             "--show-error",
             "--location",
+            // Gives up on a download that stalls, instead of the build
+            // waiting forever.
+            "--connect-timeout",
+            "60",
+            "--speed-limit",
+            "1",
+            "--speed-time",
+            "60",
             "--output",
         ])
         .arg(&archive)
