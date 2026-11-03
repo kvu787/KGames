@@ -215,9 +215,11 @@ static void Run(string[] arguments) {
         if (process.ExitCode != 0) {
             throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
         }
-        if (watch.TookFocus) {
-            throw new FailureException($"{program}'s window took focus");
-        }
+    }
+    // Once the watch has handled every change of focus that Windows reported.
+    watch.Dispose();
+    if (watch.TookFocus) {
+        throw new FailureException($"{program}'s window took focus");
     }
 }
 
@@ -237,15 +239,17 @@ static void RunScripts(string program, string exe, string display, List<string> 
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
         using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
-            using (var watch = new FocusWatch(process.Id)) {
+            var watch = new FocusWatch(process.Id);
+            using (watch) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
                     process.Kill();
                     process.WaitForExit();
                     failure = $"it didn't finish within {timeout} seconds, so it was stopped";
                 }
-                if (watch.TookFocus) {
-                    failure = "its window took focus";
-                }
+            }
+            // Once the watch has handled every change of focus that Windows reported.
+            if (watch.TookFocus) {
+                failure = "its window took focus";
             }
             if (failure == null && process.ExitCode != 0) {
                 failure = $"{program} exited with code {process.ExitCode}:\n{ReadLog(errorLog).TrimEnd()}";
@@ -335,7 +339,10 @@ sealed unsafe partial class FocusWatch : IDisposable {
     readonly ManualResetEventSlim started = new();
     uint threadId;
     bool hooked;
+    // The hook for the process's own windows.
+    IntPtr ownHook;
     volatile bool tookFocus;
+    bool disposed;
 
     public FocusWatch(int processId) {
         this.processId = (uint)processId;
@@ -348,6 +355,8 @@ sealed unsafe partial class FocusWatch : IDisposable {
         }
     }
 
+    // Whether a window of the process had focus so far. After Dispose, it
+    // includes every change that Windows reported before that.
     public bool TookFocus => this.tookFocus;
 
     void Watch() {
@@ -355,34 +364,50 @@ sealed unsafe partial class FocusWatch : IDisposable {
         // Makes the thread's message queue, so that Dispose can post to it.
         _ = PeekMessageW(out _, IntPtr.Zero, 0, 0, PM_NOREMOVE);
         this.threadId = GetCurrentThreadId();
+        // One hook reports every change, and Check looks up whose window it
+        // is. That lookup fails for a window that's gone by then, like when
+        // the program exits right after taking focus, so the other hook
+        // reports only changes to the process's own windows, which need no
+        // lookup.
         var hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, &OnForeground, 0, 0, WINEVENT_OUTOFCONTEXT);
-        this.hooked = hook != IntPtr.Zero;
+        this.ownHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, &OnForeground, this.processId, 0, WINEVENT_OUTOFCONTEXT);
+        this.hooked = hook != IntPtr.Zero && this.ownHook != IntPtr.Zero;
         this.started.Set();
         if (!this.hooked) {
+            _ = UnhookWinEvent(hook);
+            _ = UnhookWinEvent(this.ownHook);
             return;
         }
         // The window with focus before the first change.
-        this.Check(ProgramWindow.Foreground());
+        this.Check(IntPtr.Zero, ProgramWindow.Foreground());
         // Windows calls OnForeground from within GetMessageW, until Dispose
         // posts WM_QUIT.
         while (GetMessageW(out _, IntPtr.Zero, 0, 0) > 0) {
         }
-        this.Check(ProgramWindow.Foreground());
+        this.Check(IntPtr.Zero, ProgramWindow.Foreground());
         _ = UnhookWinEvent(hook);
+        _ = UnhookWinEvent(this.ownHook);
     }
 
     [UnmanagedCallersOnly]
     static void OnForeground(IntPtr hook, uint winEvent, IntPtr window, int objectId, int childId, uint eventThread, uint time) {
-        watching?.Check(window);
+        watching?.Check(hook, window);
     }
 
-    void Check(IntPtr window) {
-        if (ProgramWindow.Owner(window) == this.processId) {
+    void Check(IntPtr hook, IntPtr window) {
+        if (hook == this.ownHook || ProgramWindow.Owner(window) == this.processId) {
             this.tookFocus = true;
         }
     }
 
+    // Stops watching, once the watch has handled every change of focus that
+    // Windows reported until now. Windows calls OnForeground for those before
+    // GetMessageW returns the WM_QUIT that this posts after them.
     public void Dispose() {
+        if (this.disposed) {
+            return;
+        }
+        this.disposed = true;
         _ = PostThreadMessageW(this.threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         this.thread.Join();
     }
