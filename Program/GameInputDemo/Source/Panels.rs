@@ -313,10 +313,10 @@ pub fn draw(
         draw_picker_list(canvas, input, status, picker, width - MARGIN, &mut targets);
     }
     // And the tooltip covers everything, unless the cursor is on the list.
-    if let (Some(device), Some(cursor)) = (hovered, status.cursor)
+    if let (Some((device, row)), Some(cursor)) = (hovered, status.cursor)
         && targets.at(cursor).is_none()
     {
-        let area = draw_tooltip(canvas, device, cursor, width, height);
+        let area = draw_tooltip(canvas, device, cursor, row, width, height);
         targets.tooltip = Some((device.label.clone(), area));
     }
     targets
@@ -900,14 +900,14 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
 }
 
 // Adds a target for each device's row, and returns the device whose row the
-// cursor is over, if any.
+// cursor is over, if any, with the row.
 fn draw_devices<'a>(
     canvas: &mut Canvas,
     input: &'a Input,
     status: &Status,
     area: Rect,
     targets: &mut Targets,
-) -> Option<&'a Device> {
+) -> Option<(&'a Device, Rect)> {
     let line_height = canvas.line_height();
     let inner = panel(
         canvas,
@@ -939,7 +939,7 @@ fn draw_devices<'a>(
         );
         if status.cursor.is_some_and(|point| row.contains(point)) {
             canvas.rect(row.x, row.y, row.width, row.height, BORDER);
-            hovered = Some(info);
+            hovered = Some((info, row));
         }
         targets.device_rows.push((row, info.label.clone()));
         let color = if input.gamepad.device == Some(info.id) {
@@ -970,12 +970,14 @@ fn draw_devices<'a>(
     hovered
 }
 
-// What's known about a device, in a box by the cursor: under it, or above
-// it if there isn't room, and always inside the window. Returns its area.
+// What's known about a device, in a box by the cursor, on the device's row:
+// under it, or above it if there isn't room, or else beside the row, and
+// always inside the window. Returns its area.
 fn draw_tooltip(
     canvas: &mut Canvas,
     device: &Device,
     cursor: [f32; 2],
+    row: Rect,
     width: f32,
     height: f32,
 ) -> Rect {
@@ -1016,15 +1018,28 @@ fn draw_tooltip(
     }
 
     let (box_width, box_height) = (right + PADDING * 2.0, y + PADDING * 2.0);
+    // Under the cursor, or above it if there isn't room. If there isn't
+    // room for either, like for a device far down Windows' device tree, it
+    // goes right of the row, or left of it, so that it covers neither the
+    // row nor the cursor.
     let below = cursor[1] + line_height * 1.4;
-    let top = if below + box_height <= height - MARGIN {
-        below
+    let above = cursor[1] - line_height * 0.6 - box_height;
+    let across = (cursor[0] + char_width).min(width - MARGIN - box_width).max(MARGIN);
+    let (left, top) = if below + box_height <= height - MARGIN {
+        (across, below)
+    } else if above >= MARGIN {
+        (across, above)
     } else {
-        (cursor[1] - line_height * 0.6 - box_height).max(MARGIN)
+        let right_of = row.right() + char_width;
+        let left_of = row.x - char_width - box_width;
+        let left = if right_of + box_width <= width - MARGIN {
+            right_of
+        } else {
+            left_of.max(MARGIN)
+        };
+        let top = (cursor[1] - box_height * 0.5).min(height - MARGIN - box_height).max(MARGIN);
+        (left, top)
     };
-    let left = (cursor[0] + char_width)
-        .min(width - MARGIN - box_width)
-        .max(MARGIN);
     let area = Rect::new(left, top, box_width, box_height);
     // A shadow, like the select box's list has.
     canvas.rect(

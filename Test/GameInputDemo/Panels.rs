@@ -207,6 +207,11 @@ fn the_cursor_on_a_row_shows_its_devices_tooltip() {
 // A device with as much in its tooltip as a real one, with five nodes in
 // Windows' device tree.
 fn real_input() -> Input {
+    input_with_tree(5)
+}
+
+// The second device has `nodes` nodes in Windows' device tree.
+fn input_with_tree(nodes: usize) -> Input {
     let mut input = input(&["Pad One", "Pad Two"]);
     let node = Node {
         instance_id: r"USB\VID_045E&PID_0B12\3032434D30303237303135323037".to_string(),
@@ -217,7 +222,7 @@ fn real_input() -> Input {
         hardware_ids: vec![r"USB\VID_045E&PID_0B12&REV_0509".to_string(); 6],
         ..Default::default()
     };
-    input.devices[1].tree = Tree::known(Ok(vec![node; 5]));
+    input.devices[1].tree = Tree::known(Ok(vec![node; nodes]));
     input
 }
 
@@ -236,6 +241,24 @@ fn a_tooltip_stays_in_the_window_off_the_cursor() {
                 assert!(top >= MARGIN && top + box_height <= height - MARGIN, "{cursor:?}");
                 assert!(cursor[1] < top || cursor[1] > top + box_height, "{cursor:?}");
             }
+        }
+    }
+}
+
+#[test]
+fn a_tooltip_that_fits_neither_under_nor_above_goes_beside_the_row() {
+    // With 9 nodes in the device tree, it's taller than the room either way.
+    let input = Ok(input_with_tree(9));
+    for height in HEIGHTS {
+        let rows = named_areas(frame(&input, false, &[], None, height).device_rows_state());
+        let [x, y, width, row_height] = rows[1].1;
+        for cursor in [[x + 1.0, y + row_height * 0.5], [x + width - 1.0, y + row_height * 0.5]] {
+            let (_, [left, top, box_width, box_height]) = tooltip(&hover(&input, cursor, height)).unwrap();
+            assert!(left >= MARGIN && left + box_width <= 2560.0 - MARGIN, "{cursor:?}");
+            assert!(top >= MARGIN && top + box_height <= height - MARGIN, "{cursor:?}");
+            // Beside the row, so that it covers neither the row nor the cursor.
+            assert!(top < cursor[1] && cursor[1] < top + box_height, "{cursor:?}");
+            assert!(left >= x + width || left + box_width <= x, "{cursor:?}");
         }
     }
 }

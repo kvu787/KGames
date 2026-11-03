@@ -127,7 +127,9 @@ keyboard it has for its macros. Windows gives devices built into the computer th
 Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread
 of its own does that for each device as it connects, instead of the main loop. The tooltip
 reads what it found. The cursor comes from the window's messages, like the select box's, so
-the tooltip only shows while the window has focus.
+the tooltip only shows while the window has focus. It goes under the cursor, or above it if
+there isn't room, or beside the device's row if it's too tall for either, and it stays inside
+the window.
 
 ## Requirements
 
