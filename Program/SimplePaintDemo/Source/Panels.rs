@@ -193,7 +193,15 @@ fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>,
         let text_y = middle - line_height * 0.5;
         let selected = index == editor.selected;
         let active = editor.dragging == Some(index);
-        let hovered = cursor.is_some_and(|point| row.contains(point));
+        // Where a click or the wheel moves the slider: its track, and a
+        // little past each end, for the handle. The handle grows there.
+        let area = Rect::new(
+            track_left - HANDLE_RADIUS * 2.0,
+            row.y,
+            track_right - track_left + HANDLE_RADIUS * 4.0,
+            row.height,
+        );
+        let hovered = cursor.is_some_and(|point| area.contains(point));
         if selected {
             canvas.rect(row.x - PADDING, row.y, 3.0, row.height, ACCENT);
         }
@@ -222,7 +230,7 @@ fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>,
             DIM,
         );
         targets.push(Target {
-            area: Rect::new(track_left - HANDLE_RADIUS * 2.0, row.y, track_right - track_left + HANDLE_RADIUS * 4.0, row.height),
+            area,
             click: Click::Slider(index),
             track: [track_left, track_right],
         });

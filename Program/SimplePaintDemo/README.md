@@ -23,7 +23,7 @@ window setups in [Library/Application](../../Library/Application/README.md#suppo
 | Input              | Action                                                                  |
 | ------------------ | ----------------------------------------------------------------------- |
 | Drag a slider      | Sets the setting                                                        |
-| Scroll over one    | Moves it by its smallest step                                           |
+| Scroll over one    | Moves it by its smallest step, over its track, where its handle grows   |
 | `Up`, `Down`       | Selects a setting                                                       |
 | `Left`, `Right`    | Moves the selected setting by its smallest step, or 10 with `Shift`     |
 | `Ctrl+S`, **Save** | Saves the material to `Paint.json` in this folder                       |
