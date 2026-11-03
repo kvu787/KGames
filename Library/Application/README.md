@@ -77,7 +77,7 @@ every run draws the same frames. Each step happens at a frame:
 | `Key`     | Presses a key by name, like `F11`, `Left` or `A`, with `Control` and `Shift`.  |
 |           | `Repeat` makes it a repeat of a key that's held, which toggles ignore          |
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
-|           | the output folder                                                              |
+|           | the output folder. A frame has one at most, and each has its own name          |
 | `Expect`  | Checks the program's state: the members it lists, and only those. Numbers are  |
 |           | equal within a relative 1e-9, and an infinite or NaN number never is           |
 | `Program` | Goes to the program as it is, for input that doesn't come from the window      |

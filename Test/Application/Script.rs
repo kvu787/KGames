@@ -115,6 +115,8 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Control": 1 }] }"#, "step 1: Control must be true or false, not 1"),
         (r#"{ "Steps": [{ "Frame": 1, "Key": 65.7 }] }"#, "step 1: Key must be a key's name, like \"F11\", not 65.7"),
         (r#"{ "Steps": [{ "Frame": 2, "Key": "S" }, { "Frame": 1, "Key": "S" }] }"#, "step 2 comes before the step above it"),
+        (r#"{ "Steps": [{ "Frame": 1, "Capture": "A" }, { "Frame": 1, "Capture": "B" }] }"#, "step 2: frame 1 has a Capture already"),
+        (r#"{ "Steps": [{ "Frame": 1, "Capture": "A" }, { "Frame": 2, "Capture": "A" }] }"#, "step 2: another Capture is called A"),
         ("{ \"Steps\": [", "line 1, column 13: expected a value, but the file ended"),
     ] {
         assert_eq!(problem(text), expected, "for {text}");

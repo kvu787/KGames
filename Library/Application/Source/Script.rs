@@ -109,6 +109,20 @@ impl Script {
             if steps.last().is_some_and(|last: &Step| last.frame > step.frame) {
                 return Err(format!("step {} comes before the step above it", index + 1));
             }
+            // A frame saves one PNG, and each capture has its own files.
+            if let Action::Capture(name) = &step.action {
+                for other in &steps {
+                    let Action::Capture(other_name) = &other.action else {
+                        continue;
+                    };
+                    if other.frame == step.frame {
+                        return Err(format!("step {}: frame {} has a Capture already", index + 1, step.frame));
+                    }
+                    if other_name == name {
+                        return Err(format!("step {}: another Capture is called {name}", index + 1));
+                    }
+                }
+            }
             steps.push(step);
         }
         Ok(Script {
