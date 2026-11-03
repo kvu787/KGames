@@ -1,6 +1,14 @@
 # Design doc
 
-Question: figure out how to maintain a consistent representation for visual objects (car, cone, house, etc.) throughout the workflow
+Question: Figure out how to maintain a consistent representation for visual objects (car, cone, house, etc.) throughout the workflow
+
+Question: Should different underlying stats always be visually distinguisable?
+- In previous versions of Veehiicuul and ZoomTracks, a vehicle had different stats depending on the
+  track to make it easy to experiment with different vehicle physics without affecting the
+  experience in all tracks
+  - This shouldn't be done this version of Veehiicuul, meaning a single visually distinct vehicle
+    should globally correspond to a consistent set of stats
+
 
 ## Blender
 
@@ -28,9 +36,3 @@ Question: figure out how to maintain a consistent representation for visual obje
 - Track builder
 - Vehicle footprint creator
 - Player
-
-- In previous versions of Veehiicuul and ZoomTracks, a vehicle had different stats depending on the
-  track to make it easy to experiment with different vehicle physics without affecting the
-  experience in all tracks
-  - This shouldn't be done this version of Veehiicuul, meaning a single visually distinct vehicle
-    should globally correspond to a consistent set of stats
