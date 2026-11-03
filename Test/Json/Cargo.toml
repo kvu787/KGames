@@ -10,3 +10,6 @@ path = "Json.rs"
 
 [dependencies]
 json = { path = "../../Library/Json" }
+
+[lints]
+workspace = true

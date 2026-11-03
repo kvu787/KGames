@@ -13,3 +13,6 @@ application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }
 minimal_scene_test = { path = "../../Program/MinimalSceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
+
+[lints]
+workspace = true

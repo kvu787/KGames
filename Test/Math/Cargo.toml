@@ -10,3 +10,6 @@ path = "Matrices.rs"
 
 [dependencies]
 math = { path = "../../Library/Math" }
+
+[lints]
+workspace = true

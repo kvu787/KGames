@@ -8,3 +8,6 @@ path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
+
+[lints]
+workspace = true

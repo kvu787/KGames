@@ -11,3 +11,6 @@ path = "Meshes.rs"
 [dependencies]
 meshes = { path = "../../Library/Meshes" }
 simple_paint = { path = "../../Library/SimplePaint" }
+
+[lints]
+workspace = true

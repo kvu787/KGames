@@ -11,3 +11,6 @@ path = "Keys.rs"
 [dependencies]
 application = { path = "../../Library/Application" }
 scene_test = { path = "../../Library/SceneTest" }
+
+[lints]
+workspace = true

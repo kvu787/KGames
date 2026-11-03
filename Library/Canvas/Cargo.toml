@@ -21,3 +21,6 @@ features = ["std"]
 
 [build-dependencies]
 shader_compiler = { path = "../ShaderCompiler" }
+
+[lints]
+workspace = true

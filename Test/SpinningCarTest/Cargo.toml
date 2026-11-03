@@ -13,3 +13,6 @@ application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }
 spinning_car_test = { path = "../../Program/SpinningCarTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
+
+[lints]
+workspace = true

@@ -14,3 +14,6 @@ canvas = { path = "../../Library/Canvas" }
 json = { path = "../../Library/Json" }
 simple_paint = { path = "../../Library/SimplePaint" }
 simple_paint_demo = { path = "../../Program/SimplePaintDemo" }
+
+[lints]
+workspace = true

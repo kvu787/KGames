@@ -20,3 +20,6 @@ json = { path = "../Json" }
 version = "0.100"
 default-features = false
 features = ["std"]
+
+[lints]
+workspace = true

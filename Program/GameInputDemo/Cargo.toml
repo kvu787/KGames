@@ -30,3 +30,6 @@ windows_api = { path = "../../Library/WindowsApi" }
 version = "0.100"
 default-features = false
 features = ["std"]
+
+[lints]
+workspace = true

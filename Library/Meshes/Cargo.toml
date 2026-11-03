@@ -11,3 +11,6 @@ doctest = false
 
 [dependencies]
 simple_paint = { path = "../SimplePaint" }
+
+[lints]
+workspace = true

@@ -12,3 +12,6 @@ doctest = false
 [dependencies]
 json = { path = "../Json" }
 simple_paint = { path = "../SimplePaint" }
+
+[lints]
+workspace = true

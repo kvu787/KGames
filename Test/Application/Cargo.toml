@@ -15,3 +15,6 @@ path = "Settings.rs"
 [dependencies]
 application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }
+
+[lints]
+workspace = true

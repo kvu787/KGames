@@ -36,3 +36,10 @@ members = [
     "Test/SimplePaintDemo",
     "Test/SpinningCarTest",
 ]
+
+# Lints for every package, which each takes with [lints] workspace = true.
+[workspace.lints.clippy]
+# Most unsafe functions here are unsafe because they call the Windows API,
+# not for what their callers must do, and the code's comments are //
+# comments, which clippy doesn't read as docs.
+missing_safety_doc = "allow"
