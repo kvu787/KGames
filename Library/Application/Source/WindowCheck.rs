@@ -109,6 +109,16 @@ pub unsafe fn problems(window: HWND) -> Vec<String> {
                      2560 x 1392."
                 ));
             }
+            // With the taskbar at the bottom, the work area starts at the
+            // monitor's top left corner.
+            let corner = [monitor.rcMonitor.left, monitor.rcMonitor.top];
+            if [work.left, work.top] != corner {
+                problems.push(format!(
+                    "The work area starts at ({}, {}), not at the monitor's top left corner, \
+                     ({}, {}), so the taskbar isn't at the bottom.",
+                    work.left, work.top, corner[0], corner[1]
+                ));
+            }
             let expected = RECT {
                 top: work.top + TITLE_BAR_HEIGHT,
                 ..work
