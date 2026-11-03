@@ -88,8 +88,9 @@ Frames count from 0, and clicks hit what the frame before them drew, so they sta
 After the last step, the program exits, with an error that lists each expectation that wasn't
 met. If it exits before the last step, like when its window is closed, that's an error too.
 Programs give their state to `Window::handle_checkpoints`, which adds the window's own as
-`Window`: `Fullscreen`, `Problems` and `Frame`. `Source/Script.rs` reads scripts, and
-`Test/Application` tests it.
+`Window`: `Fullscreen`, `Problems` and `Frame`. On the frame that toggles fullscreen, they're
+the new setup's already, but a capture shows that frame as drawn for the old one.
+`Source/Script.rs` reads scripts, and `Test/Application` tests it.
 
 | Path                      | Contents                                                               |
 | ------------------------- | ---------------------------------------------------------------------- |

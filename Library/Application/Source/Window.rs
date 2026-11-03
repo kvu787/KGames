@@ -568,8 +568,16 @@ impl Window {
     // refresh of latency and lets frames tear. A hidden window stays
     // hidden, so it can start in fullscreen. Neither way activates a window
     // that doesn't have focus, so a script's F11 doesn't take focus from the
-    // window that the user works in.
+    // window that the user works in. The window's display and problems are
+    // the new setup's right away, for the frame that toggles it.
     pub fn toggle_fullscreen(&mut self) -> Result<()> {
+        self.switch_mode()?;
+        self.display = self.display_label();
+        self.problems = unsafe { window_check::problems(self.handle) };
+        Ok(())
+    }
+
+    fn switch_mode(&mut self) -> Result<()> {
         unsafe {
             let window = self.handle;
             let visible = GetWindowLongPtrW(window, GWL_STYLE) & WS_VISIBLE as isize;
