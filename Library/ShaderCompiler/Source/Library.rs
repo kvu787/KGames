@@ -55,3 +55,17 @@ pub fn rerun_if_changed(source: &Path) {
     let folder = source.parent().unwrap_or(source);
     println!("cargo::rerun-if-changed={}", folder.display());
 }
+
+// For build scripts: compiles the VSMain and PSMain of `source` for Shader
+// Model 6.0, into `<name>Vertex.cso` and `<name>Pixel.cso` in the build
+// script's OUT_DIR, for the crate to embed with include_bytes!, and has Cargo
+// run the build script again when the shader's folder changes. Panics with
+// what dxc wrote if it fails.
+pub fn build_vertex_and_pixel(source: &Path, arguments: &[&str], name: &str) {
+    rerun_if_changed(source);
+    let output_directory = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    for (entry_point, profile, stage) in [("VSMain", "vs_6_0", "Vertex"), ("PSMain", "ps_6_0", "Pixel")] {
+        let output = output_directory.join(format!("{name}{stage}.cso"));
+        compile(source, entry_point, profile, arguments, &output).unwrap_or_else(|error| panic!("{error}"));
+    }
+}
