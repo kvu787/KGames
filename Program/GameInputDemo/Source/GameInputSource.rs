@@ -235,11 +235,13 @@ impl InputSource for GameInputSource {
         let mut result = Vec::new();
         unsafe {
             for (event, object) in events {
-                // A device that connects, or whose XInput index changes, is
-                // described again.
+                // A device that connects, or whose keyboard layout or XInput
+                // index changes, is described again.
                 if matches!(
                     event,
-                    GameInputDeviceEventConnected | GameInputDeviceEventXInputIndexUpdated
+                    GameInputDeviceEventConnected
+                        | GameInputDeviceEventKeyboardLayoutUpdated
+                        | GameInputDeviceEventXInputIndexUpdated
                 ) {
                     self.devices.retain(|(known, _)| *known != object);
                 }

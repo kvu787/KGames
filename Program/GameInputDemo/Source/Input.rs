@@ -469,7 +469,11 @@ impl Input {
                     .retain(|last| last.reading.device != Some(device.id));
                 format!("Disconnected: {label}")
             }
+            // The source describes the device again, with its new layout.
             GameInputDeviceEventKeyboardLayoutUpdated => {
+                if let Some(index) = existing {
+                    self.devices[index] = device;
+                }
                 format!("Keyboard layout changed: {label}")
             }
             GameInputDeviceEventHapticInfoUpdated => format!("Haptic info changed: {label}"),
