@@ -48,7 +48,9 @@ const MOUSE_PAD_SIZE: f32 = 200.0;
 // Longer values wrap at spaces, and words longer than this stay whole.
 const TOOLTIP_COLUMNS: usize = 100;
 
-// What a click does at a place in the window.
+// What a click does at a place in the window. Choose is as big as a device's
+// data, but there are only a few clicks, so it's not boxed.
+#[allow(clippy::large_enum_variant)]
 pub enum Click {
     // Opens or closes the gamepad select box's list.
     Picker,

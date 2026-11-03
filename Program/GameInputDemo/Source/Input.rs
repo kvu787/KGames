@@ -224,7 +224,9 @@ fn buttons(kind: GameInputKind, reading: &Reading) -> i32 {
 // Which gamepad the demo listens to, if any, chosen in the gamepad panel's
 // select box. The others are ignored, along with any keyboard or mouse input
 // they have: a GameSir in Xbox 360 mode is one device with a gamepad, a
-// keyboard and a mouse.
+// keyboard and a mouse. There's only one choice at a time, so its device's
+// data isn't boxed.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Listen {
     // Kept with its device's data, so that it's listened to again if it

@@ -604,8 +604,8 @@ impl Renderer {
             let mut pixels = Vec::with_capacity(width as usize * height as usize * 3);
             for row in 0..height as usize {
                 let start = footprint.Offset as usize + row * footprint.Footprint.RowPitch as usize;
-                for pixel in bytes[start..start + width as usize * 4].chunks_exact(4) {
-                    pixels.extend([pixel[2], pixel[1], pixel[0]]);
+                for [blue, green, red, _] in bytes[start..start + width as usize * 4].as_chunks::<4>().0 {
+                    pixels.extend([*red, *green, *blue]);
                 }
             }
             readback.Unmap(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }));
