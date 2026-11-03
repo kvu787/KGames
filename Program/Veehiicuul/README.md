@@ -37,3 +37,12 @@ Question: Should different underlying stats always be visually distinguisable?
 - Track builder
 - Vehicle footprint creator
 - Player
+
+## Overall creation flow
+
+- Create mesh objects for vehicles and decorations in Blender
+- Color in objects in any part of the flow
+- Create curves to represent the track, which automatically generates barriers
+- Paint a hex grid that will be the terrain
+- Arrange the hex grid, track, decorations, and vehicles in a scene
+
