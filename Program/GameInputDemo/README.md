@@ -361,8 +361,11 @@ steps connect and disconnect devices, and give their readings:
 }
 ```
 
-Each reading is a device's whole state, as GameInput's are: what a step leaves out is at rest,
-except that a mouse's `Motion` and `Wheel` add to its totals, as a real mouse's do.
+Each step gives one kind of a device's input in whole, as GameInput's readings do: what the
+step leaves out of that kind is at rest, except that a mouse's `Motion` and `Wheel` add to its
+totals, as a real mouse's do. A device with more than one kind keeps the others as its last
+steps left them, so a `Keyboard` step on a gamepad that's also a keyboard doesn't let go of its
+buttons.
 
 | Step         | Members                                                                         |
 | ------------ | ------------------------------------------------------------------------------- |
