@@ -25,6 +25,7 @@ json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
 meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
+scene_test = { path = "../../Library/SceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
 windows_api = { path = "../../Library/WindowsApi" }
 

@@ -3,144 +3,70 @@
 
 use std::path::Path;
 
-use application::{Arguments, FrameCounter, Settings, Window};
-use canvas::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
-use canvas::{Canvas, Font, MARGIN, PADDING, draw_window_problems, text_box, theme};
+use canvas::theme::{DIM, TEXT};
 use graphics::Renderer;
-use spinning_car_test::controls::{self, Action};
+use json::Value;
+use scene_test::Line;
+use spinning_car_test::NAME;
+use spinning_car_test::controls;
 use spinning_car_test::scene::{self, Scene};
 use spinning_car_test::settings::SceneSettings;
-use spinning_car_test::{FONT_SIZE, NAME};
 use windows_core::Result;
 
-fn main() -> Result<()> {
-    unsafe {
-        application::prepare_process()?;
-        // Problems with the settings and the command line, which the text
-        // over the scene lists.
-        let mut notices = Vec::new();
-        let arguments = Arguments::parse(&mut notices);
-        let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-        let background_path =
-            Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Assets\SceneBackground.png"));
-        let (settings, scene_settings) =
-            Settings::for_program::<SceneSettings>(settings_path, &arguments, &mut notices);
-        let mut window = Window::open(NAME, &settings, &arguments, &mut notices)?;
+// The scene, with where the car is, which Library/SceneTest runs. The car
+// keeps time while the window is minimized.
+struct SpinningCar {
+    scene: Scene,
+    stationary: bool,
+    // Where the car is along X, and how far it has turned.
+    placement: (f32, f32),
+}
 
-        let font = Font::new(FONT_SIZE)?;
-        let mut renderer = Renderer::new(window.handle, settings.allow_tearing, true)?;
-        let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let scene = Scene::new(&mut renderer, &scene_settings, background_path)?;
-        // The title bar says how frames are presented, as it affects latency.
-        let description = renderer.description();
-        window.set_title(&format!("{NAME} - {description}"))?;
-        window.show(arguments.activate);
-        let mut frames = FrameCounter::default();
-        let mut vertices = Vec::new();
-        let mut show_text = true;
-        let mut stationary = false;
-
-        // Handle all pending messages, then render one frame once the
-        // renderer is ready for it.
-        while window.handle_messages() {
-            if let Some([width, height]) = window.take_resize() {
-                renderer.resize(width, height)?;
-            }
-
-            if window.minimized() {
-                // Minimized: sleep until something happens instead of
-                // spinning. The car keeps time meanwhile.
-                window.wait_for_message()?;
-                frames.pause();
-                continue;
-            }
-
-            // Spin until the GPU and DXGI can take a frame, like GameInputDemo,
-            // which explains why. The loop keeps handling window messages
-            // through the wait.
-            if !renderer.is_ready()? {
-                std::hint::spin_loop();
-                continue;
-            }
-            // The frame's setup, before the time and input are read.
-            renderer.begin_frame()?;
-
-            // Read input only now, right before drawing, so the frame shows
-            // the newest. The scene reads the time as it draws.
-            let frame = window.begin_frame();
-            frames.frame(frame.seconds);
-            for event in &frame.events {
-                match controls::action(event) {
-                    Some(Action::ToggleText) => show_text = !show_text,
-                    Some(Action::ToggleStationary) => stationary = !stationary,
-                    Some(Action::ToggleFullscreen) => window.toggle_fullscreen()?,
-                    None => {}
-                }
-            }
-
-            let mut canvas = Canvas::new(&font, &mut vertices);
-            let (width, height) = (renderer.width as f32, renderer.height as f32);
-            renderer.clear(theme::BACKGROUND);
-            let placement = scene::car_placement(frame.seconds, stationary);
-            if window.problems.is_empty() {
-                scene.draw(&renderer, placement)?;
-                if show_text {
-                    let rate = match frames.per_second {
-                        Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
-                        None => "measuring".to_string(),
-                    };
-                    let focus = if frame.focused {
-                        ("Window has focus".to_string(), SUCCESS)
-                    } else {
-                        ("Window doesn't have focus: input is ignored".to_string(), WARNING)
-                    };
-                    let car = if stationary { "stationary" } else { "moving" };
-                    let piece = |text: &str, color| (text.to_string(), color);
-                    let mut lines = vec![
-                        vec![
-                            piece(NAME, TITLE),
-                            piece("  A car moving at 8 units and turning at 90 degrees per second", DIM),
-                        ],
-                        vec![piece("FPS: ", DIM), piece(&rate, TEXT)],
-                        vec![piece("GPU: ", DIM), piece(&description, TEXT)],
-                        vec![piece("Display: ", DIM), piece(&window.display, TEXT)],
-                        vec![piece("Car: ", DIM), piece(car, TEXT)],
-                        vec![focus],
-                        vec![
-                            piece("F1", TEXT),
-                            piece(" hide this   ", DIM),
-                            piece("F11", TEXT),
-                            piece(" borderless fullscreen   ", DIM),
-                            piece("S", TEXT),
-                            piece(" stationary car", DIM),
-                        ],
-                    ];
-                    lines.extend(notices.iter().map(|notice| vec![piece(notice, WARNING)]));
-                    // At the bottom left, which the car never crosses: it
-                    // goes off the top left and bottom right corners.
-                    let box_height = canvas.line_height() * lines.len() as f32 + PADDING * 2.0;
-                    text_box(&mut canvas, MARGIN, height - MARGIN - box_height, &lines);
-                }
-            } else {
-                draw_window_problems(&mut canvas, &window.supported, &window.problems, width);
-            }
-            overlay.draw(&renderer, canvas.vertices);
-            window.handle_checkpoints(
-                &frame,
-                |path| renderer.capture(path),
-                || {
-                    json::object([
-                        ("CarPosition", placement.0.into()),
-                        ("CarTurn", placement.1.into()),
-                        ("Stationary", stationary.into()),
-                        ("TextShown", show_text.into()),
-                    ])
-                },
-            )?;
-            renderer.present()?;
-        }
-        // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()?;
-        window.finish()
+impl scene_test::Scene for SpinningCar {
+    fn description(&self) -> &str {
+        "A car moving at 8 units and turning at 90 degrees per second"
     }
+
+    fn lines(&self) -> Vec<Line> {
+        let car = if self.stationary { "stationary" } else { "moving" };
+        vec![vec![("Car: ".to_string(), DIM), (car.to_string(), TEXT)]]
+    }
+
+    fn shortcuts(&self) -> &[(&'static str, &'static str)] {
+        &[("S", "stationary car")]
+    }
+
+    fn key(&mut self, event: &application::Event) {
+        if controls::toggles_stationary(event) {
+            self.stationary = !self.stationary;
+        }
+    }
+
+    fn advance(&mut self, seconds: f64) {
+        self.placement = scene::car_placement(seconds, self.stationary);
+    }
+
+    unsafe fn draw(&self, renderer: &Renderer) -> Result<()> {
+        unsafe { self.scene.draw(renderer, self.placement) }
+    }
+
+    fn state(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("CarPosition", self.placement.0.into()),
+            ("CarTurn", self.placement.1.into()),
+            ("Stationary", self.stationary.into()),
+        ]
+    }
+}
+
+fn main() -> Result<()> {
+    let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
+    let background_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Assets\SceneBackground.png"));
+    scene_test::run(NAME, settings_path, |renderer, settings: &SceneSettings| {
+        Ok(SpinningCar {
+            scene: unsafe { Scene::new(renderer, settings, background_path)? },
+            stationary: false,
+            placement: (0.0, 0.0),
+        })
+    })
 }

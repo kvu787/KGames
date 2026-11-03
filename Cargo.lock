@@ -130,12 +130,12 @@ name = "minimal_scene_test"
 version = "0.1.0"
 dependencies = [
  "application",
- "canvas",
  "graphics",
  "json",
  "math",
  "meshes",
  "paint_settings",
+ "scene_test",
  "shader_compiler",
  "simple_paint",
  "windows-core",
@@ -158,6 +158,25 @@ version = "0.1.0"
 dependencies = [
  "json",
  "simple_paint",
+]
+
+[[package]]
+name = "scene_test"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "graphics",
+ "json",
+ "windows-core",
+]
+
+[[package]]
+name = "scene_test_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "scene_test",
 ]
 
 [[package]]
@@ -225,6 +244,7 @@ dependencies = [
  "math",
  "meshes",
  "paint_settings",
+ "scene_test",
  "shader_compiler",
  "simple_paint",
  "windows-core",

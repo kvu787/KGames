@@ -1,22 +1,12 @@
-// MinimalSceneTest without a window: the sphere's motion, the keys, and the
-// settings file.
+// MinimalSceneTest without a window: the sphere's motion and the settings
+// file. Test/SceneTest tests the keys.
 
 use std::path::Path;
 
-use application::{Event, ProgramSettings, Settings, WindowMode};
-use minimal_scene_test::controls::{Action, action};
+use application::{ProgramSettings, Settings, WindowMode};
 use minimal_scene_test::scene::Motion;
 use minimal_scene_test::settings::SceneSettings;
 use simple_paint::{Material, Parameters};
-
-fn key(key: u32, control: bool) -> Event {
-    Event::Key {
-        key,
-        control,
-        shift: false,
-        repeat: false,
-    }
-}
 
 #[test]
 fn the_sphere_starts_in_the_middle_moving_at_8_units_a_second() {
@@ -71,25 +61,6 @@ fn small_frames_keep_the_sphere_on_its_path() {
     }
     // 80 units in 10 seconds, 14 units between turns, after 7 to the first.
     assert_eq!(turns, 6);
-}
-
-#[test]
-fn f1_toggles_the_text_and_f11_fullscreen() {
-    assert_eq!(action(&key(0x70, false)), Some(Action::ToggleText));
-    assert_eq!(action(&key(0x70, true)), Some(Action::ToggleText));
-    assert_eq!(action(&key(0x7A, false)), Some(Action::ToggleFullscreen));
-    assert_eq!(action(&key('S' as u32, false)), None);
-    assert_eq!(action(&Event::Press([10.0, 10.0])), None);
-    // Holding a key down doesn't flip it back and forth.
-    for code in [0x70, 0x7A] {
-        let held = Event::Key {
-            key: code,
-            control: false,
-            shift: false,
-            repeat: true,
-        };
-        assert_eq!(action(&held), None);
-    }
 }
 
 #[test]

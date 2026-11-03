@@ -70,9 +70,10 @@ cargo test -p spinning_car_test_tests
 Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 
-The tests in `Test/SpinningCarTest` check the car's path and turn, the stationary car, the keys,
-the settings file, and that the car mesh is what SimplePaint accepts, without a window. The scripts in `Test/SpinningCarTest/Scripts` run the
-real test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
+The tests in `Test/SpinningCarTest` check the car's path and turn, the stationary car, the S key,
+the settings file, and that the car mesh is what SimplePaint accepts, without a window, and
+`Test/SceneTest` checks F1 and F11. The scripts in `Test/SpinningCarTest/Scripts` run the real
+test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
 describes, and check where the car is frame by frame, and what F1, F11 and S do. The state
 that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`.
 
@@ -80,9 +81,9 @@ that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `Text
 
 | Path                         | Contents                                                               |
 | ---------------------------- | ---------------------------------------------------------------------- |
-| `Source/Main.rs`             | The main loop: settings, window, input, and drawing each frame         |
+| `Source/Main.rs`             | The scene, with the car's state, for Library/SceneTest's main loop     |
 | `Source/Library.rs`          | The test's parts, as a library that `Test/SpinningCarTest` tests       |
-| `Source/Controls.rs`         | What each key does                                                     |
+| `Source/Controls.rs`         | What S does                                                            |
 | `Source/Scene.rs`            | The background, the car and the sphere, the camera and the animation   |
 | `Source/CarMesh.rs`          | The car mesh                                                           |
 | `Source/Settings.rs`         | The materials and the sphere's resolution, and their defaults          |

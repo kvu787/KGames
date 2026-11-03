@@ -1,5 +1,5 @@
-// SpinningCarTest without a window: where the car is over time, the keys, the
-// settings file, and the car mesh.
+// SpinningCarTest without a window: where the car is over time, its key, the
+// settings file, and the car mesh. Test/SceneTest tests F1 and F11.
 
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::path::Path;
@@ -7,7 +7,7 @@ use std::path::Path;
 use application::{Event, ProgramSettings, Settings};
 use simple_paint::{Material, validate_mesh};
 use spinning_car_test::car_mesh::{INDICES, MATERIAL_COUNT, VERTICES};
-use spinning_car_test::controls::{Action, action};
+use spinning_car_test::controls::toggles_stationary;
 use spinning_car_test::scene::car_placement;
 use spinning_car_test::settings::SceneSettings;
 
@@ -44,28 +44,26 @@ fn a_stationary_car_stays_in_the_middle_facing_plus_x() {
 }
 
 #[test]
-fn f1_toggles_the_text_f11_fullscreen_and_s_the_car() {
+fn s_toggles_the_car() {
     let key = |key: u32| Event::Key {
         key,
         control: false,
         shift: false,
         repeat: false,
     };
-    assert_eq!(action(&key(0x70)), Some(Action::ToggleText));
-    assert_eq!(action(&key(0x7A)), Some(Action::ToggleFullscreen));
-    assert_eq!(action(&key('S' as u32)), Some(Action::ToggleStationary));
-    assert_eq!(action(&key('V' as u32)), None, "VSync isn't a setting here");
-    assert_eq!(action(&key(0x1B)), None, "Esc doesn't quit");
-    // Holding a key down doesn't flip it back and forth.
-    for code in [0x70, 0x7A, 'S' as u32] {
-        let held = Event::Key {
-            key: code,
-            control: false,
-            shift: false,
-            repeat: true,
-        };
-        assert_eq!(action(&held), None);
+    assert!(toggles_stationary(&key('S' as u32)));
+    // Library/SceneTest handles F1 and F11.
+    for other in [0x70, 0x7A, 'V' as u32, 0x1B] {
+        assert!(!toggles_stationary(&key(other)), "{other:#X}");
     }
+    // Holding it down doesn't flip it back and forth.
+    let held = Event::Key {
+        key: 'S' as u32,
+        control: false,
+        shift: false,
+        repeat: true,
+    };
+    assert!(!toggles_stationary(&held));
 }
 
 #[test]

@@ -61,8 +61,8 @@ cargo test -p minimal_scene_test_tests
 Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
 ```
 
-The tests in `Test/MinimalSceneTest` check the sphere's motion, the keys, and the settings file,
-without a window. The scripts in `Test/MinimalSceneTest/Scripts` run the
+The tests in `Test/MinimalSceneTest` check the sphere's motion and the settings file, without a
+window, and `Test/SceneTest` checks the keys. The scripts in `Test/MinimalSceneTest/Scripts` run the
 real test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
 describes, and check where the sphere is frame by frame, and what F1 and F11 do. The state that
 scripts save and check has `SpherePosition`, `SphereDirection` and `TextShown`.
@@ -71,9 +71,8 @@ scripts save and check has `SpherePosition`, `SphereDirection` and `TextShown`.
 
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
-| `Source/Main.rs`     | The main loop: settings, window, time, input, and drawing each frame       |
+| `Source/Main.rs`     | The scene, with the sphere's motion, for Library/SceneTest's main loop     |
 | `Source/Library.rs`  | The test's parts, as a library that `Test/MinimalSceneTest` tests          |
-| `Source/Controls.rs` | What each key does                                                         |
 | `Source/Scene.rs`    | The camera, the objects, and the sphere's motion, drawn with SimplePaint   |
 | `Source/Settings.rs` | The objects' materials, and their defaults                                 |
 | `Build.rs`           | Compiles SimplePaint's shaders for three materials                         |
