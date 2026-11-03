@@ -598,6 +598,17 @@ impl Input {
     // Handles a reading if the window had focus for it, and keeps it as its
     // device's last reading of this kind, which the next one is compared with.
     fn take_reading(&mut self, source: Source, kind: GameInputKind, reading: Reading) {
+        // A reading of a device that isn't connected is dropped: the device
+        // has disconnected, like when its reading came just before its
+        // disconnect was handled, or its connection hasn't been reported
+        // yet. Handled, the reading would bring back the device's view and
+        // its rumble, and kept, a device that reconnects would start from it
+        // instead of an idle state.
+        if let Some(id) = reading.device
+            && !self.devices.iter().any(|info| info.id == id)
+        {
+            return;
+        }
         let index = self.last_readings.iter().position(|last| {
             last.kind == kind && last.reading.device == reading.device
         });
@@ -643,17 +654,10 @@ impl Input {
         masked_before: &Masked,
         masked: &Masked,
     ) {
-        let device = match reading.device {
-            Some(id) => match self.devices.iter().find(|info| info.id == id) {
-                Some(device) => Some(device),
-                // It isn't connected: it has disconnected, like when its
-                // reading came just before its disconnect was handled, or its
-                // connection hasn't been reported yet. Readings of a device
-                // that's gone would bring back its view and its rumble.
-                None => return,
-            },
-            None => None,
-        };
+        // Connected, as take_reading drops readings of other devices.
+        let device = reading
+            .device
+            .and_then(|id| self.devices.iter().find(|info| info.id == id));
         if let Some(device) = device
             && !self.listen.includes(device)
         {

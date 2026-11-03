@@ -143,6 +143,23 @@ fn a_gamepad_no_longer_listened_to_lets_go_of_its_keys() {
 }
 
 #[test]
+fn a_device_that_reconnects_starts_idle_even_after_a_reading_with_its_disconnect() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    // The reading and the disconnect come in one update, which handles the
+    // disconnect first.
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#);
+    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    input.update(true);
+    step(&mut input, PAD_ONE);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#);
+    input.update(true);
+    assert_eq!(log(&input)[0], "Pad One: A pressed");
+    expect(&input, r#"{ "Gamepad": { "Device": "Pad One", "Buttons": ["A"] } }"#);
+}
+
+#[test]
 fn no_gamepad_ignores_every_gamepad() {
     let mut input = input();
     step(&mut input, PAD_ONE);
