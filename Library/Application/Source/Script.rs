@@ -301,9 +301,9 @@ pub fn virtual_key(name: &str) -> Option<u32> {
 // How `actual` differs from `expected`, one difference per item, or nothing
 // if it matches. Only what `expected` has matters: an object can have
 // members that `expected` leaves out. Lists must have the same length.
-// Numbers match within a billionth of the expected number's size, for
-// rounding. An infinite or NaN number in the state matches nothing, as a
-// script's numbers are always finite.
+// Numbers match within a billionth, for rounding, or within a billionth of
+// the expected number's size if it's above 1. An infinite or NaN number in
+// the state matches nothing, as a script's numbers are always finite.
 pub fn compare(expected: &Value, actual: &Value) -> Vec<String> {
     let mut differences = Vec::new();
     compare_at("", expected, actual, &mut differences);
