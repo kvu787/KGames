@@ -75,9 +75,13 @@ fn a_picked_gamepad_is_kept_while_it_is_disconnected() {
     step(&mut input, PAD_TWO);
     input.update(true);
     input.pick_listen(gamepad(&input, "Pad Two"));
+    step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Device": "Pad Two", "Buttons": ["A"] } }"#);
     step(&mut input, r#"{ "Disconnect": 2 }"#);
     input.update(true);
-    expect(&input, r#"{ "Listen": "Pad Two", "Gamepad": { "Device": null } }"#);
+    // Its view starts over, without what it held.
+    expect(&input, r#"{ "Listen": "Pad Two", "Gamepad": { "Device": null, "Buttons": [] } }"#);
 
     step(&mut input, PAD_TWO);
     step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["B"] } }"#);
