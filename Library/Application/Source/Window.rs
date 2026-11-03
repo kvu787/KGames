@@ -8,8 +8,8 @@
 //
 // Each frame starts with begin_frame, which says the frame's time and input.
 // Programs ignore all input while the window doesn't have focus: then a
-// frame has no events and no cursor, and a click that gives the window focus
-// does only that.
+// frame has no cursor, and no events but the Release of a press that it got
+// with focus, and a click that gives the window focus does only that.
 //
 // With a script (see Script.rs), the script is the only input, the window
 // acts as if it had focus, and time is the script's fixed clock.
@@ -52,8 +52,8 @@ pub enum Event {
     // The left mouse button went down. Until it comes up, the window gets
     // the mouse's messages even when the cursor is outside it.
     Press([f32; 2]),
-    // The left mouse button came up, or the window lost the mouse while it
-    // was down.
+    // The left mouse button came up, or the window lost the mouse or focus
+    // while it was down. Each Press gets one, and there's none without one.
     Release([f32; 2]),
     // The mouse wheel turned, by notches, positive away from the user.
     Wheel([f32; 2], f32),
@@ -233,6 +233,8 @@ pub struct Window {
     script: Option<Script>,
     // How a scripted run's state differed from what it expected.
     failures: Vec<String>,
+    // Whether the program got a Press without its Release yet.
+    pressed: bool,
 }
 
 impl Window {
@@ -338,6 +340,7 @@ impl Window {
                 frame: 0,
                 script,
                 failures: Vec::new(),
+                pressed: false,
             };
             // Before the renderer, so its swap chain starts at the display's size.
             if settings.window_mode == WindowMode::BorderlessFullscreen {
@@ -451,7 +454,7 @@ impl Window {
             number,
             seconds: self.opened.elapsed().as_secs_f64(),
             focused,
-            events: if focused { events } else { Vec::new() },
+            events: self.pair_presses(focused, events),
             cursor: if focused {
                 unpack_point(CURSOR.load(Ordering::Relaxed))
             } else {
@@ -460,6 +463,31 @@ impl Window {
             program_steps: Vec::new(),
             checkpoints: Vec::new(),
         }
+    }
+
+    // The window's events that the program gets: none without focus, but a
+    // Release then ends a press that it got with focus, as the window's own
+    // Release for it comes after the window lost focus. A Release without a
+    // press, like one that comes back with focus, is dropped.
+    fn pair_presses(&mut self, focused: bool, events: Vec<Event>) -> Vec<Event> {
+        if !focused {
+            if !std::mem::take(&mut self.pressed) {
+                return Vec::new();
+            }
+            let cursor = unpack_point(CURSOR.load(Ordering::Relaxed));
+            return vec![Event::Release(cursor.unwrap_or([-1.0, -1.0]))];
+        }
+        events
+            .into_iter()
+            .filter(|event| match event {
+                Event::Press(_) => {
+                    self.pressed = true;
+                    true
+                }
+                Event::Release(_) => std::mem::take(&mut self.pressed),
+                _ => true,
+            })
+            .collect()
     }
 
     // Does what a script asks at the end of a frame, after the program has

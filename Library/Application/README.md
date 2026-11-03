@@ -39,7 +39,8 @@ taskbar change.
 ## Input without focus
 
 Programs ignore all input while their window doesn't have focus. The `Frame` that
-`Window::begin_frame` returns has no events then, and no cursor. A click in the window that
+`Window::begin_frame` returns has no cursor then, and no events but a `Release` that ends a
+press it got with focus, so that each `Press` has its `Release`. A click in the window that
 gives it focus does only that. Programs that read input with GameInput drop it themselves
 while the window doesn't have focus.
 
