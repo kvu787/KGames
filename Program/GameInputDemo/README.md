@@ -82,7 +82,9 @@ demo applies a dead zone.
 ### Choosing a gamepad
 
 Click the select box after the Gamepad panel's title for a list of choices, and click
-one to pick it. Esc, a click anywhere else, or the window losing focus closes the list.
+one to pick it. Esc, a click anywhere else in the window, or the window losing focus, like when
+it's minimized, closes the list. A click on the title bar isn't in the window's client area, so
+it leaves the list open.
 
 | Choice    | What the demo listens to                                                        |
 | --------- | ------------------------------------------------------------------------------- |

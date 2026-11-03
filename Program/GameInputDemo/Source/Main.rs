@@ -65,10 +65,11 @@ fn main() -> Result<()> {
                 // focused when it's restored, and what was typed into other
                 // windows meanwhile would be handled then. This drops that,
                 // stops the motors, and makes restoring it count as getting
-                // focus.
+                // focus. It closes the gamepad list, like losing focus does.
                 if let Ok(input) = &mut input {
                     input.update(false);
                 }
+                picker_open = false;
                 // Then sleep until something happens instead of spinning.
                 window.wait_for_message()?;
                 frames.pause();
