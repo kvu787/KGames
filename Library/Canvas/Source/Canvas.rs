@@ -35,6 +35,9 @@ pub struct Canvas<'a> {
     font: &'a Font,
     solid_uv: [f32; 2],
     pub vertices: &'a mut Vec<Vertex>,
+    // How many lines Lines left out, as they didn't fit in its area, so that
+    // tests can check that a panel's text fits.
+    pub dropped_lines: usize,
 }
 
 impl<'a> Canvas<'a> {
@@ -47,6 +50,7 @@ impl<'a> Canvas<'a> {
             font,
             solid_uv: font.solid_uv(),
             vertices,
+            dropped_lines: 0,
         }
     }
 

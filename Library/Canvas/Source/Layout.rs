@@ -71,6 +71,8 @@ impl Lines {
         if self.has_room() {
             canvas.text_clipped(self.x, self.y, text, self.width, color);
             self.y += self.line_height;
+        } else {
+            canvas.dropped_lines += 1;
         }
     }
 
@@ -80,6 +82,8 @@ impl Lines {
             let end = canvas.text(self.x, self.y, label, DIM);
             canvas.text_clipped(end, self.y, value, self.right() - end, color);
             self.y += self.line_height;
+        } else {
+            canvas.dropped_lines += 1;
         }
     }
 
