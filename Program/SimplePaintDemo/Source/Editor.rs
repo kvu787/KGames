@@ -42,12 +42,17 @@ impl Slider {
         format!("{value:.0$}{1}", self.decimals, self.unit)
     }
 
-    // Sets the value to the step nearest `value`, within the range.
-    fn set(&self, parameters: &mut Parameters, value: f64) {
+    // The step nearest `value`, within the range.
+    fn nearest(&self, value: f64) -> f64 {
         // Dividing whole numbers, like 107 / 1000, gives the double nearest
         // the decimal, so values save as written, like 0.107.
         let stepped = (value * self.steps).round() / self.steps;
-        (self.set)(parameters, stepped.clamp(self.minimum, self.maximum));
+        stepped.clamp(self.minimum, self.maximum)
+    }
+
+    // Sets the value to the step nearest `value`, within the range.
+    fn set(&self, parameters: &mut Parameters, value: f64) {
+        (self.set)(parameters, self.nearest(value));
     }
 }
 
@@ -151,10 +156,15 @@ impl Editor {
             .constants();
     }
 
-    // Moves a slider by a number of its steps.
+    // Moves a slider by a number of its steps. A value from Paint.json can be
+    // past the slider's range, like a B of 0.9990234375 past 0.999, where
+    // the nearest step back in it is the other way. Then it stays put.
     fn nudge(&mut self, slider: usize, steps: f64) {
         let current = SLIDERS[slider].value(&self.parameters);
-        self.change(slider, current + steps / SLIDERS[slider].steps);
+        let next = SLIDERS[slider].nearest(current + steps / SLIDERS[slider].steps);
+        if (next - current) * steps > 0.0 {
+            self.change(slider, next);
+        }
     }
 
     // Sets a slider from where the cursor is along its track.

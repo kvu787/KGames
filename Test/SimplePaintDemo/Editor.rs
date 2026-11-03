@@ -233,6 +233,29 @@ fn arrow_keys_select_and_move_a_slider() {
 }
 
 #[test]
+fn an_arrow_never_moves_a_value_the_other_way() {
+    // SimplePaint accepts these, like MinimalSceneTest's sphere does, but
+    // they're past the sliders' ranges, which end at 0.001 and 0.999.
+    let parameters = Parameters {
+        base_color_srgb: [0.0009765625, 0.5, 0.9990234375],
+        ..Parameters::default()
+    };
+    Material::compile(&parameters).unwrap();
+    let mut editor = Editor::new(parameters);
+    let targets = targets(&editor);
+    editor.handle(&key(LEFT), &targets, &nowhere());
+    assert_eq!(editor.parameters.base_color_srgb[0], 0.0009765625, "Left left R as it was");
+    editor.handle(&key(RIGHT), &targets, &nowhere());
+    assert_eq!(editor.parameters.base_color_srgb[0], 0.002);
+    editor.handle(&key(DOWN), &targets, &nowhere());
+    editor.handle(&key(DOWN), &targets, &nowhere());
+    editor.handle(&key(RIGHT), &targets, &nowhere());
+    assert_eq!(editor.parameters.base_color_srgb[2], 0.9990234375, "Right left B as it was");
+    editor.handle(&key(LEFT), &targets, &nowhere());
+    assert_eq!(editor.parameters.base_color_srgb[2], 0.998);
+}
+
+#[test]
 fn holding_an_arrow_repeats_it_but_holding_f11_or_ctrl_s_does_not() {
     let path = file("Repeat", "Paint.json");
     let mut editor = Editor::new(Parameters::default());
