@@ -82,13 +82,17 @@ fn check_curve() -> usize {
             };
             let material = Material::compile(&parameters).unwrap();
             let m = material.constants();
-            let mut previous = -1.0;
-            for i in 0..=4096 {
-                let f = i as f64 / 4096.0;
+            // The curve that the shader computes from the packed coefficients.
+            let packed = |f: f64| {
                 let numerator = m.numerator_dark[0] as f64 * (1.0 - f) + m.numerator_light[0] as f64 * f;
                 let complement =
                     m.complement_dark[0] as f64 * (1.0 - f) + m.complement_light[0] as f64 * f;
-                let value = numerator / (numerator + complement);
+                numerator / (numerator + complement)
+            };
+            let mut previous = -1.0;
+            for i in 0..=4096 {
+                let f = i as f64 / 4096.0;
+                let value = packed(f);
                 assert!(
                     (value - reference::curve(c, b, f)).abs() < 1.0e-7,
                     "Packed curve differs from reference"
@@ -97,6 +101,8 @@ fn check_curve() -> usize {
                 previous = value;
                 checks += 1;
             }
+            // The anchor and endpoints, in the reference, and in the packed
+            // curve, which is the reference's within binary32 rounding.
             assert!(
                 (reference::curve(c, b, 1.0 - b) - reference::linear(c)).abs() < 1.0e-13,
                 "Base-color anchor failed"
@@ -105,6 +111,11 @@ fn check_curve() -> usize {
                 reference::curve(c, b, 0.0) == 0.0 && reference::curve(c, b, 1.0) == 1.0,
                 "Endpoints failed"
             );
+            assert!(
+                (packed(1.0 - b) - reference::linear(c)).abs() < 1.0e-7,
+                "Packed base-color anchor failed"
+            );
+            assert!(packed(0.0) == 0.0 && packed(1.0) == 1.0, "Packed endpoints failed");
         }
     }
     checks
