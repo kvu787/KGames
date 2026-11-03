@@ -118,6 +118,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meshes_tests"
+version = "0.1.0"
+dependencies = [
+ "meshes",
+ "simple_paint",
+]
+
+[[package]]
 name = "minimal_scene_test"
 version = "0.1.0"
 dependencies = [

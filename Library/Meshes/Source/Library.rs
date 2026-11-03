@@ -12,11 +12,13 @@ pub struct Mesh {
 
 // A sphere of radius 1 around the origin, with its poles on the Y axis:
 // `longitudes` vertices around each ring, and `latitudes` bands from pole to
-// pole.
+// pole. With 3 longitudes, which are 120 degrees apart, the normals of a
+// triangle near the equator are too far apart for SimplePaint, so 4 is the
+// fewest.
 pub fn uv_sphere(longitudes: u32, latitudes: u32, material_index: u32) -> Mesh {
     assert!(
-        (3..=512).contains(&longitudes) && (2..=512).contains(&latitudes),
-        "a UV sphere needs 3 to 512 longitudes and 2 to 512 latitudes"
+        (4..=512).contains(&longitudes) && (2..=512).contains(&latitudes),
+        "a UV sphere needs 4 to 512 longitudes and 2 to 512 latitudes"
     );
     let point = |position: [f32; 3]| Vertex {
         position,

@@ -99,7 +99,7 @@ impl ProgramSettings for SceneSettings {
         let mut resolution = self.sphere_resolution;
         for (member, value) in members {
             let (index, range) = match member.as_str() {
-                "UResolution" => (0, 3..=512),
+                "UResolution" => (0, 4..=512),
                 "VResolution" => (1, 2..=512),
                 _ => return Err(format!("{member} isn't a sphere setting. They're UResolution and VResolution.")),
             };

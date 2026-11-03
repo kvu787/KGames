@@ -104,10 +104,10 @@ fn the_settings_file_checks_the_sphere_s_resolution() {
     assert_eq!((read.materials, read.sphere_resolution), (written.materials, written.sphere_resolution));
 
     for (sphere, resolution, problem) in [
-        (r#"{ "UResolution": 3, "VResolution": 512 }"#, [3, 512], None),
-        (r#"{ "UResolution": 2 }"#, [64, 32], Some("UResolution must be a whole number from 3 to 512, not 2")),
+        (r#"{ "UResolution": 4, "VResolution": 512 }"#, [4, 512], None),
+        (r#"{ "UResolution": 3 }"#, [64, 32], Some("UResolution must be a whole number from 4 to 512, not 3")),
         (r#"{ "VResolution": 513 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 513")),
-        (r#"{ "UResolution": 64.5 }"#, [64, 32], Some("UResolution must be a whole number from 3 to 512, not 64.5")),
+        (r#"{ "UResolution": 64.5 }"#, [64, 32], Some("UResolution must be a whole number from 4 to 512, not 64.5")),
         (r#"{ "Radius": 1 }"#, [64, 32], Some("Radius isn't a sphere setting. They're UResolution and VResolution.")),
         (r#"{ "UResolution": 128, "VResolution": 600 }"#, [64, 32], Some("VResolution must be a whole number from 2 to 512, not 600")),
     ] {

@@ -28,6 +28,7 @@ members = [
     "Test/GameInputDemo",
     "Test/Json",
     "Test/Math",
+    "Test/Meshes",
     "Test/MinimalSceneTest",
     "Test/SimplePaint",
     "Test/SimplePaintDemo",

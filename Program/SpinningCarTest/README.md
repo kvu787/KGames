@@ -57,7 +57,7 @@ of the car and for the sphere, in the format of
 | `SimplePaintShader_Headlights` | The headlights' material                                     |
 | `SimplePaintShader_Wheels`     | The wheels' material                                         |
 | `SimplePaintShader_Sphere`     | The sphere's material                                        |
-| `Sphere`                       | `UResolution`, from 3 to 512 vertices around each ring, and  |
+| `Sphere`                       | `UResolution`, from 4 to 512 vertices around each ring, and  |
 |                                | `VResolution`, from 2 to 512 bands from pole to pole         |
 
 Tune a material in [SimplePaintDemo](../SimplePaintDemo/README.md), save it, and copy it from
