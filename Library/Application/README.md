@@ -84,7 +84,8 @@ every run draws the same frames. Each step happens at a frame:
 
 Frames count from 0, and clicks hit what the frame before them drew, so they start at frame 1.
 After the last step, the program exits, with an error that lists each expectation that wasn't
-met. Programs give their state to `Window::handle_checkpoints`, which adds the window's own as
+met. If it exits before the last step, like when its window is closed, that's an error too.
+Programs give their state to `Window::handle_checkpoints`, which adds the window's own as
 `Window`: `Fullscreen`, `Problems` and `Frame`. `Source/Script.rs` reads scripts, and
 `Test/Application` tests it.
 

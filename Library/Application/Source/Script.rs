@@ -8,7 +8,8 @@
 // Time is a fixed clock, FrameSeconds a frame, so every run draws the same
 // frames. At checkpoints, the program saves what it drew and its state, or
 // checks its state against what the script expects. Once the script's last
-// step is done, the program exits, with an error if its state differed.
+// step is done, the program exits, with an error if its state differed. If
+// it exits before that, like when its window is closed, that's an error too.
 //
 //     {
 //         "FrameSeconds": 0.01,
@@ -123,6 +124,11 @@ impl Script {
     // Whether every step is done, so the program can exit.
     pub fn finished(&self) -> bool {
         self.next == self.steps.len()
+    }
+
+    // The frame of the first step that isn't done yet, if any.
+    pub fn pending_frame(&self) -> Option<u64> {
+        self.steps.get(self.next).map(|step| step.frame)
     }
 
     // Moves to the next frame, and returns what happens in it.

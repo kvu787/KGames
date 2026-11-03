@@ -78,6 +78,20 @@ fn gives_each_frame_its_steps_and_time() {
     }
 }
 
+// Window::finish fails a run whose program exited with a step still to do.
+#[test]
+fn knows_which_step_is_next() {
+    let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }, { "Frame": 3, "Key": "S" }] }"#);
+    assert_eq!(script.pending_frame(), Some(1));
+    script.next_frame();
+    script.next_frame();
+    assert_eq!(script.pending_frame(), Some(3));
+    script.next_frame();
+    script.next_frame();
+    assert_eq!(script.pending_frame(), None);
+    assert!(script.finished());
+}
+
 #[test]
 fn runs_at_60_frames_a_second_by_default() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }] }"#);

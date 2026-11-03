@@ -511,13 +511,21 @@ impl Window {
 
     // Once the main loop ends: fails if a script's expectations weren't
     // met, after writing each difference to standard error, where
-    // RunInBackground logs it.
+    // RunInBackground logs it. Fails too if the program exited before the
+    // script's last step, like when its window was closed, as the steps from
+    // there didn't run.
     pub fn finish(&self) -> Result<()> {
-        if self.failures.is_empty() {
-            return Ok(());
-        }
         for failure in &self.failures {
             eprintln!("{failure}");
+        }
+        if let Some(frame) = self.script.as_ref().and_then(Script::pending_frame) {
+            return Err(Error::new(
+                E_FAIL,
+                format!("The program exited before the script's step at frame {frame}"),
+            ));
+        }
+        if self.failures.is_empty() {
+            return Ok(());
         }
         Err(Error::new(
             E_FAIL,
