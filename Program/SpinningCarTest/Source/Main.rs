@@ -36,7 +36,7 @@ impl scene_test::Scene for SpinningCar {
         &[("S", "stationary car")]
     }
 
-    fn key(&mut self, event: &application::Event) {
+    fn input(&mut self, event: &application::Event) {
         if controls::toggles_stationary(event) {
             self.stationary = !self.stationary;
         }

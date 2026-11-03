@@ -39,8 +39,8 @@ pub trait Scene {
         &[]
     }
 
-    // A key event, or another, that isn't F1's or F11's.
-    fn key(&mut self, _event: &Event) {}
+    // An input event that F1 and F11 don't take, like the test's own keys.
+    fn input(&mut self, _event: &Event) {}
 
     // The window was minimized, and the loop slept until it was restored.
     fn pause(&mut self) {}
@@ -141,7 +141,7 @@ pub fn run<S: ProgramSettings, T: Scene>(
                 match action(event) {
                     Some(Action::ToggleText) => show_text = !show_text,
                     Some(Action::ToggleFullscreen) => window.toggle_fullscreen()?,
-                    None => scene.key(event),
+                    None => scene.input(event),
                 }
             }
             scene.advance(frame.seconds);
