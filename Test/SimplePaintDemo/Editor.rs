@@ -24,6 +24,12 @@ fn font() -> &'static Font {
 
 // Draws a frame of the editor, and returns where things went.
 fn layout(editor: &Editor, height: f32) -> Layout {
+    draw(editor, height).0
+}
+
+// Draws a frame of the editor, and returns where things went, and how many
+// lines of text didn't fit.
+fn draw(editor: &Editor, height: f32) -> (Layout, usize) {
     let frames = FrameCounter::default();
     let mut vertices = Vec::new();
     let mut canvas = Canvas::new(font(), &mut vertices);
@@ -37,7 +43,8 @@ fn layout(editor: &Editor, height: f32) -> Layout {
         window_problems: &[],
         cursor: None,
     };
-    panels::draw(&mut canvas, &mut panels::Cache::default(), editor, &status, WIDTH, height)
+    let layout = panels::draw(&mut canvas, &mut panels::Cache::default(), editor, &status, WIDTH, height);
+    (layout, canvas.dropped_lines)
 }
 
 fn targets(editor: &Editor) -> Vec<Target> {
@@ -357,4 +364,31 @@ fn the_panels_fit_both_window_heights() {
         // The layout doesn't depend on the height above the footer.
         assert_eq!(layout.targets[0].area.y, targets(&editor)[0].area.y);
     }
+    // Every panel's text fits, with the tone curve's labels all on one tone,
+    // where each takes a line of its own.
+    let crowded = Parameters {
+        brightness: 0.5,
+        dark_point: 0.5,
+        light_point: 0.5,
+        ..Parameters::default()
+    };
+    for parameters in [Parameters::default(), crowded] {
+        for height in [MAXIMIZED_HEIGHT, FULLSCREEN_HEIGHT] {
+            let (_, dropped) = draw(&Editor::new(parameters), height);
+            assert_eq!(dropped, 0, "lines of text that didn't fit at {height}");
+        }
+    }
+}
+
+#[test]
+fn the_tone_curve_s_labels_go_on_lines_where_they_don_t_overlap() {
+    let gap = 16.0;
+    // Apart, they share the first line.
+    assert_eq!(panels::label_lines(&[[0.0, 100.0], [200.0, 300.0], [400.0, 500.0]], gap), [0, 0, 0]);
+    // At one tone, each gets a line.
+    assert_eq!(panels::label_lines(&[[0.0, 100.0], [4.0, 96.0], [2.0, 98.0]], gap), [0, 1, 2]);
+    // Too close to the first, the second goes on the next line, and the
+    // third on the first line where it's clear of the others.
+    assert_eq!(panels::label_lines(&[[0.0, 100.0], [110.0, 210.0], [220.0, 320.0]], gap), [0, 1, 0]);
+    assert_eq!(panels::label_lines(&[[0.0, 100.0], [110.0, 210.0], [90.0, 190.0]], gap), [0, 1, 2]);
 }

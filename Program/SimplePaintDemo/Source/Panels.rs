@@ -32,7 +32,7 @@ const LABEL_WIDTH: f32 = 120.0;
 const VALUE_WIDTH: f32 = 260.0;
 const HANDLE_RADIUS: f32 = 8.0;
 const SETTINGS_HEIGHT: f32 = 530.0;
-const CURVE_HEIGHT: f32 = 420.0;
+const CURVE_HEIGHT: f32 = 464.0;
 const PLOT_HEIGHT: f32 = 280.0;
 const RAMP_HEIGHT: f32 = 28.0;
 // The curves' colors, one for each channel.
@@ -339,30 +339,27 @@ fn draw_curve(canvas: &mut Canvas, cache: &mut Cache, parameters: &Parameters, a
     });
     canvas.rect_outline(plot.x, plot.y, plot.width, plot.height, 1.0, BORDER);
 
-    // Labels under the plot, at the marks.
+    // Labels under the plot, at the marks, on as many lines as there are
+    // labels, so that they never overlap, even when they're all at one tone.
     let mut y = plot.bottom() + 4.0;
     let labels = [
         (dark, format!("Dark Point {}", fixed(dark)), DIM),
         (light, format!("Light Point {}", fixed(light)), DIM),
         (anchor, format!("Base color {}", fixed(anchor)), FAINT),
     ];
-    // A label that would overlap one on the first line goes on the second.
-    let mut first_line: Vec<[f32; 2]> = Vec::new();
-    let edge = canvas.char_width() * 2.0;
-    for (tone, label, color) in labels {
-        let label_width = canvas.text_width(&label);
-        let x = (x_of(tone) - label_width * 0.5).clamp(plot.x, plot.right() - label_width);
-        let overlaps = first_line
-            .iter()
-            .any(|&[left, right]| x < right + edge && x + label_width > left - edge);
-        if overlaps {
-            canvas.text(x, y + line_height, &label, color);
-        } else {
-            canvas.text(x, y, &label, color);
-            first_line.push([x, x + label_width]);
-        }
+    let spans: Vec<[f32; 2]> = labels
+        .iter()
+        .map(|(tone, label, _)| {
+            let label_width = canvas.text_width(label);
+            let x = (x_of(*tone) - label_width * 0.5).clamp(plot.x, plot.right() - label_width);
+            [x, x + label_width]
+        })
+        .collect();
+    let lines = label_lines(&spans, canvas.char_width() * 2.0);
+    for ((_, label, color), (span, line)) in labels.iter().zip(spans.iter().zip(lines)) {
+        canvas.text(span[0], y + line_height * line as f32, label, *color);
     }
-    y += line_height * 2.0 + 4.0;
+    y += line_height * labels.len() as f32 + 4.0;
 
     // The colors along the curve, with the sphere's tones marked.
     let ramp = Rect::new(plot.x, y, plot.width, RAMP_HEIGHT);
@@ -393,6 +390,29 @@ fn draw_curve(canvas: &mut Canvas, cache: &mut Cache, parameters: &Parameters, a
         "",
         DIM,
     );
+}
+
+// Which line each label goes on, from 0, given where each one goes across,
+// from its left to its right: the first line where it's at least `gap` from
+// the labels already there.
+pub fn label_lines(spans: &[[f32; 2]], gap: f32) -> Vec<usize> {
+    let mut lines: Vec<Vec<[f32; 2]>> = Vec::new();
+    spans
+        .iter()
+        .map(|&[left, right]| {
+            let clear = |placed: &Vec<[f32; 2]>| {
+                placed
+                    .iter()
+                    .all(|&[other_left, other_right]| right + gap <= other_left || left >= other_right + gap)
+            };
+            let line = lines.iter().position(clear).unwrap_or(lines.len());
+            if line == lines.len() {
+                lines.push(Vec::new());
+            }
+            lines[line].push([left, right]);
+            line
+        })
+        .collect()
 }
 
 // What Material::compile made for the GPU.
