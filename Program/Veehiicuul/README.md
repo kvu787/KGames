@@ -10,6 +10,13 @@ Question: Should different underlying stats always be visually distinguisable?
   - This shouldn't be done this version of Veehiicuul, meaning a single visually distinct vehicle
     should globally correspond to a consistent set of stats
 
+## Simple paint
+
+The simple paint shader needs to be available in all parts of the flow, which currently is Blender
+and Veehiicuul which is written in Rust and DX12.
+
+The canonical implementation of simple paint for Blender will be a Blender Python script that
+generates the shader node graph for simple paint.
 
 ## Blender
 
