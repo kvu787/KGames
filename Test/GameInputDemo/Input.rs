@@ -112,6 +112,37 @@ fn ignores_gamepads_that_it_does_not_listen_to() {
 }
 
 #[test]
+fn a_device_that_disconnects_lets_go_of_its_keys_and_buttons() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    step(&mut input, RODENT);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["A"] } }"#);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Buttons": ["Left"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["A"] }, "Mouse": { "Buttons": ["Left"] } }"#);
+    step(&mut input, r#"{ "Disconnect": 3 }"#);
+    step(&mut input, r#"{ "Disconnect": 4 }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Device": null, "Keys": [] }, "Mouse": { "Device": null, "Buttons": [] } }"#);
+}
+
+#[test]
+fn a_gamepad_no_longer_listened_to_lets_go_of_its_keys() {
+    let mut input = input();
+    step(&mut input, r#"{ "Connect": { "Id": 5, "Name": "Combo", "Input": ["Gamepad", "Keyboard"] } }"#);
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    input.pick_listen(gamepad(&input, "Combo"));
+    step(&mut input, r#"{ "Keyboard": { "Id": 5, "Down": ["A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Device": "Combo", "Keys": ["A"] } }"#);
+    // Its release isn't handled from now on.
+    input.pick_listen(gamepad(&input, "Pad One"));
+    expect(&input, r#"{ "Keyboard": { "Device": null, "Keys": [] } }"#);
+}
+
+#[test]
 fn no_gamepad_ignores_every_gamepad() {
     let mut input = input();
     step(&mut input, PAD_ONE);

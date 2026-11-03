@@ -457,6 +457,13 @@ impl Input {
                 if self.gamepad.device == Some(device.id) {
                     self.gamepad = GamepadView::default();
                 }
+                // Its keys and buttons let go of as it went are never seen.
+                if self.keyboard.device == Some(device.id) {
+                    self.keyboard = KeyboardView::default();
+                }
+                if self.mouse.device == Some(device.id) {
+                    self.mouse = MouseView::default();
+                }
                 self.rumbles.retain(|rumble| rumble.device != device.id);
                 self.last_readings
                     .retain(|last| last.reading.device != Some(device.id));
@@ -556,6 +563,21 @@ impl Input {
                 "Ignoring all gamepads".to_string()
             }
         };
+        // The keyboard and mouse panels stop showing a gamepad that's also a
+        // keyboard or a mouse, once it isn't listened to, as its keys and
+        // buttons let go of after that are never seen.
+        let ignored = |device: Option<usize>| {
+            device
+                .and_then(|id| self.devices.iter().find(|info| info.id == id))
+                .is_some_and(|info| !self.listen.includes(info))
+        };
+        let (keyboard, mouse) = (ignored(self.keyboard.device), ignored(self.mouse.device));
+        if keyboard {
+            self.keyboard = KeyboardView::default();
+        }
+        if mouse {
+            self.mouse = MouseView::default();
+        }
         self.log(self.now, Source::Demo, text, None);
     }
 
