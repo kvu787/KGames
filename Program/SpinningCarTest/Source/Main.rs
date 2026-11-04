@@ -61,10 +61,9 @@ impl scene_test::Scene for SpinningCar {
 
 fn main() -> Result<()> {
     let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-    let background_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Assets\SceneBackground.png"));
     scene_test::run(NAME, settings_path, |renderer, settings: &SceneSettings| {
         Ok(SpinningCar {
-            scene: unsafe { Scene::new(renderer, settings, background_path)? },
+            scene: unsafe { Scene::new(renderer, settings)? },
             stationary: false,
             placement: (0.0, 0.0),
         })

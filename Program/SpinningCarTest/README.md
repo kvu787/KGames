@@ -1,11 +1,11 @@
 # SpinningCarTest
 
 A car moves back and forth at 8 units per second while it turns at 90 degrees per second, past a
-sphere, over a baked image of the backdrop, the green ground and the red cube, seen by an
-orthographic camera. The car and the sphere are painted with
-[SimplePaint](../../Library/SimplePaint/README.md). Like every KGames GUI program, it's built
-from the [Library](../../Library) crates on Win32 and Direct3D 12, ignores input without focus,
-and supports the two window setups in
+sphere and a red cube, on green ground, seen by an orthographic camera. The car and the sphere
+are painted with [SimplePaint](../../Library/SimplePaint/README.md), and the ground and the cube
+are lit by one light, like in the C++ scene that the test is a port of. Every frame draws all of
+it. Like every KGames GUI program, it's built from the [Library](../../Library) crates on Win32
+and Direct3D 12, ignores input without focus, and supports the two window setups in
 [Library/Application](../../Library/Application/README.md#supported-window-setups).
 
 ## Scene
@@ -19,14 +19,18 @@ and supports the two window setups in
 |            | middle to X = 7, back to -7, and again, at 8 units per second, and turns    |
 |            | at 90 degrees per second. `S` keeps it in the middle, facing +X             |
 | Sphere     | Radius 0.4, on the ground at X = 1.5 and Z = -1.5                           |
-| Background | `Assets/SceneBackground.png`, a baked image of the backdrop, the ground and |
-|            | the cube, drawn by `Shaders/Background.hlsl`                                |
+| Ground     | A plane 10 units along X and 5 along Z, at Y = 0                            |
+| Cube       | 1 unit on each side, on the ground at Z = -1.5                              |
+| Lighting   | Each face of the ground and the cube is a flat color: its sRGB color times  |
+|            | 0.28, plus 0.72 times how much it faces the light, which is above, between  |
+|            | +X and +Z. `Shaders/FlatShading.hlsl` draws them                            |
+| Background | #4c4c4c                                                                     |
 | Frames     | Through Library/Graphics' renderer, paced for the lowest latency, without   |
 |            | waiting for vertical sync                                                   |
 
-The background is a 32:9 image, center-cropped to the window, so the camera's vertical scale
-stays the same at any width. It's drawn first, without depth, and the car and the sphere go
-over it, with a depth buffer between them.
+Every frame draws the whole scene, with one depth buffer: the ground and the cube, in colors that
+are stored as they are, then the car and the sphere, whose linear colors are encoded to sRGB. The
+view is as wide as the window, at either supported height.
 
 ## Use
 
@@ -79,17 +83,17 @@ that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `Text
 
 ## Layout
 
-| Path                         | Contents                                                               |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| `Source/Main.rs`             | The scene, with the car's state, for Library/SceneTest's main loop     |
-| `Source/Library.rs`          | The test's parts, as a library that `Test/SpinningCarTest` tests       |
-| `Source/Controls.rs`         | What S does                                                            |
-| `Source/Scene.rs`            | The background, the car and the sphere, the camera and the animation   |
-| `Source/CarMesh.rs`          | The car mesh                                                           |
-| `Source/Settings.rs`         | The materials and the sphere's resolution, and their defaults          |
-| `Shaders/Background.hlsl`    | Draws the background image, center-cropped, with its root signature    |
-| `Assets/SceneBackground.png` | The baked background                                                   |
-| `Build.rs`                   | Compiles SimplePaint's shaders for six materials, and the background's |
-| `HumanRun.ps1`               | Builds the test and runs it on the primary display, for people to use  |
-| `HumanRun.cmd`               | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
-| `Settings.json`              | The settings, which the test writes if it's missing                    |
+| Path                       | Contents                                                                 |
+| -------------------------- | ------------------------------------------------------------------------ |
+| `Source/Main.rs`           | The scene, with the car's state, for Library/SceneTest's main loop       |
+| `Source/Library.rs`        | The test's parts, as a library that `Test/SpinningCarTest` tests         |
+| `Source/Controls.rs`       | What S does                                                              |
+| `Source/Scene.rs`          | The objects, the camera, the light and the animation                     |
+| `Source/CarMesh.rs`        | The car mesh                                                             |
+| `Source/Settings.rs`       | The materials and the sphere's resolution, and their defaults            |
+| `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
+|                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |
+| `Build.rs`                 | Compiles SimplePaint's shaders for six materials, and `FlatShading.hlsl` |
+| `HumanRun.ps1`             | Builds the test and runs it on the primary display, for people to use    |
+| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
+| `Settings.json`            | The settings, which the test writes if it's missing                      |

@@ -1,6 +1,6 @@
 // Compiles the shaders to DXIL at build time: SimplePaint's, for the car's
 // five materials and the sphere's, from where Library/SimplePaint says they
-// are, and the background's.
+// are, and the ground's and the cube's.
 
 use std::path::{Path, PathBuf};
 
@@ -11,5 +11,5 @@ fn main() {
         &["-O3", "-Ges", "-WX", "-D", "SIMPLE_PAINT_MATERIAL_COUNT=6"],
         "SimplePaint",
     );
-    shader_compiler::build_vertex_and_pixel(Path::new("Shaders/Background.hlsl"), &["-O3", "-WX"], "Background");
+    shader_compiler::build_vertex_and_pixel(Path::new("Shaders/FlatShading.hlsl"), &["-O3", "-WX"], "FlatShading");
 }

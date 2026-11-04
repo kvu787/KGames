@@ -1,13 +1,11 @@
-// The scene: a baked image of the backdrop, the green ground and the red cube,
-// then a car that moves back and forth along X at 8 units per second while
-// it turns at 90 degrees per second, and a sphere that stays put, both
-// painted with SimplePaint, with a depth buffer between them.
+// The scene: the green ground and the red cube, in flat colors, then a car
+// that moves back and forth along X at 8 units per second while it turns at
+// 90 degrees per second, and a sphere that stays put, both painted with
+// SimplePaint, all with one depth buffer. Every frame draws all of it.
 
-use std::path::Path;
-
-use graphics::{BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer, bytecode, load_image, upload_texture};
+use graphics::{BACK_BUFFER_FORMAT, BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer};
 use math::Matrix;
-use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
+use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
 use simple_paint::orthographic::{build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material};
 use windows_api::*;
@@ -18,18 +16,23 @@ use crate::settings::SceneSettings;
 
 static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 static PAINT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-static BACKGROUND_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/BackgroundVertex.cso"));
-static BACKGROUND_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/BackgroundPixel.cso"));
+static FLAT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatShadingVertex.cso"));
+static FLAT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatShadingPixel.cso"));
 
 // The car's five materials, then the sphere's, as SIMPLE_PAINT_MATERIAL_COUNT
 // in Build.rs says.
 const MATERIAL_COUNT: usize = 6;
 const SPHERE_MATERIAL: u32 = car_mesh::MATERIAL_COUNT;
-// The car, then the sphere.
-const OBJECT_COUNT: usize = 2;
-// The baked background's aspect. A wider window gets the scene in a 32:9
-// middle, with the background's corner color on the sides.
-const BACKGROUND_ASPECT: f32 = 32.0 / 9.0;
+// The ground's color, then the cube's, as FlatShading.hlsl's MaterialCount
+// says.
+const FLAT_MATERIAL_COUNT: usize = 2;
+// The car, the sphere, the ground and the cube.
+const OBJECT_COUNT: usize = 4;
+// Where the constants have the materials, after each object's transforms,
+// and the flat shading, after the materials.
+const MATERIALS_OFFSET: usize = OBJECT_SIZE * OBJECT_COUNT;
+const SHADING_OFFSET: usize = MATERIALS_OFFSET + materials_size(MATERIAL_COUNT);
+const SHADING_SIZE: usize = size_of::<Shading>().next_multiple_of(CONSTANT_BUFFER_ALIGNMENT);
 // The camera looks down at the origin from 45 degrees above the horizon, and
 // 45 degrees from +Z toward +X, 5 units away, at a view 5 units tall.
 const CAMERA_PITCH: f32 = std::f32::consts::FRAC_PI_4;
@@ -43,42 +46,61 @@ const TRAVEL_DISTANCE: f64 = 7.0;
 // Radians per second.
 const TURN_SPEED: f64 = std::f64::consts::FRAC_PI_2;
 const SPHERE_RADIUS: f32 = 0.4;
+// Along X and Z.
+const GROUND_SIZE: [f32; 2] = [10.0, 5.0];
+const CUBE_SIZE: f32 = 1.0;
+// sRGB, like the C++ scene's.
+const GROUND_COLOR: [f32; 4] = [0.08900002, 0.89, 0.48950002, 1.0];
+const CUBE_COLOR: [f32; 4] = [0.88, 0.1672, 0.17907982, 1.0];
+// Toward the light, which is above, between +X and +Z, as a unit vector.
+const LIGHT: [f32; 3] = [0.5, std::f32::consts::FRAC_1_SQRT_2, 0.5];
+// #4c4c4c, stored as it is, like the theme's background that it covers.
+const BACKGROUND: [f32; 4] = [76.0 / 255.0, 76.0 / 255.0, 76.0 / 255.0, 1.0];
+
+// What FlatShading.hlsl binds at b1.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Shading {
+    // Toward the light, in view space. W isn't used.
+    light: [f32; 4],
+    colors: [[f32; 4]; FLAT_MATERIAL_COUNT],
+}
 
 pub struct Scene {
     paint: Pipeline,
+    flat: Pipeline,
     car: Mesh,
     sphere: Mesh,
-    // Each object's transforms, then the materials, each at a constant
-    // buffer's start. The GPU has finished with them when a frame is ready.
+    ground: Mesh,
+    cube: Mesh,
+    // Each object's transforms, then the materials, then the flat shading,
+    // each at a constant buffer's start. The GPU has finished with them when
+    // a frame is ready.
     constants: UploadBuffer,
     materials: [GpuMaterial; MATERIAL_COUNT],
-    background_root_signature: ID3D12RootSignature,
-    background_pipeline: ID3D12PipelineState,
-    // Shader-visible, holding the background texture's view.
-    srv_heap: ID3D12DescriptorHeap,
-    // Kept alive for the view in srv_heap.
-    _background: ID3D12Resource,
 }
 
 impl Scene {
-    pub unsafe fn new(renderer: &mut Renderer, settings: &SceneSettings, background: &Path) -> Result<Self> {
+    pub unsafe fn new(renderer: &mut Renderer, settings: &SceneSettings) -> Result<Self> {
         unsafe {
             let device = renderer.device.clone();
-            let paint = Pipeline::new(
-                &device,
-                PAINT_VERTEX_SHADER,
-                PAINT_PIXEL_SHADER,
-                &Target {
-                    format: BACK_BUFFER_SRGB_FORMAT,
-                    depth_format: Some(DEPTH_FORMAT),
-                    sample_count: 1,
-                    cull_mode: D3D12_CULL_MODE_NONE,
-                },
-            )?;
+            let target = |format| Target {
+                format,
+                depth_format: Some(DEPTH_FORMAT),
+                sample_count: 1,
+                cull_mode: D3D12_CULL_MODE_NONE,
+            };
+            let paint = Pipeline::new(&device, PAINT_VERTEX_SHADER, PAINT_PIXEL_SHADER, &target(BACK_BUFFER_SRGB_FORMAT))?;
+            // The flat colors are already sRGB, so they're stored as they are.
+            let flat = Pipeline::new(&device, FLAT_VERTEX_SHADER, FLAT_PIXEL_SHADER, &target(BACK_BUFFER_FORMAT))?;
             let car = Mesh::new(renderer, &car_mesh::VERTICES, &car_mesh::INDICES, MATERIAL_COUNT as u32)?;
+            let mut upload = |mesh: meshes::Mesh, material_count: usize| {
+                Mesh::new(renderer, &mesh.vertices, &mesh.indices, material_count as u32)
+            };
             let [longitudes, latitudes] = settings.sphere_resolution;
-            let sphere = meshes::uv_sphere(longitudes, latitudes, SPHERE_MATERIAL);
-            let sphere = Mesh::new(renderer, &sphere.vertices, &sphere.indices, MATERIAL_COUNT as u32)?;
+            let sphere = upload(meshes::uv_sphere(longitudes, latitudes, SPHERE_MATERIAL), MATERIAL_COUNT)?;
+            let ground = upload(meshes::plane(GROUND_SIZE, 0), FLAT_MATERIAL_COUNT)?;
+            let cube = upload(meshes::cuboid([CUBE_SIZE; 3], 1), FLAT_MATERIAL_COUNT)?;
             let mut materials = [GpuMaterial::default(); MATERIAL_COUNT];
             for (material, parameters) in materials.iter_mut().zip(&settings.materials) {
                 *material = *Material::compile(parameters)
@@ -86,75 +108,15 @@ impl Scene {
                     .constants();
             }
 
-            // The background is sRGB, so sampling it gives linear colors,
-            // which the sRGB render target encodes again.
-            let image = load_image(background)?;
-            let texture = upload_texture(
-                renderer,
-                image.width,
-                image.height,
-                DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                4,
-                &image.pixels,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            )?;
-            let srv_heap: ID3D12DescriptorHeap =
-                device.CreateDescriptorHeap(&D3D12_DESCRIPTOR_HEAP_DESC {
-                    Type: D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                    NumDescriptors: 1,
-                    Flags: D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-                    ..Default::default()
-                })?;
-            let mut view = D3D12_SHADER_RESOURCE_VIEW_DESC {
-                Format: DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                ViewDimension: D3D12_SRV_DIMENSION_TEXTURE2D,
-                Shader4ComponentMapping: D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING as u32,
-                ..Default::default()
-            };
-            view.Anonymous.Texture2D.MipLevels = 1;
-            device.CreateShaderResourceView(&texture, Some(&view), srv_heap.GetCPUDescriptorHandleForHeapStart());
-            let background_root_signature: ID3D12RootSignature =
-                device.CreateRootSignature(0, BACKGROUND_VERTEX_SHADER)?;
-            let mut description = D3D12_GRAPHICS_PIPELINE_STATE_DESC {
-                // Borrow the root signature without touching its reference count.
-                pRootSignature: std::mem::transmute_copy(&background_root_signature),
-                VS: bytecode(BACKGROUND_VERTEX_SHADER),
-                PS: bytecode(BACKGROUND_PIXEL_SHADER),
-                BlendState: D3D12_BLEND_DESC {
-                    RenderTarget: [D3D12_RENDER_TARGET_BLEND_DESC {
-                        RenderTargetWriteMask: D3D12_COLOR_WRITE_ENABLE_ALL as u8,
-                        ..Default::default()
-                    }; 8],
-                    ..Default::default()
-                },
-                SampleMask: u32::MAX,
-                RasterizerState: D3D12_RASTERIZER_DESC {
-                    FillMode: D3D12_FILL_MODE_SOLID,
-                    CullMode: D3D12_CULL_MODE_NONE,
-                    DepthClipEnable: true.into(),
-                    ..Default::default()
-                },
-                PrimitiveTopologyType: D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-                NumRenderTargets: 1,
-                SampleDesc: DXGI_SAMPLE_DESC {
-                    Count: 1,
-                    Quality: 0,
-                },
-                ..Default::default()
-            };
-            description.RTVFormats[0] = BACK_BUFFER_SRGB_FORMAT;
-            let background_pipeline = device.CreateGraphicsPipelineState(&description)?;
-
             Ok(Self {
                 paint,
+                flat,
                 car,
                 sphere,
-                constants: UploadBuffer::new(&device, OBJECT_SIZE * OBJECT_COUNT + materials_size(MATERIAL_COUNT))?,
+                ground,
+                cube,
+                constants: UploadBuffer::new(&device, SHADING_OFFSET + SHADING_SIZE)?,
                 materials,
-                background_root_signature,
-                background_pipeline,
-                srv_heap,
-                _background: texture,
             })
         }
     }
@@ -163,14 +125,13 @@ impl Scene {
     // where car_placement says.
     pub unsafe fn draw(&self, renderer: &Renderer, (position, turn): (f32, f32)) -> Result<()> {
         unsafe {
-            let (width, height) = (renderer.width as f32, renderer.height as f32);
             let eye = [
                 CAMERA_DISTANCE * CAMERA_PITCH.cos() * CAMERA_YAW.sin(),
                 CAMERA_DISTANCE * CAMERA_PITCH.sin(),
                 CAMERA_DISTANCE * CAMERA_PITCH.cos() * CAMERA_YAW.cos(),
             ];
             let view = Matrix::look_at_rh(eye, [0.0; 3], [0.0, 1.0, 0.0]);
-            let aspect = (width / height).min(BACKGROUND_ASPECT);
+            let aspect = renderer.width as f32 / renderer.height as f32;
             let projection = make_projection(VIEW_HEIGHT * aspect, VIEW_HEIGHT, 1.0, 20.0)
                 .map_err(|error| Error::new(E_INVALIDARG, error.0))?;
             let worlds = [
@@ -179,44 +140,39 @@ impl Scene {
                     * Matrix::translation(position, 0.0, 0.0),
                 Matrix::scaling(SPHERE_RADIUS, SPHERE_RADIUS, SPHERE_RADIUS)
                     * Matrix::translation(1.5, SPHERE_RADIUS, -1.5),
+                Matrix::IDENTITY,
+                Matrix::translation(0.0, CUBE_SIZE * 0.5, -1.5),
             ];
             for (index, world) in worlds.iter().enumerate() {
                 let object = build_object_transforms(&(*world * view), &projection)
                     .map_err(|error| Error::new(E_INVALIDARG, error.0))?;
                 self.constants.write(OBJECT_SIZE * index, &[object]);
             }
-            let materials_offset = OBJECT_SIZE * OBJECT_COUNT;
-            self.constants.write(materials_offset, &self.materials);
+            self.constants.write(MATERIALS_OFFSET, &self.materials);
+            let [x, y, z] = view.transform_direction(LIGHT);
+            let shading = Shading {
+                light: [x, y, z, 0.0],
+                colors: [GROUND_COLOR, CUBE_COLOR],
+            };
+            self.constants.write(SHADING_OFFSET, &[shading]);
 
-            // The background, over the whole window.
-            renderer.set_render_target(true, false);
-            let list = &renderer.command_list;
-            list.SetPipelineState(&self.background_pipeline);
-            list.SetGraphicsRootSignature(&self.background_root_signature);
-            list.SetDescriptorHeaps(&[Some(self.srv_heap.clone())]);
-            list.SetGraphicsRootDescriptorTable(0, self.srv_heap.GetGPUDescriptorHandleForHeapStart());
-            let horizontal_uv_scale = width / height / BACKGROUND_ASPECT;
-            list.SetGraphicsRoot32BitConstants(1, 1, (&raw const horizontal_uv_scale).cast(), 0);
-            list.IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST));
-            list.DrawInstanced(3, 1, 0, 0);
-
-            // The car and the sphere, in the scene's 32:9 middle of a wider
-            // window, which the supported setups never are.
+            renderer.clear(BACKGROUND);
             renderer.clear_depth();
+            let list = &renderer.command_list;
+            let object = |index| self.constants.address(OBJECT_SIZE * index);
+            // The ground and the cube, in their flat colors.
+            renderer.set_render_target(false, true);
+            self.flat.bind(list);
+            let shading = self.constants.address(SHADING_OFFSET);
+            self.ground.draw(list, object(2), shading);
+            self.cube.draw(list, object(3), shading);
+            // The car and the sphere, whose linear colors are encoded to
+            // sRGB, in front of or behind them.
             renderer.set_render_target(true, true);
-            let scene_width = width.min(height * BACKGROUND_ASPECT);
-            list.RSSetViewports(&[D3D12_VIEWPORT {
-                TopLeftX: (width - scene_width) * 0.5,
-                TopLeftY: 0.0,
-                Width: scene_width,
-                Height: height,
-                MinDepth: 0.0,
-                MaxDepth: 1.0,
-            }]);
             self.paint.bind(list);
-            let materials = self.constants.address(materials_offset);
-            self.car.draw(list, self.constants.address(0), materials);
-            self.sphere.draw(list, self.constants.address(OBJECT_SIZE), materials);
+            let materials = self.constants.address(MATERIALS_OFFSET);
+            self.car.draw(list, object(0), materials);
+            self.sphere.draw(list, object(1), materials);
             Ok(())
         }
     }
