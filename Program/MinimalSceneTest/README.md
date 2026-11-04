@@ -22,7 +22,7 @@ and supports the two window setups in
 | Materials  | [SimplePaint](../../Library/SimplePaint/README.md) materials: the ground's  |
 |            | and the cube's paint their color on faces that face up, and the sphere's    |
 |            | has equal Dark and Light Points, a constant color                           |
-| Background | The light theme's background                                                |
+| Background | #4c4c4c                                                                     |
 | Frames     | Borderless fullscreen by default, presented without waiting for vertical    |
 |            | sync, tearing allowed, and without antialiasing                             |
 

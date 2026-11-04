@@ -34,6 +34,9 @@ const CAMERA_UP: [f32; 3] = [-0.36863866, 0.6755902, -0.63850087];
 const CAMERA_DISTANCE: f32 = 5.0;
 const VIEW_HEIGHT: f32 = 5.0;
 
+// #4c4c4c, stored as it is, like the theme's background that it covers.
+const BACKGROUND: [f32; 4] = [76.0 / 255.0, 76.0 / 255.0, 76.0 / 255.0, 1.0];
+
 pub struct Scene {
     pipeline: Pipeline,
     // The sphere, the ground and the cube.
@@ -141,6 +144,7 @@ impl Scene {
             let materials_offset = OBJECT_SIZE * OBJECT_COUNT;
             self.constants.write(materials_offset, &self.materials);
 
+            renderer.clear(BACKGROUND);
             renderer.clear_depth();
             renderer.set_render_target(true, true);
             let list = &renderer.command_list;
