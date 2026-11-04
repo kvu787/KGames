@@ -1,6 +1,6 @@
 // Direct3D 12 for KGames: the renderer that every program's frames go
 // through, helpers for the resources that programs make for their draws,
-// and decoding images for textures.
+// and saving captured frames as PNGs.
 
 #[path = "Image.rs"]
 mod image;
