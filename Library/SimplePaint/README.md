@@ -60,7 +60,8 @@ names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package
 `direct3d12::Pipeline` creates the adapter's pipeline for a render target, and
 `direct3d12::Mesh` validates a mesh, copies it into the GPU's own memory once with
 `Renderer::run`, and draws it with its constant buffers. The copy waits for the GPU, so make
-meshes at setup.
+meshes at setup. Both work with a host's own shader that takes the same vertices and binds `b0`
+and `b1` the same way, like SpinningCarTest's `FlatShading.hlsl`.
 
 ## Validate geometry and transforms
 

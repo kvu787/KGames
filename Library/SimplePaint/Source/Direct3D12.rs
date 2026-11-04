@@ -2,7 +2,9 @@
 // pipeline of SimplePaint.hlsl's adapter, meshes in GPU memory, and the
 // sizes of the constant buffers that the adapter binds. The host compiles
 // the adapter with its material count (see Usage.md), owns the constant
-// buffers, and keeps them from changing while the GPU reads them.
+// buffers, and keeps them from changing while the GPU reads them. A host's
+// own shader that takes the same vertices and binds b0 and b1 the same way,
+// like SpinningCarTest's FlatShading.hlsl, draws with them too.
 
 use graphics::{Renderer, UploadBuffer, bytecode, create_buffer, transition};
 use windows_api::*;
@@ -25,8 +27,8 @@ pub const fn materials_size(count: usize) -> usize {
 
 // What a pipeline draws into, and how.
 pub struct Target {
-    // The shader outputs linear colors, so this should be an sRGB format,
-    // which encodes them once for display.
+    // SimplePaint's shader outputs linear colors, so for it, this should be
+    // an sRGB format, which encodes them once for display.
     pub format: DXGI_FORMAT,
     // With a depth buffer, nearer surfaces hide farther ones.
     pub depth_format: Option<DXGI_FORMAT>,
@@ -42,8 +44,9 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    // From the adapter's two stages, compiled with the same material count.
-    // The vertex stage holds the root signature.
+    // From the adapter's two stages, compiled with the same material count,
+    // or another shader's that binds like it. The vertex stage holds the
+    // root signature.
     pub unsafe fn new(
         device: &ID3D12Device,
         vertex_shader: &[u8],
