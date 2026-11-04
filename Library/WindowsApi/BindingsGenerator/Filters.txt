@@ -186,29 +186,21 @@ RRF_RT_REG_SZ
 RRF_SUBKEY_WOW6432KEY
 VS_FIXEDFILEINFO
 
-// Decoding and encoding images with the Windows Imaging Component
+// Encoding PNGs with the Windows Imaging Component
 CoCreateInstance
 CoInitializeEx
 CoUninitialize
-IWICBitmapDecoder::GetFrame
 IWICBitmapEncoder::{Commit, CreateNewFrame, Initialize}
 IWICBitmapFrameEncode::{Commit, Initialize, SetPixelFormat, SetSize, WritePixels}
-IWICBitmapSource::{CopyPixels, GetSize}
-IWICFormatConverter::Initialize
-IWICImagingFactory::{CreateDecoderFromFilename, CreateEncoder, CreateFormatConverter, CreateStream}
+IWICImagingFactory::{CreateEncoder, CreateStream}
 IWICStream::InitializeFromFilename
 CLSCTX
 CLSID_WICImagingFactory
 COINIT
-GENERIC_READ
 GENERIC_WRITE
 GUID_ContainerFormatPng
 GUID_WICPixelFormat24bppBGR
-GUID_WICPixelFormat32bppRGBA
-WICBitmapDitherType
 WICBitmapEncoderCacheOption
-WICBitmapPaletteType
-WICDecodeOptions
 
 // Font atlas, rasterized with DirectWrite
 DWriteCreateFactory

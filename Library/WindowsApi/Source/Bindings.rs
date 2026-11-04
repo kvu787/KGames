@@ -2859,14 +2859,11 @@ pub const FF_SWISS: i32 = 32;
 pub const FIXED_PITCH: i32 = 1;
 pub const FW_BOLD: i32 = 700;
 pub const FW_NORMAL: i32 = 400;
-pub const GENERIC_READ: u32 = 2147483648;
 pub const GENERIC_WRITE: i32 = 1073741824;
 pub const GUID_ContainerFormatPng: windows_core::GUID =
     windows_core::GUID::from_u128(0x1b7cfaf4_713f_473c_bbcd_6137425faeaf);
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
     windows_core::GUID::from_u128(0x6fddc324_4e03_4bfe_b185_3d77768dc90c);
-pub const GUID_WICPixelFormat32bppRGBA: windows_core::GUID =
-    windows_core::GUID::from_u128(0xf5c7ad2d_6a8d_43dd_a7a8_a29935261ae9);
 pub const GWLP_USERDATA: i32 = -21;
 pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
@@ -6864,45 +6861,6 @@ pub struct IStream_Vtbl {
 }
 impl windows_core::RuntimeName for IStream {}
 windows_core::imp::define_interface!(
-    IWICBitmapDecoder,
-    IWICBitmapDecoder_Vtbl,
-    0x9edde9e7_8dee_47ea_99df_e6faf2ed44bf
-);
-windows_core::imp::interface_hierarchy!(IWICBitmapDecoder, windows_core::IUnknown);
-impl IWICBitmapDecoder {
-    pub unsafe fn GetFrame(&self, index: u32) -> windows_core::Result<IWICBitmapFrameDecode> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).GetFrame)(
-                windows_core::Interface::as_raw(self),
-                index,
-                &mut result__,
-            )
-            .and_then(|| windows_core::imp::Type::from_abi(result__))
-        }
-    }
-}
-#[repr(C)]
-pub struct IWICBitmapDecoder_Vtbl {
-    pub base__: windows_core::IUnknown_Vtbl,
-    QueryCapability: usize,
-    Initialize: usize,
-    GetContainerFormat: usize,
-    GetDecoderInfo: usize,
-    CopyPalette: usize,
-    GetMetadataQueryReader: usize,
-    GetPreview: usize,
-    GetColorContexts: usize,
-    GetThumbnail: usize,
-    GetFrameCount: usize,
-    pub GetFrame: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        u32,
-        *mut *mut core::ffi::c_void,
-    ) -> windows_core::HRESULT,
-}
-impl windows_core::RuntimeName for IWICBitmapDecoder {}
-windows_core::imp::define_interface!(
     IWICBitmapEncoder,
     IWICBitmapEncoder_Vtbl,
     0x00000103_a8f2_4877_ba0a_fd2b6645fb94
@@ -6967,30 +6925,6 @@ pub struct IWICBitmapEncoder_Vtbl {
     GetMetadataQueryWriter: usize,
 }
 impl windows_core::RuntimeName for IWICBitmapEncoder {}
-windows_core::imp::define_interface!(
-    IWICBitmapFrameDecode,
-    IWICBitmapFrameDecode_Vtbl,
-    0x3b16811b_6a43_4ec9_a813_3d930c13b940
-);
-impl core::ops::Deref for IWICBitmapFrameDecode {
-    type Target = IWICBitmapSource;
-    fn deref(&self) -> &Self::Target {
-        unsafe { core::mem::transmute(self) }
-    }
-}
-windows_core::imp::interface_hierarchy!(
-    IWICBitmapFrameDecode,
-    windows_core::IUnknown,
-    IWICBitmapSource
-);
-#[repr(C)]
-pub struct IWICBitmapFrameDecode_Vtbl {
-    pub base__: IWICBitmapSource_Vtbl,
-    GetMetadataQueryReader: usize,
-    GetColorContexts: usize,
-    GetThumbnail: usize,
-}
-impl windows_core::RuntimeName for IWICBitmapFrameDecode {}
 windows_core::imp::define_interface!(
     IWICBitmapFrameEncode,
     IWICBitmapFrameEncode_Vtbl,
@@ -7082,148 +7016,12 @@ pub struct IWICBitmapFrameEncode_Vtbl {
 }
 impl windows_core::RuntimeName for IWICBitmapFrameEncode {}
 windows_core::imp::define_interface!(
-    IWICBitmapSource,
-    IWICBitmapSource_Vtbl,
-    0x00000120_a8f2_4877_ba0a_fd2b6645fb94
-);
-windows_core::imp::interface_hierarchy!(IWICBitmapSource, windows_core::IUnknown);
-impl IWICBitmapSource {
-    pub unsafe fn GetSize(&self, puiwidth: *mut u32, puiheight: *mut u32) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).GetSize)(
-                windows_core::Interface::as_raw(self),
-                puiwidth as _,
-                puiheight as _,
-            )
-        }
-    }
-    pub unsafe fn CopyPixels(
-        &self,
-        prc: *const WICRect,
-        cbstride: u32,
-        cbbuffersize: u32,
-    ) -> windows_core::Result<u8> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).CopyPixels)(
-                windows_core::Interface::as_raw(self),
-                prc,
-                cbstride,
-                cbbuffersize,
-                &mut result__,
-            )
-            .map(|| result__)
-        }
-    }
-}
-#[repr(C)]
-pub struct IWICBitmapSource_Vtbl {
-    pub base__: windows_core::IUnknown_Vtbl,
-    pub GetSize: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut u32,
-        *mut u32,
-    ) -> windows_core::HRESULT,
-    GetPixelFormat: usize,
-    GetResolution: usize,
-    CopyPalette: usize,
-    pub CopyPixels: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *const WICRect,
-        u32,
-        u32,
-        *mut u8,
-    ) -> windows_core::HRESULT,
-}
-impl windows_core::RuntimeName for IWICBitmapSource {}
-windows_core::imp::define_interface!(
-    IWICFormatConverter,
-    IWICFormatConverter_Vtbl,
-    0x00000301_a8f2_4877_ba0a_fd2b6645fb94
-);
-impl core::ops::Deref for IWICFormatConverter {
-    type Target = IWICBitmapSource;
-    fn deref(&self) -> &Self::Target {
-        unsafe { core::mem::transmute(self) }
-    }
-}
-windows_core::imp::interface_hierarchy!(
-    IWICFormatConverter,
-    windows_core::IUnknown,
-    IWICBitmapSource
-);
-impl IWICFormatConverter {
-    pub unsafe fn Initialize<P0, P3>(
-        &self,
-        pisource: P0,
-        dstformat: REFWICPixelFormatGUID,
-        dither: WICBitmapDitherType,
-        pipalette: P3,
-        alphathresholdpercent: f64,
-        palettetranslate: WICBitmapPaletteType,
-    ) -> windows_core::HRESULT
-    where
-        P0: windows_core::Param<IWICBitmapSource>,
-        P3: windows_core::Param<IWICPalette>,
-    {
-        unsafe {
-            (windows_core::Interface::vtable(self).Initialize)(
-                windows_core::Interface::as_raw(self),
-                pisource.param().abi(),
-                dstformat,
-                dither,
-                pipalette.param().abi(),
-                alphathresholdpercent,
-                palettetranslate,
-            )
-        }
-    }
-}
-#[repr(C)]
-pub struct IWICFormatConverter_Vtbl {
-    pub base__: IWICBitmapSource_Vtbl,
-    pub Initialize: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut core::ffi::c_void,
-        REFWICPixelFormatGUID,
-        WICBitmapDitherType,
-        *mut core::ffi::c_void,
-        f64,
-        WICBitmapPaletteType,
-    ) -> windows_core::HRESULT,
-    CanConvert: usize,
-}
-impl windows_core::RuntimeName for IWICFormatConverter {}
-windows_core::imp::define_interface!(
     IWICImagingFactory,
     IWICImagingFactory_Vtbl,
     0xec5ec8a9_c395_4314_9c77_54d7a935ff70
 );
 windows_core::imp::interface_hierarchy!(IWICImagingFactory, windows_core::IUnknown);
 impl IWICImagingFactory {
-    pub unsafe fn CreateDecoderFromFilename<P0>(
-        &self,
-        wzfilename: P0,
-        pguidvendor: *const windows_core::GUID,
-        dwdesiredaccess: u32,
-        metadataoptions: WICDecodeOptions,
-    ) -> windows_core::Result<IWICBitmapDecoder>
-    where
-        P0: windows_core::Param<windows_core::PCWSTR>,
-    {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).CreateDecoderFromFilename)(
-                windows_core::Interface::as_raw(self),
-                wzfilename.param().abi(),
-                pguidvendor,
-                dwdesiredaccess,
-                metadataoptions,
-                &mut result__,
-            )
-            .and_then(|| windows_core::imp::Type::from_abi(result__))
-        }
-    }
     pub unsafe fn CreateEncoder(
         &self,
         guidcontainerformat: *const windows_core::GUID,
@@ -7235,16 +7033,6 @@ impl IWICImagingFactory {
                 windows_core::Interface::as_raw(self),
                 guidcontainerformat,
                 pguidvendor,
-                &mut result__,
-            )
-            .and_then(|| windows_core::imp::Type::from_abi(result__))
-        }
-    }
-    pub unsafe fn CreateFormatConverter(&self) -> windows_core::Result<IWICFormatConverter> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).CreateFormatConverter)(
-                windows_core::Interface::as_raw(self),
                 &mut result__,
             )
             .and_then(|| windows_core::imp::Type::from_abi(result__))
@@ -7264,14 +7052,7 @@ impl IWICImagingFactory {
 #[repr(C)]
 pub struct IWICImagingFactory_Vtbl {
     pub base__: windows_core::IUnknown_Vtbl,
-    pub CreateDecoderFromFilename: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        windows_core::PCWSTR,
-        *const windows_core::GUID,
-        u32,
-        WICDecodeOptions,
-        *mut *mut core::ffi::c_void,
-    ) -> windows_core::HRESULT,
+    CreateDecoderFromFilename: usize,
     CreateDecoderFromStream: usize,
     CreateDecoderFromFileHandle: usize,
     CreateComponentInfo: usize,
@@ -7283,10 +7064,7 @@ pub struct IWICImagingFactory_Vtbl {
         *mut *mut core::ffi::c_void,
     ) -> windows_core::HRESULT,
     CreatePalette: usize,
-    pub CreateFormatConverter: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut *mut core::ffi::c_void,
-    ) -> windows_core::HRESULT,
+    CreateFormatConverter: usize,
     CreateBitmapScaler: usize,
     CreateBitmapClipper: usize,
     CreateBitmapFlipRotator: usize,
@@ -7309,27 +7087,6 @@ pub struct IWICImagingFactory_Vtbl {
     CreateQueryWriterFromReader: usize,
 }
 impl windows_core::RuntimeName for IWICImagingFactory {}
-windows_core::imp::define_interface!(
-    IWICPalette,
-    IWICPalette_Vtbl,
-    0x00000040_a8f2_4877_ba0a_fd2b6645fb94
-);
-windows_core::imp::interface_hierarchy!(IWICPalette, windows_core::IUnknown);
-#[repr(C)]
-pub struct IWICPalette_Vtbl {
-    pub base__: windows_core::IUnknown_Vtbl,
-    InitializePredefined: usize,
-    InitializeCustom: usize,
-    InitializeFromBitmap: usize,
-    InitializeFromPalette: usize,
-    GetType: usize,
-    GetColorCount: usize,
-    GetColors: usize,
-    IsBlackWhite: usize,
-    IsGrayscale: usize,
-    HasAlpha: usize,
-}
-impl windows_core::RuntimeName for IWICPalette {}
 windows_core::imp::define_interface!(
     IWICStream,
     IWICStream_Vtbl,
@@ -7496,7 +7253,6 @@ pub struct RECTL {
     pub right: i32,
     pub bottom: i32,
 }
-pub type REFWICPixelFormatGUID = *const windows_core::GUID;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
@@ -7560,52 +7316,12 @@ pub struct VS_FIXEDFILEINFO {
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WAIT_TIMEOUT: i32 = 258;
 pub const WHEEL_DELTA: i32 = 120;
-pub const WICBITMAPDITHERTYPE_FORCE_DWORD: WICBitmapDitherType = 2147483647;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;
-pub const WICBITMAPPALETTETYPE_FORCE_DWORD: WICBitmapPaletteType = 2147483647;
-pub type WICBitmapDitherType = i32;
-pub const WICBitmapDitherTypeDualSpiral4x4: WICBitmapDitherType = 6;
-pub const WICBitmapDitherTypeDualSpiral8x8: WICBitmapDitherType = 7;
-pub const WICBitmapDitherTypeErrorDiffusion: WICBitmapDitherType = 8;
-pub const WICBitmapDitherTypeNone: WICBitmapDitherType = 0;
-pub const WICBitmapDitherTypeOrdered16x16: WICBitmapDitherType = 3;
-pub const WICBitmapDitherTypeOrdered4x4: WICBitmapDitherType = 1;
-pub const WICBitmapDitherTypeOrdered8x8: WICBitmapDitherType = 2;
-pub const WICBitmapDitherTypeSolid: WICBitmapDitherType = 0;
-pub const WICBitmapDitherTypeSpiral4x4: WICBitmapDitherType = 4;
-pub const WICBitmapDitherTypeSpiral8x8: WICBitmapDitherType = 5;
 pub const WICBitmapEncoderCacheInMemory: WICBitmapEncoderCacheOption = 0;
 pub type WICBitmapEncoderCacheOption = i32;
 pub const WICBitmapEncoderCacheTempFile: WICBitmapEncoderCacheOption = 1;
 pub const WICBitmapEncoderNoCache: WICBitmapEncoderCacheOption = 2;
-pub type WICBitmapPaletteType = i32;
-pub const WICBitmapPaletteTypeCustom: WICBitmapPaletteType = 0;
-pub const WICBitmapPaletteTypeFixedBW: WICBitmapPaletteType = 2;
-pub const WICBitmapPaletteTypeFixedGray16: WICBitmapPaletteType = 11;
-pub const WICBitmapPaletteTypeFixedGray256: WICBitmapPaletteType = 12;
-pub const WICBitmapPaletteTypeFixedGray4: WICBitmapPaletteType = 10;
-pub const WICBitmapPaletteTypeFixedHalftone125: WICBitmapPaletteType = 6;
-pub const WICBitmapPaletteTypeFixedHalftone216: WICBitmapPaletteType = 7;
-pub const WICBitmapPaletteTypeFixedHalftone252: WICBitmapPaletteType = 8;
-pub const WICBitmapPaletteTypeFixedHalftone256: WICBitmapPaletteType = 9;
-pub const WICBitmapPaletteTypeFixedHalftone27: WICBitmapPaletteType = 4;
-pub const WICBitmapPaletteTypeFixedHalftone64: WICBitmapPaletteType = 5;
-pub const WICBitmapPaletteTypeFixedHalftone8: WICBitmapPaletteType = 3;
-pub const WICBitmapPaletteTypeFixedWebPalette: WICBitmapPaletteType = 7;
-pub const WICBitmapPaletteTypeMedianCut: WICBitmapPaletteType = 1;
-pub const WICDecodeMetadataCacheOnDemand: WICDecodeOptions = 0;
-pub const WICDecodeMetadataCacheOnLoad: WICDecodeOptions = 1;
-pub type WICDecodeOptions = i32;
-pub const WICMETADATACACHEOPTION_FORCE_DWORD: WICDecodeOptions = 2147483647;
 pub type WICPixelFormatGUID = windows_core::GUID;
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct WICRect {
-    pub X: i32,
-    pub Y: i32,
-    pub Width: i32,
-    pub Height: i32,
-}
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct WINDOWPLACEMENT {
