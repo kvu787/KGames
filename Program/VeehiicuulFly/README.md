@@ -11,3 +11,5 @@ is using a yaw/pitch/roll control model with a weak yaw - basically jet fighter 
 If I remember correctly, Everspace has stronger yaw. Having strong yaw and pitch leads to a
 "point to where you want to fly"-style control approach, which I find less interesting and
 enjoyable.
+
+There are many flying games or games that have flight in them that could be worth checking out.
