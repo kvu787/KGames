@@ -49,3 +49,15 @@ For example, I'm not sure how this would work if you're piloting a very large sh
 dimensions or "interior" sections. Also, I don't want an analog stick to be reserved for free-look.
 Also, I find the free-look to be too slow, which is why I will experiment with instant camera looks
 and persistent camera views.
+
+The camera projection will be perspective instead of orthographic, so this will require changes
+in the existing Veehiicuul code.
+
+The only analog controls will be analog left and right stick for these reasons:
+
+- Nintendo Switch controllers don't have analog triggers.
+- This is more ergonomic for mobile controls.
+- More engineering goes into improving and perfecting the analog sticks of gamepads.
+
+Yaw and roll map naturally to the left/right stick axes and pitch and forward/backward map
+naturally to up/down stick axes.
