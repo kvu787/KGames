@@ -41,7 +41,7 @@ pub struct Game {
     pub camera: Camera,
     // How many times the car touched an edge, since the game started.
     pub crashes: u32,
-    pub show_text: bool,
+    pub show_card: bool,
     // When the car was last put at the start, and the last frame's time, in
     // seconds.
     restarted: f64,
@@ -88,7 +88,7 @@ impl Game {
                 height: 0.0,
             },
             crashes: 0,
-            show_text: true,
+            show_card: true,
             restarted: f64::NEG_INFINITY,
             last: None,
         };
@@ -184,8 +184,8 @@ impl Game {
     pub fn update(&mut self, controls: &Controls, seconds: f64) {
         let step = self.last.map_or(0.0, |last| (seconds - last).clamp(0.0, LONGEST_STEP));
         self.last = Some(seconds);
-        if controls.toggle_text {
-            self.show_text = !self.show_text;
+        if controls.toggle_card {
+            self.show_card = !self.show_card;
         }
         if controls.toggle_camera {
             self.camera.follow = !self.camera.follow;
@@ -235,7 +235,7 @@ impl Game {
             ("Camera", if self.camera.follow { "Follow" } else { "Fixed" }.into()),
             ("ViewHeight", self.camera.height.into()),
             ("Crashes", self.crashes.into()),
-            ("TextShown", self.show_text.into()),
+            ("CardShown", self.show_card.into()),
         ]
     }
 }

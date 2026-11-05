@@ -8,13 +8,13 @@
 // | D-pad left and right  | Q and E               | The previous and next vehicle        |
 // | D-pad down and up     | PageDown and PageUp   | The previous and next scene          |
 // | X                     | R                     | Puts the car back at the start       |
-// | Menu                  | C                     | The fixed camera or the following one |
+// | Menu                  | C                     | The fixed or the following camera    |
 // | RB and left stick     | The wheel             | Zooms                                |
 // | Y                     | Home                  | Zooms back to the camera's height    |
-// | View                  | F1                    | Shows or hides the text              |
+// | View                  | F1                    | Shows or hides the card              |
 
 use application::Event;
-use user_interface::{Button, Frame};
+use user_interface::{GamepadButton, Frame};
 
 use crate::driving::DeadZone;
 
@@ -53,7 +53,7 @@ pub struct Controls {
     pub zoom: f64,
     pub notches: f64,
     pub default_zoom: bool,
-    pub toggle_text: bool,
+    pub toggle_card: bool,
 }
 
 impl Controls {
@@ -62,7 +62,7 @@ impl Controls {
     pub fn read(frame: &Frame) -> Controls {
         let gamepad = frame.gamepad();
         let held = |keys: [i32; 2]| keys.iter().any(|&key| frame.held(key));
-        let pressed = |button: Button, key: i32| gamepad.pressed(button) || frame.shortcut(key);
+        let pressed = |button: GamepadButton, key: i32| gamepad.pressed(button) || frame.shortcut(key);
         // Keys push all the way, and a diagonal as far as a straight push.
         let keys = [
             held([RIGHT, 'D' as i32]) as i32 - held([LEFT, 'A' as i32]) as i32,
@@ -79,7 +79,7 @@ impl Controls {
         } else {
             f64::from(gamepad.left_trigger)
         };
-        let zoom = if gamepad.held(Button::RightShoulder) {
+        let zoom = if gamepad.held(GamepadButton::RightShoulder) {
             ZOOM_DEAD_ZONE.apply(f64::from(gamepad.left_stick[1]))
         } else {
             0.0
@@ -95,14 +95,14 @@ impl Controls {
         Controls {
             push,
             brake,
-            vehicle: step(pressed(Button::Left, 'Q' as i32), pressed(Button::Right, 'E' as i32)),
-            scene: step(pressed(Button::Down, PAGE_DOWN), pressed(Button::Up, PAGE_UP)),
-            restart: pressed(Button::X, 'R' as i32),
-            toggle_camera: pressed(Button::Menu, 'C' as i32),
+            vehicle: step(pressed(GamepadButton::Left, 'Q' as i32), pressed(GamepadButton::Right, 'E' as i32)),
+            scene: step(pressed(GamepadButton::Down, PAGE_DOWN), pressed(GamepadButton::Up, PAGE_UP)),
+            restart: pressed(GamepadButton::X, 'R' as i32),
+            toggle_camera: pressed(GamepadButton::Menu, 'C' as i32),
             zoom,
             notches,
-            default_zoom: pressed(Button::Y, HOME),
-            toggle_text: pressed(Button::View, F1),
+            default_zoom: pressed(GamepadButton::Y, HOME),
+            toggle_card: pressed(GamepadButton::View, F1),
         }
     }
 }

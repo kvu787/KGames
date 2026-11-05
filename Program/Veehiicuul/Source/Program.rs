@@ -1,26 +1,29 @@
 // The game as a Program, which Library/UserInterface's main loop runs. Tabs
-// at the top go between playing and the editors, which make the game's
+// in the app bar go between playing and the editors, which make the game's
 // scenes and vehicles:
 //
 // | Tab      | What it does                                                         |
 // | -------- | -------------------------------------------------------------------- |
-// | Play     | Drives the current scene's track, with a box of text over the bottom |
-// |          | left corner that says what's going on and what the controls do       |
+// | Play     | Drives the current scene's track, with a card over the bottom left   |
+// |          | corner that says what's going on and what the controls do            |
 // | Scene    | Arranges decorations and parked vehicles, and sets the background,   |
 // |          | the camera, and models' paint                                        |
 // | Terrain  | Paints the hexel terrain                                             |
 // | Track    | Builds the track from curves, which make the road and its barriers   |
 // | Vehicles | Edits the vehicles, their footprints, and their paint                |
 //
-// Beside the tabs: the scene to play and edit, a new scene, undo, redo, and
-// save, which writes the files that changed. Drawing.rs draws the 3D view
-// under all of it.
+// After the tabs: the scene to play and edit, a new scene, undo, redo, and
+// save, which writes the files that changed. The status bar says whether
+// there are changes to save. Drawing.rs draws the 3D view under all of it.
 
 use std::path::PathBuf;
 
 use json::Value;
-use user_interface::theme::{BACKGROUND, BORDER, DIM, PANEL, SUCCESS, TEXT, TITLE, WARNING};
-use user_interface::{Choice, Color, Frame, MARGIN, PADDING, Program, Rect, Setup};
+use user_interface::{
+    Button, CARD_PADDING, CONTROL_HEIGHT, Choice, Color, Frame, Icon, MARGIN, PANELS_TOP, Program, Rect, SPACE_M,
+    SPACE_S, SPACE_XS, SPACE_XXL, SPACE_XXS, STATUS_BAR_HEIGHT, Setup, TAB_HEIGHT, TextStyle, keycap_width, tab_widths,
+    theme, toggle_width,
+};
 use windows_api::*;
 use windows_core::{Error, Result};
 
@@ -29,7 +32,7 @@ use crate::camera::Eye;
 use crate::controls::Controls;
 use crate::document::Document;
 use crate::drawing::{Drawing, Ground, Instance, View};
-use crate::editing::{TOP, Viewport};
+use crate::editing::{self, Viewport};
 use crate::files::{self, srgb};
 use crate::game::Game;
 use crate::scene::Scene;
@@ -47,9 +50,9 @@ pub const TRACK: usize = 3;
 pub const VEHICLES: usize = 4;
 // How many changes undo goes back.
 const HISTORY: usize = 200;
-
-// A line of the text box, as pieces of text, each in its color.
-pub type Line = Vec<(String, Color)>;
+// The middle of the app bar's line, where its controls are.
+const APP_BAR_MIDDLE: f32 = PANELS_TOP / 2.0;
+const SCENE_WIDTH: f32 = 200.0;
 
 pub struct Veehiicuul {
     pub game: Game,
@@ -76,6 +79,8 @@ pub struct Veehiicuul {
     // What the frame's 3D view shows.
     eye: Eye,
     instances: Vec<Instance>,
+    // The theme's background, which the Vehicles tab shows its vehicle on.
+    backdrop: Color,
 }
 
 impl Veehiicuul {
@@ -99,6 +104,7 @@ impl Veehiicuul {
             status: String::new(),
             drawing,
             instances: Vec::new(),
+            backdrop: theme::LIGHT.background,
         }
     }
 
@@ -170,21 +176,33 @@ impl Veehiicuul {
         self.game.go_to_scene(self.game.document.scenes.len() - 1, seconds);
     }
 
-    fn top_bar(&mut self, frame: &mut Frame) {
-        // A strip under the tabs, so that the 3D view doesn't show through.
-        let strip = TOP - MARGIN / 2.0;
-        frame.canvas.rect(0.0, 0.0, frame.width, strip, PANEL);
-        frame.canvas.rect(0.0, strip, frame.width, 1.0, BORDER);
+    // The bars at the top and the bottom, which are opaque, so that the 3D
+    // view doesn't show through them, and in the editors, the window's
+    // background left of their view, under their cards.
+    fn backgrounds(&self, frame: &mut Frame) {
+        let theme = frame.theme();
+        let (width, bottom) = (frame.width, frame.content_bottom());
+        let view_left = editing::view_area(frame).x;
+        let canvas = &mut frame.canvas;
+        canvas.fill(Rect::new(0.0, 0.0, width, PANELS_TOP), 0.0, theme.background);
+        canvas.fill(Rect::new(0.0, bottom, width, STATUS_BAR_HEIGHT), 0.0, theme.background);
+        if self.mode != PLAY {
+            canvas.fill(Rect::from_edges(0.0, PANELS_TOP, view_left, bottom), 0.0, theme.background);
+        }
+    }
+
+    // The app bar: the title, the tabs, the scene, its buttons, and in the
+    // editors, whether their view is at the game's angle.
+    fn app_bar(&mut self, frame: &mut Frame) {
+        frame.header(NAME, "");
         let focusable = frame.set_focusable(false);
-        let height = frame.control_height();
-        let mut x = MARGIN;
-        let mut next = |width: f32| {
-            let area = Rect::new(x, MARGIN, width, height);
-            x += width + 8.0;
-            area
-        };
+        let fonts = frame.fonts();
+        let control = |x: f32, width: f32| Rect::new(x, APP_BAR_MIDDLE - CONTROL_HEIGHT / 2.0, width, CONTROL_HEIGHT);
+        let mut x = MARGIN + fonts.measure(NAME, TextStyle::Subtitle).ceil() + SPACE_XXL;
+        let tabs_width: f32 = tab_widths(fonts, &MODES).iter().sum();
         let mut mode = self.mode;
-        frame.tabs("Mode", next(520.0), &MODES, &mut mode);
+        frame.tabs("Mode", Rect::new(x, APP_BAR_MIDDLE - TAB_HEIGHT / 2.0, tabs_width, TAB_HEIGHT), &MODES, &mut mode);
+        x += tabs_width + SPACE_XXL;
         let seconds = frame.seconds();
         if mode != self.mode {
             self.mode = mode;
@@ -196,43 +214,62 @@ impl Veehiicuul {
         let names: Vec<&str> = self.game.document.scenes.iter().map(|scene| scene.name.as_str()).collect();
         let choices: Vec<Choice> = names.iter().map(|label| Choice { label, detail: "" }).collect();
         let mut scene = self.game.scene;
-        frame.select("Scene", next(220.0), &choices, &mut scene);
+        frame.select("Scene", control(x, SCENE_WIDTH), &choices, &mut scene);
+        x += SCENE_WIDTH + SPACE_S;
         if scene != self.game.scene {
             self.game.go_to_scene(scene, seconds);
             let current = self.game.current_scene();
             self.viewport = Viewport::new(current.camera_center, current.camera_height);
         }
-        if frame.button("NewScene", next(120.0), "New scene").clicked {
-            self.new_scene(seconds);
-        }
-        if frame.button("Undo", next(70.0), "Undo").clicked {
-            self.undo();
-        }
-        if frame.button("Redo", next(70.0), "Redo").clicked {
-            self.redo();
-        }
-        if frame.button("Save", next(70.0), "Save").clicked {
-            self.save();
+        let buttons = [
+            ("NewScene", Button::new("New scene").icon(Icon::Add)),
+            ("Undo", Button::new("Undo")),
+            ("Redo", Button::new("Redo")),
+            ("Save", Button::new("Save").icon(Icon::Save)),
+        ];
+        for (index, (name, button)) in buttons.into_iter().enumerate() {
+            let width = frame.button_width(&button);
+            if frame.button(name, control(x, width), button).clicked {
+                match index {
+                    0 => self.new_scene(seconds),
+                    1 => self.undo(),
+                    2 => self.redo(),
+                    _ => self.save(),
+                }
+            }
+            x += width + SPACE_S;
         }
         if self.mode != PLAY {
+            let label = "The game's angle";
+            let area = control(x + SPACE_M, toggle_width(fonts, label, false));
             let viewport = if self.mode == VEHICLES { &mut self.vehicle_editor.viewport } else { &mut self.viewport };
             let mut game_angle = viewport.game_angle();
-            if frame.checkbox("GameAngle", next(190.0), "The game's angle", &mut game_angle).clicked {
+            if frame.checkbox("GameAngle", area, label, &mut game_angle).clicked {
                 viewport.set_game_angle(game_angle);
             }
         }
         frame.set_focusable(focusable);
-        let y = MARGIN + (height - frame.line_height()) / 2.0;
-        let (text, color) = if !self.status.is_empty() {
-            (self.status.as_str(), TEXT)
-        } else if self.unsaved() {
-            ("Unsaved changes", WARNING)
+    }
+
+    // The status bar: the shortcuts, and whether there are changes to save.
+    fn status_bar(&self, frame: &mut Frame) {
+        let theme = frame.theme();
+        let mut shortcuts = vec![("Ctrl+S", "save"), ("Ctrl+Z", "undo"), ("Ctrl+Y", "redo")];
+        if self.mode == PLAY {
+            shortcuts.push(("F1", "hide the card"));
         } else {
-            ("Saved", SUCCESS)
+            shortcuts.extend([("Space", "and a drag pan"), ("Wheel", "zooms")]);
+        }
+        shortcuts.push(("F11", "fullscreen"));
+        let unsaved = if self.unsaved() && !self.status.is_empty() { "  Unsaved changes" } else { "" };
+        let (text, color) = if !self.status.is_empty() {
+            (self.status.as_str(), theme.text_secondary)
+        } else if self.unsaved() {
+            ("Unsaved changes", theme.caution)
+        } else {
+            ("Saved", theme.success)
         };
-        let right = frame.width - MARGIN;
-        let unsaved = if self.unsaved() && !self.status.is_empty() { "  (unsaved changes)" } else { "" };
-        frame.canvas.text_clipped(x + 8.0, y, &format!("{text}{unsaved}"), right - x - 8.0, color);
+        frame.footer(&shortcuts, &[(text, color), (unsaved, theme.caution)]);
     }
 
     // What the 3D view shows: the scene's decorations and parked vehicles,
@@ -331,17 +368,17 @@ impl Program for Veehiicuul {
         if frame.control_shortcut('Y' as i32) {
             self.redo();
         }
-        self.top_bar(frame);
+        self.backdrop = frame.theme().background;
+        self.backgrounds(frame);
+        self.app_bar(frame);
+        self.status_bar(frame);
         let scene = self.game.scene;
         match self.mode {
             PLAY => {
                 let controls = Controls::read(frame);
                 self.game.update(&controls, frame.seconds());
-                if self.game.show_text {
-                    let lines = text(&self.game, frame);
-                    let height = frame.line_height() * lines.len() as f32 + PADDING * 2.0;
-                    let y = frame.height - MARGIN - height;
-                    frame.text_box(MARGIN, y, &lines);
+                if self.game.show_card {
+                    play_card(&self.game, frame);
                 }
             }
             SCENE => self.scene_editor.frame(frame, &mut self.viewport, &mut self.game.document, &self.game.models, scene),
@@ -373,6 +410,7 @@ impl Program for Veehiicuul {
             drawing,
             eye,
             instances,
+            backdrop,
             ..
         } = self;
         let Some(drawing) = drawing else {
@@ -380,7 +418,8 @@ impl Program for Veehiicuul {
         };
         let scene = game.current_scene();
         let (background, ground) = if *mode == VEHICLES {
-            ([BACKGROUND[0], BACKGROUND[1], BACKGROUND[2]], None)
+            let [red, green, blue, _] = backdrop.to_floats();
+            ([red, green, blue], None)
         } else {
             let ground = Ground {
                 terrain: &scene.terrain,
@@ -417,98 +456,132 @@ impl Program for Veehiicuul {
     }
 }
 
-// The text box's lines, in Play.
-pub fn text(game: &Game, frame: &Frame) -> Vec<Line> {
-    let piece = |text: &str, color| (text.to_string(), color);
+// What each control does in Play, with the gamepad's buttons, then the
+// keyboard's keys, each on a keycap. A "+" joins keycaps that go together.
+const CONTROLS: [(&str, &[&str], &[&str]); 9] = [
+    ("Drive", &["Right stick"], &["Arrows"]),
+    ("Brake", &["LT"], &["Space"]),
+    ("Back to the start", &["X"], &["R"]),
+    ("Vehicle", &["D-pad"], &["Q", "E"]),
+    ("Scene", &["D-pad"], &["PageUp", "PageDown"]),
+    ("Camera", &["Menu"], &["C"]),
+    ("Zoom", &["RB+Left stick"], &["Wheel"]),
+    ("Zoom back", &["Y"], &["Home"]),
+    ("Hide this", &["View"], &["F1"]),
+];
+// The label column's width in the card, and the height of a row of keycaps.
+const LABEL_WIDTH: f32 = 136.0;
+const KEYCAP_ROW: f32 = 28.0;
+
+// How wide keycaps are, side by side.
+fn keycaps_width(frame: &Frame, keys: &[&str]) -> f32 {
+    let fonts = frame.fonts();
+    let caps: f32 = keys
+        .iter()
+        .flat_map(|keys| keys.split('+'))
+        .map(|key| keycap_width(fonts, key) + SPACE_XXS)
+        .sum();
+    caps + SPACE_XS * keys.len() as f32
+}
+
+// Draws keycaps from `x`, on a row whose middle is `middle`, and returns
+// where they end.
+fn keycaps(frame: &mut Frame, mut x: f32, middle: f32, keys: &[&str]) -> f32 {
+    for (index, joined) in keys.iter().enumerate() {
+        if index > 0 {
+            x += SPACE_XS;
+        }
+        for (part, key) in joined.split('+').enumerate() {
+            if part > 0 {
+                x += SPACE_XXS;
+            }
+            x = frame.keycap([x, middle], key).right();
+        }
+    }
+    x
+}
+
+// The card over the bottom left corner in Play: the scene, the vehicle, how
+// it's going, and what the controls do. It's as big as what it says.
+// Returns its area.
+pub fn play_card(game: &Game, frame: &mut Frame) -> Rect {
+    let theme = frame.theme();
+    let fonts = frame.fonts();
     let vehicle = game.current_vehicle();
     let rates = vehicle.acceleration;
-    let camera = if game.camera.follow {
-        "following the car"
-    } else {
-        "fixed"
-    };
-    let status = frame.status;
-    let frames = match status.frames_per_second {
-        Some(rate) => format!("{rate:.0}  ({:.2} ms a frame)", 1000.0 / rate),
-        None => "measuring".to_string(),
-    };
-    let gamepad = if frame.gamepad().connected {
-        piece("connected", TEXT)
-    } else {
-        piece("none, so drive with the keys", DIM)
-    };
-    let focus = if frame.focused() {
-        piece("Window has focus", SUCCESS)
-    } else {
-        piece("Window doesn't have focus: input is ignored", WARNING)
-    };
-    let problems = &game.last_shape().problems;
-    let mut lines = vec![
-        vec![piece(NAME, TITLE), piece(&format!("  {}", game.current_scene().name), DIM)],
-        vec![
-            piece("Vehicle: ", DIM),
-            piece(&vehicle.name, TEXT),
-            piece(
-                &format!(
-                    "  {} of {}, accelerates {} ahead, {} in reverse, {} left, {} right",
-                    game.vehicle + 1,
-                    game.document.vehicles.list.len(),
-                    rates.forward,
-                    rates.reverse,
-                    rates.left,
-                    rates.right
-                ),
-                DIM,
-            ),
-        ],
-        vec![
-            piece("Speed: ", DIM),
-            piece(&format!("{:.1}", game.car.speed()), TEXT),
-            piece(" units a second", DIM),
-        ],
-        vec![
-            piece("Camera: ", DIM),
-            piece(camera, TEXT),
-            piece(&format!(", {:.0} units tall", game.camera.height), DIM),
-        ],
-        vec![piece("Crashes: ", DIM), piece(&game.crashes.to_string(), TEXT)],
-        vec![piece("FPS: ", DIM), piece(&frames, TEXT)],
-        vec![piece("Gamepad: ", DIM), gamepad],
-        vec![focus],
+    let camera = if game.camera.follow { "following the car" } else { "fixed" };
+    let gamepad = if frame.gamepad().connected { "connected" } else { "none, so drive with the keys" };
+    let rows = [
+        ("Vehicle", format!("{}, {} of {}", vehicle.name, game.vehicle + 1, game.document.vehicles.list.len())),
+        (
+            "Accelerates",
+            format!("{} ahead, {} in reverse, {} left, {} right", rates.forward, rates.reverse, rates.left, rates.right),
+        ),
+        ("Speed", format!("{:.1} units a second", game.car.speed())),
+        ("Camera", format!("{camera}, {:.0} units tall", game.camera.height)),
+        ("Crashes", game.crashes.to_string()),
+        ("Gamepad", gamepad.to_string()),
     ];
-    if let Some(problem) = problems.first() {
-        lines.push(vec![piece(&format!("The track has a problem: {problem}"), WARNING)]);
+    let problem = game.last_shape().problems.first().map(|problem| format!("The track has a problem: {problem}"));
+    let scene = &game.current_scene().name;
+    let line = frame.line_height(TextStyle::Body);
+    let or_width = fonts.measure("or", TextStyle::Caption) + SPACE_S * 2.0;
+
+    // As wide as its widest line.
+    let title_width = fonts.measure(NAME, TextStyle::BodyStrong) + SPACE_M + fonts.measure(scene, TextStyle::Body);
+    let rows_width = rows
+        .iter()
+        .map(|(_, value)| LABEL_WIDTH + fonts.measure(value, TextStyle::Body))
+        .fold(0.0, f32::max);
+    let controls_width = CONTROLS
+        .iter()
+        .map(|(_, gamepad, keyboard)| LABEL_WIDTH + keycaps_width(frame, gamepad) + or_width + keycaps_width(frame, keyboard))
+        .fold(0.0, f32::max);
+    let problem_width = problem.as_ref().map_or(0.0, |problem| 24.0 + fonts.measure(problem, TextStyle::Body));
+    let content_width = title_width
+        .max(rows_width)
+        .max(controls_width)
+        .max(problem_width)
+        .min(frame.width - MARGIN * 2.0 - CARD_PADDING * 2.0)
+        .ceil();
+    let problem_height = if problem.is_some() { line } else { 0.0 };
+    let content_height =
+        line + SPACE_S + line * rows.len() as f32 + problem_height + SPACE_M + KEYCAP_ROW * CONTROLS.len() as f32;
+    let area = Rect::new(
+        MARGIN,
+        frame.content_bottom() - MARGIN - content_height - CARD_PADDING * 2.0,
+        content_width + CARD_PADDING * 2.0,
+        content_height + CARD_PADDING * 2.0,
+    );
+    frame.overlay_card(area);
+
+    let inner = area.inset(CARD_PADDING);
+    let canvas = &mut frame.canvas;
+    canvas.push_clip(inner);
+    let mut y = inner.y;
+    let end = canvas.text([inner.x, y], NAME, TextStyle::BodyStrong, theme.text);
+    canvas.text([end + SPACE_M, y], scene, TextStyle::Body, theme.text_secondary);
+    y += line + SPACE_S;
+    for (label, value) in &rows {
+        canvas.text([inner.x, y], label, TextStyle::Body, theme.text_secondary);
+        canvas.text([inner.x + LABEL_WIDTH, y], value, TextStyle::Body, theme.text);
+        y += line;
     }
-    let controls: [&[(&str, &str)]; 3] = [
-        &[
-            ("Right stick", " or "),
-            ("arrows", " drive   "),
-            ("LT", " or "),
-            ("Space", " brakes   "),
-            ("X", " or "),
-            ("R", " back to the start"),
-        ],
-        &[
-            ("D-pad", " or "),
-            ("Q E", " vehicle   "),
-            ("D-pad", " or "),
-            ("PageUp PageDown", " scene   "),
-            ("Menu", " or "),
-            ("C", " camera"),
-        ],
-        &[
-            ("RB+left stick", " or "),
-            ("wheel", " zoom   "),
-            ("Y", " or "),
-            ("Home", " unzoom   "),
-            ("View", " or "),
-            ("F1", " hide this   "),
-            ("F11", " fullscreen"),
-        ],
-    ];
-    for line in controls {
-        lines.push(line.iter().flat_map(|(key, does)| [piece(key, TEXT), piece(does, DIM)]).collect());
+    if let Some(problem) = &problem {
+        canvas.icon([inner.x + 8.0, y + line * 0.5], Icon::Warning, 16.0, theme.caution);
+        canvas.text([inner.x + 24.0, y], problem, TextStyle::Body, theme.text);
+        y += line;
     }
-    lines.extend(status.notices.iter().map(|notice| vec![piece(notice, WARNING)]));
-    lines
+    canvas.pop_clip();
+    y += SPACE_M;
+    let caption = frame.line_height(TextStyle::Caption);
+    for (does, gamepad, keyboard) in CONTROLS {
+        let middle = y + KEYCAP_ROW * 0.5;
+        frame.canvas.text([inner.x, middle - line * 0.5], does, TextStyle::Body, theme.text_secondary);
+        let x = keycaps(frame, inner.x + LABEL_WIDTH, middle, gamepad);
+        frame.canvas.text([x + SPACE_S, middle - caption * 0.5], "or", TextStyle::Caption, theme.text_secondary);
+        keycaps(frame, x + or_width, middle, keyboard);
+        y += KEYCAP_ROW;
+    }
+    area
 }

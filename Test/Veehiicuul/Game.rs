@@ -1,16 +1,16 @@
 // Play through its frames, as the main loop runs it, with input that the
 // tests make up, without a window or a GPU: driving with the gamepad and the
-// keys, braking, crashing, the vehicles, the scenes, the camera, the text,
+// keys, braking, crashing, the vehicles, the scenes, the camera, the card,
 // and a window without focus.
 
 use std::path::{Path, PathBuf};
 
 use application::{ProgramSettings, key_name};
 use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, key};
-use user_interface::{Button, Gamepad, MARGIN, PADDING, Program};
+use user_interface::{GamepadButton, Gamepad, MARGIN, PANELS_TOP, Program};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::game::{Game, PAUSE};
-use veehiicuul::program::{Veehiicuul, text};
+use veehiicuul::program::{Veehiicuul, play_card};
 use veehiicuul::scene::Scene;
 use veehiicuul::settings::GameSettings;
 
@@ -179,7 +179,7 @@ fn the_vehicles_go_around_and_each_starts_over() {
     assert_eq!(program.game.car.position, start_of(&program).position);
     assert!(program.game.paused());
     headless.gamepad = connected(Gamepad {
-        buttons: Button::Left.bit(),
+        buttons: GamepadButton::Left.bit(),
         ..Gamepad::default()
     });
     run(&mut program, &mut headless, 3);
@@ -187,7 +187,7 @@ fn the_vehicles_go_around_and_each_starts_over() {
     // With one scene, the next scene is Ribeye again, from the start.
     headless.gamepad = connected(Gamepad::default());
     run(&mut program, &mut headless, 1);
-    headless.gamepad.buttons = Button::Up.bit();
+    headless.gamepad.buttons = GamepadButton::Up.bit();
     run(&mut program, &mut headless, 1);
     assert_eq!(program.game.current_scene().name, "Ribeye");
 }
@@ -210,7 +210,7 @@ fn the_camera_follows_the_car_and_zooms() {
     // RB and the left stick up zoom in at ZOOM_SPEED units a second.
     headless.gamepad = connected(Gamepad {
         left_stick: [0.0, 1.0],
-        buttons: Button::RightShoulder.bit(),
+        buttons: GamepadButton::RightShoulder.bit(),
         ..Gamepad::default()
     });
     run(&mut program, &mut headless, 30);
@@ -218,7 +218,7 @@ fn the_camera_follows_the_car_and_zooms() {
     run(&mut program, &mut headless, 60);
     assert_eq!(program.game.camera.height, camera::LOWEST);
     headless.gamepad = connected(Gamepad {
-        buttons: Button::Menu.bit(),
+        buttons: GamepadButton::Menu.bit(),
         ..Gamepad::default()
     });
     run(&mut program, &mut headless, 1);
@@ -226,28 +226,22 @@ fn the_camera_follows_the_car_and_zooms() {
     assert_eq!(program.game.camera.height, 150.0);
 }
 
-// F1 hides the text and shows it again, and the text fits the window at
-// either height.
+// F1 hides the card and shows it again, and the card fits under the app bar,
+// over the left of the window, at either height.
 #[test]
-fn f1_hides_the_text_which_fits_the_window() {
+fn f1_hides_the_card_which_fits_the_window() {
     let (mut program, mut headless) = start();
     press(&mut program, &mut headless, 0x70);
-    assert!(!program.game.show_text);
+    assert!(!program.game.show_card);
     press(&mut program, &mut headless, 0x70);
-    assert!(program.game.show_text);
+    assert!(program.game.show_card);
     for size in [MAXIMIZED, FULLSCREEN] {
         let mut headless = Headless::new(size);
         headless.notices = vec!["A notice about the settings".to_string()];
-        let [width, height] = headless.frame(&[], |frame| {
-            let lines = text(&program.game, frame);
-            let widest = lines
-                .iter()
-                .map(|line| line.iter().map(|(text, _)| frame.text_width(text)).sum::<f32>())
-                .fold(0.0, f32::max);
-            [widest + PADDING * 2.0, frame.line_height() * lines.len() as f32 + PADDING * 2.0]
-        });
-        assert!(width < size[0] / 2.0 && height < size[1] / 2.0, "{width} by {height}");
-        assert!(height + MARGIN * 2.0 < size[1]);
+        let (area, bottom) = headless.frame(&[], |frame| (play_card(&program.game, frame), frame.content_bottom()));
+        assert!(area.width < size[0] / 2.0 && area.height < size[1] / 2.0, "{area:?}");
+        assert_eq!((area.x, area.bottom()), (MARGIN, bottom - MARGIN));
+        assert!(area.y > PANELS_TOP, "{area:?}");
     }
 }
 
@@ -259,7 +253,7 @@ fn without_focus_nothing_moves_the_car() {
     headless.held_keys = vec![UP];
     headless.gamepad = connected(Gamepad {
         right_stick: [0.0, 1.0],
-        buttons: Button::Menu.bit(),
+        buttons: GamepadButton::Menu.bit(),
         ..Gamepad::default()
     });
     run(&mut program, &mut headless, 30);

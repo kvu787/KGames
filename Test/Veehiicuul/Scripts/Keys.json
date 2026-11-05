@@ -15,7 +15,7 @@
         { "Frame": 7, "Expect": { "ViewHeight": 45 } },
         { "Frame": 8, "Capture": "Following" },
         { "Frame": 9, "Key": "F1" },
-        { "Frame": 9, "Expect": { "TextShown": false } },
+        { "Frame": 9, "Expect": { "CardShown": false } },
         { "Frame": 10, "Key": "F11" },
         { "Frame": 10, "Expect": { "Window": { "Fullscreen": true } } },
         { "Frame": 11, "Expect": { "Window": { "Problems": [] } } },
