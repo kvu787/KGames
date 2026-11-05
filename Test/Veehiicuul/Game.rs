@@ -1,7 +1,7 @@
-// The game through its frames, as the main loop runs it, with input that
-// the tests make up, without a window or a GPU: driving with the gamepad and
-// the keys, braking, crashing, the vehicles, the tracks, the camera, the
-// text, and a window without focus.
+// Play through its frames, as the main loop runs it, with input that the
+// tests make up, without a window or a GPU: driving with the gamepad and the
+// keys, braking, crashing, the vehicles, the scenes, the camera, the text,
+// and a window without focus.
 
 use std::path::Path;
 
@@ -11,6 +11,7 @@ use user_interface::{Button, Gamepad, MARGIN, PADDING, Program};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::game::{Game, PAUSE};
 use veehiicuul::program::{Veehiicuul, text};
+use veehiicuul::scene::Scene;
 use veehiicuul::settings::GameSettings;
 
 const LEFT: u32 = 0x25;
@@ -26,10 +27,14 @@ fn start() -> (Veehiicuul, Headless) {
     let mut notices = Vec::new();
     let game = Game::load(&folder, &settings, &mut notices).unwrap_or_else(|problem| panic!("{problem}"));
     assert!(notices.is_empty(), "{notices:?}");
-    let mut program = Veehiicuul::without_scene(game);
+    let mut program = Veehiicuul::without_drawing(game);
     let mut headless = Headless::default();
     headless.program(&mut program, &[]).unwrap();
     (program, headless)
+}
+
+fn start_of(program: &Veehiicuul) -> veehiicuul::track::Pose {
+    program.game.current_scene().track.start
 }
 
 fn run(program: &mut Veehiicuul, headless: &mut Headless, frames: usize) {
@@ -54,7 +59,7 @@ fn dot(a: [f64; 2], b: [f64; 2]) -> f64 {
 }
 
 fn moved(program: &Veehiicuul) -> [f64; 2] {
-    let start = program.game.current_track().start.position;
+    let start = start_of(program).position;
     let position = program.game.car.position;
     [position[0] - start[0], position[1] - start[1]]
 }
@@ -71,13 +76,13 @@ fn ahead_on_the_screen(program: &Veehiicuul) -> [f32; 2] {
 fn the_car_starts_on_the_start_line_at_rest() {
     let (program, _) = start();
     let game = &program.game;
-    let track = game.current_track();
-    assert_eq!((track.name.as_str(), game.current_vehicle().name.as_str()), ("Ribeye", "Yellow"));
-    assert_eq!(game.car.position, track.start.position);
-    assert_eq!(game.car.heading, track.start.heading);
+    let scene: &Scene = game.current_scene();
+    assert_eq!((scene.name.as_str(), game.current_vehicle().name.as_str()), ("Ribeye", "Yellow"));
+    assert_eq!(game.car.position, scene.track.start.position);
+    assert_eq!(game.car.heading, scene.track.start.radians());
     assert_eq!(game.car.speed(), 0.0);
     assert!(!game.paused());
-    assert_eq!(game.camera_center(), track.camera_center);
+    assert_eq!(game.camera_center(), scene.camera_center);
 }
 
 // The right stick, pushed the way the car faces on the screen, speeds it up
@@ -137,8 +142,8 @@ fn touching_an_edge_puts_the_car_back_at_the_start() {
         frames += 1;
         assert!(frames < 120, "the car didn't reach the edge");
     }
-    let start = program.game.current_track().start;
-    assert_eq!((program.game.car.position, program.game.car.heading), (start.position, start.heading));
+    let start = start_of(&program);
+    assert_eq!((program.game.car.position, program.game.car.heading), (start.position, start.radians()));
     assert!(program.game.paused());
     // Still pushing, it stays put until the pause is over.
     let paused_frames = (PAUSE * 60.0) as usize;
@@ -152,7 +157,8 @@ fn touching_an_edge_puts_the_car_back_at_the_start() {
 }
 
 // Q and E, and the d-pad's left and right, go through the vehicles, around
-// from the last to the first, and each puts the car back at the start.
+// from the last to the first, and each puts the car back at the start. The
+// d-pad's up and down go through the scenes.
 #[test]
 fn the_vehicles_go_around_and_each_starts_over() {
     let (mut program, mut headless) = start();
@@ -165,7 +171,7 @@ fn the_vehicles_go_around_and_each_starts_over() {
         names.push(program.game.current_vehicle().name.clone());
     }
     assert_eq!(names, ["Cyan", "Magenta", "Green", "Magenta"]);
-    assert_eq!(program.game.car.position, program.game.current_track().start.position);
+    assert_eq!(program.game.car.position, start_of(&program).position);
     assert!(program.game.paused());
     headless.gamepad = connected(Gamepad {
         buttons: Button::Left.bit(),
@@ -173,12 +179,12 @@ fn the_vehicles_go_around_and_each_starts_over() {
     });
     run(&mut program, &mut headless, 3);
     assert_eq!(program.game.current_vehicle().name, "Cyan", "holding the button switches once");
-    // With one track, the next track is Ribeye again, from the start.
+    // With one scene, the next scene is Ribeye again, from the start.
     headless.gamepad = connected(Gamepad::default());
     run(&mut program, &mut headless, 1);
     headless.gamepad.buttons = Button::Up.bit();
     run(&mut program, &mut headless, 1);
-    assert_eq!(program.game.current_track().name, "Ribeye");
+    assert_eq!(program.game.current_scene().name, "Ribeye");
 }
 
 // C, or Menu, switches between the fixed camera and one that follows the

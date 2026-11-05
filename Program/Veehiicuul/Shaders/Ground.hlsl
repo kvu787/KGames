@@ -1,6 +1,6 @@
-// Draws a track's ground, which is flat: each triangle in its material's
-// color, as linear RGB, which the host draws to the back buffer's sRGB view,
-// without lights.
+// Draws what's flat on the ground, the terrain and the track: each triangle
+// in its material's color, as linear RGB, which the host draws to the back
+// buffer's sRGB view, without lights.
 //
 // It takes the vertices and constant buffers that SimplePaint.hlsl's adapter
 // does, so SimplePaint's Pipeline and Mesh draw with it: an object's
@@ -11,9 +11,9 @@
     "CBV(b0), " \
     "CBV(b1)"
 
-// The road, the grass, two of curbs and two of the start line, as Ground.rs
-// says.
-static const uint MaterialCount = 6;
+// The terrain's palette, then the road, two of barriers and two of the
+// start line, as Ground.rs says.
+static const uint MaterialCount = 72;
 
 cbuffer ObjectConstants : register(b0)
 {

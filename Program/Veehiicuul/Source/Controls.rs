@@ -6,9 +6,9 @@
 // | Right stick           | Arrows or WASD        | Pushes the car toward there          |
 // | Left trigger          | Space                 | Brakes                               |
 // | D-pad left and right  | Q and E               | The previous and next vehicle        |
-// | D-pad down and up     | PageDown and PageUp   | The previous and next track          |
+// | D-pad down and up     | PageDown and PageUp   | The previous and next scene          |
 // | X                     | R                     | Puts the car back at the start       |
-// | Menu                  | C                     | Fixed camera, or one following the car |
+// | Menu                  | C                     | The fixed camera or the following one |
 // | RB and left stick     | The wheel             | Zooms                                |
 // | Y                     | Home                  | Zooms back to the camera's height    |
 // | View                  | F1                    | Shows or hides the text              |
@@ -43,9 +43,9 @@ pub struct Controls {
     pub push: [f64; 2],
     // How hard they brake, from 0 to 1.
     pub brake: f64,
-    // To the previous vehicle or track, -1, or the next, 1.
+    // To the previous vehicle or scene, -1, or the next, 1.
     pub vehicle: i32,
-    pub track: i32,
+    pub scene: i32,
     pub restart: bool,
     pub toggle_camera: bool,
     // How fast to zoom in, from -1, out, to 1, and by how many notches of the
@@ -96,7 +96,7 @@ impl Controls {
             push,
             brake,
             vehicle: step(pressed(Button::Left, 'Q' as i32), pressed(Button::Right, 'E' as i32)),
-            track: step(pressed(Button::Down, PAGE_DOWN), pressed(Button::Up, PAGE_UP)),
+            scene: step(pressed(Button::Down, PAGE_DOWN), pressed(Button::Up, PAGE_UP)),
             restart: pressed(Button::X, 'R' as i32),
             toggle_camera: pressed(Button::Menu, 'C' as i32),
             zoom,

@@ -1,138 +1,204 @@
-// Draws the game every frame: the grass, as the frame's background, then
-// the track's ground over it, without a depth buffer, as it's flat and each
-// part of it goes over the ones before, and then the car, painted with
-// SimplePaint, with one. Every track's ground and every vehicle's materials
-// are made once, at the start.
+// A scene: what a level of the game is, from its file in Scenes. It has the
+// terrain, the track, the decorations, which are models, and vehicles parked
+// as decorations, all on the ground, with the background's color where
+// there's nothing, and the camera's view of it all.
+//
+//     {
+//         "Background": "#1CDA61",
+//         "Camera": { "Center": [-3.5, -15.3], "Height": 150 },
+//         "FollowHeight": 45,
+//         "Terrain": { ... },
+//         "Track": { ... },
+//         "Decorations": [{ "Model": "BigCone", "Position": [-53.4, -62.2], "Heading": 28, "Scale": 4.9 }],
+//         "Vehicles": [{ "Vehicle": "Green", "Position": [37.6, -75.5], "Heading": -32.1 }]
+//     }
+//
+// See Terrain.rs and Track.rs for theirs.
 
-use graphics::{BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer};
-use math::Matrix;
-use meshes::car;
-use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
-use simple_paint::orthographic::{build_object_transforms, make_projection};
-use simple_paint::{GpuMaterial, Material};
-use windows_api::*;
-use windows_core::{Error, Result};
+use std::path::Path;
 
-use crate::camera;
-use crate::game::Game;
-use crate::ground;
+use json::Value;
 
-static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
-static PAINT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-static GROUND_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/GroundVertex.cso"));
-static GROUND_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/GroundPixel.cso"));
+use crate::files::{self, Color};
+use crate::terrain::Terrain;
+use crate::track::{Pose, Track};
 
-// The car's materials, as SIMPLE_PAINT_MATERIAL_COUNT in Build.rs says.
-const CAR_MATERIALS: usize = car::MATERIAL_COUNT as usize;
-const CAR_MATERIALS_SIZE: usize = materials_size(CAR_MATERIALS);
-// A track's ground colors, as Ground.hlsl takes them.
-const COLORS_SIZE: usize = size_of::<[[f32; 4]; ground::MATERIAL_COUNT]>().next_multiple_of(CONSTANT_BUFFER_ALIGNMENT);
-// The constants start with the ground's transforms, then the car's.
-const GROUND_OBJECT: usize = 0;
-const CAR_OBJECT: usize = OBJECT_SIZE;
-const COLORS_OFFSET: usize = OBJECT_SIZE * 2;
+// A model put somewhere, turned, and scaled the same along every axis.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Decoration {
+    pub model: String,
+    pub pose: Pose,
+    pub scale: f64,
+}
 
+// A vehicle put somewhere, as a decoration, which doesn't move.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Parked {
+    pub vehicle: String,
+    pub pose: Pose,
+}
+
+// The scale that decorations stay within, for SimplePaint.
+pub const SMALLEST_SCALE: f64 = 0.01;
+pub const LARGEST_SCALE: f64 = 100.0;
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Scene {
-    paint: Pipeline,
-    ground: Pipeline,
-    car: Mesh,
-    // Each track's ground.
-    grounds: Vec<Mesh>,
-    // The ground's and the car's transforms, then each track's colors, then
-    // each vehicle's materials, each at a constant buffer's start. The GPU
-    // has finished with them when a frame is ready.
-    constants: UploadBuffer,
-    materials_offset: usize,
+    // Its file's name, without ".json".
+    pub name: String,
+    pub background: Color,
+    // The fixed camera looks at `camera_center`, at a view `camera_height`
+    // units tall, and the camera that follows the car at one
+    // `follow_height` tall.
+    pub camera_center: [f64; 2],
+    pub camera_height: f64,
+    pub follow_height: f64,
+    pub terrain: Terrain,
+    pub track: Track,
+    pub decorations: Vec<Decoration>,
+    pub parked: Vec<Parked>,
 }
 
-fn invalid(error: simple_paint::Error) -> Error {
-    Error::new(E_INVALIDARG, error.0)
-}
-
-// An sRGB channel, as linear.
-fn linear(channel: f32) -> f32 {
-    if channel <= 0.04045 {
-        channel / 12.92
-    } else {
-        ((channel + 0.055) / 1.055).powf(2.4)
-    }
-}
+const MEMBERS: [&str; 7] = ["Background", "Camera", "FollowHeight", "Terrain", "Track", "Decorations", "Vehicles"];
 
 impl Scene {
-    pub unsafe fn new(renderer: &mut Renderer, game: &Game) -> Result<Self> {
-        unsafe {
-            let device = renderer.device.clone();
-            // The car's linear colors, and the ground's, are encoded to sRGB.
-            let target = |depth_format| Target {
-                format: BACK_BUFFER_SRGB_FORMAT,
-                depth_format,
-                sample_count: 1,
-                cull_mode: D3D12_CULL_MODE_NONE,
-            };
-            let paint = Pipeline::new(&device, PAINT_VERTEX_SHADER, PAINT_PIXEL_SHADER, &target(Some(DEPTH_FORMAT)))?;
-            let ground = Pipeline::new(&device, GROUND_VERTEX_SHADER, GROUND_PIXEL_SHADER, &target(None))?;
-            let car = Mesh::new(renderer, &car::VERTICES, &car::INDICES, car::MATERIAL_COUNT)?;
-            let mut grounds = Vec::with_capacity(game.tracks.len());
-            for track in &game.tracks {
-                let mesh = ground::mesh(track);
-                grounds.push(Mesh::new(renderer, &mesh.vertices, &mesh.indices, ground::MATERIAL_COUNT as u32)?);
-            }
-            let materials_offset = COLORS_OFFSET + COLORS_SIZE * game.tracks.len();
-            let size = materials_offset + CAR_MATERIALS_SIZE * game.vehicles.list.len();
-            let constants = UploadBuffer::new(&device, size)?;
-            for (index, track) in game.tracks.iter().enumerate() {
-                let colors = ground::colors(track).map(|color| {
-                    let [red, green, blue] = color.map(linear);
-                    [red, green, blue, 1.0]
-                });
-                constants.write(COLORS_OFFSET + COLORS_SIZE * index, &colors);
-            }
-            for index in 0..game.vehicles.list.len() {
-                let mut materials = [GpuMaterial::default(); CAR_MATERIALS];
-                for (material, paint) in materials.iter_mut().zip(game.vehicles.paints(index)) {
-                    *material = *Material::compile(&paint).map_err(invalid)?.constants();
-                }
-                constants.write(materials_offset + CAR_MATERIALS_SIZE * index, &materials);
-            }
-            Ok(Scene {
-                paint,
-                ground,
-                car,
-                grounds,
-                constants,
-                materials_offset,
+    // A new scene, with a round track, called `name`.
+    pub fn new(name: &str) -> Scene {
+        Scene {
+            name: name.to_string(),
+            background: [0x1C, 0xDA, 0x61],
+            camera_center: [0.0, 0.0],
+            camera_height: 100.0,
+            follow_height: 45.0,
+            terrain: Terrain::default(),
+            track: Track::round(),
+            decorations: Vec::new(),
+            parked: Vec::new(),
+        }
+    }
+
+    pub fn parse(name: &str, text: &str) -> Result<Scene, String> {
+        let value = files::parse(text)?;
+        files::only(&value, &MEMBERS, "a scene")?;
+        let member = |name: &str| files::member(&value, name, "");
+        let camera = member("Camera")?;
+        files::only(camera, &["Center", "Height"], "Camera")?;
+        let decorations = match member("Decorations")? {
+            Value::Array(items) => items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| decoration(item, &format!("Decorations[{index}]")))
+                .collect::<Result<Vec<_>, _>>()?,
+            other => return Err(format!("Decorations must be a list, not {}", other.describe())),
+        };
+        let parked = match member("Vehicles")? {
+            Value::Array(items) => items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| parked(item, &format!("Vehicles[{index}]")))
+                .collect::<Result<Vec<_>, _>>()?,
+            other => return Err(format!("Vehicles must be a list, not {}", other.describe())),
+        };
+        Ok(Scene {
+            name: name.to_string(),
+            background: files::color(member("Background")?, "Background")?,
+            camera_center: files::point(files::member(camera, "Center", "Camera.")?, "Camera.Center")?,
+            camera_height: files::positive(files::member(camera, "Height", "Camera.")?, "Camera.Height")?,
+            follow_height: files::positive(member("FollowHeight")?, "FollowHeight")?,
+            terrain: Terrain::parse(member("Terrain")?)?,
+            track: Track::parse(member("Track")?)?,
+            decorations,
+            parked,
+        })
+    }
+
+    pub fn to_json(&self) -> String {
+        let decorations = self
+            .decorations
+            .iter()
+            .map(|decoration| {
+                json::object([
+                    ("Model", decoration.model.clone().into()),
+                    ("Position", files::point_value(decoration.pose.position)),
+                    ("Heading", files::rounded(decoration.pose.heading)),
+                    ("Scale", files::rounded(decoration.scale)),
+                ])
             })
-        }
+            .collect();
+        let parked = self
+            .parked
+            .iter()
+            .map(|parked| {
+                json::object([
+                    ("Vehicle", parked.vehicle.clone().into()),
+                    ("Position", files::point_value(parked.pose.position)),
+                    ("Heading", files::rounded(parked.pose.heading)),
+                ])
+            })
+            .collect();
+        json::object([
+            ("Background", files::color_text(self.background).into()),
+            (
+                "Camera",
+                json::object([
+                    ("Center", files::point_value(self.camera_center)),
+                    ("Height", files::rounded(self.camera_height)),
+                ]),
+            ),
+            ("FollowHeight", files::rounded(self.follow_height)),
+            ("Terrain", self.terrain.to_value()),
+            ("Track", self.track.to_value()),
+            ("Decorations", Value::Array(decorations)),
+            ("Vehicles", Value::Array(parked)),
+        ])
+        .to_json()
+            + "\n"
     }
 
-    // Records the game's draws into the frame, over the whole window.
-    pub unsafe fn draw(&self, renderer: &Renderer, game: &Game) -> Result<()> {
-        unsafe {
-            let view = camera::view(game.camera_center());
-            let aspect = renderer.width as f32 / renderer.height as f32;
-            let height = game.camera.height as f32;
-            let projection = make_projection(height * aspect, height, camera::NEAR, camera::FAR).map_err(invalid)?;
-            let [x, z] = game.car.position.map(|value| value as f32);
-            let car = Matrix::rotation_y(game.car.heading as f32) * Matrix::translation(x, 0.0, z);
-            for (offset, world) in [(GROUND_OBJECT, Matrix::IDENTITY), (CAR_OBJECT, car)] {
-                let object = build_object_transforms(&(world * view), &projection).map_err(invalid)?;
-                self.constants.write(offset, &[object]);
-            }
-
-            // The grass's sRGB color, stored as it is.
-            let [red, green, blue] = game.current_track().colors.grass;
-            renderer.clear([red, green, blue, 1.0]);
-            renderer.clear_depth();
-            let list = &renderer.command_list;
-            renderer.set_render_target(true, false);
-            self.ground.bind(list);
-            let colors = self.constants.address(COLORS_OFFSET + COLORS_SIZE * game.track);
-            self.grounds[game.track].draw(list, self.constants.address(GROUND_OBJECT), colors);
-            renderer.set_render_target(true, true);
-            self.paint.bind(list);
-            let materials = self.constants.address(self.materials_offset + CAR_MATERIALS_SIZE * game.vehicle);
-            self.car.draw(list, self.constants.address(CAR_OBJECT), materials);
-            Ok(())
-        }
+    pub fn load(path: &Path) -> Result<Scene, String> {
+        let name = path.file_stem().map(|stem| stem.to_string_lossy().into_owned()).unwrap_or_default();
+        Scene::parse(&name, &files::read(path)?).map_err(|problem| format!("{}: {problem}", path.display()))
     }
+
+    // Every scene in a folder, from its .json files, by name.
+    pub fn load_all(folder: &Path) -> Result<Vec<Scene>, String> {
+        let entries = std::fs::read_dir(folder).map_err(|error| format!("Couldn't read {}: {error}", folder.display()))?;
+        let mut paths: Vec<_> = entries
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("json")))
+            .collect();
+        paths.sort();
+        if paths.is_empty() {
+            return Err(format!("{} has no scenes", folder.display()));
+        }
+        paths.iter().map(|path| Scene::load(path)).collect()
+    }
+}
+
+fn pose(value: &Value, name: &str) -> Result<Pose, String> {
+    Ok(Pose {
+        position: files::point(files::member(value, "Position", &format!("{name}."))?, &format!("{name}.Position"))?,
+        heading: files::number(files::member(value, "Heading", &format!("{name}."))?, &format!("{name}.Heading"))?,
+    })
+}
+
+fn decoration(value: &Value, name: &str) -> Result<Decoration, String> {
+    files::only(value, &["Model", "Position", "Heading", "Scale"], name)?;
+    let scale = files::positive(files::member(value, "Scale", &format!("{name}."))?, &format!("{name}.Scale"))?;
+    if !(SMALLEST_SCALE..=LARGEST_SCALE).contains(&scale) {
+        return Err(format!("{name}.Scale must be from {SMALLEST_SCALE} to {LARGEST_SCALE}, not {scale}"));
+    }
+    Ok(Decoration {
+        model: files::text(files::member(value, "Model", &format!("{name}."))?, &format!("{name}.Model"))?,
+        pose: pose(value, name)?,
+        scale,
+    })
+}
+
+fn parked(value: &Value, name: &str) -> Result<Parked, String> {
+    files::only(value, &["Vehicle", "Position", "Heading"], name)?;
+    Ok(Parked {
+        vehicle: files::text(files::member(value, "Vehicle", &format!("{name}."))?, &format!("{name}.Vehicle"))?,
+        pose: pose(value, name)?,
+    })
 }

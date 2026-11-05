@@ -17,8 +17,12 @@ name = "Track"
 path = "Track.rs"
 
 [[test]]
-name = "Vehicles"
-path = "Vehicles.rs"
+name = "Terrain"
+path = "Terrain.rs"
+
+[[test]]
+name = "Document"
+path = "Document.rs"
 
 [[test]]
 name = "Game"
@@ -27,7 +31,6 @@ path = "Game.rs"
 [dependencies]
 application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }
-meshes = { path = "../../Library/Meshes" }
 simple_paint = { path = "../../Library/SimplePaint" }
 user_interface = { path = "../../Library/UserInterface" }
 veehiicuul = { path = "../../Program/Veehiicuul" }

@@ -19,6 +19,7 @@ test = false
 
 [dependencies]
 application = { path = "../../Library/Application" }
+gltf = { path = "../../Library/Gltf" }
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }

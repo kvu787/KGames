@@ -1,229 +1,319 @@
-// A track, from its file in Tracks: the road's outline and its islands',
-// where the car starts, the start line, the camera, and the colors. The
-// ground under the road is grass, and Ground.rs makes the rest of what the
-// track looks like from the outlines: the road, the islands, the curbs along
-// their edges, and the start line. Points are on the ground, [X, Z], in
-// units, and headings are in degrees from +Z toward +X.
+// A scene's track: the curves of its edges, where the car starts, and its
+// colors. The road's curve is its outer edge, and each island's curve is
+// the edge of a patch of ground inside the road, which isn't road. Their
+// shape, from the curves, is what the car mustn't touch, and Ground.rs makes
+// the road, its barriers and the start line from it.
 //
-//     {
+//     "Track": {
 //         "Start": { "Position": [94.5, -48.5], "Heading": -104.3 },
-//         "StartLine": { "Position": [90.5, -49.8], "Width": 12.7, "Depth": 1.5 },
-//         "Camera": { "Center": [-3.5, -15.3], "Height": 150 },
-//         "FollowHeight": 45,
-//         "Colors": { "Grass": "#1CDA61", "Road": "#81858B", "Curbs": ["#F61E22", "#F6FCFF"] },
-//         "CurbWidth": 1.5,
-//         "CurbLength": 15,
-//         "Road": [[-94.6, 36.1], [-94.6, 38.7], ...],
+//         "Colors": { "Road": "#81858B", "Barriers": ["#F61E22", "#F6FCFF"] },
+//         "BarrierWidth": 1.5,
+//         "BarrierLength": 15,
+//         "Road": [[-94.6, 36.1], ...],
 //         "Islands": [[[-79.7, 21.4], ...], ...]
 //     }
 
-use std::path::Path;
-
 use json::Value;
 
-use crate::collision::Edges;
+use crate::collision::{Edges, meet};
+use crate::curve;
+use crate::files::{self, Color};
 
-// Where a car starts, and which way it faces, in radians from +Z toward +X.
+// Where a car starts, or a thing is put: its place on the ground, and which
+// way it faces, in degrees from +Z toward +X.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
     pub position: [f64; 2],
     pub heading: f64,
 }
 
-// Colors, as sRGB, from 0 to 1.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Colors {
-    pub grass: [f32; 3],
-    pub road: [f32; 3],
-    // The curbs alternate between these.
-    pub curbs: [[f32; 3]; 2],
+impl Pose {
+    pub fn radians(&self) -> f64 {
+        self.heading.to_radians()
+    }
+
+    // The way it faces, on the ground.
+    pub fn ahead(&self) -> [f64; 2] {
+        let (sin, cos) = self.radians().sin_cos();
+        [sin, cos]
+    }
+
+    pub fn parse(value: &Value, name: &str) -> Result<Pose, String> {
+        files::only(value, &["Position", "Heading"], name)?;
+        Ok(Pose {
+            position: files::point(files::member(value, "Position", &format!("{name}."))?, &format!("{name}.Position"))?,
+            heading: files::number(files::member(value, "Heading", &format!("{name}."))?, &format!("{name}.Heading"))?,
+        })
+    }
+
+    pub fn to_value(&self) -> Value {
+        json::object([("Position", files::point_value(self.position)), ("Heading", files::rounded(self.heading))])
+    }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Track {
-    // Its file's name, without ".json".
-    pub name: String,
-    // The road's outer edge, and its islands' edges, which are grass. Each
-    // outline closes from its last point back to its first.
+    // The control points of the road's outer edge, and of each island's.
     pub road: Vec<[f64; 2]>,
     pub islands: Vec<Vec<[f64; 2]>>,
     pub start: Pose,
-    // The start line goes across the road, at a right angle to the start's
-    // heading. It's `width` across and `depth` along the road.
-    pub start_line: [f64; 2],
-    pub start_line_size: [f64; 2],
-    // The fixed camera looks at `camera_center`, at a view `camera_height`
-    // units tall, and the camera that follows the car at one
-    // `follow_height` tall.
-    pub camera_center: [f64; 2],
-    pub camera_height: f64,
-    pub follow_height: f64,
-    pub colors: Colors,
-    // How wide the curbs are, on the grass beside each edge, and about how
-    // long each one is.
-    pub curb_width: f64,
-    pub curb_length: f64,
-    // Every outline's segments, which the car mustn't touch.
-    pub edges: Edges,
+    pub road_color: Color,
+    // The barriers alternate between these.
+    pub barrier_colors: [Color; 2],
+    // How wide the barriers are, on the ground beside each edge, and about
+    // how long each one is.
+    pub barrier_width: f64,
+    pub barrier_length: f64,
 }
 
-const MEMBERS: [&str; 9] = [
-    "Start",
-    "StartLine",
-    "Camera",
-    "FollowHeight",
-    "Colors",
-    "CurbWidth",
-    "CurbLength",
-    "Road",
-    "Islands",
-];
+// How far ahead of the car's start the start line is, and how deep it is
+// along the road.
+pub const START_LINE_AHEAD: f64 = 4.25;
+pub const START_LINE_DEPTH: f64 = 1.5;
+// How wide the start line is where it can't find the road's edges.
+const START_LINE_WIDTH: f64 = 10.0;
+
+const MEMBERS: [&str; 7] = ["Start", "Colors", "BarrierWidth", "BarrierLength", "Road", "Islands", ""];
 
 impl Track {
-    // Reads the track called `name` from its file's text, or says what's
-    // wrong with it.
-    pub fn parse(name: &str, text: &str) -> Result<Track, String> {
-        let text = text.strip_prefix('\u{FEFF}').unwrap_or(text);
-        let value = json::parse(text).map_err(|error| {
-            format!("line {}, column {}: {}", error.line, error.column, error.message)
-        })?;
-        let Value::Object(members) = &value else {
-            return Err(format!("must be an object, not {}", value.describe()));
-        };
-        if let Some((member, _)) = members.iter().find(|(member, _)| !MEMBERS.contains(&member.as_str())) {
-            return Err(format!(
-                "{member} isn't part of a track. They're {}",
-                MEMBERS.join(", ")
-            ));
+    // A track with a round road and no islands, around the origin.
+    pub fn round() -> Track {
+        Track {
+            road: curve::circle([0.0, 0.0], 40.0, 12),
+            islands: vec![curve::circle([0.0, 0.0], 25.0, 10)],
+            start: Pose {
+                position: [32.5, 0.0],
+                heading: 180.0,
+            },
+            road_color: [0x81, 0x85, 0x8B],
+            barrier_colors: [[0xF6, 0x1E, 0x22], [0xF6, 0xFC, 0xFF]],
+            barrier_width: 1.5,
+            barrier_length: 15.0,
         }
-        let member = |name: &str| value.get(name).ok_or_else(|| format!("needs {name}"));
-        let start = member("Start")?;
-        let start_line = member("StartLine")?;
-        let camera = member("Camera")?;
+    }
+
+    pub fn parse(value: &Value) -> Result<Track, String> {
+        files::only(value, &MEMBERS[..6], "the track")?;
+        let member = |name: &str| files::member(value, name, "Track.");
         let colors = member("Colors")?;
-        let curbs = match colors.get("Curbs") {
-            Some(Value::Array(items)) if items.len() == 2 => {
-                [color(&items[0], "Colors.Curbs")?, color(&items[1], "Colors.Curbs")?]
-            }
-            _ => return Err("Colors.Curbs must be a list of 2 colors, which the curbs alternate between".to_string()),
+        files::only(colors, &["Road", "Barriers"], "Track.Colors")?;
+        let barriers = match files::member(colors, "Barriers", "Track.Colors.")? {
+            Value::Array(items) if items.len() == 2 => [
+                files::color(&items[0], "Track.Colors.Barriers[0]")?,
+                files::color(&items[1], "Track.Colors.Barriers[1]")?,
+            ],
+            _ => return Err("Track.Colors.Barriers must be a list of 2 colors, which the barriers alternate between".to_string()),
         };
-        let road = outline(member("Road")?, "Road")?;
         let islands = match member("Islands")? {
             Value::Array(items) => items
                 .iter()
                 .enumerate()
-                .map(|(index, item)| outline(item, &format!("Islands[{index}]")))
+                .map(|(index, item)| files::points(item, &format!("Track.Islands[{index}]"), curve::FEWEST))
                 .collect::<Result<Vec<_>, _>>()?,
-            other => return Err(format!("Islands must be a list of outlines, not {}", other.describe())),
+            other => return Err(format!("Track.Islands must be a list of curves, not {}", other.describe())),
         };
-        let mut outlines: Vec<&[[f64; 2]]> = vec![&road];
-        outlines.extend(islands.iter().map(Vec::as_slice));
-        let edges = Edges::new(&outlines);
         Ok(Track {
-            name: name.to_string(),
-            start: Pose {
-                position: point(start.get("Position"), "Start.Position")?,
-                heading: number(start.get("Heading"), "Start.Heading")?.to_radians(),
-            },
-            start_line: point(start_line.get("Position"), "StartLine.Position")?,
-            start_line_size: [
-                positive(start_line.get("Width"), "StartLine.Width")?,
-                positive(start_line.get("Depth"), "StartLine.Depth")?,
-            ],
-            camera_center: point(camera.get("Center"), "Camera.Center")?,
-            camera_height: positive(camera.get("Height"), "Camera.Height")?,
-            follow_height: positive(value.get("FollowHeight"), "FollowHeight")?,
-            colors: Colors {
-                grass: color(colors.get("Grass").unwrap_or(&Value::Null), "Colors.Grass")?,
-                road: color(colors.get("Road").unwrap_or(&Value::Null), "Colors.Road")?,
-                curbs,
-            },
-            curb_width: positive(value.get("CurbWidth"), "CurbWidth")?,
-            curb_length: positive(value.get("CurbLength"), "CurbLength")?,
-            road,
+            road: files::points(member("Road")?, "Track.Road", curve::FEWEST)?,
             islands,
-            edges,
+            start: Pose::parse(member("Start")?, "Track.Start")?,
+            road_color: files::color(files::member(colors, "Road", "Track.Colors.")?, "Track.Colors.Road")?,
+            barrier_colors: barriers,
+            barrier_width: files::positive(member("BarrierWidth")?, "Track.BarrierWidth")?,
+            barrier_length: files::positive(member("BarrierLength")?, "Track.BarrierLength")?,
         })
     }
 
-    pub fn load(path: &Path) -> Result<Track, String> {
-        let name = path.file_stem().map(|stem| stem.to_string_lossy().into_owned()).unwrap_or_default();
-        let text = std::fs::read_to_string(path).map_err(|error| format!("Couldn't read {}: {error}", path.display()))?;
-        Track::parse(&name, &text).map_err(|problem| format!("{}: {problem}", path.display()))
+    pub fn to_value(&self) -> Value {
+        json::object([
+            ("Start", self.start.to_value()),
+            (
+                "Colors",
+                json::object([
+                    ("Road", files::color_text(self.road_color).into()),
+                    (
+                        "Barriers",
+                        Value::Array(self.barrier_colors.iter().map(|&color| files::color_text(color).into()).collect()),
+                    ),
+                ]),
+            ),
+            ("BarrierWidth", files::rounded(self.barrier_width)),
+            ("BarrierLength", files::rounded(self.barrier_length)),
+            ("Road", files::points_value(&self.road)),
+            ("Islands", Value::Array(self.islands.iter().map(|island| files::points_value(island)).collect())),
+        ])
     }
 
-    // Every track in a folder, from its .json files, by name.
-    pub fn load_all(folder: &Path) -> Result<Vec<Track>, String> {
-        let entries = std::fs::read_dir(folder).map_err(|error| format!("Couldn't read {}: {error}", folder.display()))?;
-        let mut paths: Vec<_> = entries
-            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
-            .filter(|path| path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("json")))
-            .collect();
-        paths.sort();
-        if paths.is_empty() {
-            return Err(format!("{} has no tracks", folder.display()));
-        }
-        paths.iter().map(|path| Track::load(path)).collect()
+    // Every curve, the road's first, then the islands', by index.
+    pub fn curves(&self) -> impl Iterator<Item = &Vec<[f64; 2]>> {
+        std::iter::once(&self.road).chain(&self.islands)
     }
-}
 
-fn number(value: Option<&Value>, name: &str) -> Result<f64, String> {
-    match value {
-        Some(Value::Number(number)) if number.is_finite() => Ok(*number),
-        Some(other) => Err(format!("{name} must be a number, not {}", other.describe())),
-        None => Err(format!("needs {name}")),
+    pub fn curve_mut(&mut self, index: usize) -> Option<&mut Vec<[f64; 2]>> {
+        if index == 0 { Some(&mut self.road) } else { self.islands.get_mut(index - 1) }
     }
-}
 
-fn positive(value: Option<&Value>, name: &str) -> Result<f64, String> {
-    match number(value, name)? {
-        number if number > 0.0 => Ok(number),
-        number => Err(format!("{name} must be above 0, not {number}")),
-    }
-}
-
-fn point(value: Option<&Value>, name: &str) -> Result<[f64; 2], String> {
-    match value {
-        Some(Value::Array(items)) => match items.as_slice() {
-            [Value::Number(x), Value::Number(z)] if x.is_finite() && z.is_finite() => Ok([*x, *z]),
-            _ => Err(format!("{name} must be a point, [X, Z], not {}", value.unwrap().describe())),
-        },
-        Some(other) => Err(format!("{name} must be a point, [X, Z], not {}", other.describe())),
-        None => Err(format!("needs {name}")),
-    }
-}
-
-// An outline of at least 3 points, which don't repeat.
-fn outline(value: &Value, name: &str) -> Result<Vec<[f64; 2]>, String> {
-    let Value::Array(items) = value else {
-        return Err(format!("{name} must be a list of points, not {}", value.describe()));
-    };
-    let points = items
-        .iter()
-        .enumerate()
-        .map(|(index, item)| point(Some(item), &format!("{name}[{index}]")))
-        .collect::<Result<Vec<_>, _>>()?;
-    if points.len() < 3 {
-        return Err(format!("{name} needs at least 3 points, not {}", points.len()));
-    }
-    for (index, point) in points.iter().enumerate() {
-        if points[(index + 1) % points.len()] == *point {
-            return Err(format!("{name}[{index}] is the same point as the one after it"));
+    pub fn shape(&self) -> Shape {
+        let road = curve::sample(&self.road);
+        let islands: Vec<Vec<[f64; 2]>> = self.islands.iter().map(|island| curve::sample(island)).collect();
+        let mut outlines: Vec<&[[f64; 2]]> = vec![&road];
+        outlines.extend(islands.iter().map(Vec::as_slice));
+        let edges = Edges::new(&outlines);
+        let start_line = start_line(&outlines, &self.start);
+        let problems = problems(&road, &islands, &self.start, &edges);
+        Shape {
+            road,
+            islands,
+            edges,
+            start_line,
+            problems,
         }
     }
-    Ok(points)
 }
 
-// A color like "#1CDA61", as sRGB from 0 to 1.
-fn color(value: &Value, name: &str) -> Result<[f32; 3], String> {
-    let parsed = match value {
-        Value::String(text) if text.len() == 7 && text.is_ascii() && text.starts_with('#') => {
-            let channel = |index: usize| u8::from_str_radix(&text[index..index + 2], 16).ok();
-            match (channel(1), channel(3), channel(5)) {
-                (Some(red), Some(green), Some(blue)) => Some([red, green, blue].map(|channel| channel as f32 / 255.0)),
-                _ => None,
+// The start line, across the road ahead of the start.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StartLine {
+    pub center: [f64; 2],
+    // Across the road, and along it.
+    pub width: f64,
+    pub depth: f64,
+}
+
+// What a track's curves make: the outlines of its road and its islands,
+// their edges, the start line, and what's wrong with them, if anything.
+pub struct Shape {
+    pub road: Vec<[f64; 2]>,
+    pub islands: Vec<Vec<[f64; 2]>>,
+    pub edges: Edges,
+    pub start_line: StartLine,
+    pub problems: Vec<String>,
+}
+
+// The start line goes across the road from edge to edge, START_LINE_AHEAD of
+// the start: as far as the nearest edge on either side of its middle.
+fn start_line(outlines: &[&[[f64; 2]]], start: &Pose) -> StartLine {
+    let [sin, cos] = start.ahead();
+    let center = [
+        start.position[0] + sin * START_LINE_AHEAD,
+        start.position[1] + cos * START_LINE_AHEAD,
+    ];
+    let across = [cos, -sin];
+    let reach = |direction: f64| {
+        let far = [center[0] + across[0] * direction * 1000.0, center[1] + across[1] * direction * 1000.0];
+        let mut nearest: Option<f64> = None;
+        for outline in outlines {
+            for (index, &a) in outline.iter().enumerate() {
+                let b = outline[(index + 1) % outline.len()];
+                if let Some(distance) = crossing(center, far, a, b) {
+                    nearest = Some(nearest.map_or(distance, |nearest| nearest.min(distance)));
+                }
             }
         }
-        _ => None,
+        nearest
     };
-    parsed.ok_or_else(|| format!("{name} must be a color like \"#1CDA61\", not {}", value.describe()))
+    let width = match (reach(1.0), reach(-1.0)) {
+        (Some(left), Some(right)) => left + right,
+        _ => START_LINE_WIDTH,
+    };
+    // The middle moves to halfway between the edges, so the line spans the
+    // road.
+    let shift = match (reach(1.0), reach(-1.0)) {
+        (Some(left), Some(right)) => (left - right) / 2.0,
+        _ => 0.0,
+    };
+    StartLine {
+        center: [center[0] + across[0] * shift, center[1] + across[1] * shift],
+        width,
+        depth: START_LINE_DEPTH,
+    }
+}
+
+// How far along from `from` to `to` the segment a to b crosses it, in units,
+// if it does.
+fn crossing(from: [f64; 2], to: [f64; 2], a: [f64; 2], b: [f64; 2]) -> Option<f64> {
+    let direction = [to[0] - from[0], to[1] - from[1]];
+    let edge = [b[0] - a[0], b[1] - a[1]];
+    let denominator = direction[0] * edge[1] - direction[1] * edge[0];
+    if denominator.abs() < 1e-12 {
+        return None;
+    }
+    let offset = [a[0] - from[0], a[1] - from[1]];
+    let t = (offset[0] * edge[1] - offset[1] * edge[0]) / denominator;
+    let s = (offset[0] * direction[1] - offset[1] * direction[0]) / denominator;
+    ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&s)).then(|| t * direction[0].hypot(direction[1]))
+}
+
+// Whether a point is inside an outline, by how many of its edges a line
+// from it toward +X crosses.
+pub fn inside(outline: &[[f64; 2]], [x, z]: [f64; 2]) -> bool {
+    let mut inside = false;
+    for (index, &a) in outline.iter().enumerate() {
+        let b = outline[(index + 1) % outline.len()];
+        if (a[1] > z) != (b[1] > z) && x < a[0] + (z - a[1]) / (b[1] - a[1]) * (b[0] - a[0]) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+// What's wrong with a track's shape, for the track builder to say: edges
+// that cross, islands outside the road or inside each other, and a start
+// that isn't on the road.
+fn problems(road: &[[f64; 2]], islands: &[Vec<[f64; 2]>], start: &Pose, edges: &Edges) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut outlines: Vec<(&str, usize, &[[f64; 2]])> = vec![("The road", 0, road)];
+    outlines.extend(islands.iter().enumerate().map(|(index, island)| ("Island", index + 1, island.as_slice())));
+    let name = |(kind, index, _): &(&str, usize, &[[f64; 2]])| {
+        if *index == 0 { kind.to_string() } else { format!("{kind} {index}") }
+    };
+    for (first, a) in outlines.iter().enumerate() {
+        for (second, b) in outlines.iter().enumerate().skip(first) {
+            if crosses(a.2, b.2, first == second) {
+                problems.push(if first == second {
+                    format!("{}'s edge crosses itself", name(a))
+                } else {
+                    format!("{}'s edge crosses {}'s", name(a), name(b).to_lowercase())
+                });
+            }
+        }
+    }
+    for island in &outlines[1..] {
+        if !inside(road, island.2[0]) {
+            problems.push(format!("{} is outside the road", name(island)));
+        }
+    }
+    let on_road = inside(road, start.position) && islands.iter().all(|island| !inside(island, start.position));
+    if !on_road {
+        problems.push("The start isn't on the road".to_string());
+    }
+    let _ = edges;
+    problems
+}
+
+// Whether two outlines' edges cross, or, for one outline, whether edges that
+// aren't next to each other do.
+fn crosses(a: &[[f64; 2]], b: &[[f64; 2]], same: bool) -> bool {
+    let segment = |outline: &[[f64; 2]], index: usize| [outline[index], outline[(index + 1) % outline.len()]];
+    for i in 0..a.len() {
+        let first = segment(a, i);
+        let (min, max) = bounds(first);
+        for j in (if same { i + 2 } else { 0 })..b.len() {
+            if same && i == 0 && j == b.len() - 1 {
+                continue;
+            }
+            let second = segment(b, j);
+            let (other_min, other_max) = bounds(second);
+            if other_max[0] < min[0] || other_min[0] > max[0] || other_max[1] < min[1] || other_min[1] > max[1] {
+                continue;
+            }
+            if meet(first, second) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn bounds([a, b]: [[f64; 2]; 2]) -> ([f64; 2], [f64; 2]) {
+    ([a[0].min(b[0]), a[1].min(b[1])], [a[0].max(b[0]), a[1].max(b[1])])
 }

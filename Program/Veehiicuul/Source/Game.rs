@@ -1,22 +1,26 @@
-// The game: the tracks and the vehicles, the car on the track, the camera,
-// and what each frame's controls do to them. Scene.rs draws it.
+// The game: the document, which has the scenes and the vehicles, the models,
+// the car in the current scene, the camera, and what each frame's controls
+// do to them in Play. Drawing.rs draws it, and the editors change the
+// document.
 //
-// The car starts on the start line, and the player drives it around the
+// The car starts behind the start line, and the player drives it around the
 // track. If it touches an edge of the road, it goes back to the start, at
-// rest, and so does switching to another vehicle or track.
+// rest, and so does switching to another vehicle or scene.
 
 use std::path::Path;
 
 use json::Value;
-use meshes::car;
 
 use crate::camera::{self, Camera};
 use crate::collision::Footprint;
 use crate::controls::Controls;
+use crate::document::Document;
 use crate::driving::{Car, DeadZones, drive};
+use crate::models::Models;
+use crate::scene::Scene;
 use crate::settings::GameSettings;
-use crate::track::Track;
-use crate::vehicles::{Vehicle, Vehicles};
+use crate::track::{Shape, Track};
+use crate::vehicles::Vehicle;
 
 // After the car is put back at the start, the controls don't move it for
 // this long, so that the player can let go of the stick first.
@@ -27,13 +31,11 @@ pub const PAUSE: f64 = 0.35;
 pub const LONGEST_STEP: f64 = 0.1;
 
 pub struct Game {
-    pub tracks: Vec<Track>,
-    pub vehicles: Vehicles,
-    // Every vehicle's, as they're all the same car.
-    pub footprint: Footprint,
+    pub document: Document,
+    pub models: Models,
     pub dead_zones: DeadZones,
-    // The track's and the vehicle's indices.
-    pub track: usize,
+    // The current scene's and the vehicle's indices.
+    pub scene: usize,
     pub vehicle: usize,
     pub car: Car,
     pub camera: Camera,
@@ -44,35 +46,41 @@ pub struct Game {
     // seconds.
     restarted: f64,
     last: Option<f64>,
+    // The current scene's track's shape, and the track it's of.
+    shape: Shape,
+    shape_of: Track,
 }
 
 impl Game {
-    // The game, on the track and with the vehicle that the settings name,
+    // The game, in the scene and with the vehicle that the settings name,
     // or the first of each, with a notice, if they name none.
-    pub fn new(tracks: Vec<Track>, vehicles: Vehicles, settings: &GameSettings, notices: &mut Vec<String>) -> Game {
-        let track = tracks
+    pub fn new(document: Document, models: Models, settings: &GameSettings, notices: &mut Vec<String>) -> Game {
+        let scene = document
+            .scenes
             .iter()
-            .position(|track| track.name.eq_ignore_ascii_case(&settings.track))
+            .position(|scene| scene.name.eq_ignore_ascii_case(&settings.scene))
             .unwrap_or_else(|| {
                 notices.push(format!(
-                    "Settings.json's Track, {}, isn't in Tracks, so the game starts on {}",
-                    settings.track, tracks[0].name
+                    "Settings.json's Scene, {}, isn't in Scenes, so the game starts in {}",
+                    settings.scene, document.scenes[0].name
                 ));
                 0
             });
-        let vehicle = vehicles.find(&settings.vehicle).unwrap_or_else(|| {
+        let vehicle = document.vehicles.find(&settings.vehicle).unwrap_or_else(|| {
             notices.push(format!(
                 "Settings.json's Vehicle, {}, isn't in Vehicles.json, so the game starts with {}",
-                settings.vehicle, vehicles.list[0].name
+                settings.vehicle, document.vehicles.list[0].name
             ));
             0
         });
+        let track = document.scenes[scene].track.clone();
         let mut game = Game {
-            tracks,
-            vehicles,
-            footprint: Footprint::of_mesh(&car::VERTICES),
+            shape: track.shape(),
+            shape_of: track,
+            document,
+            models,
             dead_zones: settings.dead_zones,
-            track,
+            scene,
             vehicle,
             car: Car::default(),
             camera: Camera {
@@ -89,29 +97,47 @@ impl Game {
         game
     }
 
-    // The game with the tracks in `folder`'s Tracks, and the vehicles in its
-    // Vehicles.json.
+    // The game with the scenes, vehicles and models in `folder`.
     pub fn load(folder: &Path, settings: &GameSettings, notices: &mut Vec<String>) -> Result<Game, String> {
-        let tracks = Track::load_all(&folder.join("Tracks"))?;
-        let vehicles = Vehicles::load(&folder.join("Vehicles.json"))?;
-        Ok(Game::new(tracks, vehicles, settings, notices))
+        let models = Models::load(&folder.join("Models"))?;
+        let document = Document::load(folder, &models)?;
+        Ok(Game::new(document, models, settings, notices))
     }
 
-    pub fn current_track(&self) -> &Track {
-        &self.tracks[self.track]
+    pub fn current_scene(&self) -> &Scene {
+        &self.document.scenes[self.scene]
     }
 
     pub fn current_vehicle(&self) -> &Vehicle {
-        &self.vehicles.list[self.vehicle]
+        &self.document.vehicles.list[self.vehicle]
+    }
+
+    pub fn footprint(&self) -> Footprint {
+        self.current_vehicle().footprint
+    }
+
+    // The current scene's track's shape, made again if the track changed.
+    pub fn shape(&mut self) -> &Shape {
+        let track = &self.document.scenes[self.scene].track;
+        if *track != self.shape_of {
+            self.shape = track.shape();
+            self.shape_of = track.clone();
+        }
+        &self.shape
+    }
+
+    // The shape as of the last call to shape.
+    pub fn last_shape(&self) -> &Shape {
+        &self.shape
     }
 
     // The height of the camera's view before the player zooms it.
     pub fn default_height(&self) -> f64 {
-        let track = self.current_track();
+        let scene = self.current_scene();
         if self.camera.follow {
-            track.follow_height
+            scene.follow_height
         } else {
-            track.camera_height
+            scene.camera_height
         }
     }
 
@@ -120,7 +146,7 @@ impl Game {
         if self.camera.follow {
             self.car.position
         } else {
-            self.current_track().camera_center
+            self.current_scene().camera_center
         }
     }
 
@@ -130,15 +156,28 @@ impl Game {
         self.last.is_some_and(|last| last - self.restarted <= PAUSE)
     }
 
-    // Puts the car on the start line, at rest, at `seconds`.
-    fn put_at_start(&mut self, seconds: f64) {
-        let start = self.current_track().start;
+    // Puts the car on the start, at rest, at `seconds`.
+    pub fn put_at_start(&mut self, seconds: f64) {
+        let start = self.current_scene().track.start;
         self.car = Car {
             position: start.position,
-            heading: start.heading,
+            heading: start.radians(),
             velocity: [0.0, 0.0],
         };
         self.restarted = seconds;
+    }
+
+    // Goes to a scene, from the start.
+    pub fn go_to_scene(&mut self, scene: usize, seconds: f64) {
+        self.scene = scene.min(self.document.scenes.len() - 1);
+        self.camera.height = self.default_height();
+        self.put_at_start(seconds);
+    }
+
+    // Keeps the indices in the document, after an editor changed it.
+    pub fn keep_in_document(&mut self) {
+        self.scene = self.scene.min(self.document.scenes.len() - 1);
+        self.vehicle = self.vehicle.min(self.document.vehicles.list.len() - 1);
     }
 
     // Moves the game to a frame's time, `seconds`, with its controls.
@@ -157,14 +196,13 @@ impl Game {
         }
         let zoomed = (self.camera.height - controls.zoom * camera::ZOOM_SPEED * step) / camera::NOTCH.powf(controls.notches);
         self.camera.height = zoomed.clamp(camera::LOWEST, camera::HIGHEST);
-        if controls.track != 0 {
-            let count = self.tracks.len() as i32;
-            self.track = (self.track as i32 + controls.track).rem_euclid(count) as usize;
-            self.camera.height = self.default_height();
-            self.put_at_start(seconds);
+        if controls.scene != 0 {
+            let count = self.document.scenes.len() as i32;
+            let scene = (self.scene as i32 + controls.scene).rem_euclid(count) as usize;
+            self.go_to_scene(scene, seconds);
         }
         if controls.vehicle != 0 {
-            let count = self.vehicles.list.len() as i32;
+            let count = self.document.vehicles.list.len() as i32;
             self.vehicle = (self.vehicle as i32 + controls.vehicle).rem_euclid(count) as usize;
             self.put_at_start(seconds);
         }
@@ -177,16 +215,17 @@ impl Game {
             drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, step);
         }
         let car = self.car;
-        if self.current_track().edges.touch(&self.footprint, car.position, car.heading) {
+        let footprint = self.footprint();
+        if self.shape().edges.touch(&footprint, car.position, car.heading) {
             self.crashes += 1;
             self.put_at_start(seconds);
         }
     }
 
-    // What scripts save and check.
-    pub fn state(&self) -> Value {
-        json::object([
-            ("Track", self.current_track().name.clone().into()),
+    // What scripts save and check about Play.
+    pub fn state(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("Scene", self.current_scene().name.clone().into()),
             ("Vehicle", self.current_vehicle().name.clone().into()),
             ("Position", self.car.position.into()),
             ("Heading", self.car.heading.to_degrees().into()),
@@ -197,6 +236,6 @@ impl Game {
             ("ViewHeight", self.camera.height.into()),
             ("Crashes", self.crashes.into()),
             ("TextShown", self.show_text.into()),
-        ])
+        ]
     }
 }

@@ -1,19 +1,15 @@
-// Whether a car touches the track's edges, on the ground: the car is the
-// rectangle around its mesh seen from above, its footprint, and an edge is
-// one of the straight segments of the road's outline and its islands'. A car
-// touches an edge when a side of its rectangle meets one, even at a point,
-// or along it.
+// Whether a car touches the track's edges, on the ground: the car is a
+// rectangle seen from above, its footprint, and an edge is one of the
+// straight segments of the road's outline and its islands'. A car touches an
+// edge when a side of its rectangle meets one, even at a point, or along
+// it.
 //
 // Only where the car is in each frame counts, so a car that's fast enough,
 // or a frame that's slow enough, can carry it past an edge between frames.
 
-use simple_paint::Vertex;
-
-// How much shorter a car's footprint is than its mesh at the front.
-pub const FRONT_TRIM: f64 = 0.165;
-
 // The rectangle around a car seen from above, along its own directions: X
-// to its left, and Z ahead.
+// to its left, and Z ahead. Its vehicle says how far it goes each way from
+// the car's middle.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Footprint {
     pub min: [f64; 2],
@@ -21,19 +17,24 @@ pub struct Footprint {
 }
 
 impl Footprint {
-    // The rectangle around the mesh's vertices, with its front trimmed by
-    // FRONT_TRIM.
-    pub fn of_mesh(vertices: &[Vertex]) -> Footprint {
+    // How far it goes to the car's left, right, front and back.
+    pub fn from_sides(left: f64, right: f64, front: f64, back: f64) -> Footprint {
+        Footprint {
+            min: [-right, -back],
+            max: [left, front],
+        }
+    }
+
+    // The rectangle around a model seen from above.
+    pub fn of_model(positions: &[[f32; 3]]) -> Footprint {
         let mut min = [f64::INFINITY; 2];
         let mut max = [f64::NEG_INFINITY; 2];
-        for vertex in vertices {
-            let [x, _, z] = vertex.position;
+        for &[x, _, z] in positions {
             for (axis, value) in [x, z].into_iter().enumerate() {
                 min[axis] = min[axis].min(value as f64);
                 max[axis] = max[axis].max(value as f64);
             }
         }
-        max[1] -= FRONT_TRIM;
         Footprint { min, max }
     }
 

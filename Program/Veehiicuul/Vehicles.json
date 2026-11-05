@@ -1,147 +1,207 @@
 {
-    "Axles": {
-        "BaseColor": [0.2159, 0.2159, 0.2159],
-        "Brightness": 0.5,
-        "Shift": 0,
-        "RotationDegrees": 0,
-        "DarkPoint": 0,
-        "LightPoint": 1
-    },
-    "Headlights": {
-        "BaseColor": [0.98, 0.7468, 0.1568],
-        "Brightness": 0.48242188,
-        "Shift": 0.6484375,
-        "RotationDegrees": 49.7666,
-        "DarkPoint": 0,
-        "LightPoint": 0.8999766
-    },
-    "Wheels": {
-        "BaseColor": [0.2702, 0.2702, 0.2702],
-        "Brightness": 0.41796875,
-        "Shift": 0.2841797,
-        "RotationDegrees": 224.49902,
-        "DarkPoint": 0.12890625,
-        "LightPoint": 0.78222656
-    },
     "Vehicles": [
         {
             "Name": "Green",
-            "Acceleration": { "Forward": 10, "Reverse": 100, "Left": 40, "Right": 40 },
-            "Body": {
-                "BaseColor": [0.02, 0.3608, 0.1788],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 10.0,
+                "Reverse": 100.0,
+                "Left": 40.0,
+                "Right": 40.0
             },
-            "Cabin": {
-                "BaseColor": [0.3691, 0.6382, 0.4068],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.02, 0.3608, 0.1788],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.3691, 0.6382, 0.4068],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         },
         {
             "Name": "Blue",
-            "Acceleration": { "Forward": 35, "Reverse": 70, "Left": 35, "Right": 35 },
-            "Body": {
-                "BaseColor": [0.104, 0.3592, 0.8],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 35.0,
+                "Reverse": 70.0,
+                "Left": 35.0,
+                "Right": 35.0
             },
-            "Cabin": {
-                "BaseColor": [0.376, 0.5315, 0.8],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.104, 0.3592, 0.8],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.376, 0.5315, 0.8],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         },
         {
             "Name": "Red",
-            "Acceleration": { "Forward": 70, "Reverse": 140, "Left": 70, "Right": 70 },
-            "Body": {
-                "BaseColor": [0.5992, 0.02, 0.02],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 70.0,
+                "Reverse": 140.0,
+                "Left": 70.0,
+                "Right": 70.0
             },
-            "Cabin": {
-                "BaseColor": [0.7251, 0.4217, 0.4217],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.5992, 0.02, 0.02],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.7251, 0.4217, 0.4217],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         },
         {
             "Name": "Yellow",
-            "Acceleration": { "Forward": 140, "Reverse": 280, "Left": 140, "Right": 140 },
-            "Body": {
-                "BaseColor": [0.731, 0.5825, 0.02],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 140.0,
+                "Reverse": 280.0,
+                "Left": 140.0,
+                "Right": 140.0
             },
-            "Cabin": {
-                "BaseColor": [0.737, 0.6418, 0.448],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.731, 0.5825, 0.02],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.737, 0.6418, 0.448],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         },
         {
             "Name": "Cyan",
-            "Acceleration": { "Forward": 280, "Reverse": 560, "Left": 280, "Right": 280 },
-            "Body": {
-                "BaseColor": [0.02, 0.6613, 0.5639],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 280.0,
+                "Reverse": 560.0,
+                "Left": 280.0,
+                "Right": 280.0
             },
-            "Cabin": {
-                "BaseColor": [0.3965, 0.6834, 0.6154],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.02, 0.6613, 0.5639],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.3965, 0.6834, 0.6154],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         },
         {
             "Name": "Magenta",
-            "Acceleration": { "Forward": 1000, "Reverse": 2000, "Left": 200, "Right": 200 },
-            "Body": {
-                "BaseColor": [0.6382, 0.02, 0.5074],
-                "Brightness": 0.20996094,
-                "Shift": 0.4140625,
-                "RotationDegrees": 35.600586,
-                "DarkPoint": 0,
-                "LightPoint": 1
+            "Model": "SlopeCar",
+            "Acceleration": {
+                "Forward": 1000.0,
+                "Reverse": 2000.0,
+                "Left": 200.0,
+                "Right": 200.0
             },
-            "Cabin": {
-                "BaseColor": [0.7251, 0.4217, 0.6267],
-                "Brightness": 0.26464844,
-                "Shift": 0.36132813,
-                "RotationDegrees": 28.935547,
-                "DarkPoint": 0.2,
-                "LightPoint": 1
+            "Footprint": {
+                "Left": 1.5,
+                "Right": 1.5,
+                "Front": 2.9925,
+                "Back": 3.0
+            },
+            "Paint": {
+                "SlopeCarBodyBlue": {
+                    "BaseColor": [0.6382, 0.02, 0.5074],
+                    "Brightness": 0.20996094,
+                    "Shift": 0.4140625,
+                    "RotationDegrees": 35.600586,
+                    "DarkPoint": 0.0,
+                    "LightPoint": 1.0
+                },
+                "SlopeCarCabinBlue": {
+                    "BaseColor": [0.7251, 0.4217, 0.6267],
+                    "Brightness": 0.26464844,
+                    "Shift": 0.36132813,
+                    "RotationDegrees": 28.935547,
+                    "DarkPoint": 0.2,
+                    "LightPoint": 1.0
+                }
             }
         }
     ]

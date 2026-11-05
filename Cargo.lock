@@ -325,6 +325,7 @@ name = "veehiicuul"
 version = "0.1.0"
 dependencies = [
  "application",
+ "gltf",
  "graphics",
  "json",
  "math",
@@ -343,7 +344,6 @@ version = "0.1.0"
 dependencies = [
  "application",
  "json",
- "meshes",
  "simple_paint",
  "user_interface",
  "veehiicuul",

@@ -2,7 +2,7 @@
     "Display": "Primary",
     "WindowMode": "Maximized",
     "AllowTearing": true,
-    "Track": "Ribeye",
+    "Scene": "Ribeye",
     "Vehicle": "Yellow",
     "Camera": "Fixed",
     "DeadZones": {

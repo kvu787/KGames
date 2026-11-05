@@ -1,10 +1,9 @@
-// What a car touches: segments that meet, the car's footprint, and a car
+// What a car touches: segments that meet, a car's footprint, and a car
 // against a track's edges.
 
 use std::f64::consts::FRAC_PI_2;
 
-use meshes::car;
-use veehiicuul::collision::{Edges, FRONT_TRIM, Footprint, meet};
+use veehiicuul::collision::{Edges, Footprint, meet};
 
 #[test]
 fn segments_meet_when_they_cross_touch_or_overlap() {
@@ -28,15 +27,14 @@ fn segments_meet_when_they_cross_touch_or_overlap() {
     }
 }
 
-// The car is 3 units wide and about 6 long, facing +Z, and its footprint
-// is shorter at the front.
+// A footprint goes from the car's middle to each side, and fits a model's
+// rectangle from above, along X, to the model's left, and Z, ahead.
 #[test]
-fn the_footprint_is_the_car_mesh_from_above_shorter_at_the_front() {
-    let footprint = Footprint::of_mesh(&car::VERTICES);
-    let near = |actual: f64, expected: f64| (actual - expected).abs() < 1e-6;
-    assert!(near(footprint.min[0], -1.5) && near(footprint.max[0], 1.5), "{footprint:?}");
-    assert!(near(footprint.min[1], -3.0), "{footprint:?}");
-    assert!(near(footprint.max[1], 3.1575217 - FRONT_TRIM), "{footprint:?}");
+fn a_footprint_is_its_sides_or_a_model_s_rectangle() {
+    let footprint = Footprint::from_sides(1.5, 1.25, 3.0, 2.0);
+    assert_eq!((footprint.min, footprint.max), ([-1.25, -2.0], [1.5, 3.0]));
+    let model = Footprint::of_model(&[[-1.0, 5.0, -3.0], [2.0, 0.0, 4.0], [0.0, -1.0, 0.0]]);
+    assert_eq!((model.min, model.max), ([-1.0, -3.0], [2.0, 4.0]));
 }
 
 // A square track 20 units across, around the origin.
