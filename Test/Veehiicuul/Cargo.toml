@@ -28,6 +28,10 @@ path = "Document.rs"
 name = "Game"
 path = "Game.rs"
 
+[[test]]
+name = "Editors"
+path = "Editors.rs"
+
 [dependencies]
 application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }

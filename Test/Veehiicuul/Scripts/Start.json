@@ -1,6 +1,6 @@
 {
     "Steps": [
-        { "Frame": 1, "Expect": { "Scene": "Ribeye", "Vehicle": "Yellow", "Position": [94.5437, -48.4802], "Heading": -104.267, "Speed": 0, "Paused": false, "Camera": "Fixed", "ViewHeight": 150, "Crashes": 0, "TextShown": true, "Window": { "Fullscreen": false, "Problems": [] } } },
+        { "Frame": 1, "Expect": { "Mode": "Play", "Scene": "Ribeye", "Vehicle": "Yellow", "Position": [94.5437, -48.4802], "Heading": -104.267, "Speed": 0, "Paused": false, "Camera": "Fixed", "ViewHeight": 150, "Crashes": 0, "TextShown": true, "Window": { "Fullscreen": false, "Problems": [] } } },
         { "Frame": 1, "Capture": "Start" }
     ]
 }

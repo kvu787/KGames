@@ -3,7 +3,7 @@
 // keys, braking, crashing, the vehicles, the scenes, the camera, the text,
 // and a window without focus.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use application::{ProgramSettings, key_name};
 use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, key};
@@ -27,10 +27,15 @@ fn start() -> (Veehiicuul, Headless) {
     let mut notices = Vec::new();
     let game = Game::load(&folder, &settings, &mut notices).unwrap_or_else(|problem| panic!("{problem}"));
     assert!(notices.is_empty(), "{notices:?}");
-    let mut program = Veehiicuul::without_drawing(game);
+    let mut program = Veehiicuul::without_drawing(game, nowhere());
     let mut headless = Headless::default();
     headless.program(&mut program, &[]).unwrap();
     (program, headless)
+}
+
+// Where tests that don't save would save.
+fn nowhere() -> PathBuf {
+    std::env::temp_dir().join("VeehiicuulGameTests")
 }
 
 fn start_of(program: &Veehiicuul) -> veehiicuul::track::Pose {
