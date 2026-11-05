@@ -10,11 +10,6 @@ pub unsafe fn AdjustWindowRectExForDpi(
     unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
 }
 #[inline]
-pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
-    windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
-    unsafe { BeginPaint(hwnd, lppaint as _) }
-}
-#[inline]
 pub unsafe fn CM_Get_DevNode_PropertyW(
     dndevinst: DEVINST,
     propertykey: *const DEVPROPKEY,
@@ -84,11 +79,6 @@ pub unsafe fn CM_Locate_DevNodeW(
     }
 }
 #[inline]
-pub unsafe fn ClientToScreen(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn ClientToScreen(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
-    unsafe { ClientToScreen(hwnd, lppoint as _) }
-}
-#[inline]
 pub unsafe fn CloseClipboard() -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn CloseClipboard() -> windows_core::BOOL);
     unsafe { CloseClipboard() }
@@ -130,16 +120,6 @@ pub unsafe fn CoInitializeEx(
     unsafe { CoInitializeEx(pvreserved.unwrap_or(core::mem::zeroed()) as _, dwcoinit) }
 }
 #[inline]
-pub unsafe fn CoUninitialize() {
-    windows_core::link!("ole32.dll" "system" fn CoUninitialize());
-    unsafe { CoUninitialize() }
-}
-#[inline]
-pub unsafe fn CreateCompatibleDC(hdc: Option<HDC>) -> HDC {
-    windows_core::link!("gdi32.dll" "system" fn CreateCompatibleDC(hdc : HDC) -> HDC);
-    unsafe { CreateCompatibleDC(hdc.unwrap_or(core::mem::zeroed()) as _) }
-}
-#[inline]
 pub unsafe fn CreateDXGIFactory2<T>(flags: u32) -> windows_core::Result<T>
 where
     T: windows_core::Interface,
@@ -170,51 +150,6 @@ where
             lpname.param().abi(),
         )
     }
-}
-#[inline]
-pub unsafe fn CreateFontW<P13>(
-    cheight: i32,
-    cwidth: i32,
-    cescapement: i32,
-    corientation: i32,
-    cweight: i32,
-    bitalic: u32,
-    bunderline: u32,
-    bstrikeout: u32,
-    icharset: u32,
-    ioutprecision: u32,
-    iclipprecision: u32,
-    iquality: u32,
-    ipitchandfamily: u32,
-    pszfacename: P13,
-) -> HFONT
-where
-    P13: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("gdi32.dll" "system" fn CreateFontW(cheight : i32, cwidth : i32, cescapement : i32, corientation : i32, cweight : i32, bitalic : u32, bunderline : u32, bstrikeout : u32, icharset : u32, ioutprecision : u32, iclipprecision : u32, iquality : u32, ipitchandfamily : u32, pszfacename : windows_core::PCWSTR) -> HFONT);
-    unsafe {
-        CreateFontW(
-            cheight,
-            cwidth,
-            cescapement,
-            corientation,
-            cweight,
-            bitalic,
-            bunderline,
-            bstrikeout,
-            icharset,
-            ioutprecision,
-            iclipprecision,
-            iquality,
-            ipitchandfamily,
-            pszfacename.param().abi(),
-        )
-    }
-}
-#[inline]
-pub unsafe fn CreateSolidBrush(color: COLORREF) -> HBRUSH {
-    windows_core::link!("gdi32.dll" "system" fn CreateSolidBrush(color : COLORREF) -> HBRUSH);
-    unsafe { CreateSolidBrush(color) }
 }
 #[inline]
 pub unsafe fn CreateWindowExW<P1, P2>(
@@ -300,11 +235,6 @@ pub unsafe fn DefWindowProcW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARA
     unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
 }
 #[inline]
-pub unsafe fn DeleteDC(hdc: HDC) -> windows_core::BOOL {
-    windows_core::link!("gdi32.dll" "system" fn DeleteDC(hdc : HDC) -> windows_core::BOOL);
-    unsafe { DeleteDC(hdc) }
-}
-#[inline]
 pub unsafe fn DestroyWindow(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn DestroyWindow(hwnd : HWND) -> windows_core::BOOL);
     unsafe { DestroyWindow(hwnd) }
@@ -322,28 +252,9 @@ pub unsafe fn DisplayConfigGetDeviceInfo(
     unsafe { DisplayConfigGetDeviceInfo(requestpacket as _) }
 }
 #[inline]
-pub unsafe fn DrawTextW<P1>(
-    hdc: HDC,
-    lpchtext: P1,
-    cchtext: i32,
-    lprc: *mut RECT,
-    format: u32,
-) -> i32
-where
-    P1: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("user32.dll" "system" fn DrawTextW(hdc : HDC, lpchtext : windows_core::PCWSTR, cchtext : i32, lprc : *mut RECT, format : u32) -> i32);
-    unsafe { DrawTextW(hdc, lpchtext.param().abi(), cchtext, lprc as _, format) }
-}
-#[inline]
 pub unsafe fn EmptyClipboard() -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn EmptyClipboard() -> windows_core::BOOL);
     unsafe { EmptyClipboard() }
-}
-#[inline]
-pub unsafe fn EndPaint(hwnd: HWND, lppaint: *const PAINTSTRUCT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn EndPaint(hwnd : HWND, lppaint : *const PAINTSTRUCT) -> windows_core::BOOL);
-    unsafe { EndPaint(hwnd, lppaint) }
 }
 #[inline]
 pub unsafe fn EnumDisplayMonitors(
@@ -363,21 +274,6 @@ pub unsafe fn EnumDisplayMonitors(
     }
 }
 #[inline]
-pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
-    windows_core::link!("user32.dll" "system" fn FillRect(hdc : HDC, lprc : *const RECT, hbr : HBRUSH) -> i32);
-    unsafe { FillRect(hdc, lprc, hbr) }
-}
-#[inline]
-pub unsafe fn GetCapture() -> HWND {
-    windows_core::link!("user32.dll" "system" fn GetCapture() -> HWND);
-    unsafe { GetCapture() }
-}
-#[inline]
-pub unsafe fn GetCaretBlinkTime() -> u32 {
-    windows_core::link!("user32.dll" "system" fn GetCaretBlinkTime() -> u32);
-    unsafe { GetCaretBlinkTime() }
-}
-#[inline]
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
@@ -393,11 +289,6 @@ pub unsafe fn GetCurrentProcess() -> HANDLE {
     unsafe { GetCurrentProcess() }
 }
 #[inline]
-pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn GetCursorPos(lppoint : *mut POINT) -> windows_core::BOOL);
-    unsafe { GetCursorPos(lppoint as _) }
-}
-#[inline]
 pub unsafe fn GetDisplayConfigBufferSizes(
     flags: u32,
     numpatharrayelements: *mut u32,
@@ -411,11 +302,6 @@ pub unsafe fn GetDisplayConfigBufferSizes(
             nummodeinfoarrayelements as _,
         )
     }
-}
-#[inline]
-pub unsafe fn GetDoubleClickTime() -> u32 {
-    windows_core::link!("user32.dll" "system" fn GetDoubleClickTime() -> u32);
-    unsafe { GetDoubleClickTime() }
 }
 #[inline]
 pub unsafe fn GetDpiForMonitor(
@@ -466,11 +352,6 @@ where
     }
 }
 #[inline]
-pub unsafe fn GetForegroundWindow() -> HWND {
-    windows_core::link!("user32.dll" "system" fn GetForegroundWindow() -> HWND);
-    unsafe { GetForegroundWindow() }
-}
-#[inline]
 pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsize: i32) -> i32 {
     windows_core::link!("user32.dll" "system" fn GetKeyNameTextW(lparam : i32, lpstring : windows_core::PWSTR, cchsize : i32) -> i32);
     unsafe { GetKeyNameTextW(lparam, lpstring, cchsize) }
@@ -484,23 +365,6 @@ pub unsafe fn GetKeyState(nvirtkey: i32) -> i16 {
 pub unsafe fn GetKeyboardState(lpkeystate: *mut u8) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetKeyboardState(lpkeystate : *mut u8) -> windows_core::BOOL);
     unsafe { GetKeyboardState(lpkeystate as _) }
-}
-#[inline]
-pub unsafe fn GetMessageW(
-    lpmsg: *mut MSG,
-    hwnd: Option<HWND>,
-    wmsgfiltermin: u32,
-    wmsgfiltermax: u32,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn GetMessageW(lpmsg : *mut MSG, hwnd : HWND, wmsgfiltermin : u32, wmsgfiltermax : u32) -> windows_core::BOOL);
-    unsafe {
-        GetMessageW(
-            lpmsg as _,
-            hwnd.unwrap_or(core::mem::zeroed()) as _,
-            wmsgfiltermin,
-            wmsgfiltermax,
-        )
-    }
 }
 #[inline]
 pub unsafe fn GetModuleHandleW<P0>(lpmodulename: P0) -> HMODULE
@@ -546,16 +410,6 @@ pub unsafe fn GetWindowLongW(hwnd: HWND, nindex: i32) -> i32 {
     unsafe { GetWindowLongW(hwnd, nindex) }
 }
 #[inline]
-pub unsafe fn GetWindowPlacement(hwnd: HWND, lpwndpl: *mut WINDOWPLACEMENT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn GetWindowPlacement(hwnd : HWND, lpwndpl : *mut WINDOWPLACEMENT) -> windows_core::BOOL);
-    unsafe { GetWindowPlacement(hwnd, lpwndpl as _) }
-}
-#[inline]
-pub unsafe fn GetWindowRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn GetWindowRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
-    unsafe { GetWindowRect(hwnd, lprect as _) }
-}
-#[inline]
 pub unsafe fn GlobalAlloc(uflags: u32, dwbytes: usize) -> HGLOBAL {
     windows_core::link!("kernel32.dll" "system" fn GlobalAlloc(uflags : u32, dwbytes : usize) -> HGLOBAL);
     unsafe { GlobalAlloc(uflags, dwbytes) }
@@ -579,16 +433,6 @@ pub unsafe fn GlobalUnlock(hmem: HGLOBAL) -> windows_core::BOOL {
 pub unsafe fn IsClipboardFormatAvailable(format: u32) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsClipboardFormatAvailable(format : u32) -> windows_core::BOOL);
     unsafe { IsClipboardFormatAvailable(format) }
-}
-#[inline]
-pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
-    unsafe { IsIconic(hwnd) }
-}
-#[inline]
-pub unsafe fn IsWindowVisible(hwnd: HWND) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn IsWindowVisible(hwnd : HWND) -> windows_core::BOOL);
-    unsafe { IsWindowVisible(hwnd) }
 }
 #[inline]
 pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
@@ -651,28 +495,6 @@ pub unsafe fn PeekMessageW(
     }
 }
 #[inline]
-pub unsafe fn PostMessageW(
-    hwnd: Option<HWND>,
-    msg: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn PostMessageW(hwnd : HWND, msg : u32, wparam : WPARAM, lparam : LPARAM) -> windows_core::BOOL);
-    unsafe {
-        PostMessageW(
-            hwnd.unwrap_or(core::mem::zeroed()) as _,
-            msg,
-            wparam,
-            lparam,
-        )
-    }
-}
-#[inline]
-pub unsafe fn PostQuitMessage(nexitcode: i32) {
-    windows_core::link!("user32.dll" "system" fn PostQuitMessage(nexitcode : i32));
-    unsafe { PostQuitMessage(nexitcode) }
-}
-#[inline]
 pub unsafe fn QueryDisplayConfig(
     flags: u32,
     numpatharrayelements: *mut u32,
@@ -731,21 +553,6 @@ pub unsafe fn ReleaseCapture() -> windows_core::BOOL {
     unsafe { ReleaseCapture() }
 }
 #[inline]
-pub unsafe fn ScreenToClient(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn ScreenToClient(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
-    unsafe { ScreenToClient(hwnd, lppoint as _) }
-}
-#[inline]
-pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
-    windows_core::link!("gdi32.dll" "system" fn SelectObject(hdc : HDC, h : HGDIOBJ) -> HGDIOBJ);
-    unsafe { SelectObject(hdc, h) }
-}
-#[inline]
-pub unsafe fn SetBkMode(hdc: HDC, mode: i32) -> i32 {
-    windows_core::link!("gdi32.dll" "system" fn SetBkMode(hdc : HDC, mode : i32) -> i32);
-    unsafe { SetBkMode(hdc, mode) }
-}
-#[inline]
 pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
     windows_core::link!("user32.dll" "system" fn SetCapture(hwnd : HWND) -> HWND);
     unsafe { SetCapture(hwnd) }
@@ -782,11 +589,6 @@ pub unsafe fn SetProcessInformation(
         )
     }
 }
-#[inline]
-pub unsafe fn SetTextColor(hdc: HDC, color: COLORREF) -> COLORREF {
-    windows_core::link!("gdi32.dll" "system" fn SetTextColor(hdc : HDC, color : COLORREF) -> COLORREF);
-    unsafe { SetTextColor(hdc, color) }
-}
 #[cfg(any(
     target_arch = "aarch64",
     target_arch = "arm64ec",
@@ -803,14 +605,6 @@ pub use SetWindowLongW as SetWindowLongPtrW;
 pub unsafe fn SetWindowLongW(hwnd: HWND, nindex: i32, dwnewlong: i32) -> i32 {
     windows_core::link!("user32.dll" "system" fn SetWindowLongW(hwnd : HWND, nindex : i32, dwnewlong : i32) -> i32);
     unsafe { SetWindowLongW(hwnd, nindex, dwnewlong) }
-}
-#[inline]
-pub unsafe fn SetWindowPlacement(
-    hwnd: HWND,
-    lpwndpl: *const WINDOWPLACEMENT,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn SetWindowPlacement(hwnd : HWND, lpwndpl : *const WINDOWPLACEMENT) -> windows_core::BOOL);
-    unsafe { SetWindowPlacement(hwnd, lpwndpl) }
 }
 #[inline]
 pub unsafe fn SetWindowPos(
@@ -902,8 +696,6 @@ pub unsafe fn WaitMessage() -> windows_core::BOOL {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ATOM(pub u16);
 pub const CF_UNICODETEXT: i32 = 13;
-pub const CLEARTYPE_QUALITY: i32 = 5;
-pub const CLIP_DEFAULT_PRECIS: i32 = 0;
 pub type CLSCTX = u32;
 pub const CLSCTX_ACTIVATE_32_BIT_SERVER: CLSCTX = 262144;
 pub const CLSCTX_ACTIVATE_64_BIT_SERVER: CLSCTX = 524288;
@@ -943,14 +735,9 @@ pub const COINIT_APARTMENTTHREADED: COINIT = 2;
 pub const COINIT_DISABLE_OLE1DDE: COINIT = 4;
 pub const COINIT_MULTITHREADED: COINIT = 0;
 pub const COINIT_SPEED_OVER_MEMORY: COINIT = 8;
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct COLORREF(pub u32);
 pub type CONFIGRET = RETURN_TYPE;
 pub const CR_BUFFER_SMALL: i32 = 26;
 pub const CR_SUCCESS: i32 = 0;
-pub const CS_HREDRAW: i32 = 2;
-pub const CS_VREDRAW: i32 = 1;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 10;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP: D3D_PRIMITIVE_TOPOLOGY = 3;
@@ -2130,7 +1917,6 @@ pub type D3D12_TEXTURE_COPY_TYPE = i32;
 pub const D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT: D3D12_TEXTURE_COPY_TYPE = 1;
 pub const D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX: D3D12_TEXTURE_COPY_TYPE = 0;
 pub const D3D12_TEXTURE_DATA_PITCH_ALIGNMENT: i32 = 256;
-pub const D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT: i32 = 512;
 pub type D3D12_TEXTURE_LAYOUT = i32;
 pub const D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE: D3D12_TEXTURE_LAYOUT = 3;
 pub const D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE: D3D12_TEXTURE_LAYOUT = 2;
@@ -2267,7 +2053,6 @@ pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 12;
 pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
 pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
 pub const D3D_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
-pub const DEFAULT_CHARSET: i32 = 1;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct DEVINST(pub u32);
@@ -2697,10 +2482,6 @@ impl DISPLAYCONFIG_VIDEO_SIGNAL_INFO_0_0 {
 pub struct DPI_AWARENESS_CONTEXT(pub *mut core::ffi::c_void);
 pub const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
     DPI_AWARENESS_CONTEXT(-4 as _);
-pub const DT_CALCRECT: i32 = 1024;
-pub const DT_CENTER: i32 = 1;
-pub const DT_NOPREFIX: i32 = 2048;
-pub const DT_SINGLELINE: i32 = 32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
@@ -3142,11 +2923,6 @@ pub const ERROR_SUCCESS: i32 = 0;
 pub const E_FAIL: windows_core::HRESULT = windows_core::HRESULT(0x80004005_u32 as _);
 pub const E_INVALIDARG: windows_core::HRESULT = windows_core::HRESULT(0x80070057_u32 as _);
 pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
-pub const FF_MODERN: i32 = 48;
-pub const FF_SWISS: i32 = 32;
-pub const FIXED_PITCH: i32 = 1;
-pub const FW_BOLD: i32 = 700;
-pub const FW_NORMAL: i32 = 400;
 pub const GENERIC_WRITE: i32 = 1073741824;
 pub const GMEM_MOVEABLE: i32 = 2;
 pub const GUID_ContainerFormatPng: windows_core::GUID =
@@ -3154,7 +2930,6 @@ pub const GUID_ContainerFormatPng: windows_core::GUID =
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
     windows_core::GUID::from_u128(0x6fddc324_4e03_4bfe_b185_3d77768dc90c);
 pub const GWLP_USERDATA: i32 = -21;
-pub const GWL_EXSTYLE: i32 = -20;
 pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -3166,12 +2941,6 @@ pub type HCURSOR = HICON;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HDC(pub *mut core::ffi::c_void);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct HFONT(pub *mut core::ffi::c_void);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct HGDIOBJ(pub *mut core::ffi::c_void);
 pub type HGLOBAL = HANDLE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -3194,7 +2963,6 @@ pub const HTCLIENT: i32 = 1;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HWND(pub *mut core::ffi::c_void);
-pub const HWND_TOPMOST: HWND = HWND(-1 as _);
 windows_core::imp::define_interface!(
     ID3D10Blob,
     ID3D10Blob_Vtbl,
@@ -5927,9 +5695,7 @@ pub const IDC_CROSS: windows_core::PCWSTR = windows_core::PCWSTR(32515 as _);
 pub const IDC_HAND: windows_core::PCWSTR = windows_core::PCWSTR(32649 as _);
 pub const IDC_IBEAM: windows_core::PCWSTR = windows_core::PCWSTR(32513 as _);
 pub const IDC_SIZEALL: windows_core::PCWSTR = windows_core::PCWSTR(32646 as _);
-pub const IDC_SIZENESW: windows_core::PCWSTR = windows_core::PCWSTR(32643 as _);
 pub const IDC_SIZENS: windows_core::PCWSTR = windows_core::PCWSTR(32645 as _);
-pub const IDC_SIZENWSE: windows_core::PCWSTR = windows_core::PCWSTR(32642 as _);
 pub const IDC_SIZEWE: windows_core::PCWSTR = windows_core::PCWSTR(32644 as _);
 windows_core::imp::define_interface!(
     IDWriteFactory,
@@ -6326,16 +6092,6 @@ impl core::ops::Deref for IDWriteFontFamily {
 }
 windows_core::imp::interface_hierarchy!(IDWriteFontFamily, windows_core::IUnknown, IDWriteFontList);
 impl IDWriteFontFamily {
-    pub unsafe fn GetFamilyNames(&self) -> windows_core::Result<IDWriteLocalizedStrings> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).GetFamilyNames)(
-                windows_core::Interface::as_raw(self),
-                &mut result__,
-            )
-            .and_then(|| windows_core::imp::Type::from_abi(result__))
-        }
-    }
     pub unsafe fn GetFirstMatchingFont(
         &self,
         weight: DWRITE_FONT_WEIGHT,
@@ -6358,10 +6114,7 @@ impl IDWriteFontFamily {
 #[repr(C)]
 pub struct IDWriteFontFamily_Vtbl {
     pub base__: IDWriteFontList_Vtbl,
-    pub GetFamilyNames: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut *mut core::ffi::c_void,
-    ) -> windows_core::HRESULT,
+    GetFamilyNames: usize,
     pub GetFirstMatchingFont: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         DWRITE_FONT_WEIGHT,
@@ -6458,57 +6211,6 @@ pub struct IDWriteInlineObject_Vtbl {
     GetBreakConditions: usize,
 }
 impl windows_core::RuntimeName for IDWriteInlineObject {}
-windows_core::imp::define_interface!(
-    IDWriteLocalizedStrings,
-    IDWriteLocalizedStrings_Vtbl,
-    0x08256209_099a_4b34_b86d_c22b110e7771
-);
-windows_core::imp::interface_hierarchy!(IDWriteLocalizedStrings, windows_core::IUnknown);
-impl IDWriteLocalizedStrings {
-    pub unsafe fn GetStringLength(&self, index: u32) -> windows_core::Result<u32> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).GetStringLength)(
-                windows_core::Interface::as_raw(self),
-                index,
-                &mut result__,
-            )
-            .map(|| result__)
-        }
-    }
-    pub unsafe fn GetString(
-        &self,
-        index: u32,
-        stringbuffer: *mut u16,
-        size: u32,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).GetString)(
-                windows_core::Interface::as_raw(self),
-                index,
-                stringbuffer as _,
-                size,
-            )
-        }
-    }
-}
-#[repr(C)]
-pub struct IDWriteLocalizedStrings_Vtbl {
-    pub base__: windows_core::IUnknown_Vtbl,
-    GetCount: usize,
-    FindLocaleName: usize,
-    GetLocaleNameLength: usize,
-    GetLocaleName: usize,
-    pub GetStringLength:
-        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *mut u32) -> windows_core::HRESULT,
-    pub GetString: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        u32,
-        *mut u16,
-        u32,
-    ) -> windows_core::HRESULT,
-}
-impl windows_core::RuntimeName for IDWriteLocalizedStrings {}
 windows_core::imp::define_interface!(
     IDWritePixelSnapping,
     IDWritePixelSnapping_Vtbl,
@@ -6678,28 +6380,6 @@ windows_core::imp::define_interface!(
 );
 windows_core::imp::interface_hierarchy!(IDWriteTextFormat, windows_core::IUnknown);
 impl IDWriteTextFormat {
-    pub unsafe fn SetTextAlignment(
-        &self,
-        textalignment: DWRITE_TEXT_ALIGNMENT,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).SetTextAlignment)(
-                windows_core::Interface::as_raw(self),
-                textalignment,
-            )
-        }
-    }
-    pub unsafe fn SetParagraphAlignment(
-        &self,
-        paragraphalignment: DWRITE_PARAGRAPH_ALIGNMENT,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).SetParagraphAlignment)(
-                windows_core::Interface::as_raw(self),
-                paragraphalignment,
-            )
-        }
-    }
     pub unsafe fn SetWordWrapping(
         &self,
         wordwrapping: DWRITE_WORD_WRAPPING,
@@ -6730,14 +6410,8 @@ impl IDWriteTextFormat {
 #[repr(C)]
 pub struct IDWriteTextFormat_Vtbl {
     pub base__: windows_core::IUnknown_Vtbl,
-    pub SetTextAlignment: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        DWRITE_TEXT_ALIGNMENT,
-    ) -> windows_core::HRESULT,
-    pub SetParagraphAlignment: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        DWRITE_PARAGRAPH_ALIGNMENT,
-    ) -> windows_core::HRESULT,
+    SetTextAlignment: usize,
+    SetParagraphAlignment: usize,
     pub SetWordWrapping: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         DWRITE_WORD_WRAPPING,
@@ -6805,21 +6479,6 @@ impl IDWriteTextLayout {
                 renderer.param().abi(),
                 originx,
                 originy,
-            )
-        }
-    }
-    pub unsafe fn GetLineMetrics(
-        &self,
-        linemetrics: Option<*mut DWRITE_LINE_METRICS>,
-        maxlinecount: u32,
-        actuallinecount: *mut u32,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).GetLineMetrics)(
-                windows_core::Interface::as_raw(self),
-                linemetrics.unwrap_or(core::mem::zeroed()) as _,
-                maxlinecount,
-                actuallinecount as _,
             )
         }
     }
@@ -6913,12 +6572,7 @@ pub struct IDWriteTextLayout_Vtbl {
         f32,
         f32,
     ) -> windows_core::HRESULT,
-    pub GetLineMetrics: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut DWRITE_LINE_METRICS,
-        u32,
-        *mut u32,
-    ) -> windows_core::HRESULT,
+    GetLineMetrics: usize,
     pub GetMetrics: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         *mut DWRITE_TEXT_METRICS,
@@ -8293,8 +7947,6 @@ pub struct LUID {
 }
 pub const MAPVK_VK_TO_VSC_EX: i32 = 4;
 pub const MA_ACTIVATEANDEAT: i32 = 2;
-pub const MA_NOACTIVATE: i32 = 3;
-pub const MA_NOACTIVATEANDEAT: i32 = 4;
 pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
@@ -8338,22 +7990,6 @@ pub struct MSG {
     pub lParam: LPARAM,
     pub time: u32,
     pub pt: POINT,
-}
-pub const OUT_DEFAULT_PRECIS: i32 = 0;
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PAINTSTRUCT {
-    pub hdc: HDC,
-    pub fErase: windows_core::BOOL,
-    pub rcPaint: RECT,
-    pub fRestore: windows_core::BOOL,
-    pub fIncUpdate: windows_core::BOOL,
-    pub rgbReserved: [u8; 32],
-}
-impl Default for PAINTSTRUCT {
-    fn default() -> Self {
-        unsafe { core::mem::zeroed() }
-    }
 }
 pub const PM_REMOVE: i32 = 1;
 #[repr(C)]
@@ -8412,15 +8048,10 @@ pub struct SECURITY_ATTRIBUTES {
 pub const SIZE_MINIMIZED: i32 = 1;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
-pub const SWP_NOMOVE: i32 = 2;
 pub const SWP_NOOWNERZORDER: i32 = 512;
-pub const SWP_NOSIZE: i32 = 1;
 pub const SWP_NOZORDER: i32 = 4;
-pub const SW_HIDE: i32 = 0;
 pub const SW_SHOW: i32 = 5;
-pub const SW_SHOWMAXIMIZED: i32 = 3;
 pub const SW_SHOWNA: i32 = 8;
-pub const SW_SHOWNOACTIVATE: i32 = 4;
 pub const TME_LEAVE: i32 = 2;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -8430,76 +8061,7 @@ pub struct TRACKMOUSEEVENT {
     pub hwndTrack: HWND,
     pub dwHoverTime: u32,
 }
-pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
-pub const VK_ADD: i32 = 107;
-pub const VK_BACK: i32 = 8;
-pub const VK_CAPITAL: i32 = 20;
-pub const VK_CONTROL: i32 = 17;
-pub const VK_DECIMAL: i32 = 110;
-pub const VK_DELETE: i32 = 46;
-pub const VK_DIVIDE: i32 = 111;
-pub const VK_DOWN: i32 = 40;
-pub const VK_END: i32 = 35;
-pub const VK_ESCAPE: i32 = 27;
-pub const VK_F1: i32 = 112;
-pub const VK_F10: i32 = 121;
-pub const VK_F11: i32 = 122;
-pub const VK_F12: i32 = 123;
-pub const VK_F2: i32 = 113;
-pub const VK_F3: i32 = 114;
-pub const VK_F4: i32 = 115;
-pub const VK_F5: i32 = 116;
-pub const VK_F6: i32 = 117;
-pub const VK_F7: i32 = 118;
-pub const VK_F8: i32 = 119;
-pub const VK_F9: i32 = 120;
-pub const VK_HOME: i32 = 36;
-pub const VK_INSERT: i32 = 45;
-pub const VK_LBUTTON: i32 = 1;
-pub const VK_LCONTROL: i32 = 162;
-pub const VK_LEFT: i32 = 37;
-pub const VK_LMENU: i32 = 164;
-pub const VK_LSHIFT: i32 = 160;
-pub const VK_LWIN: i32 = 91;
-pub const VK_MBUTTON: i32 = 4;
-pub const VK_MENU: i32 = 18;
-pub const VK_MULTIPLY: i32 = 106;
-pub const VK_NEXT: i32 = 34;
-pub const VK_NUMPAD0: i32 = 96;
-pub const VK_NUMPAD1: i32 = 97;
-pub const VK_NUMPAD2: i32 = 98;
-pub const VK_NUMPAD3: i32 = 99;
-pub const VK_NUMPAD4: i32 = 100;
-pub const VK_NUMPAD5: i32 = 101;
-pub const VK_NUMPAD6: i32 = 102;
-pub const VK_NUMPAD7: i32 = 103;
-pub const VK_NUMPAD8: i32 = 104;
-pub const VK_NUMPAD9: i32 = 105;
-pub const VK_OEM_1: i32 = 186;
-pub const VK_OEM_2: i32 = 191;
-pub const VK_OEM_3: i32 = 192;
-pub const VK_OEM_4: i32 = 219;
-pub const VK_OEM_5: i32 = 220;
-pub const VK_OEM_6: i32 = 221;
-pub const VK_OEM_7: i32 = 222;
-pub const VK_OEM_COMMA: i32 = 188;
-pub const VK_OEM_MINUS: i32 = 189;
-pub const VK_OEM_PERIOD: i32 = 190;
-pub const VK_OEM_PLUS: i32 = 187;
-pub const VK_PRIOR: i32 = 33;
-pub const VK_RBUTTON: i32 = 2;
-pub const VK_RCONTROL: i32 = 163;
-pub const VK_RETURN: i32 = 13;
-pub const VK_RIGHT: i32 = 39;
-pub const VK_RMENU: i32 = 165;
-pub const VK_RSHIFT: i32 = 161;
-pub const VK_RWIN: i32 = 92;
-pub const VK_SHIFT: i32 = 16;
-pub const VK_SPACE: i32 = 32;
-pub const VK_SUBTRACT: i32 = 109;
-pub const VK_TAB: i32 = 9;
-pub const VK_UP: i32 = 38;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct VS_FIXEDFILEINFO {
@@ -8518,8 +8080,6 @@ pub struct VS_FIXEDFILEINFO {
     pub dwFileDateLS: u32,
 }
 pub const WAIT_OBJECT_0: i32 = 0;
-pub const WAIT_TIMEOUT: i32 = 258;
-pub const WA_INACTIVE: i32 = 0;
 pub const WHEEL_DELTA: i32 = 120;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;
 pub const WICBitmapEncoderCacheInMemory: WICBitmapEncoderCacheOption = 0;
@@ -8527,21 +8087,9 @@ pub type WICBitmapEncoderCacheOption = i32;
 pub const WICBitmapEncoderCacheTempFile: WICBitmapEncoderCacheOption = 1;
 pub const WICBitmapEncoderNoCache: WICBitmapEncoderCacheOption = 2;
 pub type WICPixelFormatGUID = windows_core::GUID;
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct WINDOWPLACEMENT {
-    pub length: u32,
-    pub flags: u32,
-    pub showCmd: u32,
-    pub ptMinPosition: POINT,
-    pub ptMaxPosition: POINT,
-    pub rcNormalPosition: RECT,
-}
-pub const WM_ACTIVATE: i32 = 6;
 pub const WM_CAPTURECHANGED: i32 = 533;
 pub const WM_CHAR: i32 = 258;
 pub const WM_CLOSE: i32 = 16;
-pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_ERASEBKGND: i32 = 20;
@@ -8558,7 +8106,6 @@ pub const WM_MOUSELEAVE: i32 = 675;
 pub const WM_MOUSEMOVE: i32 = 512;
 pub const WM_MOUSEWHEEL: i32 = 522;
 pub const WM_MOVE: i32 = 3;
-pub const WM_NCHITTEST: i32 = 132;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;
 pub const WM_RBUTTONDOWN: i32 = 516;
@@ -8571,8 +8118,6 @@ pub const WM_SYSCHAR: i32 = 262;
 pub const WM_SYSCOMMAND: i32 = 274;
 pub const WM_SYSKEYDOWN: i32 = 260;
 pub const WM_SYSKEYUP: i32 = 261;
-pub const WM_XBUTTONDOWN: i32 = 523;
-pub const WM_XBUTTONUP: i32 = 524;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {
@@ -8595,14 +8140,10 @@ pub type WNDPROC = Option<
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct WPARAM(pub usize);
-pub const WS_CAPTION: i32 = 12582912;
 pub const WS_EX_APPWINDOW: i32 = 262144;
-pub const WS_EX_NOACTIVATE: i32 = 134217728;
 pub const WS_EX_TOOLWINDOW: i32 = 128;
 pub const WS_EX_TOPMOST: i32 = 8;
 pub const WS_MAXIMIZE: i32 = 16777216;
 pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
 pub const WS_POPUP: u32 = 2147483648;
 pub const WS_VISIBLE: i32 = 268435456;
-pub const XBUTTON1: i32 = 1;
-pub const XBUTTON2: i32 = 2;
