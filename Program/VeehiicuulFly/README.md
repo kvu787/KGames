@@ -68,3 +68,14 @@ player that must be evaded. The reason I don't want player combat in Veehiicuul 
 distracts the player from optimal driving/flying, which I personally don't like. When a game has
 movement and combat, the player has to track, analyze, and predict many more things at once than
 when a game only has movement.
+
+## Terrain
+
+- Since there isn't really an "up" direction in this world, there isn't a terrain ground plane
+- All surfaces should be solids
+- No zero-thickness surfaces to avoid issues
+- Kind of like a collection of asteroids
+
+## Shaders
+
+- Need to change Simple Paint so that it covers the whole sphere and not do any warping
