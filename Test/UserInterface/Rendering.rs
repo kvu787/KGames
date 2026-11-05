@@ -49,3 +49,33 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
         assert!(found, "the button's label didn't draw");
     }
 }
+
+struct Unsupported;
+
+impl Program for Unsupported {
+    fn title(&self) -> String {
+        "Unsupported".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        ui.unsupported_setup(&[
+            "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
+            "The window must be maximized, or borderless fullscreen with F11.".to_string(),
+        ]);
+    }
+}
+
+#[test]
+fn an_unsupported_setup_says_what_is_wrong() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::with_size(Unsupported, ThemeKind::Light, user_interface::Size::new(1280.0, 720.0));
+    let image = app.render(&mut gpu).unwrap();
+    let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
+    std::fs::create_dir_all(&folder).unwrap();
+    write_png(&folder.join("UnsupportedSetup.png"), &image).unwrap();
+    // The card's middle is the flyout's color, and the window's corner the
+    // background's.
+    let theme = Theme::light();
+    assert!(close(image.pixel(5, 5), theme.background.to_bytes()));
+    assert!(close(image.pixel(640, 300), theme.flyout.to_bytes()) || image.pixel(640, 300)[0] < 128);
+}

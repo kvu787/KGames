@@ -162,8 +162,9 @@ impl Ui {
     }
 
     // What the window shows in a setup that programs don't support: what's
-    // wrong, and what the supported setups are.
-    pub(crate) fn unsupported_setup(&mut self, problems: &[String]) {
+    // wrong, and what the supported setups are. The main loop shows it
+    // instead of the program; programs don't call it.
+    pub fn unsupported_setup(&mut self, problems: &[String]) {
         let size = self.size();
         let theme = self.theme().clone();
         let width = 640.0f32.min(size.width - SPACE_L * 2.0).max(1.0);
