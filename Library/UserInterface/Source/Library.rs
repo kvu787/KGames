@@ -1,58 +1,89 @@
-// KGames' user interface framework, which every GUI program on Win32,
-// Direct3D 12 and DirectWrite is built with: the main loop that opens the
-// window and draws frames with the lowest latency, an immediate-mode
-// interface whose widgets each frame draws and asks what the input did, in
-// the style of Fluent 2, Windows 11's design system, and the app bar and
-// status bar around a program's cards. It draws with Library/Canvas, in its
-// light theme by default, which it passes on, so that programs need only this
-// crate for their interface.
-//
-// See Interface.rs for how input reaches widgets, Tokens.rs for the design
-// system's sizes, and README.md for the widgets.
+// KGames' user interface library, for Win32, Direct3D 12 and DirectWrite,
+// after Microsoft's Fluent 2 design system: its tokens and themes, WinUI's
+// controls, a window and its input, text, a GPU renderer, the main loop of
+// every GUI program, scripts that test programs in their real windows, and a
+// harness that tests them without one. See README.md.
 
-#[path = "Buttons.rs"]
-mod buttons;
-#[path = "Chips.rs"]
-mod chips;
-#[path = "Chrome.rs"]
-mod chrome;
 #[path = "Clipboard.rs"]
 mod clipboard;
+#[path = "Gamepad.rs"]
+mod gamepad;
+#[path = "Geometry.rs"]
+pub mod geometry;
 #[path = "Headless.rs"]
 pub mod headless;
-#[path = "Interface.rs"]
-mod interface;
-#[path = "List.rs"]
-mod list;
-#[path = "Select.rs"]
-mod select;
-#[path = "Shell.rs"]
-mod shell;
-#[path = "Slider.rs"]
-mod slider;
-#[path = "Surfaces.rs"]
-mod surfaces;
-#[path = "TextField.rs"]
-mod text_field;
-#[path = "Toggles.rs"]
-mod toggles;
+#[path = "Icons.rs"]
+mod icons;
+#[path = "Input.rs"]
+pub mod input;
+#[path = "Painter.rs"]
+pub mod painter;
+#[path = "Program.rs"]
+mod program;
+#[path = "Renderer.rs"]
+mod renderer;
+#[path = "Run.rs"]
+mod run;
+#[path = "Script.rs"]
+pub mod script;
+#[path = "Settings.rs"]
+mod settings;
+#[path = "Text.rs"]
+pub mod text;
+#[path = "Theme.rs"]
+mod theme;
 #[path = "Tokens.rs"]
 pub mod tokens;
-#[path = "Tooltip.rs"]
-mod tooltip;
+#[path = "Ui.rs"]
+mod ui;
+#[path = "Window.rs"]
+pub mod window;
 
-pub use application::{Gamepad, GamepadButton, key_name};
-pub use buttons::{Button, ButtonStyle};
-pub use canvas::{Align, Axis, Cached, Canvas, Color, Fonts, ICON_SIZES, Icon, Lines, Rect, Stack, TextStyle, Theme, theme};
-pub use chips::{Chip, badge, badge_width, chips_height, keycap, keycap_width, on_color, status_chips};
+mod widgets {
+    #[path = "Buttons.rs"]
+    pub mod buttons;
+    #[path = "ComboBox.rs"]
+    pub mod combo_box;
+    #[path = "Common.rs"]
+    pub mod common;
+    #[path = "List.rs"]
+    pub mod list;
+    #[path = "Navigation.rs"]
+    pub mod navigation;
+    #[path = "Shell.rs"]
+    pub mod shell;
+    #[path = "Slider.rs"]
+    pub mod slider;
+    #[path = "Surfaces.rs"]
+    pub mod surfaces;
+    #[path = "TextBox.rs"]
+    pub mod text_box;
+    #[path = "Toggles.rs"]
+    pub mod toggles;
+}
+
 pub use clipboard::Clipboard;
-pub use interface::{Frame, Id, Interface, Layer, Response, Sense, Status};
-pub use list::{ListRow, ListView, SCROLL_BAR_WIDTH};
-pub use select::{Choice, select_width};
-pub use shell::{Program, Setup, run, state};
-pub use slider::{SliderRange, slider_rail};
-pub use surfaces::{Severity, card, card_trailing, divider, focus_ring, overlay_card, raised, shadow, well};
-pub use text_field::TextField;
-pub use toggles::{tab_widths, toggle_width};
-pub use tokens::*;
-pub use tooltip::{TOOLTIP_WIDTH, TooltipText};
+pub use gamepad::GamepadReader;
+pub use geometry::{Color, Point, Rect, Size};
+pub use headless::Headless;
+pub use icons::Icon;
+pub use input::{Button as MouseButton, Event, Gamepad, GamepadButtons, Input, Key, Modifiers};
+pub use painter::{Align, Corners, DrawList, Layer, Painter, Stroke};
+pub use program::{Arguments, Options, Program, Startup};
+pub use renderer::Renderer;
+pub use run::{run, state};
+pub use settings::{Settings, WindowMode};
+pub use text::{Font, Fonts, TextStyle, Weight};
+pub use theme::{DataColors, Theme, ThemeKind};
+pub use ui::{Cursor, Environment, FrameStats, Id, Keys, Response, Sense, Target, TOOLTIP_DELAY, Ui, id};
+pub use widgets::buttons::{BUTTON_PADDING, Button, ButtonStyle};
+pub use widgets::common::{Visual, focus_ring};
+pub use widgets::list::{ListResponse, RowState, WHEEL_ROWS};
+pub use widgets::shell::{Notice, Status};
+pub use widgets::slider::{Slider, slider_rail};
+pub use widgets::surfaces::{Card, InfoBar, Severity, TooltipLine};
+pub use widgets::text_box::{TextBox, TextBoxResponse};
+
+// The crates that programs need with the interface, so that they share them.
+pub use graphics;
+pub use json;

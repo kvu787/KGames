@@ -41,45 +41,44 @@ This decision was primarily motivated by my experience working with those depend
   - F11 to toggle borderless fullscreen
   - Optimize for minimal input latency
 
-GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), whose main
-loop runs them, and whose widgets are their controls. They look and act like Windows 11's, after
-Fluent 2, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore input without focus, including gamepads, and a click that
-gives a window focus does only that. [Library/Application](Library/Application/README.md) has the
-details, and the two window setups that programs support. [AGENTS.md](AGENTS.md) has the rules for
-coding agents, like how to run programs without disrupting you.
+GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), a user
+interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system:
+its main loop runs them, its widgets are their controls, and they look and act like Windows 11's, in
+light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
+input without focus, including gamepads, and a click that gives a window focus does only that. The
+library's README has the details, and the two window setups that programs support.
+[AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
+you.
 
 ## Program
 
-| Program                                                       | What it is                                                        |
-| ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [Veehiicuul](Program/Veehiicuul/README.md)                    | A racing game seen from above, and the editors of its levels      |
-| [GameInputDemo](Program/GameInputDemo/README.md)              | Shows what gamepads, keyboards and mice send through GameInput    |
-| [SimplePaintDemo](Program/SimplePaintDemo/README.md)          | Edits a SimplePaint material live on a UV sphere                  |
-| [UiShowcase](Program/UiShowcase/README.md)                    | Shows every widget of the UI framework, and what input does to it |
-| [MinimalSceneTest](Program/MinimalSceneTest/README.md)        | A sphere moving over a ground plane, for checking smooth motion   |
-| [SpinningCarTest](Program/SpinningCarTest/README.md)          | A car moving and spinning past a sphere, painted with SimplePaint |
-| [IdentifyDisplays](Program/IdentifyDisplays/README.md)        | Shows each display's identifier, for the programs' `--display`    |
-| [RunInBackground](Program/RunInBackground/README.md)          | Runs a GUI program without taking focus, and screenshots it       |
+| Program                                                | What it is                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------- |
+| [Veehiicuul](Program/Veehiicuul/README.md)             | A racing game seen from above, and the editors of its levels      |
+| [GameInputDemo](Program/GameInputDemo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput    |
+| [SimplePaintDemo](Program/SimplePaintDemo/README.md)   | Edits a SimplePaint material live on a UV sphere                  |
+| [UiShowcase](Program/UiShowcase/README.md)             | Shows every widget of the UI framework, and what input does to it |
+| [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion   |
+| [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint |
+| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`    |
+| [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it       |
 
 ## Library
 
-| Library                                                       | What it is                                                        |
-| ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [Application](Library/Application/README.md)                  | The window, its input and the gamepad's, settings, and the setups |
-| [UserInterface](Library/UserInterface/README.md)              | The UI framework: widgets, input, and the main loop of programs   |
-| [Graphics](Library/Graphics/README.md)                        | The Direct3D 12 renderer and its low-latency frame pacing         |
-| [Canvas](Library/Canvas/README.md)                            | 2D shapes and text, Windows 11's fonts, themes, and layout        |
-| [SimplePaint](Library/SimplePaint/README.md)                  | The SimplePaint shader: its specification, Rust and HLSL          |
-| [GameInput](Library/GameInput/README.md)                      | GameInput bindings, and the runtime next to each exe              |
-| [Displays](Library/Displays/README.md)                        | Finds the displays, and gives each a lasting identifier           |
-| [Math](Library/Math/README.md)                                | Vectors and matrices, in DirectXMath's conventions                |
-| [Meshes](Library/Meshes/README.md)                            | A UV sphere, a box, a plane and the car, for SimplePaint          |
-| [PaintSettings](Library/PaintSettings/README.md)              | SimplePaint materials in JSON settings files                      |
-| [SceneTest](Library/SceneTest/README.md)                      | The loop and card of MinimalSceneTest and SpinningCarTest         |
-| [Gltf](Library/Gltf/README.md)                                | Reads models from the .glb files that Blender exports             |
-| [Json](Library/Json/README.md)                                | A JSON parser                                                     |
-| [ShaderCompiler](Library/ShaderCompiler/README.md)            | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time     |
-| [WindowsApi](Library/WindowsApi/README.md)                    | The generated Windows API bindings that every crate shares        |
+| Library                                            | What it is                                                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [UserInterface](Library/UserInterface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
+| [Graphics](Library/Graphics/README.md)             | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
+| [SimplePaint](Library/SimplePaint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
+| [GameInput](Library/GameInput/README.md)           | GameInput bindings, and the runtime next to each exe                                                        |
+| [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
+| [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
+| [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
+| [PaintSettings](Library/PaintSettings/README.md)   | SimplePaint materials in JSON settings files                                                                |
+| [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
+| [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
+| [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
+| [WindowsApi](Library/WindowsApi/README.md)         | The generated Windows API bindings that every crate shares                                                  |
 
 ## Test
 

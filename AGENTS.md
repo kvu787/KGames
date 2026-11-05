@@ -51,13 +51,13 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 
 # GUI programs
 
-- Ignore all input while the window isn't focused, gamepads too. `Library/Application`'s `Window` does this for input from window messages and for the gamepad that it reads, and programs that read GameInput themselves, like GameInputDemo, drop its readings themselves.
+- Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for input from window messages and for the gamepad that it reads, and programs that read GameInput themselves, like GameInputDemo, drop its readings themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
-- Build every GUI program on `Library/UserInterface`, the UI framework: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the framework's widgets. When a program needs a widget or a kind of input that the framework doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
-- Use the light theme in `Library/Canvas` by default.
-- Follow the framework's design system, after Fluent 2: color with the theme's roles, from `Frame::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the constants in `Library/UserInterface/Source/Tokens.rs`.
+- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
+- Use the light theme by default.
+- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/Source/Tokens.rs`, like its spacing, radii and type ramp.
 - `F11` toggles borderless fullscreen.
-- Optimize for minimal input latency. Draw through `Library/Graphics`' renderer, and read input right before drawing, once `Renderer::is_ready` is true. `Library/UserInterface`'s main loop does both.
+- Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both.
 
 ## Supported window setups
 
@@ -66,7 +66,7 @@ Programs only support the user's own setup, to keep development simple. They sup
 - **Maximized**, with a client area of 2560 × 1369. The taskbar takes 48 pixels at the bottom of the monitor, which leaves a 2560 × 1392 work area. The title bar takes the top 23 pixels of that, so the client area runs from screen y = 23 down to the bottom of the work area: 1392 − 23 = 1369.
 - **Borderless fullscreen**, with a client area of 2560 × 1440 that covers the whole monitor. `F11` switches between the two.
 
-In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/Application` does the check.
+In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/UserInterface` does the check.
 
 So:
 
@@ -104,8 +104,8 @@ Assume that Windows' "Turn my screen off after", "Make my device sleep after" an
 
 Test what programs do with input in two layers, which never touch the user's input or focus:
 
-1. **Tests**, in `Test/<program>`. Each GUI program is a library (`Source/Library.rs`) and a small `Source/Main.rs`, so tests drive its parts without a window: what input does, where clicks land in the cards' real layout, which a canvas builds without a GPU, and its motion and settings. `user_interface::headless::Headless` draws a program's frames that way, with input that the test makes up. Put a program's logic in its library, and test it there. Run them with `cargo test --workspace`.
-2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. `Library/Application/Source/Script.rs` describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
+1. **Tests**, in `Test/<program>`. Each GUI program is a library (`Source/Library.rs`) and a small `Source/Main.rs`, so tests drive its parts without a window: what input does, where clicks land in the cards' real layout, which the library lays out without a GPU, and its motion and settings. `user_interface::Headless` runs a program's frames that way, with input that the test makes up, and can draw them offscreen. Put a program's logic in its library, and test it there. Run them with `cargo test --workspace`.
+2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. [Library/UserInterface's README](Library/UserInterface/README.md#testing) describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
 
 To write a script, run one that captures, and read the state it saves: `Interface.Targets` has every widget's name and area, like SimplePaintDemo's sliders. Point at widgets by name, like `{ "Frame": 1, "Press": "Volume" }`, instead of by pixels, so that scripts keep working when a layout changes. GameInputDemo's scripts also connect and press gamepads, keyboards and mice, which its README describes.
 

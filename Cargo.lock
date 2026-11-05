@@ -3,42 +3,6 @@
 version = 4
 
 [[package]]
-name = "application"
-version = "0.1.0"
-dependencies = [
- "displays",
- "game_input",
- "json",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "application_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "json",
-]
-
-[[package]]
-name = "canvas"
-version = "0.1.0"
-dependencies = [
- "graphics",
- "shader_compiler",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "canvas_tests"
-version = "0.1.0"
-dependencies = [
- "canvas",
-]
-
-[[package]]
 name = "displays"
 version = "0.1.0"
 dependencies = [
@@ -50,31 +14,6 @@ dependencies = [
 name = "game_input"
 version = "0.1.0"
 dependencies = [
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "game_input_demo"
-version = "0.1.0"
-dependencies = [
- "application",
- "game_input",
- "json",
- "user_interface",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "game_input_demo_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "game_input",
- "game_input_demo",
- "json",
- "user_interface",
  "windows-core",
  "windows_api",
 ]
@@ -149,57 +88,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal_scene_test"
-version = "0.1.0"
-dependencies = [
- "application",
- "graphics",
- "json",
- "math",
- "meshes",
- "paint_settings",
- "scene_test",
- "shader_compiler",
- "simple_paint",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "minimal_scene_test_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "json",
- "minimal_scene_test",
- "simple_paint",
-]
-
-[[package]]
 name = "paint_settings"
 version = "0.1.0"
 dependencies = [
  "json",
  "simple_paint",
-]
-
-[[package]]
-name = "scene_test"
-version = "0.1.0"
-dependencies = [
- "application",
- "graphics",
- "json",
- "user_interface",
- "windows-core",
-]
-
-[[package]]
-name = "scene_test_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "scene_test",
 ]
 
 [[package]]
@@ -217,34 +110,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple_paint_demo"
-version = "0.1.0"
-dependencies = [
- "application",
- "graphics",
- "json",
- "math",
- "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "simple_paint_demo_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "simple_paint",
- "simple_paint_demo",
- "user_interface",
- "windows_api",
-]
-
-[[package]]
 name = "simple_paint_tests"
 version = "0.1.0"
 dependencies = [
@@ -257,62 +122,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "spinning_car_test"
-version = "0.1.0"
-dependencies = [
- "application",
- "graphics",
- "json",
- "math",
- "meshes",
- "paint_settings",
- "scene_test",
- "shader_compiler",
- "simple_paint",
- "user_interface",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "spinning_car_test_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "json",
- "simple_paint",
- "spinning_car_test",
-]
-
-[[package]]
 name = "ui_showcase"
 version = "0.1.0"
 dependencies = [
- "json",
  "user_interface",
- "windows-core",
- "windows_api",
 ]
 
 [[package]]
 name = "ui_showcase_tests"
 version = "0.1.0"
 dependencies = [
- "application",
- "json",
  "ui_showcase",
  "user_interface",
- "windows_api",
 ]
 
 [[package]]
 name = "user_interface"
 version = "0.1.0"
 dependencies = [
- "application",
- "canvas",
+ "displays",
+ "game_input",
  "graphics",
  "json",
+ "shader_compiler",
  "windows-core",
  "windows_api",
 ]
@@ -321,39 +153,7 @@ dependencies = [
 name = "user_interface_tests"
 version = "0.1.0"
 dependencies = [
- "application",
- "json",
  "user_interface",
- "windows_api",
-]
-
-[[package]]
-name = "veehiicuul"
-version = "0.1.0"
-dependencies = [
- "application",
- "gltf",
- "graphics",
- "json",
- "math",
- "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
- "windows-core",
- "windows_api",
-]
-
-[[package]]
-name = "veehiicuul_tests"
-version = "0.1.0"
-dependencies = [
- "application",
- "json",
- "simple_paint",
- "user_interface",
- "veehiicuul",
 ]
 
 [[package]]

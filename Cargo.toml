@@ -7,8 +7,6 @@
 [workspace]
 resolver = "3"
 members = [
-    "Library/Application",
-    "Library/Canvas",
     "Library/Displays",
     "Library/GameInput",
     "Library/Gltf",
@@ -17,33 +15,19 @@ members = [
     "Library/Math",
     "Library/Meshes",
     "Library/PaintSettings",
-    "Library/SceneTest",
     "Library/ShaderCompiler",
     "Library/SimplePaint",
     "Library/UserInterface",
     "Library/WindowsApi",
-    "Program/GameInputDemo",
     "Program/IdentifyDisplays",
-    "Program/MinimalSceneTest",
-    "Program/SimplePaintDemo",
-    "Program/SpinningCarTest",
     "Program/UiShowcase",
-    "Program/Veehiicuul",
-    "Test/Application",
-    "Test/Canvas",
-    "Test/GameInputDemo",
     "Test/Gltf",
     "Test/Json",
     "Test/Math",
     "Test/Meshes",
-    "Test/MinimalSceneTest",
-    "Test/SceneTest",
     "Test/SimplePaint",
-    "Test/SimplePaintDemo",
-    "Test/SpinningCarTest",
     "Test/UiShowcase",
     "Test/UserInterface",
-    "Test/Veehiicuul",
 ]
 
 # Lints for every package, which each takes with [lints] workspace = true.

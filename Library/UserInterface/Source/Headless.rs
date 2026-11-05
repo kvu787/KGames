@@ -1,201 +1,327 @@
-// Draws frames of an interface without a window or a GPU, for tests: the
-// test makes up each frame's input, like a script would, and the interface
-// lays out and draws on a canvas as in the program, so that a press lands
-// where it would on the screen. A program's tests drive it with
-// `Headless::program`, which handles a frame like the main loop does.
+// Runs a program's frames without a window, for tests: input that the test
+// makes up, on a fixed clock, through the same interface as a real run, so
+// that presses land on the cards' real layout. Text is laid out with
+// DirectWrite, which needs no GPU. A test that wants to see a frame can draw
+// it offscreen with `render`.
+//
+// Each input method runs a frame, as if the user did it at 60 frames a
+// second, and returns the harness, so that a test reads like what it does:
+//
+//     let mut app = Headless::new(program);
+//     app.click("Save").key(Key::F11);
+//     assert_eq!(app.target("Volume").width, 300.0);
 
-use std::sync::OnceLock;
+use graphics::{Gpu, Image, Offscreen};
 
-use application::{Event, Gamepad};
-use canvas::{Fonts, Rect};
-use windows_api::*;
-use windows_core::Result;
+use crate::clipboard::Clipboard;
+use crate::geometry::{Point, Rect, Size};
+use crate::input::{Button, Event, Gamepad, Key, Modifiers};
+use crate::program::{Program, Startup};
+use crate::renderer::Renderer;
+use crate::script::DEFAULT_FRAME_TIME;
+use crate::text::Fonts;
+use crate::theme::ThemeKind;
+use crate::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use crate::ui::{Request, Ui};
 
-use crate::{Frame, Interface, Program, Status};
-
-// The client areas of the two window setups that programs support.
-pub const MAXIMIZED: [f32; 2] = [2560.0, 1369.0];
-pub const FULLSCREEN: [f32; 2] = [2560.0, 1440.0];
-
-// The fonts, made once for all of a test binary's tests.
-pub fn fonts() -> &'static Fonts {
-    static FONTS: OnceLock<Fonts> = OnceLock::new();
-    FONTS.get_or_init(|| Fonts::new().expect("the fonts are installed"))
+pub struct Headless<P: Program> {
+    pub program: P,
+    pub ui: Ui,
+    frame: u64,
+    fullscreen: bool,
+    pending: Vec<Event>,
+    pointer: Point,
+    gamepad: Gamepad,
+    renderer: Option<Renderer>,
 }
 
-// What a program's frame did, besides what it drew.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Outcome {
-    // Lines of text that didn't fit where they went.
-    pub dropped_lines: usize,
-    // Whether it asked to switch to or from borderless fullscreen.
-    pub fullscreen: bool,
-    // How many shapes and glyphs it drew.
-    pub instances: usize,
-}
-
-pub struct Headless {
-    // With its own clipboard, never Windows'.
-    pub interface: Interface,
-    // The next frame's number, and its time, at 60 frames a second.
-    pub number: u64,
-    pub cursor: Option<[f32; 2]>,
-    // Whether the window has focus. Without it, frames get no input.
-    pub focused: bool,
-    // The keys held down, by virtual-key code, and the gamepad, which frames
-    // have while the window has focus.
-    pub held_keys: Vec<u32>,
-    pub gamepad: Gamepad,
-    // The gamepad's buttons held in the frame before.
-    pub buttons_before: u32,
-    pub size: [f32; 2],
-    pub notices: Vec<String>,
-}
-
-impl Default for Headless {
-    fn default() -> Self {
-        Self::new(MAXIMIZED)
+impl<P: Program> Headless<P> {
+    // A program in a maximized window that has focus, in the light theme.
+    pub fn new(program: P) -> Self {
+        Self::with_theme(program, ThemeKind::Light)
     }
-}
 
-impl Headless {
-    // An interface in a window of this size, which has focus.
-    pub fn new(size: [f32; 2]) -> Self {
-        Self {
-            interface: Interface::default(),
-            number: 0,
-            cursor: None,
-            focused: true,
-            held_keys: Vec::new(),
+    pub fn with_theme(program: P, theme: ThemeKind) -> Self {
+        let fonts = Fonts::new().expect("DirectWrite couldn't start");
+        let mut headless = Self {
+            program,
+            ui: Ui::new(fonts, theme, Clipboard::Own(String::new())),
+            frame: 0,
+            fullscreen: false,
+            pending: vec![Event::FocusGained(Vec::new())],
+            pointer: Point::default(),
             gamepad: Gamepad::default(),
-            buttons_before: 0,
-            size,
-            notices: Vec::new(),
-        }
+            renderer: None,
+        };
+        headless.ui.environment.scripted = true;
+        headless.run_frame();
+        headless
     }
 
-    // Draws a frame with these events, and returns what `draw` does. Like
-    // in a script, a press, release or turn of the wheel moves the cursor
-    // to it.
-    pub fn frame<R>(&mut self, events: &[Event], draw: impl FnOnce(&mut Frame) -> R) -> R {
-        for event in events {
-            if let Event::Press(point) | Event::Release(point) | Event::Wheel(point, _) = event {
-                self.cursor = Some(*point);
+    // A program that `create` makes from the start, whose notices show under
+    // its app bar.
+    pub fn start(mut startup: Startup, create: impl FnOnce(&mut Startup) -> Result<P, String>) -> Self {
+        let program = create(&mut startup).expect("the program couldn't start");
+        let mut headless = Self::new(program);
+        headless.ui.notices = startup.take_notices();
+        headless.run_frame();
+        headless
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT })
+    }
+
+    pub fn fullscreen(&self) -> bool {
+        self.fullscreen
+    }
+
+    pub fn set_fullscreen(&mut self, fullscreen: bool) -> &mut Self {
+        self.fullscreen = fullscreen;
+        self.run_frame()
+    }
+
+    pub fn frame_number(&self) -> u64 {
+        self.frame
+    }
+
+    pub fn time(&self) -> f64 {
+        self.frame as f64 * DEFAULT_FRAME_TIME
+    }
+
+    fn run_frame(&mut self) -> &mut Self {
+        self.frame += 1;
+        let mut events = std::mem::take(&mut self.pending);
+        events.push(Event::Gamepad(self.gamepad));
+        let size = self.size();
+        self.ui.begin_frame(&events, self.time(), size, self.fullscreen);
+        self.program.update(&mut self.ui);
+        self.ui.end_frame();
+        for request in std::mem::take(&mut self.ui.requests) {
+            match request {
+                Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
+                Request::Close => {}
             }
         }
-        // Without focus, the window only gives the release of a press that
-        // it got with focus.
-        let events = events
-            .iter()
-            .filter(|event| self.focused || matches!(event, Event::Release(_)))
-            .copied()
-            .collect();
-        let input = application::Frame {
-            number: self.number,
-            seconds: self.number as f64 / 60.0,
-            focused: self.focused,
-            events,
-            cursor: if self.focused { self.cursor } else { None },
-            held_keys: if self.focused { self.held_keys.clone() } else { Vec::new() },
-            gamepad: if self.focused {
-                self.gamepad.after(self.buttons_before)
-            } else {
-                Gamepad {
-                    connected: self.gamepad.connected,
-                    ..Gamepad::default()
-                }
-            },
-            program_steps: Vec::new(),
-            checkpoints: Vec::new(),
-        };
-        self.number += 1;
-        self.buttons_before = input.gamepad.buttons;
-        let status = Status {
-            notices: &self.notices,
-            ..Status::HEADLESS
-        };
-        let mut frame = self.interface.frame(fonts(), &input, status, self.size);
-        draw(&mut frame)
+        self
     }
 
-    // Draws a frame of a program, with these events, as the main loop does.
-    pub fn program<P: Program>(&mut self, program: &mut P, events: &[Event]) -> Result<Outcome> {
-        let mut outcome = self.frame(events, |frame| {
-            if P::FULLSCREEN_KEY && frame.shortcut(VK_F11) {
-                frame.toggle_fullscreen();
-            }
-            program.frame(frame)?;
-            Ok::<_, windows_core::Error>(Outcome {
-                dropped_lines: frame.dropped_lines(),
-                fullscreen: frame.fullscreen_requested(),
-                instances: 0,
-            })
-        })?;
-        outcome.instances = self.interface.instances().len();
-        Ok(outcome)
+    // Runs a frame with whatever input is pending.
+    pub fn frame(&mut self) -> &mut Self {
+        self.run_frame()
     }
 
-    // Moves the cursor, for the next frame.
-    pub fn move_to(&mut self, point: [f32; 2]) {
-        self.cursor = Some(point);
+    // Runs a frame with the pending input, and another after it, so that
+    // whatever the input made appear, like a popup, is in the targets.
+    fn act(&mut self) -> &mut Self {
+        self.run_frame();
+        self.run_frame()
     }
 
-    // Where the last frame's widget of this name is. Panics, with the names
-    // there are, if it didn't draw one.
+    pub fn frames(&mut self, count: usize) -> &mut Self {
+        for _ in 0..count {
+            self.run_frame();
+        }
+        self
+    }
+
+    // Runs frames for the seconds of time.
+    pub fn wait(&mut self, seconds: f64) -> &mut Self {
+        let count = (seconds / DEFAULT_FRAME_TIME).ceil() as usize;
+        self.frames(count)
+    }
+
+    // The area of the widget with the name, from the last frame.
     pub fn target(&self, name: &str) -> Rect {
-        self.interface
-            .target(name)
-            .unwrap_or_else(|| panic!("no {name} in {:?}", self.interface.target_names()))
+        match self.ui.target(name) {
+            Some(target) => target.rect,
+            None => {
+                let names: Vec<&str> = self.ui.targets().iter().filter(|target| target.listed).map(|target| target.name.as_str()).collect();
+                panic!("the last frame didn't show {name}. It showed: {}", names.join(", "));
+            }
+        }
     }
 
-    pub fn center(&self, name: &str) -> [f32; 2] {
+    pub fn has_target(&self, name: &str) -> bool {
+        self.ui.target(name).is_some()
+    }
+
+    pub fn label(&self, name: &str) -> Option<String> {
+        self.ui.target(name).and_then(|target| target.label.clone())
+    }
+
+    pub fn is_enabled(&self, name: &str) -> bool {
+        self.ui.target(name).is_some_and(|target| target.enabled)
+    }
+
+    // What scripts save: the program's state and the interface's.
+    pub fn state(&self) -> json::Value {
+        crate::run::state(&self.program, &self.ui)
+    }
+
+    fn at(&self, name: &str) -> Point {
         self.target(name).center()
     }
-}
 
-// A key going down, without Control or Shift.
-pub fn key(key: i32) -> Event {
-    Event::Key {
-        key: key as u32,
-        control: false,
-        shift: false,
-        repeat: false,
+    // Moves the pointer to the middle of the widget.
+    pub fn move_to(&mut self, name: &str) -> &mut Self {
+        let point = self.at(name);
+        self.move_point(point)
     }
-}
 
-pub fn shifted(key: i32) -> Event {
-    Event::Key {
-        key: key as u32,
-        control: false,
-        shift: true,
-        repeat: false,
+    pub fn move_point(&mut self, point: Point) -> &mut Self {
+        self.pointer = point;
+        self.pending.push(Event::PointerMoved(point));
+        self.act()
     }
-}
 
-pub fn control(key: i32) -> Event {
-    Event::Key {
-        key: key as u32,
-        control: true,
-        shift: false,
-        repeat: false,
+    // Presses the left button on the widget, and holds it.
+    pub fn press(&mut self, name: &str) -> &mut Self {
+        let point = self.at(name);
+        self.press_point(point)
     }
-}
 
-pub fn control_shifted(key: i32) -> Event {
-    Event::Key {
-        key: key as u32,
-        control: true,
-        shift: true,
-        repeat: false,
+    pub fn press_point(&mut self, point: Point) -> &mut Self {
+        self.pointer = point;
+        self.pending.push(Event::PointerMoved(point));
+        self.pending.push(Event::ButtonPressed(Button::Left));
+        self.act()
     }
-}
 
-// The characters of `text`, typed.
-pub fn typed(text: &str) -> Vec<Event> {
-    text.chars().map(Event::Character).collect()
-}
+    pub fn press_button(&mut self, point: Point, button: Button) -> &mut Self {
+        self.pointer = point;
+        self.pending.push(Event::PointerMoved(point));
+        self.pending.push(Event::ButtonPressed(button));
+        self.act()
+    }
 
-// A press and its release at a point.
-pub fn click(point: [f32; 2]) -> Vec<Event> {
-    vec![Event::Press(point), Event::Release(point)]
+    pub fn release(&mut self) -> &mut Self {
+        self.release_button(Button::Left)
+    }
+
+    pub fn release_button(&mut self, button: Button) -> &mut Self {
+        self.pending.push(Event::ButtonReleased(button));
+        self.act()
+    }
+
+    // A press on the widget, and its release the next frame.
+    pub fn click(&mut self, name: &str) -> &mut Self {
+        self.press(name).release()
+    }
+
+    pub fn click_point(&mut self, point: Point) -> &mut Self {
+        self.press_point(point).release()
+    }
+
+    pub fn double_click(&mut self, name: &str) -> &mut Self {
+        let point = self.at(name);
+        self.pending.push(Event::PointerMoved(point));
+        self.pending.push(Event::ButtonPressed(Button::Left));
+        self.pending.push(Event::ButtonReleased(Button::Left));
+        self.act();
+        self.pending.push(Event::ButtonPressed(Button::Left));
+        self.pending.push(Event::ButtonReleased(Button::Left));
+        self.act()
+    }
+
+    // Presses at one point, moves to the other over `steps` frames, and
+    // releases there.
+    pub fn drag(&mut self, from: Point, to: Point, steps: usize) -> &mut Self {
+        self.press_point(from);
+        for step in 1..=steps.max(1) {
+            self.move_point(from.lerp(to, step as f32 / steps.max(1) as f32));
+        }
+        self.release()
+    }
+
+    // Turns the wheel over the widget, by notches, up for more than 0.
+    pub fn scroll(&mut self, name: &str, notches: f32) -> &mut Self {
+        let point = self.at(name);
+        self.scroll_point(point, notches)
+    }
+
+    pub fn scroll_point(&mut self, point: Point, notches: f32) -> &mut Self {
+        self.pointer = point;
+        self.pending.push(Event::PointerMoved(point));
+        self.pending.push(Event::Wheel(Point::new(0.0, notches)));
+        self.act()
+    }
+
+    // Presses the key and lets go of it the next frame.
+    pub fn key(&mut self, key: Key) -> &mut Self {
+        self.key_with(Modifiers::NONE, key)
+    }
+
+    // Presses the key with modifiers, like Ctrl+S, and lets go of them.
+    pub fn key_with(&mut self, modifiers: Modifiers, key: Key) -> &mut Self {
+        let mut keys = Vec::new();
+        if modifiers.control {
+            keys.push(Key::CONTROL);
+        }
+        if modifiers.shift {
+            keys.push(Key::SHIFT);
+        }
+        if modifiers.alt {
+            keys.push(Key::ALT);
+        }
+        keys.push(key);
+        for key in &keys {
+            self.pending.push(Event::KeyPressed { key: *key, repeat: false });
+        }
+        self.act();
+        for key in keys.iter().rev() {
+            self.pending.push(Event::KeyReleased(*key));
+        }
+        self.act()
+    }
+
+    // Presses the key, and holds it until release_key.
+    pub fn hold(&mut self, key: Key) -> &mut Self {
+        self.pending.push(Event::KeyPressed { key, repeat: false });
+        self.act()
+    }
+
+    pub fn release_key(&mut self, key: Key) -> &mut Self {
+        self.pending.push(Event::KeyReleased(key));
+        self.act()
+    }
+
+    // Types the text, all in one frame.
+    pub fn type_text(&mut self, text: &str) -> &mut Self {
+        self.pending.extend(text.chars().map(Event::Text));
+        self.act()
+    }
+
+    pub fn set_gamepad(&mut self, gamepad: Gamepad) -> &mut Self {
+        self.gamepad = gamepad;
+        self.act()
+    }
+
+    // Gives the window focus, or takes it away.
+    pub fn focus(&mut self, focused: bool) -> &mut Self {
+        self.pending.push(if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost });
+        self.act()
+    }
+
+    pub fn pointer(&self) -> Point {
+        self.pointer
+    }
+
+    // Draws the last frame offscreen, as the window would, with the
+    // program's 3D. The first call prepares the program.
+    pub fn render(&mut self, gpu: &mut Gpu) -> windows_core::Result<Image> {
+        if self.renderer.is_none() {
+            self.program.prepare(gpu)?;
+            self.renderer = Some(Renderer::new(gpu)?);
+        }
+        let size = self.size();
+        let background = self.ui.theme().background;
+        let clear = [background.r, background.g, background.b, 1.0];
+        let mut target = Offscreen::new(gpu, size.width as u32, size.height as u32, clear)?;
+        let frame = target.begin()?;
+        unsafe { frame.clear(clear) };
+        self.program.render(gpu, &frame)?;
+        self.renderer.as_mut().unwrap().draw(gpu, &frame, &self.ui.draw, &mut self.ui.fonts)?;
+        target.finish(gpu, frame)
+    }
 }

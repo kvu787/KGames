@@ -1,229 +1,266 @@
 # UserInterface
 
-The user interface framework of every KGames GUI program on Win32, Direct3D 12 and DirectWrite.
-It looks and acts like Windows 11: its widgets, sizes, type ramp and colors follow
-[Fluent 2](https://fluent2.microsoft.design/), Windows 11's design system, with a few ideas from
-Material 3 and Apple's guidelines where Fluent has none, like filter chips and a segmented
-control. It has:
+KGames' user interface library, for Win32, Direct3D 12 and DirectWrite, after Microsoft's
+[Fluent 2](https://fluent2.microsoft.design) design system as WinUI 3 implements it on Windows 11.
+Every GUI program is built on it: it owns the window, reads the input, runs the main loop, lays out
+text, draws the widgets on the GPU, and runs scripts and headless tests.
+[UiShowcase](../../Program/UiShowcase/README.md) shows every widget.
 
-- `run`, the main loop that every program shares. It opens the window with the program's
-  settings, draws frames with the lowest latency, and switches to and from borderless
-  fullscreen on `F11`. A program is a `Program`, which handles each frame's input and draws its
-  interface.
-- An immediate-mode interface. Each frame, the program calls a method of the `Frame` for each
-  widget, with where it goes and the value it shows, and the method draws it, changes the value,
-  and says what the input did to it, in a `Response`.
-- The widgets, in the light theme by default, or the dark one, and the cards that hold them.
-- The app bar and status bar around a program's cards, notices that the user can close, and the
-  page that says what's wrong when the window isn't in a supported setup.
-- The design system's sizes, in `Tokens.rs`, and stacks that lay out in fixed pixels.
-- `Headless`, which draws frames of a program's interface without a window or a GPU, for tests.
-
-It draws with [Library/Canvas](../Canvas/README.md), which it passes on, so programs need only
-this crate for their interface. [UiShowcase](../../Program/UiShowcase/README.md) shows every
-widget.
+It's immediate mode: each frame, a program's `update` lays out its cards in fixed pixels and calls
+a method of `Ui` for each control, which draws it and says what the input did to it. State that
+the program owns, like a slider's value, is the program's, passed as `&mut`. State that only the
+widget needs, like a text field's caret or a list's scroll, the library keeps by the widget's name.
 
 ## A program
 
 ```rust
-use user_interface::{Button, Frame, PANELS_TOP, Program, Rect, Setup};
+use user_interface::{Button, Icon, Options, Program, Slider, Startup, Status, Ui};
 
-#[derive(Default)]
-struct Counter {
-    count: u32,
+struct Volume {
+    level: f32,
 }
 
-impl Program for Counter {
-    type Settings = ();
-    const NAME: &'static str = "Counter";
-
-    fn new(_setup: Setup<'_, ()>) -> windows_core::Result<Self> {
-        Ok(Counter::default())
+impl Program for Volume {
+    fn title(&self) -> String {
+        "Volume".to_string()
     }
 
-    fn frame(&mut self, frame: &mut Frame) -> windows_core::Result<()> {
-        frame.header("Counter", "counts presses");
-        frame.footer(&[("F11", "fullscreen")], &[]);
-        let inner = frame.card(Rect::new(16.0, PANELS_TOP, 400.0, 200.0), "Count", "");
-        let add = Button::new("Add").accent();
-        if frame.button("Add", Rect::new(inner.x, inner.y, 96.0, 32.0), add).clicked {
-            self.count += 1;
+    fn update(&mut self, ui: &mut Ui) {
+        ui.app_bar(Icon::Volume, "Volume");
+        ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
+        let page = ui.page();
+        let card = ui.card(page.left_strip(400.0).top_strip(160.0), "Output");
+        let mut area = card.content;
+        ui.slider("Level", area.cut_top(32.0, 8.0), &mut self.level, Slider::new(0.0, 100.0).step(1.0));
+        if ui.button("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
+            self.level = 0.0;
         }
-        Ok(())
-    }
-
-    fn state(&self) -> json::Value {
-        json::object([("Count", self.count.into())])
     }
 }
 
-fn main() -> windows_core::Result<()> {
-    user_interface::run::<Counter>(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+fn main() -> std::process::ExitCode {
+    user_interface::run(Options::new("Volume", env!("CARGO_MANIFEST_DIR")), |startup: &mut Startup| {
+        Ok(Volume { level: 50.0 })
+    })
 }
 ```
 
-`Program` also has `draw_under`, for a 3D view under the interface, `draw_over`, for an image over
-it, like SimplePaintDemo's sphere, and `minimized`. `DEPTH` gives the renderer a depth buffer,
-`FULLSCREEN_KEY` can leave `F11` to a program that reads its keys another way, like with
-GameInput, and `GAMEPAD` has the loop read the gamepad, for a program that a gamepad controls.
-`Setup` has what a program is made with: its folder, the command line, its settings, the notices
-that the app bar shows, and the renderer. `Frame::set_theme` draws in another theme, like
-`theme::DARK`, from where it's called.
+`run` reads `Settings.json` and the command line, opens the window on the chosen display, creates
+the program, and runs the main loop until the window closes. A program can also draw 3D: its
+`prepare` creates GPU resources once, and its `render` records commands into each frame, after
+the frame is cleared to the theme's background and before the interface draws over it.
 
-## How input reaches widgets
+| `Program` method | What it's for                                                              |
+| ---------------- | -------------------------------------------------------------------------- |
+| `title`          | The window's title                                                         |
+| `update`         | Builds the frame's interface with the newest input, and handles that input |
+| `prepare`        | Creates the program's GPU resources, once                                  |
+| `render`         | Draws the program's 3D views into the frame, under the interface           |
+| `state`          | What scripts save and check, as a JSON object                              |
+| `script`         | Does a script's `Program` step, like connecting a made-up device           |
 
-A widget is known by its name, which is unique among the frame's widgets, and the same from frame
-to frame. Each frame, each widget leaves its area, with its name and what input it takes, as a
-target. Input goes to the targets of the frame before, which is what was on the screen when it
-came: clicks hit what the frame before them drew.
+## The design system
 
-| Input        | Where it goes                                                                  |
-| ------------ | ------------------------------------------------------------------------------ |
-| A press      | The topmost target under it, which holds the mouse until the release, so that  |
-|              | it gets the drag even outside its area. It takes keyboard focus, if it takes   |
-|              | focus at all. Buttons act on the press, which comes before the release         |
-| A second one | A double-click, if it's on the same widget within half a second and 4 pixels,  |
-|              | which `Response::double_clicked` says                                          |
-| The release  | The widget with the press                                                      |
-| The wheel    | The topmost target under it that scrolls                                       |
-| Keys         | The widget with keyboard focus, if it takes them, or else the program, for its |
-|              | shortcuts, which `Frame::shortcut` reads                                       |
-| Ctrl+keys    | The widget with focus, if it takes them, like a text field's Ctrl+C            |
-| Held keys    | The program, whatever has keyboard focus. `Frame::held` says whether a key is  |
-|              | down, for what goes on while it's held, like steering                          |
-| The gamepad  | The program, if it reads it, through `Frame::gamepad`: its sticks, triggers,   |
-|              | the buttons held, and the ones that went down since the frame before           |
-| Characters   | The text field with keyboard focus                                             |
-| `Tab`        | Moves keyboard focus to the next widget that takes it, `Shift+Tab` back        |
-| `Esc`        | Closes a popup, or else takes keyboard focus away, or else goes to the program |
+Color with the theme's roles and size with the tokens, instead of values of your own, so that every
+program looks like one family, and like Windows 11.
 
-Widgets draw on three layers, each over the ones before, in one draw call: the base, popups
-like a combo box's list, and the overlay, with tooltips and notices. A popup's targets are over
-all of the base's. While a popup is open, a press anywhere but on it or its combo box closes it,
-and does nothing else.
-
-Without the window's focus, a frame has no cursor and no events but the release of a press, and
-popups close. `Frame::set_enabled(false)` makes the widgets after it faint, and take no input,
-though they still show tooltips. `Frame::set_focusable(false)` keeps the widgets after it from
-taking keyboard focus, for a program that has its own keys for them, like SimplePaintDemo's
-arrow keys for its sliders.
-
-The ring around the widget with focus shows only when focus moved by keyboard, like Windows'.
-How a widget looks eases to what the input did to it, like a switch's knob sliding over, or a
-button's fill under the cursor, in about 100 ms, with `Frame::ease`. Values change on the frame
-that the input comes, so the response starts at once, and only the look follows.
-
-Text fields copy and paste with Windows' clipboard, while the user is the input, and with the
-interface's own, while a script or a test is, so that they never touch what the user copied.
+- **Themes** (`Theme.rs`): light by default, and dark. The roles are WinUI's theme resources, like
+  `text_primary` for TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and
+  `card_background` for CardBackgroundFillColorDefault, with Windows' default blue accent. Status
+  colors, like `critical`, and colors that tell graphs' series apart, `theme.data`, are there too.
+- **Tokens** (`Tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XS` to `SPACE_XXXL`), corner radii
+  (4 for controls, 8 for cards and flyouts), control heights (32), the type ramp (`CAPTION`, `BODY`,
+  `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`, `DISPLAY`, and `MONO` in Cascadia
+  Mono), motion (83, 167 and 250 ms, and Fluent's easing curves), and elevation (the two-shadow levels
+  2, 4, 8, 16, 28 and 64).
+- **Type**: Segoe UI Variable, in its optical sizes: Small for captions, Text for body text, and
+  Display for titles, laid out by DirectWrite with kerning and font fallback, each line as tall as
+  the type ramp says, with the font centered in it.
+- **Icons** (`Icons.rs`): Fluent's system icons, from Segoe Fluent Icons.
+- **The page** (`Shell.rs`): an app bar along the top with the program's icon and title and its own
+  tabs and commands, notices under it, a status bar along the bottom with shortcuts and status,
+  and cards between them, `PAGE_PADDING` from the window's edges and `CARD_GAP` from each other.
 
 ## Widgets
 
-| Method                       | What it is                                                         |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `button`                     | A `Button`: a label, an icon, or both, in a `ButtonStyle`:         |
-|                              | `Standard`, `Accent`, `Subtle` or `Danger`. Space and Enter press  |
-|                              | it too                                                             |
-| `checkbox`                   | A box that a press checks, with a label                            |
-| `switch`                     | A switch that a press turns on or off, with a label                |
-| `radio`                      | A column of radio buttons. The arrow keys move the choice          |
-| `segmented`                  | A row of choices, as wide as each other, with a raised mark under  |
-|                              | the chosen one that slides                                         |
-| `tabs`                       | A row of tabs, as wide as their labels, with a mark that slides    |
-| `slider`                     | A number in whole steps of a `SliderRange`, from a press and drag  |
-|                              | along its rail, a step a notch of the wheel, the arrow keys, Page  |
-|                              | Up, Page Down, Home and End                                        |
-| `select`                     | A combo box that shows one of a list of `Choice`s, and opens the   |
-|                              | list to pick another                                               |
-| `text_field`                 | A line of text to type in, as a `TextField` says: a placeholder,   |
-|                              | a limit, and an icon. It selects, moves by words, copies and       |
-|                              | pastes, and has a button that clears it. Enter submits it          |
-| `list`                       | Rows of the same height, which scroll by pixels, of which one is   |
-|                              | selected. The program draws what's in each row that shows          |
-| `filter_chips`               | Chips that a press turns on or off, with a check while they're on  |
-| `status_chips`               | Chips that show what's on, like the buttons that are held          |
-| `progress`                   | A bar filled to a fraction                                         |
-| `info_bar`                   | A message with how serious it is, a `Severity`, and a button that  |
-|                              | closes it, if it has a name                                        |
-| `tooltip`, `tooltip_text`    | A card of text by the cursor, which the program draws while a      |
-|                              | response is `hovered`                                              |
-| `badge`, `keycap`            | A pill with a dot, for a status, and a key's name on a key         |
-| `card`, `card_trailing`      | A card with a title, which returns the area under it, and the      |
-|                              | area after its title, for a control                                |
-| `well`, `overlay_card`       | A well in a card, for a plot or a log, and a card over a 3D view   |
-| `label`, `divider`           | Text in an area, aligned, and a line between things                |
-| `interact`                   | Makes an area a target, for a widget that the program makes itself |
-|                              | `interact_labeled` gives it a label too, which scripts see         |
+Each widget takes a name, which is what it's known by from frame to frame, and what scripts and
+tests point at, and the rectangle it fills. Each is a target, whose area the interface state lists.
 
-The parts of a widget are targets of their own, called `<name>/<part>`, like `Size/Large` for a
-radio button, `Color/2` for a combo box's third choice, `Search/Clear` for a text field's
-button, and `Items/7` and `Items/Scroll bar` for a list's row and scroll bar.
+| Method                                                   | WinUI's                   | Notes                                                                               |
+| -------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| `button`                                                 | Button                    | Standard, accent or subtle; text, an icon, or both                                  |
+| `toggle_button`                                          | ToggleButton              | In the accent color while it's on                                                   |
+| `hyperlink`                                              | HyperlinkButton           |                                                                                     |
+| `checkbox`                                               | CheckBox                  |                                                                                     |
+| `radio`                                                  | RadioButton               | One of a group: checked while the value is its own                                  |
+| `toggle_switch`                                          | ToggleSwitch              |                                                                                     |
+| `slider`                                                 | Slider                    | Steps, the wheel, the keys, and the value above it as dragged                       |
+| `progress_bar`, `progress_ring`                          | ProgressBar, ProgressRing | Determinate, or of unknown length                                                   |
+| `combo_box`                                              | ComboBox                  | Its list opens over it, with the chosen item where it is                            |
+| `text_box`                                               | TextBox                   | Selection, copy, cut, paste, a clear button, and a button of its own, like search's |
+| `list_view`                                              | ListView                  | Rows that scroll and are virtualized, one selected                                  |
+| `selector_bar`                                           | SelectorBar               | Tabs, with a pill under the selected one that slides                                |
+| `segmented`, `segmented_icons`                           | Toolkit's Segmented       | Segments of equal width                                                             |
+| `info_bar`                                               | InfoBar                   | Informational, success, warning or error; closable                                  |
+| `tooltip`, `tooltip_lines`                               | ToolTip                   | After the pointer rests half a second; above it if there's no room under it         |
+| `card`, `floating_card`                                  | Card                      | A floating card is opaque and raised, for over a 3D view                            |
+| `keycap`, `badge`, `swatch`, `divider`                   | InfoBadge, and others     |                                                                                     |
+| `app_bar`, `page`, `status_bar`, `notify`                |                           | The page's frame                                                                    |
+| `text`, `label`, `caption`, `paragraph`, `field`, `icon` | TextBlock                 |                                                                                     |
 
-## Layout
+`ui.set_enabled(false)` disables the widgets after it, and `ui.set_focusable(false)` keeps them
+from taking keyboard focus, until each is set back; each frame starts enabled and focusable.
+`ui.painter()` draws a program's own graphics, like graphs and previews: rounded rectangles with
+strokes, Fluent's elevation borders and shadows, circles, rings, arcs, lines, convex polygons,
+gradients, text and icons, with clipping and layers.
 
-Programs only support two window setups, whose client areas are 2560 × 1369 and 2560 × 1440 (see
-[Library/Application](../Application/README.md#supported-window-setups)), so everything is in
-fixed pixels. `Rect` splits into parts with `split_top`, `split_left`, `split_bottom`,
-`split_right`, `columns` and `rows`, and places a size in itself with `place` and `centered`.
-`Stack::down` and `Stack::across` lay out areas one after another, like a vertical or horizontal
-stack in SwiftUI, Compose or XAML. Widgets that have a size of their own say it, like
-`Button::width`, `toggle_width` and `select_width`.
+## Input
 
-`Tokens.rs` has the design system's sizes, on Fluent's 4-pixel grid:
+- The pointer is on the topmost target under it, by the last frame's targets, so a combo box's
+  list or a tooltip takes the pointer from what's under it. `ui.cover` makes a surface, like a card
+  over a 3D view, cover what's under it.
+- A click is a press and a release on the same widget. While a button is held, the window captures
+  the mouse, so a drag keeps going past its edges.
+- Keyboard focus moves with Tab and Shift+Tab, in the order that the frame showed the widgets, and
+  with a press on a widget that takes it. Its ring shows only after the keyboard moved it, as
+  Windows does. Esc closes a popup, or else takes focus away.
+- `ui.key_pressed` and `ui.shortcut` are for programs' shortcuts. They don't see the keys that the
+  widget with focus takes, like a text field's letters or a slider's arrows. `ui.input()` has all
+  of the frame's input, for programs that read keys themselves, like for driving.
+- Without focus, the window has no input at all, including the gamepad's. The click that gives it
+  focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
+  go of.
+- `F11` switches between maximized and borderless fullscreen.
+- With `Options::gamepad`, the library reads the gamepad with GameInput for `ui.gamepad()`.
 
-| Constant            | Value | What it is                                                         |
-| ------------------- | ----- | ------------------------------------------------------------------ |
-| `SPACE_XXS`         | 2     | Spacing, which goes on: `SPACE_XS` 4, `SPACE_S` 8, `SPACE_M` 12,   |
-|                     |       | `SPACE_L` 16, `SPACE_XL` 20, `SPACE_XXL` 24 and `SPACE_XXXL` 32    |
-| `MARGIN`            | 16    | Between cards, and between them and the window's edges             |
-| `CARD_PADDING`      | 16    | Inside a card, around its contents                                 |
-| `CARD_HEADER`       | 48    | From a card's top to its contents, under its title                 |
-| `PANELS_TOP`        | 56    | Where cards start, under the app bar                               |
-| `STATUS_BAR_HEIGHT` | 40    | The status bar's height, at the window's bottom                    |
-| `CONTROL_HEIGHT`    | 32    | A button, a combo box, a text field, and a row of a checkbox       |
-| `RADIUS_CONTROL`    | 4     | A control's corners                                                |
-| `RADIUS_CARD`       | 8     | A card's, a popup's and an info bar's corners                      |
-| `RAISED`, `FLYOUT`  |       | How high a card over a 3D view and a popup float, as their shadows |
-| `EASE_SECONDS`      | 0.025 | The time constant of how a widget's look follows the input         |
+## Window setups
 
-`Frame::footer` returns where the cards end above the status bar, which is 71 pixels lower in
-borderless fullscreen.
+Programs support exactly two window setups, both on a 2560 × 1440 display at 100% scale, where
+logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
+
+| Setup                 | Client area | What makes it                                             |
+| --------------------- | ----------- | --------------------------------------------------------- |
+| Maximized             | 2560 × 1369 | The 2560 × 1392 work area, less the title bar's 23 pixels |
+| Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
+
+In any other setup, the window says what's wrong instead of showing the program. It checks again
+whenever the window moves or changes size, or the displays, the scale or the taskbar change. Lay out
+cards in fixed pixels for these two client areas; they differ by 71 pixels of height.
+
+## Settings and the command line
+
+`Settings.json`, in the program's folder, has the settings every program has, then the program's
+own, which it reads from `startup.settings` with their defaults. A missing file is written with every
+default; a wrong setting keeps its default, and a notice under the app bar says what's wrong.
+
+| Setting        | Value                                                                 |
+| -------------- | --------------------------------------------------------------------- |
+| `Display`      | `"Primary"`, or the identifier of the display to open on              |
+| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                             |
+| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh |
+
+| Argument          | What it does                                                             |
+| ----------------- | ------------------------------------------------------------------------ |
+| `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary |
+| `--no-activate`   | Opens without taking focus                                               |
+| `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`      |
+
+## Input latency
+
+The main loop (`Run.rs`) handles the window's messages without waiting, and spins until the GPU
+has finished the last frame and DXGI can take another. Only then does it read the input, build the
+frame's interface, draw it and present it, without waiting for vertical sync, so a frame's input
+is as fresh as it can be. The swap chain has a frame latency waitable object and a maximum frame
+latency of 1, and draws on the GPU that the window's monitor is an output of. The whole interface
+is one draw call of instanced quads, whose pixel shader computes each shape's coverage from its
+signed distance. Text layouts are cached, so a frame that shows the same text as the last one asks
+DirectWrite for nothing, and glyphs are rasterized once each into an atlas. The process opts out of
+power throttling, so frames are paced the same in the background. Minimizing the window stops the
+loop drawing.
 
 ## Testing
 
-`Headless` draws frames of an interface without a window or a GPU, with input that a test makes
-up, like a script would, through the same layout as the program. `Headless::program` handles a
-frame like the main loop does, and `Headless::target` says where the last frame's widget of a name
-is, for a test's next press:
+**Headless.** `Headless` runs a program's frames without a window or a GPU, with input that the test
+makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
+real layout. Each input method runs a frame with the input and a frame after it:
 
 ```rust
-let mut counter = Counter::default();
-let mut headless = Headless::default();
-headless.program(&mut counter, &[])?;
-let add = headless.center("Add");
-headless.program(&mut counter, &headless::click(add))?;
-assert_eq!(counter.count, 1);
+let mut app = Headless::new(Volume { level: 50.0 });
+app.click("Mute");
+assert_eq!(app.program.level, 0.0);
+app.key(Key::F11);
+assert!(app.fullscreen());
 ```
 
-In a scripted run, the main loop adds the interface's state to the program's, as `Interface`:
-each target's `Name`, `Kind`, `Label` and `Area`, and the name of what's `Hovered`, `Held`, has
-`Focus`, and has its `Popup` open, the `Tooltip`'s `Name` and `Area`, and the `Theme`. Scripts
-press widgets by name, which the main loop finds in the frame before, and check the state.
-`Test/UserInterface` tests the framework.
+`render` draws the last frame offscreen with the GPU, for tests that check pixels.
 
-| Path                  | Contents                                                                 |
-| --------------------- | ------------------------------------------------------------------------ |
-| `Source/Shell.rs`     | The main loop, and `Program`                                             |
-| `Source/Interface.rs` | Widgets' identities and targets, where input goes, focus, layers, easing |
-| `Source/Tokens.rs`    | The design system's sizes                                                |
-| `Source/Surfaces.rs`  | Cards, wells, info bars, the focus ring, shadows and raised faces        |
-| `Source/Buttons.rs`   | Buttons                                                                  |
-| `Source/Toggles.rs`   | Checkboxes, switches, radio buttons, segmented controls and tabs         |
-| `Source/Slider.rs`    | Sliders and progress bars                                                |
-| `Source/Select.rs`    | Combo boxes and their lists                                              |
-| `Source/TextField.rs` | Text fields                                                              |
-| `Source/List.rs`      | Lists that scroll                                                        |
-| `Source/Chips.rs`     | Filter and status chips, badges and keycaps                              |
-| `Source/Tooltip.rs`   | Tooltips, and where they go                                              |
-| `Source/Chrome.rs`    | The app bar, the status bar, notices, and the unsupported window's page  |
-| `Source/Clipboard.rs` | Windows' clipboard, or the interface's own                               |
-| `Source/Headless.rs`  | Frames without a window or a GPU, for tests                              |
+**Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
+instead of from the user, and saves frames and its state. RunInBackground runs them (see its
+[README](../../Program/RunInBackground/README.md#scripts)). A script is a JSON object with its
+`Steps`, each at a `Frame`. Frame 0 gives the window focus and draws what frame 1's steps point at.
+
+```json
+{
+    "Steps": [
+        { "Frame": 1, "Click": "Mute" },
+        { "Frame": 3, "Drag": { "From": "Level", "To": [400, 300], "Frames": 10 } },
+        { "Frame": 20, "Key": "Ctrl+S" },
+        { "Frame": 22, "Capture": "Saved" },
+        { "Frame": 22, "Expect": { "Level": 100, "Interface": { "Popup": null } } }
+    ]
+}
+```
+
+| Step          | Value                                                                          |
+| ------------- | ------------------------------------------------------------------------------ |
+| `Move`        | A point: a target's name, which is its middle, or `[x, y]` in the window       |
+| `Press`       | A point, or `{ "At": point, "Button": "Right" }`                               |
+| `Release`     | `true` for the left button, or a button's name                                 |
+| `Click`       | A point: a press, released the next frame                                      |
+| `DoubleClick` | A point: two clicks, a frame apart                                             |
+| `Drag`        | `{ "From", "To", "Frames", "Button" }`: a press, a move a frame, and a release |
+| `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                            |
+| `Key`         | A key, like `"F11"` or `"Ctrl+S"`: pressed, and let go of the next frame       |
+| `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them      |
+| `Type`        | Text, as if typed                                                              |
+| `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,             |
+|               | `RightTrigger`, and `Buttons`                                                  |
+| `Focus`       | Whether the window has focus                                                   |
+| `Capture`     | A name: saves the frame as `<name>.png` and the state as `<name>.json`         |
+| `Expect`      | What the state must have: every member it names must match, numbers to a       |
+|               | millionth                                                                      |
+| `Program`     | A step for the program's `script`                                              |
+
+The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`, `Fullscreen`,
+`WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open `Popup`, the
+`Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`, `Enabled` and `Label`, by name.
+Scripts copy and paste on the interface's own clipboard, never Windows'. A scripted run reads and
+writes its files in its output folder, through `startup.data_folder`.
+
+`Test/UserInterface` tests the library itself, with a GPU test that draws offscreen.
+
+## Layout
+
+| Path                     | Contents                                                                  |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `Source/Library.rs`      | The library's modules and what it exports                                 |
+| `Source/Program.rs`      | `Program`, `Options`, `Startup`, and the command line                     |
+| `Source/Run.rs`          | The main loop                                                             |
+| `Source/Ui.rs`           | A frame's interface: targets, presses, focus, popups, tooltips, motion    |
+| `Source/Window.rs`       | The Win32 window, its input, its two setups, and their check              |
+| `Source/Input.rs`        | Keys, buttons, the gamepad, and a frame's input from events               |
+| `Source/Gamepad.rs`      | Reads the gamepad with GameInput                                          |
+| `Source/Clipboard.rs`    | Windows' clipboard, and the interface's own for scripts and tests         |
+| `Source/Settings.rs`     | `Settings.json`                                                           |
+| `Source/Theme.rs`        | Fluent's color roles, light and dark                                      |
+| `Source/Tokens.rs`       | Fluent's spacing, sizes, radii, type ramp, motion and elevation           |
+| `Source/Icons.rs`        | Segoe Fluent Icons                                                        |
+| `Source/Geometry.rs`     | Points, sizes, rectangles and colors                                      |
+| `Source/Text.rs`         | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas      |
+| `Source/Painter.rs`      | The draw list, and the Painter that programs draw their own graphics with |
+| `Source/Renderer.rs`     | Draws the draw list with Direct3D 12, in one draw call                    |
+| `Shaders/Interface.hlsl` | The shapes' and glyphs' shader                                            |
+| `Source/Widgets/*.rs`    | The widgets, and the page's app bar, notices and status bar               |
+| `Source/Script.rs`       | Scripts                                                                   |
+| `Source/Headless.rs`     | Runs a program's frames without a window, for tests                       |
+| `Build.rs`               | Compiles the shader at build time                                         |

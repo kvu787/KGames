@@ -2,6 +2,7 @@
 name = "user_interface"
 version = "0.1.0"
 edition = "2024"
+build = "Build.rs"
 
 [lib]
 path = "Source/Library.rs"
@@ -10,17 +11,21 @@ test = false
 doctest = false
 
 [dependencies]
-application = { path = "../Application" }
-canvas = { path = "../Canvas" }
+displays = { path = "../Displays" }
+game_input = { path = "../GameInput" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
 windows_api = { path = "../WindowsApi" }
 
-# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
+# Its proc macros (for implementing COM interfaces in Rust) aren't needed:
+# the text renderer is a COM object written by hand.
 [dependencies.windows-core]
 version = "0.100"
 default-features = false
 features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../ShaderCompiler" }
 
 [lints]
 workspace = true

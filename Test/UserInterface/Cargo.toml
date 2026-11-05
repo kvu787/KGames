@@ -5,22 +5,23 @@ edition = "2024"
 publish = false
 
 [[test]]
-name = "Interface"
-path = "Interface.rs"
+name = "Basics"
+path = "Basics.rs"
 
 [[test]]
-name = "Widgets"
-path = "Widgets.rs"
+name = "Interaction"
+path = "Interaction.rs"
 
 [[test]]
-name = "Layout"
-path = "Layout.rs"
+name = "Scripts"
+path = "Scripts.rs"
+
+[[test]]
+name = "Rendering"
+path = "Rendering.rs"
 
 [dependencies]
-application = { path = "../../Library/Application" }
-json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }
-windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]
 workspace = true
