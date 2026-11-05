@@ -1,22 +1,31 @@
 {
     "Steps": [
-        { "Frame": 1, "Press": "Shift" },
-        { "Frame": 2, "Release": "Shift" },
-        { "Frame": 3, "Press": "Rotation" },
-        { "Frame": 4, "Release": "Rotation" },
-        { "Frame": 5, "Press": { "Target": "Dark Point", "At": [0, 0.5] } },
-        { "Frame": 6, "Release": { "Target": "Dark Point", "At": [0, 0.5] } },
-        { "Frame": 7, "Press": "Light Point" },
-        { "Frame": 8, "Move": { "Target": "Light Point", "At": [0.5, 12] } },
-        { "Frame": 9, "Release": { "Target": "Light Point", "At": [0.5, 12] } },
+        { "Frame": 1, "Click": "Shift" },
+        { "Frame": 3, "Click": "Rotation" },
+        { "Frame": 5, "Click": "Light Point" },
         {
-            "Frame": 10,
+            "Frame": 7,
             "Expect": {
                 "Parameters": { "Shift": 0.5, "RotationDegrees": 180.0, "DarkPoint": 0.0, "LightPoint": 0.5 },
                 "Selected": "Light Point",
                 "Constants": { "Warp": [-1.0, 0.0, 0.57735026, 1.0] }
             }
         },
-        { "Frame": 10, "Capture": "ShiftedHighlight" }
+        { "Frame": 8, "Move": [1200, 1300] },
+        { "Frame": 30, "Capture": "ShiftedHighlight" },
+        { "Frame": 31, "Click": "R" },
+        { "Frame": 33, "Scroll": { "At": "R", "Notches": 400 } },
+        { "Frame": 34, "Click": "G" },
+        { "Frame": 36, "Click": "B" },
+        { "Frame": 38, "Scroll": { "At": "B", "Notches": -400 } },
+        { "Frame": 39, "Move": [1200, 1300] },
+        {
+            "Frame": 40,
+            "Expect": {
+                "Parameters": { "BaseColor": [0.9, 0.5, 0.1], "Shift": 0.5, "LightPoint": 0.5 },
+                "Selected": "B"
+            }
+        },
+        { "Frame": 60, "Capture": "Warm" }
     ]
 }

@@ -1,60 +1,86 @@
 // The demo, as a program that Library/UserInterface runs: the editor, its
-// panels, and the sphere's preview, which is copied over the preview panel
-// after the panels are drawn.
+// cards, and the sphere's preview, which render draws into the preview
+// card's view before the interface draws over the rest of the frame.
 
 use std::path::PathBuf;
 
-use graphics::Renderer;
+use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{Frame, Program, Setup};
+use simple_paint::Parameters;
+use user_interface::{Color, Program, Rect, Severity, Startup, Ui};
 use windows_core::Result;
 
-use crate::NAME;
+use crate::cards;
 use crate::editor::{self, Editor};
-use crate::panels::{self, Cache};
-use crate::preview::{IMAGE_SIZE, Preview};
+use crate::preview::Preview;
+
+pub const TITLE: &str = "SimplePaint Demo";
 
 pub struct Demo {
-    editor: Editor,
+    pub editor: Editor,
     // Where Ctrl+S and Save write the material: the demo's folder, or a
     // script's output folder.
-    paint_path: PathBuf,
-    preview: Preview,
-    cache: Cache,
-    // Where the last frame's preview panel has the sphere's image.
-    image: Option<[u32; 2]>,
+    pub paint_path: PathBuf,
+    // The cards whose content didn't fit in them in the last frame, which
+    // the tests check is none of them.
+    pub overflow: Vec<&'static str>,
+    // Where the last frame's preview card has its view, which render fills
+    // with the sphere, and the card's color there.
+    pub view: Option<Rect>,
+    pub background: Color,
+    // Made by prepare.
+    preview: Option<Preview>,
+}
+
+impl Demo {
+    pub fn new(parameters: Parameters, paint_path: PathBuf) -> Self {
+        Self {
+            editor: Editor::new(parameters),
+            paint_path,
+            overflow: Vec::new(),
+            view: None,
+            background: Color::WHITE,
+            preview: None,
+        }
+    }
+
+    // The demo, with the material in Paint.json in its data folder, if it's
+    // there, which a notice says what's wrong with if it can't be used. A
+    // scripted run starts from SimplePaint's default material, so that its
+    // scripts start the same every time.
+    pub fn start(startup: &mut Startup) -> Self {
+        let paint_path = startup.data_folder.join("Paint.json");
+        let parameters = if startup.scripted {
+            Parameters::default()
+        } else {
+            let mut notices = Vec::new();
+            let parameters = editor::load(&paint_path, &mut notices);
+            for notice in notices {
+                startup.notify(Severity::Warning, "Paint.json", &notice);
+            }
+            parameters
+        };
+        Demo::new(parameters, paint_path)
+    }
 }
 
 impl Program for Demo {
-    type Settings = ();
-    const NAME: &'static str = NAME;
-
-    // Loads Paint.json, if it's there. Problems with it go in the notices.
-    fn new(setup: Setup<'_, ()>) -> Result<Self> {
-        let paint_path = setup.arguments.file(setup.folder, "Paint.json");
-        let editor = Editor::new(editor::load(&paint_path, setup.notices));
-        Ok(Demo {
-            editor,
-            paint_path,
-            preview: unsafe { Preview::new(setup.renderer)? },
-            cache: Cache::default(),
-            image: None,
-        })
+    fn title(&self) -> String {
+        TITLE.to_string()
     }
 
-    fn frame(&mut self, frame: &mut Frame) -> Result<()> {
-        let layout = panels::draw(frame, &mut self.cache, &mut self.editor, &self.paint_path);
-        self.image = layout.image;
+    fn update(&mut self, ui: &mut Ui) {
+        cards::draw(self, ui);
+    }
+
+    fn prepare(&mut self, gpu: &mut Gpu) -> Result<()> {
+        self.preview = Some(unsafe { Preview::new(gpu)? });
         Ok(())
     }
 
-    // The sphere goes over the preview panel's middle, if it fits.
-    unsafe fn draw_over(&mut self, renderer: &Renderer) -> Result<()> {
-        if let Some([x, y]) = self.image
-            && x + IMAGE_SIZE <= renderer.width
-            && y + IMAGE_SIZE <= renderer.height
-        {
-            unsafe { self.preview.draw(renderer, &self.editor.material, [x, y]) };
+    fn render(&mut self, gpu: &mut Gpu, frame: &Frame) -> Result<()> {
+        if let (Some(preview), Some(view)) = (&mut self.preview, self.view) {
+            unsafe { preview.render(gpu, frame, &self.editor.material, self.background, view)? };
         }
         Ok(())
     }

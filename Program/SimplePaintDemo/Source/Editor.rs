@@ -1,22 +1,21 @@
-// The settings editor's state: the material being edited, its sliders, and
-// what the keyboard does to them. Panels.rs draws the sliders with
-// Library/UserInterface, which handles what the mouse does to them.
+// The settings editor's state: the material being edited, its settings, and
+// what the keys and the wheel do to them. Cards.rs draws a slider for each
+// setting with Library/UserInterface, which handles what the pointer does to
+// it.
 //
-// Sliders move in steps of 0.001, or 0.1 degrees for Rotation, and stop at
+// Settings move in steps of 0.001, or 0.1 degrees for Rotation, and stop at
 // the last step inside SimplePaint's accepted range, so the material they
 // make is always valid. Values from Paint.json can be between steps.
 
 use std::path::Path;
 
-use application::Event;
 use json::Value;
 use simple_paint::{GpuMaterial, Material, Parameters};
-use user_interface::SliderRange;
-use windows_api::*;
+use user_interface::{Key, Modifiers, Slider};
 
-pub struct Slider {
+pub struct Setting {
     pub name: &'static str,
-    // The track runs from `start` to `end`.
+    // The slider's rail runs from `start` to `end`.
     pub start: f64,
     pub end: f64,
     // The first and last steps inside SimplePaint's accepted range.
@@ -30,29 +29,45 @@ pub struct Slider {
     set: fn(&mut Parameters, f64),
 }
 
-impl Slider {
+impl Setting {
     pub fn value(&self, parameters: &Parameters) -> f64 {
         (self.get)(parameters)
     }
 
-    pub fn range(&self) -> SliderRange {
-        SliderRange {
-            start: self.start,
-            end: self.end,
-            minimum: self.minimum,
-            maximum: self.maximum,
-            steps: self.steps,
-        }
+    // The slider that sets it, over its rail, a step at a time.
+    pub fn slider(&self) -> Slider {
+        Slider::new(self.start as f32, self.end as f32).step((1.0 / self.steps) as f32)
+    }
+
+    // The step nearest `value`, inside the range. Dividing whole numbers,
+    // like 107 / 1000, gives the double nearest the decimal, so values save
+    // as written, like 0.107.
+    pub fn nearest(&self, value: f64) -> f64 {
+        let stepped = (value * self.steps).round() / self.steps;
+        stepped.clamp(self.minimum, self.maximum)
+    }
+
+    // The value `steps` steps from `value`. A value from Paint.json can be
+    // past the range, like 0.9990234375 past 0.999, where the nearest step
+    // back in it is the other way. Then it stays put.
+    pub fn nudge(&self, value: f64, steps: f64) -> f64 {
+        let next = self.nearest(value + steps / self.steps);
+        if (next - value) * steps > 0.0 { next } else { value }
     }
 
     pub fn format(&self, value: f64) -> String {
         format!("{value:.0$}{1}", self.decimals, self.unit)
     }
+
+    // Like "0.001 to 0.999".
+    pub fn range(&self) -> String {
+        format!("{:.2$} to {}", self.minimum, self.format(self.maximum), self.decimals)
+    }
 }
 
-macro_rules! unit_slider {
+macro_rules! unit_setting {
     ($name:expr, $minimum:expr, $maximum:expr, $field:ident $([$index:expr])?) => {
-        Slider {
+        Setting {
             name: $name,
             start: 0.0,
             end: 1.0,
@@ -67,13 +82,13 @@ macro_rules! unit_slider {
     };
 }
 
-pub const SLIDERS: [Slider; 8] = [
-    unit_slider!("R", 0.001, 0.999, base_color_srgb[0]),
-    unit_slider!("G", 0.001, 0.999, base_color_srgb[1]),
-    unit_slider!("B", 0.001, 0.999, base_color_srgb[2]),
-    unit_slider!("Brightness", 0.001, 0.999, brightness),
-    unit_slider!("Shift", 0.0, 0.999, shift),
-    Slider {
+pub const SETTINGS: [Setting; 8] = [
+    unit_setting!("R", 0.001, 0.999, base_color_srgb[0]),
+    unit_setting!("G", 0.001, 0.999, base_color_srgb[1]),
+    unit_setting!("B", 0.001, 0.999, base_color_srgb[2]),
+    unit_setting!("Brightness", 0.001, 0.999, brightness),
+    unit_setting!("Shift", 0.0, 0.999, shift),
+    Setting {
         name: "Rotation",
         start: 0.0,
         end: 360.0,
@@ -85,20 +100,54 @@ pub const SLIDERS: [Slider; 8] = [
         get: |p| p.rotation_degrees,
         set: |p, value| p.rotation_degrees = value,
     },
-    unit_slider!("Dark Point", 0.0, 0.999, dark_point),
-    unit_slider!("Light Point", 0.001, 1.0, light_point),
+    unit_setting!("Dark Point", 0.0, 0.999, dark_point),
+    unit_setting!("Light Point", 0.001, 1.0, light_point),
 ];
+
+// What a key does to the editor.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Command {
+    // Selects the setting this many below the selected one, or above it if
+    // it's less than 0.
+    Select(i32),
+    // Moves the selected setting by this many steps.
+    Nudge(f64),
+    Save,
+}
+
+// What a key does, pressed with the modifiers held. Up and Down select a
+// setting, and Left and Right move it a step, or 10 with Shift. Holding an
+// arrow key repeats it. Ctrl+S saves, and holding it does nothing more.
+pub fn command(key: Key, repeat: bool, modifiers: Modifiers) -> Option<Command> {
+    if modifiers == Modifiers::CONTROL {
+        return (key == Key::S && !repeat).then_some(Command::Save);
+    }
+    if modifiers.control || modifiers.alt {
+        return None;
+    }
+    let steps = if modifiers.shift { 10.0 } else { 1.0 };
+    match key {
+        Key::UP => Some(Command::Select(-1)),
+        Key::DOWN => Some(Command::Select(1)),
+        Key::LEFT => Some(Command::Nudge(-steps)),
+        Key::RIGHT => Some(Command::Nudge(steps)),
+        _ => None,
+    }
+}
 
 pub struct Editor {
     pub parameters: Parameters,
     // Compiled from parameters whenever they change.
     pub material: GpuMaterial,
-    // The slider that the arrow keys move, which is highlighted.
+    // The setting that the arrow keys move, which is highlighted.
     pub selected: usize,
-    // The slider that the mouse drags, while the button is down.
+    // The setting whose slider the pointer drags, while the button is down.
     pub dragging: Option<usize>,
     // What happened at the last save, and whether it failed.
     pub status: Option<(String, bool)>,
+    // The setting that the wheel last turned over, and the part of a notch
+    // left over there, like from a touchpad, which turns it by less.
+    wheel: (Option<usize>, f64),
 }
 
 impl Editor {
@@ -111,27 +160,49 @@ impl Editor {
             selected: 0,
             dragging: None,
             status: None,
+            wheel: (None, 0.0),
         }
     }
 
-    // Sets a slider to a value that's one of its steps, as the slider
-    // widget makes them.
-    pub fn change(&mut self, slider: usize, value: f64) {
-        (SLIDERS[slider].set)(&mut self.parameters, value);
-        // Sliders only make valid values, and set leaves the others alone.
+    // Sets a setting to a value that's one of its steps, if it isn't already
+    // that.
+    pub fn set(&mut self, setting: usize, value: f64) {
+        if value == SETTINGS[setting].value(&self.parameters) {
+            return;
+        }
+        (SETTINGS[setting].set)(&mut self.parameters, value);
+        // Settings only take valid values, and set leaves the others alone.
         self.material = *Material::compile(&self.parameters)
-            .expect("sliders only make valid materials")
+            .expect("settings only make valid materials")
             .constants();
     }
 
-    // Moves a slider by a number of its steps. A value from Paint.json can be
-    // past the slider's range, like a B of 0.9990234375 past 0.999, where
-    // the nearest step back in it is the other way. Then it stays put.
-    fn nudge(&mut self, slider: usize, steps: f64) {
-        let current = SLIDERS[slider].value(&self.parameters);
-        let next = SLIDERS[slider].range().nudge(current, steps);
-        if next != current {
-            self.change(slider, next);
+    // Moves a setting by a number of its steps.
+    pub fn nudge(&mut self, setting: usize, steps: f64) {
+        let current = SETTINGS[setting].value(&self.parameters);
+        self.set(setting, SETTINGS[setting].nudge(current, steps));
+    }
+
+    // Turns the wheel over a setting's slider, by notches, up for more. A
+    // setting moves a step for each whole notch, and parts of a notch add up
+    // while the wheel turns over the same one.
+    pub fn wheel(&mut self, setting: usize, notches: f64) {
+        let (last, part) = self.wheel;
+        let turned = notches + if last == Some(setting) { part } else { 0.0 };
+        let steps = turned.trunc();
+        self.wheel = (Some(setting), turned - steps);
+        if steps != 0.0 {
+            self.nudge(setting, steps);
+        }
+    }
+
+    pub fn apply(&mut self, command: Command, paint_path: &Path) {
+        match command {
+            Command::Select(offset) => {
+                self.selected = (self.selected as i32 + offset).clamp(0, SETTINGS.len() as i32 - 1) as usize;
+            }
+            Command::Nudge(steps) => self.nudge(self.selected, steps),
+            Command::Save => self.save(paint_path),
         }
     }
 
@@ -143,34 +214,6 @@ impl Editor {
         }
     }
 
-    // Handles a key that no widget took. Up and Down select a slider, and
-    // Left and Right move it a step, or 10 with Shift. Holding an arrow key
-    // repeats it. Ctrl+S saves, and holding it does nothing more.
-    pub fn key(&mut self, event: &Event, paint_path: &Path) {
-        let Event::Key {
-            key,
-            control,
-            shift,
-            repeat,
-        } = *event
-        else {
-            return;
-        };
-        let steps = if shift { 10.0 } else { 1.0 };
-        match key as i32 {
-            _ if control => {
-                if !repeat && key == 'S' as u32 {
-                    self.save(paint_path);
-                }
-            }
-            VK_LEFT => self.nudge(self.selected, -steps),
-            VK_RIGHT => self.nudge(self.selected, steps),
-            VK_UP => self.selected = self.selected.saturating_sub(1),
-            VK_DOWN => self.selected = (self.selected + 1).min(SLIDERS.len() - 1),
-            _ => {}
-        }
-    }
-
     // What the editor holds, for scripted runs to save and check. The
     // interface's state, which the main loop adds, says where the sliders
     // and buttons are.
@@ -178,8 +221,8 @@ impl Editor {
         let m = &self.material;
         json::object([
             ("Parameters", paint_settings::to_value(&self.parameters)),
-            ("Selected", SLIDERS[self.selected].name.into()),
-            ("Dragging", self.dragging.map(|index| SLIDERS[index].name).into()),
+            ("Selected", SETTINGS[self.selected].name.into()),
+            ("Dragging", self.dragging.map(|index| SETTINGS[index].name).into()),
             ("Saved", self.status.as_ref().map(|(_, failed)| !failed).into()),
             (
                 "Constants",

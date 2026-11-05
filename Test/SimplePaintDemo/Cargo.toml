@@ -8,8 +8,12 @@ publish = false
 name = "Editor"
 path = "Editor.rs"
 
+[[test]]
+name = "Rendering"
+path = "Rendering.rs"
+
 [dependencies]
-application = { path = "../../Library/Application" }
+paint_settings = { path = "../../Library/PaintSettings" }
 simple_paint = { path = "../../Library/SimplePaint" }
 simple_paint_demo = { path = "../../Program/SimplePaintDemo" }
 user_interface = { path = "../../Library/UserInterface" }

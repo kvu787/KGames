@@ -7,10 +7,19 @@
         { "Frame": 2, "Expect": { "Selected": "Shift" } },
         { "Frame": 3, "Key": "Right" },
         { "Frame": 3, "Key": "Right" },
-        { "Frame": 4, "Key": "Right", "Shift": true },
-        { "Frame": 5, "Expect": { "Parameters": { "Shift": 0.012 } } },
-        { "Frame": 6, "Key": "S", "Control": true },
-        { "Frame": 7, "Expect": { "Saved": true } },
-        { "Frame": 7, "Capture": "Saved" }
+        { "Frame": 5, "Key": "Shift+Right" },
+        {
+            "Frame": 7,
+            "Expect": { "Parameters": { "Shift": 0.012 }, "Interface": { "Targets": { "Shift": { "Label": "0.012" } } } }
+        },
+        { "Frame": 8, "Key": "Ctrl+S" },
+        { "Frame": 10, "Expect": { "Saved": true } },
+        { "Frame": 10, "Capture": "Saved" },
+        { "Frame": 11, "Key": "Tab" },
+        { "Frame": 13, "Key": "Left" },
+        { "Frame": 15, "Expect": { "Parameters": { "Shift": 0.011 }, "Interface": { "Focused": "Reset" } } },
+        { "Frame": 15, "Capture": "ResetFocused" },
+        { "Frame": 16, "Key": "Space" },
+        { "Frame": 18, "Expect": { "Parameters": { "Shift": 0.0 }, "Selected": "Shift" } }
     ]
 }

@@ -18,7 +18,6 @@ path = "Source/Main.rs"
 test = false
 
 [dependencies]
-application = { path = "../../Library/Application" }
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
