@@ -1,16 +1,20 @@
 {
     "Steps": [
-        { "Frame": 1, "Press": [205, 148] },
-        { "Frame": 2, "Release": [205, 148] },
-        { "Frame": 3, "Press": [205, 148] },
-        { "Frame": 4, "Release": [205, 148] },
-        { "Frame": 5, "Press": [327, 148] },
-        { "Frame": 6, "Release": [327, 148] },
-        { "Frame": 7, "Press": [449, 148] },
-        { "Frame": 8, "Release": [449, 148] },
-        { "Frame": 9, "Expect": { "Presses": { "Normal": 0, "Primary": 2, "Danger": 1 }, "Log": ["Danger: pressed 1 time", "Primary: pressed 2 times"] } },
-        { "Frame": 10, "Move": [205, 148] },
-        { "Frame": 10, "Expect": { "Interface": { "Hovered": "Primary", "Tooltip": { "Name": "Primary" } } } },
-        { "Frame": 10, "Capture": "Hover" }
+        { "Frame": 1, "Press": "Accent" },
+        { "Frame": 2, "Release": "Accent" },
+        { "Frame": 3, "Press": "Accent" },
+        { "Frame": 4, "Release": "Accent" },
+        { "Frame": 5, "Press": "Danger" },
+        { "Frame": 6, "Release": "Danger" },
+        { "Frame": 7, "Press": "Add" },
+        { "Frame": 8, "Release": "Add" },
+        { "Frame": 9, "Expect": { "Presses": { "Standard": 0, "Accent": 2, "Danger": 1, "Subtle": 0 }, "Count": 4, "Log": ["Count: 4", "Danger: pressed 1 time", "Accent: pressed 2 times"] } },
+        { "Frame": 10, "Move": "Accent" },
+        { "Frame": 20, "Expect": { "Interface": { "Hovered": "Accent", "Tooltip": { "Name": "Accent" } } } },
+        { "Frame": 20, "Capture": "Hover" },
+        { "Frame": 21, "Press": "Standard" },
+        { "Frame": 30, "Expect": { "Interface": { "Held": "Standard" } } },
+        { "Frame": 30, "Capture": "Pressed" },
+        { "Frame": 31, "Release": "Standard" }
     ]
 }

@@ -1,9 +1,9 @@
 {
     "Steps": [
-        { "Frame": 1, "Move": [962, 1285] },
+        { "Frame": 1, "Move": "Bottom" },
         { "Frame": 1, "Expect": { "Interface": { "Hovered": "Bottom", "Tooltip": { "Name": "Bottom" } } } },
         { "Frame": 1, "Capture": "Bottom" },
-        { "Frame": 2, "Move": [1114, 959] },
+        { "Frame": 2, "Move": "Columns" },
         { "Frame": 2, "Expect": { "Interface": { "Tooltip": { "Name": "Columns" } } } },
         { "Frame": 2, "Capture": "Columns" },
         { "Frame": 3, "Key": "F1" },
