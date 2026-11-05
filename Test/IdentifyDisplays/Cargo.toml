@@ -1,0 +1,17 @@
+[package]
+name = "identify_displays_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Boxes"
+path = "Boxes.rs"
+
+[dependencies]
+displays = { path = "../../Library/Displays" }
+identify_displays = { path = "../../Program/IdentifyDisplays" }
+user_interface = { path = "../../Library/UserInterface" }
+
+[lints]
+workspace = true

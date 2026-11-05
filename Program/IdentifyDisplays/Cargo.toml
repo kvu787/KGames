@@ -3,6 +3,13 @@ name = "identify_displays"
 version = "0.1.0"
 edition = "2024"
 
+# The boxes, which Test/IdentifyDisplays tests without a window.
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
 [[bin]]
 name = "IdentifyDisplays"
 path = "Source/Main.rs"
@@ -11,6 +18,7 @@ test = false
 
 [dependencies]
 displays = { path = "../../Library/Displays" }
+user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]

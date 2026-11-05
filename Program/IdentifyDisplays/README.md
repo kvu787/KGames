@@ -9,9 +9,14 @@ cargo run --release --bin IdentifyDisplays
 cargo run --release --bin IdentifyDisplays -- --list
 ```
 
-IdentifyDisplays puts a box in the middle of each display with the display's identifier, like `KXGR16`, its model and its mode. It writes
-the same to the console, with each monitor's device path. Click a box, or press `Esc`
-while one has focus, to close them. With `--list`, it only writes to the console.
+IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
+`KXGR16`, in Cascadia Mono, whose 0 has a slash through it, its model and its mode. It writes the
+same to the console, with each monitor's device path. Click a box, or press `Esc` while one has
+focus, to close them. With `--list`, it only writes to the console.
+
+The boxes are windows without a frame that float over the others, drawn with
+[Library/UserInterface](../../Library/UserInterface/README.md)'s overlays, in its light theme. A
+display at another scale than 100% gets a box as big as it would look at 100%.
 
 An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
 which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an
@@ -33,3 +38,20 @@ which can change between restarts.
 
 [Library/Displays](../../Library/Displays/README.md) finds the displays and makes their identifiers,
 for this program and for the others.
+
+## Testing
+
+```powershell
+cargo test -p identify_displays_tests
+```
+
+The test in `Test/IdentifyDisplays` draws each display's box offscreen, without putting windows on
+the displays, saves it in `target\TestOutput`, and checks that its text fits and draws.
+
+## Layout
+
+| Path                | Contents                                                          |
+| ------------------- | ----------------------------------------------------------------- |
+| `Source/Main.rs`    | Finds the displays, writes them to the console, and shows a box   |
+|                     | on each                                                           |
+| `Source/Library.rs` | Lays out and draws a box, as a library that the test draws        |
