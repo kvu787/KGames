@@ -1,11 +1,11 @@
 # Veehiicuul
 
 Veehiicuul is a racing game seen from above: drive a car around a track as fast as you dare
-without touching the road's edges. It's also where its levels are made: tabs at the top go
+without touching the road's edges. It's also where its levels are made: tabs in the app bar go
 between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
 program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
-[Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, ignores input
-without focus, and supports the two window setups in
+[Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, widgets and design
+system, ignores input without focus, and supports the two window setups in
 [Library/Application](../../Library/Application/README.md#supported-window-setups).
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
@@ -39,28 +39,29 @@ degrees, from 45 degrees around from +Z toward +X.
 
 ## Tabs
 
-The top of the window has the tabs, the scene to play and edit, New scene, Undo and Redo, which
-Ctrl+Z and Ctrl+Y do too, Save, and whether there are unsaved changes. In the editors, "The
-game's angle" shows the view at the game's angle instead of straight down. The editors' panels
-are down the left side, and their views are the rest of the window, where Space and a drag pan,
-and the wheel zooms around the cursor.
+The app bar at the top of the window has the tabs, the scene to play and edit, New scene, Undo
+and Redo, which Ctrl+Z and Ctrl+Y do too, and Save. In the editors, "The game's angle" shows the
+view at the game's angle instead of straight down. The status bar at the bottom has the
+shortcuts, and says whether there are unsaved changes. Each editor has a card down the left
+side, and the Vehicles tab another down the right, for the paint. Their view is the rest of the
+window, where Space and a drag pan, and the wheel zooms around the cursor.
 
 | Tab      | What it does                                                                      |
 | -------- | --------------------------------------------------------------------------------- |
-| Play     | Drives the scene's track, with a box of text that says what's going on and what   |
-|          | the controls do. Going to Play puts the car at the start                          |
+| Play     | Drives the scene's track, with a card over the bottom left corner that says       |
+|          | what's going on and what the controls do. Going to Play puts the car at the start |
 | Scene    | Arranges decorations and parked vehicles: a press picks one, a drag moves it, and |
-|          | the panel turns and scales it, adds and deletes them, and paints a decoration's   |
+|          | the card turns and scales it, adds and deletes them, and paints a decoration's    |
 |          | model. Sets the background, the view of the camera that follows the car, and the  |
 |          | fixed camera, from the editor's view                                              |
 | Terrain  | Paints hexels. Paint and Erase use a brush of a radius, Fill paints the hexels    |
 |          | joined to the one pressed that are its color, as far as 60 hexels from it, and    |
 |          | Pick takes a hexel's color. The palette has up to 62 colors, and the grid's hexel |
-|          | size and orientation, with pointy or flat tops, are in the panel                  |
+|          | size and orientation, with pointy or flat tops, are in the card                   |
 | Track    | Edits the track's curves by their control points: Move points moves one, or the   |
 |          | car at the start, or its handle, which turns it, Add points adds one to the       |
 |          | chosen curve where it's nearest, Delete points deletes one, and Move track moves  |
-|          | it all. The panel adds and deletes islands, and sets the start's heading, the     |
+|          | it all. The card adds and deletes islands, and sets the start's heading, the      |
 |          | barriers' width and length, and the colors. It says what's wrong with the track:  |
 |          | edges that cross, islands outside the road, and a start off the road              |
 | Vehicles | Edits the vehicles: their names, models, acceleration, footprints and paint. Each |
@@ -83,7 +84,7 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 |                         |                        | the car                                                  |
 | RB and the left stick   | The wheel              | Zooms, up or away from you to zoom in                    |
 | Y                       | Home                   | Zooms back to the camera's own height                    |
-| View                    | F1                     | Hides or shows the text                                  |
+| View                    | F1                     | Hides or shows the card                                  |
 |                         | F11                    | Switches between maximized and borderless fullscreen     |
 
 There's no steering wheel, mass or grip. The player pushes the car toward where they want it
@@ -163,7 +164,7 @@ line goes across the road from edge to edge, 4.25 units ahead of the car's start
 ## Settings
 
 `Settings.json` has the settings that every program has, then the game's own. The game writes
-it with the defaults if it's missing, and the text in Play says what's wrong with it.
+it with the defaults if it's missing, and a notice under the app bar says what's wrong with it.
 
 | Setting     | Value                                                                           |
 | ----------- | ------------------------------------------------------------------------------- |
@@ -196,18 +197,20 @@ The tests in `Test/Veehiicuul` check, without a window: driving; what touches; c
 shapes and what's wrong with them, cutting the road's islands out, and the ground's meshes;
 hexels, brushes and fills; the models from Blender, the vehicles, and that the files write back
 as they were; Play through its frames, with Library/UserInterface's `Headless`; and the editors
-through their frames, with presses and drags in their real layout: the tabs, painting hexels,
-moving, adding and deleting control points, dragging a footprint's side, picking and moving a
-decoration, undo, and saving.
+through their frames, with presses and drags in their real layout: the tabs, that every
+editor's controls fit in its cards, painting hexels, moving, adding and deleting control points,
+dragging a footprint's side, picking and moving a decoration, undo, and saving.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
 [Library/Application](../../Library/Application/README.md#scripts) describes. Their `Gamepad`
 steps put the gamepad's sticks, triggers and buttons where they need them, and `Hold` steps hold
-keys down. A scripted run saves in its output folder, not this one. The state that scripts save
-and check has the `Mode`, whether there are `Unsaved` changes, the `Status`, the `Scene`, the
-`Vehicle`, the car's `Position`, `Heading`, `Velocity` and `Speed`, whether it's `Paused`, the
-`Camera`, its `ViewHeight`, the `Crashes`, whether the text is shown, as `TextShown`, and each
-editor's, as `SceneEditor`, `TerrainEditor`, `TrackEditor` and `VehicleEditor`.
+keys down. They press the tabs and the editors' controls by name, like `"Mode/Terrain"`, and the
+middle of a view, like `"Terrain/View"`, and a point on the ground by where it is in the window.
+A scripted run saves in its output folder, not this one. The state that scripts save and check
+has the `Mode`, whether there are `Unsaved` changes, the `Status`, the `Scene`, the `Vehicle`,
+the car's `Position`, `Heading`, `Velocity` and `Speed`, whether it's `Paused`, the `Camera`, its
+`ViewHeight`, the `Crashes`, whether Play's card is shown, as `CardShown`, and each editor's, as
+`SceneEditor`, `TerrainEditor`, `TrackEditor` and `VehicleEditor`.
 
 What only a person can check: real gamepads and keyboards, how driving feels, input latency,
 and how editing feels with a real mouse.
@@ -218,7 +221,7 @@ and how editing feels with a real mouse.
 | -------------------------- | ---------------------------------------------------------------------- |
 | `Source/Main.rs`           | Runs the game with Library/UserInterface's main loop                   |
 | `Source/Library.rs`        | The game's parts, as a library that `Test/Veehiicuul` tests            |
-| `Source/Program.rs`        | The game as a `Program`: the tabs, undo, saving, and Play's text       |
+| `Source/Program.rs`        | The game as a `Program`: the app bar, undo, saving, and Play's card    |
 | `Source/Game.rs`           | The document, the models, the car, the camera, and Play                |
 | `Source/Document.rs`       | What the editors change and Save writes                                |
 | `Source/Scene.rs`          | Reads and writes a scene                                               |
@@ -233,7 +236,7 @@ and how editing feels with a real mouse.
 | `Source/Driving.rs`        | How a car moves, its dead zones, and its brake                         |
 | `Source/Collision.rs`      | Footprints, and whether a car touches an edge                          |
 | `Source/Camera.rs`         | The game's camera and the editors' views                               |
-| `Source/Editing.rs`        | What the editors share: their views, controls, and the paint panel     |
+| `Source/Editing.rs`        | What the editors share: their cards, views, controls, and paint        |
 | `Source/SceneEditor.rs`    | The Scene tab                                                          |
 | `Source/TerrainEditor.rs`  | The Terrain tab                                                        |
 | `Source/TrackEditor.rs`    | The Track tab                                                          |
