@@ -243,6 +243,11 @@ impl Window {
         self.state.minimized
     }
 
+    // Whether the window was asked to close, like by its close button.
+    pub fn close_requested(&self) -> bool {
+        self.state.close_requested
+    }
+
     pub fn request_close(&mut self) {
         self.state.close_requested = true;
     }

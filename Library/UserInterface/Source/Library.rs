@@ -16,6 +16,8 @@ pub mod headless;
 mod icons;
 #[path = "Input.rs"]
 pub mod input;
+#[path = "Overlay.rs"]
+mod overlay;
 #[path = "Painter.rs"]
 pub mod painter;
 #[path = "Program.rs"]
@@ -68,6 +70,7 @@ pub use geometry::{Color, Point, Rect, Size};
 pub use headless::Headless;
 pub use icons::Icon;
 pub use input::{Button as MouseButton, Event, Gamepad, GamepadButtons, Input, Key, Modifiers};
+pub use overlay::{Overlay, run_overlays};
 pub use painter::{Align, Corners, DrawList, Layer, Painter, Stroke};
 pub use program::{Arguments, Options, Program, Startup};
 pub use renderer::Renderer;

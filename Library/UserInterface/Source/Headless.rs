@@ -33,6 +33,8 @@ pub struct Headless<P: Program> {
     pointer: Point,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
+    // A window of another size than the supported setups', like an overlay's.
+    custom_size: Option<Size>,
 }
 
 impl<P: Program> Headless<P> {
@@ -52,6 +54,7 @@ impl<P: Program> Headless<P> {
             pointer: Point::default(),
             gamepad: Gamepad::default(),
             renderer: None,
+            custom_size: None,
         };
         headless.ui.environment.scripted = true;
         headless.run_frame();
@@ -68,8 +71,17 @@ impl<P: Program> Headless<P> {
         headless
     }
 
+    // A program in a window of the size, like an overlay.
+    pub fn with_size(program: P, theme: ThemeKind, size: Size) -> Self {
+        let mut headless = Self::with_theme(program, theme);
+        headless.custom_size = Some(size);
+        headless.run_frame();
+        headless
+    }
+
     pub fn size(&self) -> Size {
-        Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT })
+        self.custom_size
+            .unwrap_or_else(|| Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT }))
     }
 
     pub fn fullscreen(&self) -> bool {
