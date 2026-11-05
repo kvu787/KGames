@@ -27,6 +27,7 @@ members = [
     "Program/SimplePaintDemo",
     "Program/SpinningCarTest",
     "Program/UiShowcase",
+    "Program/Veehiicuul",
     "Test/Application",
     "Test/GameInputDemo",
     "Test/Json",
@@ -39,6 +40,7 @@ members = [
     "Test/SpinningCarTest",
     "Test/UiShowcase",
     "Test/UserInterface",
+    "Test/Veehiicuul",
 ]
 
 # Lints for every package, which each takes with [lints] workspace = true.

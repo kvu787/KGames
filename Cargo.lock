@@ -306,6 +306,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "veehiicuul"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "math",
+ "meshes",
+ "paint_settings",
+ "simple_paint",
+ "user_interface",
+]
+
+[[package]]
+name = "veehiicuul_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "meshes",
+ "simple_paint",
+ "user_interface",
+ "veehiicuul",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

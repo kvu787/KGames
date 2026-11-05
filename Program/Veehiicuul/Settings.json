@@ -1,0 +1,12 @@
+{
+    "Display": "Primary",
+    "WindowMode": "Maximized",
+    "AllowTearing": true,
+    "Track": "Ribeye",
+    "Vehicle": "Yellow",
+    "Camera": "Fixed",
+    "DeadZones": {
+        "Sideways": [0.1, 0.95],
+        "ForwardAndBack": [0.05, 0.95]
+    }
+}
