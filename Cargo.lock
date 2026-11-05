@@ -73,6 +73,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gltf"
+version = "0.1.0"
+dependencies = [
+ "json",
+]
+
+[[package]]
+name = "gltf_tests"
+version = "0.1.0"
+dependencies = [
+ "gltf",
+ "json",
+]
+
+[[package]]
 name = "graphics"
 version = "0.1.0"
 dependencies = [

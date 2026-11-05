@@ -1,0 +1,16 @@
+[package]
+name = "gltf"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+json = { path = "../Json" }
+
+[lints]
+workspace = true

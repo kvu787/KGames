@@ -76,6 +76,7 @@ coding agents, like how to run programs without disrupting you.
 | [Meshes](Library/Meshes/README.md)                            | A UV sphere, a box, a plane and the car, for SimplePaint          |
 | [PaintSettings](Library/PaintSettings/README.md)              | SimplePaint materials in JSON settings files                      |
 | [SceneTest](Library/SceneTest/README.md)                      | The loop and text box of MinimalSceneTest and SpinningCarTest     |
+| [Gltf](Library/Gltf/README.md)                                | Reads models from the .glb files that Blender exports             |
 | [Json](Library/Json/README.md)                                | A JSON parser                                                     |
 | [ShaderCompiler](Library/ShaderCompiler/README.md)            | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time     |
 | [WindowsApi](Library/WindowsApi/README.md)                    | The generated Windows API bindings that every crate shares        |
