@@ -426,7 +426,7 @@ impl Ui {
         {
             self.popup = None;
         }
-        if self.input.key_pressed_once(Key::F11) && self.captured != Keys::Text {
+        if self.input.key_pressed_once(Key::F11) && !self.is_captured(Key::F11) {
             self.requests.push(Request::ToggleFullscreen);
         }
     }
