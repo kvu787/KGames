@@ -5,5 +5,5 @@ Follow the rules for GUI programs in the [AGENTS.md](../../AGENTS.md) at the roo
 - Keep the scene as the [README](README.md#scene) describes it.
 - `Source/CarMesh.rs` is a baked asset. Don't edit the mesh by hand.
 - Every frame draws the whole scene. Don't bake parts of it into images.
-- The 3D view fills the window at either supported height. Keep the text box out of the car's path.
+- The 3D view fills the window at either supported height. Keep the card out of the car's path.
 - Test changes with the tests and scripts in `Test/SpinningCarTest`, as the [README](README.md#testing) says. A script's fixed clock puts the car where you want it, like `Test/SpinningCarTest/Scripts/Animation.json` does, without guessing `--seconds`.
