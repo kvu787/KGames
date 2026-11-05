@@ -30,6 +30,17 @@
 // start at frame 1. "Text" types characters, as Character events, without
 // the keys that type them. "Program" steps go to the program as they are,
 // for input that doesn't come from the window, like GameInput readings.
+//
+// Instead of a point, a step can name a widget, which is where the frame
+// before drew it, at its middle, or at fractions of the way across and down
+// it, so that scripts don't depend on where widgets are:
+//
+//     { "Frame": 1, "Press": "Volume" },
+//     { "Frame": 2, "Release": { "Target": "Volume", "At": [0.75, 0.5] } },
+//     { "Frame": 3, "Click": "Save" }
+//
+// "Click" presses and releases in the same frame, for a widget that a press
+// takes away, like a choice in a combo box's list.
 
 use std::path::{Path, PathBuf};
 
@@ -54,10 +65,30 @@ pub struct ScriptFrame {
     pub cursor: Option<[f32; 2]>,
     pub checkpoints: Vec<Checkpoint>,
     pub program_steps: Vec<Value>,
+    // Steps that named a widget that the frame before didn't draw.
+    pub failures: Vec<String>,
+}
+
+// Where a step's pointer goes: a point in the client area, or a place in a
+// widget, at fractions of the way across and down it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Place {
+    At([f32; 2]),
+    Target { name: String, at: [f32; 2] },
+}
+
+// What a step does with the pointer.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Pointer {
+    Move,
+    Press,
+    Release,
+    Click,
+    Wheel(f32),
 }
 
 enum Action {
-    Move([f32; 2]),
+    Pointer(Pointer, Place),
     Event(Event),
     Text(String),
     Capture(String),
@@ -148,28 +179,47 @@ impl Script {
         self.steps.get(self.next).map(|step| step.frame)
     }
 
-    // Moves to the next frame, and returns what happens in it.
-    pub fn next_frame(&mut self) -> ScriptFrame {
+    // Moves to the next frame, and returns what happens in it. `target`
+    // says where the frame before drew the widget of a name, as its left,
+    // top, width and height, for steps that name one.
+    pub fn next_frame(&mut self, target: impl Fn(&str) -> Option<[f32; 4]>) -> ScriptFrame {
         let mut frame = ScriptFrame {
             seconds: self.frame as f64 * self.frame_seconds,
             events: Vec::new(),
             cursor: None,
             checkpoints: Vec::new(),
             program_steps: Vec::new(),
+            failures: Vec::new(),
         };
         while let Some(step) = self.steps.get(self.next)
             && step.frame == self.frame
         {
             match &step.action {
-                Action::Move(point) => self.cursor = Some(*point),
-                Action::Event(event) => {
-                    // Like the window's messages, a click moves the cursor
-                    // to where it is.
-                    if let Event::Press(point) | Event::Release(point) | Event::Wheel(point, _) = event {
-                        self.cursor = Some(*point);
+                Action::Pointer(pointer, place) => {
+                    let point = match place {
+                        Place::At(point) => Some(*point),
+                        Place::Target { name, at: [across, down] } => match target(name) {
+                            Some([x, y, width, height]) => Some([x + width * across, y + height * down]),
+                            None => {
+                                frame.failures.push(format!("there's no widget called {name} to point at"));
+                                None
+                            }
+                        },
+                    };
+                    if let Some(point) = point {
+                        // Like the window's messages, a click moves the
+                        // cursor to where it is.
+                        self.cursor = Some(point);
+                        match pointer {
+                            Pointer::Move => {}
+                            Pointer::Press => frame.events.push(Event::Press(point)),
+                            Pointer::Release => frame.events.push(Event::Release(point)),
+                            Pointer::Click => frame.events.extend([Event::Press(point), Event::Release(point)]),
+                            Pointer::Wheel(notches) => frame.events.push(Event::Wheel(point, *notches)),
+                        }
                     }
-                    frame.events.push(*event);
                 }
+                Action::Event(event) => frame.events.push(*event),
                 Action::Text(text) => frame.events.extend(text.chars().map(Event::Character)),
                 Action::Capture(name) => frame.checkpoints.push(Checkpoint::Capture {
                     image: self.output.join(format!("{name}.png")),
@@ -206,20 +256,21 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
-            "needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program".to_string(),
+            "needs one of Move, Press, Release, Click, Wheel, Key, Text, Capture, Expect and Program".to_string(),
         );
     };
     let action = match name.as_str() {
-        "Move" => Action::Move(point(value)?),
-        "Press" => Action::Event(Event::Press(point(value)?)),
-        "Release" => Action::Event(Event::Release(point(value)?)),
+        "Move" => Action::Pointer(Pointer::Move, place(value)?),
+        "Press" => Action::Pointer(Pointer::Press, place(value)?),
+        "Release" => Action::Pointer(Pointer::Release, place(value)?),
+        "Click" => Action::Pointer(Pointer::Click, place(value)?),
         "Wheel" => {
             let notches = match item.get("Notches") {
                 None => 1.0,
                 Some(Value::Number(notches)) => *notches as f32,
                 Some(other) => return Err(format!("Notches must be a number, not {}", other.describe())),
             };
-            Action::Event(Event::Wheel(point(value)?, notches))
+            Action::Pointer(Pointer::Wheel(notches), place(value)?)
         }
         "Key" => {
             let key = match value {
@@ -263,6 +314,28 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         other => return Err(format!("{other} isn't a step")),
     };
     Ok(Step { frame, action })
+}
+
+// A point, [x, y], or a widget's name, or an object with the widget's name
+// as "Target", and where in it as "At", in fractions across and down it.
+fn place(value: &Value) -> Result<Place, String> {
+    match value {
+        Value::String(name) if !name.is_empty() => Ok(Place::Target {
+            name: name.clone(),
+            at: [0.5, 0.5],
+        }),
+        Value::Object(_) => {
+            let Some(Value::String(name)) = value.get("Target") else {
+                return Err(format!("a place in a widget needs its name as Target, not {}", value.describe()));
+            };
+            let at = match value.get("At") {
+                None => [0.5, 0.5],
+                Some(at) => point(at)?,
+            };
+            Ok(Place::Target { name: name.clone(), at })
+        }
+        _ => Ok(Place::At(point(value)?)),
+    }
 }
 
 fn point(value: &Value) -> Result<[f32; 2], String> {

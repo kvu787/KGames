@@ -33,7 +33,7 @@ Programs support exactly two window setups, both on a 2560 × 1440 monitor at 10
 | Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the whole monitor                     |
 
 In any other setup, like a restored window, another monitor, another scale, or a moved
-taskbar, `Window::problems` says what's wrong, and programs show that instead of their panels.
+taskbar, `Window::problems` says what's wrong, and programs show that instead of their cards.
 It's checked again whenever the window moves or changes size, or the displays, the scale or the
 taskbar change.
 
@@ -59,9 +59,10 @@ every run draws the same frames. Each step happens at a frame:
     "FrameSeconds": 0.01,
     "Steps": [
         { "Frame": 1, "Move": [1400, 300] },
-        { "Frame": 2, "Press": [1400, 300] },
-        { "Frame": 3, "Release": [1800, 300] },
+        { "Frame": 2, "Press": "Volume" },
+        { "Frame": 3, "Release": { "Target": "Volume", "At": [0.75, 0.5] } },
         { "Frame": 4, "Wheel": [1400, 300], "Notches": -2 },
+        { "Frame": 4, "Click": "Save" },
         { "Frame": 5, "Key": "S", "Control": true },
         { "Frame": 5, "Text": "Hello" },
         { "Frame": 6, "Capture": "AfterSave" },
@@ -73,9 +74,12 @@ every run draws the same frames. Each step happens at a frame:
 
 | Step      | What it does                                                                   |
 | --------- | ------------------------------------------------------------------------------ |
-| `Move`    | Moves the cursor to a point in the client area, in pixels                      |
+| `Move`    | Moves the cursor to a place: a point in the client area, in pixels, or a       |
+|           | widget, by name                                                                |
 | `Press`   | Moves there, and presses the left button                                       |
 | `Release` | Moves there, and lets go of it                                                 |
+| `Click`   | Moves there, and presses and lets go in the same frame, for a widget that a    |
+|           | press takes away, like a choice in a combo box's list                          |
 | `Wheel`   | Turns the wheel there by `Notches`, positive away from the user                |
 | `Key`     | Presses a key by name, like `F11`, `Left`, `Home` or `A`, with `Control` and   |
 |           | `Shift`. `Repeat` makes it a repeat of a key that's held, which toggles ignore |
@@ -86,6 +90,13 @@ every run draws the same frames. Each step happens at a frame:
 |           | equal within 1e-9, relative to the expected number if it's above 1, and an     |
 |           | infinite or NaN number never is                                                |
 | `Program` | Goes to the program as it is, for input that doesn't come from the window      |
+
+A place can name a widget instead of a point, so that a script doesn't depend on where widgets
+are: `"Volume"` is the middle of the widget called Volume, where the frame before drew it, and
+`{ "Target": "Volume", "At": [0.75, 0.5] }` is three quarters of the way across it, and half way
+down. Fractions past 0 and 1 are outside it, like for a drag past its end. A program gives
+`Window::begin_frame` where its widgets are, which [Library/UserInterface](../UserInterface/README.md)
+does, and a step that names a widget that the frame before didn't draw fails the run.
 
 Frames count from 0, and clicks hit what the frame before them drew, so they start at frame 1.
 After the last step, the program exits, with an error that lists each expectation that wasn't

@@ -458,14 +458,19 @@ impl Window {
     }
 
     // Starts a frame: its time, and the input since the last one. Programs
-    // call it once the renderer is ready, right before drawing.
-    pub fn begin_frame(&mut self) -> Frame {
+    // call it once the renderer is ready, right before drawing. `target`
+    // says where the frame before drew the widget of a name, as its left,
+    // top, width and height, for a script's steps that name one.
+    pub fn begin_frame(&mut self, target: impl Fn(&str) -> Option<[f32; 4]>) -> Frame {
         let number = self.frame;
         self.frame += 1;
         // The window's own input, dropped without focus, or with a script.
         let events = std::mem::take(&mut *EVENTS.lock().unwrap());
         if let Some(script) = &mut self.script {
-            let frame = script.next_frame();
+            let frame = script.next_frame(target);
+            for failure in frame.failures {
+                self.failures.push(format!("Frame {number}: {failure}"));
+            }
             return Frame {
                 number,
                 seconds: frame.seconds,
