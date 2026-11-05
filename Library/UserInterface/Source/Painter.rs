@@ -453,6 +453,9 @@ impl Painter<'_> {
     // Like text_in, but text too wide for the rectangle ends with an
     // ellipsis where it's cut.
     pub fn text_fit(&mut self, rect: Rect, text: &str, style: TextStyle, color: Color, align: Align) -> Rect {
+        if self.measure(text, style).width <= rect.width {
+            return self.text_in(rect, text, style, color, align);
+        }
         let fitted = self.fit(text, style, rect.width);
         self.text_in(rect, &fitted, style, color, align)
     }
@@ -496,8 +499,7 @@ impl Painter<'_> {
                 },
             );
         };
-        self.fonts.quads(text, style, wrap, origin, &mut emit);
-        self.fonts.layout(text, style, wrap).size()
+        self.fonts.quads(text, style, wrap, origin, &mut emit)
     }
 
     // An icon of `size` pixels, centered on the point.

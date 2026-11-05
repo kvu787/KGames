@@ -10,7 +10,6 @@
 // offset, into an 8-bit atlas that the GPU samples.
 
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use windows_api::*;
 use windows_core::{BOOL, GUID, HRESULT, IUnknown_Vtbl, Interface, PCWSTR, Result};
@@ -418,26 +417,26 @@ impl Fonts {
 
     // The text laid out in the style, wrapped at `wrap` pixels or not at all.
     pub fn layout(&mut self, text: &str, style: TextStyle, wrap: Option<f32>) -> &TextLayout {
+        let (key, index) = self.find(text, style, wrap);
+        &self.layouts[&key][index]
+    }
+
+    // Where the layout is in the cache, laying it out if it isn't there.
+    fn find(&mut self, text: &str, style: TextStyle, wrap: Option<f32>) -> (u64, usize) {
         let key = layout_key(text, style, wrap);
-        let position = self
-            .layouts
-            .get(&key)
-            .and_then(|layouts| layouts.iter().position(|layout| layout.text == text));
-        let index = match position {
-            Some(index) => index,
-            None => {
-                let layout = self
-                    .create_layout(text, style, wrap)
-                    .unwrap_or_else(|error| panic!("DirectWrite couldn't lay out {text:?}: {error}"));
-                let layouts = self.layouts.entry(key).or_default();
-                layouts.push(layout);
-                layouts.len() - 1
-            }
-        };
         let frame = self.frame;
-        let layout = &mut self.layouts.get_mut(&key).unwrap()[index];
-        layout.last_used = frame;
-        layout
+        if let Some(layouts) = self.layouts.get_mut(&key)
+            && let Some(index) = layouts.iter().position(|layout| layout.text == text)
+        {
+            layouts[index].last_used = frame;
+            return (key, index);
+        }
+        let layout = self
+            .create_layout(text, style, wrap)
+            .unwrap_or_else(|error| panic!("DirectWrite couldn't lay out {text:?}: {error}"));
+        let layouts = self.layouts.entry(key).or_default();
+        layouts.push(layout);
+        (key, layouts.len() - 1)
     }
 
     pub fn measure(&mut self, text: &str, style: TextStyle) -> Size {
@@ -478,15 +477,12 @@ impl Fonts {
 
     // The quads of the text's glyphs, with its layout's top left at
     // `origin`, rasterizing the glyphs that aren't in the atlas yet.
-    pub fn quads(&mut self, text: &str, style: TextStyle, wrap: Option<f32>, origin: Point, emit: &mut impl FnMut(GlyphQuad)) {
-        // The layout is created first, then the fields are borrowed apart,
-        // so that the atlas can change while the layout is read.
-        self.layout(text, style, wrap);
-        let key = layout_key(text, style, wrap);
-        let Some(layout) = self.layouts.get(&key).and_then(|layouts| layouts.iter().find(|layout| layout.text == text))
-        else {
-            return;
-        };
+    // Returns the layout's size.
+    pub fn quads(&mut self, text: &str, style: TextStyle, wrap: Option<f32>, origin: Point, emit: &mut impl FnMut(GlyphQuad)) -> Size {
+        // The layout is found first, then the fields are borrowed apart, so
+        // that the atlas can change while the layout is read.
+        let (key, index) = self.find(text, style, wrap);
+        let layout = &self.layouts[&key][index];
         let atlas = &mut self.atlas;
         let faces = &self.faces.faces;
         let factory = &self.factory;
@@ -526,6 +522,7 @@ impl Fonts {
                 });
             }
         }
+        layout.size()
     }
 
     // The glyphs rasterized since the last call, for the renderer to copy
@@ -536,12 +533,26 @@ impl Fonts {
     }
 }
 
+// FNV-1a over the text and the style, which is fast for short texts like
+// labels.
 fn layout_key(text: &str, style: TextStyle, wrap: Option<f32>) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    text.hash(&mut hasher);
-    style.key().hash(&mut hasher);
-    wrap.map(f32::to_bits).hash(&mut hasher);
-    hasher.finish()
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut add = |byte: u8| {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    };
+    for byte in text.bytes() {
+        add(byte);
+    }
+    let key = style.key();
+    add(key.font as u8);
+    add(key.weight as u8);
+    for word in [key.size, key.line_height, wrap.map_or(u32::MAX, f32::to_bits)] {
+        for byte in word.to_le_bytes() {
+            add(byte);
+        }
+    }
+    hash
 }
 
 fn rasterize(

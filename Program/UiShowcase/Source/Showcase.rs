@@ -137,23 +137,13 @@ impl Showcase {
 
     // Logs when what the interface is on changes.
     fn watch(&mut self, ui: &Ui) {
-        let state = ui.state();
-        let name = |member: &str| match state.get(member) {
-            Some(Value::String(name)) => Some(name.clone()),
-            _ => None,
-        };
-        for (index, member) in ["Focused", "Pressed", "Popup"].iter().enumerate() {
-            let now = name(member);
-            if now != self.seen[index] {
-                if let Some(now) = &now {
-                    let verb = match *member {
-                        "Focused" => "Focus on",
-                        "Pressed" => "Press on",
-                        _ => "Opened",
-                    };
+        let names = [ui.focused_name(), ui.pressed_name(), ui.popup_name()];
+        for (index, verb) in ["Focus on", "Press on", "Opened"].iter().enumerate() {
+            if names[index] != self.seen[index].as_deref() {
+                if let Some(now) = names[index] {
                     self.log(format!("{verb} {now}"));
                 }
-                self.seen[index] = now;
+                self.seen[index] = names[index].map(str::to_string);
             }
         }
     }

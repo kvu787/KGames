@@ -832,6 +832,37 @@ impl Ui {
         }
     }
 
+    fn listed_name(&self, id: Option<Id>) -> Option<&str> {
+        let id = id?;
+        self.targets
+            .iter()
+            .chain(&self.previous)
+            .find(|target| target.id == id && target.listed)
+            .map(|target| target.name.as_str())
+    }
+
+    // The names of the widgets that the input is on, as the interface's
+    // state has them, without making the state.
+    pub fn hovered_name(&self) -> Option<&str> {
+        self.listed_name(self.hovered)
+    }
+
+    pub fn pressed_name(&self) -> Option<&str> {
+        self.listed_name(self.active)
+    }
+
+    pub fn focused_name(&self) -> Option<&str> {
+        self.listed_name(self.focused)
+    }
+
+    pub fn popup_name(&self) -> Option<&str> {
+        self.popup.and_then(|owner| self.popup_names.get(&owner)).map(String::as_str)
+    }
+
+    pub fn tooltip_name(&self) -> Option<&str> {
+        self.shown_tooltip.as_ref().map(|(name, _)| name.as_str())
+    }
+
     // What scripts save and check of the interface, as JSON: what the input
     // is on, and where each widget is.
     pub fn state(&self) -> json::Value {

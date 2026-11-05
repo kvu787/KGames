@@ -307,3 +307,13 @@ fn the_interface_card_shows_held_keys_and_the_gamepad() {
     app.set_gamepad(gamepad);
     assert_eq!(app.ui.gamepad().buttons.names(), vec!["A"]);
 }
+
+#[test]
+#[ignore]
+fn benchmark_frame_time() {
+    let mut app = Headless::new(Showcase::default());
+    app.frames(120);
+    let start = std::time::Instant::now();
+    app.frames(1000);
+    println!("FRAME {:.1} us", start.elapsed().as_secs_f64() / 1000.0 * 1e6);
+}

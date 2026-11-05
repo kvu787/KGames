@@ -590,16 +590,7 @@ fn interface(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     let card = ui.card(rect, "Interface");
     let mut area = card.content;
     let theme = ui.theme().clone();
-    let state = ui.state();
-    let name = |member: &str| match state.get(member) {
-        Some(user_interface::json::Value::String(name)) => name.clone(),
-        Some(user_interface::json::Value::Object(_)) => state
-            .get(member)
-            .and_then(|tooltip| tooltip.get("Name"))
-            .map(|name| name.to_json().trim_matches('"').to_string())
-            .unwrap_or_default(),
-        _ => "None".to_string(),
-    };
+    let name = |name: Option<&str>| name.unwrap_or("None").to_string();
     let pointer = match ui.pointer() {
         Some(point) => format!("{:.0}, {:.0}", point.x, point.y),
         None => "Not in the window".to_string(),
@@ -608,11 +599,11 @@ fn interface(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     let fields = [
         ("Window focus", if ui.window_focused() { "Yes".to_string() } else { "No".to_string() }),
         ("Pointer", pointer),
-        ("Under the pointer", name("Hovered")),
-        ("Pressed", name("Pressed")),
-        ("Keyboard focus", name("Focused")),
-        ("Open popup", name("Popup")),
-        ("Tooltip", name("Tooltip")),
+        ("Under the pointer", name(ui.hovered_name())),
+        ("Pressed", name(ui.pressed_name())),
+        ("Keyboard focus", name(ui.focused_name())),
+        ("Open popup", name(ui.popup_name())),
+        ("Tooltip", name(ui.tooltip_name())),
     ];
     for (label, value) in fields {
         ui.field(area.cut_top(BODY.line_height, SPACE_XS), label, label_width, &value);
