@@ -39,8 +39,9 @@ impl Value {
 
     // As JSON text, with each object member on its own line, indented by
     // four spaces a level. Arrays of numbers, strings and the like stay on
-    // one line. Numbers are written so that they parse back exactly. JSON has
-    // no infinities or NaN, so those are written as null.
+    // one line, unless it would be longer than LINE_LENGTH, when each item
+    // gets its own. Numbers are written so that they parse back exactly. JSON
+    // has no infinities or NaN, so those are written as null.
     pub fn to_json(&self) -> String {
         let mut text = String::new();
         self.write(&mut text, 0);
@@ -58,7 +59,16 @@ impl Value {
             Value::Array(values) => {
                 let flat = values
                     .iter()
-                    .all(|value| !matches!(value, Value::Array(_) | Value::Object(_)));
+                    .all(|value| !matches!(value, Value::Array(_) | Value::Object(_)))
+                    && {
+                        let line_start = text.rfind('\n').map_or(0, |newline| newline + 1);
+                        let mut line = String::new();
+                        for value in values {
+                            value.write(&mut line, depth + 1);
+                            line.push_str(", ");
+                        }
+                        text.len() - line_start + line.len() <= LINE_LENGTH
+                    };
                 text.push('[');
                 for (index, value) in values.iter().enumerate() {
                     if index > 0 {
@@ -94,6 +104,9 @@ impl Value {
         }
     }
 }
+
+// The longest line that an array of numbers, strings and the like stays on.
+pub const LINE_LENGTH: usize = 100;
 
 fn newline(text: &mut String, depth: usize) {
     text.push('\n');

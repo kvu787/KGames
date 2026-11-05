@@ -78,6 +78,18 @@ fn writes_one_member_a_line() {
     );
 }
 
+// A long array of numbers or strings gets a line for each item, so that a
+// change to one changes one line.
+#[test]
+fn writes_a_long_flat_array_an_item_a_line() {
+    let rows: Vec<String> = (0..4).map(|row| format!("{row}").repeat(30)).collect();
+    let value = object([("Rows", rows.clone().into())]);
+    let text = value.to_json();
+    assert_eq!(text.lines().count(), 8, "{text}");
+    assert_eq!(parse(&text).unwrap(), value);
+    assert!(text.lines().all(|line| line.len() <= json::LINE_LENGTH));
+}
+
 #[test]
 fn writes_infinities_and_nan_as_null() {
     let value = Value::Array(vec![f64::INFINITY.into(), f64::NAN.into()]);
