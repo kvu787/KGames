@@ -96,6 +96,37 @@ impl Ui {
         card_parts(&mut painter, rect, title, text)
     }
 
+    // A card with a view in it that the program draws in its render, like a
+    // 3D preview: the card's fill goes around the view, so that what the
+    // program drew there shows, and the view has the card's stroke around it.
+    // The program fills the view itself, as the frame there has only the
+    // window's background.
+    pub fn card_with_view(&mut self, rect: Rect, title: &str, view: Rect) -> Card {
+        let theme = self.theme();
+        let (fill, stroke, text) = (theme.card_background, theme.card_stroke, theme.text_primary);
+        self.cover(rect);
+        let mut painter = self.painter();
+        let view = view.intersect(rect);
+        let corners = Corners::all(RADIUS_OVERLAY);
+        // The card's shape, clipped to each band around the view.
+        for band in [
+            Rect::new(rect.x, rect.y, rect.width, view.y - rect.y),
+            Rect::new(rect.x, view.bottom(), rect.width, rect.bottom() - view.bottom()),
+            Rect::new(rect.x, view.y, view.x - rect.x, view.height),
+            Rect::new(view.right(), view.y, rect.right() - view.right(), view.height),
+        ] {
+            if band.is_empty() {
+                continue;
+            }
+            painter.push_clip(band);
+            painter.shape(rect, corners, fill, None);
+            painter.pop_clip();
+        }
+        painter.shape(rect, corners, Color::TRANSPARENT, Some(Stroke::new(stroke, 1.0)));
+        painter.shape(view.expand(1.0), Corners::default(), Color::TRANSPARENT, Some(Stroke::new(stroke, 1.0)));
+        card_parts(&mut painter, rect, title, text)
+    }
+
     // A card that floats over a 3D view, opaque and raised.
     pub fn floating_card(&mut self, rect: Rect, title: &str) -> Card {
         let theme = self.theme();

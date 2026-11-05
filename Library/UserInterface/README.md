@@ -103,7 +103,8 @@ tests point at, and the rectangle it fills. Each is a target, whose area the int
 | `segmented`, `segmented_icons`                           | Toolkit's Segmented       | Segments of equal width                                                             |
 | `info_bar`                                               | InfoBar                   | Informational, success, warning or error; closable                                  |
 | `tooltip`, `tooltip_lines`                               | ToolTip                   | After the pointer rests half a second; above it if there's no room under it         |
-| `card`, `floating_card`                                  | Card                      | A floating card is opaque and raised, for over a 3D view                            |
+| `card`, `floating_card`, `card_with_view`                | Card                      | A floating card is opaque and raised, for over a 3D view; a card with a view has a  |
+|                                                          |                           | hole for a 3D view that the program's `render` draws                                |
 | `keycap`, `badge`, `swatch`, `divider`                   | InfoBadge, and others     |                                                                                     |
 | `app_bar`, `page`, `status_bar`, `notify`                |                           | The page's frame                                                                    |
 | `text`, `label`, `caption`, `paragraph`, `field`, `icon` | TextBlock                 |                                                                                     |

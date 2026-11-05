@@ -37,9 +37,11 @@ impl Ui {
     pub fn app_bar(&mut self, icon: Icon, title: &str) -> Rect {
         let bar = Rect::new(0.0, 0.0, self.size().width, APP_BAR_HEIGHT);
         let theme = self.theme();
-        let (fill, divider, accent, text) = (theme.layer, theme.divider, theme.accent, theme.text_primary);
+        let (background, fill, divider, accent, text) = (theme.background, theme.layer, theme.divider, theme.accent, theme.text_primary);
         self.cover(bar);
         let mut painter = self.painter();
+        // Opaque, even over a 3D view.
+        painter.fill(bar, background);
         painter.fill(bar, fill);
         painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
         let icon_center = Point::new(PAGE_PADDING + ICON / 2.0, bar.center().y);
@@ -105,9 +107,10 @@ impl Ui {
         let size = self.size();
         let bar = Rect::new(0.0, size.height - STATUS_BAR_HEIGHT, size.width, STATUS_BAR_HEIGHT);
         let theme = self.theme();
-        let (fill, divider, text) = (theme.layer, theme.divider, theme.text_secondary);
+        let (background, fill, divider, text) = (theme.background, theme.layer, theme.divider, theme.text_secondary);
         self.cover(bar);
         let mut painter = self.painter();
+        painter.fill(bar, background);
         painter.fill(bar, fill);
         painter.fill(Rect::new(0.0, bar.y, bar.width, 1.0), divider);
         // Items after a spacer go at the right end, measured first.
