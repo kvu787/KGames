@@ -1,0 +1,15 @@
+{
+    "Steps": [
+        { "Frame": 1, "Key": "Tab" },
+        { "Frame": 2, "Key": "Tab" },
+        { "Frame": 3, "Expect": { "Interface": { "Focus": "Primary" } } },
+        { "Frame": 4, "Key": "Space" },
+        { "Frame": 5, "Expect": { "Presses": { "Primary": 1 } } },
+        { "Frame": 5, "Capture": "FocusRing" },
+        { "Frame": 6, "Key": "Tab", "Shift": true },
+        { "Frame": 6, "Key": "Tab", "Shift": true },
+        { "Frame": 7, "Expect": { "Interface": { "Focus": "Items" } } },
+        { "Frame": 8, "Key": "Escape" },
+        { "Frame": 9, "Expect": { "Interface": { "Focus": null } } }
+    ]
+}

@@ -1,0 +1,24 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [744, 513] },
+        { "Frame": 2, "Release": [744, 513] },
+        { "Frame": 2, "Expect": { "Interface": { "Popup": "Color" } } },
+        { "Frame": 3, "Move": [744, 585] },
+        { "Frame": 3, "Capture": "Open" },
+        { "Frame": 4, "Press": [744, 585] },
+        { "Frame": 5, "Release": [744, 585] },
+        { "Frame": 5, "Expect": { "Color": "Purple", "Density": "Cozy", "Interface": { "Popup": null } } },
+        { "Frame": 6, "Press": [744, 513] },
+        { "Frame": 7, "Release": [744, 513] },
+        { "Frame": 8, "Press": [205, 148] },
+        { "Frame": 9, "Release": [205, 148] },
+        { "Frame": 9, "Expect": { "Color": "Purple", "Presses": { "Primary": 0 }, "Interface": { "Popup": null } } },
+        { "Frame": 10, "Press": [744, 513] },
+        { "Frame": 11, "Release": [744, 513] },
+        { "Frame": 12, "Key": "Down" },
+        { "Frame": 13, "Expect": { "Color": "Success", "Interface": { "Popup": "Color" } } },
+        { "Frame": 14, "Key": "Escape" },
+        { "Frame": 15, "Expect": { "Interface": { "Popup": null, "Focus": "Color" } } },
+        { "Frame": 15, "Capture": "Closed" }
+    ]
+}

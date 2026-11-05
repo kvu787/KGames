@@ -1,0 +1,16 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [205, 148] },
+        { "Frame": 2, "Release": [205, 148] },
+        { "Frame": 3, "Press": [205, 148] },
+        { "Frame": 4, "Release": [205, 148] },
+        { "Frame": 5, "Press": [327, 148] },
+        { "Frame": 6, "Release": [327, 148] },
+        { "Frame": 7, "Press": [449, 148] },
+        { "Frame": 8, "Release": [449, 148] },
+        { "Frame": 9, "Expect": { "Presses": { "Normal": 0, "Primary": 2, "Danger": 1 }, "Log": ["Danger: pressed 1 time", "Primary: pressed 2 times"] } },
+        { "Frame": 10, "Move": [205, 148] },
+        { "Frame": 10, "Expect": { "Interface": { "Hovered": "Primary", "Tooltip": { "Name": "Primary" } } } },
+        { "Frame": 10, "Capture": "Hover" }
+    ]
+}

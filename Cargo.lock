@@ -262,6 +262,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui_showcase"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "user_interface",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
+name = "ui_showcase_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "ui_showcase",
+ "user_interface",
+ "windows_api",
+]
+
+[[package]]
 name = "user_interface"
 version = "0.1.0"
 dependencies = [

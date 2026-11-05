@@ -1,0 +1,19 @@
+[package]
+name = "ui_showcase_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Showcase"
+path = "Showcase.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+json = { path = "../../Library/Json" }
+ui_showcase = { path = "../../Program/UiShowcase" }
+user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+[lints]
+workspace = true

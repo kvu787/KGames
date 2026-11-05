@@ -1,0 +1,21 @@
+{
+    "Steps": [
+        { "Frame": 1, "Wheel": [2234, 486], "Notches": -2 },
+        { "Frame": 2, "Press": [2229, 146] },
+        { "Frame": 3, "Release": [2229, 146] },
+        { "Frame": 3, "Expect": { "Selected": "007  Gentle Anchor", "Interface": { "Focus": "Items" } } },
+        { "Frame": 4, "Key": "Down" },
+        { "Frame": 4, "Key": "Down" },
+        { "Frame": 4, "Key": "Down" },
+        { "Frame": 5, "Expect": { "Selected": "010  Jolly Anchor" } },
+        { "Frame": 6, "Press": [2526, 150] },
+        { "Frame": 7, "Move": [2526, 1300] },
+        { "Frame": 8, "Release": [2526, 1300] },
+        { "Frame": 9, "Press": [2229, 146] },
+        { "Frame": 10, "Release": [2229, 146] },
+        { "Frame": 10, "Expect": { "Selected": "092  Brisk Jasper" } },
+        { "Frame": 11, "Move": [2229, 266] },
+        { "Frame": 11, "Expect": { "Interface": { "Tooltip": { "Name": "097  Gentle Jasper" } } } },
+        { "Frame": 11, "Capture": "Scrolled" }
+    ]
+}

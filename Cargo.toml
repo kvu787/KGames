@@ -26,6 +26,7 @@ members = [
     "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",
     "Program/SpinningCarTest",
+    "Program/UiShowcase",
     "Test/Application",
     "Test/GameInputDemo",
     "Test/Json",
@@ -36,6 +37,7 @@ members = [
     "Test/SimplePaint",
     "Test/SimplePaintDemo",
     "Test/SpinningCarTest",
+    "Test/UiShowcase",
     "Test/UserInterface",
 ]
 

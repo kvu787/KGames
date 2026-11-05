@@ -1,0 +1,11 @@
+{
+    "Steps": [
+        { "Frame": 1, "Expect": { "Window": { "Fullscreen": false, "Problems": [] } } },
+        { "Frame": 2, "Key": "F11" },
+        { "Frame": 10, "Expect": { "Window": { "Fullscreen": true, "Problems": [] } } },
+        { "Frame": 10, "Capture": "Fullscreen" },
+        { "Frame": 11, "Key": "F11" },
+        { "Frame": 20, "Expect": { "Window": { "Fullscreen": false, "Problems": [] } } },
+        { "Frame": 20, "Capture": "Maximized" }
+    ]
+}

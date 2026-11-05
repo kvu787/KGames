@@ -1,0 +1,21 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [1490, 170] },
+        { "Frame": 2, "Release": [1490, 170] },
+        { "Frame": 3, "Text": "Ada" },
+        { "Frame": 4, "Key": "Enter" },
+        { "Frame": 5, "Expect": { "Name": "Ada", "Greeting": "Hello, Ada!", "Interface": { "Focus": "Name" } } },
+        { "Frame": 6, "Key": "Home" },
+        { "Frame": 7, "Text": "Lady " },
+        { "Frame": 7, "Key": "F1" },
+        { "Frame": 8, "Expect": { "Name": "Lady Ada", "Tooltips": false } },
+        { "Frame": 8, "Capture": "Typed" },
+        { "Frame": 9, "Press": [1598, 258] },
+        { "Frame": 10, "Release": [1598, 258] },
+        { "Frame": 11, "Text": "comet" },
+        { "Frame": 12, "Expect": { "Search": "comet", "Matches": 10 } },
+        { "Frame": 12, "Capture": "Search" },
+        { "Frame": 13, "Key": "Escape" },
+        { "Frame": 14, "Expect": { "Interface": { "Focus": null } } }
+    ]
+}

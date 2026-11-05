@@ -1,0 +1,21 @@
+{
+    "Steps": [
+        { "Frame": 1, "Press": [155, 349] },
+        { "Frame": 2, "Release": [155, 349] },
+        { "Frame": 3, "Press": [127, 377] },
+        { "Frame": 4, "Release": [127, 377] },
+        { "Frame": 5, "Expect": { "Enabled": false, "Grid": true } },
+        { "Frame": 5, "Capture": "Disabled" },
+        { "Frame": 6, "Press": [155, 349] },
+        { "Frame": 7, "Release": [155, 349] },
+        { "Frame": 8, "Press": [139, 405] },
+        { "Frame": 9, "Release": [139, 405] },
+        { "Frame": 10, "Press": [128, 671] },
+        { "Frame": 11, "Release": [128, 671] },
+        { "Frame": 12, "Press": [325, 784] },
+        { "Frame": 13, "Release": [325, 784] },
+        { "Frame": 14, "Key": "Right" },
+        { "Frame": 15, "Expect": { "Enabled": true, "Snap": true, "Size": "Large", "Tab": "Notes", "Interface": { "Focus": "Tabs" } } },
+        { "Frame": 15, "Capture": "Toggled" }
+    ]
+}
