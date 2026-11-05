@@ -1,3 +1,5 @@
+# Description
+
 Veehiicuul Fly is first/third-person vehicle flying game that I am currently prototyping.
 
 I was inspired to investigate this genre after playing and enjoying Ace Combat 8. Interestingly,
@@ -23,3 +25,27 @@ From what I read online, AC7 uses lighter feeling physics while AC8 uses heavier
 to what I felt.
 
 There are many flying games or games that have flight in them that could be worth checking out.
+
+# Design
+
+I call this a 4 degrees of freedom (4DOF) flying game because it has yaw, pitch, roll, and
+forward/backward movement.
+
+For the camera, I considered using a model in which you are flying a volume-less point around
+instead of a typical 3d object to avoid issues with the object blocking your view in third-person
+or not being able to see the extents of your vehicle in first-person. However, I think using a
+point feels too abstract.
+
+To work around the camera issues with a vehicle model, I will experiment with using "first class"
+camera controls. This means instead of just a single button to cycle between different camera
+perspectives like in Ace Combat, I will try these things:
+
+- Player-configurable arbitrary camera positions you can place around the vehicle.
+- "Security camera" style views that you can persist on the HUD and assign to different cameras.
+- Hold down the d-pad or face buttons to instantly change the main view to different cameras.
+
+Ace Combat also provides a free-look camera via the right stick, but I don't think this is enough.
+For example, I'm not sure how this would work if you're piloting a very large ship with strange
+dimensions or "interior" sections. Also, I don't want an analog stick to be reserved for free-look.
+Also, I find the free-look to be too slow, which is why I will experiment with instant camera looks
+and persistent camera views.
