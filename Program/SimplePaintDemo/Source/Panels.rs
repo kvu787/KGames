@@ -1,8 +1,9 @@
-// Lays out and draws the demo's panels onto a Canvas. Programs support two
-// client areas, 2560 x 1369 maximized and 2560 x 1440 in borderless
-// fullscreen (see Library/Application), so the panels have fixed places in
-// pixels. In fullscreen, the GPU constants panel at the bottom right is
-// taller, and the footer stays at the bottom.
+// Lays out and draws the demo's panels with Library/UserInterface, and
+// handles what the input does to the editor. Programs support two client
+// areas, 2560 x 1369 maximized and 2560 x 1440 in borderless fullscreen (see
+// Library/Application), so the panels have fixed places in pixels. In
+// fullscreen, the GPU constants panel at the bottom right is taller, and the
+// footer stays at the bottom.
 //
 // The preview panel is drawn with a white middle, which the sphere's image
 // is copied over after the canvas is drawn.
@@ -11,18 +12,17 @@
 // vertices and math, so they're drawn only when the base color or Brightness
 // changes, and their vertices are kept for the frames in between. See Cache.
 
-use application::FrameCounter;
-use canvas::theme::{ACCENT, BORDER, DIM, ERROR, FAINT, INSET, PANEL, SUCCESS, TEXT, TITLE, WARNING};
-use canvas::{Cached, Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, wrap};
-use simple_paint::Parameters;
+use std::path::Path;
 
-use crate::editor::{Click, Editor, SLIDERS, Target};
+use simple_paint::Parameters;
+use user_interface::theme::{ACCENT, BORDER, DIM, ERROR, FAINT, INSET, SUCCESS, TEXT, TITLE};
+use user_interface::{
+    Cached, Canvas, Color, Frame, HANDLE_RADIUS, Lines, MARGIN, PADDING, PANELS_TOP, Rect, panel,
+};
+
+use crate::editor::{Editor, SLIDERS};
 use crate::preview::IMAGE_SIZE;
 
-// The header has a title, a status line, and room for this many lines of
-// notices, so the panels start at the same place whether there are any.
-const NOTICE_LINES: usize = 2;
-const PANELS_TOP: f32 = 96.0;
 const PREVIEW_X: f32 = MARGIN;
 const PREVIEW_WIDTH: f32 = IMAGE_SIZE as f32 + PADDING * 2.0;
 const EDITOR_X: f32 = PREVIEW_X + PREVIEW_WIDTH + MARGIN;
@@ -30,7 +30,6 @@ const EDITOR_X: f32 = PREVIEW_X + PREVIEW_WIDTH + MARGIN;
 const ROW_HEIGHT: f32 = 44.0;
 const LABEL_WIDTH: f32 = 120.0;
 const VALUE_WIDTH: f32 = 260.0;
-const HANDLE_RADIUS: f32 = 8.0;
 const SETTINGS_HEIGHT: f32 = 530.0;
 const CURVE_HEIGHT: f32 = 464.0;
 const PLOT_HEIGHT: f32 = 280.0;
@@ -38,23 +37,10 @@ const RAMP_HEIGHT: f32 = 28.0;
 // The curves' colors, one for each channel.
 const CHANNELS: [Color; 3] = [Color::rgb(0xCF222E), Color::rgb(0x1A7F37), Color::rgb(0x0969DA)];
 
-// What the header and footer show, besides the editor.
-pub struct Status<'a> {
-    pub focused: bool,
-    pub frames: &'a FrameCounter,
-    pub display: &'a str,
-    pub adapter: &'a str,
-    pub notices: &'a [String],
-    pub supported: &'a str,
-    pub window_problems: &'a [String],
-    pub cursor: Option<[f32; 2]>,
-}
-
-// Where things are in what was drawn.
+// Where things are in what was drawn, besides the widgets, which the
+// interface knows.
 pub struct Layout {
-    // Where clicks do something.
-    pub targets: Vec<Target>,
-    // The top left of the sphere's image, if it's shown.
+    // The top left of the sphere's image.
     pub image: Option<[u32; 2]>,
 }
 
@@ -70,152 +56,92 @@ pub struct Cache {
 // area it's drawn in.
 type CurveKey = ([f64; 3], f64, [f32; 4]);
 
-pub fn draw(
-    canvas: &mut Canvas,
-    cache: &mut Cache,
-    editor: &Editor,
-    status: &Status,
-    width: f32,
-    height: f32,
-) -> Layout {
-    let mut layout = Layout {
-        targets: Vec::new(),
-        image: None,
-    };
-    if !status.window_problems.is_empty() {
-        draw_window_problems(canvas, status.supported, status.window_problems, width);
-        return layout;
+// Handles the frame's input, and draws the panels. The editor's sliders
+// don't take keyboard focus, as the arrow keys move the selected one, which
+// the program's keys select.
+pub fn draw(frame: &mut Frame, cache: &mut Cache, editor: &mut Editor, paint_path: &Path) -> Layout {
+    let keys: Vec<_> = frame.program_events().copied().collect();
+    for event in &keys {
+        editor.key(event, paint_path);
     }
-    let line_height = canvas.line_height();
-    let margin = EDGE;
+    frame.set_focusable(false);
 
-    // The header: the title, and the GPU under it, with whether the window
-    // has focus and the frame rate on the right.
-    let x = canvas.text(margin, margin, "SimplePaint Demo", TITLE);
-    canvas.text(
-        x,
-        margin,
-        "  SimplePaint on a UV sphere, with an editor for its settings",
-        DIM,
+    let adapter = frame.status.adapter;
+    frame.header(
+        "SimplePaint Demo",
+        "SimplePaint on a UV sphere, with an editor for its settings",
+        &[("GPU: ", DIM), (adapter, TEXT)],
     );
-    let status_y = margin + line_height;
-    let (rate, frame_time) = match status.frames.per_second {
-        Some(rate) => (
-            format!("{rate:.0}"),
-            format!("  ({:.2} ms per frame)", 1000.0 / rate),
-        ),
-        None => ("measuring".to_string(), String::new()),
-    };
-    let rate_x = width - margin - canvas.text_width(&format!("FPS: {rate}{frame_time}"));
-    let mut end = canvas.text(rate_x, status_y, "FPS: ", DIM);
-    end = canvas.text(end, status_y, &rate, TEXT);
-    canvas.text(end, status_y, &frame_time, DIM);
-    end = canvas.text(margin, status_y, "GPU: ", DIM);
-    canvas.text_clipped(end, status_y, status.adapter, rate_x - end - margin, TEXT);
-    let focus_text = if status.focused {
-        "Window has focus"
-    } else {
-        "Window doesn't have focus: input is ignored"
-    };
-    canvas.text(
-        width - margin - canvas.text_width(focus_text),
-        margin,
-        focus_text,
-        if status.focused { SUCCESS } else { WARNING },
+    let bottom = frame.footer(
+        &[
+            ("F11", "borderless fullscreen"),
+            ("Up/Down", "select a setting"),
+            ("Left/Right", "change it, 10 steps with Shift"),
+            ("Ctrl+S", "save to Paint.json"),
+        ],
+        "",
     );
-    // Notices go under the status, wrapped to the window's width, in the
-    // lines the header has for them.
-    let columns = ((width - margin * 2.0) / canvas.char_width()).floor() as usize;
-    let mut lines: Vec<String> = Vec::new();
-    for notice in status.notices {
-        for (index, line) in wrap(notice, columns, 2).into_iter().enumerate() {
-            lines.push(if index == 0 { line } else { format!("  {line}") });
-        }
-    }
-    if lines.len() > NOTICE_LINES {
-        lines.truncate(NOTICE_LINES);
-        lines[NOTICE_LINES - 1] += " ...";
-    }
-    for (index, line) in lines.iter().enumerate() {
-        let y = status_y + line_height * (index + 1) as f32;
-        canvas.text_clipped(margin, y, line, width - margin * 2.0, WARNING);
-    }
-
-    // The footer: the shortcuts, and the display on the right.
-    let footer_y = height - margin - line_height;
-    let display_x = width - margin - canvas.text_width(&format!("Display: {}", status.display));
-    end = canvas.text(display_x, footer_y, "Display: ", DIM);
-    canvas.text(end, footer_y, status.display, TEXT);
-    end = margin;
-    for (key, action) in [
-        ("F11", " borderless fullscreen   "),
-        ("Up/Down", " select a setting   "),
-        ("Left/Right", " change it, 10 steps with Shift   "),
-        ("Ctrl+S", " save to Paint.json"),
-    ] {
-        end = canvas.text(end, footer_y, key, TEXT);
-        end = canvas.text(end, footer_y, action, DIM);
-    }
-    let bottom = footer_y - margin;
 
     // The preview, which takes the left side.
     let preview = Rect::new(PREVIEW_X, PANELS_TOP, PREVIEW_WIDTH, bottom - PANELS_TOP);
-    let inner = panel(
-        canvas,
+    let inner = frame.panel(
         preview,
         "Preview",
         "A UV sphere, orthographic, 4x multisampled. Any view of a sphere shows every facing once.",
     );
-    layout.image = Some([inner.x as u32, inner.y.ceil() as u32]);
+    let layout = Layout {
+        image: Some([inner.x as u32, inner.y.ceil() as u32]),
+    };
 
     // The editor, in three panels down the right side.
-    let editor_width = width - MARGIN - EDITOR_X;
+    let editor_width = frame.width - MARGIN - EDITOR_X;
     let settings = Rect::new(EDITOR_X, PANELS_TOP, editor_width, SETTINGS_HEIGHT);
     let curve = Rect::new(EDITOR_X, settings.bottom() + MARGIN, editor_width, CURVE_HEIGHT);
     let constants_y = curve.bottom() + MARGIN;
     let constants = Rect::new(EDITOR_X, constants_y, editor_width, bottom - constants_y);
-    draw_settings(canvas, editor, status.cursor, settings, &mut layout.targets);
-    draw_curve(canvas, cache, &editor.parameters, curve);
-    draw_constants(canvas, editor, constants);
+    draw_settings(frame, editor, settings, paint_path);
+    draw_curve(&mut frame.canvas, cache, &editor.parameters, curve);
+    draw_constants(&mut frame.canvas, editor, constants);
     layout
 }
 
-fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>, area: Rect, targets: &mut Vec<Target>) {
-    let inner = panel(canvas, area, "Settings", "Material::compile checks them; sliders stay in range");
-    let line_height = canvas.line_height();
-    let parameters = &editor.parameters;
+fn draw_settings(frame: &mut Frame, editor: &mut Editor, area: Rect, paint_path: &Path) {
+    let inner = frame.panel(area, "Settings", "Material::compile checks them; sliders stay in range");
+    let line_height = frame.line_height();
     let track_left = inner.x + LABEL_WIDTH;
     let track_right = inner.right() - VALUE_WIDTH;
     let mut y = inner.y;
+    editor.dragging = None;
     for (index, slider) in SLIDERS.iter().enumerate() {
         let row = Rect::new(inner.x, y, inner.width, ROW_HEIGHT);
         let middle = y + ROW_HEIGHT * 0.5;
         let text_y = middle - line_height * 0.5;
-        let selected = index == editor.selected;
-        let active = editor.dragging == Some(index);
-        // Where a click or the wheel moves the slider: its track, and a
-        // little past each end, for the handle. The handle grows there.
+        // Where a press or the wheel moves the slider: its track, and a
+        // little past each end, for the handle.
         let area = Rect::new(
             track_left - HANDLE_RADIUS * 2.0,
             row.y,
             track_right - track_left + HANDLE_RADIUS * 4.0,
             row.height,
         );
-        let hovered = cursor.is_some_and(|point| area.contains(point));
+        let mut value = slider.value(&editor.parameters);
+        let response = frame.slider(slider.name, area, &mut value, &slider.range());
+        // A press or the wheel selects it.
+        if response.pressed || response.wheel != 0.0 {
+            editor.selected = index;
+        }
+        if response.changed {
+            editor.change(index, value);
+        }
+        if response.held {
+            editor.dragging = Some(index);
+        }
+        let selected = index == editor.selected;
+        let canvas = &mut frame.canvas;
         if selected {
             canvas.rect(row.x - PADDING, row.y, 3.0, row.height, ACCENT);
         }
         canvas.text(row.x, text_y, slider.name, if selected { ACCENT } else { TEXT });
-
-        // The track, filled up to the handle.
-        let handle_x = track_left + (track_right - track_left) * slider.fraction(parameters) as f32;
-        canvas.rect(track_left, middle - 2.0, track_right - track_left, 4.0, BORDER);
-        canvas.rect(track_left, middle - 2.0, handle_x - track_left, 4.0, ACCENT);
-        let radius = if active || hovered { HANDLE_RADIUS + 2.0 } else { HANDLE_RADIUS };
-        canvas.circle([handle_x, middle], radius, ACCENT);
-        canvas.circle([handle_x, middle], radius - 3.0, PANEL);
-
-        let value = slider.value(parameters);
         let value_x = track_right + PADDING * 2.0;
         let end = canvas.text(value_x, text_y, &slider.format(value), TITLE);
         canvas.text(
@@ -229,16 +155,13 @@ fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>,
             ),
             DIM,
         );
-        targets.push(Target {
-            area,
-            click: Click::Slider(index),
-            track: [track_left, track_right],
-        });
         y += ROW_HEIGHT;
     }
 
     // The base color, as the sliders make it, in sRGB and in linear.
     y += line_height * 0.5;
+    let parameters = editor.parameters;
+    let canvas = &mut frame.canvas;
     let [red, green, blue] = parameters.base_color_srgb;
     let byte = |channel: f64| (channel * 255.0).round() as u32;
     let swatch = Color::rgb((byte(red) << 16) | (byte(green) << 8) | byte(blue));
@@ -265,23 +188,22 @@ fn draw_settings(canvas: &mut Canvas, editor: &Editor, cursor: Option<[f32; 2]>,
 
     // Buttons, and what the last save did.
     let mut x = inner.x;
-    for (label, click) in [("Reset", Click::Reset), ("Save", Click::Save)] {
-        let button = Rect::new(x, y, canvas.text_width(label) + PADDING * 2.0, line_height + PADDING);
-        let hovered = cursor.is_some_and(|point| button.contains(point));
-        canvas.rect(button.x, button.y, button.width, button.height, if hovered { INSET } else { PANEL });
-        canvas.rect_outline(button.x, button.y, button.width, button.height, 1.0, BORDER);
-        canvas.text(button.x + PADDING, button.y + PADDING * 0.5, label, TEXT);
-        targets.push(Target {
-            area: button,
-            click,
-            track: [0.0; 2],
-        });
+    for label in ["Reset", "Save"] {
+        let [width, height] = frame.button_size(label);
+        let button = Rect::new(x, y, width, height);
+        if frame.button(label, button, label).clicked {
+            match label {
+                "Reset" => editor.reset(),
+                _ => editor.save(paint_path),
+            }
+        }
         x = button.right() + PADDING;
     }
     let (message, color) = match &editor.status {
         Some((message, failed)) => (message.as_str(), if *failed { ERROR } else { SUCCESS }),
         None => ("Reset goes back to SimplePaint's defaults.", DIM),
     };
+    let canvas = &mut frame.canvas;
     canvas.text_clipped(x + PADDING, y + PADDING * 0.5, message, inner.right() - x - PADDING, color);
     y += line_height + PADDING * 2.0;
 

@@ -3,92 +3,81 @@
 // panels go at both supported window heights.
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
-use application::{Event, FrameCounter};
-use canvas::{Canvas, Font};
+use application::Event;
 use simple_paint::{Material, Parameters};
-use simple_paint_demo::editor::{self, Action, Click, Editor, SLIDERS, Target};
-use simple_paint_demo::panels::{self, Layout, Status};
+use simple_paint_demo::editor::{self, Editor, SLIDERS};
+use simple_paint_demo::panels::{self, Cache, Layout};
 use simple_paint_demo::preview::IMAGE_SIZE;
-use simple_paint_demo::FONT_SIZE;
+use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, click, control, key, shifted};
+use user_interface::{Rect, track};
+use windows_api::*;
 
-const WIDTH: f32 = 2560.0;
-const MAXIMIZED_HEIGHT: f32 = 1369.0;
-const FULLSCREEN_HEIGHT: f32 = 1440.0;
-
-fn font() -> &'static Font {
-    static FONT: OnceLock<Font> = OnceLock::new();
-    FONT.get_or_init(|| Font::new(FONT_SIZE).unwrap())
+// The editor in a window without a GPU, drawn once, so that the next
+// frame's input has targets.
+struct Demo {
+    editor: Editor,
+    headless: Headless,
+    cache: Cache,
+    paint_path: PathBuf,
 }
 
-// Draws a frame of the editor, and returns where things went.
-fn layout(editor: &Editor, height: f32) -> Layout {
-    draw(editor, height).0
-}
+impl Demo {
+    fn new(parameters: Parameters, paint_path: PathBuf) -> Self {
+        Self::sized(parameters, paint_path, MAXIMIZED)
+    }
 
-// Draws a frame of the editor, and returns where things went, and how many
-// lines of text didn't fit.
-fn draw(editor: &Editor, height: f32) -> (Layout, usize) {
-    let frames = FrameCounter::default();
-    let mut vertices = Vec::new();
-    let mut canvas = Canvas::new(font(), &mut vertices);
-    let status = Status {
-        focused: true,
-        frames: &frames,
-        display: "TEST01 (Test display)",
-        adapter: "Test GPU",
-        notices: &[],
-        supported: "",
-        window_problems: &[],
-        cursor: None,
-    };
-    let layout = panels::draw(&mut canvas, &mut panels::Cache::default(), editor, &status, WIDTH, height);
-    (layout, canvas.dropped_lines)
-}
+    fn sized(parameters: Parameters, paint_path: PathBuf, size: [f32; 2]) -> Self {
+        let mut demo = Demo {
+            editor: Editor::new(parameters),
+            headless: Headless::new(size),
+            cache: Cache::default(),
+            paint_path,
+        };
+        demo.step(&[]);
+        demo
+    }
 
-fn targets(editor: &Editor) -> Vec<Target> {
-    layout(editor, MAXIMIZED_HEIGHT).targets
-}
+    // Draws a frame with these events, and returns where the image went,
+    // and how many lines of text didn't fit.
+    fn step(&mut self, events: &[Event]) -> (Layout, usize) {
+        let Demo {
+            editor,
+            headless,
+            cache,
+            paint_path,
+        } = self;
+        headless.frame(events, |frame| {
+            let layout = panels::draw(frame, cache, editor, paint_path);
+            (layout, frame.dropped_lines())
+        })
+    }
 
-// The slider's target, by its name.
-fn slider(targets: &[Target], name: &str) -> Target {
-    *targets
-        .iter()
-        .find(|target| matches!(target.click, Click::Slider(index) if SLIDERS[index].name == name))
-        .unwrap_or_else(|| panic!("no slider {name}"))
-}
+    fn target(&self, name: &str) -> Rect {
+        self.headless.target(name)
+    }
 
-// The point at `fraction` along a slider's track.
-fn along(target: &Target, fraction: f32) -> [f32; 2] {
-    let [left, right] = target.track;
-    [left + (right - left) * fraction, target.area.y + target.area.height * 0.5]
-}
+    // The point at `fraction` along a slider's track.
+    fn along(&self, name: &str, fraction: f32) -> [f32; 2] {
+        let area = self.target(name);
+        let [left, right] = track(area);
+        [left + (right - left) * fraction, area.center()[1]]
+    }
 
-fn key(key: u32) -> Event {
-    Event::Key {
-        key,
-        control: false,
-        shift: false,
-        repeat: false,
+    fn value(&self, name: &str) -> f64 {
+        let slider = SLIDERS.iter().find(|slider| slider.name == name).unwrap();
+        slider.value(&self.editor.parameters)
     }
 }
 
-// The same key, as Windows repeats it while it's held.
-fn repeated(key: u32) -> Event {
+fn repeated(key: i32) -> Event {
     Event::Key {
-        key,
+        key: key as u32,
         control: false,
         shift: false,
         repeat: true,
     }
 }
-
-const LEFT: u32 = 0x25;
-const UP: u32 = 0x26;
-const RIGHT: u32 = 0x27;
-const DOWN: u32 = 0x28;
-const F11: u32 = 0x7A;
 
 // A file for one test, in a fresh folder.
 fn file(test: &str, name: &str) -> PathBuf {
@@ -103,28 +92,30 @@ fn nowhere() -> PathBuf {
 }
 
 #[test]
-fn a_click_on_a_slider_sets_it_and_drags_it() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    let r = slider(&targets, "R");
-    editor.handle(&Event::Press(along(&r, 0.5)), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.5);
-    assert_eq!((editor.selected, editor.dragging), (0, Some(0)));
+fn a_press_on_a_slider_sets_it_and_drags_it() {
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    let half = demo.along("R", 0.5);
+    demo.step(&[Event::Press(half)]);
+    assert_eq!(demo.value("R"), 0.5);
+    assert_eq!((demo.editor.selected, demo.editor.dragging), (0, Some(0)));
     // Dragging follows the cursor along the track, and holds the slider
     // even when the cursor leaves the row.
-    editor.follow(Some([along(&r, 0.25)[0], 900.0]), &targets);
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.25);
-    editor.handle(&Event::Release(along(&r, 0.25)), &targets, &nowhere());
-    assert_eq!(editor.dragging, None);
+    let quarter = demo.along("R", 0.25);
+    demo.headless.move_to([quarter[0], 900.0]);
+    demo.step(&[]);
+    assert_eq!(demo.value("R"), 0.25);
+    demo.step(&[Event::Release([quarter[0], 900.0])]);
+    assert_eq!(demo.editor.dragging, None);
     // After the release, moving the cursor changes nothing.
-    editor.follow(Some(along(&r, 0.75)), &targets);
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.25);
+    let three_quarters = demo.along("R", 0.75);
+    demo.headless.move_to(three_quarters);
+    demo.step(&[]);
+    assert_eq!(demo.value("R"), 0.25);
 }
 
 #[test]
 fn sliders_stop_at_the_last_step_simple_paint_accepts() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
+    let mut demo = Demo::new(Parameters::default(), nowhere());
     for (name, low, high) in [
         ("R", 0.001, 0.999),
         ("Brightness", 0.001, 0.999),
@@ -133,103 +124,101 @@ fn sliders_stop_at_the_last_step_simple_paint_accepts() {
         ("Dark Point", 0.0, 0.999),
         ("Light Point", 0.001, 1.0),
     ] {
-        let target = slider(&targets, name);
-        let index = SLIDERS.iter().position(|slider| slider.name == name).unwrap();
         for (x, expected) in [(-500.0f32, low), (5000.0, high)] {
             // Pressed on the track, then dragged far past its end.
-            editor.handle(&Event::Press(along(&target, 0.5)), &targets, &nowhere());
-            editor.follow(Some([x, 0.0]), &targets);
-            editor.handle(&Event::Release([x, 0.0]), &targets, &nowhere());
-            assert_eq!(SLIDERS[index].value(&editor.parameters), expected, "{name}");
+            let half = demo.along(name, 0.5);
+            demo.step(&[Event::Press(half)]);
+            demo.headless.move_to([x, 0.0]);
+            demo.step(&[]);
+            demo.step(&[Event::Release([x, 0.0])]);
+            assert_eq!(demo.value(name), expected, "{name}");
         }
     }
-    Material::compile(&editor.parameters).unwrap();
+    Material::compile(&demo.editor.parameters).unwrap();
 }
 
 #[test]
 fn losing_focus_ends_a_drag() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    let shift = slider(&targets, "Shift");
-    editor.handle(&Event::Press(along(&shift, 0.5)), &targets, &nowhere());
-    // Without focus, a frame has no cursor, and the release never comes.
-    editor.follow(None, &targets);
-    assert_eq!(editor.dragging, None);
-    editor.follow(Some(along(&shift, 0.9)), &targets);
-    assert_eq!(editor.parameters.shift, 0.5);
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    let half = demo.along("Shift", 0.5);
+    demo.step(&[Event::Press(half)]);
+    // Without focus, a frame has no cursor, and the window ends the press
+    // with a release.
+    demo.headless.focused = false;
+    demo.step(&[Event::Release([-1.0, -1.0])]);
+    assert_eq!(demo.editor.dragging, None);
+    demo.headless.focused = true;
+    let far = demo.along("Shift", 0.9);
+    demo.headless.move_to(far);
+    demo.step(&[]);
+    assert_eq!(demo.editor.parameters.shift, 0.5);
 }
 
 #[test]
 fn the_wheel_moves_a_slider_by_its_smallest_step() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    let rotation = slider(&targets, "Rotation");
-    editor.handle(&Event::Wheel(along(&rotation, 0.0), 3.0), &targets, &nowhere());
-    assert_eq!(editor.parameters.rotation_degrees, 0.3);
-    assert_eq!(SLIDERS[editor.selected].name, "Rotation");
-    editor.handle(&Event::Wheel(along(&rotation, 0.0), -5.0), &targets, &nowhere());
-    assert_eq!(editor.parameters.rotation_degrees, 0.0);
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    let rotation = demo.along("Rotation", 0.0);
+    demo.step(&[Event::Wheel(rotation, 3.0)]);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.3);
+    assert_eq!(SLIDERS[demo.editor.selected].name, "Rotation");
+    demo.step(&[Event::Wheel(rotation, -5.0)]);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.0);
     // Off the sliders, the wheel does nothing.
-    editor.handle(&Event::Wheel([100.0, 100.0], 1.0), &targets, &nowhere());
-    assert_eq!(editor.parameters, Parameters { rotation_degrees: 0.0, ..Parameters::default() });
+    demo.step(&[Event::Wheel([100.0, 100.0], 1.0)]);
+    assert_eq!(demo.editor.parameters, Parameters { rotation_degrees: 0.0, ..Parameters::default() });
 }
 
 #[test]
 fn parts_of_a_notch_add_up_over_the_same_slider() {
     // Like a touchpad, which turns the wheel by a quarter of a notch at a time.
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    let rotation = along(&slider(&targets, "Rotation"), 0.0);
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    let rotation = demo.along("Rotation", 0.0);
     for _ in 0..3 {
-        editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
+        demo.step(&[Event::Wheel(rotation, 0.25)]);
     }
-    assert_eq!(editor.parameters.rotation_degrees, 0.0);
-    editor.handle(&Event::Wheel(rotation, 0.25), &targets, &nowhere());
-    assert_eq!(editor.parameters.rotation_degrees, 0.1);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.0);
+    demo.step(&[Event::Wheel(rotation, 0.25)]);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.1);
     for _ in 0..6 {
-        editor.handle(&Event::Wheel(rotation, -0.5), &targets, &nowhere());
-        editor.handle(&Event::Wheel(rotation, 1.0), &targets, &nowhere());
+        demo.step(&[Event::Wheel(rotation, -0.5), Event::Wheel(rotation, 1.0)]);
     }
-    assert_eq!(editor.parameters.rotation_degrees, 0.4);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.4);
     // What's left over one slider doesn't carry over to another.
-    editor.handle(&Event::Wheel(rotation, 0.5), &targets, &nowhere());
-    assert_eq!(editor.parameters.rotation_degrees, 0.4);
-    let shift = along(&slider(&targets, "Shift"), 0.0);
-    editor.handle(&Event::Wheel(shift, 0.5), &targets, &nowhere());
-    editor.handle(&Event::Wheel(shift, 0.25), &targets, &nowhere());
-    assert_eq!(editor.parameters.shift, 0.0);
+    demo.step(&[Event::Wheel(rotation, 0.5)]);
+    assert_eq!(demo.editor.parameters.rotation_degrees, 0.4);
+    let shift = demo.along("Shift", 0.0);
+    demo.step(&[Event::Wheel(shift, 0.5), Event::Wheel(shift, 0.25)]);
+    assert_eq!(demo.editor.parameters.shift, 0.0);
 }
 
 #[test]
 fn arrow_keys_select_and_move_a_slider() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    editor.handle(&key(UP), &targets, &nowhere());
-    assert_eq!(editor.selected, 0, "Up stops at the first slider");
-    editor.handle(&key(RIGHT), &targets, &nowhere());
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    demo.step(&[key(VK_UP)]);
+    assert_eq!(demo.editor.selected, 0, "Up stops at the first slider");
+    demo.step(&[key(VK_RIGHT)]);
     // Values on a step are the double nearest their decimal, so they save
     // as written.
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.108);
-    editor.handle(
-        &Event::Key {
-            key: RIGHT,
-            control: false,
-            shift: true,
-            repeat: false,
-        },
-        &targets,
-        &nowhere(),
-    );
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.118);
-    editor.handle(&key(LEFT), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.117);
-    for _ in 0..20 {
-        editor.handle(&key(DOWN), &targets, &nowhere());
-    }
-    assert_eq!(SLIDERS[editor.selected].name, "Light Point", "Down stops at the last slider");
-    editor.handle(&key(RIGHT), &targets, &nowhere());
-    assert_eq!(editor.parameters.light_point, 1.0);
-    assert!(matches!(editor.handle(&key(F11), &targets, &nowhere()), Action::ToggleFullscreen));
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.108);
+    demo.step(&[shifted(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.118);
+    demo.step(&[key(VK_LEFT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.117);
+    demo.step(&[key(VK_DOWN); 20]);
+    assert_eq!(SLIDERS[demo.editor.selected].name, "Light Point", "Down stops at the last slider");
+    demo.step(&[key(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.light_point, 1.0);
+}
+
+#[test]
+fn the_sliders_take_no_keyboard_focus_so_the_arrows_stay_the_editors() {
+    let mut demo = Demo::new(Parameters::default(), nowhere());
+    let shift = demo.along("Shift", 0.5);
+    demo.step(&click(shift));
+    assert_eq!(SLIDERS[demo.editor.selected].name, "Shift");
+    assert_eq!(demo.headless.interface.focus(), None);
+    demo.step(&[key(VK_TAB), key(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.shift, 0.501);
 }
 
 #[test]
@@ -241,78 +230,69 @@ fn an_arrow_never_moves_a_value_the_other_way() {
         ..Parameters::default()
     };
     Material::compile(&parameters).unwrap();
-    let mut editor = Editor::new(parameters);
-    let targets = targets(&editor);
-    editor.handle(&key(LEFT), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.0009765625, "Left left R as it was");
-    editor.handle(&key(RIGHT), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.002);
-    editor.handle(&key(DOWN), &targets, &nowhere());
-    editor.handle(&key(DOWN), &targets, &nowhere());
-    editor.handle(&key(RIGHT), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[2], 0.9990234375, "Right left B as it was");
-    editor.handle(&key(LEFT), &targets, &nowhere());
-    assert_eq!(editor.parameters.base_color_srgb[2], 0.998);
+    let mut demo = Demo::new(parameters, nowhere());
+    demo.step(&[key(VK_LEFT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.0009765625, "Left left R as it was");
+    demo.step(&[key(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.002);
+    demo.step(&[key(VK_DOWN), key(VK_DOWN), key(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[2], 0.9990234375, "Right left B as it was");
+    demo.step(&[key(VK_LEFT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[2], 0.998);
 }
 
 #[test]
-fn holding_an_arrow_repeats_it_but_holding_f11_or_ctrl_s_does_not() {
+fn holding_an_arrow_repeats_it_but_holding_ctrl_s_does_not() {
     let path = file("Repeat", "Paint.json");
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    editor.handle(&key(RIGHT), &targets, &path);
-    editor.handle(&repeated(RIGHT), &targets, &path);
-    assert_eq!(editor.parameters.base_color_srgb[0], 0.109);
-    assert!(matches!(editor.handle(&repeated(F11), &targets, &path), Action::None));
+    let mut demo = Demo::new(Parameters::default(), path.clone());
+    demo.step(&[key(VK_RIGHT), repeated(VK_RIGHT)]);
+    assert_eq!(demo.editor.parameters.base_color_srgb[0], 0.109);
     let held_save = Event::Key {
         key: 'S' as u32,
         control: true,
         shift: false,
         repeat: true,
     };
-    editor.handle(&held_save, &targets, &path);
-    assert_eq!(editor.status, None);
+    demo.step(&[held_save]);
+    assert_eq!(demo.editor.status, None);
     assert!(!path.exists());
 }
 
 #[test]
 fn ctrl_s_and_save_write_paint_json_and_it_loads_back() {
     let path = file("Save", "Paint.json");
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
-    editor.handle(&Event::Press(along(&slider(&targets, "Shift"), 0.6)), &targets, &path);
-    editor.handle(&Event::Release([0.0, 0.0]), &targets, &path);
-    let save = Event::Key {
-        key: 'S' as u32,
-        control: true,
-        shift: false,
-        repeat: false,
-    };
-    editor.handle(&save, &targets, &path);
-    assert_eq!(editor.status, Some((format!("Saved to {}", path.display()), false)));
+    let mut demo = Demo::new(Parameters::default(), path.clone());
+    let shift = demo.along("Shift", 0.6);
+    demo.step(&click(shift));
+    demo.step(&[control('S' as i32)]);
+    assert_eq!(demo.editor.status, Some((format!("Saved to {}", path.display()), false)));
     let mut notices = Vec::new();
-    assert_eq!(editor::load(&path, &mut notices), editor.parameters);
+    assert_eq!(editor::load(&path, &mut notices), demo.editor.parameters);
     assert!(notices.is_empty(), "{notices:?}");
 
     // The Save button does the same, and says when it couldn't.
-    let button = targets.iter().find(|target| matches!(target.click, Click::Save)).unwrap();
-    let center = [button.area.x + 5.0, button.area.y + 5.0];
-    editor.handle(&Event::Press(center), &targets, &nowhere());
-    assert!(matches!(&editor.status, Some((message, true)) if message.starts_with(r"Couldn't save to C:\Nowhere\Paint.json")));
+    demo.paint_path = nowhere();
+    let save = demo.target("Save");
+    demo.step(&click([save.x + 5.0, save.y + 5.0]));
+    assert!(
+        matches!(&demo.editor.status, Some((message, true)) if message.starts_with(r"Couldn't save to C:\Nowhere\Paint.json"))
+    );
 }
 
 #[test]
 fn reset_goes_back_to_simple_paint_s_defaults() {
-    let mut editor = Editor::new(Parameters {
-        shift: 0.5,
-        ..Parameters::default()
-    });
-    editor.selected = 3;
-    let targets = targets(&editor);
-    let button = targets.iter().find(|target| matches!(target.click, Click::Reset)).unwrap();
-    editor.handle(&Event::Press([button.area.x + 5.0, button.area.y + 5.0]), &targets, &nowhere());
-    assert_eq!(editor.parameters, Parameters::default());
-    assert_eq!(editor.selected, 3, "the selection stays");
+    let mut demo = Demo::new(
+        Parameters {
+            shift: 0.5,
+            ..Parameters::default()
+        },
+        nowhere(),
+    );
+    demo.editor.selected = 3;
+    let reset = demo.target("Reset");
+    demo.step(&click([reset.x + 5.0, reset.y + 5.0]));
+    assert_eq!(demo.editor.parameters, Parameters::default());
+    assert_eq!(demo.editor.selected, 3, "the selection stays");
 }
 
 #[test]
@@ -341,8 +321,7 @@ fn a_bad_paint_json_falls_back_to_the_defaults_with_a_notice() {
 
 #[test]
 fn any_input_leaves_a_valid_material() {
-    let mut editor = Editor::new(Parameters::default());
-    let targets = targets(&editor);
+    let mut demo = Demo::new(Parameters::default(), nowhere());
     // A fixed sequence of presses, drags, wheels and keys all over the sliders.
     let mut seed = 0x5EED_u64;
     let mut next = || {
@@ -350,42 +329,47 @@ fn any_input_leaves_a_valid_material() {
         (seed >> 33) as f32 / (1u64 << 31) as f32
     };
     for _ in 0..2000 {
-        let target = slider(&targets, SLIDERS[(next() * 8.0) as usize % 8].name);
-        let point = along(&target, next() * 1.4 - 0.2);
+        let name = SLIDERS[(next() * 8.0) as usize % 8].name;
+        let point = demo.along(name, next() * 1.4 - 0.2);
         let event = match (next() * 5.0) as u32 {
             0 => Event::Press(point),
             1 => Event::Release(point),
             2 => Event::Wheel(point, next() * 20.0 - 10.0),
-            3 => key([LEFT, RIGHT, UP, DOWN][(next() * 4.0) as usize % 4]),
+            3 => key([VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN][(next() * 4.0) as usize % 4]),
             _ => Event::Key {
-                key: [LEFT, RIGHT][(next() * 2.0) as usize % 2],
+                key: [VK_LEFT, VK_RIGHT][(next() * 2.0) as usize % 2] as u32,
                 control: false,
                 shift: true,
                 repeat: next() < 0.5,
             },
         };
-        editor.handle(&event, &targets, &nowhere());
-        editor.follow(Some(point), &targets);
+        demo.headless.move_to(point);
         // The editor compiles every change, and would panic on an invalid one.
-        Material::compile(&editor.parameters).unwrap();
+        demo.step(&[event]);
+        Material::compile(&demo.editor.parameters).unwrap();
     }
 }
 
 #[test]
 fn the_panels_fit_both_window_heights() {
-    let editor = Editor::new(Parameters::default());
-    for height in [MAXIMIZED_HEIGHT, FULLSCREEN_HEIGHT] {
-        let layout = layout(&editor, height);
+    let names = |demo: &Demo| demo.headless.interface.target_names();
+    let maximized = Demo::new(Parameters::default(), nowhere());
+    for size in [MAXIMIZED, FULLSCREEN] {
+        let mut demo = Demo::sized(Parameters::default(), nowhere(), size);
+        let (layout, _) = demo.step(&[]);
         let [x, y] = layout.image.unwrap();
-        assert!(y + IMAGE_SIZE <= height as u32 - 40, "the sphere's image runs into the footer at {height}");
+        assert!(y + IMAGE_SIZE <= size[1] as u32 - 40, "the sphere's image runs into the footer at {size:?}");
         assert!(x + IMAGE_SIZE <= 1200, "the sphere's image runs into the editor");
         // The sliders, then the two buttons, all in the editor's column.
-        assert_eq!(layout.targets.len(), SLIDERS.len() + 2);
-        for target in &layout.targets {
-            assert!(target.area.x >= 1200.0 && target.area.right() <= WIDTH, "{:?}", target.area.x);
+        let mut expected: Vec<String> = SLIDERS.iter().map(|slider| slider.name.to_string()).collect();
+        expected.extend(["Reset".to_string(), "Save".to_string()]);
+        assert_eq!(names(&demo), expected);
+        for name in names(&demo) {
+            let area = demo.target(&name);
+            assert!(area.x >= 1200.0 && area.right() <= size[0], "{name}: {area:?}");
+            // The layout doesn't depend on the height above the footer.
+            assert_eq!(area, maximized.target(&name));
         }
-        // The layout doesn't depend on the height above the footer.
-        assert_eq!(layout.targets[0].area.y, targets(&editor)[0].area.y);
     }
     // Every panel's text fits, with the tone curve's labels all on one tone,
     // where each takes a line of its own.
@@ -396,9 +380,9 @@ fn the_panels_fit_both_window_heights() {
         ..Parameters::default()
     };
     for parameters in [Parameters::default(), crowded] {
-        for height in [MAXIMIZED_HEIGHT, FULLSCREEN_HEIGHT] {
-            let (_, dropped) = draw(&Editor::new(parameters), height);
-            assert_eq!(dropped, 0, "lines of text that didn't fit at {height}");
+        for size in [MAXIMIZED, FULLSCREEN] {
+            let (_, dropped) = Demo::sized(parameters, nowhere(), size).step(&[]);
+            assert_eq!(dropped, 0, "lines of text that didn't fit at {size:?}");
         }
     }
 }

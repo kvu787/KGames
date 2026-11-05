@@ -2,8 +2,9 @@
 
 Edits a [SimplePaint](../../Library/SimplePaint/README.md) material, and shows it live on a UV
 sphere. Like every KGames GUI program, it's built from the [Library](../../Library) crates on
-Win32 and Direct3D 12, in a light theme, ignores input without focus, and supports the two
-window setups in [Library/Application](../../Library/Application/README.md#supported-window-setups).
+Win32 and Direct3D 12, with [Library/UserInterface](../../Library/UserInterface/README.md), in a
+light theme, ignores input without focus, and supports the two window setups in
+[Library/Application](../../Library/Application/README.md#supported-window-setups).
 
 ## What it shows
 
@@ -57,10 +58,10 @@ cargo test -p simple_paint_demo_tests
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The tests in `Test/SimplePaintDemo` drive the editor through the panels' real layout, which a
-canvas builds without a window or a GPU: clicks, drags past a track's ends, the wheel, the arrow
-keys, Ctrl+S, **Save**, **Reset**, losing focus mid-drag, a bad `Paint.json`, and thousands of
-random inputs that must leave a valid material. They also check that the panels fit both
+The tests in `Test/SimplePaintDemo` drive the editor through the panels' real layout, which
+`user_interface::headless` builds without a window or a GPU: clicks, drags past a track's ends,
+the wheel, the arrow keys, Ctrl+S, **Save**, **Reset**, losing focus mid-drag, a bad
+`Paint.json`, and thousands of random inputs that must leave a valid material. They also check that the panels fit both
 window heights.
 
 The scripts in `Test/SimplePaintDemo/Scripts` run the same kinds of input through the real
@@ -68,13 +69,15 @@ window and renderer, as [Library/Application](../../Library/Application/README.m
 describes, including F11 there and back. A scripted run starts from SimplePaint's default
 material, and saves `Paint.json` in its output folder, not in the demo's. The state that scripts
 save and check has the material's `Parameters`, the `Selected` slider, whether one is
-`Dragging`, whether it's `Saved`, the shader's `Constants`, and where each slider's track and
-each button are, as `Targets`.
+`Dragging`, whether it's `Saved`, the shader's `Constants`, and where each slider and button
+is, as `Interface.Targets`. A slider's track runs from 16 pixels past its area's left edge to 16
+before its right.
 
 ## How it draws
 
-Each frame, after the renderer is ready, the demo reads the window's input, builds the
-panels on a canvas, and draws them in one draw call. The tone curve's lines and color ramp
+Each frame, after the renderer is ready, Library/UserInterface's main loop reads the window's
+input, and the demo handles it, builds the panels on a canvas, and draws them in one draw call.
+The sliders don't take keyboard focus, as the arrow keys move the selected one. The tone curve's lines and color ramp
 are most of the panels' vertices and math, so the demo keeps their vertices, and builds them
 again only when the base color or Brightness changes.
 
@@ -89,10 +92,11 @@ bands from pole to pole, so its edge looks round and its normals interpolate smo
 
 | Path                | Contents                                                                    |
 | ------------------- | --------------------------------------------------------------------------- |
-| `Source/Main.rs`    | The main loop: settings, window, input, and drawing each frame              |
+| `Source/Main.rs`    | Runs the demo with Library/UserInterface's main loop                        |
 | `Source/Library.rs` | The demo's parts, as a library that `Test/SimplePaintDemo` tests            |
-| `Source/Editor.rs`  | The material, its sliders, what input does to them, and `Paint.json`        |
-| `Source/Panels.rs`  | Lays out the panels in fixed pixels, and draws them                         |
+| `Source/Demo.rs`    | The demo as a program: the editor, its panels, and the sphere's preview     |
+| `Source/Editor.rs`  | The material, its sliders, what the keys do to them, and `Paint.json`       |
+| `Source/Panels.rs`  | Lays out the panels in fixed pixels, and draws them and their widgets       |
 | `Source/Preview.rs` | Draws the sphere with SimplePaint, and copies it into the frame             |
 | `Build.rs`          | Compiles SimplePaint's shaders for one material                             |
 | `HumanRun.ps1`      | Builds the demo and runs it on the primary display, for people to use it    |

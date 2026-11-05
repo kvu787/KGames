@@ -1,5 +1,6 @@
 // The settings editor's state: the material being edited, its sliders, and
-// what the mouse and keyboard do to them. Panels.rs draws it.
+// what the keyboard does to them. Panels.rs draws the sliders with
+// Library/UserInterface, which handles what the mouse does to them.
 //
 // Sliders move in steps of 0.001, or 0.1 degrees for Rotation, and stop at
 // the last step inside SimplePaint's accepted range, so the material they
@@ -10,6 +11,7 @@ use std::path::Path;
 use application::Event;
 use json::Value;
 use simple_paint::{GpuMaterial, Material, Parameters};
+use user_interface::SliderRange;
 use windows_api::*;
 
 pub struct Slider {
@@ -33,26 +35,18 @@ impl Slider {
         (self.get)(parameters)
     }
 
-    // Where the value is along the track, from 0 to 1.
-    pub fn fraction(&self, parameters: &Parameters) -> f64 {
-        ((self.value(parameters) - self.start) / (self.end - self.start)).clamp(0.0, 1.0)
+    pub fn range(&self) -> SliderRange {
+        SliderRange {
+            start: self.start,
+            end: self.end,
+            minimum: self.minimum,
+            maximum: self.maximum,
+            steps: self.steps,
+        }
     }
 
     pub fn format(&self, value: f64) -> String {
         format!("{value:.0$}{1}", self.decimals, self.unit)
-    }
-
-    // The step nearest `value`, within the range.
-    fn nearest(&self, value: f64) -> f64 {
-        // Dividing whole numbers, like 107 / 1000, gives the double nearest
-        // the decimal, so values save as written, like 0.107.
-        let stepped = (value * self.steps).round() / self.steps;
-        stepped.clamp(self.minimum, self.maximum)
-    }
-
-    // Sets the value to the step nearest `value`, within the range.
-    fn set(&self, parameters: &mut Parameters, value: f64) {
-        (self.set)(parameters, self.nearest(value));
     }
 }
 
@@ -95,30 +89,6 @@ pub const SLIDERS: [Slider; 8] = [
     unit_slider!("Light Point", 0.001, 1.0, light_point),
 ];
 
-// What a click does at a place in the window.
-#[derive(Clone, Copy)]
-pub enum Click {
-    // Sets a slider from where the click is, and drags it.
-    Slider(usize),
-    Reset,
-    Save,
-}
-
-// A place that reacts to clicks, and where a slider's track is along it.
-#[derive(Clone, Copy)]
-pub struct Target {
-    pub area: canvas::Rect,
-    pub click: Click,
-    // The track's left and right edges, for a slider.
-    pub track: [f32; 2],
-}
-
-// What the main loop does, besides drawing the editor.
-pub enum Action {
-    None,
-    ToggleFullscreen,
-}
-
 pub struct Editor {
     pub parameters: Parameters,
     // Compiled from parameters whenever they change.
@@ -129,9 +99,6 @@ pub struct Editor {
     pub dragging: Option<usize>,
     // What happened at the last save, and whether it failed.
     pub status: Option<(String, bool)>,
-    // The slider that the wheel last turned over, and how much it turned
-    // there that didn't make a whole step yet.
-    wheel: (usize, f32),
 }
 
 impl Editor {
@@ -144,12 +111,13 @@ impl Editor {
             selected: 0,
             dragging: None,
             status: None,
-            wheel: (0, 0.0),
         }
     }
 
-    fn change(&mut self, slider: usize, value: f64) {
-        SLIDERS[slider].set(&mut self.parameters, value);
+    // Sets a slider to a value that's one of its steps, as the slider
+    // widget makes them.
+    pub fn change(&mut self, slider: usize, value: f64) {
+        (SLIDERS[slider].set)(&mut self.parameters, value);
         // Sliders only make valid values, and set leaves the others alone.
         self.material = *Material::compile(&self.parameters)
             .expect("sliders only make valid materials")
@@ -161,117 +129,53 @@ impl Editor {
     // the nearest step back in it is the other way. Then it stays put.
     fn nudge(&mut self, slider: usize, steps: f64) {
         let current = SLIDERS[slider].value(&self.parameters);
-        let next = SLIDERS[slider].nearest(current + steps / SLIDERS[slider].steps);
-        if (next - current) * steps > 0.0 {
+        let next = SLIDERS[slider].range().nudge(current, steps);
+        if next != current {
             self.change(slider, next);
         }
     }
 
-    // Sets a slider from where the cursor is along its track.
-    fn drag_to(&mut self, slider: usize, x: f32, targets: &[Target]) {
-        let Some(target) = targets
-            .iter()
-            .find(|target| matches!(target.click, Click::Slider(index) if index == slider))
+    // Goes back to SimplePaint's default material, keeping the selection.
+    pub fn reset(&mut self) {
+        *self = Editor {
+            selected: self.selected,
+            ..Editor::new(Parameters::default())
+        }
+    }
+
+    // Handles a key that no widget took. Up and Down select a slider, and
+    // Left and Right move it a step, or 10 with Shift. Holding an arrow key
+    // repeats it. Ctrl+S saves, and holding it does nothing more.
+    pub fn key(&mut self, event: &Event, paint_path: &Path) {
+        let Event::Key {
+            key,
+            control,
+            shift,
+            repeat,
+        } = *event
         else {
             return;
         };
-        let [left, right] = target.track;
-        let fraction = ((x - left) / (right - left)).clamp(0.0, 1.0) as f64;
-        let range = &SLIDERS[slider];
-        self.change(slider, range.start + fraction * (range.end - range.start));
-    }
-
-    // Handles one event from the window, with the places that react to
-    // clicks in the last frame drawn.
-    pub fn handle(&mut self, event: &Event, targets: &[Target], paint_path: &Path) -> Action {
-        let at = |point: [f32; 2]| targets.iter().rev().find(|target| target.area.contains(point));
-        match *event {
-            Event::Press(point) => match at(point).map(|target| target.click) {
-                Some(Click::Slider(slider)) => {
-                    self.selected = slider;
-                    self.dragging = Some(slider);
-                    self.drag_to(slider, point[0], targets);
-                }
-                Some(Click::Reset) => {
-                    *self = Editor {
-                        selected: self.selected,
-                        ..Editor::new(Parameters::default())
-                    }
-                }
-                Some(Click::Save) => self.save(paint_path),
-                None => {}
-            },
-            Event::Release(_) => self.dragging = None,
-            // The editor has nothing to type in.
-            Event::Character(_) => {}
-            // A notch is a step. Touchpads and smooth-scrolling mice turn
-            // by parts of a notch, which add up over the same slider.
-            Event::Wheel(point, notches) => {
-                if let Some(Click::Slider(slider)) = at(point).map(|target| target.click) {
-                    self.selected = slider;
-                    let (last, part) = self.wheel;
-                    let turned = notches + if last == slider { part } else { 0.0 };
-                    let steps = turned.trunc();
-                    self.wheel = (slider, turned - steps);
-                    if steps != 0.0 {
-                        self.nudge(slider, steps as f64);
-                    }
+        let steps = if shift { 10.0 } else { 1.0 };
+        match key as i32 {
+            _ if control => {
+                if !repeat && key == 'S' as u32 {
+                    self.save(paint_path);
                 }
             }
-            // Holding an arrow key repeats it. Holding F11 or Ctrl+S does
-            // nothing more.
-            Event::Key {
-                key,
-                control,
-                shift,
-                repeat,
-            } => {
-                let steps = if shift { 10.0 } else { 1.0 };
-                match key as i32 {
-                    VK_F11 if !repeat => return Action::ToggleFullscreen,
-                    VK_LEFT => self.nudge(self.selected, -steps),
-                    VK_RIGHT => self.nudge(self.selected, steps),
-                    VK_UP => self.selected = self.selected.saturating_sub(1),
-                    VK_DOWN => self.selected = (self.selected + 1).min(SLIDERS.len() - 1),
-                    _ if control && !repeat && key == 'S' as u32 => self.save(paint_path),
-                    _ => {}
-                }
-            }
-        }
-        Action::None
-    }
-
-    // Follows the cursor with the slider being dragged. `cursor` is None
-    // when the window doesn't have focus, which ends the drag, as the
-    // button's release then never comes.
-    pub fn follow(&mut self, cursor: Option<[f32; 2]>, targets: &[Target]) {
-        match (self.dragging, cursor) {
-            (Some(slider), Some([x, _])) => self.drag_to(slider, x, targets),
-            (Some(_), None) => self.dragging = None,
+            VK_LEFT => self.nudge(self.selected, -steps),
+            VK_RIGHT => self.nudge(self.selected, steps),
+            VK_UP => self.selected = self.selected.saturating_sub(1),
+            VK_DOWN => self.selected = (self.selected + 1).min(SLIDERS.len() - 1),
             _ => {}
         }
     }
 
-    // What the editor holds, for scripted runs to save and check, with
-    // where the last frame's clickable places are, for writing scripts.
-    pub fn state(&self, targets: &[Target]) -> Value {
+    // What the editor holds, for scripted runs to save and check. The
+    // interface's state, which the main loop adds, says where the sliders
+    // and buttons are.
+    pub fn state(&self) -> Value {
         let m = &self.material;
-        let targets: Vec<Value> = targets
-            .iter()
-            .map(|target| {
-                let name = match target.click {
-                    Click::Slider(index) => SLIDERS[index].name.to_string(),
-                    Click::Reset => "Reset".to_string(),
-                    Click::Save => "Save".to_string(),
-                };
-                let area = target.area;
-                json::object([
-                    ("Name", name.into()),
-                    ("Area", [area.x, area.y, area.width, area.height].into()),
-                    ("Track", target.track.into()),
-                ])
-            })
-            .collect();
         json::object([
             ("Parameters", paint_settings::to_value(&self.parameters)),
             ("Selected", SLIDERS[self.selected].name.into()),
@@ -287,11 +191,10 @@ impl Editor {
                     ("ComplementLight", m.complement_light.into()),
                 ]),
             ),
-            ("Targets", Value::Array(targets)),
         ])
     }
 
-    fn save(&mut self, path: &Path) {
+    pub fn save(&mut self, path: &Path) {
         let text = paint_settings::format(&self.parameters, 0) + "\n";
         self.status = Some(match std::fs::write(path, text) {
             Ok(()) => (format!("Saved to {}", path.display()), false),
