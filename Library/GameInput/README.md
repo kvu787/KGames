@@ -4,7 +4,7 @@ Microsoft's [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/featur
 API for KGames: hand-written bindings for its version 4, a loader that finds the newest runtime,
 and a build script that puts the runtime next to the exe of every program that uses this crate.
 [GameInputDemo](../../Program/GameInputDemo/README.md) shows everything it reads, and
-[Library/Application](../Application/README.md) reads the gamepad with it, for programs that a
+[Library/UserInterface](../UserInterface/README.md) reads the gamepad with it, for programs that a
 gamepad controls.
 
 ## How it works
