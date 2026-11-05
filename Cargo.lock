@@ -165,9 +165,9 @@ name = "scene_test"
 version = "0.1.0"
 dependencies = [
  "application",
- "canvas",
  "graphics",
  "json",
+ "user_interface",
  "windows-core",
 ]
 
@@ -238,7 +238,6 @@ name = "spinning_car_test"
 version = "0.1.0"
 dependencies = [
  "application",
- "canvas",
  "graphics",
  "json",
  "math",
@@ -247,6 +246,7 @@ dependencies = [
  "scene_test",
  "shader_compiler",
  "simple_paint",
+ "user_interface",
  "windows-core",
  "windows_api",
 ]

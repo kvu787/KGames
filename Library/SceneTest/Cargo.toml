@@ -11,9 +11,9 @@ doctest = false
 
 [dependencies]
 application = { path = "../Application" }
-canvas = { path = "../Canvas" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
+user_interface = { path = "../UserInterface" }
 
 # Its proc macros (for implementing COM interfaces in Rust) aren't needed.
 [dependencies.windows-core]

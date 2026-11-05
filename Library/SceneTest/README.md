@@ -7,8 +7,9 @@ bottom left corner with the test's name, its frame rate, the GPU, the display, a
 window has focus. `F1` hides the text box, and `F11` switches between maximized and borderless
 fullscreen.
 
-`scene_test::run` opens the window, with the test's settings, and draws frames until it closes,
-or a script ends. A test gives it its scene, as a `Scene`, which says what the scene shows, adds
-lines and shortcuts to the text box, handles the test's own keys, moves to each frame's time,
-draws, and gives its part of the state that scripts save and check. `Test/SceneTest` tests the
-keys.
+`scene_test::run::<T>` opens the window, with the test's settings, and draws frames until it
+closes, or a script ends, with [Library/UserInterface](../UserInterface/README.md)'s main loop. A
+test gives it its scene, as a `Scene`, which has the test's name and settings, makes the scene
+with the renderer, says what the scene shows, adds lines and shortcuts to the text box, handles
+the test's own keys, moves to each frame's time, draws, and gives its part of the state that
+scripts save and check. `Test/SceneTest` tests the keys.

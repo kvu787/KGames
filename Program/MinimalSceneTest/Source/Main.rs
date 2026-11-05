@@ -19,6 +19,17 @@ struct MovingSphere {
 }
 
 impl scene_test::Scene for MovingSphere {
+    type Settings = SceneSettings;
+    const NAME: &'static str = NAME;
+
+    unsafe fn new(renderer: &mut Renderer, settings: &SceneSettings) -> Result<Self> {
+        Ok(MovingSphere {
+            scene: unsafe { Scene::new(renderer, settings)? },
+            motion: Motion::default(),
+            last_seconds: None,
+        })
+    }
+
     fn description(&self) -> &str {
         "A sphere moving at 8 units per second"
     }
@@ -48,12 +59,5 @@ impl scene_test::Scene for MovingSphere {
 }
 
 fn main() -> Result<()> {
-    let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-    scene_test::run(NAME, settings_path, |renderer, settings: &SceneSettings| {
-        Ok(MovingSphere {
-            scene: unsafe { Scene::new(renderer, settings)? },
-            motion: Motion::default(),
-            last_seconds: None,
-        })
-    })
+    scene_test::run::<MovingSphere>(Path::new(env!("CARGO_MANIFEST_DIR")))
 }

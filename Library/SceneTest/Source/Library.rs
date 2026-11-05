@@ -4,27 +4,33 @@
 // the GPU, the display, and whether the window has focus. F1 hides the text
 // box, and F11 switches between maximized and borderless fullscreen. Each
 // test gives `run` its scene, as a Scene, which adds to the text box and
-// handles the test's own keys.
+// handles the test's own keys. Library/UserInterface runs it, with the
+// scene under the text box.
 
 use std::path::Path;
 
-use application::{Arguments, Event, FrameCounter, ProgramSettings, Settings, Window};
-use canvas::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
-use canvas::{Canvas, Color, Font, MARGIN, PADDING, draw_window_problems, text_box, theme};
+use application::{Event, ProgramSettings};
 use graphics::Renderer;
 use json::Value;
+use user_interface::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
+use user_interface::{Color, Frame, MARGIN, PADDING, Program, Setup};
 use windows_core::Result;
-
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-pub const FONT_SIZE: i32 = 15;
 
 // A line of the text box, as pieces of text, each in its color.
 pub type Line = Vec<(String, Color)>;
 
 // What a test has of its own: its scene, what the text box says about it,
 // and its keys.
-pub trait Scene {
+pub trait Scene: Sized {
+    // The test's own settings, in its Settings.json.
+    type Settings: ProgramSettings;
+
+    // The test's name, for its window's title and the text box.
+    const NAME: &'static str;
+
+    // Makes the scene, with the renderer, which has a depth buffer.
+    unsafe fn new(renderer: &mut Renderer, settings: &Self::Settings) -> Result<Self>;
+
     // What the scene shows, after the test's name, like "A sphere moving at
     // 8 units per second".
     fn description(&self) -> &str;
@@ -78,133 +84,88 @@ pub fn action(event: &Event) -> Option<Action> {
     }
 }
 
-// Runs the test called `name`, with the settings file at `settings_path`:
-// opens its window, makes its scene with `make_scene`, and draws frames until
-// the window closes, or a script ends.
-pub fn run<S: ProgramSettings, T: Scene>(
-    name: &str,
-    settings_path: &Path,
-    make_scene: impl FnOnce(&mut Renderer, &S) -> Result<T>,
-) -> Result<()> {
-    unsafe {
-        application::prepare_process()?;
-        // Problems with the settings and the command line, which the text
-        // box lists.
-        let mut notices = Vec::new();
-        let arguments = Arguments::parse(&mut notices);
-        let (settings, scene_settings) = Settings::for_program::<S>(settings_path, &arguments, &mut notices);
-        let mut window = Window::open(name, &settings, &arguments, &mut notices)?;
+// A scene test, as a program that Library/UserInterface runs.
+pub struct SceneTest<T> {
+    scene: T,
+    show_text: bool,
+}
 
-        let font = Font::new(FONT_SIZE)?;
-        let mut renderer = Renderer::new(window.handle, settings.allow_tearing, true)?;
-        let overlay = canvas::Pipeline::new(&mut renderer, &font)?;
-        let mut scene = make_scene(&mut renderer, &scene_settings)?;
-        // The title bar says how frames are presented, as it affects latency.
-        let description = renderer.description();
-        window.set_title(&format!("{name} - {description}"))?;
-        window.show(arguments.activate);
-        let mut frames = FrameCounter::default();
-        let mut vertices = Vec::new();
-        let mut show_text = true;
+impl<T: Scene> Program for SceneTest<T> {
+    type Settings = T::Settings;
+    const NAME: &'static str = T::NAME;
+    const DEPTH: bool = true;
+    // F11 is one of the keys that `action` reads.
+    const FULLSCREEN_KEY: bool = false;
 
-        // Handle all pending messages, then render one frame once the
-        // renderer is ready for it.
-        while window.handle_messages() {
-            if let Some([width, height]) = window.take_resize() {
-                renderer.resize(width, height)?;
+    fn new(setup: Setup<'_, T::Settings>) -> Result<Self> {
+        Ok(SceneTest {
+            scene: unsafe { T::new(setup.renderer, &setup.program_settings)? },
+            show_text: true,
+        })
+    }
+
+    // The scene has no widgets, so every event is the program's.
+    fn frame(&mut self, frame: &mut Frame) -> Result<()> {
+        let events: Vec<Event> = frame.program_events().copied().collect();
+        for event in &events {
+            match action(event) {
+                Some(Action::ToggleText) => self.show_text = !self.show_text,
+                Some(Action::ToggleFullscreen) => frame.toggle_fullscreen(),
+                None => self.scene.input(event),
             }
-
-            if window.minimized() {
-                // Minimized: sleep until something happens instead of
-                // spinning.
-                window.wait_for_message()?;
-                frames.pause();
-                scene.pause();
-                continue;
-            }
-
-            // Spin until the GPU and DXGI can take a frame, like GameInputDemo,
-            // which explains why. The loop keeps handling window messages
-            // through the wait.
-            if !renderer.is_ready()? {
-                std::hint::spin_loop();
-                continue;
-            }
-            // The frame's setup, before the time and input are read.
-            renderer.begin_frame()?;
-
-            // Read the time and input only now, right before drawing, so the
-            // frame shows the newest.
-            let frame = window.begin_frame();
-            frames.frame(frame.seconds);
-            for event in &frame.events {
-                match action(event) {
-                    Some(Action::ToggleText) => show_text = !show_text,
-                    Some(Action::ToggleFullscreen) => window.toggle_fullscreen()?,
-                    None => scene.input(event),
-                }
-            }
-            scene.advance(frame.seconds);
-
-            let mut canvas = Canvas::new(&font, &mut vertices);
-            let (width, height) = (renderer.width as f32, renderer.height as f32);
-            renderer.clear(theme::BACKGROUND);
-            if window.problems.is_empty() {
-                scene.draw(&renderer)?;
-                if show_text {
-                    let lines = text(name, &scene, &frames, frame.focused, &description, &window.display, &notices);
-                    // At the bottom left, which the tests' objects never
-                    // cross: they go off the top left and bottom right
-                    // corners.
-                    let box_height = canvas.line_height() * lines.len() as f32 + PADDING * 2.0;
-                    text_box(&mut canvas, MARGIN, height - MARGIN - box_height, &lines);
-                }
-            } else {
-                draw_window_problems(&mut canvas, &window.supported, &window.problems, width);
-            }
-            overlay.draw(&renderer, canvas.vertices);
-            window.handle_checkpoints(
-                &frame,
-                |path| renderer.capture(path),
-                || {
-                    let mut state = scene.state();
-                    state.push(("TextShown", show_text.into()));
-                    Value::Object(state.into_iter().map(|(name, value)| (name.to_string(), value)).collect())
-                },
-            )?;
-            renderer.present()?;
         }
-        // What the frames used is dropped before the renderer.
-        renderer.wait_for_gpu()?;
-        window.finish()
+        self.scene.advance(frame.seconds());
+        if self.show_text {
+            let lines = text(&self.scene, frame);
+            // At the bottom left, which the tests' objects never cross: they
+            // go off the top left and bottom right corners.
+            let box_height = frame.line_height() * lines.len() as f32 + PADDING * 2.0;
+            let y = frame.height - MARGIN - box_height;
+            frame.text_box(MARGIN, y, &lines);
+        }
+        Ok(())
+    }
+
+    unsafe fn draw_under(&mut self, renderer: &Renderer) -> Result<()> {
+        unsafe { self.scene.draw(renderer) }
+    }
+
+    fn state(&self) -> Value {
+        let mut state = self.scene.state();
+        state.push(("TextShown", self.show_text.into()));
+        Value::Object(state.into_iter().map(|(name, value)| (name.to_string(), value)).collect())
+    }
+
+    fn minimized(&mut self) {
+        self.scene.pause();
     }
 }
 
+// Runs the test whose scene is T, from its folder, which has its
+// Settings.json: opens its window, makes its scene, and draws frames until
+// the window closes, or a script ends.
+pub fn run<T: Scene>(folder: &Path) -> Result<()> {
+    user_interface::run::<SceneTest<T>>(folder)
+}
+
 // The text box's lines.
-fn text(
-    name: &str,
-    scene: &impl Scene,
-    frames: &FrameCounter,
-    focused: bool,
-    adapter: &str,
-    display: &str,
-    notices: &[String],
-) -> Vec<Line> {
+fn text<T: Scene>(scene: &T, frame: &Frame) -> Vec<Line> {
     let piece = |text: &str, color| (text.to_string(), color);
-    let rate = match frames.per_second {
+    let status = frame.status;
+    let rate = match status.frames_per_second {
         Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
         None => "measuring".to_string(),
     };
-    let focus = if focused {
+    let focus = if frame.focused() {
         piece("Window has focus", SUCCESS)
     } else {
         piece("Window doesn't have focus: input is ignored", WARNING)
     };
     let mut lines = vec![
-        vec![piece(name, TITLE), piece(&format!("  {}", scene.description()), DIM)],
+        vec![piece(T::NAME, TITLE), piece(&format!("  {}", scene.description()), DIM)],
         vec![piece("FPS: ", DIM), piece(&rate, TEXT)],
-        vec![piece("GPU: ", DIM), piece(adapter, TEXT)],
-        vec![piece("Display: ", DIM), piece(display, TEXT)],
+        vec![piece("GPU: ", DIM), piece(status.adapter, TEXT)],
+        vec![piece("Display: ", DIM), piece(status.display, TEXT)],
     ];
     lines.extend(scene.lines());
     lines.push(vec![focus]);
@@ -220,6 +181,6 @@ fn text(
         shortcuts.push(piece(&format!(" {does}"), DIM));
     }
     lines.push(shortcuts);
-    lines.extend(notices.iter().map(|notice| vec![piece(notice, WARNING)]));
+    lines.extend(status.notices.iter().map(|notice| vec![piece(notice, WARNING)]));
     lines
 }

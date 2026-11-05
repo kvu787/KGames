@@ -3,7 +3,6 @@
 
 use std::path::Path;
 
-use canvas::theme::{DIM, TEXT};
 use graphics::Renderer;
 use json::Value;
 use scene_test::Line;
@@ -11,6 +10,7 @@ use spinning_car_test::NAME;
 use spinning_car_test::controls;
 use spinning_car_test::scene::{self, Scene};
 use spinning_car_test::settings::SceneSettings;
+use user_interface::theme::{DIM, TEXT};
 use windows_core::Result;
 
 // The scene, with where the car is, which Library/SceneTest runs. The car
@@ -23,6 +23,17 @@ struct SpinningCar {
 }
 
 impl scene_test::Scene for SpinningCar {
+    type Settings = SceneSettings;
+    const NAME: &'static str = NAME;
+
+    unsafe fn new(renderer: &mut Renderer, settings: &SceneSettings) -> Result<Self> {
+        Ok(SpinningCar {
+            scene: unsafe { Scene::new(renderer, settings)? },
+            stationary: false,
+            placement: (0.0, 0.0),
+        })
+    }
+
     fn description(&self) -> &str {
         "A car moving at 8 units and turning at 90 degrees per second"
     }
@@ -60,12 +71,5 @@ impl scene_test::Scene for SpinningCar {
 }
 
 fn main() -> Result<()> {
-    let settings_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), r"\Settings.json"));
-    scene_test::run(NAME, settings_path, |renderer, settings: &SceneSettings| {
-        Ok(SpinningCar {
-            scene: unsafe { Scene::new(renderer, settings)? },
-            stationary: false,
-            placement: (0.0, 0.0),
-        })
-    })
+    scene_test::run::<SpinningCar>(Path::new(env!("CARGO_MANIFEST_DIR")))
 }

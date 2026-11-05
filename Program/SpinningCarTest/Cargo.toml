@@ -19,7 +19,6 @@ test = false
 
 [dependencies]
 application = { path = "../../Library/Application" }
-canvas = { path = "../../Library/Canvas" }
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
@@ -27,6 +26,7 @@ meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
 scene_test = { path = "../../Library/SceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
+user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 # Its proc macros (for implementing COM interfaces in Rust) aren't needed.
