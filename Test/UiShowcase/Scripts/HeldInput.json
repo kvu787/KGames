@@ -1,12 +1,15 @@
 {
     "Steps": [
-        { "Frame": 1, "Expect": { "HeldKeys": [], "Gamepad": { "Connected": false, "Buttons": [] } } },
-        { "Frame": 2, "Hold": ["Left", "Space"] },
-        { "Frame": 2, "Gamepad": { "LeftStick": [-0.5, 0.25], "RightTrigger": 0.75, "Buttons": ["A", "RB"] } },
-        { "Frame": 3, "Expect": { "HeldKeys": ["Left", "Space"], "Gamepad": { "Connected": true, "LeftStick": [-0.5, 0.25], "RightTrigger": 0.75, "Buttons": ["A", "RB"] } } },
-        { "Frame": 3, "Capture": "HeldInput" },
-        { "Frame": 4, "Hold": ["Space"] },
-        { "Frame": 4, "Gamepad": null },
-        { "Frame": 5, "Expect": { "HeldKeys": ["Space"], "Gamepad": { "Connected": false, "LeftStick": [0, 0], "Buttons": [] } } }
+        { "Frame": 1, "Hold": ["W", "Shift"] },
+        { "Frame": 2, "Gamepad": { "LeftStick": [0.5, 0.5], "RightTrigger": 0.75, "Buttons": ["A", "LeftShoulder"] } },
+        { "Frame": 4, "Capture": "Held" },
+        { "Frame": 5, "Focus": false },
+        { "Frame": 7, "Expect": { "Interface": { "WindowFocused": false } } },
+        { "Frame": 7, "Capture": "WithoutFocus" },
+        { "Frame": 8, "Hold": [] },
+        { "Frame": 9, "Gamepad": { } },
+        { "Frame": 10, "Focus": true },
+        { "Frame": 12, "Click": "Standard" },
+        { "Frame": 14, "Expect": { "Presses": { "Standard": 1 }, "Interface": { "WindowFocused": true } } }
     ]
 }

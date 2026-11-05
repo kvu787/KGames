@@ -17,15 +17,7 @@ path = "Source/Main.rs"
 test = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }
-windows_api = { path = "../../Library/WindowsApi" }
-
-# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
-[dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
 
 [lints]
 workspace = true

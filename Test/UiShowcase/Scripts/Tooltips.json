@@ -1,12 +1,12 @@
 {
     "Steps": [
-        { "Frame": 1, "Move": "Bottom" },
-        { "Frame": 1, "Expect": { "Interface": { "Hovered": "Bottom", "Tooltip": { "Name": "Bottom" } } } },
-        { "Frame": 1, "Capture": "Bottom" },
-        { "Frame": 2, "Move": "Columns" },
-        { "Frame": 2, "Expect": { "Interface": { "Tooltip": { "Name": "Columns" } } } },
-        { "Frame": 2, "Capture": "Columns" },
-        { "Frame": 3, "Key": "F1" },
-        { "Frame": 4, "Expect": { "Tooltips": false, "Interface": { "Tooltip": null } } }
+        { "Frame": 1, "Move": "TipSentence" },
+        { "Frame": 20, "Expect": { "Interface": { "Tooltip": null } } },
+        { "Frame": 40, "Expect": { "Interface": { "Tooltip": { "Name": "TipSentence" } } } },
+        { "Frame": 40, "Capture": "Sentence" },
+        { "Frame": 41, "Move": "TipAbove" },
+        { "Frame": 80, "Capture": "Above" },
+        { "Frame": 81, "Key": "F1" },
+        { "Frame": 83, "Expect": { "Tooltips": false, "Interface": { "Tooltip": null } } }
     ]
 }

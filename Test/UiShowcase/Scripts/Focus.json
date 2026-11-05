@@ -1,15 +1,14 @@
 {
     "Steps": [
         { "Frame": 1, "Key": "Tab" },
-        { "Frame": 2, "Key": "Tab" },
-        { "Frame": 3, "Expect": { "Interface": { "Focus": "Accent" } } },
-        { "Frame": 4, "Key": "Space" },
-        { "Frame": 5, "Expect": { "Presses": { "Accent": 1 } } },
+        { "Frame": 3, "Key": "Tab" },
+        { "Frame": 5, "Expect": { "Interface": { "Focused": "Standard" } } },
         { "Frame": 5, "Capture": "FocusRing" },
-        { "Frame": 6, "Key": "Tab", "Shift": true },
-        { "Frame": 6, "Key": "Tab", "Shift": true },
-        { "Frame": 7, "Expect": { "Interface": { "Focus": "Items" } } },
-        { "Frame": 8, "Key": "Escape" },
-        { "Frame": 9, "Expect": { "Interface": { "Focus": null } } }
+        { "Frame": 6, "Key": "Space" },
+        { "Frame": 8, "Expect": { "Presses": { "Standard": 1 } } },
+        { "Frame": 9, "Key": "Shift+Tab" },
+        { "Frame": 11, "Expect": { "Interface": { "Focused": "Theme" } } },
+        { "Frame": 12, "Key": "Esc" },
+        { "Frame": 14, "Expect": { "Interface": { "Focused": null } } }
     ]
 }

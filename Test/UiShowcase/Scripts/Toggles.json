@@ -1,25 +1,16 @@
 {
     "Steps": [
-        { "Frame": 1, "Press": "Enable" },
-        { "Frame": 2, "Release": "Enable" },
-        { "Frame": 3, "Press": "Grid" },
-        { "Frame": 4, "Release": "Grid" },
-        { "Frame": 5, "Expect": { "Enabled": false, "Grid": true } },
-        { "Frame": 15, "Capture": "Disabled" },
-        { "Frame": 16, "Press": "Enable" },
-        { "Frame": 17, "Release": "Enable" },
-        { "Frame": 18, "Press": "Snap" },
-        { "Frame": 19, "Release": "Snap" },
-        { "Frame": 20, "Press": "Size/Large" },
-        { "Frame": 21, "Release": "Size/Large" },
-        { "Frame": 22, "Press": "View/Day" },
-        { "Frame": 23, "Release": "View/Day" },
-        { "Frame": 24, "Press": "Tabs/Details" },
-        { "Frame": 25, "Release": "Tabs/Details" },
-        { "Frame": 26, "Key": "Right" },
-        { "Frame": 27, "Press": "Dark" },
-        { "Frame": 28, "Release": "Dark" },
-        { "Frame": 29, "Expect": { "Enabled": true, "Snap": true, "Size": "Large", "View": "Day", "Tab": "Notes", "Dark": true, "Interface": { "Theme": "Dark" } } },
-        { "Frame": 40, "Capture": "Toggled" }
+        { "Frame": 1, "Click": "Option/Show rulers" },
+        { "Frame": 3, "Click": "OptionsEnabled" },
+        { "Frame": 5, "Click": "Option/Spell check" },
+        { "Frame": 7, "Expect": { "OptionsEnabled": false, "Options": [true, true, true, false] } },
+        { "Frame": 8, "Click": "Size/Large" },
+        { "Frame": 10, "Click": "Alignment/Right" },
+        { "Frame": 12, "Click": "Tool/Pick" },
+        { "Frame": 14, "Key": "Left" },
+        { "Frame": 16, "Expect": { "Size": "Large", "Alignment": "Right", "Tool": "Erase", "Interface": { "Focused": "Tool/Erase" } } },
+        { "Frame": 17, "Click": "Filling" },
+        { "Frame": 40, "Capture": "Toggles" },
+        { "Frame": 40, "Expect": { "Filling": false } }
     ]
 }

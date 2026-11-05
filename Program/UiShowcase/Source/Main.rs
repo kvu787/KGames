@@ -1,11 +1,15 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-use std::path::Path;
+use std::process::ExitCode;
 
 use ui_showcase::showcase::Showcase;
-use windows_core::Result;
+use user_interface::Options;
 
-fn main() -> Result<()> {
-    user_interface::run::<Showcase>(Path::new(env!("CARGO_MANIFEST_DIR")))
+fn main() -> ExitCode {
+    let options = Options {
+        gamepad: true,
+        ..Options::new("UiShowcase", env!("CARGO_MANIFEST_DIR"))
+    };
+    user_interface::run(options, |startup| Ok(Showcase::new(startup)))
 }

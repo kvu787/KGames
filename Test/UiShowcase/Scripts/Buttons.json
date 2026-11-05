@@ -1,20 +1,19 @@
 {
     "Steps": [
-        { "Frame": 1, "Press": "Accent" },
-        { "Frame": 2, "Release": "Accent" },
-        { "Frame": 3, "Press": "Accent" },
-        { "Frame": 4, "Release": "Accent" },
-        { "Frame": 5, "Press": "Danger" },
-        { "Frame": 6, "Release": "Danger" },
-        { "Frame": 7, "Press": "Add" },
-        { "Frame": 8, "Release": "Add" },
-        { "Frame": 9, "Expect": { "Presses": { "Standard": 0, "Accent": 2, "Danger": 1, "Subtle": 0 }, "Count": 4, "Log": ["Count: 4", "Danger: pressed 1 time", "Accent: pressed 2 times"] } },
-        { "Frame": 10, "Move": "Accent" },
-        { "Frame": 20, "Expect": { "Interface": { "Hovered": "Accent", "Tooltip": { "Name": "Accent" } } } },
-        { "Frame": 20, "Capture": "Hover" },
-        { "Frame": 21, "Press": "Standard" },
-        { "Frame": 30, "Expect": { "Interface": { "Held": "Standard" } } },
-        { "Frame": 30, "Capture": "Pressed" },
-        { "Frame": 31, "Release": "Standard" }
+        { "Frame": 1, "Click": "Standard" },
+        { "Frame": 3, "Click": "Accent" },
+        { "Frame": 5, "Click": "Save" },
+        { "Frame": 7, "Click": "Pin" },
+        { "Frame": 9, "Click": "Add" },
+        { "Frame": 11, "Click": "Add" },
+        { "Frame": 13, "Click": "Disabled" },
+        { "Frame": 15, "Press": "Subtle" },
+        { "Frame": 16, "Capture": "Pressed" },
+        { "Frame": 16, "Expect": { "Interface": { "Pressed": "Subtle" } } },
+        { "Frame": 17, "Move": [1200, 900] },
+        { "Frame": 18, "Release": true },
+        { "Frame": 20, "Expect": { "Presses": { "Standard": 1, "Accent": 1, "Subtle": 0, "Save": 1 }, "Pinned": true, "Count": 2 } },
+        { "Frame": 21, "Move": "Accent" },
+        { "Frame": 30, "Capture": "Buttons" }
     ]
 }

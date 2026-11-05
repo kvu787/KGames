@@ -1,6 +1,6 @@
 {
     "Steps": [
-        { "Frame": 1, "Expect": { "Window": { "Fullscreen": false, "Problems": [] }, "Interface": { "Focus": null, "Popup": null } } },
-        { "Frame": 1, "Capture": "Start" }
+        { "Frame": 2, "Capture": "Start" },
+        { "Frame": 2, "Expect": { "Volume": 50, "Size": "Medium", "Tab": "Type ramp", "Interface": { "Theme": "Light", "Popup": null, "Size": [2560, 1369] } } }
     ]
 }

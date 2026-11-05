@@ -1,256 +1,210 @@
-// The showcase's state: what each of its widgets shows, which they change,
-// the list's items, and a log of what changed. Panels.rs draws it.
+// What the showcase's widgets show, what its shortcuts do, its log, and its
+// state for scripts.
 
 use std::collections::VecDeque;
 
-use json::Value;
-use user_interface::{Frame, Gamepad, Program, Setup, key_name, theme};
-use windows_api::*;
-use windows_core::Result;
+use user_interface::json::Value;
+use user_interface::{Key, Modifiers, Program, Startup, ThemeKind, Ui};
 
-use crate::NAME;
-use crate::panels;
+use crate::cards;
 
-// The log keeps this many lines.
-const LOG_LINES: usize = 64;
-
-// The buttons' styles, in their row's order.
-pub const STYLES: [&str; 4] = ["Standard", "Accent", "Danger", "Subtle"];
 pub const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
-pub const VIEWS: [&str; 3] = ["Day", "Week", "Month"];
-pub const TABS: [&str; 3] = ["Overview", "Details", "Notes"];
-pub const TAGS: [&str; 6] = ["Rust", "Win32", "Direct3D 12", "DirectWrite", "Low latency", "Fluent"];
-// The colors that the color combo box offers, with what each is for in the
-// theme.
-pub const COLORS: [(&str, &str); 6] = [
-    ("Accent", "what's chosen, and the main action"),
-    ("Success", "what's on, or went well"),
-    ("Caution", "what needs attention"),
-    ("Critical", "what failed"),
-    ("Orange", "the second of a chart's series"),
-    ("Purple", "the third of a chart's series"),
-];
-pub const DENSITIES: [(&str, &str); 3] = [
-    ("Comfortable", "rows 40 pixels tall"),
-    ("Standard", "rows 36 pixels tall"),
-    ("Compact", "rows 28 pixels tall"),
-];
-// The list's rows, and how tall they are, for each density.
-pub const ROW_HEIGHTS: [f32; 3] = [40.0, 36.0, 28.0];
+pub const ALIGNMENTS: [&str; 3] = ["Left", "Center", "Right"];
+pub const TOOLS: [&str; 4] = ["Brush", "Fill", "Erase", "Pick"];
+pub const TABS: [&str; 4] = ["Type ramp", "Icons", "Colors", "Shapes"];
+pub const DENSITIES: [&str; 3] = ["Compact", "Standard", "Comfortable"];
+pub const OPTIONS: [&str; 4] = ["Snap to grid", "Show rulers", "Autosave", "Spell check"];
+pub const BUTTONS: [&str; 4] = ["Standard", "Accent", "Subtle", "Save"];
+const LOG_LENGTH: usize = 200;
 
-const ADJECTIVES: [&str; 10] = [
-    "Amber", "Brisk", "Cobalt", "Dusty", "Eager", "Fuzzy", "Gentle", "Hollow", "Ivory", "Jolly",
-];
-const NOUNS: [&str; 12] = [
-    "Anchor", "Beacon", "Comet", "Delta", "Ember", "Falcon", "Glacier", "Harbor", "Island", "Jasper", "Kettle",
-    "Lantern",
-];
+// The list's 120 items.
+pub fn items() -> Vec<String> {
+    const WORDS: [&str; 12] = [
+        "Aurora", "Basalt", "Cobalt", "Dune", "Ember", "Fjord", "Glacier", "Harbor", "Iris", "Juniper", "Kelp", "Lagoon",
+    ];
+    (0..120).map(|index| format!("{} {}", WORDS[index % WORDS.len()], index / WORDS.len() + 1)).collect()
+}
 
 pub struct Showcase {
-    // How many times each style of button was pressed, in STYLES' order.
     pub presses: [u32; 4],
-    // What the icon buttons add to and take from.
     pub count: i32,
-    // Whether the controls under the first checkbox take input.
-    pub enabled: bool,
-    pub grid: bool,
-    pub snap: bool,
-    pub sound: bool,
-    pub animate: bool,
+    pub pinned: bool,
+    pub link_clicks: u32,
+    pub options_enabled: bool,
+    pub options: [bool; 4],
     pub tooltips: bool,
     pub dark: bool,
+    pub filling: bool,
+    pub fill_started: f64,
     pub size: usize,
-    pub view: usize,
-    pub tab: usize,
-    pub volume: f64,
-    pub opacity: f64,
-    pub angle: f64,
-    // A slider that's always disabled.
-    pub locked: f64,
-    pub color: usize,
+    pub alignment: usize,
+    pub tool: usize,
+    pub volume: f32,
+    pub opacity: f32,
+    pub angle: f32,
+    pub role: usize,
     pub density: usize,
-    pub tags: [bool; 6],
     pub name: String,
-    // What the greeting says, once the name is submitted.
-    pub greeting: Option<String>,
     pub search: String,
-    // Whether the caution info bar was closed.
-    pub caution_closed: bool,
-    // The list's selected item, by its index among all of them.
-    pub selected: Option<usize>,
-    // The item that was double-clicked last, which the list opens.
-    pub opened: Option<usize>,
+    pub greeting: Option<String>,
+    pub tab: usize,
     pub items: Vec<String>,
-    // What changed, newest first.
+    pub selected: Option<usize>,
+    pub opened: Option<usize>,
+    pub caution_shown: bool,
     pub log: VecDeque<String>,
-    pub cache: panels::Cache,
-    // The keys held down, by name, and the gamepad, as of the last frame.
-    pub held_keys: Vec<String>,
-    pub gamepad: Gamepad,
+    // What the interface was on last frame, to log what changes.
+    seen: [Option<String>; 3],
 }
 
 impl Default for Showcase {
     fn default() -> Self {
         Self {
             presses: [0; 4],
-            count: 3,
-            enabled: true,
-            grid: true,
-            snap: false,
-            sound: true,
-            animate: true,
+            count: 0,
+            pinned: false,
+            link_clicks: 0,
+            options_enabled: true,
+            options: [true, false, true, false],
             tooltips: true,
             dark: false,
+            filling: true,
+            fill_started: 0.0,
             size: 1,
-            view: 1,
-            tab: 0,
-            volume: 40.0,
+            alignment: 1,
+            tool: 0,
+            volume: 50.0,
             opacity: 0.75,
-            angle: 45.0,
-            locked: 0.5,
-            color: 0,
+            angle: 180.0,
+            role: 0,
             density: 1,
-            tags: [true, true, false, false, true, false],
             name: String::new(),
-            greeting: None,
             search: String::new(),
-            caution_closed: false,
+            greeting: None,
+            tab: 0,
+            items: items(),
             selected: None,
             opened: None,
-            items: (0..ADJECTIVES.len() * NOUNS.len())
-                .map(|index| {
-                    let adjective = ADJECTIVES[index % ADJECTIVES.len()];
-                    let noun = NOUNS[index / ADJECTIVES.len()];
-                    format!("{:03}  {adjective} {noun}", index + 1)
-                })
-                .collect(),
+            caution_shown: true,
             log: VecDeque::new(),
-            cache: panels::Cache::default(),
-            held_keys: Vec::new(),
-            gamepad: Gamepad::default(),
+            seen: [None, None, None],
         }
     }
 }
 
 impl Showcase {
-    // Adds a line to the log. A line about the same thing as the newest
-    // replaces it, so that dragging a slider makes one line, not one a
-    // frame.
-    pub fn record(&mut self, subject: &str, what: String) {
-        let line = format!("{subject}: {what}");
-        if self.log.front().is_some_and(|newest| newest.starts_with(&format!("{subject}: "))) {
-            self.log[0] = line;
-        } else {
-            self.log.push_front(line);
-            self.log.truncate(LOG_LINES);
-        }
+    pub fn new(_startup: &mut Startup) -> Self {
+        Self::default()
     }
 
-    // The items that the search matches, by index, ignoring case.
+    pub fn log(&mut self, line: impl Into<String>) {
+        self.log.push_front(line.into());
+        self.log.truncate(LOG_LENGTH);
+    }
+
+    // The items that the search matches, by their index in the list.
     pub fn matches(&self) -> Vec<usize> {
         let search = self.search.trim().to_lowercase();
-        (0..self.items.len())
-            .filter(|&index| search.is_empty() || self.items[index].to_lowercase().contains(&search))
-            .collect()
+        (0..self.items.len()).filter(|index| self.items[*index].to_lowercase().contains(&search)).collect()
     }
 
-    // Everything back to how it started, but the log, which says so, and
-    // the theme.
-    pub fn reset(&mut self) {
-        let log = std::mem::take(&mut self.log);
-        let dark = self.dark;
-        *self = Showcase { log, dark, ..Showcase::default() };
-        self.record("Everything", "reset".to_string());
+    fn shortcuts(&mut self, ui: &mut Ui) {
+        if ui.key_pressed(Key::F1) {
+            self.tooltips = !self.tooltips;
+            self.log(format!("Tooltips {}", if self.tooltips { "on" } else { "off" }));
+        }
+        if ui.key_pressed(Key::F2) {
+            self.dark = !self.dark;
+            self.log(format!("{} theme", if self.dark { "Dark" } else { "Light" }));
+        }
+        if ui.shortcut(Modifiers::CONTROL, Key::R) {
+            let log = std::mem::take(&mut self.log);
+            *self = Showcase {
+                log,
+                fill_started: ui.time(),
+                ..Showcase::default()
+            };
+            self.log("Reset every widget");
+        }
+        self.apply(ui);
+    }
+
+    // The theme and tooltips that the switches and shortcuts chose.
+    fn apply(&self, ui: &mut Ui) {
+        ui.set_tooltips_enabled(self.tooltips);
+        ui.set_theme(if self.dark { ThemeKind::Dark } else { ThemeKind::Light });
+    }
+
+    // Logs when what the interface is on changes.
+    fn watch(&mut self, ui: &Ui) {
+        let state = ui.state();
+        let name = |member: &str| match state.get(member) {
+            Some(Value::String(name)) => Some(name.clone()),
+            _ => None,
+        };
+        for (index, member) in ["Focused", "Pressed", "Popup"].iter().enumerate() {
+            let now = name(member);
+            if now != self.seen[index] {
+                if let Some(now) = &now {
+                    let verb = match *member {
+                        "Focused" => "Focus on",
+                        "Pressed" => "Press on",
+                        _ => "Opened",
+                    };
+                    self.log(format!("{verb} {now}"));
+                }
+                self.seen[index] = now;
+            }
+        }
     }
 }
 
 impl Program for Showcase {
-    type Settings = ();
-    const NAME: &'static str = NAME;
-    const GAMEPAD: bool = true;
-
-    fn new(_setup: Setup<'_, ()>) -> Result<Self> {
-        Ok(Showcase::default())
+    fn title(&self) -> String {
+        "UiShowcase".to_string()
     }
 
-    fn frame(&mut self, frame: &mut Frame) -> Result<()> {
-        // The program's own shortcuts: the keys that no widget took.
-        if frame.shortcut(VK_F1) {
-            self.tooltips = !self.tooltips;
-            self.record("Tooltips", on_off(self.tooltips));
-        }
-        if frame.shortcut(VK_F2) {
-            self.dark = !self.dark;
-            self.record("Dark theme", on_off(self.dark));
-        }
-        if frame.control_shortcut('R' as i32) {
-            self.reset();
-        }
-        self.held_keys = frame.input.held_keys.iter().map(|key| key_name(*key)).collect();
-        self.gamepad = *frame.gamepad();
-        frame.set_theme(if self.dark { &theme::DARK } else { &theme::LIGHT });
-        panels::draw(self, frame);
-        Ok(())
+    fn update(&mut self, ui: &mut Ui) {
+        self.shortcuts(ui);
+        cards::draw(self, ui);
+        // What the cards' switches changed shows from the next frame on.
+        self.apply(ui);
+        self.watch(ui);
     }
 
-    // What every widget shows, by the names of their cards' labels, for
-    // scripts to save and check.
     fn state(&self) -> Value {
-        let tags: Vec<&str> = TAGS
-            .iter()
-            .zip(self.tags)
-            .filter(|(_, on)| *on)
-            .map(|(tag, _)| *tag)
-            .collect();
-        let log: Vec<String> = self.log.iter().take(8).cloned().collect();
-        let presses = STYLES
-            .iter()
-            .zip(self.presses)
-            .map(|(style, count)| (style.to_string(), Value::from(count)))
-            .collect();
-        json::object([
-            ("Presses", Value::Object(presses)),
-            ("Count", (self.count as f64).into()),
-            ("Enabled", self.enabled.into()),
-            ("Grid", self.grid.into()),
-            ("Snap", self.snap.into()),
-            ("Sound", self.sound.into()),
-            ("Animate", self.animate.into()),
-            ("Tooltips", self.tooltips.into()),
-            ("Dark", self.dark.into()),
-            ("Size", SIZES[self.size].into()),
-            ("View", VIEWS[self.view].into()),
-            ("Tab", TABS[self.tab].into()),
-            ("Volume", self.volume.into()),
-            ("Opacity", self.opacity.into()),
-            ("Angle", self.angle.into()),
-            ("Color", COLORS[self.color].0.into()),
-            ("Density", DENSITIES[self.density].0.into()),
-            ("Tags", tags.into()),
-            ("Name", self.name.clone().into()),
-            ("Greeting", self.greeting.clone().into()),
-            ("Search", self.search.clone().into()),
-            ("CautionClosed", self.caution_closed.into()),
-            ("Selected", self.selected.map(|index| self.items[index].clone()).into()),
-            ("Opened", self.opened.map(|index| self.items[index].clone()).into()),
-            ("Matches", self.matches().len().into()),
-            ("HeldKeys", self.held_keys.clone().into()),
+        let name_of = |names: &[&str], index: usize| Value::from(names[index]);
+        let optional = |index: Option<usize>| index.map_or(Value::Null, Value::from);
+        Value::Object(vec![
             (
-                "Gamepad",
-                json::object([
-                    ("Connected", self.gamepad.connected.into()),
-                    ("LeftStick", self.gamepad.left_stick.into()),
-                    ("RightStick", self.gamepad.right_stick.into()),
-                    ("LeftTrigger", self.gamepad.left_trigger.into()),
-                    ("RightTrigger", self.gamepad.right_trigger.into()),
-                    ("Buttons", self.gamepad.held_names().into()),
-                ]),
+                "Presses".to_string(),
+                Value::Object(BUTTONS.iter().zip(self.presses).map(|(name, count)| (name.to_string(), Value::from(count))).collect()),
             ),
-            ("Log", log.into()),
+            ("Count".to_string(), Value::from(self.count as i64)),
+            ("Pinned".to_string(), Value::from(self.pinned)),
+            ("LinkClicks".to_string(), Value::from(self.link_clicks)),
+            ("OptionsEnabled".to_string(), Value::from(self.options_enabled)),
+            ("Options".to_string(), Value::from(self.options.to_vec())),
+            ("Tooltips".to_string(), Value::from(self.tooltips)),
+            ("Dark".to_string(), Value::from(self.dark)),
+            ("Filling".to_string(), Value::from(self.filling)),
+            ("Size".to_string(), name_of(&SIZES, self.size)),
+            ("Alignment".to_string(), name_of(&ALIGNMENTS, self.alignment)),
+            ("Tool".to_string(), name_of(&TOOLS, self.tool)),
+            ("Volume".to_string(), Value::from(self.volume as f64)),
+            ("Opacity".to_string(), Value::from((self.opacity as f64 * 1000.0).round() / 1000.0)),
+            ("Angle".to_string(), Value::from((self.angle as f64 * 10.0).round() / 10.0)),
+            ("Role".to_string(), Value::from(cards::ROLES[self.role])),
+            ("Density".to_string(), name_of(&DENSITIES, self.density)),
+            ("Name".to_string(), Value::from(self.name.as_str())),
+            ("Search".to_string(), Value::from(self.search.as_str())),
+            ("Greeting".to_string(), self.greeting.clone().map_or(Value::Null, Value::from)),
+            ("Tab".to_string(), name_of(&TABS, self.tab)),
+            ("Selected".to_string(), optional(self.selected)),
+            ("Opened".to_string(), optional(self.opened)),
+            ("Matches".to_string(), Value::from(self.matches().len())),
+            ("CautionShown".to_string(), Value::from(self.caution_shown)),
+            ("Log".to_string(), Value::from(self.log.iter().take(10).cloned().collect::<Vec<String>>())),
         ])
     }
-}
-
-pub fn on_off(on: bool) -> String {
-    if on { "on" } else { "off" }.to_string()
 }

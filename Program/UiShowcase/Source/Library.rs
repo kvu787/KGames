@@ -1,10 +1,7 @@
-// UiShowcase's parts, as a library, so that Test/UiShowcase can test what
-// input does to its widgets, and where its panels go, without a window.
-// Main.rs is the program.
+// The showcase's parts, as a library that Test/UiShowcase tests without a
+// window.
 
-#[path = "Panels.rs"]
-pub mod panels;
+#[path = "Cards.rs"]
+pub mod cards;
 #[path = "Showcase.rs"]
 pub mod showcase;
-
-pub const NAME: &str = "UI Showcase";
