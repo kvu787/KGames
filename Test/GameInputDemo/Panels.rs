@@ -1,6 +1,6 @@
-// What the mouse does to GameInputDemo's panels: its select box for which
-// gamepad to listen to, what its list offers, and the Devices panel's rows
-// and their tooltips, through the panels' real layout, which
+// What the mouse does to GameInputDemo's cards: its combo box for which
+// gamepad to listen to, what its list offers, and the Devices card's rows
+// and their tooltips, through the cards' real layout, which
 // Library/UserInterface's Headless draws without a window or a GPU.
 
 use application::Event;
@@ -11,7 +11,7 @@ use game_input_demo::panels::{DEVICE_ROWS, GAMEPAD_SELECT};
 use game_input_demo::scripted_source::ScriptedSource;
 use json::Value;
 use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, click, key};
-use user_interface::{MARGIN, PADDING, PANELS_TOP, Program, Rect};
+use user_interface::{CARD_PADDING, MARGIN, PANELS_TOP, Program, Rect};
 use windows_api::*;
 
 // Input from gamepads with these names.
@@ -78,7 +78,7 @@ fn label(headless: &Headless, name: &str) -> String {
     }
 }
 
-// The labels of the select box's choices, in the list's order.
+// The labels of the combo box's choices, in the list's order.
 fn choices(headless: &Headless) -> Vec<String> {
     let prefix = format!("{GAMEPAD_SELECT}/");
     names(headless, &prefix)
@@ -88,14 +88,14 @@ fn choices(headless: &Headless) -> Vec<String> {
         .collect()
 }
 
-// Opens the select box's list.
+// Opens the combo box's list.
 fn open(demo: &mut Demo, headless: &mut Headless) {
     let select = headless.center(GAMEPAD_SELECT);
     step(demo, headless, &click(select));
     assert_eq!(headless.interface.popup().as_deref(), Some(GAMEPAD_SELECT));
 }
 
-// The Devices panel's rows, in its order.
+// The Devices card's rows, in its order.
 fn rows(headless: &Headless) -> Vec<Rect> {
     names(headless, &format!("{DEVICE_ROWS}/")).iter().map(|name| headless.target(name)).collect()
 }
@@ -109,16 +109,15 @@ fn hover(demo: &mut Demo, headless: &mut Headless, cursor: [f32; 2]) -> Option<(
 }
 
 #[test]
-fn the_closed_select_box_is_the_only_widget_but_the_device_rows() {
+fn the_closed_combo_box_is_the_only_widget_but_the_device_rows() {
     let (_, headless) = start(Ok(input(&["Pad One", "Pad Two"])), MAXIMIZED);
     assert_eq!(headless.interface.target_names(), [GAMEPAD_SELECT, "Devices/0", "Devices/1"]);
     assert_eq!(label(&headless, GAMEPAD_SELECT), "Pad One");
-    // After the panel's title, around its line.
+    // After the card's title, around its line.
     let select = headless.target(GAMEPAD_SELECT);
-    let title_y = PANELS_TOP + PADDING;
-    let line_height = user_interface::headless::font().cell_height as f32;
-    assert!(select.x > MARGIN + PADDING, "{select:?}");
-    assert!(select.y < title_y && select.bottom() > title_y + line_height, "{select:?}");
+    let title_y = PANELS_TOP + CARD_PADDING;
+    assert!(select.x > MARGIN + CARD_PADDING, "{select:?}");
+    assert!(select.y < title_y && select.bottom() > title_y + 20.0, "{select:?}");
 }
 
 #[test]
@@ -134,7 +133,8 @@ fn the_open_list_offers_each_gamepad_and_none_under_the_box() {
         assert_eq!(pair[1].y, pair[0].bottom());
         assert_eq!((pair[1].x, pair[1].width), (pair[0].x, pair[0].width));
     }
-    assert_eq!(rows[0].x, select.x + 1.0);
+    // Inside the list's padding.
+    assert_eq!(rows[0].x, select.x + 4.0);
 
     // A press on a choice picks it, and closes the list.
     step(&mut demo, &mut headless, &click(rows[1].center()));
@@ -214,7 +214,7 @@ fn nothing_takes_input_without_game_input_or_in_an_unsupported_window() {
     let (_, headless) = start(Err("GameInput isn't installed".to_string()), MAXIMIZED);
     assert!(headless.interface.target_names().is_empty());
 
-    // The main loop shows what's wrong instead of the panels.
+    // The main loop shows what's wrong instead of the cards.
     let (mut demo, mut headless) = start(Ok(input(&["Pad One"])), MAXIMIZED);
     let problems = ["The window is too small".to_string()];
     headless.frame(&[], |frame| {
@@ -340,7 +340,7 @@ fn a_tall_tooltip_goes_above_the_cursor_when_it_does_not_fit_under() {
 }
 
 #[test]
-fn the_panels_fit_both_window_heights() {
+fn the_cards_fit_both_window_heights() {
     for size in [MAXIMIZED, FULLSCREEN] {
         let (mut demo, mut headless) = start(Ok(real_input()), size);
         let outcome = headless.program(&mut demo, &[]).unwrap();
