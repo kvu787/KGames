@@ -1,12 +1,23 @@
 // SpinningCarTest's parts, as a library, so that Test/SpinningCarTest can
-// test the car's placement, its key, the settings and the car mesh without
-// a window. Main.rs is the program, which Library/SceneTest runs.
+// test them without a window: where the car is, the keys, the card, the
+// settings, and frames drawn offscreen. Main.rs runs the program.
 
 #[path = "Controls.rs"]
 pub mod controls;
+#[path = "Depth.rs"]
+pub mod depth;
+#[path = "InfoCard.rs"]
+pub mod info_card;
 #[path = "Scene.rs"]
 pub mod scene;
 #[path = "Settings.rs"]
 pub mod settings;
+#[path = "SpinningCar.rs"]
+pub mod spinning_car;
 
-pub const NAME: &str = "Spinning Car Test";
+use user_interface::Options;
+
+// How Library/UserInterface runs the test.
+pub fn options() -> Options {
+    Options::new("SpinningCarTest", env!("CARGO_MANIFEST_DIR"))
+}

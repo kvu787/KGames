@@ -1,10 +1,25 @@
 // MinimalSceneTest's parts, as a library, so that Test/MinimalSceneTest can
-// test the sphere's motion and the settings without a window. Main.rs is the
-// program, which Library/SceneTest runs.
+// test them without a window: the sphere's motion, the keys, the card, the
+// settings, and frames drawn offscreen. Main.rs runs the program.
 
+#[path = "Depth.rs"]
+pub mod depth;
+#[path = "InfoCard.rs"]
+pub mod info_card;
+#[path = "MovingSphere.rs"]
+pub mod moving_sphere;
 #[path = "Scene.rs"]
 pub mod scene;
 #[path = "Settings.rs"]
 pub mod settings;
 
-pub const NAME: &str = "Minimal Scene Test";
+use user_interface::{Options, WindowMode};
+
+// How Library/UserInterface runs the test: unlike most programs, it opens
+// borderless fullscreen unless Settings.json says otherwise.
+pub fn options() -> Options {
+    Options {
+        window_mode: WindowMode::BorderlessFullscreen,
+        ..Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR"))
+    }
+}

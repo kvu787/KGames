@@ -18,13 +18,11 @@ path = "Source/Main.rs"
 test = false
 
 [dependencies]
-application = { path = "../../Library/Application" }
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
 meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
-scene_test = { path = "../../Library/SceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
 user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }

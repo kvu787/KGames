@@ -5,14 +5,21 @@ edition = "2024"
 publish = false
 
 [[test]]
+name = "Keys"
+path = "Keys.rs"
+
+[[test]]
 name = "Scene"
 path = "Scene.rs"
 
+[[test]]
+name = "Settings"
+path = "Settings.rs"
+
 [dependencies]
-application = { path = "../../Library/Application" }
-json = { path = "../../Library/Json" }
 minimal_scene_test = { path = "../../Program/MinimalSceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }
+user_interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true
