@@ -61,3 +61,10 @@ The only analog controls will be analog left and right stick for these reasons:
 
 Yaw and roll map naturally to the left/right stick axes and pitch and forward/backward map
 naturally to up/down stick axes.
+
+Like Veehiicuul, Veehiicuul Fly will be flying-only and will not have player-initiated combat.
+This means that the player won't be shooting or ramming anything, but things may be shot at the
+player that must be evaded. The reason I don't want player combat in Veehiicuul is that it
+distracts the player from optimal driving/flying, which I personally don't like. When a game has
+movement and combat, the player has to track, analyze, and predict many more things at once than
+when a game only has movement.
