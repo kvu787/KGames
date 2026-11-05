@@ -75,7 +75,7 @@ pub fn status_chips(canvas: &mut Canvas, theme: &Theme, area: Rect, items: &[Chi
             canvas.fill(chip, CHIP_RADIUS, on_color);
             self::on_color(on_color)
         } else {
-            canvas.stroke(chip, CHIP_RADIUS, 1.0, theme.divider.mix(theme.control_strong, 0.25));
+            canvas.stroke(chip, CHIP_RADIUS, 1.0, theme.control_strong.alpha(if item.enabled { 0.45 } else { 0.2 }));
             if item.enabled { theme.text_secondary } else { theme.text_disabled.alpha(0.6) }
         };
         canvas.text_in(chip, item.label, TextStyle::Body, text, Align::Center);
