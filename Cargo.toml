@@ -28,6 +28,7 @@ members = [
     "Program/SpinningCarTest",
     "Program/UiShowcase",
     "Test/Application",
+    "Test/Canvas",
     "Test/GameInputDemo",
     "Test/Json",
     "Test/Math",

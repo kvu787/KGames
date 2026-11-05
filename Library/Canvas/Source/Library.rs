@@ -1,13 +1,13 @@
 // 2D drawing for KGames' user interfaces: a Canvas that builds a frame's
-// rectangles, antialiased lines and circles, and text as one triangle list,
-// the pipeline that draws it in one draw call, the light theme's colors,
-// and rectangles and lines of text in fixed pixels. Library/UserInterface
-// builds panels and widgets on it.
+// rounded boxes, shadows, lines and text as instances that the pipeline draws
+// in one draw call, the fonts of Fluent 2's type ramp and its icons, the light
+// and dark themes, and rectangles, stacks and lines of text in fixed pixels.
+// Library/UserInterface builds cards and widgets on it.
 
 #[path = "Canvas.rs"]
 mod canvas;
-#[path = "Font.rs"]
-mod font;
+#[path = "Fonts.rs"]
+mod fonts;
 #[path = "Layout.rs"]
 mod layout;
 #[path = "Pipeline.rs"]
@@ -15,7 +15,8 @@ mod pipeline;
 #[path = "Theme.rs"]
 pub mod theme;
 
-pub use canvas::{Cached, Canvas, Color, Vertex};
-pub use font::Font;
-pub use layout::*;
+pub use canvas::{Cached, Canvas, Color, Instance};
+pub use fonts::{ELLIPSIS, Fonts, ICON_SIZES, Icon, TextStyle};
+pub use layout::{Align, Axis, Lines, Rect, Stack};
 pub use pipeline::Pipeline;
+pub use theme::Theme;
