@@ -75,7 +75,12 @@ when a game only has movement.
 - All surfaces should be solids
 - No zero-thickness surfaces to avoid issues
 - Kind of like a collection of asteroids
+- This should also sidestep the issue of having to create a tool that automatically stitches
+  different terrain patches, because there won't be terrain patches because they'll all be solid
+  meshes
 
 ## Shaders
 
+- I'm not sure if the half-sphere, view-dependent properties of SimplePaint will work with this
+  kind of game
 - Need to change Simple Paint so that it covers the whole sphere and not do any warping
