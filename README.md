@@ -41,10 +41,12 @@ This decision was primarily motivated by my experience working with those depend
   - F11 to toggle borderless fullscreen
   - Optimize for minimal input latency
 
-GUI programs ignore input without focus, including gamepads, and a click that gives a window
-focus does only that. [Library/Application](Library/Application/README.md) has the details, and
-the two window setups that programs support. [AGENTS.md](AGENTS.md) has the rules for coding
-agents, like how to run programs without disrupting you.
+GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), whose main
+loop runs them, and whose widgets are their controls. [UiShowcase](Program/UiShowcase/README.md)
+shows every widget. GUI programs ignore input without focus, including gamepads, and a click that
+gives a window focus does only that. [Library/Application](Library/Application/README.md) has the
+details, and the two window setups that programs support. [AGENTS.md](AGENTS.md) has the rules for
+coding agents, like how to run programs without disrupting you.
 
 ## Program
 
@@ -52,6 +54,7 @@ agents, like how to run programs without disrupting you.
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [GameInputDemo](Program/GameInputDemo/README.md)              | Shows what gamepads, keyboards and mice send through GameInput    |
 | [SimplePaintDemo](Program/SimplePaintDemo/README.md)          | Edits a SimplePaint material live on a UV sphere                  |
+| [UiShowcase](Program/UiShowcase/README.md)                    | Shows every widget of the UI framework, and what input does to it |
 | [MinimalSceneTest](Program/MinimalSceneTest/README.md)        | A sphere moving over a ground plane, for checking smooth motion   |
 | [SpinningCarTest](Program/SpinningCarTest/README.md)          | A car moving and spinning past a sphere, painted with SimplePaint |
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md)        | Shows each display's identifier, for the programs' `--display`    |
@@ -62,8 +65,9 @@ agents, like how to run programs without disrupting you.
 | Library                                                       | What it is                                                        |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [Application](Library/Application/README.md)                  | The window, its input, settings, and the supported window setups  |
+| [UserInterface](Library/UserInterface/README.md)              | The UI framework: widgets, input, and the main loop of programs   |
 | [Graphics](Library/Graphics/README.md)                        | The Direct3D 12 renderer and its low-latency frame pacing         |
-| [Canvas](Library/Canvas/README.md)                            | 2D text and shapes, the light theme, and panel layout             |
+| [Canvas](Library/Canvas/README.md)                            | 2D text and shapes, the light theme, and rectangles               |
 | [SimplePaint](Library/SimplePaint/README.md)                  | The SimplePaint shader: its specification, Rust and HLSL          |
 | [GameInput](Library/GameInput/README.md)                      | GameInput bindings, and the runtime next to each exe              |
 | [Displays](Library/Displays/README.md)                        | Finds the displays, and gives each a lasting identifier           |
