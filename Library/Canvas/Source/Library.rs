@@ -1,7 +1,8 @@
 // 2D drawing for KGames' user interfaces: a Canvas that builds a frame's
 // rectangles, antialiased lines and circles, and text as one triangle list,
-// the pipeline that draws it in one draw call, the light theme's colors, and
-// helpers for laying out panels in fixed pixels.
+// the pipeline that draws it in one draw call, the light theme's colors,
+// and rectangles and lines of text in fixed pixels. Library/UserInterface
+// builds panels and widgets on it.
 
 #[path = "Canvas.rs"]
 mod canvas;

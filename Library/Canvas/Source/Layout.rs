@@ -1,16 +1,10 @@
-// Helpers for laying out panels in fixed pixels, and the spacing that KGames'
-// programs share. Programs only support fixed window sizes (see
-// Library/Application), so nothing here adapts to the window's size.
+// Rectangles, and lines of text, in fixed pixels. Programs only support
+// fixed window sizes (see Library/Application), so nothing here adapts to
+// the window's size. Library/UserInterface lays out panels and widgets with
+// these.
 
+use crate::theme::DIM;
 use crate::{Canvas, Color};
-use crate::theme::{BORDER, DIM, ERROR, PANEL, TEXT, TITLE, WARNING};
-
-// Between panels, and between them and the window's edges.
-pub const MARGIN: f32 = 16.0;
-// Around the header's and footer's text.
-pub const EDGE: f32 = 12.0;
-// Inside a panel, around its contents.
-pub const PADDING: f32 = 12.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Rect {
@@ -191,45 +185,6 @@ impl Lines {
     }
 }
 
-// Draws a panel's background and title, and returns the area under the title.
-pub fn panel(canvas: &mut Canvas, area: Rect, title: &str, subtitle: &str) -> Rect {
-    let padding = PADDING;
-    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
-    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
-    let x = canvas.text(area.x + padding, area.y + padding, title, TITLE);
-    if !subtitle.is_empty() {
-        canvas.text_clipped(
-            x,
-            area.y + padding,
-            &format!("  {subtitle}"),
-            area.right() - padding - x,
-            DIM,
-        );
-    }
-    let top = area.y + padding + canvas.line_height() * 1.4;
-    Rect::new(
-        area.x + padding,
-        top,
-        area.width - padding * 2.0,
-        area.bottom() - padding - top,
-    )
-}
-
-// Instead of the program's panels, when the window isn't in a supported
-// setup: `supported` says which setups are, and `problems` what's wrong.
-pub fn draw_window_problems(canvas: &mut Canvas, supported: &str, problems: &[String], width: f32) {
-    let line_height = canvas.line_height();
-    let area = Rect::new(MARGIN, MARGIN, width - MARGIN * 2.0, f32::INFINITY);
-    let mut lines = Lines::new(area, line_height);
-    lines.line(canvas, "Unsupported window", ERROR);
-    lines.gap(0.5);
-    lines.wrapped(canvas, supported, "", TEXT);
-    lines.gap(0.5);
-    for problem in problems {
-        lines.wrapped(canvas, &format!("- {problem}"), "  ", WARNING);
-    }
-}
-
 // Splits text into lines of at most `columns` characters at spaces. Lines
 // after the first are `indent` characters narrower, for a hanging indent.
 pub fn wrap(text: &str, columns: usize, indent: usize) -> Vec<String> {
@@ -252,29 +207,4 @@ pub fn wrap(text: &str, columns: usize, indent: usize) -> Vec<String> {
     }
     lines.push(line);
     lines
-}
-
-// A box of text over a 3D view, at (x, y), as big as its lines need. Each
-// line is pieces of text in their colors. Returns the box's area.
-pub fn text_box(canvas: &mut Canvas, x: f32, y: f32, lines: &[Vec<(String, Color)>]) -> Rect {
-    let line_height = canvas.line_height();
-    let width = lines
-        .iter()
-        .map(|line| line.iter().map(|(text, _)| canvas.text_width(text)).sum::<f32>())
-        .fold(0.0, f32::max);
-    let area = Rect::new(
-        x,
-        y,
-        width + PADDING * 2.0,
-        line_height * lines.len() as f32 + PADDING * 2.0,
-    );
-    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
-    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
-    for (index, line) in lines.iter().enumerate() {
-        let mut end = area.x + PADDING;
-        for (text, color) in line {
-            end = canvas.text(end, area.y + PADDING + line_height * index as f32, text, *color);
-        }
-    }
-    area
 }
