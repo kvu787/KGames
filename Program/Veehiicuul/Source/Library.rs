@@ -1,7 +1,7 @@
 // Veehiicuul's parts, as a library, so that Test/Veehiicuul can test them
 // without a window: how a car drives, what it touches, the tracks and the
 // vehicles from their files, the ground that a track's outlines make, the
-// controls, and the game that they make up.
+// controls, and the game that they make up. Main.rs is the program.
 
 #[path = "Camera.rs"]
 pub mod camera;
@@ -15,6 +15,10 @@ pub mod driving;
 pub mod game;
 #[path = "Ground.rs"]
 pub mod ground;
+#[path = "Program.rs"]
+pub mod program;
+#[path = "Scene.rs"]
+pub mod scene;
 #[path = "Settings.rs"]
 pub mod settings;
 #[path = "Track.rs"]

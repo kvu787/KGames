@@ -310,12 +310,16 @@ name = "veehiicuul"
 version = "0.1.0"
 dependencies = [
  "application",
+ "graphics",
  "json",
  "math",
  "meshes",
  "paint_settings",
+ "shader_compiler",
  "simple_paint",
  "user_interface",
+ "windows-core",
+ "windows_api",
 ]
 
 [[package]]

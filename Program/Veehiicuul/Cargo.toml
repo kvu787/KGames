@@ -2,6 +2,7 @@
 name = "veehiicuul"
 version = "0.1.0"
 edition = "2024"
+build = "Build.rs"
 
 # The game's parts, which Test/Veehiicuul tests without a window.
 [lib]
@@ -10,14 +11,31 @@ path = "Source/Library.rs"
 test = false
 doctest = false
 
+[[bin]]
+name = "Veehiicuul"
+path = "Source/Main.rs"
+# Every test is in Test.
+test = false
+
 [dependencies]
 application = { path = "../../Library/Application" }
+graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
 meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
 simple_paint = { path = "../../Library/SimplePaint" }
 user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../../Library/ShaderCompiler" }
 
 [lints]
 workspace = true

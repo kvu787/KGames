@@ -1,0 +1,10 @@
+{
+    "Steps": [
+        { "Frame": 1, "Hold": ["Right"] },
+        { "Frame": 15, "Expect": { "Crashes": 0, "Paused": false } },
+        { "Frame": 15, "Capture": "AtTheEdge" },
+        { "Frame": 16, "Expect": { "Crashes": 1, "Position": [94.5437, -48.4802], "Speed": 0, "Paused": true } },
+        { "Frame": 25, "Hold": [] },
+        { "Frame": 60, "Expect": { "Crashes": 1, "Position": [94.5437, -48.4802], "Speed": 0, "Paused": false } }
+    ]
+}

@@ -20,6 +20,10 @@ path = "Track.rs"
 name = "Vehicles"
 path = "Vehicles.rs"
 
+[[test]]
+name = "Game"
+path = "Game.rs"
+
 [dependencies]
 application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }

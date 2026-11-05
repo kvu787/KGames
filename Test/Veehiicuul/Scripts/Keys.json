@@ -1,0 +1,26 @@
+{
+    "Steps": [
+        { "Frame": 1, "Key": "E" },
+        { "Frame": 1, "Expect": { "Vehicle": "Cyan" } },
+        { "Frame": 2, "Key": "E" },
+        { "Frame": 3, "Key": "E" },
+        { "Frame": 3, "Expect": { "Vehicle": "Green" } },
+        { "Frame": 4, "Key": "Q" },
+        { "Frame": 4, "Expect": { "Vehicle": "Magenta" } },
+        { "Frame": 5, "Key": "C" },
+        { "Frame": 5, "Expect": { "Camera": "Follow", "ViewHeight": 45 } },
+        { "Frame": 6, "Wheel": [1280, 600], "Notches": 1 },
+        { "Frame": 6, "Expect": { "ViewHeight": 36 } },
+        { "Frame": 7, "Key": "Home" },
+        { "Frame": 7, "Expect": { "ViewHeight": 45 } },
+        { "Frame": 8, "Capture": "Following" },
+        { "Frame": 9, "Key": "F1" },
+        { "Frame": 9, "Expect": { "TextShown": false } },
+        { "Frame": 10, "Key": "F11" },
+        { "Frame": 10, "Expect": { "Window": { "Fullscreen": true } } },
+        { "Frame": 11, "Expect": { "Window": { "Problems": [] } } },
+        { "Frame": 11, "Capture": "Fullscreen" },
+        { "Frame": 12, "Key": "F11" },
+        { "Frame": 12, "Expect": { "Window": { "Fullscreen": false } } }
+    ]
+}

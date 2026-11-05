@@ -52,6 +52,7 @@ coding agents, like how to run programs without disrupting you.
 
 | Program                                                       | What it is                                                        |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [Veehiicuul](Program/Veehiicuul/README.md)                    | A racing game seen from above, driven with a gamepad or the keys  |
 | [GameInputDemo](Program/GameInputDemo/README.md)              | Shows what gamepads, keyboards and mice send through GameInput    |
 | [SimplePaintDemo](Program/SimplePaintDemo/README.md)          | Edits a SimplePaint material live on a UV sphere                  |
 | [UiShowcase](Program/UiShowcase/README.md)                    | Shows every widget of the UI framework, and what input does to it |
@@ -64,7 +65,7 @@ coding agents, like how to run programs without disrupting you.
 
 | Library                                                       | What it is                                                        |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [Application](Library/Application/README.md)                  | The window, its input, settings, and the supported window setups  |
+| [Application](Library/Application/README.md)                  | The window, its input and the gamepad's, settings, and the setups |
 | [UserInterface](Library/UserInterface/README.md)              | The UI framework: widgets, input, and the main loop of programs   |
 | [Graphics](Library/Graphics/README.md)                        | The Direct3D 12 renderer and its low-latency frame pacing         |
 | [Canvas](Library/Canvas/README.md)                            | 2D text and shapes, the light theme, and rectangles               |

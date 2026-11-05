@@ -1,0 +1,11 @@
+{
+    "Steps": [
+        { "Frame": 1, "Gamepad": { "RightStick": [-0.511, 0.8596] } },
+        { "Frame": 30, "Expect": { "Speed": 70, "Heading": -104.267, "Crashes": 0 } },
+        { "Frame": 30, "Capture": "Driving" },
+        { "Frame": 31, "Gamepad": { "LeftTrigger": 1 } },
+        { "Frame": 50, "Expect": { "Speed": 0, "Velocity": [0, 0], "Heading": -104.267, "Crashes": 0 } },
+        { "Frame": 51, "Gamepad": { "Buttons": ["X"] } },
+        { "Frame": 51, "Expect": { "Position": [94.5437, -48.4802], "Paused": true } }
+    ]
+}

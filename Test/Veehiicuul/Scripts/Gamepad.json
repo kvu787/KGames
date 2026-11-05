@@ -1,0 +1,21 @@
+{
+    "Steps": [
+        { "Frame": 1, "Expect": { "Vehicle": "Yellow" } },
+        { "Frame": 2, "Gamepad": { "Buttons": ["Right"] } },
+        { "Frame": 3, "Expect": { "Vehicle": "Cyan" } },
+        { "Frame": 4, "Gamepad": { "Buttons": ["Left"] } },
+        { "Frame": 4, "Expect": { "Vehicle": "Yellow" } },
+        { "Frame": 5, "Gamepad": { "Buttons": ["Menu"] } },
+        { "Frame": 5, "Expect": { "Camera": "Follow", "ViewHeight": 45 } },
+        { "Frame": 6, "Gamepad": { "LeftStick": [0, 1], "Buttons": ["RB"] } },
+        { "Frame": 35, "Expect": { "ViewHeight": 20 } },
+        { "Frame": 36, "Gamepad": { "LeftStick": [0, 1] } },
+        { "Frame": 40, "Expect": { "ViewHeight": 20 } },
+        { "Frame": 41, "Gamepad": { "Buttons": ["Y"] } },
+        { "Frame": 41, "Expect": { "ViewHeight": 45 } },
+        { "Frame": 42, "Gamepad": { "Buttons": ["View"] } },
+        { "Frame": 42, "Expect": { "TextShown": false } },
+        { "Frame": 43, "Gamepad": null },
+        { "Frame": 44, "Expect": { "TextShown": false, "Camera": "Follow" } }
+    ]
+}
