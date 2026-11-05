@@ -89,11 +89,10 @@ impl Program for Demo {
                 scripted.now = scripted.now.max(microseconds(ui.time()));
             }
             let focused = ui.window_focused();
-            // Minimizing the window takes its focus, and restoring it gives
-            // it back, both while the main loop runs no frames, so the frame
-            // that restores it has both. Losing focus first drops what came
-            // while it was minimized, stops the motors, and makes restoring
-            // it count as getting focus.
+            // A frame can both lose focus and get it back, like when focus
+            // goes to another window and back between two frames. Losing
+            // focus first drops what came meanwhile, stops the motors, and
+            // makes getting it back count as getting focus.
             if focused && ui.input().focus_lost {
                 input.update(false);
             }

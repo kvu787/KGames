@@ -135,15 +135,27 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if !window.pump() {
             break;
         }
-        if window.minimized() && runner.is_none() {
-            window.wait();
-            continue;
-        }
         if window.take_setup_changed() {
             problems = window.setup_problems();
         }
         let (width, height) = window.client_size();
-        if width == 0 || height == 0 {
+        if (window.minimized() || width == 0 || height == 0) && runner.is_none() {
+            // A minimized window doesn't draw, but the program still hears
+            // what happened, like the window losing focus as it minimized,
+            // so that it can stop what it's doing, like a gamepad's motors.
+            let events = window.take_events();
+            if !events.is_empty() && problems.is_empty() {
+                let (width, height) = presenter.size();
+                let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
+                ui.begin_frame(&events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
+                program.update(&mut ui);
+                ui.end_frame();
+                for request in std::mem::take(&mut ui.requests) {
+                    if request == Request::Close {
+                        window.request_close();
+                    }
+                }
+            }
             window.wait();
             continue;
         }

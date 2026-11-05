@@ -593,6 +593,10 @@ impl Ui {
         self.focusable = focusable;
     }
 
+    pub fn focusable(&self) -> bool {
+        self.focusable
+    }
+
     pub fn tooltips_enabled(&self) -> bool {
         self.tooltips_enabled
     }

@@ -145,7 +145,9 @@ impl Ui {
             let row_response = self.interact(&row_name, row_rect, Sense::CLICK, "ListViewItem");
             if row_response.pressed {
                 *selected = Some(index);
-                self.focus(name);
+                if self.focusable() {
+                    self.focus(name);
+                }
             }
             if row_response.double_clicked {
                 activated = Some(index);

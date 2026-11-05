@@ -70,9 +70,9 @@ Xbox One and Series gamepads stay off. The Gamepad card's "Motors" still lists e
 gamepad has. With the rumble test off, no motor runs, and while the window doesn't have focus,
 which stops the demo from reading the sticks, none does either.
 
-Minimizing the window takes its focus, but the main loop runs no frames while the window is
-minimized, so the demo only sees that once it's restored. Until then, the motors keep the strength
-that they last had.
+Minimizing the window takes its focus. The main loop draws no frames while the window is minimized,
+but it still runs the demo's update once with the focus lost, so the motors stop as the window
+minimizes.
 
 A motor is off while its stick is inside the inner dead zone, the ring on the stick's graph. Sticks
 don't read exactly 0 at rest, and the dead zone keeps that noise from running the motors. Past the
