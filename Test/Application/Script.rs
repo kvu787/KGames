@@ -125,6 +125,36 @@ fn types_text_as_characters() {
     }
 }
 
+// A Hold step says which keys are held from its frame on: a key that goes
+// down is pressed, with Control and Shift if they're held with it, and a key
+// that it leaves out lets go.
+#[test]
+fn holds_keys_until_the_next_hold() {
+    let mut script = script(
+        r#"{
+            "Steps": [
+                { "Frame": 1, "Hold": ["Up"] },
+                { "Frame": 3, "Hold": ["Up", "Shift", "Space"] },
+                { "Frame": 4, "Hold": ["Space"] },
+                { "Frame": 5, "Hold": [] }
+            ]
+        }"#,
+    );
+    let key = |key, shift| Event::Key {
+        key,
+        control: false,
+        shift,
+        repeat: false,
+    };
+    let frames: Vec<_> = (0..6).map(|_| script.next_frame()).collect();
+    let held: Vec<&[u32]> = frames.iter().map(|frame| frame.held_keys.as_slice()).collect();
+    assert_eq!(held, [&[][..], &[0x26], &[0x26], &[0x26, 0x10, 0x20], &[0x20], &[]]);
+    assert_eq!(frames[1].events, [key(0x26, false)]);
+    assert!(frames[2].events.is_empty(), "a held key isn't pressed again");
+    assert_eq!(frames[3].events, [key(0x10, true), key(0x20, true)]);
+    assert!(frames[4].events.is_empty() && frames[5].events.is_empty());
+}
+
 #[test]
 fn runs_at_60_frames_a_second_by_default() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }] }"#);
@@ -139,8 +169,12 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [], "FrameSeconds": 0 }"#, "FrameSeconds must be a number of seconds above 0, not 0"),
         (r#"{ "Steps": [{ "Key": "S" }] }"#, "step 1: needs a Frame"),
         (r#"{ "Steps": [{ "Frame": 1.5, "Key": "S" }] }"#, "step 1: Frame must be a whole number, not 1.5"),
-        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program"),
-        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1, "Hold": "Up" }] }"#, "step 1: Hold must be a list of the keys held down, like [\"Up\", \"Space\"], not \"Up\""),
+        (r#"{ "Steps": [{ "Frame": 1, "Hold": ["Up", "Hyper"] }] }"#, "step 1: Hyper isn't a key"),
+        (r#"{ "Steps": [{ "Frame": 1, "Hold": [true] }] }"#, "step 1: Each of Hold's keys must be a key's name, like \"F11\", not true"),
+        (r#"{ "Steps": [{ "Frame": 1, "Hold": ["Up", "Up"] }] }"#, "step 1: Hold has \"Up\" twice"),
         (r#"{ "Steps": [{ "Frame": 1, "Jump": true }] }"#, "step 1: Jump isn't a step"),
         (r#"{ "Steps": [{ "Frame": 1, "Key": "Hyper" }] }"#, "step 1: Hyper isn't a key"),
         (r#"{ "Steps": [{ "Frame": 1, "Press": [1] }] }"#, "step 1: a point must be [x, y], not a list of 1"),

@@ -40,6 +40,9 @@ pub struct Headless {
     pub cursor: Option<[f32; 2]>,
     // Whether the window has focus. Without it, frames get no input.
     pub focused: bool,
+    // The keys held down, by virtual-key code, which frames have while the
+    // window has focus.
+    pub held_keys: Vec<u32>,
     pub size: [f32; 2],
     pub notices: Vec<String>,
 }
@@ -58,6 +61,7 @@ impl Headless {
             number: 0,
             cursor: None,
             focused: true,
+            held_keys: Vec::new(),
             size,
             notices: Vec::new(),
         }
@@ -85,6 +89,7 @@ impl Headless {
             focused: self.focused,
             events,
             cursor: if self.focused { self.cursor } else { None },
+            held_keys: if self.focused { self.held_keys.clone() } else { Vec::new() },
             program_steps: Vec::new(),
             checkpoints: Vec::new(),
         };

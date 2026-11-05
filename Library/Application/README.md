@@ -16,7 +16,8 @@ What every KGames GUI program shares besides drawing:
   and switches between the two with `toggle_fullscreen`, for F11. It records the window's
   messages, and `begin_frame` gives the program each frame's time and the mouse and keyboard
   input from them as `Event`s, in a `Frame`: presses, releases and the wheel, keys, and the
-  characters that the keys type, for text fields.
+  characters that the keys type, for text fields. The `Frame` also has the keys held down, for
+  what goes on while a key is held, like steering.
 - `window_check` says what's wrong with the window's setup, if it isn't one of the two that
   programs support.
 - `FrameCounter` counts frames per second.
@@ -40,9 +41,10 @@ taskbar change.
 ## Input without focus
 
 Programs ignore all input while their window doesn't have focus. The `Frame` that
-`Window::begin_frame` returns has no cursor then, and no events but a `Release` that ends a
-press it got with focus, so that each `Press` has its `Release`. A click in the window that
-gives it focus does only that. Programs that read input with GameInput drop it themselves
+`Window::begin_frame` returns has no cursor then, no keys held, and no events but a `Release`
+that ends a press it got with focus, so that each `Press` has its `Release`. A click in the
+window that gives it focus does only that, and a key that's still down when it gets focus only
+counts as held once it's pressed again. Programs that read input with GameInput drop it themselves
 while the window doesn't have focus.
 
 ## Scripts
@@ -64,6 +66,7 @@ every run draws the same frames. Each step happens at a frame:
         { "Frame": 4, "Wheel": [1400, 300], "Notches": -2 },
         { "Frame": 5, "Key": "S", "Control": true },
         { "Frame": 5, "Text": "Hello" },
+        { "Frame": 5, "Hold": ["Up", "Space"] },
         { "Frame": 6, "Capture": "AfterSave" },
         { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
         { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -79,6 +82,8 @@ every run draws the same frames. Each step happens at a frame:
 | `Wheel`   | Turns the wheel there by `Notches`, positive away from the user                |
 | `Key`     | Presses a key by name, like `F11`, `Left`, `Home` or `A`, with `Control` and   |
 |           | `Shift`. `Repeat` makes it a repeat of a key that's held, which toggles ignore |
+| `Hold`    | Holds down the keys it lists until the next `Hold`. Each that wasn't held      |
+|           | already is pressed then, and the keys it leaves out let go                     |
 | `Text`    | Types characters, as `Character` events, without the keys that type them       |
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
 |           | the output folder. A frame has one at most, and each has its own name          |

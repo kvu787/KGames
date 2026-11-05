@@ -154,6 +154,24 @@ fn widgets_that_are_not_focusable_leave_keys_to_the_program() {
     assert_eq!(harness.interface.focus(), None);
 }
 
+// A held key is the program's whatever has keyboard focus, as it's for what
+// goes on while it's held, and no key is held without the window's focus.
+#[test]
+fn held_keys_are_held_whatever_has_focus_and_none_without_it() {
+    let mut harness = Headless::default();
+    harness.frame(&[], |frame| frame.button("Save", SAVE, "Save"));
+    harness.frame(&click(SAVE.center()), |frame| frame.button("Save", SAVE, "Save"));
+    assert_eq!(harness.interface.focus().as_deref(), Some("Save"));
+    harness.held_keys = vec![VK_LEFT as u32, VK_SPACE as u32];
+    let held = harness.frame(&[], |frame| {
+        frame.button("Save", SAVE, "Save");
+        [frame.held(VK_LEFT), frame.held(VK_SPACE), frame.held(VK_RIGHT)]
+    });
+    assert_eq!(held, [true, true, false]);
+    harness.focused = false;
+    assert!(!harness.frame(&[], |frame| frame.held(VK_LEFT)));
+}
+
 #[test]
 fn a_widget_that_is_not_drawn_loses_focus_and_its_press() {
     let mut harness = Headless::default();

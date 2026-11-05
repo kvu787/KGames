@@ -11,6 +11,10 @@
 // frame has no cursor, and no events but the Release of a press that it got
 // with focus, and a click that gives the window focus does only that.
 //
+// A key counts as held from a press with focus to its release, or until the
+// window loses focus, so a key that's still down when the window gets focus
+// back only counts once it's pressed again.
+//
 // With a script (see Script.rs), the script is the only input, the window
 // acts as if it had focus, and time is the script's fixed clock.
 
@@ -41,6 +45,8 @@ static TRACKING_MOUSE: AtomicBool = AtomicBool::new(false);
 // Whether the left button went down in the window and hasn't come up.
 static BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
 static EVENTS: Mutex<Vec<Event>> = Mutex::new(Vec::new());
+// The keys held down, by virtual-key code, in the order they went down.
+static HELD_KEYS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 // The first half of a character outside the Basic Multilingual Plane, which
 // WM_CHAR sends as two UTF-16 surrogates, one message each.
 static HIGH_SURROGATE: AtomicU32 = AtomicU32::new(0);
@@ -186,14 +192,33 @@ extern "system" fn window_procedure(
         }
         WM_KEYDOWN | WM_SYSKEYDOWN => {
             let held = |key| unsafe { GetKeyState(key) } < 0;
+            let key = wparam.0 as u32;
+            // Bit 30 says whether the key was already down. A key that went
+            // down while another window had focus repeats here, but only
+            // counts as held once it's pressed again.
+            let repeat = lparam.0 & (1 << 30) != 0;
             push(Event::Key {
-                key: wparam.0 as u32,
+                key,
                 control: held(VK_CONTROL),
                 shift: held(VK_SHIFT),
-                // Bit 30 says whether the key was already down.
-                repeat: lparam.0 & (1 << 30) != 0,
+                repeat,
             });
+            let mut keys = HELD_KEYS.lock().unwrap();
+            if !repeat && !keys.contains(&key) {
+                keys.push(key);
+            }
+            drop(keys);
             // Alt+F4 is a system key, which closes the window.
+            unsafe { DefWindowProcW(window, message, wparam, lparam) }
+        }
+        WM_KEYUP | WM_SYSKEYUP => {
+            let key = wparam.0 as u32;
+            HELD_KEYS.lock().unwrap().retain(|held| *held != key);
+            unsafe { DefWindowProcW(window, message, wparam, lparam) }
+        }
+        // Keys' releases go to the window with focus, so they all let go.
+        WM_KILLFOCUS => {
+            HELD_KEYS.lock().unwrap().clear();
             unsafe { DefWindowProcW(window, message, wparam, lparam) }
         }
         // TranslateMessage makes these from WM_KEYDOWN.
@@ -235,6 +260,9 @@ pub struct Frame {
     pub events: Vec<Event>,
     // Where the cursor is in the window, if it's over it, with focus.
     pub cursor: Option<[f32; 2]>,
+    // The keys held down, by virtual-key code, in the order they went down,
+    // for what goes on while a key is held. None without focus.
+    pub held_keys: Vec<u32>,
     // A script's "Program" steps for this frame, for input that doesn't
     // come from the window. See Script.rs.
     pub program_steps: Vec<Value>,
@@ -472,6 +500,7 @@ impl Window {
                 focused: true,
                 events: frame.events,
                 cursor: frame.cursor,
+                held_keys: frame.held_keys,
                 program_steps: frame.program_steps,
                 checkpoints: frame.checkpoints,
             };
@@ -486,6 +515,11 @@ impl Window {
                 unpack_point(CURSOR.load(Ordering::Relaxed))
             } else {
                 None
+            },
+            held_keys: if focused {
+                HELD_KEYS.lock().unwrap().clone()
+            } else {
+                Vec::new()
             },
             program_steps: Vec::new(),
             checkpoints: Vec::new(),

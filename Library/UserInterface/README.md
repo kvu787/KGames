@@ -79,6 +79,8 @@ came: clicks hit what the frame before them drew.
 | The wheel   | The topmost target under it that scrolls                                       |
 | Keys        | The widget with keyboard focus, if it takes them, or else the program, for its |
 |             | shortcuts, which `Frame::shortcut` reads                                       |
+| Held keys   | The program, whatever has keyboard focus. `Frame::held` says whether a key is  |
+|             | down, for what goes on while it's held, like steering                          |
 | Characters  | The text field with keyboard focus                                             |
 | `Tab`       | Moves keyboard focus to the next widget that takes it, `Shift+Tab` back        |
 | `Esc`       | Closes a popup, or else takes keyboard focus away, or else goes to the program |

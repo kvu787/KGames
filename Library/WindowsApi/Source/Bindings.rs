@@ -7347,6 +7347,8 @@ pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_KEYDOWN: i32 = 256;
+pub const WM_KEYUP: i32 = 257;
+pub const WM_KILLFOCUS: i32 = 8;
 pub const WM_LBUTTONDOWN: i32 = 513;
 pub const WM_LBUTTONUP: i32 = 514;
 pub const WM_MOUSEACTIVATE: i32 = 33;
@@ -7361,6 +7363,7 @@ pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
 pub const WM_SYSCOMMAND: i32 = 274;
 pub const WM_SYSKEYDOWN: i32 = 260;
+pub const WM_SYSKEYUP: i32 = 261;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {

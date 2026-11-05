@@ -20,6 +20,7 @@
 //             { "Frame": 4, "Wheel": [1400, 300], "Notches": -2 },
 //             { "Frame": 5, "Key": "S", "Control": true },
 //             { "Frame": 5, "Text": "Hello" },
+//             { "Frame": 5, "Hold": ["Up", "Space"] },
 //             { "Frame": 6, "Capture": "AfterSave" },
 //             { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
 //             { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -27,15 +28,21 @@
 //     }
 //
 // Frames count from 0. Clicks hit what the frame before them drew, so they
-// start at frame 1. "Text" types characters, as Character events, without
-// the keys that type them. "Program" steps go to the program as they are,
-// for input that doesn't come from the window, like GameInput readings.
+// start at frame 1. "Key" presses a key, which doesn't stay held. "Hold"
+// says which keys are held down from its frame until the next "Hold": each
+// that wasn't held already is pressed then, and the others let go of. "Text"
+// types characters, as Character events, without the keys that type them.
+// "Program" steps go to the program as they are, for input that doesn't
+// come from the window, like GameInput readings.
 
 use std::path::{Path, PathBuf};
 
 use json::Value;
 
 use crate::Event;
+
+const VK_SHIFT: u32 = 0x10;
+const VK_CONTROL: u32 = 0x11;
 
 // What a program does at a checkpoint.
 pub enum Checkpoint {
@@ -52,6 +59,7 @@ pub struct ScriptFrame {
     pub seconds: f64,
     pub events: Vec<Event>,
     pub cursor: Option<[f32; 2]>,
+    pub held_keys: Vec<u32>,
     pub checkpoints: Vec<Checkpoint>,
     pub program_steps: Vec<Value>,
 }
@@ -59,6 +67,7 @@ pub struct ScriptFrame {
 enum Action {
     Move([f32; 2]),
     Event(Event),
+    Hold(Vec<u32>),
     Text(String),
     Capture(String),
     Expect(Value),
@@ -79,6 +88,8 @@ pub struct Script {
     frame_seconds: f64,
     output: PathBuf,
     cursor: Option<[f32; 2]>,
+    // The keys held down, in the order they went down.
+    held_keys: Vec<u32>,
 }
 
 impl Script {
@@ -135,6 +146,7 @@ impl Script {
             frame_seconds,
             output: output.to_path_buf(),
             cursor: None,
+            held_keys: Vec::new(),
         })
     }
 
@@ -154,6 +166,7 @@ impl Script {
             seconds: self.frame as f64 * self.frame_seconds,
             events: Vec::new(),
             cursor: None,
+            held_keys: Vec::new(),
             checkpoints: Vec::new(),
             program_steps: Vec::new(),
         };
@@ -170,6 +183,19 @@ impl Script {
                     }
                     frame.events.push(*event);
                 }
+                Action::Hold(keys) => {
+                    // Like in the window, a key that goes down is pressed,
+                    // with the keys held with it.
+                    for &key in keys.iter().filter(|key| !self.held_keys.contains(key)) {
+                        frame.events.push(Event::Key {
+                            key,
+                            control: keys.contains(&VK_CONTROL),
+                            shift: keys.contains(&VK_SHIFT),
+                            repeat: false,
+                        });
+                    }
+                    self.held_keys = keys.clone();
+                }
                 Action::Text(text) => frame.events.extend(text.chars().map(Event::Character)),
                 Action::Capture(name) => frame.checkpoints.push(Checkpoint::Capture {
                     image: self.output.join(format!("{name}.png")),
@@ -181,6 +207,7 @@ impl Script {
             self.next += 1;
         }
         frame.cursor = self.cursor;
+        frame.held_keys = self.held_keys.clone();
         self.frame += 1;
         frame
     }
@@ -206,7 +233,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
-            "needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program".to_string(),
+            "needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program".to_string(),
         );
     };
     let action = match name.as_str() {
@@ -221,18 +248,28 @@ fn parse_step(item: &Value) -> Result<Step, String> {
             };
             Action::Event(Event::Wheel(point(value)?, notches))
         }
-        "Key" => {
-            let key = match value {
-                Value::String(name) => virtual_key(name).ok_or_else(|| format!("{name} isn't a key"))?,
-                Value::Number(code) if (1.0..255.0).contains(code) && code.fract() == 0.0 => *code as u32,
-                other => return Err(format!("Key must be a key's name, like \"F11\", not {}", other.describe())),
+        "Key" => Action::Event(Event::Key {
+            key: key(value, "Key")?,
+            control: flag("Control")?,
+            shift: flag("Shift")?,
+            repeat: flag("Repeat")?,
+        }),
+        "Hold" => {
+            let Value::Array(names) = value else {
+                return Err(format!(
+                    "Hold must be a list of the keys held down, like [\"Up\", \"Space\"], not {}",
+                    value.describe()
+                ));
             };
-            Action::Event(Event::Key {
-                key,
-                control: flag("Control")?,
-                shift: flag("Shift")?,
-                repeat: flag("Repeat")?,
-            })
+            let mut keys = Vec::new();
+            for name in names {
+                let code = key(name, "Each of Hold's keys")?;
+                if keys.contains(&code) {
+                    return Err(format!("Hold has {} twice", name.to_json()));
+                }
+                keys.push(code);
+            }
+            Action::Hold(keys)
         }
         "Text" => match value {
             Value::String(text) if !text.is_empty() && !text.chars().any(char::is_control) => {
@@ -263,6 +300,16 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         other => return Err(format!("{other} isn't a step")),
     };
     Ok(Step { frame, action })
+}
+
+// A key's virtual-key code, from its name, or the code itself. `what` is
+// what the value is, for the message if it's neither.
+fn key(value: &Value, what: &str) -> Result<u32, String> {
+    match value {
+        Value::String(name) => virtual_key(name).ok_or_else(|| format!("{name} isn't a key")),
+        Value::Number(code) if (1.0..255.0).contains(code) && code.fract() == 0.0 => Ok(*code as u32),
+        other => Err(format!("{what} must be a key's name, like \"F11\", not {}", other.describe())),
+    }
 }
 
 fn point(value: &Value) -> Result<[f32; 2], String> {

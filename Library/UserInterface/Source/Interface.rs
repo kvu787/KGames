@@ -636,6 +636,13 @@ impl<'a> Frame<'a> {
             .map(|(_, event)| event)
     }
 
+    // Whether `key` is held down, by its virtual-key code, like VK_LEFT, for
+    // what goes on while it's held, like steering. It's held whatever has
+    // keyboard focus, and no key is without the window's focus.
+    pub fn held(&self, key: i32) -> bool {
+        self.input.held_keys.contains(&(key as u32))
+    }
+
     // Whether `key` went down this frame without Control, and not as a
     // repeat, with no widget taking it, for the program's shortcuts. Holding
     // the key down does nothing more.
