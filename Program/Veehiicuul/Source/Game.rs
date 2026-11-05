@@ -53,7 +53,8 @@ pub struct Game {
 
 impl Game {
     // The game, in the scene and with the vehicle that the settings name,
-    // or the first of each, with a notice, if they name none.
+    // or the first of each, with a notice about Settings.json, if they name
+    // none.
     pub fn new(document: Document, models: Models, settings: &GameSettings, notices: &mut Vec<String>) -> Game {
         let scene = document
             .scenes
@@ -61,14 +62,14 @@ impl Game {
             .position(|scene| scene.name.eq_ignore_ascii_case(&settings.scene))
             .unwrap_or_else(|| {
                 notices.push(format!(
-                    "Settings.json's Scene, {}, isn't in Scenes, so the game starts in {}",
+                    "Scene is {}, which isn't in Scenes, so the game starts in {}.",
                     settings.scene, document.scenes[0].name
                 ));
                 0
             });
         let vehicle = document.vehicles.find(&settings.vehicle).unwrap_or_else(|| {
             notices.push(format!(
-                "Settings.json's Vehicle, {}, isn't in Vehicles.json, so the game starts with {}",
+                "Vehicle is {}, which isn't in Vehicles.json, so the game starts with {}.",
                 settings.vehicle, document.vehicles.list[0].name
             ));
             0

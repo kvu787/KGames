@@ -49,3 +49,6 @@ pub mod vehicle_editor;
 pub mod vehicles;
 
 pub const NAME: &str = "Veehiicuul";
+// The game's folder, which it reads its files from: its scenes, vehicles,
+// models and settings.
+pub const FOLDER: &str = env!("CARGO_MANIFEST_DIR");

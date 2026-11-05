@@ -9,13 +9,15 @@
 // | Pick  | Makes the hexel's color the palette's color                         |
 
 use json::Value;
-use user_interface::{Button, CONTROL_HEIGHT, Frame, Icon, RADIUS_CONTROL, Rect, SPACE_S, Sense, SliderRange};
+use user_interface::tokens::{CONTROL_HEIGHT, SPACE_S};
+use user_interface::{Button, Icon, Rect, Ui};
 
-use crate::editing::{self, Viewport, heading, label, slider, swatch_rect};
+use crate::editing::{self, Form, Overlay, SliderRange, Viewport, interface_color, subtitle};
 use crate::files;
 use crate::terrain::{PALETTE_SIZE, Terrain, disk};
 
 pub const TOOLS: [&str; 4] = ["Paint", "Erase", "Fill", "Pick"];
+const TOOL_ICONS: [Icon; 4] = [Icon::Brush, Icon::Erase, Icon::Fill, Icon::Eyedropper];
 // How far a fill reaches from the hexel it starts at, in hexels.
 const FILL_REACH: i32 = 60;
 const SWATCH: f32 = CONTROL_HEIGHT;
@@ -24,11 +26,11 @@ pub struct TerrainEditor {
     pub tool: usize,
     // The palette's color that Paint and Fill use.
     pub color: u8,
-    // The brush's radius, in hexels around the one under the cursor.
+    // The brush's radius, in hexels around the one under the pointer.
     pub radius: f64,
     // What's typed in the color field.
     color_text: String,
-    // The hexel under the cursor, if it's over the view.
+    // The hexel under the pointer, if it's on the view.
     pub hover: Option<(i32, i32)>,
 }
 
@@ -45,27 +47,72 @@ impl Default for TerrainEditor {
 }
 
 impl TerrainEditor {
-    pub fn frame(&mut self, frame: &mut Frame, viewport: &mut Viewport, terrain: &mut Terrain) {
-        let theme = frame.theme();
-        let inner = editing::card(frame, "Terrain", "paint hexels on the ground");
-        let mut stack = editing::rows(inner);
-        let focusable = frame.set_focusable(false);
-        frame.segmented("Terrain/Tool", stack.next(CONTROL_HEIGHT), &TOOLS, &mut self.tool);
-        slider(
-            frame,
-            &mut stack,
-            "Terrain/Radius",
-            "Brush radius",
-            &mut self.radius,
-            &SliderRange::new(0.0, 8.0, 1.0),
-            |value| format!("{value:.0}"),
-        );
+    // The view, where the tool paints, then the card, over it.
+    pub fn update(&mut self, ui: &mut Ui, view: Rect, viewport: &mut Viewport, terrain: &mut Terrain) {
+        let input = viewport.interact(ui, "Terrain/View", view);
+        self.hover = input.ground.map(|point| terrain.cell_at(point));
+        if let Some(cell) = self.hover
+            && input.response.held
+            && !input.panning
+        {
+            self.use_tool(terrain, cell, input.response.pressed);
+        }
+        // The hexels that the tool would use, outlined.
+        if let Some(cell) = self.hover {
+            let color = ui.theme().text_primary;
+            let cells = if self.tool < 2 { disk(cell, self.radius as i32) } else { vec![cell] };
+            let mut overlay = Overlay::new(ui, viewport.eye, view);
+            for cell in cells {
+                overlay.outline(&terrain.corners(cell), 1.5, color);
+            }
+        }
+        self.card(ui, terrain);
+    }
 
-        heading(frame, &mut stack, "Palette");
+    fn use_tool(&mut self, terrain: &mut Terrain, cell: (i32, i32), pressed: bool) {
+        let radius = self.radius as i32;
+        let in_palette = (self.color as usize) < terrain.palette.len();
+        match self.tool {
+            0 if in_palette => {
+                for cell in disk(cell, radius) {
+                    terrain.set(cell, Some(self.color));
+                }
+            }
+            1 => {
+                for cell in disk(cell, radius) {
+                    terrain.set(cell, None);
+                }
+            }
+            2 if pressed && in_palette => {
+                for cell in terrain.region(cell, FILL_REACH) {
+                    terrain.set(cell, Some(self.color));
+                }
+            }
+            3 => {
+                if let Some(color) = terrain.get(cell) {
+                    self.color = color;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn card(&mut self, ui: &mut Ui, terrain: &mut Terrain) {
+        let theme = ui.theme().clone();
+        let page = ui.page();
+        let card = ui.floating_card(editing::left_card(page), "Terrain");
+        subtitle(ui, card.header, "Hexels painted on the ground");
+        let mut form = Form::new(card.content);
+        let tools: Vec<(Icon, &str)> = TOOL_ICONS.into_iter().zip(TOOLS).collect();
+        form.tools(ui, "Terrain/Tool", &tools, &mut self.tool);
+        let radius = SliderRange::new(0.0, 8.0, 1.0);
+        form.slider(ui, "Terrain/Radius", "Brush radius", &mut self.radius, radius, |value| format!("{value:.0}"));
+
+        form.heading(ui, "Palette");
         self.color = self.color.min(terrain.palette.len().saturating_sub(1) as u8);
-        let columns = ((inner.width + SPACE_S) / (SWATCH + SPACE_S)) as usize;
+        let columns = ((form.area.width + SPACE_S) / (SWATCH + SPACE_S)) as usize;
         let rows = terrain.palette.len().div_ceil(columns).max(1);
-        let grid = stack.next(rows as f32 * (SWATCH + SPACE_S) - SPACE_S);
+        let grid = form.next(rows as f32 * (SWATCH + SPACE_S) - SPACE_S);
         for (index, &color) in terrain.palette.iter().enumerate() {
             let (row, column) = (index / columns, index % columns);
             let area = Rect::new(
@@ -74,23 +121,16 @@ impl TerrainEditor {
                 SWATCH,
                 SWATCH,
             );
-            let name = format!("Palette/{index}");
-            if frame.interact_labeled(&name, "Swatch", &files::color_text(color), area, Sense::BUTTON).clicked {
+            if ui.swatch(&format!("Palette/{index}"), area, interface_color(color), index == self.color as usize).clicked {
                 self.color = index as u8;
             }
-            swatch_rect(frame, area, color);
-            if index == self.color as usize {
-                frame.canvas.stroke(area.inset(-3.0), RADIUS_CONTROL + 3.0, 2.0, theme.accent);
-            }
         }
-        frame.set_focusable(focusable);
         if let Some(color) = terrain.palette.get_mut(self.color as usize) {
-            editing::color_field(frame, &mut stack, "Terrain/Color", "Color", &mut self.color_text, color);
+            form.color(ui, "Terrain/Color", "Color", &mut self.color_text, color);
         }
-        let focusable = frame.set_focusable(false);
         let add = Button::new("Add a color").icon(Icon::Add);
         let remove = Button::new("Remove it").icon(Icon::Delete);
-        match editing::buttons(frame, &mut stack, &[("Terrain/AddColor", add), ("Terrain/RemoveColor", remove)]) {
+        match form.buttons(ui, &[("Terrain/AddColor", add), ("Terrain/RemoveColor", remove)]) {
             Some(0) if terrain.palette.len() < PALETTE_SIZE => {
                 let color = terrain.palette.get(self.color as usize).copied().unwrap_or([128, 128, 128]);
                 terrain.palette.push(color);
@@ -99,73 +139,23 @@ impl TerrainEditor {
             Some(1) if terrain.palette.len() > 1 => terrain.remove_color(self.color),
             _ => {}
         }
-        label(frame, &mut stack, "Removing a color takes it off its hexels.", theme.text_secondary);
+        form.caption(ui, &format!("{} of {PALETTE_SIZE} colors. Removing one takes it off its hexels.", terrain.palette.len()));
 
-        heading(frame, &mut stack, "Grid");
-        slider(
-            frame,
-            &mut stack,
-            "Terrain/Size",
-            "Hexel size",
-            &mut terrain.size,
-            &SliderRange::new(0.5, 10.0, 10.0),
-            |value| format!("{value:.1}"),
-        );
+        form.heading(ui, "Grid");
+        let size = SliderRange::new(0.5, 10.0, 10.0);
+        form.slider(ui, "Terrain/Size", "Hexel size", &mut terrain.size, size, |value| format!("{value:.1}"));
         let mut orientation = terrain.flat_top as usize;
-        frame.segmented("Terrain/Orientation", stack.next(CONTROL_HEIGHT), &["Pointy tops", "Flat tops"], &mut orientation);
+        form.segmented(ui, "Terrain/Orientation", "Orientation", &["Pointy tops", "Flat tops"], &mut orientation);
         terrain.flat_top = orientation == 1;
-        frame.set_focusable(focusable);
 
-        heading(frame, &mut stack, "Hexels");
-        label(frame, &mut stack, &format!("Painted: {}", terrain.cells.len()), theme.text);
+        form.heading(ui, "Hexels");
+        form.text(ui, &format!("Painted: {}", terrain.cells.len()), theme.text_primary);
         let hover = match self.hover {
-            Some((q, r)) => format!("Under the cursor: hexel {q}, {r}"),
-            None => "Under the cursor: nothing".to_string(),
+            Some((q, r)) => format!("Under the pointer: hexel {q}, {r}"),
+            None => "Under the pointer: nothing".to_string(),
         };
-        label(frame, &mut stack, &hover, theme.text);
-        label(frame, &mut stack, "A press or a drag in the view uses the tool.", theme.text_secondary);
-
-        let input = viewport.interact(frame, "Terrain/View");
-        self.hover = input.ground.map(|point| terrain.cell_at(point));
-        // A press and its release can come in the same frame, as a click.
-        if let Some(cell) = self.hover
-            && (input.response.held || input.response.pressed)
-            && !input.panning
-        {
-            let radius = self.radius as i32;
-            match self.tool {
-                0 => {
-                    if (self.color as usize) < terrain.palette.len() {
-                        for cell in disk(cell, radius) {
-                            terrain.set(cell, Some(self.color));
-                        }
-                    }
-                }
-                1 => {
-                    for cell in disk(cell, radius) {
-                        terrain.set(cell, None);
-                    }
-                }
-                2 if input.response.pressed && (self.color as usize) < terrain.palette.len() => {
-                    for cell in terrain.region(cell, FILL_REACH) {
-                        terrain.set(cell, Some(self.color));
-                    }
-                }
-                3 => {
-                    if let Some(color) = terrain.get(cell) {
-                        self.color = color;
-                    }
-                }
-                _ => {}
-            }
-        }
-        // The brush's hexels, outlined.
-        if let Some(cell) = self.hover {
-            let cells = if self.tool < 2 { disk(cell, self.radius as i32) } else { vec![cell] };
-            for cell in cells {
-                editing::outline(frame, viewport, &terrain.corners(cell), 1.5, theme.text);
-            }
-        }
+        form.text(ui, &hover, theme.text_primary);
+        form.caption(ui, "A press or a drag in the view uses the tool.");
     }
 
     pub fn state(&self, terrain: &Terrain) -> Value {

@@ -8,20 +8,23 @@
 // | Move points    | Moves the control point, the start, or the start's handle  |
 // | Add points     | Adds a control point to the curve, near where it's closest |
 // | Delete points  | Deletes the control point, if its curve has more than 3    |
-// | Move the track | Moves every curve, and the start                           |
+// | Move track     | Moves every curve, and the start                           |
 
 use json::Value;
-use user_interface::{Button, CONTROL_HEIGHT, Frame, Icon, SliderRange};
+use user_interface::{Button, Icon, Rect, Ui};
 
 use crate::curve::{self, FEWEST};
-use crate::editing::{self, Viewport, heading, label, slider};
+use crate::editing::{self, Form, Overlay, SliderRange, Viewport, nearest, subtitle, window_size};
 use crate::track::Track;
 
 pub const TOOLS: [&str; 4] = ["Move points", "Add points", "Delete points", "Move track"];
-// How near the cursor a point counts as under it, in pixels.
+const TOOL_ICONS: [Icon; 4] = [Icon::Pin, Icon::Add, Icon::Delete, Icon::Move];
+// How near the pointer a point counts as under it, in pixels.
 const REACH: f32 = 12.0;
 // How far ahead of the start its handle is, in units.
 const HANDLE: f64 = 8.0;
+// The most problems the card lists.
+const MOST_PROBLEMS: usize = 4;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Drag {
@@ -47,107 +50,36 @@ pub fn curve_name(index: usize) -> String {
     if index == 0 { "Road".to_string() } else { format!("Island {index}") }
 }
 
+// Where the start's handle is, which turns it.
+fn handle(track: &Track) -> [f64; 2] {
+    let [sin, cos] = track.start.ahead();
+    [track.start.position[0] + sin * HANDLE, track.start.position[1] + cos * HANDLE]
+}
+
 impl TrackEditor {
-    pub fn frame(&mut self, frame: &mut Frame, viewport: &mut Viewport, track: &mut Track, problems: &[String]) {
-        let theme = frame.theme();
-        let inner = editing::card(frame, "Track", "curves whose edges make the road and barriers");
-        let mut stack = editing::rows(inner);
-        let focusable = frame.set_focusable(false);
-        frame.segmented("Track/Tool", stack.next(CONTROL_HEIGHT), &TOOLS, &mut self.tool);
-
-        heading(frame, &mut stack, "Curves");
-        self.curve = self.curve.min(track.islands.len());
-        let names: Vec<String> = (0..=track.islands.len()).map(curve_name).collect();
-        let labels: Vec<&str> = names.iter().map(String::as_str).collect();
-        let area = stack.next(CONTROL_HEIGHT * labels.len() as f32);
-        frame.radio("Track/Curve", area, &labels, &mut self.curve);
-        let add = Button::new("Add an island").icon(Icon::Add);
-        let delete = Button::new("Delete the island").icon(Icon::Delete);
-        match editing::buttons(frame, &mut stack, &[("Track/AddIsland", add), ("Track/DeleteIsland", delete)]) {
-            Some(0) => {
-                let size = [frame.width, frame.height];
-                let center = viewport.eye.to_ground(editing::view_area(frame).center(), size);
-                track.islands.push(curve::circle(center, viewport.eye.height / 12.0, 8));
-                self.curve = track.islands.len();
-            }
-            Some(1) if self.curve > 0 => {
-                track.islands.remove(self.curve - 1);
-                self.curve -= 1;
-            }
-            _ => {}
-        }
-        let count = track.curves().nth(self.curve).map_or(0, Vec::len);
-        label(frame, &mut stack, &format!("{} has {count} control points.", curve_name(self.curve)), theme.text);
-
-        heading(frame, &mut stack, "Start");
-        slider(
-            frame,
-            &mut stack,
-            "Track/Heading",
-            "Heading",
-            &mut track.start.heading,
-            &SliderRange::new(-180.0, 180.0, 10.0),
-            |value| format!("{value:.1} deg"),
-        );
-        label(frame, &mut stack, "Drag the car, or its handle, to move or turn it.", theme.text_secondary);
-
-        heading(frame, &mut stack, "Barriers");
-        slider(
-            frame,
-            &mut stack,
-            "Track/BarrierWidth",
-            "Width",
-            &mut track.barrier_width,
-            &SliderRange::new(0.1, 5.0, 100.0),
-            |value| format!("{value:.2}"),
-        );
-        slider(
-            frame,
-            &mut stack,
-            "Track/BarrierLength",
-            "Length",
-            &mut track.barrier_length,
-            &SliderRange::new(1.0, 50.0, 10.0),
-            |value| format!("{value:.1}"),
-        );
-        frame.set_focusable(focusable);
-        heading(frame, &mut stack, "Colors");
-        editing::color_field(frame, &mut stack, "Track/RoadColor", "Road", &mut self.road_text, &mut track.road_color);
-        let [first, second] = &mut track.barrier_colors;
-        let [first_text, second_text] = &mut self.barrier_texts;
-        editing::color_field(frame, &mut stack, "Track/BarrierColor0", "Barriers", first_text, first);
-        editing::color_field(frame, &mut stack, "Track/BarrierColor1", "", second_text, second);
-
-        heading(frame, &mut stack, "Problems");
-        if problems.is_empty() {
-            label(frame, &mut stack, "None. The track can be driven.", theme.success);
-        }
-        for problem in problems {
-            label(frame, &mut stack, problem, theme.caution);
-        }
-
-        let input = viewport.interact(frame, "Track/View");
-        let handle = |track: &Track| {
-            let [sin, cos] = track.start.ahead();
-            [track.start.position[0] + sin * HANDLE, track.start.position[1] + cos * HANDLE]
+    // The view, where the tool edits the curves, then the card, over it.
+    pub fn update(&mut self, ui: &mut Ui, view: Rect, viewport: &mut Viewport, track: &mut Track, problems: &[String]) {
+        let input = viewport.interact(ui, "Track/View", view);
+        let size = window_size(ui);
+        let eye = viewport.eye;
+        let point_under = |track: &Track, cursor: [f32; 2]| {
+            track
+                .curves()
+                .enumerate()
+                .find_map(|(curve, points)| nearest(&eye, size, cursor, points, REACH).map(|index| (curve, index)))
         };
         if input.response.pressed
             && !input.panning
             && let (Some(cursor), Some(ground)) = (input.cursor, input.ground)
         {
-            let point_under = |track: &Track| {
-                track.curves().enumerate().find_map(|(curve, points)| {
-                    editing::nearest(frame, viewport, cursor, points, REACH).map(|index| (curve, index))
-                })
-            };
             match self.tool {
                 0 => {
-                    self.drag = if editing::nearest(frame, viewport, cursor, &[handle(track)], REACH).is_some() {
+                    self.drag = if nearest(&eye, size, cursor, &[handle(track)], REACH).is_some() {
                         Some(Drag::Heading)
-                    } else if editing::nearest(frame, viewport, cursor, &[track.start.position], REACH * 2.0).is_some() {
+                    } else if nearest(&eye, size, cursor, &[track.start.position], REACH * 2.0).is_some() {
                         Some(Drag::Start)
                     } else {
-                        point_under(track).map(|(curve, index)| Drag::Point(curve, index))
+                        point_under(track, cursor).map(|(curve, index)| Drag::Point(curve, index))
                     };
                     if let Some(Drag::Point(curve, _)) = self.drag {
                         self.curve = curve;
@@ -162,7 +94,7 @@ impl TrackEditor {
                     }
                 }
                 2 => {
-                    if let Some((curve, index)) = point_under(track)
+                    if let Some((curve, index)) = point_under(track, cursor)
                         && let Some(points) = track.curve_mut(curve)
                         && points.len() > FEWEST
                     {
@@ -196,36 +128,102 @@ impl TrackEditor {
                 }
             }
         }
-        // The drag followed the cursor to where it was let go of.
+        // The drag followed the pointer to where it was let go of.
         if !input.response.held {
             self.drag = None;
         }
+        let under = input
+            .cursor
+            .filter(|_| !input.panning)
+            .and_then(|cursor| point_under(track, cursor))
+            .and_then(|(curve, index)| track.curves().nth(curve).map(|points| points[index]));
+        self.overlay(ui, view, viewport, track, under);
+        self.card(ui, view, viewport, track, problems);
+    }
 
-        // The curves' control points, and the lines between them.
+    // The curves' control points, and the lines between them, the start's
+    // handle, and a ring around the point under the pointer.
+    fn overlay(&self, ui: &mut Ui, view: Rect, viewport: &Viewport, track: &Track, under: Option<[f64; 2]>) {
+        let theme = ui.theme().clone();
+        let mut overlay = Overlay::new(ui, viewport.eye, view);
         for (index, points) in track.curves().enumerate() {
             let selected = index == self.curve;
-            let color = if selected { theme.accent } else { theme.text };
-            editing::outline(frame, viewport, points, if selected { 1.5 } else { 1.0 }, color);
+            let color = if selected { theme.accent } else { theme.text_primary };
+            overlay.outline(points, if selected { 1.5 } else { 1.0 }, color);
             for &point in points.iter() {
-                let center = viewport.screen(frame, point);
-                editing::dot(frame, viewport, center, if selected { 5.0 } else { 4.0 }, color);
-                editing::dot(frame, viewport, center, 2.0, theme.card);
+                let center = overlay.screen(point);
+                overlay.dot(center, if selected { 5.0 } else { 4.0 }, color);
+                overlay.dot(center, 2.0, theme.flyout);
             }
         }
-        let [start, end] = [viewport.screen(frame, track.start.position), viewport.screen(frame, handle(track))];
-        editing::line(frame, viewport, start, end, 2.0, theme.text);
-        editing::dot(frame, viewport, end, 7.0, theme.text);
-        editing::dot(frame, viewport, end, 4.0, theme.card);
-        if let Some(cursor) = input.cursor
-            && !input.panning
-        {
-            let under = track
-                .curves()
-                .find_map(|points| editing::nearest(frame, viewport, cursor, points, REACH).map(|index| points[index]));
-            if let Some(point) = under {
-                let center = viewport.screen(frame, point);
-                editing::ring(frame, viewport, center, 9.0, 2.0, theme.accent);
+        let (start, end) = (overlay.screen(track.start.position), overlay.screen(handle(track)));
+        overlay.line(start, end, 2.0, theme.text_primary);
+        overlay.dot(end, 7.0, theme.text_primary);
+        overlay.dot(end, 4.0, theme.flyout);
+        if let Some(point) = under {
+            let center = overlay.screen(point);
+            overlay.ring(center, 9.0, 2.0, theme.accent);
+        }
+    }
+
+    fn card(&mut self, ui: &mut Ui, view: Rect, viewport: &Viewport, track: &mut Track, problems: &[String]) {
+        let theme = ui.theme().clone();
+        let page = ui.page();
+        let card = ui.floating_card(editing::left_card(page), "Track");
+        subtitle(ui, card.header, "Curves that make the road and its barriers");
+        let mut form = Form::new(card.content);
+        let tools: Vec<(Icon, &str)> = TOOL_ICONS.into_iter().zip(TOOLS).collect();
+        form.tools(ui, "Track/Tool", &tools, &mut self.tool);
+
+        form.heading(ui, "Curves");
+        self.curve = self.curve.min(track.islands.len());
+        let names: Vec<String> = (0..=track.islands.len()).map(curve_name).collect();
+        form.combo(ui, "Track/Curve", "Curve", &names, &mut self.curve);
+        let add = Button::new("Add an island").icon(Icon::Add);
+        let delete = Button::new("Delete the island").icon(Icon::Delete);
+        match form.buttons(ui, &[("Track/AddIsland", add), ("Track/DeleteIsland", delete)]) {
+            Some(0) => {
+                let middle = editing::visible(view).center();
+                let center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
+                track.islands.push(curve::circle(center, viewport.eye.height / 12.0, 8));
+                self.curve = track.islands.len();
             }
+            Some(1) if self.curve > 0 => {
+                track.islands.remove(self.curve - 1);
+                self.curve -= 1;
+            }
+            _ => {}
+        }
+        let count = track.curves().nth(self.curve).map_or(0, Vec::len);
+        form.caption(ui, &format!("{} has {count} control points.", curve_name(self.curve)));
+
+        form.heading(ui, "Start");
+        let degrees = SliderRange::new(-180.0, 180.0, 10.0);
+        form.slider(ui, "Track/Heading", "Heading", &mut track.start.heading, degrees, |value| format!("{value:.1}°"));
+        form.caption(ui, "Drag the car, or its handle, to move or turn it.");
+
+        form.heading(ui, "Barriers");
+        let width = SliderRange::new(0.1, 5.0, 100.0);
+        form.slider(ui, "Track/BarrierWidth", "Width", &mut track.barrier_width, width, |value| format!("{value:.2}"));
+        let length = SliderRange::new(1.0, 50.0, 10.0);
+        form.slider(ui, "Track/BarrierLength", "Length", &mut track.barrier_length, length, |value| format!("{value:.1}"));
+
+        form.heading(ui, "Colors");
+        form.color(ui, "Track/RoadColor", "Road", &mut self.road_text, &mut track.road_color);
+        let [first, second] = &mut track.barrier_colors;
+        let [first_text, second_text] = &mut self.barrier_texts;
+        form.color(ui, "Track/BarrierColor0", "Barriers", first_text, first);
+        form.color(ui, "Track/BarrierColor1", "", second_text, second);
+
+        form.heading(ui, "Problems");
+        if problems.is_empty() {
+            form.text(ui, "None. The track can be driven.", theme.success);
+        }
+        for (index, problem) in problems.iter().take(MOST_PROBLEMS).enumerate() {
+            form.warning(ui, &format!("Track/Problem/{index}"), "", problem);
+        }
+        if problems.len() > MOST_PROBLEMS {
+            form.caption(ui, &format!("And {} more.", problems.len() - MOST_PROBLEMS));
         }
     }
 

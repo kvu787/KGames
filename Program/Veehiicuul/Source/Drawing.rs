@@ -1,13 +1,16 @@
-// Draws the 3D view every frame: the background's color, then what's flat on
-// the ground, without a depth buffer, as each part goes over the ones before
-// (the terrain, then the track), and then the models, painted with
+// Draws the 3D view every frame, over the whole window, before the interface
+// draws its bars and cards over it: the background's color, then what's flat
+// on the ground, without a depth buffer, as each part goes over the ones
+// before (the terrain, then the track), and then the models, painted with
 // SimplePaint, with one: the car, the parked vehicles and the decorations.
 //
 // Each model is copied to the GPU once, at the start. The terrain and the
 // track change as the editors change them, so their meshes are in upload
-// buffers, which are written again when they change.
+// buffers, which are written again when they change. One frame is on the
+// GPU at a time, so by the time a frame is drawn, the GPU is done with what
+// the last one read, and the buffers can be written again.
 
-use graphics::{BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer};
+use graphics::{DEPTH_FORMAT, DescriptorHeap, Frame, Gpu, TARGET_SRGB_FORMAT, UploadBuffer, create_texture};
 use math::Matrix;
 use meshes::Mesh as Triangles;
 use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
@@ -59,8 +62,9 @@ pub struct Ground<'a> {
 // What a frame's 3D view shows.
 pub struct View<'a> {
     pub eye: Eye,
-    // As sRGB.
-    pub background: [f32; 3],
+    // As sRGB, or None to leave the frame as it's cleared, to the theme's
+    // background.
+    pub background: Option<[f32; 3]>,
     pub ground: Option<Ground<'a>>,
     pub instances: &'a [Instance],
 }
@@ -74,18 +78,16 @@ struct Changing {
 }
 
 impl Changing {
-    unsafe fn set(&mut self, device: &ID3D12Device, mesh: &Triangles) -> Result<()> {
+    fn set(&mut self, device: &ID3D12Device, mesh: &Triangles) -> Result<()> {
         let vertex_bytes = size_of_val(mesh.vertices.as_slice());
         let size = vertex_bytes + size_of_val(mesh.indices.as_slice());
-        unsafe {
-            if self.buffer.as_ref().is_none_or(|buffer| buffer.size < size) {
-                // Room to grow, so that painting doesn't make one each time.
-                self.buffer = Some(UploadBuffer::new(device, (size * 2).max(65536))?);
-            }
-            let buffer = self.buffer.as_ref().unwrap();
-            buffer.write(0, &mesh.vertices);
-            buffer.write(vertex_bytes, &mesh.indices);
+        if self.buffer.as_ref().is_none_or(|buffer| buffer.size < size) {
+            // Room to grow, so that painting doesn't make one each time.
+            self.buffer = Some(unsafe { UploadBuffer::new(device, (size * 2).max(65536))? });
         }
+        let buffer = self.buffer.as_ref().unwrap();
+        buffer.write(0, &mesh.vertices);
+        buffer.write(vertex_bytes, &mesh.indices);
         self.vertex_bytes = vertex_bytes;
         self.index_count = mesh.indices.len() as u32;
         Ok(())
@@ -104,17 +106,54 @@ impl Changing {
             list.IASetVertexBuffers(
                 0,
                 Some(&[D3D12_VERTEX_BUFFER_VIEW {
-                    BufferLocation: buffer.address(0),
+                    BufferLocation: buffer.gpu_address(0),
                     SizeInBytes: self.vertex_bytes as u32,
                     StrideInBytes: size_of::<Vertex>() as u32,
                 }]),
             );
             list.IASetIndexBuffer(Some(&D3D12_INDEX_BUFFER_VIEW {
-                BufferLocation: buffer.address(self.vertex_bytes),
+                BufferLocation: buffer.gpu_address(self.vertex_bytes),
                 SizeInBytes: self.index_count * 4,
                 Format: DXGI_FORMAT_R32_UINT,
             }));
             list.DrawIndexedInstanced(self.index_count, 1, 0, 0, 0);
+        }
+    }
+}
+
+// A depth buffer as big as the frames, for the models.
+struct Depth {
+    _buffer: ID3D12Resource,
+    views: DescriptorHeap,
+    size: (u32, u32),
+}
+
+impl Depth {
+    fn new(device: &ID3D12Device, width: u32, height: u32) -> Result<Depth> {
+        unsafe {
+            let clear = D3D12_CLEAR_VALUE {
+                Format: DEPTH_FORMAT,
+                Anonymous: D3D12_CLEAR_VALUE_0 {
+                    DepthStencil: D3D12_DEPTH_STENCIL_VALUE { Depth: 1.0, Stencil: 0 },
+                },
+            };
+            let buffer = create_texture(
+                device,
+                width,
+                height,
+                DEPTH_FORMAT,
+                D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                Some(&clear),
+                1,
+            )?;
+            let views = DescriptorHeap::new(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false)?;
+            device.CreateDepthStencilView(&buffer, None, views.cpu(0));
+            Ok(Depth {
+                _buffer: buffer,
+                views,
+                size: (width, height),
+            })
         }
     }
 }
@@ -133,6 +172,7 @@ pub struct Drawing {
     // Each instance's materials as of the last frame, and as the GPU takes
     // them, so that they're compiled again only when they change.
     compiled: Vec<(Vec<Parameters>, [GpuMaterial; MOST_SLOTS])>,
+    depth: Option<Depth>,
 }
 
 fn invalid(error: simple_paint::Error) -> Error {
@@ -149,13 +189,14 @@ fn linear(channel: f32) -> f32 {
 }
 
 impl Drawing {
-    pub unsafe fn new(renderer: &mut Renderer, models: &Models) -> Result<Self> {
+    // The pipelines, and the models' meshes, copied to the GPU.
+    pub fn new(gpu: &mut Gpu, models: &Models) -> Result<Self> {
         unsafe {
-            let device = renderer.device.clone();
+            let device = gpu.device.clone();
             // The models' linear colors, and the ground's, are encoded to
-            // sRGB.
+            // sRGB, through the frame's sRGB view.
             let target = |depth_format| Target {
-                format: BACK_BUFFER_SRGB_FORMAT,
+                format: TARGET_SRGB_FORMAT,
                 depth_format,
                 sample_count: 1,
                 cull_mode: D3D12_CULL_MODE_NONE,
@@ -164,7 +205,7 @@ impl Drawing {
             let ground = Pipeline::new(&device, GROUND_VERTEX_SHADER, GROUND_PIXEL_SHADER, &target(None))?;
             let mut meshes = Vec::with_capacity(models.list.len());
             for model in &models.list {
-                meshes.push(Mesh::new(renderer, &model.vertices, &model.indices, MOST_SLOTS as u32)?);
+                meshes.push(Mesh::new(gpu, &model.vertices, &model.indices, MOST_SLOTS as u32)?);
             }
             Ok(Drawing {
                 paint,
@@ -176,73 +217,86 @@ impl Drawing {
                 track_of: None,
                 constants: UploadBuffer::new(&device, INSTANCES_OFFSET + INSTANCE_SIZE * MOST_INSTANCES)?,
                 compiled: Vec::new(),
+                depth: None,
             })
         }
     }
 
-    // Records the view's draws into the frame, over the whole window.
-    pub unsafe fn draw(&mut self, renderer: &Renderer, view: &View) -> Result<()> {
-        unsafe {
-            let device = renderer.device.clone();
-            let eye_view = view.eye.view();
-            let aspect = renderer.width as f32 / renderer.height as f32;
-            let height = view.eye.height as f32;
-            let projection = make_projection(height * aspect, height, camera::NEAR, camera::FAR).map_err(invalid)?;
-            let transforms = |world: Matrix| build_object_transforms(&(world * eye_view), &projection).map_err(invalid);
+    // Records the view's draws into the frame, over the whole of it, and
+    // leaves its target in the render target state.
+    pub fn draw(&mut self, gpu: &Gpu, frame: &Frame, view: &View) -> Result<()> {
+        let device = &gpu.device;
+        if self.depth.as_ref().is_none_or(|depth| depth.size != (frame.width, frame.height)) {
+            // The GPU is done with the last frame, and so with the old one,
+            // which this drops.
+            self.depth = Some(Depth::new(device, frame.width, frame.height)?);
+        }
+        let depth = self.depth.as_ref().unwrap().views.cpu(0);
+        let eye_view = view.eye.view();
+        let aspect = frame.width as f32 / frame.height as f32;
+        let height = view.eye.height as f32;
+        let projection = make_projection(height * aspect, height, camera::NEAR, camera::FAR).map_err(invalid)?;
+        let transforms = |world: Matrix| build_object_transforms(&(world * eye_view), &projection).map_err(invalid);
 
-            let [red, green, blue] = view.background;
-            renderer.clear([red, green, blue, 1.0]);
-            renderer.clear_depth();
-            let list = &renderer.command_list;
-            if let Some(ground) = &view.ground {
-                if self.terrain_of.as_ref() != Some(ground.terrain) {
-                    self.terrain.set(&device, &ground::terrain_mesh(ground.terrain))?;
-                    self.terrain_of = Some(ground.terrain.clone());
-                }
-                if self.track_of.as_ref() != Some(ground.track) {
-                    self.track.set(&device, &ground::track_mesh(ground.track, ground.shape))?;
-                    self.track_of = Some(ground.track.clone());
-                }
-                self.constants.write(0, &[transforms(Matrix::IDENTITY)?]);
-                let colors = ground::colors(ground.terrain, ground.track).map(|color| {
-                    let [red, green, blue] = color.map(linear);
-                    [red, green, blue, 1.0]
-                });
-                self.constants.write(COLORS_OFFSET, &colors);
-                renderer.set_render_target(true, false);
+        let list = &frame.list;
+        unsafe {
+            if let Some([red, green, blue]) = view.background {
+                frame.clear([red, green, blue, 1.0]);
+            }
+            list.ClearDepthStencilView(depth, D3D12_CLEAR_FLAG_DEPTH, 1.0, 0, &[]);
+        }
+        if let Some(ground) = &view.ground {
+            if self.terrain_of.as_ref() != Some(ground.terrain) {
+                self.terrain.set(device, &ground::terrain_mesh(ground.terrain))?;
+                self.terrain_of = Some(ground.terrain.clone());
+            }
+            if self.track_of.as_ref() != Some(ground.track) {
+                self.track.set(device, &ground::track_mesh(ground.track, ground.shape))?;
+                self.track_of = Some(ground.track.clone());
+            }
+            self.constants.write(0, &[transforms(Matrix::IDENTITY)?]);
+            let colors = ground::colors(ground.terrain, ground.track).map(|color| {
+                let [red, green, blue] = color.map(linear);
+                [red, green, blue, 1.0]
+            });
+            self.constants.write(COLORS_OFFSET, &colors);
+            let [object, colors] = [self.constants.gpu_address(0), self.constants.gpu_address(COLORS_OFFSET)];
+            unsafe {
+                frame.bind(true, None);
                 self.ground.bind(list);
-                let [object, colors] = [self.constants.address(0), self.constants.address(COLORS_OFFSET)];
                 self.terrain.draw(list, object, colors);
                 self.track.draw(list, object, colors);
             }
-
-            renderer.set_render_target(true, true);
-            self.paint.bind(list);
-            for (index, instance) in view.instances.iter().take(MOST_INSTANCES).enumerate() {
-                let Some(mesh) = self.models.get(instance.model) else {
-                    continue;
-                };
-                let scale = instance.scale as f32;
-                let [x, z] = instance.position.map(|value| value as f32);
-                let world = Matrix::scaling(scale, scale, scale)
-                    * Matrix::rotation_y(instance.heading as f32)
-                    * Matrix::translation(x, 0.0, z);
-                let offset = INSTANCES_OFFSET + INSTANCE_SIZE * index;
-                self.constants.write(offset, &[transforms(world)?]);
-                if self.compiled.len() <= index {
-                    self.compiled.push((Vec::new(), [GpuMaterial::default(); MOST_SLOTS]));
-                }
-                let (parameters, materials) = &mut self.compiled[index];
-                if *parameters != instance.materials {
-                    for (material, parameters) in materials.iter_mut().zip(&instance.materials) {
-                        *material = *Material::compile(parameters).map_err(invalid)?.constants();
-                    }
-                    *parameters = instance.materials.clone();
-                }
-                self.constants.write(offset + OBJECT_SIZE, materials.as_slice());
-                mesh.draw(list, self.constants.address(offset), self.constants.address(offset + OBJECT_SIZE));
-            }
-            Ok(())
         }
+
+        unsafe {
+            frame.bind(true, Some(depth));
+            self.paint.bind(list);
+        }
+        for (index, instance) in view.instances.iter().take(MOST_INSTANCES).enumerate() {
+            let Some(mesh) = self.models.get(instance.model) else {
+                continue;
+            };
+            let scale = instance.scale as f32;
+            let [x, z] = instance.position.map(|value| value as f32);
+            let world = Matrix::scaling(scale, scale, scale) * Matrix::rotation_y(instance.heading as f32) * Matrix::translation(x, 0.0, z);
+            let offset = INSTANCES_OFFSET + INSTANCE_SIZE * index;
+            self.constants.write(offset, &[transforms(world)?]);
+            if self.compiled.len() <= index {
+                self.compiled.push((Vec::new(), [GpuMaterial::default(); MOST_SLOTS]));
+            }
+            let (parameters, materials) = &mut self.compiled[index];
+            if *parameters != instance.materials {
+                for (material, parameters) in materials.iter_mut().zip(&instance.materials) {
+                    *material = *Material::compile(parameters).map_err(invalid)?.constants();
+                }
+                *parameters = instance.materials.clone();
+            }
+            self.constants.write(offset + OBJECT_SIZE, materials.as_slice());
+            unsafe {
+                mesh.draw(list, self.constants.gpu_address(offset), self.constants.gpu_address(offset + OBJECT_SIZE));
+            }
+        }
+        Ok(())
     }
 }

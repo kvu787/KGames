@@ -33,7 +33,6 @@ name = "Editors"
 path = "Editors.rs"
 
 [dependencies]
-application = { path = "../../Library/Application" }
 json = { path = "../../Library/Json" }
 simple_paint = { path = "../../Library/SimplePaint" }
 user_interface = { path = "../../Library/UserInterface" }

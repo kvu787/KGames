@@ -1,10 +1,15 @@
 // No console window in any build.
 #![windows_subsystem = "windows"]
 
-use std::path::Path;
+use std::process::ExitCode;
 
+use user_interface::Options;
 use veehiicuul::program::Veehiicuul;
 
-fn main() -> windows_core::Result<()> {
-    user_interface::run::<Veehiicuul>(Path::new(env!("CARGO_MANIFEST_DIR")))
+fn main() -> ExitCode {
+    let options = Options {
+        gamepad: true,
+        ..Options::new(veehiicuul::NAME, veehiicuul::FOLDER)
+    };
+    user_interface::run(options, Veehiicuul::start)
 }

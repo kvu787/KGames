@@ -12,21 +12,13 @@
 // | RB and left stick     | The wheel             | Zooms                                |
 // | Y                     | Home                  | Zooms back to the camera's height    |
 // | View                  | F1                    | Shows or hides the card              |
+//
+// Without the window's focus, the interface has no input at all, so the
+// controls are at rest.
 
-use application::Event;
-use user_interface::{GamepadButton, Frame};
+use user_interface::{GamepadButtons, Key, Ui};
 
 use crate::driving::DeadZone;
-
-const SPACE: i32 = 0x20;
-const PAGE_UP: i32 = 0x21;
-const PAGE_DOWN: i32 = 0x22;
-const HOME: i32 = 0x24;
-const LEFT: i32 = 0x25;
-const UP: i32 = 0x26;
-const RIGHT: i32 = 0x27;
-const DOWN: i32 = 0x28;
-const F1: i32 = 0x70;
 
 // The left stick zooms only past this, so that resting a thumb on it while
 // holding RB doesn't.
@@ -57,52 +49,54 @@ pub struct Controls {
 }
 
 impl Controls {
-    // Without the window's focus, a frame has no input, so the controls are
-    // at rest.
-    pub fn read(frame: &Frame) -> Controls {
-        let gamepad = frame.gamepad();
-        let held = |keys: [i32; 2]| keys.iter().any(|&key| frame.held(key));
-        let pressed = |button: GamepadButton, key: i32| gamepad.pressed(button) || frame.shortcut(key);
+    // The frame's controls, with the wheel's notches over the game's view.
+    pub fn read(ui: &Ui, notches: f64) -> Controls {
+        let gamepad = *ui.gamepad();
+        let input = ui.input();
+        let held = |keys: [Key; 2]| keys.iter().any(|&key| ui.key_down(key));
+        // A key's press, not its repeats, and not with Ctrl, which is for
+        // the editors' shortcuts, like Ctrl+S.
+        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !input.modifiers().control;
+        let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         // Keys push all the way, and a diagonal as far as a straight push.
         let keys = [
-            held([RIGHT, 'D' as i32]) as i32 - held([LEFT, 'A' as i32]) as i32,
-            held([UP, 'W' as i32]) as i32 - held([DOWN, 'S' as i32]) as i32,
+            held([Key::RIGHT, Key::D]) as i32 - held([Key::LEFT, Key::A]) as i32,
+            held([Key::UP, Key::W]) as i32 - held([Key::DOWN, Key::S]) as i32,
         ];
         let push = if keys == [0, 0] {
-            gamepad.right_stick.map(f64::from)
+            [f64::from(gamepad.right_stick.x), f64::from(gamepad.right_stick.y)]
         } else {
             let length = f64::from(keys[0] * keys[0] + keys[1] * keys[1]).sqrt();
             keys.map(|key| f64::from(key) / length)
         };
-        let brake = if frame.held(SPACE) {
+        let brake = if ui.key_down(Key::SPACE) {
             1.0
         } else {
             f64::from(gamepad.left_trigger)
         };
-        let zoom = if gamepad.held(GamepadButton::RightShoulder) {
-            ZOOM_DEAD_ZONE.apply(f64::from(gamepad.left_stick[1]))
+        let zoom = if gamepad.buttons.contains(GamepadButtons::RIGHT_SHOULDER) {
+            ZOOM_DEAD_ZONE.apply(f64::from(gamepad.left_stick.y))
         } else {
             0.0
         };
-        let notches = frame
-            .program_events()
-            .map(|event| match event {
-                Event::Wheel(_, notches) => f64::from(*notches),
-                _ => 0.0,
-            })
-            .sum();
         let step = |previous: bool, next: bool| next as i32 - previous as i32;
         Controls {
             push,
             brake,
-            vehicle: step(pressed(GamepadButton::Left, 'Q' as i32), pressed(GamepadButton::Right, 'E' as i32)),
-            scene: step(pressed(GamepadButton::Down, PAGE_DOWN), pressed(GamepadButton::Up, PAGE_UP)),
-            restart: pressed(GamepadButton::X, 'R' as i32),
-            toggle_camera: pressed(GamepadButton::Menu, 'C' as i32),
+            vehicle: step(
+                pressed(GamepadButtons::DPAD_LEFT, Key::Q),
+                pressed(GamepadButtons::DPAD_RIGHT, Key::E),
+            ),
+            scene: step(
+                pressed(GamepadButtons::DPAD_DOWN, Key::PAGE_DOWN),
+                pressed(GamepadButtons::DPAD_UP, Key::PAGE_UP),
+            ),
+            restart: pressed(GamepadButtons::X, Key::R),
+            toggle_camera: pressed(GamepadButtons::MENU, Key::C),
             zoom,
             notches,
-            default_zoom: pressed(GamepadButton::Y, HOME),
-            toggle_card: pressed(GamepadButton::View, F1),
+            default_zoom: pressed(GamepadButtons::Y, Key::HOME),
+            toggle_card: pressed(GamepadButtons::VIEW, Key::F1),
         }
     }
 }

@@ -5,8 +5,8 @@ without touching the road's edges. It's also where its levels are made: tabs in 
 between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
 program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
 [Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, widgets and design
-system, ignores input without focus, and supports the two window setups in
-[Library/Application](../../Library/Application/README.md#supported-window-setups).
+system, after Fluent 2, ignores input without focus, and supports the two window setups in
+[Library/UserInterface](../../Library/UserInterface/README.md#window-setups).
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
 the camera's view of them. The car is the only thing that moves. The ground is flat colors, drawn
@@ -39,12 +39,14 @@ degrees, from 45 degrees around from +Z toward +X.
 
 ## Tabs
 
-The app bar at the top of the window has the tabs, the scene to play and edit, New scene, Undo
-and Redo, which Ctrl+Z and Ctrl+Y do too, and Save. In the editors, "The game's angle" shows the
-view at the game's angle instead of straight down. The status bar at the bottom has the
-shortcuts, and says whether there are unsaved changes. Each editor has a card down the left
-side, and the Vehicles tab another down the right, for the paint. Their view is the rest of the
-window, where Space and a drag pan, and the wheel zooms around the cursor.
+The app bar at the top of the window has the tabs, and in the editors, "The game's angle", which
+shows the view at the game's angle instead of straight down. At its right end are the scene to
+play and edit, New scene, Undo and Redo, which Ctrl+Z and Ctrl+Y do too, and Save, which Ctrl+S
+does too, in the accent color while there are unsaved changes. The status bar at the bottom has
+the shortcuts, and says whether there are unsaved changes. The 3D view fills the window under
+them, and the cards float over it: each editor has a card down the left side, and the Vehicles
+tab another at the top right, for the paint. Where the cards don't cover the view, Space and a
+drag pan it, and the wheel zooms it around the pointer.
 
 | Tab      | What it does                                                                      |
 | -------- | --------------------------------------------------------------------------------- |
@@ -82,7 +84,7 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 | X                       | R                      | Puts the car back at the start                           |
 | Menu                    | C                      | Switches between the fixed camera and one that follows   |
 |                         |                        | the car                                                  |
-| RB and the left stick   | The wheel              | Zooms, up or away from you to zoom in                    |
+| RB and the left stick   | The wheel, on the view | Zooms, up or away from you to zoom in                    |
 | Y                       | Home                   | Zooms back to the camera's own height                    |
 | View                    | F1                     | Hides or shows the card                                  |
 |                         | F11                    | Switches between maximized and borderless fullscreen     |
@@ -163,8 +165,11 @@ line goes across the road from edge to edge, 4.25 units ahead of the car's start
 
 ## Settings
 
-`Settings.json` has the settings that every program has, then the game's own. The game writes
-it with the defaults if it's missing, and a notice under the app bar says what's wrong with it.
+`Settings.json` has the settings that every program has (see
+[Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line)), then
+the game's own. The game writes it with the defaults if it's missing. A setting that's wrong keeps
+its default, and one that names a scene or a vehicle that isn't there starts the game in the first,
+and a notice under the app bar says so.
 
 | Setting     | Value                                                                           |
 | ----------- | ------------------------------------------------------------------------------- |
@@ -195,22 +200,28 @@ Program\RunInBackground\RunInBackground.ps1 Veehiicuul --all-scripts
 
 The tests in `Test/Veehiicuul` check, without a window: driving; what touches; curves, tracks'
 shapes and what's wrong with them, cutting the road's islands out, and the ground's meshes;
-hexels, brushes and fills; the models from Blender, the vehicles, and that the files write back
-as they were; Play through its frames, with Library/UserInterface's `Headless`; and the editors
-through their frames, with presses and drags in their real layout: the tabs, that every
-editor's controls fit in its cards, painting hexels, moving, adding and deleting control points,
-dragging a footprint's side, picking and moving a decoration, undo, and saving.
+hexels, brushes and fills; the models from Blender, the vehicles, the settings, and that the
+files write back as they were; Play through its frames, with Library/UserInterface's `Headless`,
+and its card, which fits the page at either height, under notices about the settings; the
+editors through their frames, with presses and drags in their real layout: the tabs, that every
+editor's controls fit in its cards at either height, painting hexels, panning and zooming the
+view, moving, adding and deleting control points, a track's problems, dragging a footprint's
+side, renaming a vehicle, picking and moving a decoration, undo, and saving; and, with the GPU,
+offscreen, that the 3D view draws the scene under the interface.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
-[Library/Application](../../Library/Application/README.md#scripts) describes. Their `Gamepad`
-steps put the gamepad's sticks, triggers and buttons where they need them, and `Hold` steps hold
-keys down. They press the tabs and the editors' controls by name, like `"Mode/Terrain"`, and the
-middle of a view, like `"Terrain/View"`, and a point on the ground by where it is in the window.
-A scripted run saves in its output folder, not this one. The state that scripts save and check
-has the `Mode`, whether there are `Unsaved` changes, the `Status`, the `Scene`, the `Vehicle`,
-the car's `Position`, `Heading`, `Velocity` and `Speed`, whether it's `Paused`, the `Camera`, its
-`ViewHeight`, the `Crashes`, whether Play's card is shown, as `CardShown`, and each editor's, as
-`SceneEditor`, `TerrainEditor`, `TrackEditor` and `VehicleEditor`.
+[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Gamepad`
+steps put the gamepad's sticks, triggers and buttons where they need them, `Hold` steps hold
+keys down, and `Scroll` steps turn the wheel. They press the tabs and the editors' controls by
+name, like `"Mode/Terrain"`, and the middle of a view, like `"Terrain/View"`, and a point on the
+ground by where it is in the window. A scripted run saves in its output folder, not this one.
+The state that scripts save and check has the `Mode`, whether there are `Unsaved` changes, the
+`Status`, how many changes `Undo` goes back, the `Scene`, the `Vehicle`, the car's `Position`,
+`Heading`, `Velocity` and `Speed`, whether it's `Paused`, the `Camera`, its `ViewHeight`, the
+`Crashes`, whether Play's card is shown, as `CardShown`, and each editor's, as `SceneEditor`,
+`TerrainEditor`, `TrackEditor` and `VehicleEditor`, and the interface's, as `Interface`, where
+`Targets` has every control's area, Play's card as `Play/Card`, and the views as `Play/View`,
+`Scene/View`, `Terrain/View`, `Track/View` and `Vehicles/View`.
 
 What only a person can check: real gamepads and keyboards, how driving feels, input latency,
 and how editing feels with a real mouse.
@@ -221,7 +232,7 @@ and how editing feels with a real mouse.
 | -------------------------- | ---------------------------------------------------------------------- |
 | `Source/Main.rs`           | Runs the game with Library/UserInterface's main loop                   |
 | `Source/Library.rs`        | The game's parts, as a library that `Test/Veehiicuul` tests            |
-| `Source/Program.rs`        | The game as a `Program`: the app bar, undo, saving, and Play's card    |
+| `Source/Program.rs`        | The game as a `Program`: the bars, undo, saving, and Play's card       |
 | `Source/Game.rs`           | The document, the models, the car, the camera, and Play                |
 | `Source/Document.rs`       | What the editors change and Save writes                                |
 | `Source/Scene.rs`          | Reads and writes a scene                                               |
@@ -236,13 +247,14 @@ and how editing feels with a real mouse.
 | `Source/Driving.rs`        | How a car moves, its dead zones, and its brake                         |
 | `Source/Collision.rs`      | Footprints, and whether a car touches an edge                          |
 | `Source/Camera.rs`         | The game's camera and the editors' views                               |
-| `Source/Editing.rs`        | What the editors share: their cards, views, controls, and paint        |
+| `Source/Editing.rs`        | What the editors share: their cards, views, controls, and what they    |
+|                            | draw over the view                                                     |
 | `Source/SceneEditor.rs`    | The Scene tab                                                          |
 | `Source/TerrainEditor.rs`  | The Terrain tab                                                        |
 | `Source/TrackEditor.rs`    | The Track tab                                                          |
 | `Source/VehicleEditor.rs`  | The Vehicles tab, with the footprint creator                           |
-| `Source/Settings.rs`       | The game's own settings, and their defaults                            |
-| `Source/Drawing.rs`        | Draws the ground and the models                                        |
+| `Source/Settings.rs`       | The game's own settings in `Settings.json`, and their defaults         |
+| `Source/Drawing.rs`        | Draws the ground and the models, under the interface                   |
 | `Shaders/Ground.hlsl`      | Draws the ground in flat colors, with SimplePaint's root signature     |
 | `Build.rs`                 | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
 | `Models`, `Scenes`         | The models and their paint, and the scenes                             |

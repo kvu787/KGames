@@ -1,12 +1,11 @@
 // What the game's files are: the models from Blender, and the document of
 // scenes, vehicles and paints, which read and write back the same, and the
-// game's own settings.
+// game's own settings in Settings.json.
 
 use std::path::{Path, PathBuf};
 
-use application::{ProgramSettings, Settings};
-use json::Value;
 use simple_paint::Material;
+use user_interface::Settings;
 use veehiicuul::document::Document;
 use veehiicuul::driving::{Acceleration, DeadZone};
 use veehiicuul::files;
@@ -129,25 +128,40 @@ fn says_what_is_wrong_with_the_vehicles_file() {
     }
 }
 
+// Reads the game's settings from Settings.json's text, with what's wrong.
+fn read(text: &str) -> (GameSettings, Vec<String>) {
+    let mut settings = Settings::from_text(text);
+    let game = GameSettings::read(&mut settings);
+    (game, settings.problems().to_vec())
+}
+
 #[test]
 fn settings_name_the_scene_vehicle_camera_and_dead_zones() {
-    let (_, mut settings) = GameSettings::defaults();
-    assert_eq!((settings.scene.as_str(), settings.vehicle.as_str(), settings.follow), ("Ribeye", "Yellow", false));
-    settings.apply("Camera", &"follow".into()).unwrap();
+    let (defaults, problems) = read("{}");
+    assert!(problems.is_empty(), "{problems:?}");
+    assert_eq!(defaults, GameSettings::default());
+    assert_eq!((defaults.scene.as_str(), defaults.vehicle.as_str(), defaults.follow), ("Ribeye", "Yellow", false));
+    let (settings, problems) = read(r#"{ "Camera": "follow", "DeadZones": { "Sideways": [0.2, 0.9] } }"#);
+    assert!(problems.is_empty(), "{problems:?}");
     assert!(settings.follow);
-    settings.apply("DeadZones", &json::parse(r#"{ "Sideways": [0.2, 0.9] }"#).unwrap()).unwrap();
     assert_eq!(settings.dead_zones.sideways, DeadZone { inner: 0.2, outer: 0.9 });
     assert_eq!(settings.dead_zones.forward_and_back, DeadZone { inner: 0.05, outer: 0.95 });
-    for (name, value, problem) in [
-        ("Camera", "\"Above\"", "must be \"Fixed\" or \"Follow\", not \"Above\""),
-        ("Scene", "3", "must be a name, not 3"),
-        ("DeadZones", r#"{ "Sideways": [0.9, 0.2] }"#, "Sideways must be [inner, outer], from 0 to 1 with inner below outer, not a list of 2"),
+    // A setting that's wrong keeps its default, and says why.
+    for (text, problem) in [
+        (r#"{ "Camera": "Above" }"#, "Camera must be \"Fixed\" or \"Follow\", not \"Above\", so it's the default."),
+        (r#"{ "Scene": 3 }"#, "Scene must be a name, not 3, so it's the default."),
+        (
+            r#"{ "DeadZones": { "Sideways": [0.9, 0.2] } }"#,
+            "DeadZones has Sideways, which must be [inner, outer], from 0 to 1 with inner below outer, not a list of 2, so it's the default.",
+        ),
     ] {
-        let value: Value = json::parse(value).unwrap();
-        assert_eq!(settings.apply(name, &value), Err(problem.to_string()));
+        let (settings, problems) = read(text);
+        assert_eq!(problems, [problem]);
+        assert_eq!(settings, GameSettings::default());
     }
-    let mut notices = Vec::new();
-    let (_, read): (Settings, GameSettings) = Settings::load(&folder().join("Settings.json"), &mut notices);
-    assert!(notices.is_empty(), "{notices:?}");
-    assert_eq!((read.scene, read.vehicle, read.follow), ("Ribeye".to_string(), "Yellow".to_string(), false));
+    // The game's own Settings.json is right.
+    let mut settings = Settings::load(&folder().join("Settings.json"));
+    let read = GameSettings::read(&mut settings);
+    assert!(settings.problems().is_empty(), "{:?}", settings.problems());
+    assert_eq!((read.scene.as_str(), read.vehicle.as_str(), read.follow), ("Ribeye", "Yellow", false));
 }

@@ -7,15 +7,20 @@
         { "Frame": 4, "Expect": { "Vehicle": "Yellow" } },
         { "Frame": 5, "Gamepad": { "Buttons": ["Menu"] } },
         { "Frame": 5, "Expect": { "Camera": "Follow", "ViewHeight": 45 } },
-        { "Frame": 6, "Gamepad": { "LeftStick": [0, 1], "Buttons": ["RB"] } },
+        { "Frame": 6, "Gamepad": { "LeftStick": [0, 1], "Buttons": ["RightShoulder"] } },
         { "Frame": 35, "Expect": { "ViewHeight": 20 } },
         { "Frame": 36, "Gamepad": { "LeftStick": [0, 1] } },
         { "Frame": 40, "Expect": { "ViewHeight": 20 } },
         { "Frame": 41, "Gamepad": { "Buttons": ["Y"] } },
         { "Frame": 41, "Expect": { "ViewHeight": 45 } },
-        { "Frame": 42, "Gamepad": { "Buttons": ["View"] } },
-        { "Frame": 42, "Expect": { "CardShown": false } },
-        { "Frame": 43, "Gamepad": null },
-        { "Frame": 44, "Expect": { "CardShown": false, "Camera": "Follow" } }
+        { "Frame": 42, "Capture": "Following" },
+        { "Frame": 43, "Gamepad": { "Buttons": ["View"] } },
+        { "Frame": 43, "Expect": { "CardShown": false } },
+        { "Frame": 44, "Gamepad": {} },
+        { "Frame": 45, "Expect": { "CardShown": false, "Camera": "Follow" } },
+        { "Frame": 46, "Gamepad": { "Connected": false } },
+        { "Frame": 47, "Gamepad": { "Buttons": ["View"] } },
+        { "Frame": 47, "Expect": { "CardShown": true } },
+        { "Frame": 48, "Capture": "CardShown" }
     ]
 }
