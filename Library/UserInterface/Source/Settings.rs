@@ -101,7 +101,7 @@ impl Settings {
         match parse(&value) {
             Ok(parsed) => parsed,
             Err(error) => {
-                self.problems.push(format!("{name} {error}, so it's the default."));
+                self.problems.push(format!("{name} {}, so it's the default.", error.trim_end_matches('.')));
                 fallback
             }
         }
