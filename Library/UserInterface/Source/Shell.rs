@@ -1,13 +1,13 @@
 // The main loop that every program shares: it opens the window with the
 // program's settings, draws frames with the lowest latency until the window
 // closes or a script ends, and gives each frame to the program, which reads
-// its input and draws its panels with the interface's widgets.
+// its input and draws its cards with the interface's widgets.
 //
 // Each frame, once the renderer is ready, the loop reads the input, so that
 // the frame shows the newest, and the program handles it and lays out and
 // draws its interface on a canvas. Then the loop draws the program's 3D
 // view, if it has one, the canvas over it in one draw call, and anything
-// the program draws over the canvas, like an image in a panel. F11 switches
+// the program draws over the canvas, like an image in a card. F11 switches
 // between maximized and borderless fullscreen, unless the program reads it
 // itself. When the window isn't in a supported setup, the frame shows what's
 // wrong instead of the program's interface, which takes no input.
@@ -15,13 +15,13 @@
 use std::path::Path;
 
 use application::{Arguments, FrameCounter, ProgramSettings, Settings, Window};
-use canvas::{Font, Pipeline, theme};
+use canvas::{Fonts, Pipeline};
 use graphics::Renderer;
 use json::Value;
 use windows_api::*;
 use windows_core::Result;
 
-use crate::panels::FONT_SIZE;
+use crate::clipboard::Clipboard;
 use crate::{Frame, Interface, Status};
 
 // What a program is made with, once its window and renderer are.
@@ -32,7 +32,7 @@ pub struct Setup<'a, S> {
     pub settings: &'a Settings,
     // The program's own settings, from its Settings.json.
     pub program_settings: S,
-    // Problems with how the program was started, which the header shows.
+    // Problems with how the program was started, which the app bar shows.
     pub notices: &'a mut Vec<String>,
     pub renderer: &'a mut Renderer,
     // Whether a script is the program's input, instead of the user.
@@ -69,7 +69,7 @@ pub trait Program: Sized {
     }
 
     // Records draws into the frame over the interface, like an image in a
-    // panel.
+    // card.
     unsafe fn draw_over(&mut self, _renderer: &Renderer) -> Result<()> {
         Ok(())
     }
@@ -87,17 +87,17 @@ pub trait Program: Sized {
 pub fn run<P: Program>(folder: &Path) -> Result<()> {
     unsafe {
         application::prepare_process()?;
-        // Problems with the settings and the command line, which the
-        // header lists.
+        // Problems with the settings and the command line, which the app
+        // bar shows.
         let mut notices = Vec::new();
         let arguments = Arguments::parse(&mut notices);
         let (settings, program_settings) =
             Settings::for_program::<P::Settings>(&folder.join("Settings.json"), &arguments, &mut notices);
         let mut window = Window::open(P::NAME, &settings, &arguments, &mut notices)?;
 
-        let font = Font::new(FONT_SIZE)?;
+        let fonts = Fonts::new()?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, P::DEPTH)?;
-        let pipeline = Pipeline::new(&mut renderer, &font)?;
+        let pipeline = Pipeline::new(&mut renderer, &fonts)?;
         let mut program = P::new(Setup {
             folder,
             arguments: &arguments,
@@ -112,7 +112,10 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
         window.set_title(&format!("{} - {adapter}", P::NAME))?;
         window.show(arguments.activate);
         let mut frames = FrameCounter::default();
-        let mut interface = Interface::default();
+        // A script copies and pastes on the interface's own clipboard, so
+        // that it never touches the user's.
+        let clipboard = if window.scripted() { Clipboard::memory() } else { Clipboard::System };
+        let mut interface = Interface::new(clipboard);
 
         // Handle all pending messages, then render one frame once the
         // renderer is ready for it.
@@ -147,8 +150,10 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
             renderer.begin_frame()?;
 
             // Read input only now, right before drawing, so the frame shows
-            // the newest. Without focus, there's none.
-            let input = window.begin_frame();
+            // the newest. Without focus, there's none. A script can name a
+            // widget instead of a point, which is where the frame before
+            // drew it.
+            let input = window.begin_frame(|name| interface.target(name).map(|area| [area.x, area.y, area.width, area.height]));
             frames.frame(input.seconds);
             let supported = window.problems.is_empty();
             let status = Status {
@@ -159,7 +164,7 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
             };
             let size = [renderer.width as f32, renderer.height as f32];
             let toggle = {
-                let mut frame = interface.frame(&font, &input, status, size);
+                let mut frame = interface.frame(&fonts, &input, status, size);
                 if P::FULLSCREEN_KEY && frame.shortcut(VK_F11) {
                     frame.toggle_fullscreen();
                 }
@@ -173,11 +178,11 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
                 window.toggle_fullscreen()?;
             }
 
-            renderer.clear(theme::BACKGROUND);
+            renderer.clear(interface.theme().clear_color());
             if supported {
                 program.draw_under(&renderer)?;
             }
-            pipeline.draw(&renderer, interface.vertices());
+            pipeline.draw(&renderer, interface.instances());
             if supported {
                 program.draw_over(&renderer)?;
             }
