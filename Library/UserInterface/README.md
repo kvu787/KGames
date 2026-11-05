@@ -212,25 +212,26 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 }
 ```
 
-| Step          | Value                                                                          |
-| ------------- | ------------------------------------------------------------------------------ |
-| `Move`        | A point: a target's name, which is its middle, or `[x, y]` in the window       |
-| `Press`       | A point, or `{ "At": point, "Button": "Right" }`                               |
-| `Release`     | `true` for the left button, or a button's name                                 |
-| `Click`       | A point: a press, released the next frame                                      |
-| `DoubleClick` | A point: two clicks, a frame apart                                             |
-| `Drag`        | `{ "From", "To", "Frames", "Button" }`: a press, a move a frame, and a release |
-| `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                            |
-| `Key`         | A key, like `"F11"` or `"Ctrl+S"`: pressed, and let go of the next frame       |
-| `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them      |
-| `Type`        | Text, as if typed                                                              |
-| `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,             |
-|               | `RightTrigger`, and `Buttons`                                                  |
-| `Focus`       | Whether the window has focus                                                   |
-| `Capture`     | A name: saves the frame as `<name>.png` and the state as `<name>.json`         |
-| `Expect`      | What the state must have: every member it names must match, numbers to a       |
-|               | millionth                                                                      |
-| `Program`     | A step for the program's `script`                                              |
+| Step          | Value                                                                            |
+| ------------- | -------------------------------------------------------------------------------- |
+| `Move`        | A point: a target's name, which is its middle, `[x, y]` in the window, or        |
+|               | `{ "Target": name, "At": [x, y] }`, a place in a target as fractions of its size |
+| `Press`       | A point, or `{ "At": point, "Button": "Right" }`                                 |
+| `Release`     | `true` for the left button, or a button's name                                   |
+| `Click`       | A point: a press, released the next frame                                        |
+| `DoubleClick` | A point: two clicks, a frame apart                                               |
+| `Drag`        | `{ "From", "To", "Frames", "Button" }`: a press, a move a frame, and a release   |
+| `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                              |
+| `Key`         | A key, like `"F11"` or `"Ctrl+S"`: pressed, and let go of the next frame         |
+| `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them        |
+| `Type`        | Text, as if typed                                                                |
+| `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,               |
+|               | `RightTrigger`, and `Buttons`                                                    |
+| `Focus`       | Whether the window has focus                                                     |
+| `Capture`     | A name: saves the frame as `<name>.png` and the state as `<name>.json`           |
+| `Expect`      | What the state must have: every member it names must match, numbers to a         |
+|               | millionth                                                                        |
+| `Program`     | A step for the program's `script`                                                |
 
 The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`, `Fullscreen`,
 `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open `Popup`, the

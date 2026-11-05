@@ -23,7 +23,9 @@
 // what steps can point at. The program exits after the last step's frame,
 // and fails if an expectation wasn't met.
 //
-// Points are a target's name, which is its middle, or [x, y] in the window.
+// Points are a target's name, which is its middle, [x, y] in the window, or
+// { "Target": name, "At": [x, y] }, a place in a target as fractions of its
+// size, like [0.25, 0.5] for a quarter of the way along a slider.
 //
 // | Step          | Value                                                       |
 // | ------------- | ----------------------------------------------------------- |
@@ -184,7 +186,7 @@ impl ScriptRunner {
                 }
                 "Press" => {
                     let (at, button) = match &step.value {
-                        Value::Object(_) => (
+                        Value::Object(_) if step.value.get("Target").is_none() => (
                             step.value.get("At").ok_or_else(|| fail("needs At".to_string()))?,
                             button_of(step.value.get("Button")).map_err(fail)?,
                         ),
@@ -339,6 +341,22 @@ impl ScriptRunner {
                 [Value::Number(x), Value::Number(y)] => Ok(Point::new(*x as f32, *y as f32)),
                 _ => Err("needs [x, y]".to_string()),
             },
+            // A place in a target, as fractions of its width and height from
+            // its top left, like [0.25, 0.5] for a quarter of the way along
+            // the middle of a slider.
+            Value::Object(_) => {
+                let Some(Value::String(name)) = value.get("Target") else {
+                    return Err("needs a Target's name with its At".to_string());
+                };
+                let Some(Value::Array(fractions)) = value.get("At") else {
+                    return Err("needs At, as [x, y] fractions of the target".to_string());
+                };
+                let [Value::Number(x), Value::Number(y)] = fractions.as_slice() else {
+                    return Err("needs At, as [x, y] fractions of the target".to_string());
+                };
+                let rect = self.point(&Value::String(name.clone()), ui).map(|_| ui.target(name).unwrap().rect)?;
+                Ok(Point::new(rect.x + rect.width * *x as f32, rect.y + rect.height * *y as f32))
+            }
             other => Err(format!("needs a target's name or [x, y], not {}", other.describe())),
         }
     }

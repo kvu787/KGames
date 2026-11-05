@@ -9,6 +9,10 @@ use crate::ui::{Response, Sense, Ui};
 use crate::widgets::common::{Visual, focus_ring};
 
 const THUMB: f32 = 20.0;
+
+// Parts of a notch of the wheel that haven't moved a slider yet.
+#[derive(Default)]
+struct WheelRemainder(f32);
 const TRACK: f32 = 4.0;
 
 // A slider's range and steps.
@@ -113,12 +117,19 @@ impl Ui {
                 self.set_focus_visible(true);
             }
         }
-        // The wheel moves it a step a notch, up for more.
+        // The wheel moves it a step a notch, up for more. A touchpad's
+        // parts of notches add up to whole ones.
         if response.hovered && !response.held {
-            let notches = self.input().wheel.y.round();
+            let wheel = self.input().wheel.y;
+            let remainder = self.memory::<WheelRemainder>(response.id);
+            remainder.0 += wheel;
+            let notches = remainder.0.trunc();
+            remainder.0 -= notches;
             if notches != 0.0 {
                 *value = slider.snap(*value + notches * step);
             }
+        } else {
+            self.memory::<WheelRemainder>(response.id).0 = 0.0;
         }
         response.changed = *value != before;
         draw_slider(self, &response, rect, *value, &slider);

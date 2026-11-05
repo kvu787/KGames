@@ -298,6 +298,19 @@ impl<P: Program> Headless<P> {
         self.act()
     }
 
+    // Sends events as they are, all in one frame, like several presses
+    // between two frames.
+    pub fn send(&mut self, events: &[Event]) -> &mut Self {
+        self.pending.extend_from_slice(events);
+        self.act()
+    }
+
+    // A held key's repeat, as Windows sends while a key stays down.
+    pub fn repeat(&mut self, key: Key) -> &mut Self {
+        self.pending.push(Event::KeyPressed { key, repeat: true });
+        self.act()
+    }
+
     // Types the text, all in one frame.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
         self.pending.extend(text.chars().map(Event::Text));

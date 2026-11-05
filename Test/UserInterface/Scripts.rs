@@ -84,3 +84,12 @@ fn expectations_match_what_they_name() {
     assert_eq!(check(r#"{ "Missing": 1 }"#), vec!["Missing is missing".to_string()]);
     assert_eq!(check(r#"{ "List": [1] }"#).len(), 1);
 }
+
+#[test]
+fn a_point_can_be_a_place_in_a_target() {
+    let app = Headless::new(Page);
+    let script = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Move": { "Target": "Save", "At": [0.25, 0.5] } } ] }"#).unwrap();
+    let events = ScriptRunner::new(script).frame(1, &app.ui).unwrap().events;
+    let save = app.target("Save");
+    assert_eq!(events[0], Event::PointerMoved(user_interface::Point::new(save.x + save.width / 4.0, save.center().y)));
+}

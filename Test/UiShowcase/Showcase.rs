@@ -317,3 +317,20 @@ fn benchmark_frame_time() {
     app.frames(1000);
     println!("FRAME {:.1} us", start.elapsed().as_secs_f64() / 1000.0 * 1e6);
 }
+
+#[test]
+fn parts_of_notches_add_up_on_a_slider() {
+    let mut app = showcase();
+    app.scroll("Opacity", 0.5);
+    assert!((app.program.opacity - 0.75).abs() < 1e-6);
+    app.scroll("Opacity", 0.5);
+    assert!((app.program.opacity - 0.751).abs() < 1e-5);
+}
+
+#[test]
+fn a_held_key_repeats() {
+    let mut app = showcase();
+    app.click("Angle").key(Key::HOME);
+    app.hold(Key::RIGHT).repeat(Key::RIGHT).repeat(Key::RIGHT).release_key(Key::RIGHT);
+    assert!((app.program.angle - 0.3).abs() < 1e-3, "{}", app.program.angle);
+}
