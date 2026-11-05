@@ -1,12 +1,12 @@
-// SpinningCarTest without a window: where the car is over time, its key, the
-// settings file, and the car mesh. Test/SceneTest tests F1 and F11.
+// SpinningCarTest without a window: where the car is over time, its key, and
+// the settings file. Test/SceneTest tests F1 and F11, and Test/Meshes the
+// car mesh.
 
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::path::Path;
 
 use application::{Event, ProgramSettings, Settings};
-use simple_paint::{Material, validate_mesh};
-use spinning_car_test::car_mesh::{INDICES, MATERIAL_COUNT, VERTICES};
+use simple_paint::Material;
 use spinning_car_test::controls::toggles_stationary;
 use spinning_car_test::scene::car_placement;
 use spinning_car_test::settings::SceneSettings;
@@ -64,16 +64,6 @@ fn s_toggles_the_car() {
         repeat: true,
     };
     assert!(!toggles_stationary(&held));
-}
-
-#[test]
-fn the_car_mesh_is_what_simple_paint_accepts() {
-    assert_eq!((VERTICES.len(), INDICES.len(), MATERIAL_COUNT), (1938, 5652, 5));
-    // The car's five materials and the sphere's.
-    validate_mesh(&VERTICES, &INDICES, MATERIAL_COUNT + 1).unwrap();
-    for material in 0..MATERIAL_COUNT {
-        assert!(VERTICES.iter().any(|vertex| vertex.material_index == material), "no vertex of material {material}");
-    }
 }
 
 #[test]

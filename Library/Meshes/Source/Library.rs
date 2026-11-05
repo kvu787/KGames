@@ -1,7 +1,11 @@
-// Simple meshes for SimplePaint, made in code: a UV sphere, a box and a
-// plane. Each has one material, smooth normals on the sphere and flat ones
-// on the others, and triangles wound counterclockwise when seen from
-// outside, the right-handed convention.
+// Meshes for SimplePaint: a UV sphere, a box and a plane, made in code, and
+// the car, made in Blender. Each made in code has one material, smooth
+// normals on the sphere and flat ones on the others. All have triangles
+// wound counterclockwise when seen from outside, the right-handed
+// convention.
+
+#[path = "Car.rs"]
+pub mod car;
 
 use simple_paint::Vertex;
 

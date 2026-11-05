@@ -1,7 +1,7 @@
 // Library/Meshes: every mesh passes SimplePaint's checks, which Mesh::new
 // makes before it uploads one.
 
-use meshes::{Mesh, cuboid, plane, uv_sphere};
+use meshes::{Mesh, car, cuboid, plane, uv_sphere};
 use simple_paint::validate_mesh;
 
 fn check(mesh: &Mesh, what: &str) {
@@ -31,6 +31,16 @@ fn spheres_pass_simple_paint_s_checks() {
 #[should_panic(expected = "a UV sphere needs 4 to 512 longitudes")]
 fn a_sphere_needs_4_longitudes() {
     uv_sphere(3, 4, 0);
+}
+
+#[test]
+fn the_car_passes_simple_paint_s_checks_with_each_part_painted() {
+    assert_eq!((car::VERTICES.len(), car::INDICES.len(), car::MATERIAL_COUNT), (1938, 5652, 5));
+    validate_mesh(&car::VERTICES, &car::INDICES, car::MATERIAL_COUNT).unwrap();
+    for material in [car::AXLES, car::BODY, car::CABIN, car::HEADLIGHTS, car::WHEELS] {
+        let painted = car::VERTICES.iter().any(|vertex| vertex.material_index == material);
+        assert!(painted, "no vertex of material {material}");
+    }
 }
 
 #[test]

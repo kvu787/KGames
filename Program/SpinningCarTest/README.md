@@ -15,7 +15,7 @@ and Direct3D 12, ignores input without focus, and supports the two window setups
 | Camera     | Orthographic, 5 units tall, from 1 to 20 units in front of it. It looks at  |
 |            | the origin from 5 units away, 45 degrees above the horizon and 45 degrees   |
 |            | from +Z toward +X                                                           |
-| Car        | The mesh in `Source/CarMesh.rs`, at a quarter of its size. It goes from the |
+| Car        | The car of Library/Meshes, at a quarter of its size. It goes from the       |
 |            | middle to X = 7, back to -7, and again, at 8 units per second, and turns    |
 |            | at 90 degrees per second. `S` keeps it in the middle, facing +X             |
 | Sphere     | Radius 0.4, on the ground at X = 1.5 and Z = -1.5                           |
@@ -75,8 +75,8 @@ Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 
 The tests in `Test/SpinningCarTest` check the car's path and turn, the stationary car, the S key,
-the settings file, and that the car mesh is what SimplePaint accepts, without a window, and
-`Test/SceneTest` checks F1 and F11. The scripts in `Test/SpinningCarTest/Scripts` run the real
+and the settings file, without a window, `Test/SceneTest` checks F1 and F11, and `Test/Meshes`
+checks that the car mesh is what SimplePaint accepts. The scripts in `Test/SpinningCarTest/Scripts` run the real
 test on a fixed clock, as [Library/Application](../../Library/Application/README.md#scripts)
 describes, and check where the car is frame by frame, and what F1, F11 and S do. The state
 that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`.
@@ -89,7 +89,6 @@ that scripts save and check has `CarPosition`, `CarTurn`, `Stationary` and `Text
 | `Source/Library.rs`        | The test's parts, as a library that `Test/SpinningCarTest` tests         |
 | `Source/Controls.rs`       | What S does                                                              |
 | `Source/Scene.rs`          | The objects, the camera, the light and the animation                     |
-| `Source/CarMesh.rs`        | The car mesh                                                             |
 | `Source/Settings.rs`       | The materials and the sphere's resolution, and their defaults            |
 | `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
 |                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |

@@ -5,13 +5,13 @@
 
 use graphics::{BACK_BUFFER_FORMAT, BACK_BUFFER_SRGB_FORMAT, DEPTH_FORMAT, Renderer, UploadBuffer};
 use math::Matrix;
+use meshes::car as car_mesh;
 use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
 use simple_paint::orthographic::{build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material};
 use windows_api::*;
 use windows_core::{Error, Result};
 
-use crate::car_mesh;
 use crate::settings::SceneSettings;
 
 static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));

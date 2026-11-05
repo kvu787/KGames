@@ -72,7 +72,7 @@ coding agents, like how to run programs without disrupting you.
 | [GameInput](Library/GameInput/README.md)                      | GameInput bindings, and the runtime next to each exe              |
 | [Displays](Library/Displays/README.md)                        | Finds the displays, and gives each a lasting identifier           |
 | [Math](Library/Math/README.md)                                | Vectors and matrices, in DirectXMath's conventions                |
-| [Meshes](Library/Meshes/README.md)                            | A UV sphere, a box and a plane for SimplePaint                    |
+| [Meshes](Library/Meshes/README.md)                            | A UV sphere, a box, a plane and the car, for SimplePaint          |
 | [PaintSettings](Library/PaintSettings/README.md)              | SimplePaint materials in JSON settings files                      |
 | [SceneTest](Library/SceneTest/README.md)                      | The loop and text box of MinimalSceneTest and SpinningCarTest     |
 | [Json](Library/Json/README.md)                                | A JSON parser                                                     |

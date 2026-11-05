@@ -1,11 +1,19 @@
-// The car mesh, made in Blender, with Y up.
+// The car, made in Blender, with Y up and its front toward +Z. It's 3 units
+// wide, from X = -1.5 to 1.5, and about 6 long, from Z = -3 to 3.16, with
+// its wheels on Y = 0. It's a baked asset: don't edit it by hand.
 
 // The numbers keep the digits that Blender wrote, past what f32 holds.
 #![allow(clippy::excessive_precision)]
 
 use simple_paint::Vertex;
 
-// Axles, body, cabin, headlights and wheels, in that order.
+// Its parts' materials, which SimplePaint paints. All four wheels are one
+// part, and so are both headlights.
+pub const AXLES: u32 = 0;
+pub const BODY: u32 = 1;
+pub const CABIN: u32 = 2;
+pub const HEADLIGHTS: u32 = 3;
+pub const WHEELS: u32 = 4;
 pub const MATERIAL_COUNT: u32 = 5;
 
 const fn vertex(position: [f32; 3], normal: [f32; 3], material_index: u32) -> Vertex {

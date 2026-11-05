@@ -2,8 +2,6 @@
 // test the car's placement, its key, the settings and the car mesh without
 // a window. Main.rs is the program, which Library/SceneTest runs.
 
-#[path = "CarMesh.rs"]
-pub mod car_mesh;
 #[path = "Controls.rs"]
 pub mod controls;
 #[path = "Scene.rs"]
