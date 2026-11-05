@@ -1,19 +1,73 @@
 # Veehiicuul
 
 Veehiicuul is a racing game seen from above: drive a car around a track as fast as you dare
-without touching the road's edges. Like every KGames GUI program, it's built from the
-[Library](../../Library) crates on Win32 and Direct3D 12, with
+without touching the road's edges. It's also where its levels are made: tabs at the top go
+between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
+program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
 [Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, ignores input
 without focus, and supports the two window setups in
 [Library/Application](../../Library/Application/README.md#supported-window-setups).
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
-the camera's view of them. The track is still, and the car is the only thing that moves. It's
-the car of [Library/Meshes](../../Library/Meshes/README.md), painted with
-[SimplePaint](../../Library/SimplePaint/README.md), and the ground under it is flat colors. An
-orthographic camera looks down at 45 degrees, from 45 degrees around from +Z toward +X.
+the camera's view of them. The car is the only thing that moves. The ground is flat colors, drawn
+in order without a depth buffer, each part over the ones before, so nothing on it z-fights: the
+scene's background, the terrain's hexels, the road with its islands cut out of it, the barriers,
+and the start line. Models, like the car and the decorations, are painted with
+[SimplePaint](../../Library/SimplePaint/README.md). An orthographic camera looks down at 45
+degrees, from 45 degrees around from +Z toward +X.
 
-## Controls
+## How a level is made
+
+1. **Model** vehicles and decorations in Blender, and export each with File > Export > glTF 2.0,
+   as a `.glb` with Y up and modifiers applied, into `Models`.
+   [Library/Gltf](../../Library/Gltf/README.md) reads it. A model has one pivot, its origin, which
+   sits on the ground, and faces -Y in Blender, which is +Z here. Each of its materials is a
+   slot, which SimplePaint paints.
+2. **Color** each slot, in Blender or here. A material's custom property `SimplePaint`, in
+   [Library/PaintSettings](../../Library/PaintSettings/README.md)' format, is its paint as Blender
+   says, or else its base color is. The Scene tab paints over that for the model, everywhere it's
+   used, and the Vehicles tab for one vehicle.
+3. **Build the track** in the Track tab, from closed curves: the road's outer edge, and the
+   edges of islands inside it. The road between them, and the barriers along every edge, follow
+   the curves.
+4. **Paint the terrain** in the Terrain tab: a grid of hexels under the track.
+5. **Make vehicles** in the Vehicles tab: a model, its acceleration, its paint, and its
+   footprint, the rectangle that touches the track's edges.
+6. **Arrange the scene** in the Scene tab: decorations, which are models, and vehicles parked
+   as decorations, the background's color, and the camera.
+7. **Play** it, and **save** it, with Save or Ctrl+S, which writes the files that changed.
+
+## Tabs
+
+The top of the window has the tabs, the scene to play and edit, New scene, Undo and Redo, which
+Ctrl+Z and Ctrl+Y do too, Save, and whether there are unsaved changes. In the editors, "The
+game's angle" shows the view at the game's angle instead of straight down. The editors' panels
+are down the left side, and their views are the rest of the window, where Space and a drag pan,
+and the wheel zooms around the cursor.
+
+| Tab      | What it does                                                                      |
+| -------- | --------------------------------------------------------------------------------- |
+| Play     | Drives the scene's track, with a box of text that says what's going on and what   |
+|          | the controls do. Going to Play puts the car at the start                          |
+| Scene    | Arranges decorations and parked vehicles: a press picks one, a drag moves it, and |
+|          | the panel turns and scales it, adds and deletes them, and paints a decoration's   |
+|          | model. Sets the background, the view of the camera that follows the car, and the  |
+|          | fixed camera, from the editor's view                                              |
+| Terrain  | Paints hexels. Paint and Erase use a brush of a radius, Fill paints the hexels    |
+|          | joined to the one pressed that are its color, as far as 60 hexels from it, and    |
+|          | Pick takes a hexel's color. The palette has up to 62 colors, and the grid's hexel |
+|          | size and orientation, with pointy or flat tops, are in the panel                  |
+| Track    | Edits the track's curves by their control points: Move points moves one, or the   |
+|          | car at the start, or its handle, which turns it, Add points adds one to the       |
+|          | chosen curve where it's nearest, Delete points deletes one, and Move track moves  |
+|          | it all. The panel adds and deletes islands, and sets the start's heading, the     |
+|          | barriers' width and length, and the colors. It says what's wrong with the track:  |
+|          | edges that cross, islands outside the road, and a start off the road              |
+| Vehicles | Edits the vehicles: their names, models, acceleration, footprints and paint. Each |
+|          | side of the footprint follows a drag from it in the view, and Fit makes it the    |
+|          | model's rectangle. A parked vehicle can't be deleted                              |
+
+## Play
 
 The gamepad and the keyboard each do everything. The gamepad is the one used last, and the
 keys and the gamepad's buttons do nothing while the window doesn't have focus.
@@ -23,7 +77,7 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 | Right stick             | Arrows or WASD         | Pushes the car toward where it points on the screen      |
 | Left trigger            | Space                  | Brakes                                                   |
 | D-pad left and right    | Q and E                | The previous and the next vehicle                        |
-| D-pad down and up       | PageDown and PageUp    | The previous and the next track                          |
+| D-pad down and up       | PageDown and PageUp    | The previous and the next scene                          |
 | X                       | R                      | Puts the car back at the start                           |
 | Menu                    | C                      | Switches between the fixed camera and one that follows   |
 |                         |                        | the car                                                  |
@@ -32,42 +86,45 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 | View                    | F1                     | Hides or shows the text                                  |
 |                         | F11                    | Switches between maximized and borderless fullscreen     |
 
-The text at the bottom left says which vehicle and track it is, how fast the car goes, the
-camera, how many times the car crashed, the frame rate, whether a gamepad is connected, and
-the controls.
-
-## Driving
-
 There's no steering wheel, mass or grip. The player pushes the car toward where they want it
 to go, and it speeds up that way, at its vehicle's rates, in units per second per second:
 `Forward` for the part of the push ahead of it, `Reverse` for the part behind it, and `Left`
-and `Right` for the parts to its sides. It always faces the way it moves, so it turns by
-speeding up to a side. A push along the screen goes through the camera to the ground, and
-then to the car's own directions.
+and `Right` for the parts to its sides. It always faces the way it moves.
 
-- **Dead zones.** They apply to the push along the car's own directions: sideways and forward
-  and back, so that a push that's nearly ahead is exactly ahead. A part of the push inside an
-  inner dead zone is 0, one past the outer is full, and one between them is scaled to cover 0
-  to 1. Then the push is no longer than 1. They're in the [settings](#settings).
+- **Dead zones.** They apply to the push along the car's own directions, sideways and forward
+  and back, so that a push that's nearly ahead is exactly ahead. They're in the
+  [settings](#settings).
 - **The brake** slows the car along a straight line, at its vehicle's `Reverse` rate, times
-  how far the trigger is pulled. While the player brakes, the push does nothing, so the car
-  doesn't turn. The brake stops the car, and never moves it backward.
-- **Crashes.** When the car touches an edge of the road, which is the edge of an island too,
-  it goes back to the start, at rest. So does switching to another vehicle or track, or `X`.
-  Then the controls don't move it for 0.35 seconds, so that the player can let go first.
-- **What touches.** The car is the rectangle around its mesh seen from above, 3 units wide and
-  about 6 long, 0.165 shorter at the front. It touches an edge when a side of it meets one.
-  Only where the car is in each frame counts, so a car that's fast enough, or a frame that's
-  slow enough, can carry it past an edge.
-- **Time.** Each frame moves the car on by the time since the frame before, so it moves the
-  same at any frame rate, but by 0.1 seconds at most, for a frame that comes late, like after
-  the window was minimized.
+  how far the trigger is pulled, without turning it, and never moves it backward.
+- **Crashes.** When the car's footprint touches an edge of the road, which is the edge of an
+  island too, the car goes back to the start, at rest, and so does switching to another vehicle
+  or scene. Then the controls don't move it for 0.35 seconds, so that the player can let go
+  first. Only where the car is in each frame counts, so a car that's fast enough can carry it
+  past an edge.
+- **Time.** Each frame moves the car on by the time since the frame before, by 0.1 seconds at
+  most, for a frame that comes late, like after the window was minimized.
 
-## Vehicles
+## Files
 
-`Vehicles.json` has the vehicles, in the order that the controls go through them. Each is the
-car, in colors of its own, and drives the same way on every track, so that a vehicle that
-looks different drives differently, and one that drives differently looks different.
+Everything that the editors change is in files in this folder, which Save writes in the same
+format that they're read in. Points are `[X, Z]` on the ground, in units, headings are in
+degrees from +Z toward +X, and colors are sRGB, like `"#1CDA61"`.
+
+| Path                   | What it has                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `Models/<Name>.glb`    | A model, exported from Blender                                           |
+| `Models/<Name>.json`   | The model's paint: a SimplePaint material for some of its slots, by name |
+| `Vehicles.json`        | The vehicles, in the order that the controls go through them             |
+| `Scenes/<Name>.json`   | A scene, which is a level: its terrain, track, decorations, parked       |
+|                        | vehicles, background and cameras                                         |
+| `Settings.json`        | The settings, which the game writes if it's missing                      |
+
+### Vehicles
+
+Each vehicle is a model with its own `Paint` over the model's, its `Acceleration`, and its
+`Footprint`: how far it goes from the model's origin to the vehicle's `Left`, `Right`, `Front`
+and `Back`. A vehicle drives the same on every track, so that a vehicle that looks different
+drives differently, and one that drives differently looks different.
 
 | Vehicle | Forward | Reverse | Left | Right |
 | ------- | ------- | ------- | ---- | ----- |
@@ -78,44 +135,41 @@ looks different drives differently, and one that drives differently looks differ
 | Cyan    | 280     | 560     | 280  | 280   |
 | Magenta | 1000    | 2000    | 200  | 200   |
 
-Each vehicle has its `Name`, its `Acceleration`, and the SimplePaint materials of its `Body`
-and its `Cabin`, in the format of [Library/PaintSettings](../../Library/PaintSettings/README.md).
-Every vehicle shares the `Axles`, `Headlights` and `Wheels` at the file's top. Tune a material
-in [SimplePaintDemo](../SimplePaintDemo/README.md), and copy it from its `Paint.json`.
+### Scenes
 
-## Tracks
-
-Each file in `Tracks` is a track, named by the file, in the order of their names. Ribeye is the
-only one so far: a road with two islands, 800 points around. A track is the outlines of its
-road and its islands, and the game makes the rest from them: the road, the islands' grass, red
-and white curbs on the grass beside every edge, and the black and white start line. Points
-are `[X, Z]`, in units, and headings are in degrees from +Z toward +X.
+Ribeye is the only scene so far: a road with two islands, a pond in the terrain, the big cone,
+and the six vehicles parked in a row.
 
 | Member         | What it is                                                                     |
 | -------------- | ------------------------------------------------------------------------------ |
-| `Road`         | The road's outer edge, as a list of points, which closes from its last point   |
-|                | back to its first                                                              |
-| `Islands`      | The edges of the islands of grass in the road, each a list of points           |
-| `Start`        | Where the car starts, its `Position`, and which way it faces, its `Heading`    |
-| `StartLine`    | The middle of the start line, its `Position`, and its `Width` across the road  |
-|                | and its `Depth` along it. It's at a right angle to the start's heading         |
-| `Camera`       | Where the fixed camera looks, its `Center`, and its view's `Height`, in units  |
+| `Background`   | The color where there's nothing else                                           |
+| `Camera`       | Where the fixed camera looks, its `Center`, and its view's `Height`            |
 | `FollowHeight` | The height of the view of the camera that follows the car                      |
-| `Colors`       | The `Grass`, the `Road`, and the two `Curbs`, as sRGB, like `"#1CDA61"`        |
-| `CurbWidth`    | How wide the curbs are                                                         |
-| `CurbLength`   | About how long each curb is. Each edge has an even number, so that they        |
-|                | alternate all the way around                                                   |
+| `Terrain`      | The hexels' `Size`, from a hexel's middle to its corners, their `Orientation`, |
+|                | `PointyTop` or `FlatTop`, the `Palette`, and the `Rows` of hexels from the     |
+|                | `Origin`, which is a hexel's axial coordinates: a character a hexel, its       |
+|                | palette index, 0 to 9, A to Z, then a to z, or `.` for none                    |
+| `Track`        | The control points of the `Road`'s curve and the `Islands`' curves, the car's  |
+|                | `Start`, the `Colors` of the road and the two of the barriers, and the         |
+|                | barriers' `BarrierWidth` and `BarrierLength`                                   |
+| `Decorations`  | Each a `Model`, with its `Position`, `Heading` and `Scale`                     |
+| `Vehicles`     | Each a parked `Vehicle`, with its `Position` and `Heading`                     |
+
+A curve is a closed uniform cubic B-spline, like Blender's cyclic NURBS curves with every weight
+1: smooth everywhere, near its control points, but not through them. It's sampled 8 times
+between control points, and the samples' segments are the edges that the car touches. The start
+line goes across the road from edge to edge, 4.25 units ahead of the car's start.
 
 ## Settings
 
 `Settings.json` has the settings that every program has, then the game's own. The game writes
-it with the defaults if it's missing, and the text says what's wrong with it.
+it with the defaults if it's missing, and the text in Play says what's wrong with it.
 
 | Setting     | Value                                                                           |
 | ----------- | ------------------------------------------------------------------------------- |
-| `Track`     | The track to start on, `"Ribeye"`                                               |
+| `Scene`     | The scene to start in, `"Ribeye"`                                               |
 | `Vehicle`   | The vehicle to start with, `"Yellow"`                                           |
-| `Camera`    | `"Fixed"`, which looks at the track's place, or `"Follow"`, which follows the   |
+| `Camera`    | `"Fixed"`, which looks at the scene's place, or `"Follow"`, which follows the   |
 |             | car                                                                             |
 | `DeadZones` | The push's `Sideways` and `ForwardAndBack` dead zones, each `[inner, outer]`,   |
 |             | from 0 to 1. `[0.1, 0.95]` and `[0.05, 0.95]` by default. A gamepad whose       |
@@ -138,48 +192,61 @@ cargo test -p veehiicuul_tests
 Program\RunInBackground\RunInBackground.ps1 Veehiicuul --all-scripts
 ```
 
-The tests in `Test/Veehiicuul` check, without a window: driving, the dead zones and braking;
-segments that meet, the car's footprint, and a car against edges; reading Ribeye, and what's
-wrong with other tracks; cutting outlines into triangles, and Ribeye's ground; the vehicles and
-the settings; and the game through its frames, with Library/UserInterface's `Headless`:
-driving with the stick and the keys, crashing, the vehicles, the tracks, the camera, the text,
-and a window without focus.
+The tests in `Test/Veehiicuul` check, without a window: driving; what touches; curves, tracks'
+shapes and what's wrong with them, cutting the road's islands out, and the ground's meshes;
+hexels, brushes and fills; the models from Blender, the vehicles, and that the files write back
+as they were; Play through its frames, with Library/UserInterface's `Headless`; and the editors
+through their frames, with presses and drags in their real layout: the tabs, painting hexels,
+moving, adding and deleting control points, dragging a footprint's side, picking and moving a
+decoration, undo, and saving.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
 [Library/Application](../../Library/Application/README.md#scripts) describes. Their `Gamepad`
-steps put the gamepad's sticks, triggers and buttons where they need them, and `Hold` steps
-hold keys down. The state that scripts save and check has the `Track`, the `Vehicle`, the
-car's `Position`, `Heading`, `Velocity` and `Speed`, whether it's `Paused` after going back to
-the start, the `Camera`, its `ViewHeight`, the `Crashes`, and whether the text is shown, as
-`TextShown`.
+steps put the gamepad's sticks, triggers and buttons where they need them, and `Hold` steps hold
+keys down. A scripted run saves in its output folder, not this one. The state that scripts save
+and check has the `Mode`, whether there are `Unsaved` changes, the `Status`, the `Scene`, the
+`Vehicle`, the car's `Position`, `Heading`, `Velocity` and `Speed`, whether it's `Paused`, the
+`Camera`, its `ViewHeight`, the `Crashes`, whether the text is shown, as `TextShown`, and each
+editor's, as `SceneEditor`, `TerrainEditor`, `TrackEditor` and `VehicleEditor`.
 
-What only a person can check: real gamepads and keyboards, how driving feels, and input
-latency.
+What only a person can check: real gamepads and keyboards, how driving feels, input latency,
+and how editing feels with a real mouse.
 
 ## Layout
 
-| Path                  | Contents                                                                    |
-| --------------------- | --------------------------------------------------------------------------- |
-| `Source/Main.rs`      | Runs the game with Library/UserInterface's main loop                        |
-| `Source/Library.rs`   | The game's parts, as a library that `Test/Veehiicuul` tests                 |
-| `Source/Program.rs`   | The game as a `Program`: each frame's controls, and the text                |
-| `Source/Game.rs`      | The tracks, the vehicles, the car, the camera, and what the controls do     |
-| `Source/Controls.rs`  | What the gamepad and the keys do                                            |
-| `Source/Driving.rs`   | How a car moves, its dead zones, and its brake                              |
-| `Source/Collision.rs` | The car's footprint, and whether it touches an edge                         |
-| `Source/Track.rs`     | Reads a track's file                                                        |
-| `Source/Ground.rs`    | Makes a track's ground from its outlines                                    |
-| `Source/Vehicles.rs`  | Reads `Vehicles.json`                                                       |
-| `Source/Camera.rs`    | The camera's angle, view and zoom                                           |
-| `Source/Settings.rs`  | The game's own settings, and their defaults                                 |
-| `Source/Scene.rs`     | Draws the ground and the car                                                |
-| `Shaders/Ground.hlsl` | Draws the ground in flat colors, with SimplePaint's root signature          |
-| `Build.rs`            | Compiles SimplePaint's shaders for the car's five materials, and Ground's   |
-| `Tracks`              | The tracks                                                                  |
-| `Vehicles.json`       | The vehicles                                                                |
-| `Settings.json`       | The settings, which the game writes if it's missing                         |
-| `HumanRun.ps1`        | Builds the game and runs it on the primary display, for people to play      |
-| `HumanRun.cmd`        | Runs `HumanRun.ps1`, for double-clicking in File Explorer                   |
+| Path                       | Contents                                                               |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `Source/Main.rs`           | Runs the game with Library/UserInterface's main loop                   |
+| `Source/Library.rs`        | The game's parts, as a library that `Test/Veehiicuul` tests            |
+| `Source/Program.rs`        | The game as a `Program`: the tabs, undo, saving, and Play's text       |
+| `Source/Game.rs`           | The document, the models, the car, the camera, and Play                |
+| `Source/Document.rs`       | What the editors change and Save writes                                |
+| `Source/Scene.rs`          | Reads and writes a scene                                               |
+| `Source/Terrain.rs`        | The hexel terrain, its hexels' places, brushes and fills               |
+| `Source/Track.rs`          | A track's curves, start and colors, and its shape and problems         |
+| `Source/Curve.rs`          | The closed B-spline curves                                             |
+| `Source/Ground.rs`         | Makes the terrain's and the track's meshes                             |
+| `Source/Models.rs`         | Reads the models from Blender, and their paint                         |
+| `Source/Vehicles.rs`       | Reads and writes `Vehicles.json`                                       |
+| `Source/Files.rs`          | Numbers, points and colors in the game's files                         |
+| `Source/Controls.rs`       | What the gamepad and the keys do in Play                               |
+| `Source/Driving.rs`        | How a car moves, its dead zones, and its brake                         |
+| `Source/Collision.rs`      | Footprints, and whether a car touches an edge                          |
+| `Source/Camera.rs`         | The game's camera and the editors' views                               |
+| `Source/Editing.rs`        | What the editors share: their views, controls, and the paint panel     |
+| `Source/SceneEditor.rs`    | The Scene tab                                                          |
+| `Source/TerrainEditor.rs`  | The Terrain tab                                                        |
+| `Source/TrackEditor.rs`    | The Track tab                                                          |
+| `Source/VehicleEditor.rs`  | The Vehicles tab, with the footprint creator                           |
+| `Source/Settings.rs`       | The game's own settings, and their defaults                            |
+| `Source/Drawing.rs`        | Draws the ground and the models                                        |
+| `Shaders/Ground.hlsl`      | Draws the ground in flat colors, with SimplePaint's root signature     |
+| `Build.rs`                 | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
+| `Models`, `Scenes`         | The models and their paint, and the scenes                             |
+| `Vehicles.json`            | The vehicles                                                           |
+| `Settings.json`            | The settings                                                           |
+| `HumanRun.ps1`             | Builds the game and runs it on the primary display, for people to play |
+| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
 
 # Design doc
 

@@ -52,7 +52,7 @@ coding agents, like how to run programs without disrupting you.
 
 | Program                                                       | What it is                                                        |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [Veehiicuul](Program/Veehiicuul/README.md)                    | A racing game seen from above, driven with a gamepad or the keys  |
+| [Veehiicuul](Program/Veehiicuul/README.md)                    | A racing game seen from above, and the editors of its levels      |
 | [GameInputDemo](Program/GameInputDemo/README.md)              | Shows what gamepads, keyboards and mice send through GameInput    |
 | [SimplePaintDemo](Program/SimplePaintDemo/README.md)          | Edits a SimplePaint material live on a UV sphere                  |
 | [UiShowcase](Program/UiShowcase/README.md)                    | Shows every widget of the UI framework, and what input does to it |
