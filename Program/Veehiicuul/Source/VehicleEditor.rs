@@ -2,11 +2,11 @@
 // its acceleration, and its paint over the model's, and draws its footprint,
 // the rectangle that touches the track's edges, over its model seen from
 // above. A side of the footprint follows a drag from it in the view, and the
-// footprint can fit the model's own rectangle.
+// footprint can fit the model's own rectangle. The paint has a card of its
+// own, down the right side, and the vehicle is between the two.
 
 use json::Value;
-use user_interface::theme::{ACCENT, DIM, TEXT, WARNING};
-use user_interface::{Color, Frame, SliderRange, Stack};
+use user_interface::{Align, Button, Frame, Icon, ROW_HEIGHT, SPACE_XS, SliderRange, TEXT_INSET, TextStyle};
 
 use crate::collision::Footprint;
 use crate::document::Document;
@@ -17,7 +17,6 @@ use crate::models::{Models, set_slot};
 pub const SHOWN_HEADING: f64 = -135.0;
 // How near the cursor a side counts as under it, in pixels.
 const REACH: f32 = 10.0;
-const ROW_HEIGHT: f32 = 24.0;
 pub const SIDES: [&str; 4] = ["Left", "Right", "Front", "Back"];
 
 pub struct VehicleEditor {
@@ -31,8 +30,10 @@ pub struct VehicleEditor {
 
 impl Default for VehicleEditor {
     fn default() -> Self {
+        let mut viewport = Viewport::new([0.0, 0.0], 12.0);
+        viewport.right_card = true;
         VehicleEditor {
-            viewport: Viewport::new([0.0, 0.0], 12.0),
+            viewport,
             slot: 0,
             drag: None,
             name_text: String::new(),
@@ -48,21 +49,25 @@ fn sides(footprint: &Footprint) -> [f64; 4] {
 
 impl VehicleEditor {
     pub fn frame(&mut self, frame: &mut Frame, document: &mut Document, models: &Models, vehicle: &mut usize) {
-        let inner = frame.panel(editing::panel_area(frame), "Vehicles", "each vehicle's model, driving, footprint and paint");
-        let mut stack = Stack::new(inner, 8.0);
+        let theme = frame.theme();
+        let inner = editing::card(frame, "Vehicles", "each vehicle's model, driving, footprint and paint");
+        let mut stack = editing::rows(inner);
         let focusable = frame.set_focusable(false);
         let count = document.vehicles.list.len();
         let rows = count.min(6) as f32;
         let mut selected = Some(*vehicle);
-        let list = frame.list("Vehicles/List", stack.next(rows * ROW_HEIGHT + 2.0), count, ROW_HEIGHT, &mut selected);
-        for (index, row) in &list.rows {
-            let name = &document.vehicles.list[*index].name;
-            frame.canvas.text(row.x + 8.0, row.y + (row.height - frame.line_height()) / 2.0, name, TEXT);
-        }
+        let vehicles = &document.vehicles.list;
+        frame.list("Vehicles/List", stack.next(rows * ROW_HEIGHT), count, ROW_HEIGHT, &mut selected, |canvas, row| {
+            let text = row.area.inset_by(TEXT_INSET + SPACE_XS, 0.0);
+            let style = if row.selected { TextStyle::BodyStrong } else { TextStyle::Body };
+            canvas.text_in(text, &vehicles[row.index].name, style, theme.text, Align::Start);
+        });
         if let Some(selected) = selected {
             *vehicle = selected.min(count - 1);
         }
-        match editing::buttons(frame, &mut stack, &[("Vehicles/Add", "Add a vehicle"), ("Vehicles/Delete", "Delete it")]) {
+        let add = Button::new("Add a vehicle").icon(Icon::Add);
+        let delete = Button::new("Delete it").icon(Icon::Delete);
+        match editing::buttons(frame, &mut stack, &[("Vehicles/Add", add), ("Vehicles/Delete", delete)]) {
             Some(0) => {
                 let mut copy = document.vehicles.list[*vehicle].clone();
                 copy.name = document.vehicles.new_name();
@@ -86,19 +91,16 @@ impl VehicleEditor {
             _ => {}
         }
         if !self.message.is_empty() {
-            label(frame, &mut stack, &self.message, WARNING);
+            label(frame, &mut stack, &self.message, theme.caution);
         }
 
         heading(frame, &mut stack, "Vehicle");
         frame.set_focusable(focusable);
         // The name, which a rename also changes where it's parked.
-        let area = stack.next(frame.control_height());
-        let (label_area, field) = area.split_left(150.0, 0.0);
-        frame.canvas.text(label_area.x, area.y + (area.height - frame.line_height()) / 2.0, "Name", DIM);
         if frame.focus_name() != Some("Vehicles/Name") {
             self.name_text = document.vehicles.list[*vehicle].name.clone();
         }
-        frame.text_field("Vehicles/Name", field, &mut self.name_text, "Name", 40);
+        editing::text_field(frame, &mut stack, "Vehicles/Name", "Name", &mut self.name_text, "Name");
         let name = self.name_text.trim().to_string();
         let old = document.vehicles.list[*vehicle].name.clone();
         if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
@@ -139,32 +141,33 @@ impl VehicleEditor {
             slider(frame, &mut stack, &format!("Footprint/{side}"), side, &mut values[index], &range, |value| format!("{value:.3}"));
         }
         let model_footprint = models.list[model].footprint;
-        if editing::buttons(frame, &mut stack, &[("Footprint/Fit", "Fit it to the model")]).is_some() {
+        if editing::buttons(frame, &mut stack, &[("Footprint/Fit", Button::new("Fit it to the model"))]).is_some() {
             values = sides(&model_footprint);
         }
-        label(frame, &mut stack, "Drag a side in the view to move it.", DIM);
+        label(frame, &mut stack, "Drag a side in the view to move it.", theme.text_secondary);
 
-        heading(frame, &mut stack, "Paint");
+        let inner = editing::right_card(frame, "Paint", "this vehicle's, over its model's");
+        let mut stack = editing::rows(inner);
         let slots = &models.list[model].slots;
         self.slot = self.slot.min(slots.len() - 1);
         let none = Vec::new();
         let model_paint = model_paints.iter().find(|(name, _)| name == names[model]).map_or(&none, |(_, paint)| paint);
         let mut materials = models.list[model].materials(&[model_paint, &current.paint]);
         let mut parameters = materials[self.slot];
-        if editing::paint_panel(frame, &mut stack, "VehiclePaint", slots, &mut self.slot, &mut parameters) {
+        if editing::paint_controls(frame, &mut stack, "VehiclePaint", slots, &mut self.slot, &mut parameters) {
             let slot = slots[self.slot.min(slots.len() - 1)].clone();
             set_slot(&mut current.paint, slots, &slot, parameters);
             materials[self.slot] = parameters;
         }
         let painted = current.paint.iter().any(|(slot, _)| *slot == slots[self.slot]);
-        if editing::buttons(frame, &mut stack, &[("VehiclePaint/Reset", "Use the model's paint")]).is_some() {
+        if editing::buttons(frame, &mut stack, &[("VehiclePaint/Reset", Button::new("Use the model's paint"))]).is_some() {
             current.paint.retain(|(slot, _)| *slot != slots[self.slot]);
         }
         label(
             frame,
             &mut stack,
             if painted { "This vehicle paints this slot its own way." } else { "This slot has the model's paint." },
-            DIM,
+            theme.text_secondary,
         );
         frame.set_focusable(focusable);
 
@@ -197,14 +200,14 @@ impl VehicleEditor {
         }
         current.footprint = Footprint::from_sides(values[0], values[1], values[2], values[3]);
         let model_corners = model_footprint.corners([0.0, 0.0], heading);
-        editing::outline(frame, &self.viewport, &model_corners, 1.0, Color::rgb(0x646C78));
+        editing::outline(frame, &self.viewport, &model_corners, 1.0, theme.text_secondary);
         let corners = current.footprint.corners([0.0, 0.0], heading);
-        editing::outline(frame, &self.viewport, &corners, 2.0, ACCENT);
+        editing::outline(frame, &self.viewport, &corners, 2.0, theme.accent);
         let side_corners = [[corners[1], corners[2]], [corners[3], corners[0]], [corners[2], corners[3]], [corners[0], corners[1]]];
         for (side, [a, b]) in side_corners.iter().enumerate() {
             let middle = screen(frame, [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]);
             let active = self.drag == Some(side) || (self.drag.is_none() && under == Some(side));
-            editing::dot(frame, middle, if active { 7.0 } else { 5.0 }, ACCENT);
+            editing::dot(frame, &self.viewport, middle, if active { 7.0 } else { 5.0 }, theme.accent);
         }
     }
 

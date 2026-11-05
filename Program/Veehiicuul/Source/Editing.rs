@@ -1,35 +1,49 @@
-// What the editors share: where their panels and views are, the view of the
-// ground that they pan and zoom, controls with labels, color fields, and the
-// panel that paints a model's slots with SimplePaint.
+// What the editors share: where their cards and views are, the view of the
+// ground that they pan and zoom, rows of controls with labels, color fields,
+// and the controls that paint a model's slots with SimplePaint. They follow
+// Library/UserInterface's design system: colors from the theme's roles, and
+// sizes from its tokens.
 //
 // Programs only support two window setups (see Library/Application), so the
-// editors' panels have fixed places in pixels: the tabs at the top, a panel
-// down the left side, and the 3D view in the rest, which fills the window
-// under them.
+// editors' cards have fixed places in pixels: the app bar at the top, with
+// the tabs, a card down the left side, and in the vehicle editor, another
+// down the right, the status bar at the bottom, and the 3D view in the rest,
+// which fills the window under them.
 
 use simple_paint::Parameters;
-use user_interface::theme::{BORDER, DIM, TEXT, TITLE};
-use user_interface::{Choice, Color, Frame, MARGIN, Rect, Response, Sense, SliderRange, Stack};
+use user_interface::{
+    Align, Button, CONTROL_HEIGHT, Choice, Color, Frame, MARGIN, PANELS_TOP, RADIUS_CONTROL, Rect,
+    Response, SPACE_M, SPACE_S, Sense, SliderRange, Stack, TextField, TextStyle,
+};
 
 use crate::camera::{self, Eye};
 use crate::files::{self, Color as FileColor};
 
-pub const PANEL_WIDTH: f32 = 560.0;
-pub const TOP: f32 = 64.0;
-// The panel's controls' labels, and the values after sliders.
-const LABEL_WIDTH: f32 = 150.0;
-const VALUE_WIDTH: f32 = 90.0;
+pub const CARD_WIDTH: f32 = 560.0;
+// The width of a row's label, and of the value after a slider.
+const LABEL_WIDTH: f32 = 136.0;
+const VALUE_WIDTH: f32 = 88.0;
 
-// The editors' panel, down the left side under the tabs.
-pub fn panel_area(frame: &Frame) -> Rect {
-    Rect::new(MARGIN, TOP, PANEL_WIDTH, frame.height - TOP - MARGIN)
+// The editors' card, down the left side, between the app bar and the status
+// bar.
+pub fn card_area(frame: &Frame) -> Rect {
+    Rect::from_edges(MARGIN, PANELS_TOP, MARGIN + CARD_WIDTH, frame.content_bottom() - MARGIN)
+}
+
+// The vehicle editor's second card, down the right side.
+pub fn right_card_area(frame: &Frame) -> Rect {
+    Rect::from_edges(frame.width - MARGIN - CARD_WIDTH, PANELS_TOP, frame.width - MARGIN, frame.content_bottom() - MARGIN)
 }
 
 // The area of the 3D view that the editors take input in: right of the
-// panel, and under the tabs, to the window's edges.
+// card, between the app bar and the status bar.
 pub fn view_area(frame: &Frame) -> Rect {
-    let left = MARGIN * 2.0 + PANEL_WIDTH;
-    Rect::new(left, TOP, frame.width - left, frame.height - TOP)
+    Rect::from_edges(MARGIN * 2.0 + CARD_WIDTH, PANELS_TOP, frame.width, frame.content_bottom())
+}
+
+// The stack of rows in an editor's card.
+pub fn rows(inner: Rect) -> Stack {
+    Stack::down(inner, SPACE_S)
 }
 
 // What happened in an editor's view in a frame.
@@ -46,6 +60,8 @@ pub struct ViewInput {
 // Space and a drag pan it, and the wheel zooms it around the cursor.
 pub struct Viewport {
     pub eye: Eye,
+    // Whether there's a card down the right side, which the view stops at.
+    pub right_card: bool,
     // The point on the ground that a pan holds under the cursor.
     grab: Option<[f64; 2]>,
 }
@@ -54,7 +70,18 @@ impl Viewport {
     pub fn new(center: [f64; 2], height: f64) -> Viewport {
         Viewport {
             eye: Eye::top_down(center, height),
+            right_card: false,
             grab: None,
+        }
+    }
+
+    // Where the view takes input, and what's drawn over it shows.
+    pub fn area(&self, frame: &Frame) -> Rect {
+        let area = view_area(frame);
+        if self.right_card {
+            Rect::from_edges(area.x, area.y, right_card_area(frame).x - MARGIN, area.bottom())
+        } else {
+            area
         }
     }
 
@@ -67,7 +94,7 @@ impl Viewport {
     }
 
     pub fn interact(&mut self, frame: &mut Frame, name: &str) -> ViewInput {
-        let area = view_area(frame);
+        let area = self.area(frame);
         let size = [frame.width, frame.height];
         let sense = Sense {
             click: true,
@@ -107,19 +134,31 @@ impl Viewport {
     }
 }
 
-// A line of text in the panel.
+// A line of text in the card.
 pub fn label(frame: &mut Frame, stack: &mut Stack, text: &str, color: Color) {
-    let area = stack.next(frame.line_height());
-    frame.canvas.text(area.x, area.y, text, color);
+    let area = stack.next(frame.canvas.line_height(TextStyle::Body));
+    frame.label(area, text, TextStyle::Body, color, Align::Start);
 }
 
-// A heading in the panel, a little apart from what's above it.
+// A heading in the card, under a divider, a little apart from what's above
+// it.
 pub fn heading(frame: &mut Frame, stack: &mut Stack, text: &str) {
-    stack.skip(6.0);
-    let area = stack.next(frame.line_height());
-    frame.canvas.text(area.x, area.y, text, TITLE);
-    frame.canvas.rect(area.x, area.bottom() + 2.0, area.width, 1.0, BORDER);
-    stack.skip(4.0);
+    stack.skip(SPACE_S);
+    let line = stack.next(1.0);
+    frame.divider([line.x, line.y], line.width);
+    stack.skip(SPACE_S);
+    let area = stack.next(frame.canvas.line_height(TextStyle::BodyStrong));
+    let color = frame.theme().text;
+    frame.label(area, text, TextStyle::BodyStrong, color, Align::Start);
+}
+
+// A row's label, before its control, and the area left for the control.
+fn row(frame: &mut Frame, stack: &mut Stack, label: &str) -> Rect {
+    let area = stack.next(CONTROL_HEIGHT);
+    let (label_area, rest) = area.split_left(LABEL_WIDTH, 0.0);
+    let color = frame.theme().text_secondary;
+    frame.label(label_area, label, TextStyle::Body, color, Align::Start);
+    rest
 }
 
 // A slider with its label before it and its value after it. Returns whether
@@ -133,40 +172,37 @@ pub fn slider(
     range: &SliderRange,
     format: impl Fn(f64) -> String,
 ) -> bool {
-    let area = stack.next(frame.control_height());
-    let (label_area, rest) = area.split_left(LABEL_WIDTH, 0.0);
-    let (value_area, track) = rest.split_right(VALUE_WIDTH, 8.0);
-    let text_y = area.y + (area.height - frame.line_height()) / 2.0;
-    frame.canvas.text(label_area.x, text_y, label, DIM);
-    let changed = frame.slider(name, track, value, range).changed;
-    frame.canvas.text(value_area.x, text_y, &format(*value), TEXT);
+    let rest = row(frame, stack, label);
+    let (value_area, rail) = rest.split_right(VALUE_WIDTH, SPACE_M);
+    let changed = frame.slider(name, rail, value, range).changed;
+    let color = frame.theme().text;
+    frame.label(value_area, &format(*value), TextStyle::Body, color, Align::End);
     changed
 }
 
-// A select box with its label before it. Returns whether it changed.
+// A combo box with its label before it. Returns whether it changed.
 pub fn select(frame: &mut Frame, stack: &mut Stack, name: &str, label: &str, labels: &[&str], selected: &mut usize) -> bool {
-    let area = stack.next(frame.control_height());
-    let (label_area, rest) = area.split_left(LABEL_WIDTH, 0.0);
-    let text_y = area.y + (area.height - frame.line_height()) / 2.0;
-    frame.canvas.text(label_area.x, text_y, label, DIM);
+    let rest = row(frame, stack, label);
     let choices: Vec<Choice> = labels.iter().map(|label| Choice { label, detail: "" }).collect();
     frame.select(name, rest, &choices, selected).changed
+}
+
+// A text field with its label before it.
+pub fn text_field(frame: &mut Frame, stack: &mut Stack, name: &str, label: &str, text: &mut String, placeholder: &str) -> Response {
+    let rest = row(frame, stack, label);
+    frame.text_field(name, rest, text, TextField::new(placeholder).limit(40))
 }
 
 // A field for a color, like "#1CDA61", with a swatch of it. The color
 // changes as soon as the field holds one. `text` keeps what's typed.
 pub fn color_field(frame: &mut Frame, stack: &mut Stack, name: &str, label: &str, text: &mut String, color: &mut FileColor) -> bool {
-    let area = stack.next(frame.control_height());
-    let (label_area, rest) = area.split_left(LABEL_WIDTH, 0.0);
-    let (swatch, field) = rest.split_right(area.height, 8.0);
-    let text_y = area.y + (area.height - frame.line_height()) / 2.0;
-    frame.canvas.text(label_area.x, text_y, label, DIM);
+    let rest = row(frame, stack, label);
+    let (swatch, field) = rest.split_right(CONTROL_HEIGHT, SPACE_S);
     // What's typed shows the color, unless it's being typed.
-    let focused = frame.focus_name() == Some(name);
-    if !focused {
+    if frame.focus_name() != Some(name) {
         *text = files::color_text(*color);
     }
-    frame.text_field(name, field, text, "#RRGGBB", 7);
+    frame.text_field(name, field, text, TextField::new("#RRGGBB").limit(7));
     let mut changed = false;
     if let Some(parsed) = files::parse_color(text.trim())
         && parsed != *color
@@ -178,20 +214,23 @@ pub fn color_field(frame: &mut Frame, stack: &mut Stack, name: &str, label: &str
     changed
 }
 
-pub fn swatch_rect(frame: &mut Frame, area: Rect, color: FileColor) {
-    let [red, green, blue] = color;
-    let fill = Color::rgb(((red as u32) << 16) | ((green as u32) << 8) | blue as u32);
-    frame.canvas.rect(area.x, area.y, area.width, area.height, fill);
-    frame.canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
+// A file's color as the canvas takes it.
+pub fn canvas_color([red, green, blue]: FileColor) -> Color {
+    Color::rgb(((red as u32) << 16) | ((green as u32) << 8) | blue as u32)
 }
 
-// A row of buttons, as wide as the panel together. Returns the index of the
+pub fn swatch_rect(frame: &mut Frame, area: Rect, color: FileColor) {
+    let stroke = frame.theme().control_stroke;
+    frame.canvas.fill_stroke(area, RADIUS_CONTROL, canvas_color(color), 1.0, stroke);
+}
+
+// A row of buttons, as wide as the card together. Returns the index of the
 // one clicked, if any.
-pub fn buttons(frame: &mut Frame, stack: &mut Stack, names: &[(&str, &str)]) -> Option<usize> {
-    let area = stack.next(frame.control_height());
+pub fn buttons(frame: &mut Frame, stack: &mut Stack, buttons: &[(&str, Button)]) -> Option<usize> {
+    let area = stack.next(CONTROL_HEIGHT);
     let mut clicked = None;
-    for (index, (column, (name, label))) in area.columns(names.len(), 8.0).into_iter().zip(names).enumerate() {
-        if frame.button(name, column, label).clicked {
+    for (index, (column, (name, button))) in area.columns(buttons.len(), SPACE_S).into_iter().zip(buttons).enumerate() {
+        if frame.button(name, column, *button).clicked {
             clicked = Some(index);
         }
     }
@@ -199,8 +238,8 @@ pub fn buttons(frame: &mut Frame, stack: &mut Stack, names: &[(&str, &str)]) -> 
 }
 
 // The sliders of a SimplePaint material, for one of a model's slots, which
-// the select box picks. Returns whether the material changed.
-pub fn paint_panel(
+// the combo box picks. Returns whether the material changed.
+pub fn paint_controls(
     frame: &mut Frame,
     stack: &mut Stack,
     name: &str,
@@ -245,14 +284,14 @@ pub fn outline(frame: &mut Frame, viewport: &Viewport, points: &[[f64; 2]], widt
     for (index, &point) in points.iter().enumerate() {
         let next = points[(index + 1) % points.len()];
         let [from, to] = [viewport.screen(frame, point), viewport.screen(frame, next)];
-        line(frame, from, to, width, color);
+        line(frame, viewport, from, to, width, color);
     }
 }
 
-// A line over the 3D view, cut where it leaves the editors' view, so that
-// it doesn't cross the panel or the tabs.
-pub fn line(frame: &mut Frame, from: [f32; 2], to: [f32; 2], width: f32, color: Color) {
-    let area = view_area(frame);
+// A line over the 3D view, cut where it leaves the editor's view, so that
+// it doesn't cross the cards, the app bar or the status bar.
+pub fn line(frame: &mut Frame, viewport: &Viewport, from: [f32; 2], to: [f32; 2], width: f32, color: Color) {
+    let area = viewport.area(frame);
     // Liang and Barsky's clipping, along the line from 0 to 1.
     let [dx, dy] = [to[0] - from[0], to[1] - from[1]];
     let (mut start, mut end) = (0.0_f32, 1.0_f32);
@@ -281,15 +320,15 @@ pub fn line(frame: &mut Frame, from: [f32; 2], to: [f32; 2], width: f32, color: 
     }
 }
 
-// A dot over the 3D view, if it's in the editors' view.
-pub fn dot(frame: &mut Frame, center: [f32; 2], radius: f32, color: Color) {
-    if view_area(frame).contains(center) {
+// A dot over the 3D view, if it's in the editor's view.
+pub fn dot(frame: &mut Frame, viewport: &Viewport, center: [f32; 2], radius: f32, color: Color) {
+    if viewport.area(frame).contains(center) {
         frame.canvas.circle(center, radius, color);
     }
 }
 
-pub fn ring(frame: &mut Frame, center: [f32; 2], radius: f32, width: f32, color: Color) {
-    if view_area(frame).contains(center) {
+pub fn ring(frame: &mut Frame, viewport: &Viewport, center: [f32; 2], radius: f32, width: f32, color: Color) {
+    if viewport.area(frame).contains(center) {
         frame.canvas.ring(center, radius, width, color);
     }
 }
@@ -312,4 +351,16 @@ pub fn nearest(frame: &Frame, viewport: &Viewport, cursor: [f32; 2], points: &[[
 // The heading, in degrees from +Z toward +X, from one point toward another.
 pub fn heading_toward(from: [f64; 2], to: [f64; 2]) -> f64 {
     (to[0] - from[0]).atan2(to[1] - from[1]).to_degrees()
+}
+
+// The card's inner area, under its title, for the editors that draw it.
+pub fn card(frame: &mut Frame, title: &str, subtitle: &str) -> Rect {
+    let area = card_area(frame);
+    frame.card(area, title, subtitle)
+}
+
+// The same for the card down the right side.
+pub fn right_card(frame: &mut Frame, title: &str, subtitle: &str) -> Rect {
+    let area = right_card_area(frame);
+    frame.card(area, title, subtitle)
 }

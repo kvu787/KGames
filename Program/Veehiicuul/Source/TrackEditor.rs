@@ -11,8 +11,7 @@
 // | Move the track | Moves every curve, and the start                           |
 
 use json::Value;
-use user_interface::theme::{ACCENT, DIM, SUCCESS, TEXT, WARNING};
-use user_interface::{Color, Frame, SliderRange, Stack};
+use user_interface::{Button, CONTROL_HEIGHT, Frame, Icon, SliderRange};
 
 use crate::curve::{self, FEWEST};
 use crate::editing::{self, Viewport, heading, label, slider};
@@ -50,19 +49,21 @@ pub fn curve_name(index: usize) -> String {
 
 impl TrackEditor {
     pub fn frame(&mut self, frame: &mut Frame, viewport: &mut Viewport, track: &mut Track, problems: &[String]) {
-        let inner = frame.panel(editing::panel_area(frame), "Track", "curves whose edges make the road and barriers");
-        let mut stack = Stack::new(inner, 8.0);
+        let theme = frame.theme();
+        let inner = editing::card(frame, "Track", "curves whose edges make the road and barriers");
+        let mut stack = editing::rows(inner);
         let focusable = frame.set_focusable(false);
-        let area = stack.next(frame.control_height());
-        frame.tabs("Track/Tool", area, &TOOLS, &mut self.tool);
+        frame.segmented("Track/Tool", stack.next(CONTROL_HEIGHT), &TOOLS, &mut self.tool);
 
         heading(frame, &mut stack, "Curves");
         self.curve = self.curve.min(track.islands.len());
         let names: Vec<String> = (0..=track.islands.len()).map(curve_name).collect();
         let labels: Vec<&str> = names.iter().map(String::as_str).collect();
-        let area = stack.next(frame.control_height() * labels.len() as f32);
+        let area = stack.next(CONTROL_HEIGHT * labels.len() as f32);
         frame.radio("Track/Curve", area, &labels, &mut self.curve);
-        match editing::buttons(frame, &mut stack, &[("Track/AddIsland", "Add an island"), ("Track/DeleteIsland", "Delete the island")]) {
+        let add = Button::new("Add an island").icon(Icon::Add);
+        let delete = Button::new("Delete the island").icon(Icon::Delete);
+        match editing::buttons(frame, &mut stack, &[("Track/AddIsland", add), ("Track/DeleteIsland", delete)]) {
             Some(0) => {
                 let size = [frame.width, frame.height];
                 let center = viewport.eye.to_ground(editing::view_area(frame).center(), size);
@@ -76,7 +77,7 @@ impl TrackEditor {
             _ => {}
         }
         let count = track.curves().nth(self.curve).map_or(0, Vec::len);
-        label(frame, &mut stack, &format!("{} has {count} control points.", curve_name(self.curve)), TEXT);
+        label(frame, &mut stack, &format!("{} has {count} control points.", curve_name(self.curve)), theme.text);
 
         heading(frame, &mut stack, "Start");
         slider(
@@ -88,7 +89,7 @@ impl TrackEditor {
             &SliderRange::new(-180.0, 180.0, 10.0),
             |value| format!("{value:.1} deg"),
         );
-        label(frame, &mut stack, "Drag the car, or its handle, to move or turn it.", DIM);
+        label(frame, &mut stack, "Drag the car, or its handle, to move or turn it.", theme.text_secondary);
 
         heading(frame, &mut stack, "Barriers");
         slider(
@@ -119,14 +120,10 @@ impl TrackEditor {
 
         heading(frame, &mut stack, "Problems");
         if problems.is_empty() {
-            label(frame, &mut stack, "None. The track can be driven.", SUCCESS);
+            label(frame, &mut stack, "None. The track can be driven.", theme.success);
         }
         for problem in problems {
-            label(frame, &mut stack, problem, WARNING);
-        }
-        heading(frame, &mut stack, "Help");
-        for line in ["Space and a drag pan, and the wheel zooms.", "Ctrl+Z undoes, and Ctrl+S saves."] {
-            label(frame, &mut stack, line, DIM);
+            label(frame, &mut stack, problem, theme.caution);
         }
 
         let input = viewport.interact(frame, "Track/View");
@@ -207,18 +204,18 @@ impl TrackEditor {
         // The curves' control points, and the lines between them.
         for (index, points) in track.curves().enumerate() {
             let selected = index == self.curve;
-            let color = if selected { ACCENT } else { Color::rgb(0x2E343C) };
+            let color = if selected { theme.accent } else { theme.text };
             editing::outline(frame, viewport, points, if selected { 1.5 } else { 1.0 }, color);
             for &point in points.iter() {
                 let center = viewport.screen(frame, point);
-                editing::dot(frame, center, if selected { 5.0 } else { 4.0 }, color);
-                editing::dot(frame, center, 2.0, Color::rgb(0xFFFFFF));
+                editing::dot(frame, viewport, center, if selected { 5.0 } else { 4.0 }, color);
+                editing::dot(frame, viewport, center, 2.0, theme.card);
             }
         }
         let [start, end] = [viewport.screen(frame, track.start.position), viewport.screen(frame, handle(track))];
-        editing::line(frame, start, end, 2.0, Color::rgb(0x14171C));
-        editing::dot(frame, end, 7.0, Color::rgb(0x14171C));
-        editing::dot(frame, end, 4.0, Color::rgb(0xF6FCFF));
+        editing::line(frame, viewport, start, end, 2.0, theme.text);
+        editing::dot(frame, viewport, end, 7.0, theme.text);
+        editing::dot(frame, viewport, end, 4.0, theme.card);
         if let Some(cursor) = input.cursor
             && !input.panning
         {
@@ -227,7 +224,7 @@ impl TrackEditor {
                 .find_map(|points| editing::nearest(frame, viewport, cursor, points, REACH).map(|index| points[index]));
             if let Some(point) = under {
                 let center = viewport.screen(frame, point);
-                editing::ring(frame, center, 9.0, 2.0, ACCENT);
+                editing::ring(frame, viewport, center, 9.0, 2.0, theme.accent);
             }
         }
     }

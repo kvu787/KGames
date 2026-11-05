@@ -4,8 +4,7 @@
 // the paint of a decoration's model, which every use of the model shares.
 
 use json::Value;
-use user_interface::theme::{ACCENT, DIM, TEXT};
-use user_interface::{Color, Frame, SliderRange, Stack};
+use user_interface::{Align, Button, Frame, Icon, ROW_HEIGHT, SPACE_XS, SliderRange, TEXT_INSET, TextStyle};
 
 use crate::collision::Footprint;
 use crate::document::Document;
@@ -13,8 +12,6 @@ use crate::editing::{self, Viewport, heading, label, slider};
 use crate::models::{Models, set_slot};
 use crate::scene::{Decoration, LARGEST_SCALE, Parked, SMALLEST_SCALE};
 use crate::track::Pose;
-
-const ROW_HEIGHT: f32 = 24.0;
 
 // What's picked: a decoration, or a parked vehicle, by its index.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -55,9 +52,10 @@ fn under(footprint: Footprint, pose: &Pose, scale: f64, [x, z]: [f64; 2]) -> boo
 
 impl SceneEditor {
     pub fn frame(&mut self, frame: &mut Frame, viewport: &mut Viewport, document: &mut Document, models: &Models, scene: usize) {
+        let theme = frame.theme();
         let title = format!("Scene: {}", document.scenes[scene].name);
-        let inner = frame.panel(editing::panel_area(frame), &title, "the decorations, parked vehicles, background and camera");
-        let mut stack = Stack::new(inner, 8.0);
+        let inner = editing::card(frame, &title, "the decorations, parked vehicles, background and camera");
+        let mut stack = editing::rows(inner);
         let vehicle_names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
         let model_names = models.names();
         let current = &mut document.scenes[scene];
@@ -72,7 +70,7 @@ impl SceneEditor {
             &SliderRange::new(5.0, 200.0, 1.0),
             |value| format!("{value:.0} tall"),
         );
-        if editing::buttons(frame, &mut stack, &[("Scene/Camera", "Make this view the fixed camera's")]).is_some() {
+        if editing::buttons(frame, &mut stack, &[("Scene/Camera", Button::new("Make this view the fixed camera's"))]).is_some() {
             let size = [frame.width, frame.height];
             current.camera_center = viewport.eye.to_ground(editing::view_area(frame).center(), size);
             current.camera_height = viewport.eye.height;
@@ -86,15 +84,17 @@ impl SceneEditor {
         });
         let mut selected = picked_row;
         let rows = (count.clamp(1, 6)) as f32;
-        let list = frame.list("Scene/Objects", stack.next(rows * ROW_HEIGHT + 2.0), count, ROW_HEIGHT, &mut selected);
-        for (index, row) in &list.rows {
-            let text = if *index < current.decorations.len() {
-                current.decorations[*index].model.clone()
+        let (decorations, parked) = (&current.decorations, &current.parked);
+        frame.list("Scene/Objects", stack.next(rows * ROW_HEIGHT), count, ROW_HEIGHT, &mut selected, |canvas, row| {
+            let text = if row.index < decorations.len() {
+                decorations[row.index].model.clone()
             } else {
-                format!("{}, parked", current.parked[index - current.decorations.len()].vehicle)
+                format!("{}, parked", parked[row.index - decorations.len()].vehicle)
             };
-            frame.canvas.text(row.x + 8.0, row.y + (row.height - frame.line_height()) / 2.0, &text, TEXT);
-        }
+            let area = row.area.inset_by(TEXT_INSET + SPACE_XS, 0.0);
+            let style = if row.selected { TextStyle::BodyStrong } else { TextStyle::Body };
+            canvas.text_in(area, &text, style, theme.text, Align::Start);
+        });
         if selected != picked_row {
             self.picked = selected.map(|row| {
                 if row < current.decorations.len() {
@@ -113,7 +113,11 @@ impl SceneEditor {
         match editing::buttons(
             frame,
             &mut stack,
-            &[("Scene/AddDecoration", "Add the model"), ("Scene/Park", "Park the vehicle"), ("Scene/Delete", "Delete")],
+            &[
+                ("Scene/AddDecoration", Button::new("Add the model").icon(Icon::Add)),
+                ("Scene/Park", Button::new("Park the vehicle").icon(Icon::Add)),
+                ("Scene/Delete", Button::new("Delete").icon(Icon::Delete)),
+            ],
         ) {
             Some(0) => {
                 current.decorations.push(Decoration {
@@ -171,9 +175,9 @@ impl SceneEditor {
                 let parked = &mut current.parked[index];
                 heading(frame, &mut stack, &format!("The parked {}", parked.vehicle));
                 slider(frame, &mut stack, "Scene/Heading", "Heading", &mut parked.pose.heading, &degrees, |value| format!("{value:.1} deg"));
-                label(frame, &mut stack, "The Vehicles tab paints vehicles.", DIM);
+                label(frame, &mut stack, "The Vehicles tab paints vehicles.", theme.text_secondary);
             }
-            None => label(frame, &mut stack, "Press one in the view, or in the list, to pick it.", DIM),
+            None => label(frame, &mut stack, "Press one in the view, or in the list, to pick it.", theme.text_secondary),
         }
         if let Some(model) = paint_model {
             let name = models.list[model].name.clone();
@@ -181,7 +185,7 @@ impl SceneEditor {
             self.slot = self.slot.min(slots.len() - 1);
             let mut parameters = document.model_materials(models, model)[self.slot];
             heading(frame, &mut stack, &format!("The {name}'s paint, everywhere"));
-            if editing::paint_panel(frame, &mut stack, "ModelPaint", slots, &mut self.slot, &mut parameters) {
+            if editing::paint_controls(frame, &mut stack, "ModelPaint", slots, &mut self.slot, &mut parameters) {
                 let slot = slots[self.slot].clone();
                 set_slot(document.paint_mut(&name), slots, &slot, parameters);
             }
@@ -233,12 +237,12 @@ impl SceneEditor {
             let decorations = current.decorations.len();
             let this = if row < decorations { Picked::Decoration(row) } else { Picked::Parked(row - decorations) };
             let picked = self.picked == Some(this);
-            let color = if picked { ACCENT } else { Color::rgb(0x2E343C) };
+            let color = if picked { theme.accent } else { theme.text };
             if picked {
-                editing::outline(frame, viewport, &corners(*footprint, pose, *scale), 2.0, ACCENT);
+                editing::outline(frame, viewport, &corners(*footprint, pose, *scale), 2.0, theme.accent);
             }
             let center = viewport.screen(frame, pose.position);
-            editing::dot(frame, center, 4.0, color);
+            editing::dot(frame, viewport, center, 4.0, color);
         }
     }
 

@@ -1,13 +1,14 @@
 // The editors through their frames, as the main loop runs them, with
-// presses and drags that the tests make up, in their panels' and views'
-// real layout, which Library/UserInterface's Headless draws without a window
-// or a GPU: the tabs, painting the terrain, building the track, the vehicles'
-// footprints, arranging the scene, undo, and saving.
+// presses and drags that the tests make up, in their cards' and views' real
+// layout, which Library/UserInterface's Headless draws without a window or a
+// GPU: the tabs, what fits in the cards, painting the terrain, building the
+// track, the vehicles' footprints, arranging the scene, undo, and saving.
 
 use std::path::{Path, PathBuf};
 
 use application::{Event, ProgramSettings};
-use user_interface::headless::{Headless, MAXIMIZED, click, control, typed};
+use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, click, control, typed};
+use user_interface::{CARD_PADDING, MARGIN, PANELS_TOP, STATUS_BAR_HEIGHT};
 use veehiicuul::curve;
 use veehiicuul::game::Game;
 use veehiicuul::program::{PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
@@ -67,7 +68,7 @@ fn drag(program: &mut Veehiicuul, headless: &mut Headless, from: [f32; 2], to: [
 }
 
 // Where the shared view looks, in the middle of the window, which is in the
-// editors' view, right of the panel and under the tabs.
+// editors' view, right of the card and under the app bar.
 const MIDDLE: [f32; 2] = [MAXIMIZED[0] / 2.0, MAXIMIZED[1] / 2.0];
 
 fn look_at(program: &mut Veehiicuul, point: [f64; 2]) {
@@ -95,6 +96,32 @@ fn the_tabs_go_between_play_and_the_editors() {
     }
     assert_eq!(program.mode, PLAY);
     assert!(program.game.car.speed() > 0.0);
+}
+
+// Every editor's controls are in its cards, above the status bar, at either
+// height, even the scene editor's with a decoration picked, which shows its
+// model's paint.
+#[test]
+fn the_editors_controls_fit_in_their_cards() {
+    for size in [MAXIMIZED, FULLSCREEN] {
+        let (mut program, mut headless) = start("Fit");
+        headless.size = size;
+        for label in ["Scene", "Terrain", "Track", "Vehicles"] {
+            tab(&mut program, &mut headless, label);
+            if label == "Scene" {
+                press(&mut program, &mut headless, "Scene/Objects/0");
+                assert_eq!(program.scene_editor.picked, Some(Picked::Decoration(0)));
+            }
+            let bottom = size[1] - STATUS_BAR_HEIGHT - MARGIN - CARD_PADDING;
+            for name in headless.interface.target_names() {
+                let area = headless.target(&name);
+                if name.ends_with("/View") || area.y < PANELS_TOP {
+                    continue;
+                }
+                assert!(area.bottom() <= bottom && area.right() <= size[0], "{label}: {name} is at {area:?}");
+            }
+        }
+    }
 }
 
 // A press paints the hexels under the brush, a drag paints along it, Erase

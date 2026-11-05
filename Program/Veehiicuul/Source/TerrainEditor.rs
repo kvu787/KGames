@@ -9,16 +9,16 @@
 // | Pick  | Makes the hexel's color the palette's color                         |
 
 use json::Value;
-use user_interface::theme::{ACCENT, DIM, TEXT, TITLE};
-use user_interface::{Color, Frame, Rect, Sense, SliderRange, Stack};
+use user_interface::{Button, CONTROL_HEIGHT, Frame, Icon, RADIUS_CONTROL, Rect, SPACE_S, Sense, SliderRange};
 
 use crate::editing::{self, Viewport, heading, label, slider, swatch_rect};
+use crate::files;
 use crate::terrain::{PALETTE_SIZE, Terrain, disk};
 
 pub const TOOLS: [&str; 4] = ["Paint", "Erase", "Fill", "Pick"];
 // How far a fill reaches from the hexel it starts at, in hexels.
 const FILL_REACH: i32 = 60;
-const SWATCH: f32 = 30.0;
+const SWATCH: f32 = CONTROL_HEIGHT;
 
 pub struct TerrainEditor {
     pub tool: usize,
@@ -46,11 +46,11 @@ impl Default for TerrainEditor {
 
 impl TerrainEditor {
     pub fn frame(&mut self, frame: &mut Frame, viewport: &mut Viewport, terrain: &mut Terrain) {
-        let inner = frame.panel(editing::panel_area(frame), "Terrain", "paint hexels on the ground");
-        let mut stack = Stack::new(inner, 8.0);
+        let theme = frame.theme();
+        let inner = editing::card(frame, "Terrain", "paint hexels on the ground");
+        let mut stack = editing::rows(inner);
         let focusable = frame.set_focusable(false);
-        let area = stack.next(frame.control_height());
-        frame.tabs("Terrain/Tool", area, &TOOLS, &mut self.tool);
+        frame.segmented("Terrain/Tool", stack.next(CONTROL_HEIGHT), &TOOLS, &mut self.tool);
         slider(
             frame,
             &mut stack,
@@ -63,19 +63,24 @@ impl TerrainEditor {
 
         heading(frame, &mut stack, "Palette");
         self.color = self.color.min(terrain.palette.len().saturating_sub(1) as u8);
-        let columns = ((inner.width + 6.0) / (SWATCH + 6.0)) as usize;
+        let columns = ((inner.width + SPACE_S) / (SWATCH + SPACE_S)) as usize;
         let rows = terrain.palette.len().div_ceil(columns).max(1);
-        let grid = stack.next(rows as f32 * (SWATCH + 6.0));
+        let grid = stack.next(rows as f32 * (SWATCH + SPACE_S) - SPACE_S);
         for (index, &color) in terrain.palette.iter().enumerate() {
             let (row, column) = (index / columns, index % columns);
-            let area = Rect::new(grid.x + column as f32 * (SWATCH + 6.0), grid.y + row as f32 * (SWATCH + 6.0), SWATCH, SWATCH);
-            let response = frame.interact_labeled(&format!("Palette/{index}"), "Swatch", &crate::files::color_text(color), area, Sense::BUTTON);
-            if response.clicked {
+            let area = Rect::new(
+                grid.x + column as f32 * (SWATCH + SPACE_S),
+                grid.y + row as f32 * (SWATCH + SPACE_S),
+                SWATCH,
+                SWATCH,
+            );
+            let name = format!("Palette/{index}");
+            if frame.interact_labeled(&name, "Swatch", &files::color_text(color), area, Sense::BUTTON).clicked {
                 self.color = index as u8;
             }
             swatch_rect(frame, area, color);
             if index == self.color as usize {
-                frame.canvas.rect_outline(area.x - 3.0, area.y - 3.0, area.width + 6.0, area.height + 6.0, 2.0, ACCENT);
+                frame.canvas.stroke(area.inset(-3.0), RADIUS_CONTROL + 3.0, 2.0, theme.accent);
             }
         }
         frame.set_focusable(focusable);
@@ -83,7 +88,9 @@ impl TerrainEditor {
             editing::color_field(frame, &mut stack, "Terrain/Color", "Color", &mut self.color_text, color);
         }
         let focusable = frame.set_focusable(false);
-        match editing::buttons(frame, &mut stack, &[("Terrain/AddColor", "Add a color"), ("Terrain/RemoveColor", "Remove it")]) {
+        let add = Button::new("Add a color").icon(Icon::Add);
+        let remove = Button::new("Remove it").icon(Icon::Delete);
+        match editing::buttons(frame, &mut stack, &[("Terrain/AddColor", add), ("Terrain/RemoveColor", remove)]) {
             Some(0) if terrain.palette.len() < PALETTE_SIZE => {
                 let color = terrain.palette.get(self.color as usize).copied().unwrap_or([128, 128, 128]);
                 terrain.palette.push(color);
@@ -92,7 +99,7 @@ impl TerrainEditor {
             Some(1) if terrain.palette.len() > 1 => terrain.remove_color(self.color),
             _ => {}
         }
-        label(frame, &mut stack, "Removing a color takes it off its hexels.", DIM);
+        label(frame, &mut stack, "Removing a color takes it off its hexels.", theme.text_secondary);
 
         heading(frame, &mut stack, "Grid");
         slider(
@@ -104,27 +111,19 @@ impl TerrainEditor {
             &SliderRange::new(0.5, 10.0, 10.0),
             |value| format!("{value:.1}"),
         );
-        let area = stack.next(frame.control_height());
         let mut orientation = terrain.flat_top as usize;
-        frame.tabs("Terrain/Orientation", area, &["Pointy tops", "Flat tops"], &mut orientation);
+        frame.segmented("Terrain/Orientation", stack.next(CONTROL_HEIGHT), &["Pointy tops", "Flat tops"], &mut orientation);
         terrain.flat_top = orientation == 1;
         frame.set_focusable(focusable);
 
-        heading(frame, &mut stack, "Help");
-        for line in [
-            "A press or a drag in the view uses the tool.",
-            "Space and a drag pan, and the wheel zooms.",
-            "Ctrl+Z undoes, and Ctrl+S saves.",
-        ] {
-            label(frame, &mut stack, line, DIM);
-        }
-        stack.skip(8.0);
-        label(frame, &mut stack, &format!("Painted hexels: {}", terrain.cells.len()), TEXT);
+        heading(frame, &mut stack, "Hexels");
+        label(frame, &mut stack, &format!("Painted: {}", terrain.cells.len()), theme.text);
         let hover = match self.hover {
             Some((q, r)) => format!("Under the cursor: hexel {q}, {r}"),
             None => "Under the cursor: nothing".to_string(),
         };
-        label(frame, &mut stack, &hover, TEXT);
+        label(frame, &mut stack, &hover, theme.text);
+        label(frame, &mut stack, "A press or a drag in the view uses the tool.", theme.text_secondary);
 
         let input = viewport.interact(frame, "Terrain/View");
         self.hover = input.ground.map(|point| terrain.cell_at(point));
@@ -164,10 +163,9 @@ impl TerrainEditor {
         if let Some(cell) = self.hover {
             let cells = if self.tool < 2 { disk(cell, self.radius as i32) } else { vec![cell] };
             for cell in cells {
-                editing::outline(frame, viewport, &terrain.corners(cell), 1.5, Color::rgb(0x14171C));
+                editing::outline(frame, viewport, &terrain.corners(cell), 1.5, theme.text);
             }
         }
-        let _ = TITLE;
     }
 
     pub fn state(&self, terrain: &Terrain) -> Value {
@@ -176,7 +174,7 @@ impl TerrainEditor {
             ("Color", (self.color as u32).into()),
             ("Radius", self.radius.into()),
             ("Painted", terrain.cells.len().into()),
-            ("Palette", Value::Array(terrain.palette.iter().map(|&color| crate::files::color_text(color).into()).collect())),
+            ("Palette", Value::Array(terrain.palette.iter().map(|&color| files::color_text(color).into()).collect())),
         ])
     }
 }
