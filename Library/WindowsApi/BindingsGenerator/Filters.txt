@@ -146,6 +146,8 @@ VK_F2
 VK_F11
 VK_HOME
 VK_LEFT
+VK_NEXT
+VK_PRIOR
 VK_RETURN
 VK_RIGHT
 VK_SHIFT
@@ -166,6 +168,20 @@ WM_SYSKEYDOWN
 GetKeyNameTextW
 MapVirtualKeyW
 MAPVK_VK_TO_VSC_EX
+
+// The clipboard, for text fields' Ctrl+C, Ctrl+X and Ctrl+V
+CloseClipboard
+EmptyClipboard
+GetClipboardData
+GlobalAlloc
+GlobalFree
+GlobalLock
+GlobalUnlock
+IsClipboardFormatAvailable
+OpenClipboard
+SetClipboardData
+CF_UNICODETEXT
+GMEM_MOVEABLE
 
 // Opting out of power throttling
 GetCurrentProcess
