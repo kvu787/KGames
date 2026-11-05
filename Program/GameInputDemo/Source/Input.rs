@@ -1247,7 +1247,7 @@ pub fn describe_key(key: &GameInputKeyState) -> String {
     );
     if let Some(character) = char::from_u32(key.codePoint).filter(|c| !c.is_control() && *c != '\0')
     {
-        if canvas::Font::has_glyph(character) {
+        if user_interface::Font::has_glyph(character) {
             text += &format!("  '{character}'");
         }
         text += &format!("  U+{:04X}", key.codePoint);

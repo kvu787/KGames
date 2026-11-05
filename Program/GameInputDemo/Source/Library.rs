@@ -1,7 +1,9 @@
 // GameInputDemo's parts, as a library, so that Test/GameInputDemo can test
-// what the demo makes of readings, and where clicks go, without a window,
-// and without GameInput. Main.rs is the program.
+// what the demo makes of readings, and what input does to its panels,
+// without a window, and without GameInput. Main.rs is the program.
 
+#[path = "Demo.rs"]
+pub mod demo;
 #[path = "DeviceTree.rs"]
 pub mod device_tree;
 #[path = "Devices.rs"]
@@ -18,6 +20,3 @@ pub mod scripted_source;
 pub mod settings;
 
 pub const NAME: &str = "GameInput Demo";
-// The em height of the font, in pixels. Programs only support 100% scaling
-// (see Library/Application), so this never changes.
-pub const FONT_SIZE: i32 = 15;

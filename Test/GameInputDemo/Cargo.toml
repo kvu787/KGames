@@ -18,10 +18,11 @@ path = "Panels.rs"
 
 [dependencies]
 application = { path = "../../Library/Application" }
-canvas = { path = "../../Library/Canvas" }
 game_input = { path = "../../Library/GameInput" }
 game_input_demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
+user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]
 version = "0.100"

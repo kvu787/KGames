@@ -1,15 +1,22 @@
-// Lays out and draws the demo's panels onto a Canvas. The demo only supports
-// two client areas, 2560 x 1369 when maximized and 2560 x 1440 in borderless
-// fullscreen (see Library/Application), so the panels have fixed places in pixels.
-// The bottom row and the log are taller in fullscreen, and the footer stays
-// at the bottom.
+// Lays out and draws the demo's panels with Library/UserInterface, and
+// handles what the mouse does to them: the select box that picks which
+// gamepad the demo listens to, and the Devices panel's rows, each of which
+// shows a tooltip about its device while the cursor is over it. The demo only
+// supports two client areas, 2560 x 1369 when maximized and 2560 x 1440 in
+// borderless fullscreen (see Library/Application), so the panels have fixed
+// places in pixels. The bottom row and the log are taller in fullscreen, and
+// the footer stays at the bottom.
+//
+// The widgets read the mouse from the window's messages, not from GameInput,
+// because they say where the cursor is in the window. The stick graphs, the
+// trigger bars, the mouse pad, and the panels' text are drawn here.
 
-use application::FrameCounter;
-use canvas::theme::{BORDER, DIM, ERROR, FAINT, PANEL, TEXT, TITLE, WARNING};
-use canvas::{
-    Canvas, Color, EDGE, Lines, MARGIN, PADDING, Rect, draw_window_problems, panel, theme, wrap,
-};
 use game_input::*;
+use user_interface::theme::{self, BORDER, DIM, ERROR, FAINT, TEXT, TITLE, WARNING};
+use user_interface::{
+    Canvas, Chip, Choice, Color, Frame, Lines, MARGIN, PADDING, PANELS_TOP, Rect, Sense,
+    chip_layout, chips, panel, select_width, wrap,
+};
 
 use crate::devices::{Device, rumble_motor_names};
 use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source};
@@ -19,17 +26,11 @@ const PLOT: Color = theme::INSET;
 const LEFT: Color = theme::ACCENT;
 const RIGHT: Color = theme::ORANGE;
 const PRESSED: Color = theme::SUCCESS;
-const PRESSED_TEXT: Color = theme::ON_COLOR;
 const KEYBOARD: Color = theme::PURPLE;
 
 // The layout, in pixels. Three columns: the gamepad over the keyboard and
-// mouse, the latest event over the devices, and the log. MARGIN, EDGE and
-// PADDING come from the canvas, which all programs share.
-//
-// The header has a title, a status line, and room for this many lines of
-// notices, so the panels start at the same place whether there are any.
-const NOTICE_LINES: usize = 2;
-const PANELS_TOP: f32 = 96.0;
+// mouse, the latest event over the devices, and the log. MARGIN, PADDING and
+// PANELS_TOP come from Library/UserInterface, which all programs share.
 const GAMEPAD_X: f32 = MARGIN;
 const GAMEPAD_WIDTH: f32 = 980.0;
 const LATEST_X: f32 = GAMEPAD_X + GAMEPAD_WIDTH + MARGIN;
@@ -44,247 +45,50 @@ const TRIGGER_BAR_WIDTH: f32 = 40.0;
 const GAMEPAD_GAP: f32 = 24.0;
 const MOUSE_PAD_SIZE: f32 = 200.0;
 
+// The select box for which gamepad to listen to. Its list is "Gamepad/List",
+// and its choices "Gamepad/0", "Gamepad/1" and so on.
+pub const GAMEPAD_SELECT: &str = "Gamepad";
+// The Devices panel's rows are "Devices/0", "Devices/1" and so on, in the
+// panel's order. Two devices can have the same label, so their rows are named
+// by their place, and their tooltips by their device's label.
+pub const DEVICE_ROWS: &str = "Devices";
+
 // At most this many characters of a value fit on one of a tooltip's lines.
 // Longer values wrap at spaces, and words longer than this stay whole.
-const TOOLTIP_COLUMNS: usize = 100;
+const VALUE_COLUMNS: usize = 100;
 
-// What a click does at a place in the window. Choose is as big as a device's
-// data, but there are only a few clicks, so it's not boxed.
-#[allow(clippy::large_enum_variant)]
-pub enum Click {
-    // Opens or closes the gamepad select box's list.
-    Picker,
-    Choose(Listen),
-}
-
-// The places in the last frame drawn that react to the mouse: where clicks
-// do something, topmost last, and the Devices panel's rows, each of which
-// shows a tooltip about its device while the cursor is over it.
-#[derive(Default)]
-pub struct Targets {
-    clicks: Vec<(Rect, Click)>,
-    // Each row's area, and its device's label.
-    device_rows: Vec<(Rect, String)>,
-    // The device whose tooltip the frame shows, and the tooltip's area.
-    tooltip: Option<(String, Rect)>,
-}
-
-impl Targets {
-    pub fn at(&self, point: [f32; 2]) -> Option<&Click> {
-        self.clicks
-            .iter()
-            .rev()
-            .find(|(area, _)| area.contains(point))
-            .map(|(_, click)| click)
-    }
-
-    // Where the clicks go, for scripted runs to save, for writing scripts.
-    pub fn state(&self) -> json::Value {
-        json::Value::Array(
-            self.clicks
-                .iter()
-                .map(|(area, click)| {
-                    let name = match click {
-                        Click::Picker => "Select box".to_string(),
-                        Click::Choose(listen) => format!("Choose {}", listen.label()),
-                    };
-                    area_state(name, *area)
-                })
-                .collect(),
-        )
-    }
-
-    // Where the device rows are, for scripted runs to save, for moving the
-    // cursor onto one.
-    pub fn device_rows_state(&self) -> json::Value {
-        json::Value::Array(
-            self.device_rows
-                .iter()
-                .map(|(area, label)| area_state(label.clone(), *area))
-                .collect(),
-        )
-    }
-
-    // The device whose tooltip shows, and where, or null.
-    pub fn tooltip_state(&self) -> json::Value {
-        self.tooltip
-            .as_ref()
-            .map(|(label, area)| area_state(label.clone(), *area))
-            .into()
-    }
-}
-
-fn area_state(name: String, area: Rect) -> json::Value {
-    json::object([
-        ("Name", name.into()),
-        ("Area", [area.x, area.y, area.width, area.height].into()),
-    ])
-}
-
-// What the header and footer show besides input.
-pub struct Status<'a> {
-    pub focused: bool,
-    pub frames: &'a FrameCounter,
-    // The display the window is on, like "KXGR16 (PA278QGV)".
-    pub display: &'a str,
-    // Problems with how the demo was started, one per paragraph.
-    pub notices: &'a [String],
-    // Which window setups the demo supports, for when it isn't in one.
-    pub supported: &'a str,
-    // What's wrong with the window's setup, if it isn't one of the two that
-    // the demo supports. Then only these are drawn.
-    pub window_problems: &'a [String],
-    // Where the mouse cursor is in the window, if it's over the window.
-    pub cursor: Option<[f32; 2]>,
-    // Whether the gamepad select box's list is open.
-    pub picker_open: bool,
-}
-
-// Returns where clicks do something in what it drew.
-pub fn draw(
-    canvas: &mut Canvas,
-    input: &Result<Input, String>,
-    status: &Status,
-    width: f32,
-    height: f32,
-) -> Targets {
-    if !status.window_problems.is_empty() {
-        draw_window_problems(
-            canvas,
-            status.supported,
-            status.window_problems,
-            width,
-        );
-        return Targets::default();
-    }
-    let line_height = canvas.line_height();
-    let char_width = canvas.char_width();
-    let margin = EDGE;
-    let frames = status.frames;
-    let focused = status.focused;
-    // Header and footer.
-    let mut x = canvas.text(margin, margin, "GameInput Demo", TITLE);
-    canvas.text(
-        x,
-        margin,
-        "  Gamepad, keyboard and mouse input with the GameInput v4 API",
-        DIM,
+// Draws the header, the footer, and the panels, and changes which gamepad
+// the demo listens to when one is picked in the select box.
+pub fn draw(frame: &mut Frame, input: &mut Result<Input, String>) {
+    // No widget takes keyboard focus: the keys are the user's, to try the
+    // keyboard panel with, and the demo's shortcuts come through GameInput.
+    frame.set_focusable(false);
+    let width = frame.width;
+    frame.header_with(
+        "GameInput Demo",
+        "Gamepad, keyboard and mouse input with the GameInput v4 API",
+        |canvas, area| draw_status(canvas, area, input, width),
     );
-    let status_y = margin + line_height;
-    // The frame rate goes on the right, under the focus text. It's far above
-    // the monitor's refresh rate, because frames don't wait for vertical sync.
-    let (rate, frame_time) = match frames.per_second {
-        Some(rate) => (
-            format!("{rate:.0}"),
-            format!("  ({:.2} ms per frame)", 1000.0 / rate),
-        ),
-        None => ("measuring".to_string(), String::new()),
-    };
-    let rate_x = width - margin - canvas.text_width(&format!("FPS: {rate}{frame_time}"));
-    x = canvas.text(rate_x, status_y, "FPS: ", DIM);
-    x = canvas.text(x, status_y, &rate, TEXT);
-    canvas.text(x, status_y, &frame_time, DIM);
-    // The status on the left is cut short to leave room for it.
-    let status_right = rate_x - char_width * 3.0;
-    match input {
-        Ok(input) => {
-            x = canvas.text(margin, status_y, "Runtime: ", DIM);
-            let (runtime, location) = match input.runtime() {
-                Some(runtime) => {
-                    let version = runtime.version.map(|part| part.to_string()).join(".");
-                    let location = runtime
-                        .path
-                        .parent()
-                        .map(|path| format!(" in {}", path.display()))
-                        .unwrap_or_default();
-                    (format!("{} {}", file_name(&runtime.path), version), location)
-                }
-                None => ("none".to_string(), ", the input comes from a script".to_string()),
-            };
-            x = canvas.text(x, status_y, &runtime, TEXT);
-            let count = input.reading_count.to_string();
-            let count_label = "   Readings handled: ";
-            let count_width = canvas.text_width(count_label) + canvas.text_width(&count);
-            let location_width = (status_right - x - count_width).min(width * 0.45);
-            x = canvas.text_clipped(x, status_y, &location, location_width, DIM);
-            x = canvas.text(x, status_y, count_label, DIM);
-            canvas.text(x, status_y, &count, TEXT);
-        }
-        Err(message) => {
-            canvas.text_clipped(
-                margin,
-                status_y,
-                &format!("GameInput isn't available: {message}"),
-                status_right - margin,
-                ERROR,
-            );
-        }
-    }
-    let focus_text = if focused {
-        "Window has focus"
-    } else {
-        "Window doesn't have focus: input is ignored"
-    };
-    let focus_width = canvas.text_width(focus_text);
-    canvas.text(
-        width - margin - focus_width,
-        margin,
-        focus_text,
-        if focused { PRESSED } else { WARNING },
+    let bottom = frame.footer(
+        &[
+            ("F1", "rumble test"),
+            ("F2", "clear the log"),
+            ("F11", "borderless fullscreen"),
+        ],
+        "The app's own shortcuts are read with GameInput too.",
     );
-
-    // Notices go under the status, wrapped to the window's width, in the
-    // lines the header has for them.
-    let mut lines = Vec::new();
-    let columns = ((width - margin * 2.0) / char_width).floor() as usize;
-    for notice in status.notices {
-        for (index, line) in wrap(notice, columns, 2).into_iter().enumerate() {
-            lines.push(if index == 0 {
-                line
-            } else {
-                format!("  {line}")
-            });
-        }
-    }
-    if lines.len() > NOTICE_LINES {
-        lines.truncate(NOTICE_LINES);
-        lines[NOTICE_LINES - 1] += " ...";
-    }
-    for (index, line) in lines.iter().enumerate() {
-        let y = status_y + line_height * (index + 1) as f32;
-        canvas.text_clipped(margin, y, line, width - margin * 2.0, WARNING);
-    }
-
-    // The display goes on the right of the footer.
-    let footer_y = height - margin - line_height;
-    let display_x =
-        width - margin - canvas.text_width("Display: ") - canvas.text_width(status.display);
-    x = canvas.text(display_x, footer_y, "Display: ", DIM);
-    canvas.text(x, footer_y, status.display, TEXT);
-    x = canvas.text(margin, footer_y, "F1", TEXT);
-    x = canvas.text(x, footer_y, " rumble test   ", DIM);
-    x = canvas.text(x, footer_y, "F2", TEXT);
-    x = canvas.text(x, footer_y, " clear the log   ", DIM);
-    x = canvas.text(x, footer_y, "F11", TEXT);
-    canvas.text_clipped(
-        x,
-        footer_y,
-        " borderless fullscreen   The app's own shortcuts are read with GameInput too.",
-        display_x - char_width * 3.0 - x,
-        DIM,
-    );
-
-    let bottom = footer_y - margin;
     let Ok(input) = input else {
-        return Targets::default();
+        return;
     };
 
     // The gamepad panel is as tall as its contents: captions, the graphs,
     // two lines of values, the chips and a status line. The latest event
     // panel beside it is as tall. The rows under them, and the log, go down
     // to the footer.
+    let line_height = frame.line_height();
     let gamepad_names: Vec<&str> = GAMEPAD_BUTTONS.iter().map(|(_, name)| *name).collect();
-    let (_, gamepad_chips) = chip_layout(canvas, GAMEPAD_WIDTH - PADDING * 2.0, &gamepad_names);
+    let (_, gamepad_chips) =
+        chip_layout(&frame.canvas, GAMEPAD_WIDTH - PADDING * 2.0, &gamepad_names);
     let title_height = PADDING * 2.0 + line_height * 1.4;
     let gamepad_height =
         title_height + line_height * 4.6 + PADDING + gamepad_chips + STICK_GRAPH_SIZE;
@@ -302,35 +106,61 @@ pub fn draw(
         bottom - PANELS_TOP,
     );
 
-    let mut targets = Targets::default();
-    let picker = draw_gamepad(canvas, input, status, gamepad_area);
-    targets.clicks.push((picker, Click::Picker));
-    draw_latest(canvas, input, latest_area);
-    draw_keyboard(canvas, input, keyboard_area);
-    draw_mouse(canvas, input, mouse_area);
-    let hovered = draw_devices(canvas, input, status, devices_area, &mut targets);
-    draw_log(canvas, input, log_area);
-    // Last, so the list covers the panels under it.
-    if status.picker_open {
-        draw_picker_list(canvas, input, status, picker, width - MARGIN, &mut targets);
-    }
-    // And the tooltip covers everything, unless the cursor is on the list.
-    if let (Some((device, row)), Some(cursor)) = (hovered, status.cursor)
-        && targets.at(cursor).is_none()
-    {
-        let area = draw_tooltip(canvas, device, cursor, row, width, height);
-        targets.tooltip = Some((device.label.clone(), area));
-    }
-    targets
+    draw_gamepad(frame, input, gamepad_area);
+    draw_latest(&mut frame.canvas, input, latest_area);
+    draw_keyboard(&mut frame.canvas, input, keyboard_area);
+    draw_mouse(&mut frame.canvas, input, mouse_area);
+    draw_devices(frame, input, devices_area);
+    draw_log(&mut frame.canvas, input, log_area);
 }
 
-// Returns the area of the select box for which gamepad to listen to.
-fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect) -> Rect {
-    let view = &input.gamepad;
-    let line_height = canvas.line_height();
+// The left of the header's status line: the GameInput runtime, where it was
+// loaded from, cut short to fit, and how many readings the demo handled.
+fn draw_status(canvas: &mut Canvas, area: Rect, input: &Result<Input, String>, width: f32) {
+    let status_y = area.y;
+    match input {
+        Ok(input) => {
+            let mut x = canvas.text(area.x, status_y, "Runtime: ", DIM);
+            let (runtime, location) = match input.runtime() {
+                Some(runtime) => {
+                    let version = runtime.version.map(|part| part.to_string()).join(".");
+                    let location = runtime
+                        .path
+                        .parent()
+                        .map(|path| format!(" in {}", path.display()))
+                        .unwrap_or_default();
+                    (format!("{} {}", file_name(&runtime.path), version), location)
+                }
+                None => ("none".to_string(), ", the input comes from a script".to_string()),
+            };
+            x = canvas.text(x, status_y, &runtime, TEXT);
+            let count = input.reading_count.to_string();
+            let count_label = "   Readings handled: ";
+            let count_width = canvas.text_width(count_label) + canvas.text_width(&count);
+            let location_width = (area.right() - x - count_width).min(width * 0.45);
+            x = canvas.text_clipped(x, status_y, &location, location_width, DIM);
+            x = canvas.text(x, status_y, count_label, DIM);
+            canvas.text(x, status_y, &count, TEXT);
+        }
+        Err(message) => {
+            canvas.text_clipped(
+                area.x,
+                status_y,
+                &format!("GameInput isn't available: {message}"),
+                area.width,
+                ERROR,
+            );
+        }
+    }
+}
+
+fn draw_gamepad(frame: &mut Frame, input: &mut Input, area: Rect) {
+    let line_height = frame.line_height();
     let (graph, bar_width, gap) = (STICK_GRAPH_SIZE, TRIGGER_BAR_WIDTH, GAMEPAD_GAP);
-    let inner = panel(canvas, area, "Gamepad", "");
-    let picker = draw_picker_box(canvas, input, status, area);
+    let inner = frame.panel(area, "Gamepad", "");
+    draw_gamepad_select(frame, input, area);
+    let canvas = &mut frame.canvas;
+    let view = &input.gamepad;
     let state = &view.state;
 
     // Stick graphs and trigger bars, with a caption above and values below.
@@ -415,12 +245,13 @@ fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect)
     );
     let buttons: Vec<_> = GAMEPAD_BUTTONS
         .iter()
-        .map(|&(button, name)| {
-            let supported = view.layout.is_none_or(|layout| layout & button != 0);
-            (name, state.buttons & button != 0, supported)
+        .map(|&(button, label)| Chip {
+            label,
+            on: state.buttons & button != 0,
+            enabled: view.layout.is_none_or(|layout| layout & button != 0),
         })
         .collect();
-    chips(canvas, chips_area, &buttons);
+    chips(canvas, chips_area, &buttons, PRESSED);
 
     let mut status = format!("Readings: {}/s   Rumble test: ", view.rate.per_second);
     status += if input.rumble_enabled { "on" } else { "off" };
@@ -433,179 +264,87 @@ fn draw_gamepad(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect)
         inner.width,
         DIM,
     );
-    picker
 }
 
 // The select box after the gamepad panel's title, which shows which gamepads
-// the demo listens to, and after it, what the panel shows. Returns its area.
-fn draw_picker_box(canvas: &mut Canvas, input: &Input, status: &Status, area: Rect) -> Rect {
-    let padding = PADDING;
-    let line_height = canvas.line_height();
-    let char_width = canvas.char_width();
-    let text_y = area.y + padding;
-    let height = chip_height(canvas);
-    let x = area.x + padding + canvas.text_width("Gamepad") + char_width * 2.0;
-    let y = (text_y - (height - line_height) * 0.5).round();
-    let inset = (line_height * 0.4).round();
-    let arrow_width = line_height;
-    let text = input.listen.label();
+// the demo listens to, and after it, what the panel shows. Picking a choice
+// in its list listens to that.
+fn draw_gamepad_select(frame: &mut Frame, input: &mut Input, area: Rect) {
+    let line_height = frame.line_height();
+    let char_width = frame.char_width();
+    let height = frame.control_height();
+    let text_y = area.y + PADDING;
+    let x = area.x + PADDING + frame.text_width("Gamepad") + char_width * 2.0;
+    // So that the box's text is on the title's line.
+    let y = text_y - ((height - line_height) * 0.5).round();
     let width =
-        (canvas.text_width(text) + inset * 2.0 + arrow_width).min(area.right() - padding - x);
-    let picker = Rect::new(x, y, width, height);
+        select_width(&frame.canvas, input.listen.label()).min(area.right() - PADDING - x);
+    let select_box = Rect::new(x, y, width, height);
 
-    let hovered = status.cursor.is_some_and(|point| picker.contains(point));
-    canvas.rect(picker.x, picker.y, picker.width, picker.height, PLOT);
-    canvas.rect_outline(
-        picker.x,
-        picker.y,
-        picker.width,
-        picker.height,
-        1.0,
-        if hovered || status.picker_open {
-            DIM
-        } else {
-            BORDER
-        },
-    );
-    canvas.text_clipped(x + inset, text_y, text, width - inset - arrow_width, TEXT);
-    chevron(
-        canvas,
-        [picker.right() - arrow_width * 0.5, y + height * 0.5],
-        (line_height * 0.2).round(),
-        status.picker_open,
-        DIM,
-    );
+    // Each choice's gamepad, or none, and a few words about it: each
+    // connected gamepad, a chosen one while it's disconnected, which stays
+    // in the list, and no gamepad.
+    let connected = match &input.listen {
+        Listen::Gamepad(device) => input.gamepads().any(|info| info.id == device.id),
+        Listen::NoGamepad => true,
+    };
+    let mut gamepads: Vec<(Option<&Device>, &str)> = input
+        .gamepads()
+        .map(|info| (Some(info), info.family_name()))
+        .collect();
+    if let Listen::Gamepad(device) = &input.listen
+        && !connected
+    {
+        gamepads.push((Some(device), "disconnected"));
+    }
+    gamepads.push((None, "ignores all gamepads"));
+    let none = Listen::NoGamepad;
+    let choices: Vec<Choice> = gamepads
+        .iter()
+        .map(|&(device, detail)| Choice {
+            label: device.map_or(none.label(), |device| &device.label),
+            detail,
+        })
+        .collect();
+    let chosen = match &input.listen {
+        Listen::Gamepad(device) => Some(device.id),
+        Listen::NoGamepad => None,
+    };
+    let mut selected = gamepads
+        .iter()
+        .position(|(device, _)| device.map(|device| device.id) == chosen)
+        .unwrap_or(0);
+    let response = frame.select(GAMEPAD_SELECT, select_box, &choices, &mut selected);
+    let picked = response.changed.then(|| match gamepads[selected].0 {
+        Some(device) => Listen::Gamepad(device.clone()),
+        None => Listen::NoGamepad,
+    });
+    if let Some(listen) = picked {
+        input.pick_listen(listen);
+    }
 
     // Until a choice is picked, the demo switches to a gamepad as soon as one connects.
     let (note, color) = match &input.listen {
-        Listen::Gamepad(device) if !input.gamepads().any(|info| info.id == device.id) => (
+        Listen::Gamepad(_) if !connected => (
             if input.listen_picked {
                 "Disconnected: waiting for it to reconnect"
             } else {
                 "Disconnected: waiting for a gamepad to connect"
-            }
-            .to_string(),
+            },
             WARNING,
         ),
-        Listen::Gamepad(_) => (String::new(), DIM),
-        Listen::NoGamepad if !input.listen_picked => ("No gamepad connected".to_string(), WARNING),
-        Listen::NoGamepad => ("Gamepad input is ignored".to_string(), DIM),
+        Listen::Gamepad(_) => ("", DIM),
+        Listen::NoGamepad if !input.listen_picked => ("No gamepad connected", WARNING),
+        Listen::NoGamepad => ("Gamepad input is ignored", DIM),
     };
-    let note_x = picker.right() + char_width * 2.0;
-    canvas.text_clipped(
+    let note_x = select_box.right() + char_width * 2.0;
+    frame.canvas.text_clipped(
         note_x,
         text_y,
-        &note,
-        area.right() - padding - note_x,
+        note,
+        area.right() - PADDING - note_x,
         color,
     );
-    picker
-}
-
-// The select box's list of choices, under the box. Adds a target for each.
-fn draw_picker_list(
-    canvas: &mut Canvas,
-    input: &Input,
-    status: &Status,
-    picker: Rect,
-    right: f32,
-    targets: &mut Targets,
-) {
-    let line_height = canvas.line_height();
-    let char_width = canvas.char_width();
-    let row_height = chip_height(canvas);
-    let inset = (line_height * 0.4).round();
-
-    // Each choice, and a few words about it.
-    let mut choices = Vec::new();
-    for info in input.gamepads() {
-        let listen = Listen::Gamepad(info.clone());
-        choices.push((listen, info.label.clone(), info.family_name().to_string()));
-    }
-    // A chosen gamepad stays in the list while it's disconnected.
-    if let Listen::Gamepad(device) = &input.listen
-        && !input.gamepads().any(|info| info.id == device.id)
-    {
-        choices.push((
-            input.listen.clone(),
-            input.listen.label().to_string(),
-            "disconnected".to_string(),
-        ));
-    }
-    choices.push((
-        Listen::NoGamepad,
-        Listen::NoGamepad.label().to_string(),
-        "ignores all gamepads".to_string(),
-    ));
-
-    let label_width = choices
-        .iter()
-        .map(|(_, label, _)| canvas.text_width(label))
-        .fold(0.0, f32::max);
-    let detail_width = choices
-        .iter()
-        .map(|(_, _, detail)| canvas.text_width(detail))
-        .fold(0.0, f32::max);
-    // With a pixel on each side for the outline.
-    let width = (inset * 2.0 + label_width + char_width * 2.0 + detail_width + 2.0)
-        .max(picker.width)
-        .min(right - picker.x);
-    let list = Rect::new(
-        picker.x,
-        picker.bottom() + 2.0,
-        width,
-        row_height * choices.len() as f32 + 2.0,
-    );
-    // A shadow, so the list stands out from the panels under it.
-    canvas.rect(
-        list.x + 3.0,
-        list.y + 3.0,
-        list.width,
-        list.height,
-        Color::rgb(0x000000).alpha(0.15),
-    );
-    canvas.rect(list.x, list.y, list.width, list.height, PANEL);
-    canvas.rect_outline(list.x, list.y, list.width, list.height, 1.0, DIM);
-
-    let detail_x = list.x + inset + label_width + char_width * 2.0;
-    for (index, (listen, label, detail)) in choices.into_iter().enumerate() {
-        let row = Rect::new(
-            list.x + 1.0,
-            list.y + 1.0 + row_height * index as f32,
-            list.width - 2.0,
-            row_height,
-        );
-        let chosen = listen == input.listen;
-        if status.cursor.is_some_and(|point| row.contains(point)) {
-            canvas.rect(row.x, row.y, row.width, row.height, BORDER);
-        }
-        if chosen {
-            canvas.rect(row.x, row.y, 3.0, row.height, LEFT);
-        }
-        let text_y = row.y + ((row_height - line_height) * 0.5).round();
-        canvas.text_clipped(
-            row.x + inset,
-            text_y,
-            &label,
-            detail_x - char_width - row.x - inset,
-            if chosen { LEFT } else { TEXT },
-        );
-        canvas.text_clipped(
-            detail_x,
-            text_y,
-            &detail,
-            row.right() - inset - detail_x,
-            DIM,
-        );
-        targets.clicks.push((row, Click::Choose(listen)));
-    }
-}
-
-// A small V that points down, or up while the list it opens is open.
-fn chevron(canvas: &mut Canvas, [x, y]: [f32; 2], size: f32, up: bool, color: Color) {
-    let tip = if up { -size * 0.5 } else { size * 0.5 };
-    canvas.line([x - size, y - tip], [x, y + tip], 1.5, color);
-    canvas.line([x, y + tip], [x + size, y - tip], 1.5, color);
 }
 
 fn stick_graph(
@@ -662,58 +401,6 @@ fn trigger_bar(canvas: &mut Canvas, area: Rect, value: f32, color: Color) {
         canvas.rect(area.x, y, area.width * 0.25, 1.0, FAINT);
     }
     canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, BORDER);
-}
-
-fn chip_height(canvas: &Canvas) -> f32 {
-    (canvas.line_height() * 1.3).round()
-}
-
-// Places chips with these names left to right, wrapping onto new rows to fit
-// in `width`. Returns each chip's offset from the top left and its width, and
-// the height of all the rows.
-fn chip_layout(canvas: &Canvas, width: f32, names: &[&str]) -> (Vec<([f32; 2], f32)>, f32) {
-    let line_height = canvas.line_height();
-    let gap = (line_height * 0.3).round();
-    let (mut x, mut y) = (0.0, 0.0);
-    let mut chips = Vec::new();
-    for name in names {
-        let chip_width = canvas.text_width(name) + line_height * 0.8;
-        if x + chip_width > width && x > 0.0 {
-            x = 0.0;
-            y += chip_height(canvas) + gap;
-        }
-        chips.push(([x, y], chip_width));
-        x += chip_width + gap;
-    }
-    (chips, y + chip_height(canvas))
-}
-
-// Draws labeled chips as chip_layout places them, and returns their height.
-fn chips(canvas: &mut Canvas, area: Rect, items: &[(&str, bool, bool)]) -> f32 {
-    let line_height = canvas.line_height();
-    let chip_height = chip_height(canvas);
-    let names: Vec<&str> = items.iter().map(|(name, ..)| *name).collect();
-    let (layout, height) = chip_layout(canvas, area.width, &names);
-    for (&(name, pressed, supported), ([x, y], chip_width)) in items.iter().zip(layout) {
-        let (x, y) = (area.x + x, area.y + y);
-        if y + chip_height > area.bottom() + 0.5 {
-            break;
-        }
-        let text_y = y + ((chip_height - line_height) * 0.5).round();
-        if pressed {
-            canvas.rect(x, y, chip_width, chip_height, PRESSED);
-            canvas.text(x + line_height * 0.4, text_y, name, PRESSED_TEXT);
-        } else {
-            canvas.rect_outline(x, y, chip_width, chip_height, 1.0, BORDER);
-            canvas.text(
-                x + line_height * 0.4,
-                text_y,
-                name,
-                if supported { DIM } else { FAINT },
-            );
-        }
-    }
-    height
 }
 
 fn draw_latest(canvas: &mut Canvas, input: &Input, area: Rect) {
@@ -850,9 +537,14 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
     );
     let buttons: Vec<_> = MOUSE_BUTTONS
         .iter()
-        .map(|&(button, name)| (name, state.buttons & button != 0, true))
+        .map(|&(button, label)| Chip {
+            label,
+            on: state.buttons & button != 0,
+            enabled: true,
+        })
         .collect();
-    let values_y = text_area.y + chips(canvas, text_area, &buttons) + line_height * 0.2;
+    let values_y =
+        text_area.y + chips(canvas, text_area, &buttons, PRESSED) + line_height * 0.2;
     let mut lines = Lines::new(
         Rect::new(
             text_area.x,
@@ -901,25 +593,18 @@ fn draw_mouse(canvas: &mut Canvas, input: &Input, area: Rect) {
     );
 }
 
-// Adds a target for each device's row, and returns the device whose row the
-// cursor is over, if any, with the row.
-fn draw_devices<'a>(
-    canvas: &mut Canvas,
-    input: &'a Input,
-    status: &Status,
-    area: Rect,
-    targets: &mut Targets,
-) -> Option<(&'a Device, Rect)> {
-    let line_height = canvas.line_height();
-    let inner = panel(
-        canvas,
+// A row for each device, which shows a tooltip about it while the cursor is
+// over it.
+fn draw_devices(frame: &mut Frame, input: &Input, area: Rect) {
+    let line_height = frame.line_height();
+    let inner = frame.panel(
         area,
         "Devices",
         &format!("{} connected", input.devices.len()),
     );
     let mut lines = Lines::new(inner, line_height);
     if input.devices.is_empty() {
-        lines.line(canvas, "None yet", FAINT);
+        lines.line(&mut frame.canvas, "None yet", FAINT);
     }
     // One line each: the name, then what kind of device it is. If they don't
     // all fit, the last line says how many more there are.
@@ -929,9 +614,8 @@ fn draw_devices<'a>(
     } else {
         input.devices.len()
     };
-    let mut hovered = None;
     // The gamepad the panel shows is highlighted, and those ignored are faint.
-    for info in input.devices.iter().take(shown) {
+    for (index, info) in input.devices.iter().take(shown).enumerate() {
         // Each row reaches halfway into the panel's padding on both sides.
         let row = Rect::new(
             inner.x - PADDING * 0.5,
@@ -939,11 +623,12 @@ fn draw_devices<'a>(
             inner.width + PADDING,
             line_height,
         );
-        if status.cursor.is_some_and(|point| row.contains(point)) {
+        let name = format!("{DEVICE_ROWS}/{index}");
+        let response = frame.interact_labeled(&name, "Row", &info.label, row, Sense::HOVER);
+        let canvas = &mut frame.canvas;
+        if response.hovered {
             canvas.rect(row.x, row.y, row.width, row.height, BORDER);
-            hovered = Some((info, row));
         }
-        targets.device_rows.push((row, info.label.clone()));
         let color = if input.gamepad.device == Some(info.id) {
             LEFT
         } else if !input.listens_to(info) {
@@ -960,43 +645,38 @@ fn draw_devices<'a>(
             details += ", rumble";
         }
         canvas.text_clipped(x, lines.y, &details, lines.right() - x, DIM);
+        if response.hovered {
+            draw_tooltip(frame, info, row);
+        }
         lines.y += line_height;
     }
     if shown < input.devices.len() {
         lines.line(
-            canvas,
+            &mut frame.canvas,
             &format!("and {} more", input.devices.len() - shown),
             DIM,
         );
     }
-    hovered
 }
 
-// What's known about a device, in a box by the cursor, on the device's row:
-// under it, or above it if there isn't room, or else beside the row, and
-// always inside the window. Returns its area.
-fn draw_tooltip(
-    canvas: &mut Canvas,
-    device: &Device,
-    cursor: [f32; 2],
-    row: Rect,
-    width: f32,
-    height: f32,
-) -> Rect {
-    let line_height = canvas.line_height();
-    let char_width = canvas.char_width();
+// What's known about a device, in a tooltip by the cursor, on the device's
+// row. Library/UserInterface places it: under the cursor, or above it if
+// there isn't room, or else beside the row, like for a device far down
+// Windows' device tree, and always inside the window. It's named after the
+// device's label, for scripts.
+fn draw_tooltip(frame: &mut Frame, device: &Device, row: Rect) {
+    let line_height = frame.line_height();
+    let char_width = frame.char_width();
     let indent = char_width * 2.0;
     let section_gap = (line_height * 0.4).round();
 
-    // Lay out the text first, from the box's top left, to know its size.
+    // Each piece of text, from the box's top left.
     let mut texts: Vec<([f32; 2], String, Color)> = Vec::new();
     let mut y = 0.0;
-    let mut right: f32 = canvas.text_width(&device.label);
     texts.push(([0.0, y], device.label.clone(), TITLE));
     y += line_height;
     for section in device.details() {
         y += section_gap;
-        right = right.max(canvas.text_width(&section.title));
         texts.push(([0.0, y], section.title, theme::ACCENT));
         y += line_height;
         // The values line up after the section's longest name.
@@ -1004,59 +684,20 @@ fn draw_tooltip(
             + section
                 .rows
                 .iter()
-                .map(|(name, _)| canvas.text_width(name))
+                .map(|(name, _)| frame.text_width(name))
                 .fold(0.0, f32::max)
             + char_width * 2.0;
         for (name, value) in section.rows {
             texts.push(([indent, y], name, DIM));
             for part in value.split('\n') {
-                for line in wrap(part, TOOLTIP_COLUMNS, 0) {
-                    right = right.max(value_x + canvas.text_width(&line));
+                for line in wrap(part, VALUE_COLUMNS, 0) {
                     texts.push(([value_x, y], line, TEXT));
                     y += line_height;
                 }
             }
         }
     }
-
-    let (box_width, box_height) = (right + PADDING * 2.0, y + PADDING * 2.0);
-    // Under the cursor, or above it if there isn't room. If there isn't
-    // room for either, like for a device far down Windows' device tree, it
-    // goes right of the row, or left of it, so that it covers neither the
-    // row nor the cursor.
-    let below = cursor[1] + line_height * 1.4;
-    let above = cursor[1] - line_height * 0.6 - box_height;
-    let across = (cursor[0] + char_width).min(width - MARGIN - box_width).max(MARGIN);
-    let (left, top) = if below + box_height <= height - MARGIN {
-        (across, below)
-    } else if above >= MARGIN {
-        (across, above)
-    } else {
-        let right_of = row.right() + char_width;
-        let left_of = row.x - char_width - box_width;
-        let left = if right_of + box_width <= width - MARGIN {
-            right_of
-        } else {
-            left_of.max(MARGIN)
-        };
-        let top = (cursor[1] - box_height * 0.5).min(height - MARGIN - box_height).max(MARGIN);
-        (left, top)
-    };
-    let area = Rect::new(left, top, box_width, box_height);
-    // A shadow, like the select box's list has.
-    canvas.rect(
-        area.x + 3.0,
-        area.y + 3.0,
-        area.width,
-        area.height,
-        Color::rgb(0x000000).alpha(0.15),
-    );
-    canvas.rect(area.x, area.y, area.width, area.height, PANEL);
-    canvas.rect_outline(area.x, area.y, area.width, area.height, 1.0, DIM);
-    for ([x, y], text, color) in texts {
-        canvas.text(area.x + PADDING + x, area.y + PADDING + y, &text, color);
-    }
-    area
+    frame.tooltip(&device.label, row, &texts);
 }
 
 fn draw_log(canvas: &mut Canvas, input: &Input, area: Rect) {

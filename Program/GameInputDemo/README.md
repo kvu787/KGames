@@ -4,8 +4,11 @@ A Rust program that reads gamepads, keyboards and mice with Microsoft's
 [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview)
 API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
-It uses no frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core) crate
-is the only dependency besides the repo's own [Library](../../Library) crates.
+It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
+crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
+KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
+whose main loop runs it, and whose widgets draw its header, footer, panels, select box and
+tooltips.
 
 ## Supported window setups
 
@@ -84,7 +87,10 @@ demo applies a dead zone.
 Click the select box after the Gamepad panel's title for a list of choices, and click
 one to pick it. Esc, a click anywhere else in the window, or the window losing focus, like when
 it's minimized, closes the list. A click on the title bar isn't in the window's client area, so
-it leaves the list open.
+it leaves the list open. While the list is open, Up, Down, Home and End pick another choice,
+and Space or Enter close it, like in any select box of Library/UserInterface. Otherwise the
+select box never takes keyboard focus, so the keys that you press to try the Keyboard panel
+leave it alone.
 
 | Choice    | What the demo listens to                                                        |
 | --------- | ------------------------------------------------------------------------------- |
@@ -301,8 +307,8 @@ response, is outside the demo.
    RTX 5090 Laptop GPU and a Core Ultra 9 275HX, that takes about 0.13 ms: about 35 µs to
    read input and build the frame's geometry, 20 µs to copy its vertices and submit its
    commands, and 70 µs in `Present`. A whole frame takes about 0.2 ms.
-   One vertex Vec is reused for every frame. A new one, being large, came fresh from the
-   OS each frame, and filling it took a page fault every 4 KB, which made building the
+   The interface's vertex Vecs are reused for every frame. A new one, being large, came fresh
+   from the OS each frame, and filling it took a page fault every 4 KB, which made building the
    frame 4 times slower.
 8. **No power throttling.** Windows lowers the quality of service of a process whose
    windows aren't in focus. On a CPU with efficiency cores, that can move its threads
@@ -339,8 +345,10 @@ cargo test -p game_input_demo_tests
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 
-The tests in `Test/GameInputDemo` feed the demo's input directly, and check where the select
-box and its list are in the panels' real layout. The scripts in `Test/GameInputDemo/Scripts`
+The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse
+in its panels' real layout, which Library/UserInterface's `Headless` draws without a window or
+a GPU: the select box and its list, and the Devices panel's rows and their tooltips. The
+scripts in `Test/GameInputDemo/Scripts`
 run the real demo, in its window, as
 [Library/Application](../../Library/Application/README.md#scripts) describes. Their `Program`
 steps connect and disconnect devices, and give their readings:
@@ -379,13 +387,17 @@ buttons.
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |
 
-The state that scripts save and check has what the panels show, the log's 10 newest lines, the
-rumble that the demo sends each gamepad, whether the select box's list is open, as
-`PickerOpen`, and where the select box and each of its choices are, as `Targets`. It also has
-where each device's row is in the Devices panel, as `DeviceRows`, for a `Move` step to put the
-cursor on one, and which device's tooltip shows, and where, as `Tooltip`, which is `null`
-without one. A device from a script has no PnP path, so its tooltip only has what the
-`Connect` step gives, and says that Windows has nothing on it.
+The state that scripts save and check has what the panels show, the log's 10 newest lines, and
+the rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`
+(see [Library/UserInterface](../../Library/UserInterface/README.md#testing)). Its `Targets` say
+where the select box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and so on,
+are, and where each row of the Devices panel is, `Devices/0`, `Devices/1` and so on, in the
+panel's order, with its device's label as its `Label`, for a `Move` step to put the cursor on
+one. Each choice's `Label` is its gamepad's, and the select box's is the chosen one's. `Popup`
+is `Gamepad` while the select box's list is open, and `null` otherwise. `Tooltip` has the label
+of the device whose tooltip shows, as its `Name`, and where it is, or is `null` without one. A device from a script
+has no PnP path, so its tooltip only has what the `Connect` step gives, and says that Windows
+has nothing on it.
 
 What only real devices show still needs a person: GameInput's own readings and device events,
 how the motors feel, and focus changing while a gamepad is held.
@@ -417,15 +429,16 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 
 | Path                               | Contents                                                                         |
 | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | The main loop: settings, window, input, and drawing each frame                   |
+| `Source/Main.rs`                   | Runs the demo with Library/UserInterface's main loop                             |
 | `Source/Library.rs`                | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
+| `Source/Demo.rs`                   | The demo as a `Program`: its input source, and what it does each frame           |
 | `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
 | `Source/Devices.rs`                | Devices and readings as plain data, and `InputSource`, which gives them          |
 | `Source/DeviceTree.rs`             | Looks up a device's nodes in Windows' device tree, from its PnP path             |
 | `Source/GameInputSource.rs`        | Reads devices and readings with GameInput                                        |
 | `Source/ScriptedSource.rs`         | Devices and readings from tests and scripts, instead of GameInput                |
 | `Source/Input.rs`                  | Keeps what the panels show, from the devices and readings                        |
-| `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them                              |
+| `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them with Library/UserInterface   |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |
