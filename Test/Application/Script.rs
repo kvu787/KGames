@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use application::script::{Checkpoint, Script, compare};
-use application::{Event, virtual_key};
+use application::{Button, Event, Gamepad, key_name, virtual_key};
 use json::{Value, object, parse};
 
 fn script(text: &str) -> Script {
@@ -155,6 +155,55 @@ fn holds_keys_until_the_next_hold() {
     assert!(frames[4].events.is_empty() && frames[5].events.is_empty());
 }
 
+// A Gamepad step says where the gamepad is from its frame on: what it leaves
+// out is at rest, a button is pressed in the frame it goes down, and null
+// disconnects the gamepad.
+#[test]
+fn gives_the_gamepad_as_its_steps_say() {
+    let mut script = script(
+        r#"{
+            "Steps": [
+                { "Frame": 1, "Gamepad": { "RightStick": [0.5, -1], "LeftTrigger": 0.25, "Buttons": ["A", "LB"] } },
+                { "Frame": 3, "Gamepad": { "LeftStick": [-1, 0], "Buttons": ["A", "Up"] } },
+                { "Frame": 4, "Gamepad": null }
+            ]
+        }"#,
+    );
+    let frames: Vec<_> = (0..5).map(|_| script.next_frame().gamepad).collect();
+    assert_eq!(frames[0], Gamepad::default());
+    let bits = |buttons: &[Button]| buttons.iter().fold(0, |bits, button| bits | button.bit());
+    let first = Gamepad {
+        connected: true,
+        right_stick: [0.5, -1.0],
+        left_trigger: 0.25,
+        buttons: bits(&[Button::A, Button::LeftShoulder]),
+        went_down: bits(&[Button::A, Button::LeftShoulder]),
+        ..Gamepad::default()
+    };
+    assert_eq!(frames[1], first);
+    assert_eq!(frames[2], Gamepad { went_down: 0, ..first });
+    assert_eq!(
+        frames[3],
+        Gamepad {
+            connected: true,
+            left_stick: [-1.0, 0.0],
+            buttons: bits(&[Button::A, Button::Up]),
+            went_down: Button::Up.bit(),
+            ..Gamepad::default()
+        }
+    );
+    assert_eq!(frames[4], Gamepad::default());
+    for (text, expected) in [
+        (r#"{ "Steps": [{ "Frame": 1, "Gamepad": 1 }] }"#, "step 1: Gamepad's state must be an object, or null, not 1"),
+        (r#"{ "Steps": [{ "Frame": 1, "Gamepad": { "LeftStick": [2, 0] } }] }"#, "step 1: Gamepad's LeftStick must be [x, y], each from -1 to 1, not a list of 2"),
+        (r#"{ "Steps": [{ "Frame": 1, "Gamepad": { "RightTrigger": -0.5 } }] }"#, "step 1: Gamepad's RightTrigger must be a number from 0 to 1, not -0.5"),
+        (r#"{ "Steps": [{ "Frame": 1, "Gamepad": { "Buttons": ["Start"] } }] }"#, "step 1: Gamepad's \"Start\" isn't a button. They're A, B, X, Y, View, Menu, LB, RB, LS, RS, Up, Down, Left, Right"),
+        (r#"{ "Steps": [{ "Frame": 1, "Gamepad": { "Paddle": 1 } }] }"#, "step 1: Gamepad's Paddle isn't part of a gamepad. They're LeftStick, RightStick, LeftTrigger, RightTrigger and Buttons"),
+    ] {
+        assert_eq!(problem(text), expected, "for {text}");
+    }
+}
+
 #[test]
 fn runs_at_60_frames_a_second_by_default() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }] }"#);
@@ -169,8 +218,8 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [], "FrameSeconds": 0 }"#, "FrameSeconds must be a number of seconds above 0, not 0"),
         (r#"{ "Steps": [{ "Key": "S" }] }"#, "step 1: needs a Frame"),
         (r#"{ "Steps": [{ "Frame": 1.5, "Key": "S" }] }"#, "step 1: Frame must be a whole number, not 1.5"),
-        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program"),
-        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": "Up" }] }"#, "step 1: Hold must be a list of the keys held down, like [\"Up\", \"Space\"], not \"Up\""),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": ["Up", "Hyper"] }] }"#, "step 1: Hyper isn't a key"),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": [true] }] }"#, "step 1: Each of Hold's keys must be a key's name, like \"F11\", not true"),
@@ -212,7 +261,12 @@ fn names_keys_like_scripts_do() {
         ("", None),
     ] {
         assert_eq!(virtual_key(name), code, "for {name:?}");
+        // A key's name is the one that scripts read.
+        if let Some(code) = code {
+            assert_eq!(key_name(code), name);
+        }
     }
+    assert_eq!(key_name(0xBA), "0xBA", "a key without a name of its own");
 }
 
 #[test]

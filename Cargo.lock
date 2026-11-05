@@ -7,6 +7,7 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "displays",
+ "game_input",
  "json",
  "windows-core",
  "windows_api",

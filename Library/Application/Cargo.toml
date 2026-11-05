@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 displays = { path = "../Displays" }
+game_input = { path = "../GameInput" }
 json = { path = "../Json" }
 windows_api = { path = "../WindowsApi" }
 

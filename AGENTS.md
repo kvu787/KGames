@@ -51,7 +51,7 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 
 # GUI programs
 
-- Ignore all input while the window isn't focused, gamepads too. `Library/Application`'s `Window` does this for input from window messages, and programs that read GameInput drop its readings themselves.
+- Ignore all input while the window isn't focused, gamepads too. `Library/Application`'s `Window` does this for input from window messages and for the gamepad that it reads, and programs that read GameInput themselves, like GameInputDemo, drop its readings themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
 - Build every GUI program on `Library/UserInterface`, the UI framework: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the framework's widgets. When a program needs a widget or a kind of input that the framework doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - Use the light theme in `Library/Canvas` by default.
@@ -104,7 +104,7 @@ Assume that Windows' "Turn my screen off after", "Make my device sleep after" an
 Test what programs do with input in two layers, which never touch the user's input or focus:
 
 1. **Tests**, in `Test/<program>`. Each GUI program is a library (`Source/Library.rs`) and a small `Source/Main.rs`, so tests drive its parts without a window: what input does, where clicks land in the panels' real layout, which a canvas builds without a GPU, and its motion and settings. `user_interface::headless::Headless` draws a program's frames that way, with input that the test makes up. Put a program's logic in its library, and test it there. Run them with `cargo test --workspace`.
-2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll and press keys in the window, save frames and the program's state, and check the state. `Library/Application/Source/Script.rs` describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
+2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. `Library/Application/Source/Script.rs` describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
 
 To write a script, run one that captures, and read the state it saves: `Interface.Targets` has every widget's name and area, like SimplePaintDemo's sliders. GameInputDemo's scripts also connect and press gamepads, keyboards and mice, which its README describes.
 

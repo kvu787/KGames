@@ -635,6 +635,26 @@ fn draw_interface(showcase: &mut Showcase, frame: &mut Frame, area: Rect) {
         Some([x, y]) => format!("{x:.0}, {y:.0}"),
         None => "not over the window, or the window doesn't have focus".to_string(),
     };
+    let keys = if showcase.held_keys.is_empty() {
+        "none".to_string()
+    } else {
+        showcase.held_keys.join(", ")
+    };
+    let gamepad = &showcase.gamepad;
+    let (sticks, buttons) = if gamepad.connected {
+        let [left_x, left_y] = gamepad.left_stick;
+        let [right_x, right_y] = gamepad.right_stick;
+        let names = gamepad.held_names();
+        (
+            format!(
+                "left {left_x:+.2} {left_y:+.2}, right {right_x:+.2} {right_y:+.2}, triggers {:.2} {:.2}",
+                gamepad.left_trigger, gamepad.right_trigger
+            ),
+            if names.is_empty() { "none".to_string() } else { names.join(", ") },
+        )
+    } else {
+        ("not connected".to_string(), "none".to_string())
+    };
     let rows = [
         ("Cursor:    ", cursor),
         ("Hovered:   ", name(frame.hovered_name())),
@@ -642,6 +662,9 @@ fn draw_interface(showcase: &mut Showcase, frame: &mut Frame, area: Rect) {
         ("Focus:     ", name(frame.focus_name())),
         ("Popup:     ", name(frame.popup_name())),
         ("Targets:   ", frame.target_count().to_string()),
+        ("Keys held: ", keys),
+        ("Gamepad:   ", sticks),
+        ("Buttons:   ", buttons),
     ];
     let mut lines = Lines::new(inner, frame.line_height());
     for (label, value) in &rows {

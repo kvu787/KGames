@@ -6,7 +6,7 @@
 
 use std::sync::OnceLock;
 
-use application::Event;
+use application::{Event, Gamepad};
 use canvas::{Font, Rect};
 use windows_api::*;
 use windows_core::Result;
@@ -40,9 +40,12 @@ pub struct Headless {
     pub cursor: Option<[f32; 2]>,
     // Whether the window has focus. Without it, frames get no input.
     pub focused: bool,
-    // The keys held down, by virtual-key code, which frames have while the
-    // window has focus.
+    // The keys held down, by virtual-key code, and the gamepad, which frames
+    // have while the window has focus.
     pub held_keys: Vec<u32>,
+    pub gamepad: Gamepad,
+    // The gamepad's buttons held in the frame before.
+    buttons_before: u32,
     pub size: [f32; 2],
     pub notices: Vec<String>,
 }
@@ -62,6 +65,8 @@ impl Headless {
             cursor: None,
             focused: true,
             held_keys: Vec::new(),
+            gamepad: Gamepad::default(),
+            buttons_before: 0,
             size,
             notices: Vec::new(),
         }
@@ -90,10 +95,19 @@ impl Headless {
             events,
             cursor: if self.focused { self.cursor } else { None },
             held_keys: if self.focused { self.held_keys.clone() } else { Vec::new() },
+            gamepad: if self.focused {
+                self.gamepad.after(self.buttons_before)
+            } else {
+                Gamepad {
+                    connected: self.gamepad.connected,
+                    ..Gamepad::default()
+                }
+            },
             program_steps: Vec::new(),
             checkpoints: Vec::new(),
         };
         self.number += 1;
+        self.buttons_before = input.gamepad.buttons;
         let status = Status {
             notices: &self.notices,
             ..Status::HEADLESS

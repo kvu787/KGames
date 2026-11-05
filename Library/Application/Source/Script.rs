@@ -21,6 +21,7 @@
 //             { "Frame": 5, "Key": "S", "Control": true },
 //             { "Frame": 5, "Text": "Hello" },
 //             { "Frame": 5, "Hold": ["Up", "Space"] },
+//             { "Frame": 5, "Gamepad": { "RightStick": [0, 1], "Buttons": ["A"] } },
 //             { "Frame": 6, "Capture": "AfterSave" },
 //             { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
 //             { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -32,14 +33,17 @@
 // says which keys are held down from its frame until the next "Hold": each
 // that wasn't held already is pressed then, and the others let go of. "Text"
 // types characters, as Character events, without the keys that type them.
-// "Program" steps go to the program as they are, for input that doesn't
-// come from the window, like GameInput readings.
+// "Gamepad" says where the gamepad's sticks and triggers are, and which of
+// its buttons are held, from its frame until the next "Gamepad". What it
+// leaves out is at rest, and null disconnects the gamepad. "Program" steps
+// go to the program as they are, for input that doesn't come from the
+// window or the gamepad, like other GameInput readings.
 
 use std::path::{Path, PathBuf};
 
 use json::Value;
 
-use crate::Event;
+use crate::{Button, Event, Gamepad};
 
 const VK_SHIFT: u32 = 0x10;
 const VK_CONTROL: u32 = 0x11;
@@ -60,6 +64,7 @@ pub struct ScriptFrame {
     pub events: Vec<Event>,
     pub cursor: Option<[f32; 2]>,
     pub held_keys: Vec<u32>,
+    pub gamepad: Gamepad,
     pub checkpoints: Vec<Checkpoint>,
     pub program_steps: Vec<Value>,
 }
@@ -68,6 +73,7 @@ enum Action {
     Move([f32; 2]),
     Event(Event),
     Hold(Vec<u32>),
+    Gamepad(Gamepad),
     Text(String),
     Capture(String),
     Expect(Value),
@@ -90,6 +96,9 @@ pub struct Script {
     cursor: Option<[f32; 2]>,
     // The keys held down, in the order they went down.
     held_keys: Vec<u32>,
+    gamepad: Gamepad,
+    // The gamepad's buttons held in the frame before.
+    buttons_before: u32,
 }
 
 impl Script {
@@ -147,6 +156,8 @@ impl Script {
             output: output.to_path_buf(),
             cursor: None,
             held_keys: Vec::new(),
+            gamepad: Gamepad::default(),
+            buttons_before: 0,
         })
     }
 
@@ -167,6 +178,7 @@ impl Script {
             events: Vec::new(),
             cursor: None,
             held_keys: Vec::new(),
+            gamepad: Gamepad::default(),
             checkpoints: Vec::new(),
             program_steps: Vec::new(),
         };
@@ -196,6 +208,7 @@ impl Script {
                     }
                     self.held_keys = keys.clone();
                 }
+                Action::Gamepad(gamepad) => self.gamepad = *gamepad,
                 Action::Text(text) => frame.events.extend(text.chars().map(Event::Character)),
                 Action::Capture(name) => frame.checkpoints.push(Checkpoint::Capture {
                     image: self.output.join(format!("{name}.png")),
@@ -208,6 +221,8 @@ impl Script {
         }
         frame.cursor = self.cursor;
         frame.held_keys = self.held_keys.clone();
+        frame.gamepad = self.gamepad.after(self.buttons_before);
+        self.buttons_before = self.gamepad.buttons;
         self.frame += 1;
         frame
     }
@@ -233,7 +248,8 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
-            "needs one of Move, Press, Release, Wheel, Key, Hold, Text, Capture, Expect and Program".to_string(),
+            "needs one of Move, Press, Release, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"
+                .to_string(),
         );
     };
     let action = match name.as_str() {
@@ -271,6 +287,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
             }
             Action::Hold(keys)
         }
+        "Gamepad" => Action::Gamepad(gamepad(value).map_err(|problem| format!("Gamepad's {problem}"))?),
         "Text" => match value {
             Value::String(text) if !text.is_empty() && !text.chars().any(char::is_control) => {
                 Action::Text(text.clone())
@@ -312,6 +329,63 @@ fn key(value: &Value, what: &str) -> Result<u32, String> {
     }
 }
 
+// A gamepad that's connected, with its sticks, triggers and buttons as a
+// Gamepad step says, or one that isn't, from null.
+fn gamepad(value: &Value) -> Result<Gamepad, String> {
+    let members = match value {
+        Value::Null => return Ok(Gamepad::default()),
+        Value::Object(members) => members,
+        other => return Err(format!("state must be an object, or null, not {}", other.describe())),
+    };
+    let mut gamepad = Gamepad {
+        connected: true,
+        ..Gamepad::default()
+    };
+    for (name, value) in members {
+        let stick = || match value {
+            Value::Array(items) => match items.as_slice() {
+                [Value::Number(x), Value::Number(y)] if x.abs() <= 1.0 && y.abs() <= 1.0 => {
+                    Ok([*x as f32, *y as f32])
+                }
+                _ => Err(format!("{name} must be [x, y], each from -1 to 1, not {}", value.describe())),
+            },
+            other => Err(format!("{name} must be [x, y], each from -1 to 1, not {}", other.describe())),
+        };
+        let trigger = || match value {
+            Value::Number(number) if (0.0..=1.0).contains(number) => Ok(*number as f32),
+            other => Err(format!("{name} must be a number from 0 to 1, not {}", other.describe())),
+        };
+        match name.as_str() {
+            "LeftStick" => gamepad.left_stick = stick()?,
+            "RightStick" => gamepad.right_stick = stick()?,
+            "LeftTrigger" => gamepad.left_trigger = trigger()?,
+            "RightTrigger" => gamepad.right_trigger = trigger()?,
+            "Buttons" => {
+                let Value::Array(names) = value else {
+                    return Err(format!("Buttons must be a list of buttons, like [\"A\"], not {}", value.describe()));
+                };
+                for name in names {
+                    let button = match name {
+                        Value::String(text) => Button::from_name(text),
+                        _ => None,
+                    };
+                    let Some(button) = button else {
+                        let names: Vec<&str> = Button::ALL.iter().map(|button| button.name()).collect();
+                        return Err(format!("{} isn't a button. They're {}", name.to_json(), names.join(", ")));
+                    };
+                    gamepad.buttons |= button.bit();
+                }
+            }
+            _ => {
+                return Err(format!(
+                    "{name} isn't part of a gamepad. They're LeftStick, RightStick, LeftTrigger, RightTrigger and Buttons"
+                ));
+            }
+        }
+    }
+    Ok(gamepad)
+}
+
 fn point(value: &Value) -> Result<[f32; 2], String> {
     match value {
         Value::Array(items) => match items.as_slice() {
@@ -322,31 +396,32 @@ fn point(value: &Value) -> Result<[f32; 2], String> {
     }
 }
 
+// The keys with names of their own, and their virtual-key codes.
+const NAMED_KEYS: [(&str, u32); 17] = [
+    ("Backspace", 0x08),
+    ("Tab", 0x09),
+    ("Enter", 0x0D),
+    ("Shift", 0x10),
+    ("Control", 0x11),
+    ("Alt", 0x12),
+    ("Escape", 0x1B),
+    ("Space", 0x20),
+    ("Left", 0x25),
+    ("Up", 0x26),
+    ("Right", 0x27),
+    ("Down", 0x28),
+    ("PageUp", 0x21),
+    ("PageDown", 0x22),
+    ("End", 0x23),
+    ("Home", 0x24),
+    ("Delete", 0x2E),
+];
+
 // A key's virtual-key code, from its name, like "F11", "Left", "Home",
 // "Escape", "Space", "S" or "7".
 pub fn virtual_key(name: &str) -> Option<u32> {
-    let named = match name {
-        "Backspace" => Some(0x08),
-        "Tab" => Some(0x09),
-        "Enter" => Some(0x0D),
-        "Shift" => Some(0x10),
-        "Control" => Some(0x11),
-        "Alt" => Some(0x12),
-        "Escape" => Some(0x1B),
-        "Space" => Some(0x20),
-        "Left" => Some(0x25),
-        "Up" => Some(0x26),
-        "Right" => Some(0x27),
-        "Down" => Some(0x28),
-        "PageUp" => Some(0x21),
-        "PageDown" => Some(0x22),
-        "End" => Some(0x23),
-        "Home" => Some(0x24),
-        "Delete" => Some(0x2E),
-        _ => None,
-    };
-    if named.is_some() {
-        return named;
+    if let Some((_, key)) = NAMED_KEYS.iter().find(|(named, _)| *named == name) {
+        return Some(*key);
     }
     if let Some(number) = name
         .strip_prefix('F')
@@ -361,6 +436,19 @@ pub fn virtual_key(name: &str) -> Option<u32> {
             Some(character as u32)
         }
         _ => None,
+    }
+}
+
+// A key's name, as virtual_key reads it, or its code in hexadecimal, like
+// "0xBA", if it has none.
+pub fn key_name(key: u32) -> String {
+    if let Some((name, _)) = NAMED_KEYS.iter().find(|(_, named)| *named == key) {
+        return name.to_string();
+    }
+    match key {
+        0x70..=0x87 => format!("F{}", key - 0x70 + 1),
+        0x30..=0x39 | 0x41..=0x5A => char::from_u32(key).unwrap().to_string(),
+        _ => format!("0x{key:02X}"),
     }
 }
 

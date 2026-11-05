@@ -58,10 +58,11 @@ fn main() -> windows_core::Result<()> {
 ```
 
 `Program` also has `draw_under`, for a 3D view under the interface, `draw_over`, for an image over
-it, like SimplePaintDemo's sphere, and `minimized`. `DEPTH` gives the renderer a depth buffer, and
+it, like SimplePaintDemo's sphere, and `minimized`. `DEPTH` gives the renderer a depth buffer,
 `FULLSCREEN_KEY` can leave `F11` to a program that reads its keys another way, like with
-GameInput. `Setup` has what a program is made with: its folder, the command line, its settings,
-the notices that the header shows, and the renderer.
+GameInput, and `GAMEPAD` has the loop read the gamepad, for a program that a gamepad controls.
+`Setup` has what a program is made with: its folder, the command line, its settings, the notices
+that the header shows, and the renderer.
 
 ## How input reaches widgets
 
@@ -81,6 +82,8 @@ came: clicks hit what the frame before them drew.
 |             | shortcuts, which `Frame::shortcut` reads                                       |
 | Held keys   | The program, whatever has keyboard focus. `Frame::held` says whether a key is  |
 |             | down, for what goes on while it's held, like steering                          |
+| The gamepad | The program, if it reads it, through `Frame::gamepad`: its sticks, triggers,   |
+|             | the buttons held, and the ones that went down since the frame before           |
 | Characters  | The text field with keyboard focus                                             |
 | `Tab`       | Moves keyboard focus to the next widget that takes it, `Shift+Tab` back        |
 | `Esc`       | Closes a popup, or else takes keyboard focus away, or else goes to the program |

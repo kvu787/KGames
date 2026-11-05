@@ -15,6 +15,9 @@
 // window loses focus, so a key that's still down when the window gets focus
 // back only counts once it's pressed again.
 //
+// A program that a gamepad controls has the window read it, with
+// read_gamepads, and each frame has its state. See Gamepad.rs.
+//
 // With a script (see Script.rs), the script is the only input, the window
 // acts as if it had focus, and time is the script's fixed clock.
 
@@ -29,7 +32,7 @@ use windows_api::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
 use crate::script::{Checkpoint, Script, compare};
-use crate::{Arguments, Settings, WindowMode, window_check};
+use crate::{Arguments, Gamepad, Gamepads, Settings, WindowMode, window_check};
 
 static CLIENT_WIDTH: AtomicU32 = AtomicU32::new(0);
 static CLIENT_HEIGHT: AtomicU32 = AtomicU32::new(0);
@@ -263,6 +266,8 @@ pub struct Frame {
     // The keys held down, by virtual-key code, in the order they went down,
     // for what goes on while a key is held. None without focus.
     pub held_keys: Vec<u32>,
+    // The gamepad, if the program reads it. At rest without focus.
+    pub gamepad: Gamepad,
     // A script's "Program" steps for this frame, for input that doesn't
     // come from the window. See Script.rs.
     pub program_steps: Vec<Value>,
@@ -290,6 +295,7 @@ pub struct Window {
     failures: Vec<String>,
     // Whether the program got a Press without its Release yet.
     pressed: bool,
+    gamepads: Option<Gamepads>,
 }
 
 impl Window {
@@ -396,6 +402,7 @@ impl Window {
                 script,
                 failures: Vec::new(),
                 pressed: false,
+                gamepads: None,
             };
             // Before the renderer, so its swap chain starts at the display's size.
             if settings.window_mode == WindowMode::BorderlessFullscreen {
@@ -485,6 +492,24 @@ impl Window {
         self.script.is_some()
     }
 
+    // Has frames read the gamepad, with GameInput, unless a script is the
+    // input, which says where the gamepad is itself.
+    pub fn read_gamepads(&mut self) -> Result<()> {
+        if self.script.is_none() && self.gamepads.is_none() {
+            self.gamepads = Some(Gamepads::new()?);
+        }
+        Ok(())
+    }
+
+    // The window lost focus without a frame to see it, like when it's
+    // minimized: the gamepad's buttons down then only count once they're
+    // let go of.
+    pub fn lose_focus(&mut self) {
+        if let Some(gamepads) = &mut self.gamepads {
+            gamepads.lose_focus();
+        }
+    }
+
     // Starts a frame: its time, and the input since the last one. Programs
     // call it once the renderer is ready, right before drawing.
     pub fn begin_frame(&mut self) -> Frame {
@@ -501,6 +526,7 @@ impl Window {
                 events: frame.events,
                 cursor: frame.cursor,
                 held_keys: frame.held_keys,
+                gamepad: frame.gamepad,
                 program_steps: frame.program_steps,
                 checkpoints: frame.checkpoints,
             };
@@ -520,6 +546,10 @@ impl Window {
                 HELD_KEYS.lock().unwrap().clone()
             } else {
                 Vec::new()
+            },
+            gamepad: match &mut self.gamepads {
+                Some(gamepads) => gamepads.read(focused),
+                None => Gamepad::default(),
             },
             program_steps: Vec::new(),
             checkpoints: Vec::new(),

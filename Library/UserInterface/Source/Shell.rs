@@ -56,6 +56,10 @@ pub trait Program: Sized {
     // asks for it with Frame::toggle_fullscreen instead.
     const FULLSCREEN_KEY: bool = true;
 
+    // Whether the program reads the gamepad, which Frame::gamepad gives.
+    // Only programs that do load GameInput for it.
+    const GAMEPAD: bool = false;
+
     fn new(setup: Setup<'_, Self::Settings>) -> Result<Self>;
 
     // Handles a frame's input, and draws its interface. Every frame comes
@@ -94,6 +98,11 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
         let (settings, program_settings) =
             Settings::for_program::<P::Settings>(&folder.join("Settings.json"), &arguments, &mut notices);
         let mut window = Window::open(P::NAME, &settings, &arguments, &mut notices)?;
+        if P::GAMEPAD
+            && let Err(error) = window.read_gamepads()
+        {
+            notices.push(format!("The gamepad can't be read: {} ({})", error.message(), error.code()));
+        }
 
         let font = Font::new(FONT_SIZE)?;
         let mut renderer = Renderer::new(window.handle, settings.allow_tearing, P::DEPTH)?;
@@ -129,6 +138,7 @@ pub fn run<P: Program>(folder: &Path) -> Result<()> {
                 // instead of spinning.
                 program.minimized();
                 interface.reset();
+                window.lose_focus();
                 window.wait_for_message()?;
                 frames.pause();
                 continue;

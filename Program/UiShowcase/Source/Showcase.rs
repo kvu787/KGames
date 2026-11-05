@@ -4,7 +4,7 @@
 use std::collections::VecDeque;
 
 use json::Value;
-use user_interface::{Frame, Program, Setup};
+use user_interface::{Frame, Gamepad, Program, Setup, key_name};
 use windows_api::*;
 use windows_core::Result;
 
@@ -74,6 +74,9 @@ pub struct Showcase {
     // What changed, newest first.
     pub log: VecDeque<String>,
     pub cache: panels::Cache,
+    // The keys held down, by name, and the gamepad, as of the last frame.
+    pub held_keys: Vec<String>,
+    pub gamepad: Gamepad,
 }
 
 impl Default for Showcase {
@@ -108,6 +111,8 @@ impl Default for Showcase {
                 .collect(),
             log: VecDeque::new(),
             cache: panels::Cache::default(),
+            held_keys: Vec::new(),
+            gamepad: Gamepad::default(),
         }
     }
 }
@@ -145,6 +150,7 @@ impl Showcase {
 impl Program for Showcase {
     type Settings = ();
     const NAME: &'static str = NAME;
+    const GAMEPAD: bool = true;
 
     fn new(_setup: Setup<'_, ()>) -> Result<Self> {
         Ok(Showcase::default())
@@ -159,6 +165,8 @@ impl Program for Showcase {
         if frame.control_shortcut('R' as i32) {
             self.reset();
         }
+        self.held_keys = frame.input.held_keys.iter().map(|key| key_name(*key)).collect();
+        self.gamepad = *frame.gamepad();
         panels::draw(self, frame);
         Ok(())
     }
@@ -201,6 +209,18 @@ impl Program for Showcase {
             ("Search", self.search.clone().into()),
             ("Selected", self.selected.map(|index| self.items[index].clone()).into()),
             ("Matches", self.matches().len().into()),
+            ("HeldKeys", self.held_keys.clone().into()),
+            (
+                "Gamepad",
+                json::object([
+                    ("Connected", self.gamepad.connected.into()),
+                    ("LeftStick", self.gamepad.left_stick.into()),
+                    ("RightStick", self.gamepad.right_stick.into()),
+                    ("LeftTrigger", self.gamepad.left_trigger.into()),
+                    ("RightTrigger", self.gamepad.right_trigger.into()),
+                    ("Buttons", self.gamepad.held_names().into()),
+                ]),
+            ),
             ("Log", log.into()),
         ])
     }

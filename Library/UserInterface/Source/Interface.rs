@@ -29,7 +29,7 @@
 
 use std::collections::HashMap;
 
-use application::Event;
+use application::{Event, Gamepad};
 use canvas::{Canvas, Font, Rect, Vertex};
 use json::Value;
 use windows_api::*;
@@ -634,6 +634,12 @@ impl<'a> Frame<'a> {
             .iter()
             .filter(|(route, _)| *route == Route::Program)
             .map(|(_, event)| event)
+    }
+
+    // The gamepad, if the program reads it (see Program::GAMEPAD), which is
+    // the program's, like held keys. It's at rest without the window's focus.
+    pub fn gamepad(&self) -> &Gamepad {
+        &self.input.gamepad
     }
 
     // Whether `key` is held down, by its virtual-key code, like VK_LEFT, for

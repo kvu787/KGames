@@ -6,7 +6,7 @@
 use application::Event;
 use user_interface::headless::{Headless, click, key, shifted};
 use json::Value;
-use user_interface::{Rect, Sense, Tone};
+use user_interface::{Button, Gamepad, Rect, Sense, Tone};
 use windows_api::*;
 
 const SAVE: Rect = Rect { x: 100.0, y: 100.0, width: 80.0, height: 30.0 };
@@ -170,6 +170,27 @@ fn held_keys_are_held_whatever_has_focus_and_none_without_it() {
     assert_eq!(held, [true, true, false]);
     harness.focused = false;
     assert!(!harness.frame(&[], |frame| frame.held(VK_LEFT)));
+}
+
+// The gamepad is the program's too: a button is pressed in the frame that it
+// goes down, and the gamepad is at rest without the window's focus.
+#[test]
+fn the_gamepad_is_the_programs_and_at_rest_without_focus() {
+    let mut harness = Headless::default();
+    harness.gamepad = Gamepad {
+        connected: true,
+        right_stick: [0.0, 1.0],
+        buttons: Button::A.bit(),
+        ..Gamepad::default()
+    };
+    let first = harness.frame(&[], |frame| *frame.gamepad());
+    assert!(first.pressed(Button::A) && first.held(Button::A));
+    assert_eq!(first.right_stick, [0.0, 1.0]);
+    let second = harness.frame(&[], |frame| *frame.gamepad());
+    assert!(second.held(Button::A) && !second.pressed(Button::A));
+    harness.focused = false;
+    let unfocused = harness.frame(&[], |frame| *frame.gamepad());
+    assert!(unfocused.connected && unfocused.buttons == 0 && unfocused.right_stick == [0.0, 0.0]);
 }
 
 #[test]

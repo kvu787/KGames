@@ -5,6 +5,10 @@ edition = "2024"
 publish = false
 
 [[test]]
+name = "Gamepad"
+path = "Gamepad.rs"
+
+[[test]]
 name = "Script"
 path = "Script.rs"
 

@@ -28,7 +28,8 @@ window setups in [Library/Application](../../Library/Application/README.md#suppo
 | List                    | 120 items that scroll, of which the search shows those it matches, and   |
 |                         | one can be selected. Each row has a tooltip                              |
 | Interface               | What the input is on: the cursor, the widget under it, the one with the  |
-|                         | press, the one with focus, and the open popup. And a log of what changed |
+|                         | press, the one with focus, and the open popup. The keys held down, and   |
+|                         | the gamepad's sticks, triggers and buttons. And a log of what changed    |
 
 The tabs, the tooltips, the canvas and the list take the 71 more pixels of borderless
 fullscreen.
@@ -48,6 +49,8 @@ fullscreen.
 | `F1`               | Shows or hides the tooltips                                             |
 | `Ctrl+R`           | Resets every widget                                                     |
 | `F11`              | Switches between maximized and borderless fullscreen                    |
+| Held keys          | Show in the Interface panel, whatever has keyboard focus                |
+| A gamepad          | Shows in the Interface panel: its sticks, triggers and buttons          |
 
 The first press on the window while it doesn't have focus only gives it focus.
 
@@ -78,7 +81,8 @@ without focus. They also check that the panels fit both window heights.
 The scripts in `Test/UiShowcase/Scripts` run the same kinds of input through the real window and
 renderer, as [Library/Application](../../Library/Application/README.md#scripts) describes. The
 state that scripts save and check has what each widget shows, like `Volume` and `Selected`, the
-`Log`'s newest lines, and the interface's, as `Interface`, with where each widget is.
+keys held and the gamepad, as `HeldKeys` and `Gamepad`, the `Log`'s newest lines, and the
+interface's, as `Interface`, with where each widget is.
 
 ## Layout
 

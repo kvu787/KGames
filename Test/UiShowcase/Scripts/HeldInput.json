@@ -1,0 +1,12 @@
+{
+    "Steps": [
+        { "Frame": 1, "Expect": { "HeldKeys": [], "Gamepad": { "Connected": false, "Buttons": [] } } },
+        { "Frame": 2, "Hold": ["Left", "Space"] },
+        { "Frame": 2, "Gamepad": { "LeftStick": [-0.5, 0.25], "RightTrigger": 0.75, "Buttons": ["A", "RB"] } },
+        { "Frame": 3, "Expect": { "HeldKeys": ["Left", "Space"], "Gamepad": { "Connected": true, "LeftStick": [-0.5, 0.25], "RightTrigger": 0.75, "Buttons": ["A", "RB"] } } },
+        { "Frame": 3, "Capture": "HeldInput" },
+        { "Frame": 4, "Hold": ["Space"] },
+        { "Frame": 4, "Gamepad": null },
+        { "Frame": 5, "Expect": { "HeldKeys": ["Space"], "Gamepad": { "Connected": false, "LeftStick": [0, 0], "Buttons": [] } } }
+    ]
+}

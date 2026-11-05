@@ -17,7 +17,14 @@ What every KGames GUI program shares besides drawing:
   messages, and `begin_frame` gives the program each frame's time and the mouse and keyboard
   input from them as `Event`s, in a `Frame`: presses, releases and the wheel, keys, and the
   characters that the keys type, for text fields. The `Frame` also has the keys held down, for
-  what goes on while a key is held, like steering.
+  what goes on while a key is held, like steering, and the gamepad, if the program has the
+  window read it with `read_gamepads`.
+- `Gamepads` reads the gamepad with GameInput, for programs that a gamepad controls. Of the
+  gamepads connected, the one used last counts: the first that GameInput has a reading of,
+  and then any other whose button goes down, or whose stick or trigger moves past halfway, so
+  that a second gamepad that lies still doesn't take over. A frame's `Gamepad` has where the
+  sticks and triggers are, without a dead zone, the buttons held, and the ones that went down
+  since the frame before.
 - `window_check` says what's wrong with the window's setup, if it isn't one of the two that
   programs support.
 - `FrameCounter` counts frames per second.
@@ -44,8 +51,13 @@ Programs ignore all input while their window doesn't have focus. The `Frame` tha
 `Window::begin_frame` returns has no cursor then, no keys held, and no events but a `Release`
 that ends a press it got with focus, so that each `Press` has its `Release`. A click in the
 window that gives it focus does only that, and a key that's still down when it gets focus only
-counts as held once it's pressed again. Programs that read input with GameInput drop it themselves
-while the window doesn't have focus.
+counts as held once it's pressed again.
+
+GameInput gives gamepad input to windows without focus, so `Gamepads` drops it: without focus,
+the gamepad is at rest, and a button that's still down when the window gets focus, or when the
+program starts, only counts once it's pressed again. Its sticks and triggers count right away.
+Programs that read GameInput themselves, like GameInputDemo, drop its readings themselves while
+the window doesn't have focus.
 
 ## Scripts
 
@@ -67,6 +79,7 @@ every run draws the same frames. Each step happens at a frame:
         { "Frame": 5, "Key": "S", "Control": true },
         { "Frame": 5, "Text": "Hello" },
         { "Frame": 5, "Hold": ["Up", "Space"] },
+        { "Frame": 5, "Gamepad": { "RightStick": [0, 1], "Buttons": ["A"] } },
         { "Frame": 6, "Capture": "AfterSave" },
         { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
         { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -84,6 +97,10 @@ every run draws the same frames. Each step happens at a frame:
 |           | `Shift`. `Repeat` makes it a repeat of a key that's held, which toggles ignore |
 | `Hold`    | Holds down the keys it lists until the next `Hold`. Each that wasn't held      |
 |           | already is pressed then, and the keys it leaves out let go                     |
+| `Gamepad` | Puts the gamepad where it says until the next `Gamepad`: `LeftStick` and       |
+|           | `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`, and the `Buttons`     |
+|           | held, like `A`, `LB` or `Up`. What it leaves out is at rest, and `null`        |
+|           | disconnects the gamepad, which is disconnected until the first `Gamepad`       |
 | `Text`    | Types characters, as `Character` events, without the keys that type them       |
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
 |           | the output folder. A frame has one at most, and each has its own name          |
@@ -106,6 +123,7 @@ the new setup's already, but a capture shows that frame as drawn for the old one
 | `Source/Settings.rs`      | Reads the settings file, and writes it with the defaults if missing    |
 | `Source/Arguments.rs`     | Reads the command line                                                 |
 | `Source/Window.rs`        | The window, its messages, input events, and borderless fullscreen      |
+| `Source/Gamepad.rs`       | Reads the gamepad with GameInput, and drops its input without focus    |
 | `Source/Script.rs`        | Reads scripts of input, and compares a program's state with a script's |
 | `Source/WindowCheck.rs`   | Checks that the window is in one of the two supported setups           |
 | `Source/FrameCounter.rs`  | Counts frames per second                                               |
