@@ -1,237 +1,87 @@
-// Helpers for the buffers and textures that programs make for their draws.
+// Buffers, textures, barriers and descriptor heaps.
 
-use std::mem::ManuallyDrop;
-
-use crate::Renderer;
 use windows_api::*;
-use windows_core::Result;
+use windows_core::{Interface, Result};
 
+pub fn heap_properties(kind: D3D12_HEAP_TYPE) -> D3D12_HEAP_PROPERTIES {
+    D3D12_HEAP_PROPERTIES {
+        Type: kind,
+        CreationNodeMask: 1,
+        VisibleNodeMask: 1,
+        ..Default::default()
+    }
+}
+
+// A buffer of `size` bytes in a heap of the kind.
 pub unsafe fn create_buffer(
     device: &ID3D12Device,
     size: u64,
     heap: D3D12_HEAP_TYPE,
     state: D3D12_RESOURCE_STATES,
 ) -> Result<ID3D12Resource> {
-    let mut buffer: Option<ID3D12Resource> = None;
     unsafe {
+        let description = D3D12_RESOURCE_DESC {
+            Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
+            Width: size.max(1),
+            Height: 1,
+            DepthOrArraySize: 1,
+            MipLevels: 1,
+            SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+            Layout: D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+            ..Default::default()
+        };
+        let mut resource: Option<ID3D12Resource> = None;
         device.CreateCommittedResource(
-            &D3D12_HEAP_PROPERTIES {
-                Type: heap,
-                ..Default::default()
-            },
+            &heap_properties(heap),
             D3D12_HEAP_FLAG_NONE,
-            &D3D12_RESOURCE_DESC {
-                Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
-                Width: size,
-                Height: 1,
-                DepthOrArraySize: 1,
-                MipLevels: 1,
-                Format: DXGI_FORMAT_UNKNOWN,
-                SampleDesc: DXGI_SAMPLE_DESC {
-                    Count: 1,
-                    Quality: 0,
-                },
-                Layout: D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-                ..Default::default()
-            },
+            &description,
             state,
             None,
-            &mut buffer,
+            &mut resource,
         )?;
-    }
-    Ok(buffer.unwrap())
-}
-
-pub unsafe fn create_upload_buffer(device: &ID3D12Device, size: u64) -> Result<ID3D12Resource> {
-    unsafe {
-        create_buffer(
-            device,
-            size,
-            D3D12_HEAP_TYPE_UPLOAD,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-        )
+        Ok(resource.unwrap())
     }
 }
 
-// An upload heap buffer that stays mapped, so the CPU writes it directly and
-// the GPU reads it in place. Programs keep one frame in flight, so a frame
-// can rewrite what the previous one read once the renderer is ready.
-pub struct UploadBuffer {
-    pub resource: ID3D12Resource,
-    mapped: *mut u8,
-    pub size: usize,
-}
-
-impl UploadBuffer {
-    pub unsafe fn new(device: &ID3D12Device, size: usize) -> Result<Self> {
-        unsafe {
-            let resource = create_upload_buffer(device, size as u64)?;
-            let mut mapped = std::ptr::null_mut();
-            // An empty read range: the CPU never reads it back.
-            resource
-                .Map(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }), &mut mapped)
-                .ok()?;
-            Ok(Self {
-                resource,
-                mapped: mapped.cast(),
-                size,
-            })
-        }
-    }
-
-    // Copies `data` to `offset` bytes into the buffer. The GPU mustn't be
-    // reading that part.
-    pub unsafe fn write<T: Copy>(&self, offset: usize, data: &[T]) {
-        let bytes = size_of_val(data);
-        assert!(offset + bytes <= self.size, "write past the end of an UploadBuffer");
-        unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr().cast::<u8>(), self.mapped.add(offset), bytes)
-        };
-    }
-
-    // The GPU's address of `offset` bytes into the buffer.
-    pub fn address(&self, offset: usize) -> D3D12_GPU_VIRTUAL_ADDRESS {
-        let start = unsafe { self.resource.GetGPUVirtualAddress() };
-        D3D12_GPU_VIRTUAL_ADDRESS(start.0 + offset as u64)
-    }
-}
-
-// A 2D texture in GPU memory, for render targets, depth buffers and images.
+// A 2D texture in GPU memory, with one mip level.
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn create_texture(
     device: &ID3D12Device,
     width: u32,
     height: u32,
     format: DXGI_FORMAT,
-    sample_count: u32,
     flags: D3D12_RESOURCE_FLAGS,
     state: D3D12_RESOURCE_STATES,
-    clear_value: Option<&D3D12_CLEAR_VALUE>,
+    clear: Option<&D3D12_CLEAR_VALUE>,
+    sample_count: u32,
 ) -> Result<ID3D12Resource> {
-    let mut texture: Option<ID3D12Resource> = None;
     unsafe {
+        let description = D3D12_RESOURCE_DESC {
+            Dimension: D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            Width: width as u64,
+            Height: height,
+            DepthOrArraySize: 1,
+            MipLevels: 1,
+            Format: format,
+            SampleDesc: DXGI_SAMPLE_DESC { Count: sample_count, Quality: 0 },
+            Flags: flags,
+            ..Default::default()
+        };
+        let mut resource: Option<ID3D12Resource> = None;
         device.CreateCommittedResource(
-            &D3D12_HEAP_PROPERTIES {
-                Type: D3D12_HEAP_TYPE_DEFAULT,
-                ..Default::default()
-            },
+            &heap_properties(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
-            &D3D12_RESOURCE_DESC {
-                Dimension: D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-                Width: width as u64,
-                Height: height,
-                DepthOrArraySize: 1,
-                MipLevels: 1,
-                Format: format,
-                SampleDesc: DXGI_SAMPLE_DESC {
-                    Count: sample_count,
-                    Quality: 0,
-                },
-                Flags: flags,
-                ..Default::default()
-            },
-            state,
-            clear_value.map(|value| value as *const _),
-            &mut texture,
-        )?;
-    }
-    Ok(texture.unwrap())
-}
-
-// Makes a texture from rows of pixels, `bytes_per_pixel` each, and leaves it
-// in `state`. It waits for the GPU, so it's for setup, not for frames.
-pub unsafe fn upload_texture(
-    renderer: &mut Renderer,
-    width: u32,
-    height: u32,
-    format: DXGI_FORMAT,
-    bytes_per_pixel: usize,
-    pixels: &[u8],
-    state: D3D12_RESOURCE_STATES,
-) -> Result<ID3D12Resource> {
-    let row_bytes = width as usize * bytes_per_pixel;
-    // The copy below reads whole rows, so a short slice would be read past.
-    assert!(
-        pixels.len() >= row_bytes * height as usize,
-        "upload_texture needs {} bytes of pixels, not {}",
-        row_bytes * height as usize,
-        pixels.len()
-    );
-    unsafe {
-        let device = renderer.device.clone();
-        let texture = create_texture(
-            &device,
-            width,
-            height,
-            format,
-            1,
-            D3D12_RESOURCE_FLAG_NONE,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            None,
-        )?;
-
-        // Rows in an upload buffer must start at 256-byte boundaries, so ask
-        // D3D12 for the layout instead of assuming a tight one.
-        let description = texture.GetDesc();
-        let mut footprint = D3D12_PLACED_SUBRESOURCE_FOOTPRINT::default();
-        let mut total_bytes = 0u64;
-        device.GetCopyableFootprints(
             &description,
-            0,
-            1,
-            0,
-            Some(&mut footprint),
-            None,
-            None,
-            Some(&mut total_bytes),
-        );
-        let upload = create_upload_buffer(&device, total_bytes)?;
-        let mut mapped = std::ptr::null_mut();
-        upload.Map(0, None, &mut mapped).ok()?;
-        let row_pitch = footprint.Footprint.RowPitch as usize;
-        for row in 0..height as usize {
-            std::ptr::copy_nonoverlapping(
-                pixels[row * row_bytes..].as_ptr(),
-                (mapped as *mut u8).add(footprint.Offset as usize + row * row_pitch),
-                row_bytes,
-            );
-        }
-        upload.Unmap(0, None);
-
-        // The upload buffer must outlive the copy, which run waits for.
-        renderer.run(|list| {
-            let destination = D3D12_TEXTURE_COPY_LOCATION {
-                pResource: std::mem::transmute_copy(&texture),
-                Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
-                    SubresourceIndex: 0,
-                },
-            };
-            let source = D3D12_TEXTURE_COPY_LOCATION {
-                pResource: std::mem::transmute_copy(&upload),
-                Type: D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-                Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
-                    PlacedFootprint: footprint,
-                },
-            };
-            list.CopyTextureRegion(&destination, 0, 0, 0, &source, None);
-            list.ResourceBarrier(&[transition(
-                &texture,
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                state,
-            )]);
-        })?;
-        Ok(texture)
+            state,
+            clear.map(|clear| clear as *const _),
+            &mut resource,
+        )?;
+        Ok(resource.unwrap())
     }
 }
 
-pub fn bytecode(bytes: &[u8]) -> D3D12_SHADER_BYTECODE {
-    D3D12_SHADER_BYTECODE {
-        pShaderBytecode: bytes.as_ptr().cast(),
-        BytecodeLength: bytes.len(),
-    }
-}
-
+// A barrier that moves every subresource of the resource from one state to
+// another. It borrows the resource, which must outlive it.
 pub fn transition(
     resource: &ID3D12Resource,
     before: D3D12_RESOURCE_STATES,
@@ -241,8 +91,8 @@ pub fn transition(
         Type: D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
         Flags: D3D12_RESOURCE_BARRIER_FLAG_NONE,
         Anonymous: D3D12_RESOURCE_BARRIER_0 {
-            Transition: ManuallyDrop::new(D3D12_RESOURCE_TRANSITION_BARRIER {
-                // Borrow the resource without touching its reference count.
+            Transition: std::mem::ManuallyDrop::new(D3D12_RESOURCE_TRANSITION_BARRIER {
+                // Borrowed without touching its reference count.
                 pResource: unsafe { std::mem::transmute_copy(resource) },
                 Subresource: D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                 StateBefore: before,
@@ -250,4 +100,155 @@ pub fn transition(
             }),
         },
     }
+}
+
+pub fn bytecode(shader: &[u8]) -> D3D12_SHADER_BYTECODE {
+    D3D12_SHADER_BYTECODE {
+        pShaderBytecode: shader.as_ptr() as *const _,
+        BytecodeLength: shader.len(),
+    }
+}
+
+// A buffer in an upload heap that stays mapped, which the CPU writes and the
+// GPU reads across PCIe. The writer must keep the GPU from reading what it
+// overwrites, like by waiting for the frame that read it.
+pub struct UploadBuffer {
+    pub resource: ID3D12Resource,
+    pub size: usize,
+    mapped: *mut u8,
+}
+
+impl UploadBuffer {
+    pub unsafe fn new(device: &ID3D12Device, size: usize) -> Result<Self> {
+        unsafe {
+            let resource = create_buffer(
+                device,
+                size as u64,
+                D3D12_HEAP_TYPE_UPLOAD,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+            )?;
+            let mut mapped = std::ptr::null_mut();
+            // The CPU never reads it.
+            resource
+                .Map(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }), &mut mapped)
+                .ok()?;
+            Ok(Self {
+                resource,
+                size,
+                mapped: mapped as *mut u8,
+            })
+        }
+    }
+
+    // Copies the values to `offset` bytes into the buffer.
+    pub fn write<T: Copy>(&self, offset: usize, values: &[T]) {
+        let bytes = size_of_val(values);
+        assert!(offset + bytes <= self.size, "write past the end of an upload buffer");
+        unsafe {
+            std::ptr::copy_nonoverlapping(values.as_ptr() as *const u8, self.mapped.add(offset), bytes);
+        }
+    }
+
+    pub fn bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.mapped, self.size) }
+    }
+
+    pub fn gpu_address(&self, offset: usize) -> D3D12_GPU_VIRTUAL_ADDRESS {
+        D3D12_GPU_VIRTUAL_ADDRESS(unsafe { self.resource.GetGPUVirtualAddress().0 } + offset as u64)
+    }
+}
+
+// A descriptor heap of one kind, with its descriptors' handles.
+pub struct DescriptorHeap {
+    pub heap: ID3D12DescriptorHeap,
+    cpu_start: D3D12_CPU_DESCRIPTOR_HANDLE,
+    gpu_start: D3D12_GPU_DESCRIPTOR_HANDLE,
+    increment: usize,
+}
+
+impl DescriptorHeap {
+    pub unsafe fn new(
+        device: &ID3D12Device,
+        kind: D3D12_DESCRIPTOR_HEAP_TYPE,
+        count: u32,
+        shader_visible: bool,
+    ) -> Result<Self> {
+        unsafe {
+            let heap: ID3D12DescriptorHeap = device.CreateDescriptorHeap(&D3D12_DESCRIPTOR_HEAP_DESC {
+                Type: kind,
+                NumDescriptors: count,
+                Flags: if shader_visible {
+                    D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+                } else {
+                    D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+                },
+                NodeMask: 0,
+            })?;
+            let cpu_start = heap.GetCPUDescriptorHandleForHeapStart();
+            let gpu_start = if shader_visible {
+                heap.GetGPUDescriptorHandleForHeapStart()
+            } else {
+                D3D12_GPU_DESCRIPTOR_HANDLE::default()
+            };
+            let increment = device.GetDescriptorHandleIncrementSize(kind) as usize;
+            Ok(Self {
+                heap,
+                cpu_start,
+                gpu_start,
+                increment,
+            })
+        }
+    }
+
+    pub fn cpu(&self, index: usize) -> D3D12_CPU_DESCRIPTOR_HANDLE {
+        D3D12_CPU_DESCRIPTOR_HANDLE {
+            ptr: self.cpu_start.ptr + index * self.increment,
+        }
+    }
+
+    pub fn gpu(&self, index: usize) -> D3D12_GPU_DESCRIPTOR_HANDLE {
+        D3D12_GPU_DESCRIPTOR_HANDLE {
+            ptr: self.gpu_start.ptr + (index * self.increment) as u64,
+        }
+    }
+}
+
+// Creates the render target views of a target: one that stores colors as
+// they are, and one that encodes linear colors to sRGB.
+pub(crate) unsafe fn create_target_views(
+    device: &ID3D12Device,
+    target: &ID3D12Resource,
+    heap: &DescriptorHeap,
+    first: usize,
+) {
+    unsafe {
+        for (index, format) in [(first, crate::TARGET_FORMAT), (first + 1, crate::TARGET_SRGB_FORMAT)] {
+            let description = D3D12_RENDER_TARGET_VIEW_DESC {
+                Format: format,
+                ViewDimension: D3D12_RTV_DIMENSION_TEXTURE2D,
+                ..Default::default()
+            };
+            device.CreateRenderTargetView(target, Some(&description), heap.cpu(index));
+        }
+    }
+}
+
+pub(crate) unsafe fn command_list(
+    device: &ID3D12Device,
+) -> Result<(ID3D12CommandAllocator, ID3D12GraphicsCommandList)> {
+    unsafe {
+        let allocator: ID3D12CommandAllocator =
+            device.CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT)?;
+        let list: ID3D12GraphicsCommandList =
+            device.CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, &allocator, None)?;
+        list.Close().ok()?;
+        Ok((allocator, list))
+    }
+}
+
+pub(crate) unsafe fn execute(queue: &ID3D12CommandQueue, list: &ID3D12GraphicsCommandList) -> Result<()> {
+    unsafe {
+        queue.ExecuteCommandLists(&[Some(list.cast::<ID3D12CommandList>()?)]);
+    }
+    Ok(())
 }

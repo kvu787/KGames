@@ -164,10 +164,10 @@ unsafe fn run(adapter: Adapter, benchmark: bool) -> Result<()> {
             width,
             height,
             FORMAT,
-            1,
             D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             None,
+            1,
         )?;
         let rtv_heap: ID3D12DescriptorHeap = device.CreateDescriptorHeap(&D3D12_DESCRIPTOR_HEAP_DESC {
             Type: D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -230,7 +230,7 @@ unsafe fn run(adapter: Adapter, benchmark: bool) -> Result<()> {
         list.IASetVertexBuffers(
             0,
             Some(&[D3D12_VERTEX_BUFFER_VIEW {
-                BufferLocation: vertex_buffer.address(0),
+                BufferLocation: vertex_buffer.gpu_address(0),
                 SizeInBytes: size_of_val(vertices.as_slice()) as u32,
                 StrideInBytes: size_of::<Vertex>() as u32,
             }]),
@@ -257,8 +257,8 @@ unsafe fn run(adapter: Adapter, benchmark: bool) -> Result<()> {
                 bottom: scissor[3],
             }]);
             let offset = i * size_of::<Constants>();
-            list.SetGraphicsRootConstantBufferView(0, constant_buffer.address(offset));
-            list.SetGraphicsRootConstantBufferView(1, constant_buffer.address(offset + 256));
+            list.SetGraphicsRootConstantBufferView(0, constant_buffer.gpu_address(offset));
+            list.SetGraphicsRootConstantBufferView(1, constant_buffer.gpu_address(offset + 256));
             let first_vertex = (i * 3) as u32;
             if let Some((heap, _)) = &timestamps {
                 // Warm each path, then time production draws on the GPU,

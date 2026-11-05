@@ -6,7 +6,7 @@
 // own shader that takes the same vertices and binds b0 and b1 the same way,
 // like SpinningCarTest's FlatShading.hlsl, draws with them too.
 
-use graphics::{Renderer, UploadBuffer, bytecode, create_buffer, transition};
+use graphics::{Gpu, UploadBuffer, bytecode, create_buffer, transition};
 use windows_api::*;
 use windows_core::{Error, Result, s};
 
@@ -156,7 +156,7 @@ impl Mesh {
     // first, and fails with its reason. The copy waits for the GPU, so it's
     // for setup, not for frames.
     pub unsafe fn new(
-        renderer: &mut Renderer,
+        gpu: &mut Gpu,
         vertices: &[Vertex],
         indices: &[u32],
         material_count: u32,
@@ -164,7 +164,7 @@ impl Mesh {
         validate_mesh(vertices, indices, material_count)
             .map_err(|error| Error::new(E_INVALIDARG, error.0))?;
         unsafe {
-            let device = renderer.device.clone();
+            let device = gpu.device.clone();
             let vertex_bytes = size_of_val(vertices);
             let index_bytes = size_of_val(indices);
             let size = vertex_bytes + index_bytes;
@@ -180,7 +180,7 @@ impl Mesh {
                 D3D12_RESOURCE_STATE_COMMON,
             )?;
             // The upload buffer must outlive the copy, which run waits for.
-            renderer.run(|list| {
+            gpu.run(|list| {
                 list.CopyBufferRegion(&buffer, 0, &upload.resource, 0, size as u64);
                 list.ResourceBarrier(&[transition(
                     &buffer,

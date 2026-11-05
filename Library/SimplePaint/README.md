@@ -54,12 +54,12 @@ names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package
   shifts right, 90 up. Normals interpolate with `noperspective`; the material index uses
   `nointerpolation`.
 - Output is opaque linear RGB. Encode to sRGB exactly once for display, such as through
-  `Renderer::srgb_render_target` from Library/Graphics. No lights, textures, or samplers are
+  a frame's `srgb_view` from Library/Graphics. No lights, textures, or samplers are
   required.
 
 `direct3d12::Pipeline` creates the adapter's pipeline for a render target, and
 `direct3d12::Mesh` validates a mesh, copies it into the GPU's own memory once with
-`Renderer::run`, and draws it with its constant buffers. The copy waits for the GPU, so make
+`Gpu::run`, and draws it with its constant buffers. The copy waits for the GPU, so make
 meshes at setup. Both work with a host's own shader that takes the same vertices and binds `b0`
 and `b1` the same way, like SpinningCarTest's `FlatShading.hlsl`.
 

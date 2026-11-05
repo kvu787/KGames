@@ -1,14 +1,40 @@
-// Direct3D 12 for KGames: the renderer that every program's frames go
-// through, helpers for the resources that programs make for their draws,
-// and saving captured frames as PNGs.
+// Direct3D 12 for KGames' programs: the GPU that draws, a swap chain paced
+// for the lowest input latency, frames to draw into, offscreen targets for
+// tests, readback of what was drawn, and the small helpers that every user of
+// the device needs, like buffers, textures and barriers.
+//
+// Library/UserInterface draws its widgets with it, and programs draw their 3D
+// views into the same frames, before the widgets go on top.
 
-#[path = "Image.rs"]
-mod image;
-#[path = "Renderer.rs"]
-mod renderer;
+#[path = "Device.rs"]
+mod device;
+#[path = "Frame.rs"]
+mod frame;
+#[path = "Png.rs"]
+mod png;
+#[path = "Presenter.rs"]
+mod presenter;
 #[path = "Resources.rs"]
 mod resources;
 
-pub use image::*;
-pub use renderer::*;
-pub use resources::*;
+pub use device::{AdapterChoice, Gpu};
+pub use frame::{Frame, Image, Offscreen, Readback};
+pub use png::write_png;
+pub use presenter::Presenter;
+pub use resources::{
+    DescriptorHeap, UploadBuffer, bytecode, create_buffer, create_texture, heap_properties,
+    transition,
+};
+
+use windows_api::*;
+
+// The format of every frame's target, swap chain or offscreen. Flip model
+// swap chains can't be sRGB, so frames have two views: this one, which
+// stores colors as they are, for the interface, whose colors are sRGB
+// already, and an sRGB one, which encodes linear colors, for 3D shading.
+pub const TARGET_FORMAT: DXGI_FORMAT = DXGI_FORMAT_B8G8R8A8_UNORM;
+pub const TARGET_SRGB_FORMAT: DXGI_FORMAT = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+// For the depth buffers of 3D views.
+pub const DEPTH_FORMAT: DXGI_FORMAT = DXGI_FORMAT_D32_FLOAT;
+// Where constant buffers may start in a buffer.
+pub const CONSTANT_ALIGNMENT: usize = 256;
