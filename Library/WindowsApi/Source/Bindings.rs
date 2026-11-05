@@ -305,6 +305,11 @@ pub unsafe fn DeleteDC(hdc: HDC) -> windows_core::BOOL {
     unsafe { DeleteDC(hdc) }
 }
 #[inline]
+pub unsafe fn DestroyWindow(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn DestroyWindow(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { DestroyWindow(hwnd) }
+}
+#[inline]
 pub unsafe fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT {
     windows_core::link!("user32.dll" "system" fn DispatchMessageW(lpmsg : *const MSG) -> LRESULT);
     unsafe { DispatchMessageW(lpmsg) }
@@ -363,6 +368,16 @@ pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
     unsafe { FillRect(hdc, lprc, hbr) }
 }
 #[inline]
+pub unsafe fn GetCapture() -> HWND {
+    windows_core::link!("user32.dll" "system" fn GetCapture() -> HWND);
+    unsafe { GetCapture() }
+}
+#[inline]
+pub unsafe fn GetCaretBlinkTime() -> u32 {
+    windows_core::link!("user32.dll" "system" fn GetCaretBlinkTime() -> u32);
+    unsafe { GetCaretBlinkTime() }
+}
+#[inline]
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
@@ -378,6 +393,11 @@ pub unsafe fn GetCurrentProcess() -> HANDLE {
     unsafe { GetCurrentProcess() }
 }
 #[inline]
+pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetCursorPos(lppoint : *mut POINT) -> windows_core::BOOL);
+    unsafe { GetCursorPos(lppoint as _) }
+}
+#[inline]
 pub unsafe fn GetDisplayConfigBufferSizes(
     flags: u32,
     numpatharrayelements: *mut u32,
@@ -391,6 +411,11 @@ pub unsafe fn GetDisplayConfigBufferSizes(
             nummodeinfoarrayelements as _,
         )
     }
+}
+#[inline]
+pub unsafe fn GetDoubleClickTime() -> u32 {
+    windows_core::link!("user32.dll" "system" fn GetDoubleClickTime() -> u32);
+    unsafe { GetDoubleClickTime() }
 }
 #[inline]
 pub unsafe fn GetDpiForMonitor(
@@ -454,6 +479,11 @@ pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsiz
 pub unsafe fn GetKeyState(nvirtkey: i32) -> i16 {
     windows_core::link!("user32.dll" "system" fn GetKeyState(nvirtkey : i32) -> i16);
     unsafe { GetKeyState(nvirtkey) }
+}
+#[inline]
+pub unsafe fn GetKeyboardState(lpkeystate: *mut u8) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetKeyboardState(lpkeystate : *mut u8) -> windows_core::BOOL);
+    unsafe { GetKeyboardState(lpkeystate as _) }
 }
 #[inline]
 pub unsafe fn GetMessageW(
@@ -521,6 +551,11 @@ pub unsafe fn GetWindowPlacement(hwnd: HWND, lpwndpl: *mut WINDOWPLACEMENT) -> w
     unsafe { GetWindowPlacement(hwnd, lpwndpl as _) }
 }
 #[inline]
+pub unsafe fn GetWindowRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetWindowRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
+    unsafe { GetWindowRect(hwnd, lprect as _) }
+}
+#[inline]
 pub unsafe fn GlobalAlloc(uflags: u32, dwbytes: usize) -> HGLOBAL {
     windows_core::link!("kernel32.dll" "system" fn GlobalAlloc(uflags : u32, dwbytes : usize) -> HGLOBAL);
     unsafe { GlobalAlloc(uflags, dwbytes) }
@@ -549,6 +584,11 @@ pub unsafe fn IsClipboardFormatAvailable(format: u32) -> windows_core::BOOL {
 pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
     unsafe { IsIconic(hwnd) }
+}
+#[inline]
+pub unsafe fn IsWindowVisible(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn IsWindowVisible(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { IsWindowVisible(hwnd) }
 }
 #[inline]
 pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
@@ -607,6 +647,23 @@ pub unsafe fn PeekMessageW(
             wmsgfiltermin,
             wmsgfiltermax,
             wremovemsg,
+        )
+    }
+}
+#[inline]
+pub unsafe fn PostMessageW(
+    hwnd: Option<HWND>,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn PostMessageW(hwnd : HWND, msg : u32, wparam : WPARAM, lparam : LPARAM) -> windows_core::BOOL);
+    unsafe {
+        PostMessageW(
+            hwnd.unwrap_or(core::mem::zeroed()) as _,
+            msg,
+            wparam,
+            lparam,
         )
     }
 }
@@ -697,6 +754,11 @@ pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
 pub unsafe fn SetClipboardData(uformat: u32, hmem: Option<HANDLE>) -> HANDLE {
     windows_core::link!("user32.dll" "system" fn SetClipboardData(uformat : u32, hmem : HANDLE) -> HANDLE);
     unsafe { SetClipboardData(uformat, hmem.unwrap_or(core::mem::zeroed()) as _) }
+}
+#[inline]
+pub unsafe fn SetCursor(hcursor: Option<HCURSOR>) -> HCURSOR {
+    windows_core::link!("user32.dll" "system" fn SetCursor(hcursor : HCURSOR) -> HCURSOR);
+    unsafe { SetCursor(hcursor.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
@@ -795,6 +857,16 @@ pub unsafe fn TrackMouseEvent(lpeventtrack: *mut TRACKMOUSEEVENT) -> windows_cor
 pub unsafe fn TranslateMessage(lpmsg: *const MSG) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn TranslateMessage(lpmsg : *const MSG) -> windows_core::BOOL);
     unsafe { TranslateMessage(lpmsg) }
+}
+#[inline]
+pub unsafe fn ValidateRect(hwnd: Option<HWND>, lprect: Option<*const RECT>) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ValidateRect(hwnd : HWND, lprect : *const RECT) -> windows_core::BOOL);
+    unsafe {
+        ValidateRect(
+            hwnd.unwrap_or(core::mem::zeroed()) as _,
+            lprect.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
 }
 #[inline]
 pub unsafe fn VerQueryValueW<P1>(
@@ -1187,7 +1259,17 @@ pub struct D3D12_DISCARD_REGION {
     pub NumSubresources: u32,
 }
 pub type D3D12_DSV_DIMENSION = i32;
+pub const D3D12_DSV_DIMENSION_TEXTURE1D: D3D12_DSV_DIMENSION = 1;
+pub const D3D12_DSV_DIMENSION_TEXTURE1DARRAY: D3D12_DSV_DIMENSION = 2;
+pub const D3D12_DSV_DIMENSION_TEXTURE2D: D3D12_DSV_DIMENSION = 3;
+pub const D3D12_DSV_DIMENSION_TEXTURE2DARRAY: D3D12_DSV_DIMENSION = 4;
+pub const D3D12_DSV_DIMENSION_TEXTURE2DMS: D3D12_DSV_DIMENSION = 5;
+pub const D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY: D3D12_DSV_DIMENSION = 6;
+pub const D3D12_DSV_DIMENSION_UNKNOWN: D3D12_DSV_DIMENSION = 0;
 pub type D3D12_DSV_FLAGS = u32;
+pub const D3D12_DSV_FLAG_NONE: D3D12_DSV_FLAGS = 0;
+pub const D3D12_DSV_FLAG_READ_ONLY_DEPTH: D3D12_DSV_FLAGS = 1;
+pub const D3D12_DSV_FLAG_READ_ONLY_STENCIL: D3D12_DSV_FLAGS = 2;
 pub type D3D12_FEATURE = i32;
 pub type D3D12_FENCE_FLAGS = u32;
 pub const D3D12_FENCE_FLAG_NONE: D3D12_FENCE_FLAGS = 0;
@@ -1198,6 +1280,46 @@ pub type D3D12_FILL_MODE = i32;
 pub const D3D12_FILL_MODE_SOLID: D3D12_FILL_MODE = 3;
 pub const D3D12_FILL_MODE_WIREFRAME: D3D12_FILL_MODE = 2;
 pub type D3D12_FILTER = i32;
+pub const D3D12_FILTER_ANISOTROPIC: D3D12_FILTER = 85;
+pub const D3D12_FILTER_COMPARISON_ANISOTROPIC: D3D12_FILTER = 213;
+pub const D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT: D3D12_FILTER = 144;
+pub const D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 145;
+pub const D3D12_FILTER_COMPARISON_MIN_MAG_ANISOTROPIC_MIP_POINT: D3D12_FILTER = 212;
+pub const D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 148;
+pub const D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR: D3D12_FILTER = 149;
+pub const D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT: D3D12_FILTER = 128;
+pub const D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 129;
+pub const D3D12_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 132;
+pub const D3D12_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR: D3D12_FILTER = 133;
+pub const D3D12_FILTER_MAXIMUM_ANISOTROPIC: D3D12_FILTER = 469;
+pub const D3D12_FILTER_MAXIMUM_MIN_LINEAR_MAG_MIP_POINT: D3D12_FILTER = 400;
+pub const D3D12_FILTER_MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 401;
+pub const D3D12_FILTER_MAXIMUM_MIN_MAG_ANISOTROPIC_MIP_POINT: D3D12_FILTER = 468;
+pub const D3D12_FILTER_MAXIMUM_MIN_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 404;
+pub const D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR: D3D12_FILTER = 405;
+pub const D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT: D3D12_FILTER = 384;
+pub const D3D12_FILTER_MAXIMUM_MIN_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 385;
+pub const D3D12_FILTER_MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 388;
+pub const D3D12_FILTER_MAXIMUM_MIN_POINT_MAG_MIP_LINEAR: D3D12_FILTER = 389;
+pub const D3D12_FILTER_MINIMUM_ANISOTROPIC: D3D12_FILTER = 341;
+pub const D3D12_FILTER_MINIMUM_MIN_LINEAR_MAG_MIP_POINT: D3D12_FILTER = 272;
+pub const D3D12_FILTER_MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 273;
+pub const D3D12_FILTER_MINIMUM_MIN_MAG_ANISOTROPIC_MIP_POINT: D3D12_FILTER = 340;
+pub const D3D12_FILTER_MINIMUM_MIN_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 276;
+pub const D3D12_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR: D3D12_FILTER = 277;
+pub const D3D12_FILTER_MINIMUM_MIN_MAG_MIP_POINT: D3D12_FILTER = 256;
+pub const D3D12_FILTER_MINIMUM_MIN_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 257;
+pub const D3D12_FILTER_MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 260;
+pub const D3D12_FILTER_MINIMUM_MIN_POINT_MAG_MIP_LINEAR: D3D12_FILTER = 261;
+pub const D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT: D3D12_FILTER = 16;
+pub const D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 17;
+pub const D3D12_FILTER_MIN_MAG_ANISOTROPIC_MIP_POINT: D3D12_FILTER = 84;
+pub const D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 20;
+pub const D3D12_FILTER_MIN_MAG_MIP_LINEAR: D3D12_FILTER = 21;
+pub const D3D12_FILTER_MIN_MAG_MIP_POINT: D3D12_FILTER = 0;
+pub const D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR: D3D12_FILTER = 1;
+pub const D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT: D3D12_FILTER = 4;
+pub const D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR: D3D12_FILTER = 5;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct D3D12_GPU_DESCRIPTOR_HANDLE {
@@ -1636,6 +1758,25 @@ pub struct D3D12_RESOURCE_TRANSITION_BARRIER {
 pub struct D3D12_RESOURCE_UAV_BARRIER {
     pub pResource: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
 }
+pub type D3D12_ROOT_SIGNATURE_FLAGS = u32;
+pub const D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT: D3D12_ROOT_SIGNATURE_FLAGS =
+    1;
+pub const D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT: D3D12_ROOT_SIGNATURE_FLAGS = 64;
+pub const D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED: D3D12_ROOT_SIGNATURE_FLAGS =
+    1024;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS:
+    D3D12_ROOT_SIGNATURE_FLAGS = 256;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS = 8;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS =
+    16;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS = 4;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS = 512;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS = 32;
+pub const D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS: D3D12_ROOT_SIGNATURE_FLAGS = 2;
+pub const D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE: D3D12_ROOT_SIGNATURE_FLAGS = 128;
+pub const D3D12_ROOT_SIGNATURE_FLAG_NONE: D3D12_ROOT_SIGNATURE_FLAGS = 0;
+pub const D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED: D3D12_ROOT_SIGNATURE_FLAGS =
+    2048;
 pub type D3D12_RTV_DIMENSION = i32;
 pub const D3D12_RTV_DIMENSION_BUFFER: D3D12_RTV_DIMENSION = 1;
 pub const D3D12_RTV_DIMENSION_TEXTURE1D: D3D12_RTV_DIMENSION = 2;
@@ -1953,6 +2094,11 @@ pub struct D3D12_TEXCUBE_SRV {
     pub ResourceMinLODClamp: f32,
 }
 pub type D3D12_TEXTURE_ADDRESS_MODE = i32;
+pub const D3D12_TEXTURE_ADDRESS_MODE_BORDER: D3D12_TEXTURE_ADDRESS_MODE = 4;
+pub const D3D12_TEXTURE_ADDRESS_MODE_CLAMP: D3D12_TEXTURE_ADDRESS_MODE = 3;
+pub const D3D12_TEXTURE_ADDRESS_MODE_MIRROR: D3D12_TEXTURE_ADDRESS_MODE = 2;
+pub const D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE: D3D12_TEXTURE_ADDRESS_MODE = 5;
+pub const D3D12_TEXTURE_ADDRESS_MODE_WRAP: D3D12_TEXTURE_ADDRESS_MODE = 1;
 #[repr(C)]
 pub struct D3D12_TEXTURE_COPY_LOCATION {
     pub pResource: core::mem::ManuallyDrop<Option<ID3D12Resource>>,
@@ -1983,6 +2129,8 @@ impl Default for D3D12_TEXTURE_COPY_LOCATION_0 {
 pub type D3D12_TEXTURE_COPY_TYPE = i32;
 pub const D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT: D3D12_TEXTURE_COPY_TYPE = 1;
 pub const D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX: D3D12_TEXTURE_COPY_TYPE = 0;
+pub const D3D12_TEXTURE_DATA_PITCH_ALIGNMENT: i32 = 256;
+pub const D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT: i32 = 512;
 pub type D3D12_TEXTURE_LAYOUT = i32;
 pub const D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE: D3D12_TEXTURE_LAYOUT = 3;
 pub const D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE: D3D12_TEXTURE_LAYOUT = 2;
@@ -2556,6 +2704,7 @@ pub const DT_SINGLELINE: i32 = 32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
+pub type DWRITE_FLOW_DIRECTION = i32;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DWRITE_FONT_METRICS {
@@ -2633,10 +2782,46 @@ pub struct DWRITE_GLYPH_RUN {
     pub isSideways: windows_core::BOOL,
     pub bidiLevel: u32,
 }
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DWRITE_GLYPH_RUN_DESCRIPTION {
+    pub localeName: *const u16,
+    pub string: *const u16,
+    pub stringLength: u32,
+    pub clusterMap: *const u16,
+    pub textPosition: u32,
+}
 pub type DWRITE_GRID_FIT_MODE = i32;
 pub const DWRITE_GRID_FIT_MODE_DEFAULT: DWRITE_GRID_FIT_MODE = 0;
 pub const DWRITE_GRID_FIT_MODE_DISABLED: DWRITE_GRID_FIT_MODE = 1;
 pub const DWRITE_GRID_FIT_MODE_ENABLED: DWRITE_GRID_FIT_MODE = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DWRITE_HIT_TEST_METRICS {
+    pub textPosition: u32,
+    pub length: u32,
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
+    pub bidiLevel: u32,
+    pub isText: windows_core::BOOL,
+    pub isTrimmed: windows_core::BOOL,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DWRITE_LINE_METRICS {
+    pub length: u32,
+    pub trailingWhitespaceLength: u32,
+    pub newlineLength: u32,
+    pub height: f32,
+    pub baseline: f32,
+    pub isTrimmed: windows_core::BOOL,
+}
+pub type DWRITE_LINE_SPACING_METHOD = i32;
+pub const DWRITE_LINE_SPACING_METHOD_DEFAULT: DWRITE_LINE_SPACING_METHOD = 0;
+pub const DWRITE_LINE_SPACING_METHOD_PROPORTIONAL: DWRITE_LINE_SPACING_METHOD = 2;
+pub const DWRITE_LINE_SPACING_METHOD_UNIFORM: DWRITE_LINE_SPACING_METHOD = 1;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DWRITE_MATRIX {
@@ -2651,6 +2836,11 @@ pub type DWRITE_MEASURING_MODE = i32;
 pub const DWRITE_MEASURING_MODE_GDI_CLASSIC: DWRITE_MEASURING_MODE = 1;
 pub const DWRITE_MEASURING_MODE_GDI_NATURAL: DWRITE_MEASURING_MODE = 2;
 pub const DWRITE_MEASURING_MODE_NATURAL: DWRITE_MEASURING_MODE = 0;
+pub type DWRITE_PARAGRAPH_ALIGNMENT = i32;
+pub const DWRITE_PARAGRAPH_ALIGNMENT_CENTER: DWRITE_PARAGRAPH_ALIGNMENT = 2;
+pub const DWRITE_PARAGRAPH_ALIGNMENT_FAR: DWRITE_PARAGRAPH_ALIGNMENT = 1;
+pub const DWRITE_PARAGRAPH_ALIGNMENT_NEAR: DWRITE_PARAGRAPH_ALIGNMENT = 0;
+pub type DWRITE_READING_DIRECTION = i32;
 pub type DWRITE_RENDERING_MODE = i32;
 pub const DWRITE_RENDERING_MODE_ALIASED: DWRITE_RENDERING_MODE = 1;
 pub const DWRITE_RENDERING_MODE_CLEARTYPE_GDI_CLASSIC: DWRITE_RENDERING_MODE = 2;
@@ -2663,12 +2853,59 @@ pub const DWRITE_RENDERING_MODE_GDI_NATURAL: DWRITE_RENDERING_MODE = 3;
 pub const DWRITE_RENDERING_MODE_NATURAL: DWRITE_RENDERING_MODE = 4;
 pub const DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC: DWRITE_RENDERING_MODE = 5;
 pub const DWRITE_RENDERING_MODE_OUTLINE: DWRITE_RENDERING_MODE = 6;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DWRITE_STRIKETHROUGH {
+    pub width: f32,
+    pub thickness: f32,
+    pub offset: f32,
+    pub readingDirection: DWRITE_READING_DIRECTION,
+    pub flowDirection: DWRITE_FLOW_DIRECTION,
+    pub localeName: *const u16,
+    pub measuringMode: DWRITE_MEASURING_MODE,
+}
 pub const DWRITE_TEXTURE_ALIASED_1x1: DWRITE_TEXTURE_TYPE = 0;
 pub const DWRITE_TEXTURE_CLEARTYPE_3x1: DWRITE_TEXTURE_TYPE = 1;
 pub type DWRITE_TEXTURE_TYPE = i32;
+pub type DWRITE_TEXT_ALIGNMENT = i32;
+pub const DWRITE_TEXT_ALIGNMENT_CENTER: DWRITE_TEXT_ALIGNMENT = 2;
+pub const DWRITE_TEXT_ALIGNMENT_JUSTIFIED: DWRITE_TEXT_ALIGNMENT = 3;
+pub const DWRITE_TEXT_ALIGNMENT_LEADING: DWRITE_TEXT_ALIGNMENT = 0;
+pub const DWRITE_TEXT_ALIGNMENT_TRAILING: DWRITE_TEXT_ALIGNMENT = 1;
 pub type DWRITE_TEXT_ANTIALIAS_MODE = i32;
 pub const DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE: DWRITE_TEXT_ANTIALIAS_MODE = 0;
 pub const DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE: DWRITE_TEXT_ANTIALIAS_MODE = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DWRITE_TEXT_METRICS {
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub widthIncludingTrailingWhitespace: f32,
+    pub height: f32,
+    pub layoutWidth: f32,
+    pub layoutHeight: f32,
+    pub maxBidiReorderingDepth: u32,
+    pub lineCount: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DWRITE_UNDERLINE {
+    pub width: f32,
+    pub thickness: f32,
+    pub offset: f32,
+    pub runHeight: f32,
+    pub readingDirection: DWRITE_READING_DIRECTION,
+    pub flowDirection: DWRITE_FLOW_DIRECTION,
+    pub localeName: *const u16,
+    pub measuringMode: DWRITE_MEASURING_MODE,
+}
+pub type DWRITE_WORD_WRAPPING = i32;
+pub const DWRITE_WORD_WRAPPING_CHARACTER: DWRITE_WORD_WRAPPING = 4;
+pub const DWRITE_WORD_WRAPPING_EMERGENCY_BREAK: DWRITE_WORD_WRAPPING = 2;
+pub const DWRITE_WORD_WRAPPING_NO_WRAP: DWRITE_WORD_WRAPPING = 1;
+pub const DWRITE_WORD_WRAPPING_WHOLE_WORD: DWRITE_WORD_WRAPPING = 3;
+pub const DWRITE_WORD_WRAPPING_WRAP: DWRITE_WORD_WRAPPING = 0;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DXGI_ADAPTER_DESC1 {
@@ -2917,6 +3154,7 @@ pub const GUID_ContainerFormatPng: windows_core::GUID =
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
     windows_core::GUID::from_u128(0x6fddc324_4e03_4bfe_b185_3d77768dc90c);
 pub const GWLP_USERDATA: i32 = -21;
+pub const GWL_EXSTYLE: i32 = -20;
 pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -2956,6 +3194,7 @@ pub const HTCLIENT: i32 = 1;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HWND(pub *mut core::ffi::c_void);
+pub const HWND_TOPMOST: HWND = HWND(-1 as _);
 windows_core::imp::define_interface!(
     ID3D10Blob,
     ID3D10Blob_Vtbl,
@@ -5684,6 +5923,14 @@ pub struct ID3D12RootSignature_Vtbl {
 }
 impl windows_core::RuntimeName for ID3D12RootSignature {}
 pub const IDC_ARROW: windows_core::PCWSTR = windows_core::PCWSTR(32512 as _);
+pub const IDC_CROSS: windows_core::PCWSTR = windows_core::PCWSTR(32515 as _);
+pub const IDC_HAND: windows_core::PCWSTR = windows_core::PCWSTR(32649 as _);
+pub const IDC_IBEAM: windows_core::PCWSTR = windows_core::PCWSTR(32513 as _);
+pub const IDC_SIZEALL: windows_core::PCWSTR = windows_core::PCWSTR(32646 as _);
+pub const IDC_SIZENESW: windows_core::PCWSTR = windows_core::PCWSTR(32643 as _);
+pub const IDC_SIZENS: windows_core::PCWSTR = windows_core::PCWSTR(32645 as _);
+pub const IDC_SIZENWSE: windows_core::PCWSTR = windows_core::PCWSTR(32642 as _);
+pub const IDC_SIZEWE: windows_core::PCWSTR = windows_core::PCWSTR(32644 as _);
 windows_core::imp::define_interface!(
     IDWriteFactory,
     IDWriteFactory_Vtbl,
@@ -5702,6 +5949,61 @@ impl IDWriteFactory {
                 core::mem::transmute(fontcollection),
                 checkforupdates.into(),
             )
+        }
+    }
+    pub unsafe fn CreateTextFormat<P0, P1, P6>(
+        &self,
+        fontfamilyname: P0,
+        fontcollection: P1,
+        fontweight: DWRITE_FONT_WEIGHT,
+        fontstyle: DWRITE_FONT_STYLE,
+        fontstretch: DWRITE_FONT_STRETCH,
+        fontsize: f32,
+        localename: P6,
+    ) -> windows_core::Result<IDWriteTextFormat>
+    where
+        P0: windows_core::Param<windows_core::PCWSTR>,
+        P1: windows_core::Param<IDWriteFontCollection>,
+        P6: windows_core::Param<windows_core::PCWSTR>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateTextFormat)(
+                windows_core::Interface::as_raw(self),
+                fontfamilyname.param().abi(),
+                fontcollection.param().abi(),
+                fontweight,
+                fontstyle,
+                fontstretch,
+                fontsize,
+                localename.param().abi(),
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
+    pub unsafe fn CreateTextLayout<P2>(
+        &self,
+        string: &[u16],
+        textformat: P2,
+        maxwidth: f32,
+        maxheight: f32,
+    ) -> windows_core::Result<IDWriteTextLayout>
+    where
+        P2: windows_core::Param<IDWriteTextFormat>,
+    {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).CreateTextLayout)(
+                windows_core::Interface::as_raw(self),
+                string.as_ptr(),
+                string.len().try_into().unwrap(),
+                textformat.param().abi(),
+                maxwidth,
+                maxheight,
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
 }
@@ -5724,10 +6026,28 @@ pub struct IDWriteFactory_Vtbl {
     CreateCustomRenderingParams: usize,
     RegisterFontFileLoader: usize,
     UnregisterFontFileLoader: usize,
-    CreateTextFormat: usize,
+    pub CreateTextFormat: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        windows_core::PCWSTR,
+        *mut core::ffi::c_void,
+        DWRITE_FONT_WEIGHT,
+        DWRITE_FONT_STYLE,
+        DWRITE_FONT_STRETCH,
+        f32,
+        windows_core::PCWSTR,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     CreateTypography: usize,
     GetGdiInterop: usize,
-    CreateTextLayout: usize,
+    pub CreateTextLayout: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const u16,
+        u32,
+        *mut core::ffi::c_void,
+        f32,
+        f32,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     CreateGdiCompatibleTextLayout: usize,
     CreateEllipsisTrimmingSign: usize,
     CreateTextAnalyzer: usize,
@@ -6006,6 +6326,16 @@ impl core::ops::Deref for IDWriteFontFamily {
 }
 windows_core::imp::interface_hierarchy!(IDWriteFontFamily, windows_core::IUnknown, IDWriteFontList);
 impl IDWriteFontFamily {
+    pub unsafe fn GetFamilyNames(&self) -> windows_core::Result<IDWriteLocalizedStrings> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetFamilyNames)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result__))
+        }
+    }
     pub unsafe fn GetFirstMatchingFont(
         &self,
         weight: DWRITE_FONT_WEIGHT,
@@ -6028,7 +6358,10 @@ impl IDWriteFontFamily {
 #[repr(C)]
 pub struct IDWriteFontFamily_Vtbl {
     pub base__: IDWriteFontList_Vtbl,
-    GetFamilyNames: usize,
+    pub GetFamilyNames: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     pub GetFirstMatchingFont: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         DWRITE_FONT_WEIGHT,
@@ -6110,6 +6443,825 @@ pub struct IDWriteGlyphRunAnalysis_Vtbl {
     GetAlphaBlendParams: usize,
 }
 impl windows_core::RuntimeName for IDWriteGlyphRunAnalysis {}
+windows_core::imp::define_interface!(
+    IDWriteInlineObject,
+    IDWriteInlineObject_Vtbl,
+    0x8339fde3_106f_47ab_8373_1c6295eb10b3
+);
+windows_core::imp::interface_hierarchy!(IDWriteInlineObject, windows_core::IUnknown);
+#[repr(C)]
+pub struct IDWriteInlineObject_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    Draw: usize,
+    GetMetrics: usize,
+    GetOverhangMetrics: usize,
+    GetBreakConditions: usize,
+}
+impl windows_core::RuntimeName for IDWriteInlineObject {}
+windows_core::imp::define_interface!(
+    IDWriteLocalizedStrings,
+    IDWriteLocalizedStrings_Vtbl,
+    0x08256209_099a_4b34_b86d_c22b110e7771
+);
+windows_core::imp::interface_hierarchy!(IDWriteLocalizedStrings, windows_core::IUnknown);
+impl IDWriteLocalizedStrings {
+    pub unsafe fn GetStringLength(&self, index: u32) -> windows_core::Result<u32> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetStringLength)(
+                windows_core::Interface::as_raw(self),
+                index,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn GetString(
+        &self,
+        index: u32,
+        stringbuffer: *mut u16,
+        size: u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetString)(
+                windows_core::Interface::as_raw(self),
+                index,
+                stringbuffer as _,
+                size,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWriteLocalizedStrings_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    GetCount: usize,
+    FindLocaleName: usize,
+    GetLocaleNameLength: usize,
+    GetLocaleName: usize,
+    pub GetStringLength:
+        unsafe extern "system" fn(*mut core::ffi::c_void, u32, *mut u32) -> windows_core::HRESULT,
+    pub GetString: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        *mut u16,
+        u32,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IDWriteLocalizedStrings {}
+windows_core::imp::define_interface!(
+    IDWritePixelSnapping,
+    IDWritePixelSnapping_Vtbl,
+    0xeaf3a2da_ecf4_4d24_b644_b34f6842024b
+);
+windows_core::imp::interface_hierarchy!(IDWritePixelSnapping, windows_core::IUnknown);
+impl IDWritePixelSnapping {
+    pub unsafe fn IsPixelSnappingDisabled(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+    ) -> windows_core::Result<windows_core::BOOL> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).IsPixelSnappingDisabled)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub unsafe fn GetCurrentTransform(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        transform: *mut DWRITE_MATRIX,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetCurrentTransform)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                transform as _,
+            )
+        }
+    }
+    pub unsafe fn GetPixelsPerDip(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+    ) -> windows_core::Result<f32> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetPixelsPerDip)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWritePixelSnapping_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    pub IsPixelSnappingDisabled: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        *mut windows_core::BOOL,
+    ) -> windows_core::HRESULT,
+    pub GetCurrentTransform: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        *mut DWRITE_MATRIX,
+    ) -> windows_core::HRESULT,
+    pub GetPixelsPerDip: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        *mut f32,
+    ) -> windows_core::HRESULT,
+}
+pub trait IDWritePixelSnapping_Impl: windows_core::IUnknownImpl {
+    fn IsPixelSnappingDisabled(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+    ) -> windows_core::Result<windows_core::BOOL>;
+    fn GetCurrentTransform(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+        transform: *mut DWRITE_MATRIX,
+    ) -> windows_core::Result<()>;
+    fn GetPixelsPerDip(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+    ) -> windows_core::Result<f32>;
+}
+impl IDWritePixelSnapping_Vtbl {
+    pub const fn new<Identity: IDWritePixelSnapping_Impl, const OFFSET: isize>() -> Self {
+        unsafe extern "system" fn IsPixelSnappingDisabled<
+            Identity: IDWritePixelSnapping_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            isdisabled: *mut windows_core::BOOL,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                match IDWritePixelSnapping_Impl::IsPixelSnappingDisabled(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                ) {
+                    Ok(ok__) => {
+                        isdisabled.write(ok__);
+                        windows_core::HRESULT(0)
+                    }
+                    Err(err) => err.into(),
+                }
+            }
+        }
+        unsafe extern "system" fn GetCurrentTransform<
+            Identity: IDWritePixelSnapping_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            transform: *mut DWRITE_MATRIX,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                IDWritePixelSnapping_Impl::GetCurrentTransform(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                    core::mem::transmute_copy(&transform),
+                )
+                .into()
+            }
+        }
+        unsafe extern "system" fn GetPixelsPerDip<
+            Identity: IDWritePixelSnapping_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            pixelsperdip: *mut f32,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                match IDWritePixelSnapping_Impl::GetPixelsPerDip(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                ) {
+                    Ok(ok__) => {
+                        pixelsperdip.write(ok__);
+                        windows_core::HRESULT(0)
+                    }
+                    Err(err) => err.into(),
+                }
+            }
+        }
+        Self {
+            base__: windows_core::IUnknown_Vtbl::new::<Identity, OFFSET>(),
+            IsPixelSnappingDisabled: IsPixelSnappingDisabled::<Identity, OFFSET>,
+            GetCurrentTransform: GetCurrentTransform::<Identity, OFFSET>,
+            GetPixelsPerDip: GetPixelsPerDip::<Identity, OFFSET>,
+        }
+    }
+    pub fn matches(iid: &windows_core::GUID) -> bool {
+        iid == &<IDWritePixelSnapping as windows_core::Interface>::IID
+    }
+}
+impl windows_core::RuntimeName for IDWritePixelSnapping {}
+windows_core::imp::define_interface!(
+    IDWriteTextFormat,
+    IDWriteTextFormat_Vtbl,
+    0x9c906818_31d7_4fd3_a151_7c5e225db55a
+);
+windows_core::imp::interface_hierarchy!(IDWriteTextFormat, windows_core::IUnknown);
+impl IDWriteTextFormat {
+    pub unsafe fn SetTextAlignment(
+        &self,
+        textalignment: DWRITE_TEXT_ALIGNMENT,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetTextAlignment)(
+                windows_core::Interface::as_raw(self),
+                textalignment,
+            )
+        }
+    }
+    pub unsafe fn SetParagraphAlignment(
+        &self,
+        paragraphalignment: DWRITE_PARAGRAPH_ALIGNMENT,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetParagraphAlignment)(
+                windows_core::Interface::as_raw(self),
+                paragraphalignment,
+            )
+        }
+    }
+    pub unsafe fn SetWordWrapping(
+        &self,
+        wordwrapping: DWRITE_WORD_WRAPPING,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetWordWrapping)(
+                windows_core::Interface::as_raw(self),
+                wordwrapping,
+            )
+        }
+    }
+    pub unsafe fn SetLineSpacing(
+        &self,
+        linespacingmethod: DWRITE_LINE_SPACING_METHOD,
+        linespacing: f32,
+        baseline: f32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).SetLineSpacing)(
+                windows_core::Interface::as_raw(self),
+                linespacingmethod,
+                linespacing,
+                baseline,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWriteTextFormat_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    pub SetTextAlignment: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DWRITE_TEXT_ALIGNMENT,
+    ) -> windows_core::HRESULT,
+    pub SetParagraphAlignment: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DWRITE_PARAGRAPH_ALIGNMENT,
+    ) -> windows_core::HRESULT,
+    pub SetWordWrapping: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DWRITE_WORD_WRAPPING,
+    ) -> windows_core::HRESULT,
+    SetReadingDirection: usize,
+    SetFlowDirection: usize,
+    SetIncrementalTabStop: usize,
+    SetTrimming: usize,
+    pub SetLineSpacing: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        DWRITE_LINE_SPACING_METHOD,
+        f32,
+        f32,
+    ) -> windows_core::HRESULT,
+    GetTextAlignment: usize,
+    GetParagraphAlignment: usize,
+    GetWordWrapping: usize,
+    GetReadingDirection: usize,
+    GetFlowDirection: usize,
+    GetIncrementalTabStop: usize,
+    GetTrimming: usize,
+    GetLineSpacing: usize,
+    GetFontCollection: usize,
+    GetFontFamilyNameLength: usize,
+    GetFontFamilyName: usize,
+    GetFontWeight: usize,
+    GetFontStyle: usize,
+    GetFontStretch: usize,
+    GetFontSize: usize,
+    GetLocaleNameLength: usize,
+    GetLocaleName: usize,
+}
+impl windows_core::RuntimeName for IDWriteTextFormat {}
+windows_core::imp::define_interface!(
+    IDWriteTextLayout,
+    IDWriteTextLayout_Vtbl,
+    0x53737037_6d14_410b_9bfe_0b182bb70961
+);
+impl core::ops::Deref for IDWriteTextLayout {
+    type Target = IDWriteTextFormat;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDWriteTextLayout,
+    windows_core::IUnknown,
+    IDWriteTextFormat
+);
+impl IDWriteTextLayout {
+    pub unsafe fn Draw<P1>(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        renderer: P1,
+        originx: f32,
+        originy: f32,
+    ) -> windows_core::HRESULT
+    where
+        P1: windows_core::Param<IDWriteTextRenderer>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).Draw)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                renderer.param().abi(),
+                originx,
+                originy,
+            )
+        }
+    }
+    pub unsafe fn GetLineMetrics(
+        &self,
+        linemetrics: Option<*mut DWRITE_LINE_METRICS>,
+        maxlinecount: u32,
+        actuallinecount: *mut u32,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetLineMetrics)(
+                windows_core::Interface::as_raw(self),
+                linemetrics.unwrap_or(core::mem::zeroed()) as _,
+                maxlinecount,
+                actuallinecount as _,
+            )
+        }
+    }
+    pub unsafe fn GetMetrics(
+        &self,
+        textmetrics: *mut DWRITE_TEXT_METRICS,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetMetrics)(
+                windows_core::Interface::as_raw(self),
+                textmetrics as _,
+            )
+        }
+    }
+    pub unsafe fn HitTestPoint(
+        &self,
+        pointx: f32,
+        pointy: f32,
+        istrailinghit: *mut windows_core::BOOL,
+        isinside: *mut windows_core::BOOL,
+        hittestmetrics: *mut DWRITE_HIT_TEST_METRICS,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).HitTestPoint)(
+                windows_core::Interface::as_raw(self),
+                pointx,
+                pointy,
+                istrailinghit as _,
+                isinside as _,
+                hittestmetrics as _,
+            )
+        }
+    }
+    pub unsafe fn HitTestTextPosition(
+        &self,
+        textposition: u32,
+        istrailinghit: bool,
+        pointx: *mut f32,
+        pointy: *mut f32,
+        hittestmetrics: *mut DWRITE_HIT_TEST_METRICS,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).HitTestTextPosition)(
+                windows_core::Interface::as_raw(self),
+                textposition,
+                istrailinghit.into(),
+                pointx as _,
+                pointy as _,
+                hittestmetrics as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWriteTextLayout_Vtbl {
+    pub base__: IDWriteTextFormat_Vtbl,
+    SetMaxWidth: usize,
+    SetMaxHeight: usize,
+    SetFontCollection: usize,
+    SetFontFamilyName: usize,
+    SetFontWeight: usize,
+    SetFontStyle: usize,
+    SetFontStretch: usize,
+    SetFontSize: usize,
+    SetUnderline: usize,
+    SetStrikethrough: usize,
+    SetDrawingEffect: usize,
+    SetInlineObject: usize,
+    SetTypography: usize,
+    SetLocaleName: usize,
+    GetMaxWidth: usize,
+    GetMaxHeight: usize,
+    GetFontCollection: usize,
+    GetFontFamilyNameLength: usize,
+    GetFontFamilyName: usize,
+    GetFontWeight: usize,
+    GetFontStyle: usize,
+    GetFontStretch: usize,
+    GetFontSize: usize,
+    GetUnderline: usize,
+    GetStrikethrough: usize,
+    GetDrawingEffect: usize,
+    GetInlineObject: usize,
+    GetTypography: usize,
+    GetLocaleNameLength: usize,
+    GetLocaleName: usize,
+    pub Draw: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        *mut core::ffi::c_void,
+        f32,
+        f32,
+    ) -> windows_core::HRESULT,
+    pub GetLineMetrics: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut DWRITE_LINE_METRICS,
+        u32,
+        *mut u32,
+    ) -> windows_core::HRESULT,
+    pub GetMetrics: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut DWRITE_TEXT_METRICS,
+    ) -> windows_core::HRESULT,
+    GetOverhangMetrics: usize,
+    GetClusterMetrics: usize,
+    DetermineMinWidth: usize,
+    pub HitTestPoint: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        f32,
+        f32,
+        *mut windows_core::BOOL,
+        *mut windows_core::BOOL,
+        *mut DWRITE_HIT_TEST_METRICS,
+    ) -> windows_core::HRESULT,
+    pub HitTestTextPosition: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        windows_core::BOOL,
+        *mut f32,
+        *mut f32,
+        *mut DWRITE_HIT_TEST_METRICS,
+    ) -> windows_core::HRESULT,
+    HitTestTextRange: usize,
+}
+impl windows_core::RuntimeName for IDWriteTextLayout {}
+windows_core::imp::define_interface!(
+    IDWriteTextRenderer,
+    IDWriteTextRenderer_Vtbl,
+    0xef8a8135_5cc6_45fe_8825_c5a0724eb819
+);
+impl core::ops::Deref for IDWriteTextRenderer {
+    type Target = IDWritePixelSnapping;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDWriteTextRenderer,
+    windows_core::IUnknown,
+    IDWritePixelSnapping
+);
+impl IDWriteTextRenderer {
+    pub unsafe fn DrawGlyphRun<P6>(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        measuringmode: DWRITE_MEASURING_MODE,
+        glyphrun: *const DWRITE_GLYPH_RUN,
+        glyphrundescription: *const DWRITE_GLYPH_RUN_DESCRIPTION,
+        clientdrawingeffect: P6,
+    ) -> windows_core::HRESULT
+    where
+        P6: windows_core::Param<windows_core::IUnknown>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawGlyphRun)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                baselineoriginx,
+                baselineoriginy,
+                measuringmode,
+                glyphrun,
+                glyphrundescription,
+                clientdrawingeffect.param().abi(),
+            )
+        }
+    }
+    pub unsafe fn DrawUnderline<P4>(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        underline: *const DWRITE_UNDERLINE,
+        clientdrawingeffect: P4,
+    ) -> windows_core::HRESULT
+    where
+        P4: windows_core::Param<windows_core::IUnknown>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawUnderline)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                baselineoriginx,
+                baselineoriginy,
+                underline,
+                clientdrawingeffect.param().abi(),
+            )
+        }
+    }
+    pub unsafe fn DrawStrikethrough<P4>(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        strikethrough: *const DWRITE_STRIKETHROUGH,
+        clientdrawingeffect: P4,
+    ) -> windows_core::HRESULT
+    where
+        P4: windows_core::Param<windows_core::IUnknown>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawStrikethrough)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                baselineoriginx,
+                baselineoriginy,
+                strikethrough,
+                clientdrawingeffect.param().abi(),
+            )
+        }
+    }
+    pub unsafe fn DrawInlineObject<P3, P6>(
+        &self,
+        clientdrawingcontext: Option<*const core::ffi::c_void>,
+        originx: f32,
+        originy: f32,
+        inlineobject: P3,
+        issideways: bool,
+        isrighttoleft: bool,
+        clientdrawingeffect: P6,
+    ) -> windows_core::HRESULT
+    where
+        P3: windows_core::Param<IDWriteInlineObject>,
+        P6: windows_core::Param<windows_core::IUnknown>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).DrawInlineObject)(
+                windows_core::Interface::as_raw(self),
+                clientdrawingcontext.unwrap_or(core::mem::zeroed()) as _,
+                originx,
+                originy,
+                inlineobject.param().abi(),
+                issideways.into(),
+                isrighttoleft.into(),
+                clientdrawingeffect.param().abi(),
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWriteTextRenderer_Vtbl {
+    pub base__: IDWritePixelSnapping_Vtbl,
+    pub DrawGlyphRun: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        f32,
+        f32,
+        DWRITE_MEASURING_MODE,
+        *const DWRITE_GLYPH_RUN,
+        *const DWRITE_GLYPH_RUN_DESCRIPTION,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub DrawUnderline: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        f32,
+        f32,
+        *const DWRITE_UNDERLINE,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub DrawStrikethrough: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        f32,
+        f32,
+        *const DWRITE_STRIKETHROUGH,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    pub DrawInlineObject: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *const core::ffi::c_void,
+        f32,
+        f32,
+        *mut core::ffi::c_void,
+        windows_core::BOOL,
+        windows_core::BOOL,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+pub trait IDWriteTextRenderer_Impl: IDWritePixelSnapping_Impl {
+    fn DrawGlyphRun(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        measuringmode: DWRITE_MEASURING_MODE,
+        glyphrun: *const DWRITE_GLYPH_RUN,
+        glyphrundescription: *const DWRITE_GLYPH_RUN_DESCRIPTION,
+        clientdrawingeffect: windows_core::Ref<windows_core::IUnknown>,
+    ) -> windows_core::Result<()>;
+    fn DrawUnderline(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        underline: *const DWRITE_UNDERLINE,
+        clientdrawingeffect: windows_core::Ref<windows_core::IUnknown>,
+    ) -> windows_core::Result<()>;
+    fn DrawStrikethrough(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+        baselineoriginx: f32,
+        baselineoriginy: f32,
+        strikethrough: *const DWRITE_STRIKETHROUGH,
+        clientdrawingeffect: windows_core::Ref<windows_core::IUnknown>,
+    ) -> windows_core::Result<()>;
+    fn DrawInlineObject(
+        &self,
+        clientdrawingcontext: *const core::ffi::c_void,
+        originx: f32,
+        originy: f32,
+        inlineobject: windows_core::Ref<IDWriteInlineObject>,
+        issideways: windows_core::BOOL,
+        isrighttoleft: windows_core::BOOL,
+        clientdrawingeffect: windows_core::Ref<windows_core::IUnknown>,
+    ) -> windows_core::Result<()>;
+}
+impl IDWriteTextRenderer_Vtbl {
+    pub const fn new<Identity: IDWriteTextRenderer_Impl, const OFFSET: isize>() -> Self {
+        unsafe extern "system" fn DrawGlyphRun<
+            Identity: IDWriteTextRenderer_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            baselineoriginx: f32,
+            baselineoriginy: f32,
+            measuringmode: DWRITE_MEASURING_MODE,
+            glyphrun: *const DWRITE_GLYPH_RUN,
+            glyphrundescription: *const DWRITE_GLYPH_RUN_DESCRIPTION,
+            clientdrawingeffect: *mut core::ffi::c_void,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                IDWriteTextRenderer_Impl::DrawGlyphRun(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                    core::mem::transmute_copy(&baselineoriginx),
+                    core::mem::transmute_copy(&baselineoriginy),
+                    core::mem::transmute_copy(&measuringmode),
+                    core::mem::transmute_copy(&glyphrun),
+                    core::mem::transmute_copy(&glyphrundescription),
+                    core::mem::transmute_copy(&clientdrawingeffect),
+                )
+                .into()
+            }
+        }
+        unsafe extern "system" fn DrawUnderline<
+            Identity: IDWriteTextRenderer_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            baselineoriginx: f32,
+            baselineoriginy: f32,
+            underline: *const DWRITE_UNDERLINE,
+            clientdrawingeffect: *mut core::ffi::c_void,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                IDWriteTextRenderer_Impl::DrawUnderline(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                    core::mem::transmute_copy(&baselineoriginx),
+                    core::mem::transmute_copy(&baselineoriginy),
+                    core::mem::transmute_copy(&underline),
+                    core::mem::transmute_copy(&clientdrawingeffect),
+                )
+                .into()
+            }
+        }
+        unsafe extern "system" fn DrawStrikethrough<
+            Identity: IDWriteTextRenderer_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            baselineoriginx: f32,
+            baselineoriginy: f32,
+            strikethrough: *const DWRITE_STRIKETHROUGH,
+            clientdrawingeffect: *mut core::ffi::c_void,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                IDWriteTextRenderer_Impl::DrawStrikethrough(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                    core::mem::transmute_copy(&baselineoriginx),
+                    core::mem::transmute_copy(&baselineoriginy),
+                    core::mem::transmute_copy(&strikethrough),
+                    core::mem::transmute_copy(&clientdrawingeffect),
+                )
+                .into()
+            }
+        }
+        unsafe extern "system" fn DrawInlineObject<
+            Identity: IDWriteTextRenderer_Impl,
+            const OFFSET: isize,
+        >(
+            this: *mut core::ffi::c_void,
+            clientdrawingcontext: *const core::ffi::c_void,
+            originx: f32,
+            originy: f32,
+            inlineobject: *mut core::ffi::c_void,
+            issideways: windows_core::BOOL,
+            isrighttoleft: windows_core::BOOL,
+            clientdrawingeffect: *mut core::ffi::c_void,
+        ) -> windows_core::HRESULT {
+            unsafe {
+                let this: &Identity =
+                    &*((this as *const *const ()).offset(OFFSET) as *const Identity);
+                IDWriteTextRenderer_Impl::DrawInlineObject(
+                    this,
+                    core::mem::transmute_copy(&clientdrawingcontext),
+                    core::mem::transmute_copy(&originx),
+                    core::mem::transmute_copy(&originy),
+                    core::mem::transmute_copy(&inlineobject),
+                    core::mem::transmute_copy(&issideways),
+                    core::mem::transmute_copy(&isrighttoleft),
+                    core::mem::transmute_copy(&clientdrawingeffect),
+                )
+                .into()
+            }
+        }
+        Self {
+            base__: IDWritePixelSnapping_Vtbl::new::<Identity, OFFSET>(),
+            DrawGlyphRun: DrawGlyphRun::<Identity, OFFSET>,
+            DrawUnderline: DrawUnderline::<Identity, OFFSET>,
+            DrawStrikethrough: DrawStrikethrough::<Identity, OFFSET>,
+            DrawInlineObject: DrawInlineObject::<Identity, OFFSET>,
+        }
+    }
+    pub fn matches(iid: &windows_core::GUID) -> bool {
+        iid == &<IDWriteTextRenderer as windows_core::Interface>::IID
+            || iid == &<IDWritePixelSnapping as windows_core::Interface>::IID
+    }
+}
+impl windows_core::RuntimeName for IDWriteTextRenderer {}
 windows_core::imp::define_interface!(
     IDXGIAdapter,
     IDXGIAdapter_Vtbl,
@@ -6783,78 +7935,14 @@ impl IDXGISwapChain3 {
             )
         }
     }
-    pub unsafe fn CheckColorSpaceSupport(
-        &self,
-        colorspace: DXGI_COLOR_SPACE_TYPE,
-    ) -> windows_core::Result<u32> {
-        unsafe {
-            let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(self).CheckColorSpaceSupport)(
-                windows_core::Interface::as_raw(self),
-                colorspace,
-                &mut result__,
-            )
-            .map(|| result__)
-        }
-    }
-    pub unsafe fn SetColorSpace1(
-        &self,
-        colorspace: DXGI_COLOR_SPACE_TYPE,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).SetColorSpace1)(
-                windows_core::Interface::as_raw(self),
-                colorspace,
-            )
-        }
-    }
-    pub unsafe fn ResizeBuffers1(
-        &self,
-        buffercount: u32,
-        width: u32,
-        height: u32,
-        format: DXGI_FORMAT,
-        swapchainflags: u32,
-        pcreationnodemask: *const u32,
-        pppresentqueue: *const Option<windows_core::IUnknown>,
-    ) -> windows_core::HRESULT {
-        unsafe {
-            (windows_core::Interface::vtable(self).ResizeBuffers1)(
-                windows_core::Interface::as_raw(self),
-                buffercount,
-                width,
-                height,
-                format,
-                swapchainflags,
-                pcreationnodemask,
-                core::mem::transmute(pppresentqueue),
-            )
-        }
-    }
 }
 #[repr(C)]
 pub struct IDXGISwapChain3_Vtbl {
     pub base__: IDXGISwapChain2_Vtbl,
     pub GetCurrentBackBufferIndex: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32,
-    pub CheckColorSpaceSupport: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        DXGI_COLOR_SPACE_TYPE,
-        *mut u32,
-    ) -> windows_core::HRESULT,
-    pub SetColorSpace1: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        DXGI_COLOR_SPACE_TYPE,
-    ) -> windows_core::HRESULT,
-    pub ResizeBuffers1: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        u32,
-        u32,
-        u32,
-        DXGI_FORMAT,
-        u32,
-        *const u32,
-        *const *mut core::ffi::c_void,
-    ) -> windows_core::HRESULT,
+    CheckColorSpaceSupport: usize,
+    SetColorSpace1: usize,
+    ResizeBuffers1: usize,
 }
 impl windows_core::RuntimeName for IDXGISwapChain3 {}
 pub const INFINITE: u32 = 4294967295;
@@ -7205,6 +8293,8 @@ pub struct LUID {
 }
 pub const MAPVK_VK_TO_VSC_EX: i32 = 4;
 pub const MA_ACTIVATEANDEAT: i32 = 2;
+pub const MA_NOACTIVATE: i32 = 3;
+pub const MA_NOACTIVATEANDEAT: i32 = 4;
 pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
@@ -7319,6 +8409,7 @@ pub struct SECURITY_ATTRIBUTES {
     pub lpSecurityDescriptor: *mut core::ffi::c_void,
     pub bInheritHandle: windows_core::BOOL,
 }
+pub const SIZE_MINIMIZED: i32 = 1;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
@@ -7341,23 +8432,72 @@ pub struct TRACKMOUSEEVENT {
 }
 pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_ADD: i32 = 107;
 pub const VK_BACK: i32 = 8;
+pub const VK_CAPITAL: i32 = 20;
 pub const VK_CONTROL: i32 = 17;
+pub const VK_DECIMAL: i32 = 110;
 pub const VK_DELETE: i32 = 46;
+pub const VK_DIVIDE: i32 = 111;
 pub const VK_DOWN: i32 = 40;
 pub const VK_END: i32 = 35;
 pub const VK_ESCAPE: i32 = 27;
 pub const VK_F1: i32 = 112;
+pub const VK_F10: i32 = 121;
 pub const VK_F11: i32 = 122;
+pub const VK_F12: i32 = 123;
 pub const VK_F2: i32 = 113;
+pub const VK_F3: i32 = 114;
+pub const VK_F4: i32 = 115;
+pub const VK_F5: i32 = 116;
+pub const VK_F6: i32 = 117;
+pub const VK_F7: i32 = 118;
+pub const VK_F8: i32 = 119;
+pub const VK_F9: i32 = 120;
 pub const VK_HOME: i32 = 36;
+pub const VK_INSERT: i32 = 45;
+pub const VK_LBUTTON: i32 = 1;
+pub const VK_LCONTROL: i32 = 162;
 pub const VK_LEFT: i32 = 37;
+pub const VK_LMENU: i32 = 164;
+pub const VK_LSHIFT: i32 = 160;
+pub const VK_LWIN: i32 = 91;
+pub const VK_MBUTTON: i32 = 4;
+pub const VK_MENU: i32 = 18;
+pub const VK_MULTIPLY: i32 = 106;
 pub const VK_NEXT: i32 = 34;
+pub const VK_NUMPAD0: i32 = 96;
+pub const VK_NUMPAD1: i32 = 97;
+pub const VK_NUMPAD2: i32 = 98;
+pub const VK_NUMPAD3: i32 = 99;
+pub const VK_NUMPAD4: i32 = 100;
+pub const VK_NUMPAD5: i32 = 101;
+pub const VK_NUMPAD6: i32 = 102;
+pub const VK_NUMPAD7: i32 = 103;
+pub const VK_NUMPAD8: i32 = 104;
+pub const VK_NUMPAD9: i32 = 105;
+pub const VK_OEM_1: i32 = 186;
+pub const VK_OEM_2: i32 = 191;
+pub const VK_OEM_3: i32 = 192;
+pub const VK_OEM_4: i32 = 219;
+pub const VK_OEM_5: i32 = 220;
+pub const VK_OEM_6: i32 = 221;
+pub const VK_OEM_7: i32 = 222;
+pub const VK_OEM_COMMA: i32 = 188;
+pub const VK_OEM_MINUS: i32 = 189;
+pub const VK_OEM_PERIOD: i32 = 190;
+pub const VK_OEM_PLUS: i32 = 187;
 pub const VK_PRIOR: i32 = 33;
+pub const VK_RBUTTON: i32 = 2;
+pub const VK_RCONTROL: i32 = 163;
 pub const VK_RETURN: i32 = 13;
 pub const VK_RIGHT: i32 = 39;
+pub const VK_RMENU: i32 = 165;
+pub const VK_RSHIFT: i32 = 161;
+pub const VK_RWIN: i32 = 92;
 pub const VK_SHIFT: i32 = 16;
 pub const VK_SPACE: i32 = 32;
+pub const VK_SUBTRACT: i32 = 109;
 pub const VK_TAB: i32 = 9;
 pub const VK_UP: i32 = 38;
 #[repr(C)]
@@ -7379,6 +8519,7 @@ pub struct VS_FIXEDFILEINFO {
 }
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WAIT_TIMEOUT: i32 = 258;
+pub const WA_INACTIVE: i32 = 0;
 pub const WHEEL_DELTA: i32 = 120;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;
 pub const WICBitmapEncoderCacheInMemory: WICBitmapEncoderCacheOption = 0;
@@ -7396,29 +8537,42 @@ pub struct WINDOWPLACEMENT {
     pub ptMaxPosition: POINT,
     pub rcNormalPosition: RECT,
 }
+pub const WM_ACTIVATE: i32 = 6;
 pub const WM_CAPTURECHANGED: i32 = 533;
 pub const WM_CHAR: i32 = 258;
+pub const WM_CLOSE: i32 = 16;
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
+pub const WM_ERASEBKGND: i32 = 20;
 pub const WM_KEYDOWN: i32 = 256;
 pub const WM_KEYUP: i32 = 257;
 pub const WM_KILLFOCUS: i32 = 8;
 pub const WM_LBUTTONDOWN: i32 = 513;
 pub const WM_LBUTTONUP: i32 = 514;
+pub const WM_MBUTTONDOWN: i32 = 519;
+pub const WM_MBUTTONUP: i32 = 520;
 pub const WM_MOUSEACTIVATE: i32 = 33;
+pub const WM_MOUSEHWHEEL: i32 = 526;
 pub const WM_MOUSELEAVE: i32 = 675;
 pub const WM_MOUSEMOVE: i32 = 512;
 pub const WM_MOUSEWHEEL: i32 = 522;
 pub const WM_MOVE: i32 = 3;
+pub const WM_NCHITTEST: i32 = 132;
 pub const WM_PAINT: i32 = 15;
 pub const WM_QUIT: i32 = 18;
 pub const WM_RBUTTONDOWN: i32 = 516;
+pub const WM_RBUTTONUP: i32 = 517;
+pub const WM_SETCURSOR: i32 = 32;
+pub const WM_SETFOCUS: i32 = 7;
 pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
+pub const WM_SYSCHAR: i32 = 262;
 pub const WM_SYSCOMMAND: i32 = 274;
 pub const WM_SYSKEYDOWN: i32 = 260;
 pub const WM_SYSKEYUP: i32 = 261;
+pub const WM_XBUTTONDOWN: i32 = 523;
+pub const WM_XBUTTONUP: i32 = 524;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {
@@ -7442,9 +8596,13 @@ pub type WNDPROC = Option<
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct WPARAM(pub usize);
 pub const WS_CAPTION: i32 = 12582912;
+pub const WS_EX_APPWINDOW: i32 = 262144;
+pub const WS_EX_NOACTIVATE: i32 = 134217728;
 pub const WS_EX_TOOLWINDOW: i32 = 128;
 pub const WS_EX_TOPMOST: i32 = 8;
 pub const WS_MAXIMIZE: i32 = 16777216;
 pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
 pub const WS_POPUP: u32 = 2147483648;
 pub const WS_VISIBLE: i32 = 268435456;
+pub const XBUTTON1: i32 = 1;
+pub const XBUTTON2: i32 = 2;
