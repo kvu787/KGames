@@ -1,4 +1,4 @@
-// What the Devices panel's tooltip says about a device, from what GameInput
+// What the Devices card's tooltip says about a device, from what GameInput
 // and Windows' device tree say about it. A test gives the device's data, so
 // it doesn't need the devices themselves.
 

@@ -5,6 +5,10 @@ edition = "2024"
 publish = false
 
 [[test]]
+name = "Cards"
+path = "Cards.rs"
+
+[[test]]
 name = "Devices"
 path = "Devices.rs"
 
@@ -12,17 +16,11 @@ path = "Devices.rs"
 name = "Input"
 path = "Input.rs"
 
-[[test]]
-name = "Panels"
-path = "Panels.rs"
-
 [dependencies]
-application = { path = "../../Library/Application" }
 game_input = { path = "../../Library/GameInput" }
 game_input_demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }
-windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]
 version = "0.100"

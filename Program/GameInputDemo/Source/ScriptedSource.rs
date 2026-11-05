@@ -1,5 +1,5 @@
 // Devices and readings from a test, or from a script's "Program" steps (see
-// Library/Application's Script.rs), instead of GameInput, so that the demo
+// Library/UserInterface's Script.rs), instead of GameInput, so that the demo
 // can be tested without a gamepad, and without the user's keyboard and mouse.
 // Its readings are snapshots of a device's whole state, like GameInput's,
 // and it keeps the rumble that the demo sends, for checking.
@@ -20,9 +20,9 @@
 // mouse's running totals, as a mouse moves. "Input" can also have
 // "Keyboard" and "Mouse", and "Motors" "LeftTrigger" and "RightTrigger".
 
-use application::virtual_key;
 use game_input::*;
 use json::Value;
+use user_interface::Key;
 use windows_api::{MAPVK_VK_TO_VSC_EX, MapVirtualKeyW};
 use windows_core::GUID;
 
@@ -32,7 +32,7 @@ use crate::input::{GAMEPAD_BUTTONS, MOUSE_BUTTONS};
 
 #[derive(Default)]
 pub struct ScriptedSource {
-    // The time now, in microseconds. The main loop sets it from the frame's.
+    // The time now, in microseconds. The demo sets it from the frame's.
     pub now: u64,
     connected: Vec<Device>,
     events: Vec<(GameInputDeviceEvent, Device)>,
@@ -236,7 +236,7 @@ impl InputSource for ScriptedSource {
 // Its scan code comes from the keyboard layout, and has the 0xE0 prefix for
 // extended keys, like GameInput's.
 pub fn key_state(name: &str) -> Option<GameInputKeyState> {
-    let key = virtual_key(name)?;
+    let key = Key::parse(name)?.0 as u32;
     let mut scan_code = unsafe { MapVirtualKeyW(key, MAPVK_VK_TO_VSC_EX as u32) };
     // Windows gives the arrow keys and Delete the scan codes of their twins
     // on the numeric keypad, without the prefix that the keys themselves send.

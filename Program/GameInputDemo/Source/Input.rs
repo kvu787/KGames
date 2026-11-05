@@ -1,4 +1,4 @@
-// Keeps what the panels show from gamepads, keyboards and mice: the latest
+// Keeps what the cards show from gamepads, keyboards and mice: the latest
 // state of each, the connected devices, and a log of input events. The
 // readings come from an InputSource (see Devices.rs): GameInput, or a script
 // or a test.
@@ -19,10 +19,11 @@ use crate::devices::{Device, InputSource, Reading};
 use crate::scripted_source::ScriptedSource;
 
 const LOG_CAPACITY: usize = 200;
-// Virtual-key codes of the demo's own shortcuts.
+// Virtual-key codes of the demo's own shortcuts. F11, which switches the
+// window to and from fullscreen, is Library/UserInterface's, which reads it
+// from the window's messages.
 const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
-const KEY_TOGGLE_FULLSCREEN: u8 = 0x7A; // F11
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Source {
@@ -57,7 +58,7 @@ pub struct LogEntry {
     pub text: String,
     // How many readings were merged into this entry. See Input::log.
     pub count: u32,
-    // The entry as the log panel shows it, made when the entry changes
+    // The entry as the log card shows it, made when the entry changes
     // instead of every frame: the time, the source from `source_at`, and the
     // text and count from `text_at`.
     pub line: String,
@@ -221,8 +222,8 @@ fn buttons(kind: GameInputKind, reading: &Reading) -> i32 {
     }
 }
 
-// Which gamepad the demo listens to, if any, chosen in the gamepad panel's
-// select box. The others are ignored, along with any keyboard or mouse input
+// Which gamepad the demo listens to, if any, chosen in the Gamepad card's
+// combo box. The others are ignored, along with any keyboard or mouse input
 // they have: a GameSir in Xbox 360 mode is one device with a gamepad, a
 // keyboard and a mouse. There's only one choice at a time, so its device's
 // data isn't boxed.
@@ -263,20 +264,20 @@ impl Listen {
     }
 }
 
-// The keyboard and mouse panels each show one device: the last one whose
+// The Keyboard and Mouse cards each show one device: the last one whose
 // reading changed their kind of input. A reading can have several kinds, like
 // one from a keyboard that is also a mouse, and a reading that doesn't change
-// a panel's kind leaves the panel showing the device it was showing. The rate
-// counts the readings that the panel took.
+// a card's kind leaves the card showing the device it was showing. The rate
+// counts the readings that the card took.
 #[derive(Default)]
 pub struct KeyboardView {
     pub device: Option<usize>,
     pub label: String,
     pub keys: Vec<GameInputKeyState>,
-    // Each key's describe_key, in the same order, made when the keys change
-    // instead of every frame, as GetKeyNameTextW and the formatting take a
-    // third of a microsecond a key.
-    pub descriptions: Vec<String>,
+    // Each key's name and key_details, in the same order, made when the keys
+    // change instead of every frame, as GetKeyNameTextW and the formatting
+    // take a third of a microsecond a key.
+    pub descriptions: Vec<(String, String)>,
     pub rate: RateCounter,
 }
 
@@ -308,7 +309,7 @@ pub struct Input {
     // The rumble test's inner dead zone for both sticks, as a fraction of
     // full deflection, from the settings. GameInput reports raw stick values,
     // so applying a dead zone is up to the game. The demo applies this one
-    // only to the rumble test. Everything else, from the panels to the log,
+    // only to the rumble test. Everything else, from the cards to the log,
     // shows the raw values, and the stick graphs draw this as a ring.
     pub rumble_dead_zone: f32,
     // One for each gamepad listened to that has sent a reading.
@@ -319,11 +320,8 @@ pub struct Input {
     last_readings: Vec<LastReading>,
     // Changed with pick_listen, or by listen_by_default until then.
     pub listen: Listen,
-    // Whether listen was picked in the select box.
+    // Whether listen was picked in the combo box.
     pub listen_picked: bool,
-    // Set when the fullscreen shortcut is pressed. The main loop owns the
-    // window, so it does the switch and clears this.
-    pub fullscreen_toggled: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
     // Whether the window had focus at the last update, so input was handled.
@@ -353,14 +351,13 @@ impl Input {
             last_readings: Vec::new(),
             listen: Listen::NoGamepad,
             listen_picked: false,
-            fullscreen_toggled: false,
             shortcuts: Vec::new(),
             focused: false,
             focus_timestamp: u64::MAX,
         }
     }
 
-    // The GameInput runtime that was loaded, for the header, or None when
+    // The GameInput runtime that was loaded, for the status bar, or None when
     // the input comes from a script.
     pub fn runtime(&self) -> Option<&Runtime> {
         self.source.runtime()
@@ -377,8 +374,8 @@ impl Input {
 
     // `focused` is whether the window has focus. Input is only handled while
     // it does, see take_reading. A minimized window doesn't have it, so the
-    // main loop calls this with false then, and restoring the window counts
-    // as getting focus.
+    // demo calls this with false on the frame that restores the window, and
+    // restoring it counts as getting focus.
     pub fn update(&mut self, focused: bool) {
         if self.focused && !focused {
             // Keys, buttons and sticks let go of after the window lost focus
@@ -490,7 +487,7 @@ impl Input {
         self.log(self.now, Source::Device, text, None);
     }
 
-    // Shows another gamepad in the panel, starting from an idle state.
+    // Shows another gamepad in the card, starting from an idle state.
     fn view_gamepad(&mut self, device: Option<usize>) {
         let info = self.devices.iter().find(|info| Some(info.id) == device);
         self.gamepad = GamepadView {
@@ -503,7 +500,7 @@ impl Input {
         };
     }
 
-    // The connected gamepads, which the select box offers besides none.
+    // The connected gamepads, which the combo box offers besides none.
     pub fn gamepads(&self) -> impl Iterator<Item = &Device> {
         self.devices.iter().filter(|info| info.is_gamepad())
     }
@@ -513,7 +510,7 @@ impl Input {
         self.listen.includes(info)
     }
 
-    // For a choice clicked in the select box. The demo keeps to it from then on.
+    // For a choice picked in the combo box. The demo keeps to it from then on.
     pub fn pick_listen(&mut self, listen: Listen) {
         self.listen_picked = true;
         self.set_listen(listen);
@@ -569,7 +566,7 @@ impl Input {
                 "Ignoring all gamepads".to_string()
             }
         };
-        // The keyboard and mouse panels stop showing a gamepad that's also a
+        // The Keyboard and Mouse cards stop showing a gamepad that's also a
         // keyboard or a mouse, once it isn't listened to, as its keys and
         // buttons let go of after that are never seen.
         let ignored = |device: Option<usize>| {
@@ -732,7 +729,6 @@ impl Input {
             match key {
                 KEY_TOGGLE_RUMBLE => self.toggle_rumble(),
                 KEY_CLEAR_LOG => self.log.clear(),
-                KEY_TOGGLE_FULLSCREEN => self.fullscreen_toggled = true,
                 _ => {}
             }
         }
@@ -762,7 +758,7 @@ impl Input {
             }
         }
 
-        // The panel shows the gamepad listened to. Its view is reset when it
+        // The card shows the gamepad listened to. Its view is reset when it
         // disconnects, so this sets it up again after it reconnects.
         if self.gamepad.device != device {
             self.view_gamepad(device);
@@ -844,10 +840,7 @@ impl Input {
         for key in &keys {
             if !old.iter().any(|old| old.scanCode == key.scanCode) {
                 changes.push(format!("{} down", key_name(key)));
-                if matches!(
-                    key.virtualKey,
-                    KEY_TOGGLE_RUMBLE | KEY_CLEAR_LOG | KEY_TOGGLE_FULLSCREEN
-                ) {
+                if matches!(key.virtualKey, KEY_TOGGLE_RUMBLE | KEY_CLEAR_LOG) {
                     self.shortcuts.push(key.virtualKey);
                 }
             }
@@ -858,8 +851,8 @@ impl Input {
             }
         }
 
-        let descriptions: Vec<String> = keys.iter().map(describe_key).collect();
-        let mut summary = descriptions.clone();
+        let descriptions: Vec<(String, String)> = keys.iter().map(|key| (key_name(key), key_details(key))).collect();
+        let mut summary: Vec<String> = descriptions.iter().map(|(name, details)| format!("{name}  {details}")).collect();
         if summary.is_empty() {
             summary.push("No keys down".to_string());
         }
@@ -1053,9 +1046,7 @@ impl Input {
         }
     }
 
-    // What the panels show, for scripted runs to save and check. Not whether
-    // F11 was pressed, as the main loop has switched the window by the time
-    // it's saved: the window's own state says whether it's in fullscreen.
+    // What the cards show, for scripted runs to save and check.
     pub fn state(&self) -> Value {
         let gamepad = &self.gamepad;
         let label = |device: Option<usize>| {
@@ -1238,19 +1229,13 @@ pub fn key_name(key: &GameInputKeyState) -> String {
     }
 }
 
-pub fn describe_key(key: &GameInputKeyState) -> String {
-    let mut text = format!(
-        "{}  scan 0x{:04X}  VK 0x{:02X}",
-        key_name(key),
-        key.scanCode,
-        key.virtualKey
-    );
-    if let Some(character) = char::from_u32(key.codePoint).filter(|c| !c.is_control() && *c != '\0')
-    {
-        if user_interface::Fonts::has_glyph(character) {
-            text += &format!("  '{character}'");
-        }
-        text += &format!("  U+{:04X}", key.codePoint);
+// What the Keyboard card says about a key after its name: its codes, and the
+// character it types, if any. DirectWrite draws a character that Cascadia
+// Mono doesn't have with a font that does.
+pub fn key_details(key: &GameInputKeyState) -> String {
+    let mut text = format!("scan 0x{:04X}  VK 0x{:02X}", key.scanCode, key.virtualKey);
+    if let Some(character) = char::from_u32(key.codePoint).filter(|c| !c.is_control() && *c != '\0') {
+        text += &format!("  '{character}'  U+{:04X}", key.codePoint);
     }
     if key.isDeadKey {
         text += "  dead key";

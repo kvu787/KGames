@@ -1,72 +1,110 @@
 // The demo, as a Program that Library/UserInterface's main loop runs: what
-// it does each frame, before Panels.rs draws what it read.
+// it does each frame, before Cards.rs draws what it read.
 //
-// The demo reads its input with GameInput, or from a script in a scripted
-// run, its own shortcuts too, F11 among them. Without GameInput the window
-// still opens, and says why there's no input.
+// The demo reads its input with GameInput, or from a script's Program steps
+// in a scripted run, its shortcuts F1 and F2 too. F11 is the library's, from
+// the window's messages. Without GameInput the window still opens, and a
+// notice under the app bar says why there's no input.
 
 use json::Value;
-use user_interface::{Frame, Program, Setup};
-use windows_api::*;
-use windows_core::{Error, Result};
+use user_interface::script::DEFAULT_FRAME_TIME;
+use user_interface::{Program, Severity, Startup, Ui};
 
 use crate::NAME;
+use crate::cards;
 use crate::devices::InputSource;
 use crate::game_input_source::GameInputSource;
 use crate::input::Input;
-use crate::panels;
 use crate::scripted_source::ScriptedSource;
 use crate::settings::DemoSettings;
 
 pub struct Demo {
     // The input, or why GameInput isn't available.
-    pub input: std::result::Result<Input, String>,
+    pub input: Result<Input, String>,
+    // The window's title, with the GPU that draws, and whether frames may
+    // tear, once a frame knows them.
+    title: String,
+    // The last frame's time, and the time between it and the one before, in
+    // seconds, which give a script's readings the time of the frame that
+    // they're for.
+    last_time: f64,
+    last_delta: f64,
 }
 
-impl Program for Demo {
-    type Settings = DemoSettings;
-    const NAME: &'static str = NAME;
-    // F11 comes through GameInput, like the demo's other shortcuts.
-    const FULLSCREEN_KEY: bool = false;
-
-    fn new(setup: Setup<'_, DemoSettings>) -> Result<Self> {
-        // A scripted run reads the script's devices and readings instead of
-        // GameInput's.
-        let source: std::result::Result<Box<dyn InputSource>, String> = if setup.scripted {
+impl Demo {
+    // The demo as the main loop starts it: on GameInput, or on a script's
+    // devices and readings in a scripted run.
+    pub fn new(startup: &mut Startup) -> Demo {
+        let settings = DemoSettings::read(&mut startup.settings);
+        let source: Result<Box<dyn InputSource>, String> = if startup.scripted {
             Ok(Box::new(ScriptedSource::default()))
         } else {
             GameInputSource::new()
                 .map(|source| Box::new(source) as Box<dyn InputSource>)
                 .map_err(|error| format!("{} ({})", error.message(), error.code()))
         };
-        let dead_zone = setup.program_settings.rumble_dead_zone;
-        Ok(Demo {
-            input: source.map(|source| Input::new(source, dead_zone)),
-        })
+        if let Err(message) = &source {
+            startup.notify(Severity::Error, "GameInput isn't available", &format!("The demo can't read input: {message}."));
+        }
+        Demo::with_input(source.map(|source| Input::new(source, settings.rumble_dead_zone)))
     }
 
-    fn frame(&mut self, frame: &mut Frame) -> Result<()> {
+    // The demo with this input, like a test's.
+    pub fn with_input(input: Result<Input, String>) -> Demo {
+        Demo {
+            input,
+            title: NAME.to_string(),
+            last_time: 0.0,
+            last_delta: 0.0,
+        }
+    }
+
+    // Input from a test's devices and readings, with the rumble test's dead
+    // zone.
+    pub fn scripted(rumble_dead_zone: f32) -> Demo {
+        Demo::with_input(Ok(Input::new(Box::new(ScriptedSource::default()), rumble_dead_zone)))
+    }
+}
+
+impl Program for Demo {
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        // No widget takes keyboard focus, so that the keys stay the user's,
+        // to try the Keyboard card with. The combo box's list still takes the
+        // arrow keys while it's open.
+        ui.set_focusable(false);
+        self.last_time = ui.time();
+        self.last_delta = ui.delta() as f64;
+        let environment = ui.environment();
+        if self.title == NAME && !environment.gpu.is_empty() {
+            let tearing = if environment.tearing { "frames may tear" } else { "frames don't tear" };
+            self.title = format!("{NAME} - {} - {tearing}", environment.gpu);
+        }
+
         if let Ok(input) = &mut self.input {
             if let Some(scripted) = input.scripted() {
-                scripted.now = (frame.seconds() * 1_000_000.0) as u64;
-                for step in &frame.input.program_steps {
-                    scripted.apply(step).map_err(|problem| {
-                        Error::new(E_INVALIDARG, format!("Frame {}: {problem}", frame.input.number))
-                    })?;
-                }
+                scripted.now = scripted.now.max(microseconds(ui.time()));
             }
-            input.update(frame.focused());
-            if std::mem::take(&mut input.fullscreen_toggled) {
-                frame.toggle_fullscreen();
+            let focused = ui.window_focused();
+            // Minimizing the window takes its focus, and restoring it gives
+            // it back, both while the main loop runs no frames, so the frame
+            // that restores it has both. Losing focus first drops what came
+            // while it was minimized, stops the motors, and makes restoring
+            // it count as getting focus.
+            if focused && ui.input().focus_lost {
+                input.update(false);
             }
+            input.update(focused);
         }
-        panels::draw(frame, &mut self.input);
-        Ok(())
+        cards::draw(ui, &mut self.input);
     }
 
-    // What the panels show, for scripted runs to save and check. The main
-    // loop adds the interface's state, like whether the select box's list is
-    // open, and which device's tooltip shows.
+    // What the cards show, for scripts to save and check. The main loop adds
+    // the interface's, like whether the combo box's list is open, and which
+    // device's tooltip shows.
     fn state(&self) -> Value {
         match &self.input {
             Ok(input) => input.state(),
@@ -74,15 +112,19 @@ impl Program for Demo {
         }
     }
 
-    // A minimized window doesn't have focus, but minimizing it takes its
-    // focus in the same messages, so no frame sees it without focus. Without
-    // this, its input would still count as focused when it's restored, and
-    // what was typed into other windows meanwhile would be handled then. This
-    // drops that, stops the motors, and makes restoring it count as getting
-    // focus. The main loop closes the gamepad list, like losing focus does.
-    fn minimized(&mut self) {
-        if let Ok(input) = &mut self.input {
-            input.update(false);
-        }
+    // Connects and disconnects a script's devices, and gives their readings.
+    fn script(&mut self, step: &Value) -> Result<(), String> {
+        let input = self.input.as_mut().map_err(|message| format!("GameInput isn't available: {message}"))?;
+        let scripted = input.scripted().ok_or("the input doesn't come from a script")?;
+        // The step comes before its frame's update, so its readings are at
+        // the time of that frame: the last one's, and the time between
+        // frames, which a script keeps the same.
+        let frame_time = if self.last_delta > 0.0 { self.last_delta } else { DEFAULT_FRAME_TIME };
+        scripted.now = scripted.now.max(microseconds(self.last_time + frame_time));
+        scripted.apply(step)
     }
+}
+
+fn microseconds(seconds: f64) -> u64 {
+    (seconds * 1_000_000.0).round() as u64
 }

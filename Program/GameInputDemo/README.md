@@ -7,115 +7,110 @@ API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
 crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
 KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
-whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box and
-tooltips.
+whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, keycaps
+and tooltips, after Microsoft's Fluent 2 design system.
 
 ## Supported window setups
 
-The demo is built for one machine, and supports exactly two window setups. Both are on a
-2560 × 1440 monitor at 100% scaling (96 DPI), so logical and physical pixels are the same,
-and the cards have fixed places in pixels:
-
-| Setup                 | Client area | What makes it                                                              |
-| --------------------- | ----------- | -------------------------------------------------------------------------- |
-| Maximized             | 2560 × 1369 | A 48-pixel taskbar at the bottom leaves a 2560 × 1392 work area, and the   |
-|                       |             | title bar takes its top 23 pixels                                          |
-| Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the whole monitor                     |
-
-In any other setup, like a restored window, another monitor, another scale, or a moved
-taskbar, the window shows what's wrong instead of the cards. It checks again whenever the
-window moves or changes size, or the displays, the scale or the taskbar change.
+The demo supports exactly the two window setups that every KGames program does, both on a
+2560 × 1440 monitor at 100% scaling: maximized, with a 2560 × 1369 client area, and borderless
+fullscreen, with 2560 × 1440 (see
+[Library/UserInterface](../../Library/UserInterface/README.md#window-setups)). The cards have fixed
+places in pixels, and the 71 pixels that fullscreen adds go to the bottom row of cards and to the
+event log. In any other setup, the window shows what's wrong instead of the cards.
 
 ## What it shows
 
 - **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
-- **App bar**: whether the window has focus, and the frame rate with the time per frame.
-  Under it, anything wrong with the [settings file](#settings-file) or the command line, as
-  info bars that close.
-- **Gamepad**: an XY graph for each stick, with the unit circle and
-  the dead zone of the [rumble test](#rumble-test), the only part of the demo that applies
-  one. Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
-  each trigger. A chip for every button that lights up while it's held. A combo box
-  after the card's title picks which [gamepad the demo listens to](#choosing-a-gamepad),
-  if any.
-- **Latest input event**: a well describing the newest reading that changed
-  something: its device, what changed, how long after that device's previous reading
-  it came, and the device's whole state.
-- **Keyboard**: the keys held down, with each key's name, scan code, virtual-key code and
-  character, in Cascadia Mono, so that they line up.
-- **Mouse**: the buttons held, the motion and wheel, and a pad that moves with the
-  raw relative motion, which has no pointer acceleration.
+- **App bar**: whether the window has focus, which the demo needs to read input, and the frame rate
+  with the time per frame. Under it, anything wrong with the [settings file](#settings-file), or
+  GameInput not being available, as info bars that close.
+- **Gamepad**: an XY graph for each stick, with the unit circle, a ring half way, and the dead zone
+  of the [rumble test](#rumble-test), the only part of the demo that applies one. Everywhere else,
+  the demo shows the sticks' and triggers' raw values. A bar for each trigger. A chip for every
+  button, in the accent color while it's held, and faint if the gamepad says it lacks it. A combo
+  box after the card's title picks which [gamepad the demo listens to](#choosing-a-gamepad), if any.
+- **Latest input event**: the newest reading that changed something: its device, what changed, how
+  long after that device's previous reading it came, and the device's whole state.
+- **Keyboard**: the keys held down, each as a keycap with the key's name, then its scan code,
+  virtual-key code and character, in Cascadia Mono, so that they line up.
+- **Mouse**: the buttons held, the motion and wheel, and a pad that moves with the raw relative
+  motion, which has no pointer acceleration.
 
-  Each of the two shows the last device whose keys, or mouse input, changed. A device can
-  be both, like a keyboard with a touchpad, and its readings then have both kinds of
-  input. A key press on it doesn't move the Mouse card to it.
-- **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback.
-  The gamepad that the card shows is in the accent color, and gamepads that the demo ignores
-  are faint.
-  The cursor on a device's row shows a [tooltip](#device-tooltips) of everything known about it.
-- **Event log**: everything above as it happens, newest first, in Cascadia Mono, so that its
-  columns line up. A run of analog motion from one device shares a line, with a count.
-- **Status bar**: the shortcuts, the GameInput runtime the demo loaded, how many readings it
-  has handled, and the [identifier](#display-identifiers) and model of the display the window
-  is on.
+  Each of the two shows the last device whose keys, or mouse input, changed. A device can be both,
+  like a keyboard with a touchpad, and its readings then have both kinds of input. A key press on
+  it doesn't move the Mouse card to it.
+- **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback. The
+  gamepad that the Gamepad card shows is in the accent color, with the accent pill of a selection,
+  and gamepads that the demo ignores are faint. The pointer resting on a device's row shows a
+  [tooltip](#device-tooltips) of everything known about it.
+- **Event log**: everything above as it happens, newest first, in Cascadia Mono, so that its columns
+  line up. A run of analog motion from one device shares a line, with a count.
+- **Status bar**: the shortcuts, the GameInput runtime the demo loaded, how many readings it has
+  handled, and the [identifier](#display-identifiers) and model of the display the window is on.
 
-Shortcuts, which the demo also reads with GameInput, while its window has focus:
+Shortcuts, while the demo's window has focus:
 
-| Key   | Action                                                                        |
-| ----- | ----------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors        |
-| `F2`  | Clear the event log                                                           |
-| `F11` | Switches between maximized and borderless fullscreen, for the lowest latency  |
+| Key   | Action                                                                                    |
+| ----- | ----------------------------------------------------------------------------------------- |
+| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors                    |
+| `F2`  | Clear the event log                                                                       |
+| `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
+
+The demo reads `F1` and `F2` with GameInput, like any other key. `F11` is Library/UserInterface's,
+which reads it from the window's messages, as in every KGames program, so the demo doesn't also
+switch on GameInput's `F11`, which would switch it back.
 
 ### Rumble test
 
-The rumble test drives only the standard rumble: the low-frequency motor in the left grip
-and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most
-other gamepads with rumble have. The left stick drives the first and the right stick the
-second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad card's
-"Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs,
-and while the window doesn't have focus or is minimized, which stops the demo from reading the
-sticks, none does either.
+The rumble test drives only the standard rumble: the low-frequency motor in the left grip and the
+high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most other gamepads with
+rumble have. The left stick drives the first and the right stick the second. The trigger motors of
+Xbox One and Series gamepads stay off. The Gamepad card's "Motors" still lists every motor the
+gamepad has. With the rumble test off, no motor runs, and while the window doesn't have focus,
+which stops the demo from reading the sticks, none does either.
 
-A motor is off while its stick is inside the inner dead zone, the ring on the stick's
-graph. Sticks don't read exactly 0 at rest, and the dead zone keeps that noise from
-running the motors. Past the ring, the motor's strength grows linearly with how far the
-stick is pushed, in any direction, from off at the ring to full at the edge. Both sticks
-have the same dead zone: 10% of full deflection by default, set with
-`RumbleTestInnerDeadZone` in the [settings file](#settings-file). Nothing else in the
-demo applies a dead zone.
+Minimizing the window takes its focus, but the main loop runs no frames while the window is
+minimized, so the demo only sees that once it's restored. Until then, the motors keep the strength
+that they last had.
+
+A motor is off while its stick is inside the inner dead zone, the ring on the stick's graph. Sticks
+don't read exactly 0 at rest, and the dead zone keeps that noise from running the motors. Past the
+ring, the motor's strength grows linearly with how far the stick is pushed, in any direction, from
+off at the ring to full at the edge. Both sticks have the same dead zone: 10% of full deflection by
+default, set with `RumbleTestInnerDeadZone` in the [settings file](#settings-file). Nothing else in
+the demo applies a dead zone.
 
 ### Choosing a gamepad
 
-Click the combo box after the Gamepad card's title for a list of choices, and click
-one to pick it. Esc, a click anywhere else in the window, or the window losing focus, like when
-it's minimized, closes the list. A click on the title bar isn't in the window's client area, so
-it leaves the list open. While the list is open, Up, Down, Home and End pick another choice,
-and Space or Enter close it, like in any combo box of Library/UserInterface. Otherwise the
-combo box never takes keyboard focus, so the keys that you press to try the Keyboard card
-leave it alone.
+Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
+Esc, a click anywhere else in the window, or the window losing focus, like when it's minimized,
+closes the list. While the list is open, Up, Down, Home and End move to another choice, and Space or
+Enter pick it, like in any combo box of Library/UserInterface. Otherwise the combo box never takes
+keyboard focus, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |
 | --------- | ------------------------------------------------------------------------------- |
 | A gamepad | Only that one. If it disconnects, the demo waits for it to reconnect            |
 | `None`    | No gamepad                                                                      |
 
-The demo ignores a gamepad it doesn't listen to: its readings aren't shown, logged or
-counted, and the rumble test leaves its motors off. That includes any keyboard or mouse
-input from the same device. A GameSir controller in Xbox 360 mode, for example, is one
-device with a gamepad, a keyboard and a mouse.
+The demo ignores a gamepad it doesn't listen to: its readings aren't shown, logged or counted, and
+the rumble test leaves its motors off. That includes any keyboard or mouse input from the same
+device. A GameSir controller in Xbox 360 mode, for example, is one device with a gamepad, a keyboard
+and a mouse.
 
-The choice isn't saved. Until one is picked, the demo chooses for itself: the first
-gamepad it finds connected. If that one disconnects, it switches to another that's still
-connected, or else to the next one that connects. Before any gamepad connects, the combo
-box shows `None`. The combo box reads the mouse from the window's messages, not from
-GameInput, because they say where the cursor is in the window.
+The choice isn't saved. Until one is picked, the demo chooses for itself: the first gamepad it finds
+connected. If that one disconnects, it switches to another that's still connected, or else to the
+next one that connects. Before any gamepad connects, the combo box shows `None`, and a note after it
+says that no gamepad is connected. The combo box reads the mouse from the window's messages, not
+from GameInput, because they say where the pointer is in the window.
 
 ### Device tooltips
 
 A device's name and IDs often don't say what it is. Two keyboards can both be
-`HID Keyboard Device (0000:0000)`, for example. So while the cursor is on a row of the Devices
-card, a tooltip shows all that GameInput and Windows say about that device, in three parts:
+`HID Keyboard Device (0000:0000)`, for example. So once the pointer rests on a row of the Devices
+card for half a second, a tooltip shows all that GameInput and Windows say about that device, in
+three parts:
 
 | Part              | What it has                                                                     |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -129,16 +124,15 @@ card, a tooltip shows all that GameInput and Windows say about that device, in t
 |                   | hub, or a driver like the Intel HID Event Filter that makes up devices for a    |
 |                   | laptop's buttons                                                                |
 
-Devices that share a container are parts of one physical device, like a mouse and the
-keyboard it has for its macros. Windows gives devices built into the computer the container
+Devices that share a container are parts of one physical device, like a mouse and the keyboard it
+has for its macros. Windows gives devices built into the computer the container
 `{00000000-0000-0000-FFFF-FFFFFFFFFFFF}`.
 
-Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread
-of its own does that for each device as it connects, instead of the main loop. The tooltip
-reads what it found. The cursor comes from the window's messages, like the combo box's, so
-the tooltip only shows while the window has focus. It goes under the cursor, or above it if
-there isn't room, or beside the device's row if it's too tall for either, and it stays inside
-the window.
+Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread of its
+own does that for each device as it connects, instead of the main loop. The tooltip reads what it
+found. Long values, like the PnP path, wrap. The pointer comes from the window's messages, like the
+combo box's, so the tooltip only shows while the window has focus. Library/UserInterface places it
+under the pointer, or above it if there isn't room, and always inside the window.
 
 ## Requirements
 
@@ -155,49 +149,48 @@ the window.
 cargo run --release
 ```
 
-Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people
-who want to use the demo, not for coding agents, which use
-[RunInBackground](#running-it-in-the-background). It runs `HumanRun.ps1`,
-which does the same as above with `--display Primary`, so the demo opens on the primary
-display whatever `Settings.json` says. Other arguments go to the demo.
+Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people who want to
+use the demo, not for coding agents, which use [RunInBackground](#running-it-in-the-background). It
+runs `HumanRun.ps1`, which does the same as above with `--display Primary`, so the demo opens on the
+primary display whatever `Settings.json` says. Other arguments go to the demo.
 
-To open the demo on another display, find the display's identifier with `IdentifyDisplays`,
-then pass it with `--display`, or put it in the [settings file](#settings-file):
+To open the demo on another display, find the display's identifier with `IdentifyDisplays`, then
+pass it with `--display`, or put it in the [settings file](#settings-file):
 
 ```powershell
 cargo run --release --bin IdentifyDisplays
 cargo run --release -- --display KXGR16
 ```
 
-To open the demo without taking focus from the window you're typing in, add `--no-activate`.
-The window opens without taking focus from that one, and gets keyboard and mouse input once
-you click it.
+To open the demo without taking focus from the window you're typing in, add `--no-activate`. The
+window opens without taking focus from that one, and gets keyboard and mouse input once you click
+it.
 
 ### Running it in the background
 
-[RunInBackground](../RunInBackground/README.md) builds the demo, opens it without taking focus,
-saves a screenshot of its window, and closes it. It's how coding agents run the demo while you
-work in other windows (see [AGENTS.md](AGENTS.md)).
+[RunInBackground](../RunInBackground/README.md) builds the demo, opens it without taking focus, saves
+a screenshot of its window, and closes it. It's how coding agents run the demo while you work in
+other windows (see [AGENTS.md](AGENTS.md)).
 
 ```powershell
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --display KXGR16
 ```
 
-With `--all-scripts`, it runs the demo with the scripts in `Test/GameInputDemo/Scripts`
-instead (see [Testing](#testing)).
+With `--all-scripts`, it runs the demo with the scripts in `Test/GameInputDemo/Scripts` instead (see
+[Testing](#testing)).
 
 ## Displays and settings
 
 ### Display identifiers
 
-[IdentifyDisplays](../IdentifyDisplays/README.md) shows each display's identifier, like
-`KXGR16`, on that display. The demo matches identifiers without regard to case.
+[IdentifyDisplays](../IdentifyDisplays/README.md) shows each display's identifier, like `KXGR16`, on
+that display. The demo matches identifiers without regard to case.
 
 ### Settings file
 
-The demo reads `Settings.json`, in this folder next to `Cargo.toml`, when it starts. The
-folder's path is built into the exe, so the exe finds the file wherever it's run from.
-The file is in Git. If it doesn't exist, the demo writes it with the defaults:
+The demo reads `Settings.json`, in this folder next to `Cargo.toml`, when it starts. The folder's
+path is built into the exe, so the exe finds the file wherever it's run from. The file is in Git. If
+it doesn't exist, the demo writes it with the defaults:
 
 ```json
 {
@@ -215,145 +208,128 @@ The file is in Git. If it doesn't exist, the demo writes it with the defaults:
 | `AllowTearing`            | Whether frames may tear, which lets them reach the screen mid-refresh       |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-- If `Display` names a display that isn't connected, the demo opens on the primary display.
+The first three are the settings that every KGames program has, which
+[Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
+and the last is the demo's own.
+
+- If `Display` names a display that isn't connected, the demo opens on the primary display, and a
+  notice under the app bar says so.
 - `F11` switches between the two window modes, whichever the demo opened in.
-- A setting that's missing keeps its default. So does one that's wrong, and a notice under
-  the app bar says what's wrong with it. If the file isn't valid JSON, it says where, and the
-  demo uses the defaults. Values that are words, like `"Maximized"`, ignore case, but
-  setting names don't.
+- A setting that's missing keeps its default. So does one that's wrong, and a notice under the app
+  bar says what's wrong with it. If the file isn't valid JSON, it says where, and the demo uses the
+  defaults. Values that are words, like `"Maximized"`, ignore case, but setting names don't.
 - The demo never changes the file once it exists. Delete it to get the defaults back.
 
-`--display` and an identifier on the command line overrides `Display`. `--display Primary`
-opens on the primary display. Unlike `Display`, a display named with `--display` must be
-connected. If it isn't, the demo writes why to standard error and exits, instead of opening
-on the primary display.
+`--display` and an identifier on the command line overrides `Display`. `--display Primary` opens on
+the primary display. Unlike `Display`, a display named with `--display` must be connected. If it
+isn't, the demo writes why to standard error and exits, instead of opening on the primary display.
 
 ## How it gets GameInput
 
-The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, finds
-and loads the newest runtime, and puts the runtime from Microsoft's NuGet package next to the
-demo's exe. The status bar of the demo's window shows which runtime it loaded.
+The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, finds and loads
+the newest runtime, and puts the runtime from Microsoft's NuGet package next to the demo's exe. The
+status bar of the demo's window shows which runtime it loaded. If GameInput isn't available, the
+window still opens, and a notice under the app bar says why there's no input.
 
 ## How it reads input
 
-GameInput doesn't send input events. It keeps a short history of *readings*, where each
-reading is a timestamped snapshot of one device's whole state. Every frame, the demo:
+GameInput doesn't send input events. It keeps a short history of *readings*, where each reading is a
+timestamped snapshot of one device's whole state. Every frame, the demo:
 
-1. Drains the queue of device events that its `RegisterDeviceCallback` callback fills.
-   That callback runs on one of GameInput's threads, and also reports the devices that
-   were already connected when the demo started.
-2. For each of gamepad, keyboard and mouse input, walks the history from the last reading
-   it handled with `GetNextReading`, so no reading is missed between frames. GameInput
-   keeps readings for only a short time, so after a pause in input the last reading
-   handled has left the history, and `GetNextReading` fails with
-   `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from the newest
-   reading with `GetPreviousReading` to find the ones it hasn't handled.
-3. Compares each reading with the same device's previous one to work out what changed. It
-   keeps every device's last reading itself for that, including the ones it drops without
-   focus. `GetPreviousReading` would give it too, but only while it's still in the history,
-   so after a pause a held key would show as pressed again.
+1. Drains the queue of device events that its `RegisterDeviceCallback` callback fills. That callback
+   runs on one of GameInput's threads, and also reports the devices that were already connected when
+   the demo started.
+2. For each of gamepad, keyboard and mouse input, walks the history from the last reading it handled
+   with `GetNextReading`, so no reading is missed between frames. GameInput keeps readings for only
+   a short time, so after a pause in input the last reading handled has left the history, and
+   `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from
+   the newest reading with `GetPreviousReading` to find the ones it hasn't handled.
+3. Compares each reading with the same device's previous one to work out what changed. It keeps
+   every device's last reading itself for that, including the ones it drops without focus.
+   `GetPreviousReading` would give it too, but only while it's still in the history, so after a
+   pause a held key would show as pressed again.
 
-`Source/GameInputSource.rs` does the first two, and hands the devices and readings on as plain
-data, so that the rest of the demo also runs on input from tests and scripts (see
-[Testing](#testing)).
+`Source/GameInputSource.rs` does the first two, and hands the devices and readings on as plain data,
+so that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)).
+Library/UserInterface doesn't read the gamepad for it: `Options::gamepad` is off.
 
-Like every KGames program, the demo only handles input while its window has focus, and the
-app bar says whether it has focus. GameInput gives gamepad input to windows without focus. It's
-meant to give keyboard and mouse input only to the window in focus, but the 4.0.306 runtime
-that the demo loads from its folder gives it to the demo without focus too, even after
-`EnableBackgroundInput(false)`. So the demo drops it all itself: readings that come while the
-window doesn't have focus or is minimized, and from before it got focus. Otherwise it would
-show and log what's typed into other windows, and its shortcuts would run when they're pressed
-in other apps. When the window loses focus, the cards stop showing keys, buttons and sticks
-as held, and a gamepad that the demo switches to then shows at rest.
+Like every KGames program, the demo only handles input while its window has focus, and the app bar
+says whether it has focus. GameInput gives gamepad input to windows without focus. It's meant to give
+keyboard and mouse input only to the window in focus, but the 4.0.306 runtime that the demo loads
+from its folder gives it to the demo without focus too, even after `EnableBackgroundInput(false)`.
+So the demo drops it all itself: readings that come while the window doesn't have focus, including
+while it's minimized, and from before it got focus. Otherwise it would show and log what's typed into
+other windows, and its shortcuts would run when they're pressed in other apps. When the window loses
+focus, the cards stop showing keys, buttons and sticks as held, and a gamepad that the demo switches
+to then shows at rest. The frame that restores a minimized window counts as the window getting
+focus, after losing it.
 
-Keys and buttons that are still held when the window gets focus, like the button of the click
-that gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go
-of: they don't show as held, and neither their press nor their release is logged. After that,
-they work as usual. Sticks, triggers and mouse motion show as usual right away.
+Keys and buttons that are still held when the window gets focus, like the button of the click that
+gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go of: they
+don't show as held, and neither their press nor their release is logged. After that, they work as
+usual. Sticks, triggers and mouse motion show as usual right away.
 
 ## Input latency
 
-The demo is built to show input on screen as soon as it can. Its part of the latency is
-the time from a reading reaching GameInput to a frame that shows it reaching the screen.
-The rest, like the device's own polling, its connection, and the monitor's scanout and
-response, is outside the demo.
+The demo is built to show input on screen as soon as it can. Its part of the latency is the time
+from a reading reaching GameInput to a frame that shows it reaching the screen. The rest, like the
+device's own polling, its connection, and the monitor's scanout and response, is outside the demo.
 
-1. **No frame waits behind another.** The swap chain has a frame latency waitable object
-   and a maximum frame latency of 1, and only one frame is on the GPU at a time. By
-   default, DXGI lets 3 presented frames queue up, and each one delays the newest.
-2. **Input is read last.** Each frame, the main loop first waits until the GPU has finished
-   the previous frame and DXGI's queue has room. Only then does it start the frame, read
-   GameInput, build the frame and present it, so no readings age during the wait.
-3. **The wait spins.** The loop polls both conditions instead of blocking on events, so it
-   notices them within microseconds, instead of waiting for Windows to wake its thread.
-   It keeps handling window messages while it spins.
-4. **Frames don't wait for vertical sync.** `Present(0, DXGI_PRESENT_ALLOW_TEARING)`
-   returns at once, so the demo draws thousands of frames a second, and whenever the
-   screen takes a frame, the newest one read its input a fraction of a millisecond earlier.
-   When Windows flips the demo's frames straight to the screen, a frame can replace the
-   one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
-   compositor shows the newest frame at its next refresh. With `"AllowTearing": false` in
-   the [settings](#settings-file), the demo presents with `Present(0, 0)`: frames still
-   don't wait, but the screen takes the newest one at each refresh, so none tear, even
-   in fullscreen.
-5. **Borderless fullscreen.** `F11`, or `"WindowMode": "BorderlessFullscreen"` in the
-   settings, makes the window cover its monitor, which lets Windows flip the frames
-   straight to the screen, instead of the compositor copying them into its own frame.
-   That saves up to a refresh, and lets frames tear. In a window, Windows can only do
-   that if the GPU supports multiplane overlays.
-6. **The monitor's GPU draws.** On a laptop whose screen is wired to the integrated GPU,
-   drawing with the discrete one would add a copy between the GPUs to every frame, and
-   keep Windows from flipping frames straight to the screen. So the demo draws with the GPU
-   that has the window's monitor as an output, which any GPU is fast enough for.
-7. **Little work between reading input and presenting.** On the development machine, an
-   RTX 5090 Laptop GPU and a Core Ultra 9 275HX, that takes about 0.13 ms: about 35 µs to
-   read input and build the frame's geometry, 20 µs to copy its vertices and submit its
-   commands, and 70 µs in `Present`. A whole frame takes about 0.2 ms.
-   The interface's vertex Vecs are reused for every frame. A new one, being large, came fresh
-   from the OS each frame, and filling it took a page fault every 4 KB, which made building the
-   frame 4 times slower.
-8. **No power throttling.** Windows lowers the quality of service of a process whose
-   windows aren't in focus. On a CPU with efficiency cores, that can move its threads
-   onto those, at lower clock speeds. The demo ignores input then, but keeps drawing, so it
-   opts out with `SetProcessInformation`, which keeps its frames paced the same in the
-   background as in the foreground.
+Library/UserInterface's main loop does most of it (see its
+[README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
+time, the loop spins until the GPU and DXGI can take another, and only then calls the demo's
+`update`, which reads GameInput, so no readings age during the wait. Frames are presented without
+waiting for vertical sync, so the demo draws thousands of frames a second, and whenever the screen
+takes a frame, the newest one read its input a fraction of a millisecond earlier. The window draws
+with the GPU that its monitor is an output of, and the process opts out of power throttling, so its
+frames are paced the same in the background. On the development machine, an RTX 5090 Laptop GPU and
+a Core Ultra 9 275HX, a whole frame takes about 0.2 ms.
+
+When Windows flips the demo's frames straight to the screen, a frame can replace the one being
+scanned out mid-refresh, which can show as tearing. Otherwise, the desktop compositor shows the
+newest frame at its next refresh. With `"AllowTearing": false` in the [settings](#settings-file),
+frames still don't wait, but the screen takes the newest one at each refresh, so none tear, even in
+fullscreen. `F11`, or `"WindowMode": "BorderlessFullscreen"`, makes the window cover its monitor,
+which lets Windows flip the frames straight to the screen, instead of the compositor copying them
+into its own frame. That saves up to a refresh, and lets frames tear. In a window, Windows can only
+do that if the GPU supports multiplane overlays.
 
 What it doesn't do:
 
-- **Raise its thread's priority.** The main thread never blocks, so above normal priority,
-  it could hold off the normal priority threads that deliver its input when every core is
-  busy: GameInput's own threads in the process, its raw input proxy, and its service.
-  Windows already favors the threads of the window in the foreground.
-- **Cap the frame rate.** Drawing one frame per refresh, timed to finish just before
-  vertical sync, would save power, but the input it shows would be older, and a frame
-  that finishes late waits a whole refresh.
-- **Change how GameInput's helper is scheduled.** Keyboards and mice reach GameInput
-  through its `GameInputRawInputProxy.exe`. On the development machine, a key injected
-  with `SendInput` took about 0.2 ms to reach the demo. Opting the helper out of power
-  throttling too made no difference, and forcing it into efficiency mode added about 0.1 ms.
+- **Raise its thread's priority.** The main thread never blocks, so above normal priority, it could
+  hold off the normal priority threads that deliver its input when every core is busy: GameInput's
+  own threads in the process, its raw input proxy, and its service. Windows already favors the
+  threads of the window in the foreground.
+- **Cap the frame rate.** Drawing one frame per refresh, timed to finish just before vertical sync,
+  would save power, but the input it shows would be older, and a frame that finishes late waits a
+  whole refresh.
+- **Change how GameInput's helper is scheduled.** Keyboards and mice reach GameInput through its
+  `GameInputRawInputProxy.exe`. On the development machine, a key injected with `SendInput` took
+  about 0.2 ms to reach the demo. Opting the helper out of power throttling too made no difference,
+  and forcing it into efficiency mode added about 0.1 ms.
 
-The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of
-frames a second, even when nothing changes. Minimizing the window stops both.
+The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of frames a
+second, even when nothing changes. Minimizing the window stops both.
 
 ## Testing
 
 The demo reads devices and readings from an `InputSource`: GameInput's in a normal run, and a
 scripted one, in `Source/ScriptedSource.rs`, in tests and scripted runs. So everything after
-GameInput, from which gamepad it listens to, to dropping input without focus, the rumble test,
-the shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
+GameInput, from which gamepad it listens to, to dropping input without focus, the rumble test, the
+shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
 
 ```powershell
 cargo test -p game_input_demo_tests
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 
-The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse
-in its cards' real layout, which Library/UserInterface's `Headless` draws without a window or
-a GPU: the combo box and its list, and the Devices card's rows and their tooltips. The
-scripts in `Test/GameInputDemo/Scripts` run the real demo, in its window, as
-[Library/Application](../../Library/Application/README.md#scripts) describes. Their `Program`
-steps connect and disconnect devices, and give their readings:
+The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse in its
+cards' real layout, which Library/UserInterface's `Headless` draws without a window: the combo box
+and its list, and the Devices card's rows and their tooltips. One draws a frame with the GPU,
+offscreen, and checks where the sticks' dots are. The scripts in `Test/GameInputDemo/Scripts` run the
+real demo, in its window, as [Library/UserInterface](../../Library/UserInterface/README.md#testing)
+describes. Their `Program` steps, which the demo's `Program::script` does, connect and disconnect
+devices, and give their readings:
 
 ```json
 {
@@ -371,11 +347,11 @@ steps connect and disconnect devices, and give their readings:
 }
 ```
 
-Each step gives one kind of a device's input in whole, as GameInput's readings do: what the
-step leaves out of that kind is at rest, except that a mouse's `Motion` and `Wheel` add to its
-totals, as a real mouse's do. A device with more than one kind keeps the others as its last
-steps left them, so a `Keyboard` step on a gamepad that's also a keyboard doesn't let go of its
-buttons.
+Each step gives one kind of a device's input in whole, as GameInput's readings do: what the step
+leaves out of that kind is at rest, except that a mouse's `Motion` and `Wheel` add to its totals, as
+a real mouse's do. A device with more than one kind keeps the others as its last steps left them, so
+a `Keyboard` step on a gamepad that's also a keyboard doesn't let go of its buttons. A step's
+readings are at the time of its frame.
 
 | Step         | Members                                                                         |
 | ------------ | ------------------------------------------------------------------------------- |
@@ -383,43 +359,54 @@ buttons.
 |              | `Mouse`, and `Motors` from `LowFrequency`, `HighFrequency`, `LeftTrigger` and   |
 |              | `RightTrigger`                                                                  |
 | `Gamepad`    | `Id`, `LeftStick` and `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`,  |
-|              | and `Buttons`, named as the gamepad card names them                             |
+|              | and `Buttons`, named as the Gamepad card names them                             |
 | `Keyboard`   | `Id`, and the keys `Down`, like `F1`, `A` or `Left`                             |
-| `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the mouse card  |
+| `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the Mouse card  |
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |
 
-The state that scripts save and check has what the cards show, the log's 10 newest lines, and
-the rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`
-(see [Library/UserInterface](../../Library/UserInterface/README.md#testing)). Its `Targets` say
-where the combo box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and so on,
-are, and where each row of the Devices card is, `Devices/0`, `Devices/1` and so on, in the
-card's order, with its device's label as its `Label`. Steps point at them by name, like
-`{ "Frame": 3, "Move": "Devices/1" }`, or `{ "Frame": 6, "Click": "Gamepad/1" }` for a choice,
-which a press takes away. Each choice's `Label` is its gamepad's, and the combo box's is the
-chosen one's. `Popup` is `Gamepad` while the combo box's list is open, and `null` otherwise.
-`Tooltip` has the label of the device whose tooltip shows, as its `Name`, and where it is, or is
-`null` without one. A device from a script has no PnP path, so its tooltip only has what the
-`Connect` step gives, and says that Windows has nothing on it.
+The window's own keys and mouse are the script's `Key`, `Click`, `Move` and other steps, which the
+combo box, the Devices card's rows and `F11` read, like `{ "Frame": 10, "Key": "F11" }`.
 
-What only real devices show still needs a person: GameInput's own readings and device events,
-how the motors feel, and focus changing while a gamepad is held.
+The state that scripts save and check has what the cards show, the log's 10 newest lines, and the
+rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`. Its
+`Targets` say where the combo box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and
+so on, are, and where each row of the Devices card is, `Devices/0`, `Devices/1` and so on, in the
+card's order, with its device's label as its `Label`. Steps point at them by name, like
+`{ "Frame": 3, "Move": "Devices/1" }`, or `{ "Frame": 6, "Click": "Gamepad/1" }` for a choice. Each
+choice's `Label` is its gamepad's, and the combo box's is the chosen one's. `Popup` is `Gamepad`
+while the combo box's list is open, and `null` otherwise. `Tooltip` has the name of the row whose
+tooltip shows, like `Devices/1`, and where it is, or is `null` without one. A device from a script
+has no PnP path, so its tooltip only has what the `Connect` step gives, and says that Windows has
+nothing on it.
+
+| Script          | What it does                                                                    |
+| --------------- | ------------------------------------------------------------------------------- |
+| `DeviceTooltip` | Rests the pointer on two devices' rows, and shows their tooltips                |
+| `Gamepad`       | Presses buttons and moves sticks and triggers, lets go, and disconnects         |
+| `Keyboard`      | Holds keys, clears the log with `F2`, and switches fullscreen with `F11`        |
+| `Mouse`         | Moves a mouse, presses its buttons, and turns its wheel                         |
+| `Overview`      | Gives every card something to show, for a look at the whole window              |
+| `Picker`        | Picks gamepads with the combo box, with clicks and keys, and closes its list    |
+| `RumbleTest`    | Drives the motors with the sticks, and stops them without focus                 |
+
+What only real devices show still needs a person: GameInput's own readings and device events, how
+the motors feel, and focus changing while a gamepad is held.
 
 ### With SendInput
 
-Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard" or
-"Unidentified mouse" with ID `0000:0000`. Injected input can be lost for about half a
-second after the demo starts, while GameInput adds that device. It goes to the window that
-has focus, so it's for trying the demo by hand, not for coding agents.
+Input sent with `SendInput` reaches GameInput as from an "Unidentified keyboard" or "Unidentified
+mouse" with ID `0000:0000`. Injected input can be lost for about half a second after the demo starts,
+while GameInput adds that device. It goes to the window that has focus, so it's for trying the demo
+by hand, not for coding agents.
 
-A precision touchpad, like a laptop's, moves the pointer the same way. Windows' touchpad
-driver reads where the fingers are, and moves the pointer with mouse input of its own, which
-doesn't say what device it came from. So the touchpad is the "Unidentified mouse" too: it's
-only in the Devices card once it's used, its tooltip has no PnP path, and its input can't be
-told apart from `SendInput`'s.
+A precision touchpad, like a laptop's, moves the pointer the same way. Windows' touchpad driver reads
+where the fingers are, and moves the pointer with mouse input of its own, which doesn't say what
+device it came from. So the touchpad is the "Unidentified mouse" too: it's only in the Devices card
+once it's used, its tooltip has no PnP path, and its input can't be told apart from `SendInput`'s.
 
-The virtual gamepad that Windows' `InputInjector.InitializeGamepadInjection` creates doesn't
-reach GameInput.
+The virtual gamepad that Windows' `InputInjector.InitializeGamepadInjection` creates doesn't reach
+GameInput.
 
 ## Using more APIs
 
@@ -430,18 +417,18 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 
 ## Layout
 
-| Path                               | Contents                                                                         |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`                   | Runs the demo with Library/UserInterface's main loop                             |
-| `Source/Library.rs`                | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
-| `Source/Demo.rs`                   | The demo as a `Program`: its input source, and what it does each frame           |
-| `Source/Settings.rs`               | The demo's own setting, `RumbleTestInnerDeadZone`                                |
-| `Source/Devices.rs`                | Devices and readings as plain data, and `InputSource`, which gives them          |
-| `Source/DeviceTree.rs`             | Looks up a device's nodes in Windows' device tree, from its PnP path             |
-| `Source/GameInputSource.rs`        | Reads devices and readings with GameInput                                        |
-| `Source/ScriptedSource.rs`         | Devices and readings from tests and scripts, instead of GameInput                |
-| `Source/Input.rs`                  | Keeps what the cards show, from the devices and readings                         |
-| `Source/Panels.rs`                 | Lays out the cards in fixed pixels, and draws them with Library/UserInterface    |
-| `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
-| `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
-| `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |
+| Path                        | Contents                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| `Source/Main.rs`            | Runs the demo with Library/UserInterface's main loop                             |
+| `Source/Library.rs`         | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
+| `Source/Demo.rs`            | The demo as a `Program`: its input source, and what it does each frame           |
+| `Source/Settings.rs`        | The demo's own setting, `RumbleTestInnerDeadZone`                                |
+| `Source/Devices.rs`         | Devices and readings as plain data, and `InputSource`, which gives them          |
+| `Source/DeviceTree.rs`      | Looks up a device's nodes in Windows' device tree, from its PnP path             |
+| `Source/GameInputSource.rs` | Reads devices and readings with GameInput                                        |
+| `Source/ScriptedSource.rs`  | Devices and readings from tests and scripts, instead of GameInput                |
+| `Source/Input.rs`           | Keeps what the cards show, from the devices and readings                         |
+| `Source/Cards.rs`           | Lays out the cards in fixed pixels, and draws them with Library/UserInterface    |
+| `HumanRun.ps1`              | Builds the demo and runs it on the primary display, for people to use it         |
+| `HumanRun.cmd`              | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
+| `Settings.json`             | The [settings file](#settings-file), which the demo writes if it's missing       |

@@ -18,7 +18,6 @@ path = "Source/Main.rs"
 test = false
 
 [dependencies]
-application = { path = "../../Library/Application" }
 game_input = { path = "../../Library/GameInput" }
 json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }

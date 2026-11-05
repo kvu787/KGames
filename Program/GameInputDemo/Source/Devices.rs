@@ -44,7 +44,7 @@ pub struct Device {
     pub tree: Tree,
 }
 
-// Part of what the Devices panel's tooltip says about a device: a title,
+// Part of what the Devices card's tooltip says about a device: a title,
 // and values with their names. A value can have more than one line.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Section {
@@ -85,7 +85,7 @@ impl Device {
             .filter(|&rate| rate > 0)
     }
 
-    // What the Devices panel's tooltip says about it: what GameInput says,
+    // What the Devices card's tooltip says about it: what GameInput says,
     // then Windows' node for it, and what that's connected through.
     pub fn details(&self) -> Vec<Section> {
         let mut rows = vec![
@@ -344,7 +344,7 @@ pub struct Reading {
 
 // Where devices and readings come from.
 pub trait InputSource {
-    // The GameInput runtime that was loaded, for the header, if any.
+    // The GameInput runtime that was loaded, for the status bar, if any.
     fn runtime(&self) -> Option<&Runtime> {
         None
     }

@@ -3,11 +3,11 @@
 // keyboard and mouse: which devices it listens to, what it ignores without
 // focus, its shortcuts, the rumble test, and the log.
 
-use application::script::compare;
 use game_input::*;
 use game_input_demo::devices::InputSource;
 use game_input_demo::input::{Input, Listen, key_name};
 use game_input_demo::scripted_source::{ScriptedSource, key_state};
+use user_interface::script::compare;
 
 const PAD_ONE: &str = r#"{ "Connect": { "Id": 1, "Name": "Pad One", "Input": ["Gamepad"],
                                         "Motors": ["LowFrequency", "HighFrequency"] } }"#;
@@ -38,7 +38,8 @@ fn wait(input: &mut Input, microseconds: u64) {
 
 // Checks the demo's state, as a script's "Expect" step would.
 fn expect(input: &Input, expected: &str) {
-    let problems = compare(&json::parse(expected).unwrap(), &input.state());
+    let mut problems = Vec::new();
+    compare(&json::parse(expected).unwrap(), &input.state(), &mut String::new(), &mut problems);
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
@@ -248,15 +249,16 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
     input.update(false);
     assert!(source(&mut input).rumble(1).is_none());
 
-    // F11, pressed in another window while the demo is minimized, doesn't
-    // switch it to fullscreen once it's restored.
+    // F1, pressed in another window while the demo is minimized, doesn't
+    // turn the rumble test off once it's restored.
     wait(&mut input, 1000);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     wait(&mut input, 1000);
     input.update(true);
-    assert!(!input.fullscreen_toggled);
-    assert!(!log(&input).iter().any(|line| line.contains("F11")), "{:?}", log(&input));
+    assert!(input.rumble_enabled);
+    let presses = log(&input).iter().filter(|line| line.contains("F1")).count();
+    assert_eq!(presses, 2, "{:?}", log(&input));
     // The sticks count as at rest until they move with focus.
     assert!(source(&mut input).rumble(1).is_none());
 }
@@ -513,14 +515,11 @@ fn shortcuts_run_once_for_each_press() {
     input.update(true);
     assert!(!input.rumble_enabled);
 
+    // F11 is the library's, from the window's messages, so through
+    // GameInput it's only a key, which is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
     input.update(true);
-    assert!(input.fullscreen_toggled);
-
-    // The main loop switches the window and clears this before scripts save
-    // the state, so the state leaves it out. The window's own says whether
-    // it's in fullscreen.
-    assert!(input.state().get("FullscreenToggled").is_none());
+    assert!(log(&input)[0].starts_with("Keys: F11 down"), "{:?}", log(&input));
 
     // The log is cleared after the key press is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F2"] } }"#);

@@ -1,7 +1,9 @@
 // GameInputDemo's parts, as a library, so that Test/GameInputDemo can test
-// what the demo makes of readings, and what input does to its panels,
-// without a window, and without GameInput. Main.rs is the program.
+// what the demo makes of readings, and what input does to its cards, without
+// a window, and without GameInput. Main.rs is the program.
 
+#[path = "Cards.rs"]
+pub mod cards;
 #[path = "Demo.rs"]
 pub mod demo;
 #[path = "DeviceTree.rs"]
@@ -12,8 +14,6 @@ pub mod devices;
 pub mod game_input_source;
 #[path = "Input.rs"]
 pub mod input;
-#[path = "Panels.rs"]
-pub mod panels;
 #[path = "ScriptedSource.rs"]
 pub mod scripted_source;
 #[path = "Settings.rs"]
