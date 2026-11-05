@@ -12,7 +12,7 @@ pub const EDGE: f32 = 12.0;
 // Inside a panel, around its contents.
 pub const PADDING: f32 = 12.0;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -40,6 +40,90 @@ impl Rect {
 
     pub fn contains(&self, [x, y]: [f32; 2]) -> bool {
         x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
+    }
+
+    pub fn center(&self) -> [f32; 2] {
+        [self.x + self.width * 0.5, self.y + self.height * 0.5]
+    }
+
+    // Smaller by `amount` on every side.
+    pub fn inset(&self, amount: f32) -> Rect {
+        Rect::new(
+            self.x + amount,
+            self.y + amount,
+            self.width - amount * 2.0,
+            self.height - amount * 2.0,
+        )
+    }
+
+    // Bigger by `amount` on every side.
+    pub fn outset(&self, amount: f32) -> Rect {
+        Rect::new(
+            self.x - amount,
+            self.y - amount,
+            self.width + amount * 2.0,
+            self.height + amount * 2.0,
+        )
+    }
+
+    // The top `height` of the rectangle, and what's left under it after `gap`.
+    pub fn split_top(&self, height: f32, gap: f32) -> (Rect, Rect) {
+        let height = height.min(self.height);
+        (
+            Rect::new(self.x, self.y, self.width, height),
+            Rect::new(self.x, self.y + height + gap, self.width, self.height - height - gap),
+        )
+    }
+
+    // The bottom `height` of the rectangle, and what's left over it before
+    // `gap`.
+    pub fn split_bottom(&self, height: f32, gap: f32) -> (Rect, Rect) {
+        let height = height.min(self.height);
+        (
+            Rect::new(self.x, self.bottom() - height, self.width, height),
+            Rect::new(self.x, self.y, self.width, self.height - height - gap),
+        )
+    }
+
+    // The left `width` of the rectangle, and what's left right of it after
+    // `gap`.
+    pub fn split_left(&self, width: f32, gap: f32) -> (Rect, Rect) {
+        let width = width.min(self.width);
+        (
+            Rect::new(self.x, self.y, width, self.height),
+            Rect::new(self.x + width + gap, self.y, self.width - width - gap, self.height),
+        )
+    }
+
+    // The right `width` of the rectangle, and what's left left of it before
+    // `gap`.
+    pub fn split_right(&self, width: f32, gap: f32) -> (Rect, Rect) {
+        let width = width.min(self.width);
+        (
+            Rect::new(self.right() - width, self.y, width, self.height),
+            Rect::new(self.x, self.y, self.width - width - gap, self.height),
+        )
+    }
+
+    // `count` columns of equal width, `gap` apart, whole pixels wide but
+    // the last, which takes what's left.
+    pub fn columns(&self, count: usize, gap: f32) -> Vec<Rect> {
+        let count = count.max(1);
+        let width = ((self.width - gap * (count - 1) as f32) / count as f32).floor();
+        (0..count)
+            .map(|index| {
+                let x = self.x + (width + gap) * index as f32;
+                let right = if index + 1 == count { self.right() } else { x + width };
+                Rect::new(x, self.y, right - x, self.height)
+            })
+            .collect()
+    }
+
+    // `count` rows of `height`, `gap` apart, from the top.
+    pub fn rows(&self, count: usize, height: f32, gap: f32) -> Vec<Rect> {
+        (0..count)
+            .map(|index| Rect::new(self.x, self.y + (height + gap) * index as f32, self.width, height))
+            .collect()
     }
 }
 
