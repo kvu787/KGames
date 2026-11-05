@@ -15,7 +15,8 @@ What every KGames GUI program shares besides drawing:
 - `Window` opens the program's window on its display, maximized or in borderless fullscreen,
   and switches between the two with `toggle_fullscreen`, for F11. It records the window's
   messages, and `begin_frame` gives the program each frame's time and the mouse and keyboard
-  input from them as `Event`s, in a `Frame`.
+  input from them as `Event`s, in a `Frame`: presses, releases and the wheel, keys, and the
+  characters that the keys type, for text fields.
 - `window_check` says what's wrong with the window's setup, if it isn't one of the two that
   programs support.
 - `FrameCounter` counts frames per second.
@@ -62,6 +63,7 @@ every run draws the same frames. Each step happens at a frame:
         { "Frame": 3, "Release": [1800, 300] },
         { "Frame": 4, "Wheel": [1400, 300], "Notches": -2 },
         { "Frame": 5, "Key": "S", "Control": true },
+        { "Frame": 5, "Text": "Hello" },
         { "Frame": 6, "Capture": "AfterSave" },
         { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
         { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -75,8 +77,9 @@ every run draws the same frames. Each step happens at a frame:
 | `Press`   | Moves there, and presses the left button                                       |
 | `Release` | Moves there, and lets go of it                                                 |
 | `Wheel`   | Turns the wheel there by `Notches`, positive away from the user                |
-| `Key`     | Presses a key by name, like `F11`, `Left` or `A`, with `Control` and `Shift`.  |
-|           | `Repeat` makes it a repeat of a key that's held, which toggles ignore          |
+| `Key`     | Presses a key by name, like `F11`, `Left`, `Home` or `A`, with `Control` and   |
+|           | `Shift`. `Repeat` makes it a repeat of a key that's held, which toggles ignore |
+| `Text`    | Types characters, as `Character` events, without the keys that type them       |
 | `Capture` | Saves the frame as `<name>.png` and the program's state as `<name>.json`, in   |
 |           | the output folder. A frame has one at most, and each has its own name          |
 | `Expect`  | Checks the program's state: the members it lists, and only those. Numbers are  |

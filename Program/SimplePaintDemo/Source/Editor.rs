@@ -202,6 +202,8 @@ impl Editor {
                 None => {}
             },
             Event::Release(_) => self.dragging = None,
+            // The editor has nothing to type in.
+            Event::Character(_) => {}
             // A notch is a step. Touchpads and smooth-scrolling mice turn
             // by parts of a notch, which add up over the same slider.
             Event::Wheel(point, notches) => {

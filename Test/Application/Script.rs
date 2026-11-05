@@ -92,6 +92,39 @@ fn knows_which_step_is_next() {
     assert!(script.finished());
 }
 
+// A Text step types its characters, without the keys that type them, and
+// leaves the cursor where it was.
+#[test]
+fn types_text_as_characters() {
+    let mut script = script(
+        r#"{ "Steps": [{ "Frame": 0, "Move": [5, 6] }, { "Frame": 0, "Text": "Hi é" }, { "Frame": 0, "Key": "Home" }] }"#,
+    );
+    let frame = script.next_frame();
+    assert_eq!(
+        frame.events,
+        [
+            Event::Character('H'),
+            Event::Character('i'),
+            Event::Character(' '),
+            Event::Character('\u{E9}'),
+            Event::Key {
+                key: 0x24,
+                control: false,
+                shift: false,
+                repeat: false
+            }
+        ]
+    );
+    assert_eq!(frame.cursor, Some([5.0, 6.0]));
+    for (text, expected) in [
+        (r#"{ "Steps": [{ "Frame": 1, "Text": "" }] }"#, "step 1: Text must be characters to type, without control characters, not \"\""),
+        (r#"{ "Steps": [{ "Frame": 1, "Text": "a\nb" }] }"#, "step 1: Text must be characters to type, without control characters, not \"a\nb\""),
+        (r#"{ "Steps": [{ "Frame": 1, "Text": 7 }] }"#, "step 1: Text must be characters to type, without control characters, not 7"),
+    ] {
+        assert_eq!(problem(text), expected, "for {text}");
+    }
+}
+
 #[test]
 fn runs_at_60_frames_a_second_by_default() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }] }"#);
@@ -106,8 +139,8 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [], "FrameSeconds": 0 }"#, "FrameSeconds must be a number of seconds above 0, not 0"),
         (r#"{ "Steps": [{ "Key": "S" }] }"#, "step 1: needs a Frame"),
         (r#"{ "Steps": [{ "Frame": 1.5, "Key": "S" }] }"#, "step 1: Frame must be a whole number, not 1.5"),
-        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Capture, Expect and Program"),
-        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program"),
         (r#"{ "Steps": [{ "Frame": 1, "Jump": true }] }"#, "step 1: Jump isn't a step"),
         (r#"{ "Steps": [{ "Frame": 1, "Key": "Hyper" }] }"#, "step 1: Hyper isn't a key"),
         (r#"{ "Steps": [{ "Frame": 1, "Press": [1] }] }"#, "step 1: a point must be [x, y], not a list of 1"),
@@ -138,6 +171,10 @@ fn names_keys_like_scripts_do() {
         ("Left", Some(0x25)),
         ("Escape", Some(0x1B)),
         ("Space", Some(0x20)),
+        ("Home", Some(0x24)),
+        ("End", Some(0x23)),
+        ("PageUp", Some(0x21)),
+        ("PageDown", Some(0x22)),
         ("", None),
     ] {
         assert_eq!(virtual_key(name), code, "for {name:?}");

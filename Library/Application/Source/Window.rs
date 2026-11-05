@@ -41,6 +41,9 @@ static TRACKING_MOUSE: AtomicBool = AtomicBool::new(false);
 // Whether the left button went down in the window and hasn't come up.
 static BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
 static EVENTS: Mutex<Vec<Event>> = Mutex::new(Vec::new());
+// The first half of a character outside the Basic Multilingual Plane, which
+// WM_CHAR sends as two UTF-16 surrogates, one message each.
+static HIGH_SURROGATE: AtomicU32 = AtomicU32::new(0);
 
 const NO_POINT: u64 = u64::MAX;
 
@@ -61,6 +64,11 @@ pub enum Event {
     // while the key is held, with `repeat`, which keys that switch something
     // on and off ignore, so that holding them doesn't flip it back and forth.
     Key { key: u32, control: bool, shift: bool, repeat: bool },
+    // A character that the keyboard typed, like 'a' or 'É', as the keyboard
+    // layout makes it from the keys, for text fields. It comes after the Key
+    // event of the key that typed it, and repeats with it. Keys that type
+    // control characters, like Enter, Backspace and Tab, only come as Keys.
+    Character(char),
 }
 
 // A mouse message's position in the window, from the low and high words of
@@ -187,6 +195,25 @@ extern "system" fn window_procedure(
             });
             // Alt+F4 is a system key, which closes the window.
             unsafe { DefWindowProcW(window, message, wparam, lparam) }
+        }
+        // TranslateMessage makes these from WM_KEYDOWN.
+        WM_CHAR => {
+            let unit = wparam.0 as u32 & 0xFFFF;
+            let character = match unit {
+                0xD800..=0xDBFF => {
+                    HIGH_SURROGATE.store(unit, Ordering::Relaxed);
+                    None
+                }
+                0xDC00..=0xDFFF => {
+                    let high = HIGH_SURROGATE.swap(0, Ordering::Relaxed);
+                    char::decode_utf16([high as u16, unit as u16]).next().and_then(|result| result.ok())
+                }
+                _ => char::from_u32(unit),
+            };
+            if let Some(character) = character.filter(|character| !character.is_control()) {
+                push(Event::Character(character));
+            }
+            LRESULT(0)
         }
         WM_DESTROY => {
             unsafe { PostQuitMessage(0) };

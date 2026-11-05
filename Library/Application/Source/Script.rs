@@ -19,6 +19,7 @@
 //             { "Frame": 3, "Release": [1800, 300] },
 //             { "Frame": 4, "Wheel": [1400, 300], "Notches": -2 },
 //             { "Frame": 5, "Key": "S", "Control": true },
+//             { "Frame": 5, "Text": "Hello" },
 //             { "Frame": 6, "Capture": "AfterSave" },
 //             { "Frame": 6, "Expect": { "Window": { "Fullscreen": false } } },
 //             { "Frame": 7, "Program": { "Anything": "the program reads" } }
@@ -26,8 +27,9 @@
 //     }
 //
 // Frames count from 0. Clicks hit what the frame before them drew, so they
-// start at frame 1. "Program" steps go to the program as they are, for
-// input that doesn't come from the window, like GameInput readings.
+// start at frame 1. "Text" types characters, as Character events, without
+// the keys that type them. "Program" steps go to the program as they are,
+// for input that doesn't come from the window, like GameInput readings.
 
 use std::path::{Path, PathBuf};
 
@@ -57,6 +59,7 @@ pub struct ScriptFrame {
 enum Action {
     Move([f32; 2]),
     Event(Event),
+    Text(String),
     Capture(String),
     Expect(Value),
     Program(Value),
@@ -167,6 +170,7 @@ impl Script {
                     }
                     frame.events.push(*event);
                 }
+                Action::Text(text) => frame.events.extend(text.chars().map(Event::Character)),
                 Action::Capture(name) => frame.checkpoints.push(Checkpoint::Capture {
                     image: self.output.join(format!("{name}.png")),
                     state: self.output.join(format!("{name}.json")),
@@ -202,7 +206,7 @@ fn parse_step(item: &Value) -> Result<Step, String> {
         .collect();
     let [(name, value)] = actions.as_slice() else {
         return Err(
-            "needs one of Move, Press, Release, Wheel, Key, Capture, Expect and Program".to_string(),
+            "needs one of Move, Press, Release, Wheel, Key, Text, Capture, Expect and Program".to_string(),
         );
     };
     let action = match name.as_str() {
@@ -230,6 +234,17 @@ fn parse_step(item: &Value) -> Result<Step, String> {
                 repeat: flag("Repeat")?,
             })
         }
+        "Text" => match value {
+            Value::String(text) if !text.is_empty() && !text.chars().any(char::is_control) => {
+                Action::Text(text.clone())
+            }
+            other => {
+                return Err(format!(
+                    "Text must be characters to type, without control characters, not {}",
+                    other.describe()
+                ));
+            }
+        },
         "Capture" => match value {
             Value::String(name)
                 if !name.is_empty() && name.chars().all(|character| character.is_ascii_alphanumeric()) =>
@@ -260,8 +275,8 @@ fn point(value: &Value) -> Result<[f32; 2], String> {
     }
 }
 
-// A key's virtual-key code, from its name, like "F11", "Left", "Escape",
-// "Space", "S" or "7".
+// A key's virtual-key code, from its name, like "F11", "Left", "Home",
+// "Escape", "Space", "S" or "7".
 pub fn virtual_key(name: &str) -> Option<u32> {
     let named = match name {
         "Backspace" => Some(0x08),
@@ -276,6 +291,10 @@ pub fn virtual_key(name: &str) -> Option<u32> {
         "Up" => Some(0x26),
         "Right" => Some(0x27),
         "Down" => Some(0x28),
+        "PageUp" => Some(0x21),
+        "PageDown" => Some(0x22),
+        "End" => Some(0x23),
+        "Home" => Some(0x24),
         "Delete" => Some(0x2E),
         _ => None,
     };

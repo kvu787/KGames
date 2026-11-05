@@ -7288,13 +7288,22 @@ pub struct TRACKMOUSEEVENT {
 }
 pub const TRANSPARENT: i32 = 1;
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_BACK: i32 = 8;
 pub const VK_CONTROL: i32 = 17;
+pub const VK_DELETE: i32 = 46;
 pub const VK_DOWN: i32 = 40;
+pub const VK_END: i32 = 35;
 pub const VK_ESCAPE: i32 = 27;
+pub const VK_F1: i32 = 112;
 pub const VK_F11: i32 = 122;
+pub const VK_F2: i32 = 113;
+pub const VK_HOME: i32 = 36;
 pub const VK_LEFT: i32 = 37;
+pub const VK_RETURN: i32 = 13;
 pub const VK_RIGHT: i32 = 39;
 pub const VK_SHIFT: i32 = 16;
+pub const VK_SPACE: i32 = 32;
+pub const VK_TAB: i32 = 9;
 pub const VK_UP: i32 = 38;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -7333,6 +7342,7 @@ pub struct WINDOWPLACEMENT {
     pub rcNormalPosition: RECT,
 }
 pub const WM_CAPTURECHANGED: i32 = 533;
+pub const WM_CHAR: i32 = 258;
 pub const WM_DESTROY: i32 = 2;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
