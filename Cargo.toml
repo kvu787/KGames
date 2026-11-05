@@ -19,6 +19,7 @@ members = [
     "Library/SceneTest",
     "Library/ShaderCompiler",
     "Library/SimplePaint",
+    "Library/UserInterface",
     "Library/WindowsApi",
     "Program/GameInputDemo",
     "Program/IdentifyDisplays",
@@ -35,6 +36,7 @@ members = [
     "Test/SimplePaint",
     "Test/SimplePaintDemo",
     "Test/SpinningCarTest",
+    "Test/UserInterface",
 ]
 
 # Lints for every package, which each takes with [lints] workspace = true.

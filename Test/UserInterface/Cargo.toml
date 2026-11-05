@@ -1,0 +1,26 @@
+[package]
+name = "user_interface_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Interface"
+path = "Interface.rs"
+
+[[test]]
+name = "Widgets"
+path = "Widgets.rs"
+
+[[test]]
+name = "Layout"
+path = "Layout.rs"
+
+[dependencies]
+application = { path = "../../Library/Application" }
+json = { path = "../../Library/Json" }
+user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+[lints]
+workspace = true

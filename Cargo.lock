@@ -262,6 +262,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "user_interface"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "canvas",
+ "graphics",
+ "json",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
+name = "user_interface_tests"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "json",
+ "user_interface",
+ "windows_api",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

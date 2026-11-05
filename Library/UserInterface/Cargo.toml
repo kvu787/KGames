@@ -1,0 +1,26 @@
+[package]
+name = "user_interface"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+application = { path = "../Application" }
+canvas = { path = "../Canvas" }
+graphics = { path = "../Graphics" }
+json = { path = "../Json" }
+windows_api = { path = "../WindowsApi" }
+
+# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[lints]
+workspace = true
