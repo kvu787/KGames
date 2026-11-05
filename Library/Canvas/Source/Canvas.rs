@@ -1,22 +1,28 @@
-// Builds one frame's 2D geometry: rectangles, antialiased lines and circles,
-// and monospaced text, all as one triangle list for a single draw call.
-// Coordinates are physical pixels with the origin at the window's top left.
+// Builds one frame's 2D drawing as a list of instances, one for each shape or
+// glyph, which the pipeline draws with one draw call. Coordinates are pixels,
+// with the origin at the window's top left.
+//
+// Shapes aren't triangles: each is a quad around it, and the pixel shader
+// works out how much of each pixel the shape covers from its outline, so
+// edges and corners are antialiased exactly at any size:
+//
+// - A box is a rectangle with rounded corners, filled, outlined on its
+//   inside, or both, or a soft shadow, blurred by a Gaussian. Circles and
+//   rings are boxes that are all corner.
+// - A segment is a line with round ends.
+// - A glyph is a quad of coverage from the fonts' atlas, tinted.
+//
+// Each instance has the clip rectangle that was current when it was added,
+// outside of which it doesn't draw, for parts of a frame that scroll.
 
-use crate::font::Font;
+use crate::fonts::{ELLIPSIS, Fonts, Icon, TextStyle};
+use crate::layout::{Align, Rect};
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Vertex {
-    pub position: [f32; 2],
-    pub uv: [f32; 2],
-    // Read by the GPU as R8G8B8A8_UNORM, so red is the lowest byte.
-    pub color: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Color(pub u32);
 
 impl Color {
+    // Read by the GPU as R8G8B8A8_UNORM, so red is the lowest byte.
     pub const fn rgb(hex: u32) -> Self {
         let r = (hex >> 16) & 0xFF;
         let g = (hex >> 8) & 0xFF;
@@ -24,307 +30,337 @@ impl Color {
         Self(0xFF00_0000 | (b << 16) | (g << 8) | r)
     }
 
+    pub const fn rgba(hex: u32, alpha: f32) -> Self {
+        let a = (alpha * 255.0 + 0.5) as u32;
+        Self((Self::rgb(hex).0 & 0x00FF_FFFF) | (a << 24))
+    }
+
+    pub const TRANSPARENT: Color = Color(0);
+
+    fn channels(self) -> [f32; 4] {
+        [0, 8, 16, 24].map(|shift| ((self.0 >> shift) & 0xFF) as f32 / 255.0)
+    }
+
+    fn from_channels(channels: [f32; 4]) -> Self {
+        let byte = |index: usize, shift: u32| ((channels[index].clamp(0.0, 1.0) * 255.0).round() as u32) << shift;
+        Self(byte(0, 0) | byte(1, 8) | byte(2, 16) | byte(3, 24))
+    }
+
+    pub fn to_floats(self) -> [f32; 4] {
+        self.channels()
+    }
+
+    // The same color, with its opacity multiplied by `alpha`.
     pub fn alpha(self, alpha: f32) -> Self {
-        let current = (self.0 >> 24) as f32 / 255.0;
-        let a = (current * alpha.clamp(0.0, 1.0) * 255.0).round() as u32;
-        Self((self.0 & 0x00FF_FFFF) | (a << 24))
+        let mut channels = self.channels();
+        channels[3] *= alpha.clamp(0.0, 1.0);
+        Self::from_channels(channels)
+    }
+
+    pub fn opacity(self) -> f32 {
+        self.channels()[3]
+    }
+
+    // From self at 0 to `other` at 1, in sRGB, as the canvas blends.
+    pub fn mix(self, other: Color, amount: f32) -> Self {
+        let t = amount.clamp(0.0, 1.0);
+        let (a, b) = (self.channels(), other.channels());
+        Self::from_channels([0, 1, 2, 3].map(|index| a[index] + (b[index] - a[index]) * t))
+    }
+
+    // `self` drawn over `under`, as one color.
+    pub fn over(self, under: Color) -> Self {
+        let (top, bottom) = (self.channels(), under.channels());
+        let alpha = top[3] + bottom[3] * (1.0 - top[3]);
+        if alpha <= 0.0 {
+            return Color::TRANSPARENT;
+        }
+        let blend = |index: usize| (top[index] * top[3] + bottom[index] * bottom[3] * (1.0 - top[3])) / alpha;
+        Self::from_channels([blend(0), blend(1), blend(2), alpha])
     }
 }
 
+// What the pixel shader draws for an instance.
+pub const BOX: u32 = 0;
+pub const SEGMENT: u32 = 1;
+pub const GLYPH: u32 = 2;
+
+// One shape or glyph, as the GPU reads it.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Instance {
+    // A box's or a glyph's left, top, right and bottom, or a segment's ends.
+    pub bounds: [f32; 4],
+    // Left, top, right and bottom, outside of which nothing draws.
+    pub clip: [f32; 4],
+    // A box's corner radius, outline width and blur, in pixels. A glyph's
+    // texels in the atlas: left, top, right and bottom. A segment's width.
+    pub data: [f32; 4],
+    pub fill: Color,
+    // A box's outline.
+    pub stroke: Color,
+    pub kind: u32,
+    pub padding: u32,
+}
+
+const NO_CLIP: [f32; 4] = [-1.0e6, -1.0e6, 1.0e6, 1.0e6];
+
 pub struct Canvas<'a> {
-    font: &'a Font,
-    solid_uv: [f32; 2],
-    pub vertices: &'a mut Vec<Vertex>,
+    pub fonts: &'a Fonts,
+    pub instances: &'a mut Vec<Instance>,
+    clips: Vec<[f32; 4]>,
     // How many lines Lines left out, as they didn't fit in its area, so that
     // tests can check that a panel's text fits.
     pub dropped_lines: usize,
 }
 
 impl<'a> Canvas<'a> {
-    // Takes the vertices to fill, so that one Vec can be reused every frame.
-    // A new one would be allocated fresh from the OS each frame, as it's large,
-    // and writing to its new memory would take a page fault every 4 KB.
-    pub fn new(font: &'a Font, vertices: &'a mut Vec<Vertex>) -> Self {
-        vertices.clear();
+    // Takes the instances to fill, so that one Vec can be reused every frame.
+    pub fn new(fonts: &'a Fonts, instances: &'a mut Vec<Instance>) -> Self {
+        instances.clear();
         Self {
-            font,
-            solid_uv: font.solid_uv(),
-            vertices,
+            fonts,
+            instances,
+            clips: Vec::new(),
             dropped_lines: 0,
         }
     }
 
-    pub fn char_width(&self) -> f32 {
-        self.font.cell_width as f32
+    fn clip(&self) -> [f32; 4] {
+        self.clips.last().copied().unwrap_or(NO_CLIP)
     }
 
-    pub fn line_height(&self) -> f32 {
-        self.font.cell_height as f32
-    }
-
-    pub fn text_width(&self, text: &str) -> f32 {
-        text.chars().count() as f32 * self.char_width()
-    }
-
-    // A solid triangle. Shapes add their vertices a triangle or a quad at a
-    // time, which is faster than one at a time.
-    fn triangle(&mut self, corners: [[f32; 2]; 3], colors: [Color; 3]) {
-        let uv = self.solid_uv;
-        let vertex = |index: usize| Vertex {
-            position: corners[index],
-            uv,
-            color: colors[index].0,
-        };
-        self.vertices
-            .extend_from_slice(&[vertex(0), vertex(1), vertex(2)]);
-    }
-
-    // Two triangles. The corners go around the quad in order.
-    fn quad(&mut self, corners: [[f32; 2]; 4], colors: [Color; 4]) {
-        let uv = self.solid_uv;
-        let vertex = |index: usize| Vertex {
-            position: corners[index],
-            uv,
-            color: colors[index].0,
-        };
-        self.vertices.extend_from_slice(&[
-            vertex(0),
-            vertex(1),
-            vertex(2),
-            vertex(0),
-            vertex(2),
-            vertex(3),
+    // Draws only inside `area`, and inside the clip before, until pop_clip.
+    pub fn push_clip(&mut self, area: Rect) {
+        let [left, top, right, bottom] = self.clip();
+        self.clips.push([
+            area.x.max(left),
+            area.y.max(top),
+            area.right().min(right),
+            area.bottom().min(bottom),
         ]);
     }
 
-    pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
-        self.quad(
-            [
-                [x, y],
-                [x + width, y],
-                [x + width, y + height],
-                [x, y + height],
-            ],
-            [color; 4],
-        );
+    pub fn pop_clip(&mut self) {
+        self.clips.pop();
     }
 
-    pub fn rect_outline(
-        &mut self,
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        thickness: f32,
-        color: Color,
-    ) {
-        self.rect(x, y, width, thickness, color);
-        self.rect(x, y + height - thickness, width, thickness, color);
-        self.rect(x, y + thickness, thickness, height - 2.0 * thickness, color);
-        self.rect(
-            x + width - thickness,
-            y + thickness,
-            thickness,
-            height - 2.0 * thickness,
-            color,
-        );
+    // Whether anything in `area` would show inside the clip.
+    pub fn visible(&self, area: Rect) -> bool {
+        let [left, top, right, bottom] = self.clip();
+        area.right() > left && area.x < right && area.bottom() > top && area.y < bottom
     }
 
-    // Antialiased: a solid core with a one-pixel fringe on each side that
-    // fades to transparent. Lines thinner than a pixel get fainter instead.
-    pub fn line(&mut self, from: [f32; 2], to: [f32; 2], width: f32, color: Color) {
-        let (dx, dy) = (to[0] - from[0], to[1] - from[1]);
-        let length = (dx * dx + dy * dy).sqrt();
-        if length < 0.001 {
+    fn push(&mut self, kind: u32, bounds: [f32; 4], data: [f32; 4], fill: Color, stroke: Color) {
+        let clip = self.clip();
+        self.instances.push(Instance {
+            bounds,
+            clip,
+            data,
+            fill,
+            stroke,
+            kind,
+            padding: 0,
+        });
+    }
+
+    // A filled rectangle with square corners.
+    pub fn rect(&mut self, area: Rect, color: Color) {
+        self.fill(area, 0.0, color);
+    }
+
+    // A filled rectangle with corners of `radius`.
+    pub fn fill(&mut self, area: Rect, radius: f32, color: Color) {
+        if color.0 >> 24 == 0 || area.width <= 0.0 || area.height <= 0.0 {
             return;
         }
-        let normal = [-dy / length, dx / length];
-        let inner = (width * 0.5 - 0.5).max(0.0);
-        let outer = width * 0.5 + 0.5;
-        let solid = color.alpha(width.min(1.0));
-        let clear = color.alpha(0.0);
-        let offset = |point: [f32; 2], distance: f32| {
-            [
-                point[0] + normal[0] * distance,
-                point[1] + normal[1] * distance,
-            ]
-        };
-        for (near, far, near_color, far_color) in [
-            (-outer, -inner, clear, solid),
-            (-inner, inner, solid, solid),
-            (inner, outer, solid, clear),
-        ] {
-            self.quad(
-                [
-                    offset(from, near),
-                    offset(to, near),
-                    offset(to, far),
-                    offset(from, far),
-                ],
-                [near_color, near_color, far_color, far_color],
-            );
+        self.push(BOX, bounds(area), [radius, 0.0, 0.0, 0.0], color, Color::TRANSPARENT);
+    }
+
+    // An outline `width` wide inside the edge of a rectangle with corners of
+    // `radius`.
+    pub fn stroke(&mut self, area: Rect, radius: f32, width: f32, color: Color) {
+        self.fill_stroke(area, radius, Color::TRANSPARENT, width, color);
+    }
+
+    // A rectangle with corners of `radius`, filled, with an outline `width`
+    // wide inside its edge.
+    pub fn fill_stroke(&mut self, area: Rect, radius: f32, fill: Color, width: f32, stroke: Color) {
+        if area.width <= 0.0 || area.height <= 0.0 {
+            return;
+        }
+        self.push(BOX, bounds(area), [radius, width, 0.0, 0.0], fill, stroke);
+    }
+
+    // The soft shadow of a rectangle with corners of `radius`, blurred by a
+    // Gaussian of `blur` pixels' standard deviation.
+    pub fn shadow(&mut self, area: Rect, radius: f32, blur: f32, color: Color) {
+        self.push(BOX, bounds(area), [radius, 0.0, blur.max(0.01), 0.0], color, Color::TRANSPARENT);
+    }
+
+    pub fn circle(&mut self, [x, y]: [f32; 2], radius: f32, color: Color) {
+        let area = Rect::new(x - radius, y - radius, radius * 2.0, radius * 2.0);
+        self.fill(area, radius, color);
+    }
+
+    // A ring `width` wide, centered on the circle of `radius`.
+    pub fn ring(&mut self, [x, y]: [f32; 2], radius: f32, width: f32, color: Color) {
+        let outer = radius + width * 0.5;
+        let area = Rect::new(x - outer, y - outer, outer * 2.0, outer * 2.0);
+        self.stroke(area, outer, width, color);
+    }
+
+    // A line with round ends. Lines thinner than a pixel are fainter
+    // instead.
+    pub fn line(&mut self, from: [f32; 2], to: [f32; 2], width: f32, color: Color) {
+        let color = color.alpha(width.min(1.0));
+        self.push(
+            SEGMENT,
+            [from[0], from[1], to[0], to[1]],
+            [width.max(1.0), 0.0, 0.0, 0.0],
+            color,
+            Color::TRANSPARENT,
+        );
+    }
+
+    // Lines through each point in turn.
+    pub fn polyline(&mut self, points: &[[f32; 2]], width: f32, color: Color) {
+        for pair in points.windows(2) {
+            self.line(pair[0], pair[1], width, color);
         }
     }
 
-    // Each segment's edge directions are worked out once, and the second is
-    // the next segment's first, as cos and sin are most of a circle's cost.
-    pub fn circle(&mut self, center: [f32; 2], radius: f32, color: Color) {
-        let inner = (radius - 0.5).max(0.0);
-        let clear = color.alpha(0.0);
-        let segments = segment_count(radius);
-        let mut a = direction(0, segments);
-        for segment in 0..segments {
-            let b = direction(segment + 1, segments);
-            let (inner_a, inner_b) = (along(center, inner, a), along(center, inner, b));
-            self.triangle([center, inner_a, inner_b], [color; 3]);
-            self.quad(
-                [
-                    inner_a,
-                    along(center, radius + 0.5, a),
-                    along(center, radius + 0.5, b),
-                    inner_b,
-                ],
-                [color, clear, clear, color],
-            );
-            a = b;
-        }
+    pub fn line_height(&self, style: TextStyle) -> f32 {
+        self.fonts.line_height(style)
     }
 
-    pub fn ring(&mut self, center: [f32; 2], radius: f32, width: f32, color: Color) {
-        let inner = (width * 0.5 - 0.5).max(0.0);
-        let outer = width * 0.5 + 0.5;
-        let solid = color.alpha(width.min(1.0));
-        let clear = color.alpha(0.0);
-        let segments = segment_count(radius);
-        let mut a = direction(0, segments);
-        for segment in 0..segments {
-            let b = direction(segment + 1, segments);
-            for (near, far, near_color, far_color) in [
-                (-outer, -inner, clear, solid),
-                (-inner, inner, solid, solid),
-                (inner, outer, solid, clear),
-            ] {
-                self.quad(
-                    [
-                        along(center, radius + near, a),
-                        along(center, radius + near, b),
-                        along(center, radius + far, b),
-                        along(center, radius + far, a),
-                    ],
-                    [near_color, near_color, far_color, far_color],
-                );
-            }
-            a = b;
-        }
+    pub fn measure(&self, text: &str, style: TextStyle) -> f32 {
+        self.fonts.measure(text, style)
     }
 
-    // Draws text from the top left, snapped to whole pixels so the atlas maps
-    // one texel to one pixel. Returns the x just past the last character.
-    pub fn text(&mut self, x: f32, y: f32, text: &str, color: Color) -> f32 {
-        let (mut x, y) = (x.round(), y.round());
-        let (width, height) = (self.font.cell_width as f32, self.font.cell_height as f32);
+    // Draws text on a line whose top is at `y`, from `x`, and returns the x
+    // past its end. Baselines are on whole pixels.
+    pub fn text(&mut self, [x, y]: [f32; 2], text: &str, style: TextStyle, color: Color) -> f32 {
+        let baseline = y.round() + self.fonts.style(style).baseline;
+        self.text_on_baseline([x, baseline], text, style, color)
+    }
+
+    // Draws text whose baseline is at `y`, for text of different sizes on a
+    // line.
+    pub fn text_on_baseline(&mut self, [x, y]: [f32; 2], text: &str, style: TextStyle, color: Color) -> f32 {
+        let fonts = self.fonts;
+        let metrics = fonts.style(style);
+        let baseline = y.round();
+        let mut pen = x;
         for character in text.chars() {
-            if character != ' ' {
-                let [u0, v0, u1, v1] = self.font.glyph_uv(character);
-                let corners = [
-                    [x, y],
-                    [x + width, y],
-                    [x + width, y + height],
-                    [x, y + height],
-                ];
-                let uvs = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
-                let vertex = |index: usize| Vertex {
-                    position: corners[index],
-                    uv: uvs[index],
-                    color: color.0,
-                };
-                self.vertices.extend_from_slice(&[
-                    vertex(0),
-                    vertex(1),
-                    vertex(2),
-                    vertex(0),
-                    vertex(2),
-                    vertex(3),
-                ]);
+            if character != ' ' && character != '\u{A0}' {
+                let (glyph, left) = fonts.glyph(style, character, pen);
+                let [u0, v0, u1, v1] = glyph.texels;
+                if u1 > u0 {
+                    let top = baseline + glyph.offset[1];
+                    self.push(
+                        GLYPH,
+                        [left, top, left + (u1 - u0), top + (v1 - v0)],
+                        glyph.texels,
+                        color,
+                        Color::TRANSPARENT,
+                    );
+                }
             }
-            x += width;
+            pen += metrics.advance(character);
         }
-        x
+        pen
     }
 
-    // Like text, but cuts the text short with "..." if it's wider than max_width.
-    pub fn text_clipped(
-        &mut self,
-        x: f32,
-        y: f32,
-        text: &str,
-        max_width: f32,
-        color: Color,
-    ) -> f32 {
-        let fit = (max_width / self.char_width()).floor().max(0.0) as usize;
-        if text.chars().count() <= fit {
-            return self.text(x, y, text, color);
+    // Like text, but cuts the text short with an ellipsis if it's wider than
+    // `width`.
+    pub fn text_clipped(&mut self, [x, y]: [f32; 2], text: &str, width: f32, style: TextStyle, color: Color) -> f32 {
+        let fitted = self.fit(text, style, width);
+        self.text([x, y], &fitted, style, color)
+    }
+
+    // As much of `text` as fits in `width`, with an ellipsis if it's cut.
+    pub fn fit(&self, text: &str, style: TextStyle, width: f32) -> String {
+        if self.measure(text, style) <= width + 0.01 {
+            return text.to_string();
         }
-        // As much of the text as fits with the dots, then as many of the
-        // dots as fit.
-        let dots = fit.min(3);
-        let end = text
-            .char_indices()
-            .nth(fit - dots)
-            .map_or(text.len(), |(index, _)| index);
-        let x = self.text(x, y, &text[..end], color);
-        self.text(x, y, &"..."[..dots], color)
+        let room = (width - self.measure(ELLIPSIS, style)).max(0.0);
+        let end = self.fonts.fit(text, style, room);
+        if room <= 0.0 {
+            return String::new();
+        }
+        format!("{}{ELLIPSIS}", text[..end].trim_end())
+    }
+
+    // Text in `area`, centered down it, and across it as `align` says, cut
+    // short if it doesn't fit. Returns the x past its end.
+    pub fn text_in(&mut self, area: Rect, text: &str, style: TextStyle, color: Color, align: Align) -> f32 {
+        let fitted = self.fit(text, style, area.width);
+        let width = self.measure(&fitted, style);
+        let x = match align {
+            Align::Start => area.x,
+            Align::Center => (area.x + (area.width - width) * 0.5).round(),
+            Align::End => area.right() - width,
+        };
+        let y = area.y + ((area.height - self.line_height(style)) * 0.5).round();
+        self.text([x, y], &fitted, style, color)
+    }
+
+    // An icon of `size`, one of ICON_SIZES, centered on a point.
+    pub fn icon(&mut self, [x, y]: [f32; 2], icon: Icon, size: f32, color: Color) {
+        let Some(glyph) = self.fonts.icon(icon, size) else {
+            return;
+        };
+        let [u0, v0, u1, v1] = glyph.texels;
+        if u1 <= u0 {
+            return;
+        }
+        let left = x.round() + glyph.offset[0];
+        let top = y.round() + glyph.offset[1];
+        self.push(
+            GLYPH,
+            [left, top, left + (u1 - u0), top + (v1 - v0)],
+            glyph.texels,
+            color,
+            Color::TRANSPARENT,
+        );
     }
 }
 
-// The vertices that a part of a frame was drawn with, to add again in later
+fn bounds(area: Rect) -> [f32; 4] {
+    [area.x, area.y, area.right(), area.bottom()]
+}
+
+// The instances that a part of a frame was drawn with, to add again in later
 // frames instead of drawing it again, while what it shows stays the same:
 // while its key, made of everything it depends on, is the same. They have
-// the font's texture coordinates, so one Cached is for canvases with one font.
+// the fonts' atlas coordinates, so one Cached is for canvases with one Fonts.
 pub struct Cached<K> {
     key: Option<K>,
-    vertices: Vec<Vertex>,
+    instances: Vec<Instance>,
 }
 
 impl<K> Default for Cached<K> {
     fn default() -> Self {
         Self {
             key: None,
-            vertices: Vec::new(),
+            instances: Vec::new(),
         }
     }
 }
 
 impl<K: PartialEq> Cached<K> {
-    // Adds the vertices kept from the last call if it had the same key, or
+    // Adds the instances kept from the last call if it had the same key, or
     // else draws with `draw`, and keeps what it added.
     pub fn draw(&mut self, canvas: &mut Canvas, key: K, draw: impl FnOnce(&mut Canvas)) {
         if self.key.as_ref() == Some(&key) {
-            canvas.vertices.extend_from_slice(&self.vertices);
+            canvas.instances.extend_from_slice(&self.instances);
             return;
         }
-        let start = canvas.vertices.len();
+        let start = canvas.instances.len();
         draw(canvas);
-        self.vertices.clear();
-        self.vertices.extend_from_slice(&canvas.vertices[start..]);
+        self.instances.clear();
+        self.instances.extend_from_slice(&canvas.instances[start..]);
         self.key = Some(key);
     }
-}
-
-// Enough segments that a circle's edge looks round at its size.
-fn segment_count(radius: f32) -> u32 {
-    (radius * 0.8).clamp(16.0, 128.0) as u32
-}
-
-// The unit vector to the start of a segment: its angle's cos and sin.
-fn direction(segment: u32, segments: u32) -> [f32; 2] {
-    let angle = segment as f32 / segments as f32 * std::f32::consts::TAU;
-    [angle.cos(), angle.sin()]
-}
-
-fn along(center: [f32; 2], distance: f32, direction: [f32; 2]) -> [f32; 2] {
-    [
-        center[0] + distance * direction[0],
-        center[1] + distance * direction[1],
-    ]
 }

@@ -1,21 +1,26 @@
 {
     "Steps": [
-        { "Frame": 1, "Wheel": [2234, 486], "Notches": -2 },
-        { "Frame": 2, "Press": [2229, 146] },
-        { "Frame": 3, "Release": [2229, 146] },
-        { "Frame": 3, "Expect": { "Selected": "007  Gentle Anchor", "Interface": { "Focus": "Items" } } },
+        { "Frame": 1, "Wheel": "Items", "Notches": -2 },
+        { "Frame": 2, "Press": "Items/7" },
+        { "Frame": 3, "Release": "Items/7" },
+        { "Frame": 3, "Expect": { "Selected": "008  Hollow Anchor", "Interface": { "Focus": "Items" } } },
         { "Frame": 4, "Key": "Down" },
         { "Frame": 4, "Key": "Down" },
         { "Frame": 4, "Key": "Down" },
-        { "Frame": 5, "Expect": { "Selected": "010  Jolly Anchor" } },
-        { "Frame": 6, "Press": [2526, 150] },
+        { "Frame": 5, "Expect": { "Selected": "011  Amber Beacon" } },
+        { "Frame": 6, "Press": { "Target": "Items/Scroll bar", "At": [0.5, 0.05] } },
         { "Frame": 7, "Move": [2526, 1300] },
         { "Frame": 8, "Release": [2526, 1300] },
-        { "Frame": 9, "Press": [2229, 146] },
-        { "Frame": 10, "Release": [2229, 146] },
-        { "Frame": 10, "Expect": { "Selected": "092  Brisk Jasper" } },
-        { "Frame": 11, "Move": [2229, 266] },
-        { "Frame": 11, "Expect": { "Interface": { "Tooltip": { "Name": "097  Gentle Jasper" } } } },
-        { "Frame": 11, "Capture": "Scrolled" }
+        { "Frame": 9, "Press": "Items/110" },
+        { "Frame": 10, "Release": "Items/110" },
+        { "Frame": 10, "Expect": { "Selected": "111  Amber Lantern" } },
+        { "Frame": 11, "Press": "Items/112" },
+        { "Frame": 12, "Release": "Items/112" },
+        { "Frame": 13, "Press": "Items/112" },
+        { "Frame": 14, "Release": "Items/112" },
+        { "Frame": 14, "Expect": { "Opened": "113  Cobalt Lantern" } },
+        { "Frame": 15, "Move": "Items/115" },
+        { "Frame": 30, "Expect": { "Interface": { "Tooltip": { "Name": "116  Fuzzy Lantern" } } } },
+        { "Frame": 30, "Capture": "Scrolled" }
     ]
 }

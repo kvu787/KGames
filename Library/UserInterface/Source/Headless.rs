@@ -7,21 +7,20 @@
 use std::sync::OnceLock;
 
 use application::{Event, Gamepad};
-use canvas::{Font, Rect};
+use canvas::{Fonts, Rect};
 use windows_api::*;
 use windows_core::Result;
 
-use crate::panels::FONT_SIZE;
 use crate::{Frame, Interface, Program, Status};
 
 // The client areas of the two window setups that programs support.
 pub const MAXIMIZED: [f32; 2] = [2560.0, 1369.0];
 pub const FULLSCREEN: [f32; 2] = [2560.0, 1440.0];
 
-// The font, made once for all of a test binary's tests.
-pub fn font() -> &'static Font {
-    static FONT: OnceLock<Font> = OnceLock::new();
-    FONT.get_or_init(|| Font::new(FONT_SIZE).expect("the font is installed"))
+// The fonts, made once for all of a test binary's tests.
+pub fn fonts() -> &'static Fonts {
+    static FONTS: OnceLock<Fonts> = OnceLock::new();
+    FONTS.get_or_init(|| Fonts::new().expect("the fonts are installed"))
 }
 
 // What a program's frame did, besides what it drew.
@@ -31,9 +30,12 @@ pub struct Outcome {
     pub dropped_lines: usize,
     // Whether it asked to switch to or from borderless fullscreen.
     pub fullscreen: bool,
+    // How many shapes and glyphs it drew.
+    pub instances: usize,
 }
 
 pub struct Headless {
+    // With its own clipboard, never Windows'.
     pub interface: Interface,
     // The next frame's number, and its time, at 60 frames a second.
     pub number: u64,
@@ -45,7 +47,7 @@ pub struct Headless {
     pub held_keys: Vec<u32>,
     pub gamepad: Gamepad,
     // The gamepad's buttons held in the frame before.
-    buttons_before: u32,
+    pub buttons_before: u32,
     pub size: [f32; 2],
     pub notices: Vec<String>,
 }
@@ -112,22 +114,25 @@ impl Headless {
             notices: &self.notices,
             ..Status::HEADLESS
         };
-        let mut frame = self.interface.frame(font(), &input, status, self.size);
+        let mut frame = self.interface.frame(fonts(), &input, status, self.size);
         draw(&mut frame)
     }
 
     // Draws a frame of a program, with these events, as the main loop does.
     pub fn program<P: Program>(&mut self, program: &mut P, events: &[Event]) -> Result<Outcome> {
-        self.frame(events, |frame| {
+        let mut outcome = self.frame(events, |frame| {
             if P::FULLSCREEN_KEY && frame.shortcut(VK_F11) {
                 frame.toggle_fullscreen();
             }
             program.frame(frame)?;
-            Ok(Outcome {
+            Ok::<_, windows_core::Error>(Outcome {
                 dropped_lines: frame.dropped_lines(),
                 fullscreen: frame.fullscreen_requested(),
+                instances: 0,
             })
-        })
+        })?;
+        outcome.instances = self.interface.instances().len();
+        Ok(outcome)
     }
 
     // Moves the cursor, for the next frame.
@@ -172,6 +177,15 @@ pub fn control(key: i32) -> Event {
         key: key as u32,
         control: true,
         shift: false,
+        repeat: false,
+    }
+}
+
+pub fn control_shifted(key: i32) -> Event {
+    Event::Key {
+        key: key as u32,
+        control: true,
+        shift: true,
         repeat: false,
     }
 }

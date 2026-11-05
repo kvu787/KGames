@@ -4,13 +4,13 @@
         { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
         { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
         { "Frame": 2, "Expect": { "Interface": { "Tooltip": null } } },
-        { "Frame": 3, "Move": [1300, 771] },
+        { "Frame": 3, "Move": "Devices/1" },
         { "Frame": 3, "Expect": { "Interface": { "Hovered": "Devices/1", "Tooltip": { "Name": "Keys" } } } },
         { "Frame": 3, "Capture": "Keys" },
-        { "Frame": 4, "Move": [1300, 753] },
+        { "Frame": 4, "Move": "Devices/0" },
         { "Frame": 4, "Expect": { "Interface": { "Hovered": "Devices/0", "Tooltip": { "Name": "Pad" } } } },
         { "Frame": 4, "Capture": "Pad" },
-        { "Frame": 5, "Move": [1300, 820] },
+        { "Frame": 5, "Move": { "Target": "Devices/2", "At": [0.5, 1.5] } },
         { "Frame": 5, "Expect": { "Interface": { "Tooltip": null } } }
     ]
 }

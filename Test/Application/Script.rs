@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use application::script::{Checkpoint, Script, compare};
-use application::{Button, Event, Gamepad, key_name, virtual_key};
+use application::{GamepadButton, Event, Gamepad, key_name, virtual_key};
 use json::{Value, object, parse};
 
 fn script(text: &str) -> Script {
@@ -35,7 +35,7 @@ fn gives_each_frame_its_steps_and_time() {
             ]
         }"#,
     );
-    let frames: Vec<_> = (0..5).map(|_| script.next_frame()).collect();
+    let frames: Vec<_> = (0..5).map(|_| script.next_frame(|_| None)).collect();
     assert!(script.finished());
     assert_eq!(frames.iter().map(|frame| frame.seconds).collect::<Vec<_>>(), [0.0, 0.25, 0.5, 0.75, 1.0]);
     assert!(frames[0].events.is_empty() && frames[0].cursor.is_none());
@@ -78,16 +78,49 @@ fn gives_each_frame_its_steps_and_time() {
     }
 }
 
+// A step can name a widget instead of a point, which is where the frame
+// before drew it: its middle, or a place in it. A widget that wasn't drawn
+// is a failure, and its step does nothing.
+#[test]
+fn points_at_widgets_by_name() {
+    let mut script = script(
+        r#"{
+            "Steps": [
+                { "Frame": 0, "Press": "Volume" },
+                { "Frame": 0, "Release": { "Target": "Volume", "At": [0.25, 1] } },
+                { "Frame": 1, "Move": { "Target": "Volume" } },
+                { "Frame": 1, "Wheel": "Missing", "Notches": 2 },
+                { "Frame": 2, "Click": [5, 6] }
+            ]
+        }"#,
+    );
+    let target = |name: &str| (name == "Volume").then_some([100.0, 200.0, 40.0, 20.0]);
+    let first = script.next_frame(target);
+    assert_eq!(first.events, [Event::Press([120.0, 210.0]), Event::Release([110.0, 220.0])]);
+    assert_eq!(first.cursor, Some([110.0, 220.0]));
+    assert!(first.failures.is_empty());
+    let second = script.next_frame(target);
+    assert!(second.events.is_empty());
+    assert_eq!(second.cursor, Some([120.0, 210.0]));
+    assert_eq!(second.failures, ["there's no widget called Missing to point at"]);
+    // A click is a press and its release, in one frame.
+    assert_eq!(script.next_frame(target).events, [Event::Press([5.0, 6.0]), Event::Release([5.0, 6.0])]);
+    assert_eq!(
+        problem(r#"{ "Steps": [{ "Frame": 1, "Press": { "At": [1, 2] } }] }"#),
+        "step 1: a place in a widget needs its name as Target, not an object"
+    );
+}
+
 // Window::finish fails a run whose program exited with a step still to do.
 #[test]
 fn knows_which_step_is_next() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }, { "Frame": 3, "Key": "S" }] }"#);
     assert_eq!(script.pending_frame(), Some(1));
-    script.next_frame();
-    script.next_frame();
+    script.next_frame(|_| None);
+    script.next_frame(|_| None);
     assert_eq!(script.pending_frame(), Some(3));
-    script.next_frame();
-    script.next_frame();
+    script.next_frame(|_| None);
+    script.next_frame(|_| None);
     assert_eq!(script.pending_frame(), None);
     assert!(script.finished());
 }
@@ -99,7 +132,7 @@ fn types_text_as_characters() {
     let mut script = script(
         r#"{ "Steps": [{ "Frame": 0, "Move": [5, 6] }, { "Frame": 0, "Text": "Hi é" }, { "Frame": 0, "Key": "Home" }] }"#,
     );
-    let frame = script.next_frame();
+    let frame = script.next_frame(|_| None);
     assert_eq!(
         frame.events,
         [
@@ -146,7 +179,7 @@ fn holds_keys_until_the_next_hold() {
         shift,
         repeat: false,
     };
-    let frames: Vec<_> = (0..6).map(|_| script.next_frame()).collect();
+    let frames: Vec<_> = (0..6).map(|_| script.next_frame(|_| None)).collect();
     let held: Vec<&[u32]> = frames.iter().map(|frame| frame.held_keys.as_slice()).collect();
     assert_eq!(held, [&[][..], &[0x26], &[0x26], &[0x26, 0x10, 0x20], &[0x20], &[]]);
     assert_eq!(frames[1].events, [key(0x26, false)]);
@@ -169,15 +202,15 @@ fn gives_the_gamepad_as_its_steps_say() {
             ]
         }"#,
     );
-    let frames: Vec<_> = (0..5).map(|_| script.next_frame().gamepad).collect();
+    let frames: Vec<_> = (0..5).map(|_| script.next_frame(|_| None).gamepad).collect();
     assert_eq!(frames[0], Gamepad::default());
-    let bits = |buttons: &[Button]| buttons.iter().fold(0, |bits, button| bits | button.bit());
+    let bits = |buttons: &[GamepadButton]| buttons.iter().fold(0, |bits, button| bits | button.bit());
     let first = Gamepad {
         connected: true,
         right_stick: [0.5, -1.0],
         left_trigger: 0.25,
-        buttons: bits(&[Button::A, Button::LeftShoulder]),
-        went_down: bits(&[Button::A, Button::LeftShoulder]),
+        buttons: bits(&[GamepadButton::A, GamepadButton::LeftShoulder]),
+        went_down: bits(&[GamepadButton::A, GamepadButton::LeftShoulder]),
         ..Gamepad::default()
     };
     assert_eq!(frames[1], first);
@@ -187,8 +220,8 @@ fn gives_the_gamepad_as_its_steps_say() {
         Gamepad {
             connected: true,
             left_stick: [-1.0, 0.0],
-            buttons: bits(&[Button::A, Button::Up]),
-            went_down: Button::Up.bit(),
+            buttons: bits(&[GamepadButton::A, GamepadButton::Up]),
+            went_down: GamepadButton::Up.bit(),
             ..Gamepad::default()
         }
     );
@@ -207,8 +240,8 @@ fn gives_the_gamepad_as_its_steps_say() {
 #[test]
 fn runs_at_60_frames_a_second_by_default() {
     let mut script = script(r#"{ "Steps": [{ "Frame": 1, "Key": "S" }] }"#);
-    script.next_frame();
-    assert!((script.next_frame().seconds - 1.0 / 60.0).abs() < 1e-12);
+    script.next_frame(|_| None);
+    assert!((script.next_frame(|_| None).seconds - 1.0 / 60.0).abs() < 1e-12);
 }
 
 #[test]
@@ -218,8 +251,8 @@ fn says_what_is_wrong_with_a_script() {
         (r#"{ "Steps": [], "FrameSeconds": 0 }"#, "FrameSeconds must be a number of seconds above 0, not 0"),
         (r#"{ "Steps": [{ "Key": "S" }] }"#, "step 1: needs a Frame"),
         (r#"{ "Steps": [{ "Frame": 1.5, "Key": "S" }] }"#, "step 1: Frame must be a whole number, not 1.5"),
-        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
-        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1 }] }"#, "step 1: needs one of Move, Press, Release, Click, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
+        (r#"{ "Steps": [{ "Frame": 1, "Key": "S", "Move": [1, 2] }] }"#, "step 1: needs one of Move, Press, Release, Click, Wheel, Key, Hold, Gamepad, Text, Capture, Expect and Program"),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": "Up" }] }"#, "step 1: Hold must be a list of the keys held down, like [\"Up\", \"Space\"], not \"Up\""),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": ["Up", "Hyper"] }] }"#, "step 1: Hyper isn't a key"),
         (r#"{ "Steps": [{ "Frame": 1, "Hold": [true] }] }"#, "step 1: Each of Hold's keys must be a key's name, like \"F11\", not true"),

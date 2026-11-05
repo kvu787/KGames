@@ -81,7 +81,7 @@ pub const SLIDERS: [Slider; 8] = [
         maximum: 359.9,
         steps: 10.0,
         decimals: 1,
-        unit: " deg",
+        unit: "\u{B0}",
         get: |p| p.rotation_degrees,
         set: |p, value| p.rotation_degrees = value,
     },

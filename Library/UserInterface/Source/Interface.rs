@@ -2,10 +2,10 @@
 //
 // The interface is immediate mode: each frame, the program calls a function
 // for each widget, with where it goes and the value it shows, like
-// `frame.button("Save", area, "Save")`, and the function draws it and says
-// what the input did to it. Nothing about a widget is kept but what the
-// program keeps, and a little that only the interface needs, like where a
-// list is scrolled to.
+// `frame.button("Save", area, Button::new("Save"))`, and the function draws
+// it and says what the input did to it. Nothing about a widget is kept but
+// what the program keeps, and a little that only the interface needs, like
+// where a list is scrolled to, or how far a switch's knob has slid.
 //
 // A widget is known by its name, which is unique among the frame's widgets,
 // and the same from frame to frame. Each frame, a widget leaves its area, its
@@ -18,9 +18,10 @@
 // focus, if it takes them, and to the program otherwise, for its shortcuts.
 //
 // Widgets draw on three layers, each over the ones before: the base, popups
-// like a select box's list, and tooltips. A popup's targets are over all of
-// the base's. While a popup is open, a press anywhere but on it or the widget
-// that opened it closes it, and does nothing else.
+// like a combo box's list, and the overlay, with tooltips and notices. A
+// layer's targets are over all of the ones before. While a popup is open, a
+// press anywhere but on it or the widget that opened it closes it, and does
+// nothing else.
 //
 // Tab and Shift+Tab move keyboard focus to the next or previous widget that
 // takes it, and Esc closes a popup, or else takes focus away. Without the
@@ -30,9 +31,12 @@
 use std::collections::HashMap;
 
 use application::{Event, Gamepad};
-use canvas::{Canvas, Font, Rect, Vertex};
+use canvas::{Canvas, Fonts, Instance, Rect, TextStyle, Theme};
 use json::Value;
 use windows_api::*;
+
+use crate::clipboard::Clipboard;
+use crate::tokens::EASE_SECONDS;
 
 // A widget's identity, from its name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -48,6 +52,11 @@ impl Id {
         }
         Id(hash)
     }
+
+    // Another identity for a part of the widget's look, like its knob.
+    pub fn part(self, part: u64) -> Self {
+        Id(self.0 ^ part.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+    }
 }
 
 // What a widget is drawn on. Each layer is over the ones before it, and its
@@ -56,7 +65,7 @@ impl Id {
 pub enum Layer {
     Base,
     Popup,
-    Tooltip,
+    Overlay,
 }
 
 // What input a target takes.
@@ -71,6 +80,8 @@ pub struct Sense {
     // The keys it takes while it has focus, as virtual-key codes, without
     // Control.
     pub keys: &'static [i32],
+    // The keys it takes with Control, like Ctrl+C in a text field.
+    pub control_keys: &'static [i32],
     // Typed characters while it has focus, and every key without Control
     // but Tab, Esc and the function keys, so that typing doesn't set off
     // the program's shortcuts.
@@ -85,8 +96,11 @@ impl Sense {
         wheel: false,
         focus: false,
         keys: &[],
+        control_keys: &[],
         text: false,
     };
+    // Presses, but not focus, for the parts of a widget.
+    pub const CLICK: Sense = Sense { click: true, ..Sense::HOVER };
     // Presses, keyboard focus, and Space and Enter, which press it too.
     pub const BUTTON: Sense = Sense {
         click: true,
@@ -102,13 +116,13 @@ struct Target {
     name: String,
     // Like "Button", for scripts.
     kind: &'static str,
-    // What the widget shows, if its name doesn't say, like a select box's
+    // What the widget shows, if its name doesn't say, like a combo box's
     // choice, for scripts.
     label: String,
     area: Rect,
     layer: Layer,
     sense: Sense,
-    // The widget that a part of another one belongs to, like a select box
+    // The widget that a part of another one belongs to, like a combo box
     // for each choice in its list, which keeps focus while the part is
     // pressed.
     owner: Option<Id>,
@@ -126,14 +140,27 @@ enum Route {
 
 // What a text field keeps while it's edited.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct Caret {
-    // In characters from the start.
-    pub position: usize,
-    // The first character that the field shows.
-    pub scroll: usize,
+pub(crate) struct Edit {
+    // In characters from the start: where the caret is, and the other end
+    // of the selection, which is the caret's place when nothing's selected.
+    pub caret: usize,
+    pub anchor: usize,
+    // How far the text is scrolled left, in pixels.
+    pub scroll: f32,
     // When the caret last moved, so that it shows steadily while it moves,
     // and blinks while it doesn't.
     pub moved_at: f64,
+    // Whether holding the press selects, which it doesn't after a
+    // double-click, which selected a word.
+    pub dragging: bool,
+}
+
+// A value that eases toward where a widget's look says it should be.
+struct Eased {
+    value: f32,
+    // The frame that last asked for it, so that values of widgets that
+    // aren't drawn go.
+    frame: u64,
 }
 
 // What the interface keeps from frame to frame, besides what it draws.
@@ -158,14 +185,30 @@ pub(crate) struct State {
     // there that didn't make a whole step yet. Touchpads and smooth-scrolling
     // mice turn by parts of a notch.
     pub wheel: (Option<Id>, f32),
-    // Where each list is scrolled to, as its first row.
-    pub scroll: HashMap<Id, usize>,
+    // How far each list is scrolled, in pixels.
+    pub scroll: HashMap<Id, f32>,
     // Where a scroll bar's thumb was grabbed, from its top.
     pub grab: f32,
-    pub carets: HashMap<Id, Caret>,
+    pub edits: HashMap<Id, Edit>,
     // The tooltip that the frame shows: its name, and its area.
     pub tooltip: Option<(String, Rect)>,
+    eased: HashMap<Id, Eased>,
+    // The last press: what it was on, when, and where, and whether it was
+    // the second of a double-click, for the frame it came in.
+    last_press: Option<(Id, f64, [f32; 2])>,
+    pub double_click: bool,
+    // The notices that the user closed, by their place in the list.
+    pub dismissed: Vec<usize>,
+    frame: u64,
+    seconds: f64,
+    // Since the frame before, for easing.
+    elapsed: f64,
 }
+
+// Two presses on the same widget this close in time and place are a
+// double-click, like Windows' defaults.
+const DOUBLE_CLICK_SECONDS: f64 = 0.5;
+const DOUBLE_CLICK_PIXELS: f32 = 4.0;
 
 impl State {
     // The topmost of the last frame's targets at a point.
@@ -192,7 +235,7 @@ impl State {
             return false;
         };
         if control {
-            return false;
+            return target.sense.control_keys.contains(&key);
         }
         let function_key = (VK_F1..VK_F1 + 24).contains(&key);
         target.sense.keys.contains(&key) || (target.sense.text && !function_key)
@@ -204,13 +247,14 @@ impl State {
         self.events.clear();
         self.next_targets.clear();
         self.tooltip = None;
+        self.double_click = false;
+        self.frame += 1;
+        self.elapsed = (input.seconds - self.seconds).clamp(0.0, 0.25);
+        self.seconds = input.seconds;
         if !input.focused {
             self.popup = None;
         }
-        self.hovered = input
-            .cursor
-            .and_then(|point| self.top(point))
-            .map(|target| target.id);
+        self.hovered = input.cursor.and_then(|point| self.top(point)).map(|target| target.id);
         for event in &input.events {
             let route = self.route(event);
             self.events.push((route, *event));
@@ -232,8 +276,17 @@ impl State {
                 self.focus_visible = false;
                 match target {
                     Some((id, sense, owner)) if sense.click => {
+                        let (seconds, last) = (self.seconds, self.last_press);
+                        self.double_click = last.is_some_and(|(last_id, at, [x, y])| {
+                            last_id == id
+                                && seconds - at <= DOUBLE_CLICK_SECONDS
+                                && (point[0] - x).abs() <= DOUBLE_CLICK_PIXELS
+                                && (point[1] - y).abs() <= DOUBLE_CLICK_PIXELS
+                        });
+                        // A third press starts over.
+                        self.last_press = if self.double_click { None } else { Some((id, seconds, point)) };
                         self.held = Some(id);
-                        // A part, like a select box's choice, gives focus
+                        // A part, like a combo box's choice, gives focus
                         // to its widget, if that takes focus.
                         let owner = owner.filter(|owner| self.target(*owner).is_some_and(|target| target.sense.focus));
                         self.focus = if sense.focus { Some(id) } else { owner };
@@ -242,6 +295,7 @@ impl State {
                     _ => {
                         self.held = None;
                         self.focus = None;
+                        self.last_press = None;
                         Route::Program
                     }
                 }
@@ -255,9 +309,11 @@ impl State {
                 if self.popup.is_some() && layer != Some(Layer::Popup) {
                     return Route::Taken;
                 }
-                let target = self.targets.iter().rev().find(|target| {
-                    Some(target.layer) == layer && target.sense.wheel && target.area.contains(point)
-                });
+                let target = self
+                    .targets
+                    .iter()
+                    .rev()
+                    .find(|target| Some(target.layer) == layer && target.sense.wheel && target.area.contains(point));
                 match target {
                     Some(target) => Route::Widget(target.id),
                     None => Route::Program,
@@ -313,12 +369,24 @@ impl State {
         self.focus_visible = true;
     }
 
+    // A value that eases toward `target`, from where it was in the frame
+    // before. One that wasn't asked for then starts at its target.
+    fn ease(&mut self, id: Id, target: f32) -> f32 {
+        let (frame, elapsed) = (self.frame, self.elapsed);
+        let eased = self.eased.entry(id).or_insert(Eased { value: target, frame });
+        let step = 1.0 - (-elapsed / EASE_SECONDS).exp() as f32;
+        eased.value += (target - eased.value) * step;
+        if (target - eased.value).abs() < 0.01 {
+            eased.value = target;
+        }
+        eased.frame = frame;
+        eased.value
+    }
+
     // Ends a frame: what wasn't drawn can't be held, have focus, or have an
     // open popup, and this frame's targets are the next frame's.
     fn end(&mut self) {
-        let drawn = |targets: &[Target], id: Option<Id>| {
-            id.is_none_or(|id| targets.iter().any(|target| target.id == id))
-        };
+        let drawn = |targets: &[Target], id: Option<Id>| id.is_none_or(|id| targets.iter().any(|target| target.id == id));
         if !drawn(&self.next_targets, self.popup) {
             self.popup = None;
         }
@@ -328,12 +396,14 @@ impl State {
         if !drawn(&self.next_targets, self.held) {
             self.held = None;
         }
+        let frame = self.frame;
+        self.eased.retain(|_, eased| eased.frame == frame);
         std::mem::swap(&mut self.targets, &mut self.next_targets);
     }
 }
 
-// What the header, the footer and the program's own panels show about the
-// program and its window, besides input.
+// What the app bar, the status bar and the program's own cards show about
+// the program and its window, besides input.
 #[derive(Clone, Copy)]
 pub struct Status<'a> {
     pub frames_per_second: Option<f64>,
@@ -365,6 +435,8 @@ pub struct Response {
     // It got a press this frame. Buttons act on it, not on the release,
     // as it comes sooner.
     pub pressed: bool,
+    // The press was the second of a double-click.
+    pub double_clicked: bool,
     // It has the press, until the release, like while a slider is dragged.
     pub held: bool,
     pub released: bool,
@@ -381,36 +453,55 @@ pub struct Response {
 }
 
 // The interface of a program's window, from frame to frame.
-#[derive(Default)]
 pub struct Interface {
     state: State,
-    // Each layer's vertices, reused from frame to frame, so that their
+    // Each layer's instances, reused from frame to frame, so that their
     // memory is too. The base layer's has every layer's once a frame ends.
-    layers: [Vec<Vertex>; 3],
+    layers: [Vec<Instance>; 3],
+    theme: &'static Theme,
+    clipboard: Clipboard,
+}
+
+impl Default for Interface {
+    fn default() -> Self {
+        Self::new(Clipboard::memory())
+    }
 }
 
 impl Interface {
+    // An interface in the light theme, which copies and pastes with
+    // `clipboard`.
+    pub fn new(clipboard: Clipboard) -> Self {
+        Self {
+            state: State::default(),
+            layers: Default::default(),
+            theme: &canvas::theme::LIGHT,
+            clipboard,
+        }
+    }
+
     // Starts a frame of the interface, `size` pixels big, with the window's
-    // input. The frame ends when it's dropped, and then `vertices` has what
+    // input. The frame ends when it's dropped, and then `instances` has what
     // it drew.
-    pub fn frame<'a>(
-        &'a mut self,
-        font: &'a Font,
-        input: &'a application::Frame,
-        status: Status<'a>,
-        [width, height]: [f32; 2],
-    ) -> Frame<'a> {
-        let Interface { state, layers: [base, popup, tooltip] } = self;
+    pub fn frame<'a>(&'a mut self, fonts: &'a Fonts, input: &'a application::Frame, status: Status<'a>, [width, height]: [f32; 2]) -> Frame<'a> {
+        let Interface {
+            state,
+            layers: [base, popup, overlay],
+            theme,
+            clipboard,
+        } = self;
         state.begin(input);
         Frame {
-            canvas: Canvas::new(font, base),
-            popup: Canvas::new(font, popup),
-            tooltips: Canvas::new(font, tooltip),
+            canvas: Canvas::new(fonts, base),
+            popup: Canvas::new(fonts, popup),
+            overlay: Canvas::new(fonts, overlay),
             state,
             input,
             status,
             width,
             height,
+            theme,
+            clipboard,
             enabled: true,
             focusable: true,
             fullscreen: false,
@@ -418,8 +509,12 @@ impl Interface {
     }
 
     // What the last frame drew, every layer in order, for one draw call.
-    pub fn vertices(&self) -> &[Vertex] {
+    pub fn instances(&self) -> &[Instance] {
         &self.layers[0]
+    }
+
+    pub fn theme(&self) -> &'static Theme {
+        self.theme
     }
 
     // Closes popups, and drops the press and the hover, like while the
@@ -455,9 +550,14 @@ impl Interface {
         self.state.tooltip.clone()
     }
 
+    pub fn clipboard(&mut self) -> &mut Clipboard {
+        &mut self.clipboard
+    }
+
     // The interface's state, for scripts to save and check: each widget, by
     // name, with its kind and area, and which one the cursor is over, which
-    // has the press, which has focus, whose popup is open, and the tooltip.
+    // has the press, which has focus, whose popup is open, the tooltip, and
+    // the theme.
     pub fn state(&self) -> Value {
         let state = &self.state;
         let targets = state
@@ -475,9 +575,10 @@ impl Interface {
                 Value::Object(members)
             })
             .collect();
-        let tooltip = state.tooltip.as_ref().map(|(name, rect)| {
-            json::object([("Name", name.clone().into()), ("Area", area(*rect))])
-        });
+        let tooltip = state
+            .tooltip
+            .as_ref()
+            .map(|(name, rect)| json::object([("Name", name.clone().into()), ("Area", area(*rect))]));
         json::object([
             ("Targets", Value::Array(targets)),
             ("Hovered", state.name(state.hovered)),
@@ -485,6 +586,7 @@ impl Interface {
             ("Focus", state.name(state.focus)),
             ("Popup", state.name(state.popup)),
             ("Tooltip", tooltip.into()),
+            ("Theme", self.theme.name.into()),
         ])
     }
 }
@@ -499,13 +601,15 @@ pub struct Frame<'a> {
     // The base layer, for the program's own drawing.
     pub canvas: Canvas<'a>,
     pub(crate) popup: Canvas<'a>,
-    pub(crate) tooltips: Canvas<'a>,
+    pub(crate) overlay: Canvas<'a>,
     pub(crate) state: &'a mut State,
     pub input: &'a application::Frame,
     pub status: Status<'a>,
     // The client area's size, in pixels.
     pub width: f32,
     pub height: f32,
+    theme: &'a mut &'static Theme,
+    pub(crate) clipboard: &'a mut Clipboard,
     // Whether the widgets drawn now take input, and keyboard focus.
     enabled: bool,
     focusable: bool,
@@ -515,12 +619,26 @@ pub struct Frame<'a> {
 impl Drop for Frame<'_> {
     fn drop(&mut self) {
         self.state.end();
-        self.canvas.vertices.extend_from_slice(self.popup.vertices);
-        self.canvas.vertices.extend_from_slice(self.tooltips.vertices);
+        self.canvas.instances.extend_from_slice(self.popup.instances);
+        self.canvas.instances.extend_from_slice(self.overlay.instances);
     }
 }
 
 impl<'a> Frame<'a> {
+    pub fn theme(&self) -> &'static Theme {
+        self.theme
+    }
+
+    // Draws the widgets after this, and the window's background, in
+    // `theme`. Programs set it at the start of a frame.
+    pub fn set_theme(&mut self, theme: &'static Theme) {
+        *self.theme = theme;
+    }
+
+    pub fn fonts(&self) -> &'a Fonts {
+        self.canvas.fonts
+    }
+
     pub fn seconds(&self) -> f64 {
         self.input.seconds
     }
@@ -534,22 +652,18 @@ impl<'a> Frame<'a> {
         self.input.cursor
     }
 
-    pub fn line_height(&self) -> f32 {
-        self.canvas.line_height()
+    pub fn line_height(&self, style: TextStyle) -> f32 {
+        self.canvas.line_height(style)
     }
 
-    pub fn char_width(&self) -> f32 {
-        self.canvas.char_width()
-    }
-
-    pub fn text_width(&self, text: &str) -> f32 {
-        self.canvas.text_width(text)
+    pub fn measure(&self, text: &str, style: TextStyle) -> f32 {
+        self.canvas.measure(text, style)
     }
 
     // How many lines of text didn't fit where they went, on any layer, so
-    // that tests can check that the panels' text fits.
+    // that tests can check that the cards' text fits.
     pub fn dropped_lines(&self) -> usize {
-        self.canvas.dropped_lines + self.popup.dropped_lines + self.tooltips.dropped_lines
+        self.canvas.dropped_lines + self.popup.dropped_lines + self.overlay.dropped_lines
     }
 
     // Has the window switch between maximized and borderless fullscreen,
@@ -680,7 +794,7 @@ impl<'a> Frame<'a> {
     }
 
     // Changes the label of a target that the frame drew, once its input has
-    // changed what it shows, like a select box's choice.
+    // changed what it shows, like a combo box's choice.
     pub(crate) fn relabel(&mut self, id: Id, label: &str) {
         if let Some(target) = self.state.next_targets.iter_mut().rev().find(|target| target.id == id) {
             target.label.clear();
@@ -731,10 +845,11 @@ impl<'a> Frame<'a> {
                 Event::Press(_) => {
                     response.pressed = true;
                     response.clicked = true;
+                    response.double_clicked = self.state.double_click;
                 }
                 Event::Release(_) => response.released = true,
                 Event::Wheel(_, notches) => response.wheel += notches,
-                Event::Key { key, repeat: false, .. }
+                Event::Key { key, control: false, repeat: false, .. }
                     if !sense.text && (key as i32 == VK_SPACE || key as i32 == VK_RETURN) =>
                 {
                     response.clicked = true
@@ -782,17 +897,32 @@ impl<'a> Frame<'a> {
     }
 
     // The canvas of a layer.
-    pub(crate) fn layer(&mut self, layer: Layer) -> &mut Canvas<'a> {
+    pub fn layer(&mut self, layer: Layer) -> &mut Canvas<'a> {
         match layer {
             Layer::Base => &mut self.canvas,
             Layer::Popup => &mut self.popup,
-            Layer::Tooltip => &mut self.tooltips,
+            Layer::Overlay => &mut self.overlay,
         }
     }
 
     // Whether a focused widget shows a ring, as the focus moved by keyboard.
-    pub(crate) fn shows_focus(&self, response: &Response) -> bool {
+    pub fn shows_focus(&self, response: &Response) -> bool {
         response.focused && self.state.focus_visible
+    }
+
+    // A value that eases quickly toward `target`, for how a widget looks,
+    // like how far its knob has slid, by the widget's name and a number for
+    // which of its values it is. See EASE_SECONDS.
+    pub fn ease(&mut self, id: Id, target: f32) -> f32 {
+        self.state.ease(id, target)
+    }
+
+    // How hovered and how pressed a widget looks, each from 0 to 1, eased.
+    pub(crate) fn hover_and_press(&mut self, id: Id, response: &Response) -> (f32, f32) {
+        let enabled = self.enabled;
+        let hover = self.ease(id.part(1), (enabled && (response.hovered || response.held)) as u8 as f32);
+        let press = self.ease(id.part(2), (enabled && response.held && response.hovered) as u8 as f32);
+        (hover, press)
     }
 
     // Opens or closes a widget's popup.
@@ -807,9 +937,9 @@ impl<'a> Frame<'a> {
     // Draws nothing of the program's, and takes away its targets, for a
     // window that isn't in a supported setup, which shows only what's wrong.
     pub(crate) fn clear(&mut self) {
-        self.canvas.vertices.clear();
-        self.popup.vertices.clear();
-        self.tooltips.vertices.clear();
+        self.canvas.instances.clear();
+        self.popup.instances.clear();
+        self.overlay.instances.clear();
         self.state.next_targets.clear();
         self.state.tooltip = None;
     }

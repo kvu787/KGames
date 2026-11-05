@@ -7,14 +7,14 @@ API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
 crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
 KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
-whose main loop runs it, and whose widgets draw its header, footer, panels, select box and
+whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box and
 tooltips.
 
 ## Supported window setups
 
 The demo is built for one machine, and supports exactly two window setups. Both are on a
 2560 × 1440 monitor at 100% scaling (96 DPI), so logical and physical pixels are the same,
-and the panels have fixed places in pixels:
+and the cards have fixed places in pixels:
 
 | Setup                 | Client area | What makes it                                                              |
 | --------------------- | ----------- | -------------------------------------------------------------------------- |
@@ -23,38 +23,41 @@ and the panels have fixed places in pixels:
 | Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the whole monitor                     |
 
 In any other setup, like a restored window, another monitor, another scale, or a moved
-taskbar, the window shows what's wrong instead of the panels. It checks again whenever the
+taskbar, the window shows what's wrong instead of the cards. It checks again whenever the
 window moves or changes size, or the displays, the scale or the taskbar change.
 
 ## What it shows
 
 - **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
-- **Header**: the GameInput runtime the demo loaded, how many readings it has handled,
-  whether the window has focus, and the frame rate with the time per frame. Under it,
-  anything wrong with the [settings file](#settings-file) or the command line.
+- **App bar**: whether the window has focus, and the frame rate with the time per frame.
+  Under it, anything wrong with the [settings file](#settings-file) or the command line, as
+  info bars that close.
 - **Gamepad**: an XY graph for each stick, with the unit circle and
   the dead zone of the [rumble test](#rumble-test), the only part of the demo that applies
   one. Everywhere else, the demo shows the sticks' and triggers' raw values. A filled bar for
-  each trigger. A chip for every button that lights up while it's held. A select box
-  after the panel's title picks which [gamepad the demo listens to](#choosing-a-gamepad),
+  each trigger. A chip for every button that lights up while it's held. A combo box
+  after the card's title picks which [gamepad the demo listens to](#choosing-a-gamepad),
   if any.
-- **Latest input event**: a text box describing the newest reading that changed
+- **Latest input event**: a well describing the newest reading that changed
   something: its device, what changed, how long after that device's previous reading
   it came, and the device's whole state.
-- **Keyboard**: the keys held down, with each key's name, scan code, virtual-key code and character.
+- **Keyboard**: the keys held down, with each key's name, scan code, virtual-key code and
+  character, in Cascadia Mono, so that they line up.
 - **Mouse**: the buttons held, the motion and wheel, and a pad that moves with the
   raw relative motion, which has no pointer acceleration.
 
   Each of the two shows the last device whose keys, or mouse input, changed. A device can
   be both, like a keyboard with a touchpad, and its readings then have both kinds of
-  input. A key press on it doesn't move the Mouse panel to it.
+  input. A key press on it doesn't move the Mouse card to it.
 - **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback.
-  The gamepad that the panel shows is blue, and gamepads that the demo ignores are faint.
+  The gamepad that the card shows is in the accent color, and gamepads that the demo ignores
+  are faint.
   The cursor on a device's row shows a [tooltip](#device-tooltips) of everything known about it.
-- **Event log**: everything above as it happens, newest first.
-  A run of analog motion from one device shares a line, with a count.
-- **Footer**: the shortcuts, and the [identifier](#display-identifiers) and model of the
-  display the window is on.
+- **Event log**: everything above as it happens, newest first, in Cascadia Mono, so that its
+  columns line up. A run of analog motion from one device shares a line, with a count.
+- **Status bar**: the shortcuts, the GameInput runtime the demo loaded, how many readings it
+  has handled, and the [identifier](#display-identifiers) and model of the display the window
+  is on.
 
 Shortcuts, which the demo also reads with GameInput, while its window has focus:
 
@@ -69,7 +72,7 @@ Shortcuts, which the demo also reads with GameInput, while its window has focus:
 The rumble test drives only the standard rumble: the low-frequency motor in the left grip
 and the high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most
 other gamepads with rumble have. The left stick drives the first and the right stick the
-second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad panel's
+second. The trigger motors of Xbox One and Series gamepads stay off. The Gamepad card's
 "Motors" still lists every motor the gamepad has. With the rumble test off, no motor runs,
 and while the window doesn't have focus or is minimized, which stops the demo from reading the
 sticks, none does either.
@@ -84,12 +87,12 @@ demo applies a dead zone.
 
 ### Choosing a gamepad
 
-Click the select box after the Gamepad panel's title for a list of choices, and click
+Click the combo box after the Gamepad card's title for a list of choices, and click
 one to pick it. Esc, a click anywhere else in the window, or the window losing focus, like when
 it's minimized, closes the list. A click on the title bar isn't in the window's client area, so
 it leaves the list open. While the list is open, Up, Down, Home and End pick another choice,
-and Space or Enter close it, like in any select box of Library/UserInterface. Otherwise the
-select box never takes keyboard focus, so the keys that you press to try the Keyboard panel
+and Space or Enter close it, like in any combo box of Library/UserInterface. Otherwise the
+combo box never takes keyboard focus, so the keys that you press to try the Keyboard card
 leave it alone.
 
 | Choice    | What the demo listens to                                                        |
@@ -104,15 +107,15 @@ device with a gamepad, a keyboard and a mouse.
 
 The choice isn't saved. Until one is picked, the demo chooses for itself: the first
 gamepad it finds connected. If that one disconnects, it switches to another that's still
-connected, or else to the next one that connects. Before any gamepad connects, the select
-box shows `None`. The select box reads the mouse from the window's messages, not from
+connected, or else to the next one that connects. Before any gamepad connects, the combo
+box shows `None`. The combo box reads the mouse from the window's messages, not from
 GameInput, because they say where the cursor is in the window.
 
 ### Device tooltips
 
 A device's name and IDs often don't say what it is. Two keyboards can both be
 `HID Keyboard Device (0000:0000)`, for example. So while the cursor is on a row of the Devices
-panel, a tooltip shows all that GameInput and Windows say about that device, in three parts:
+card, a tooltip shows all that GameInput and Windows say about that device, in three parts:
 
 | Part              | What it has                                                                     |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -132,7 +135,7 @@ keyboard it has for its macros. Windows gives devices built into the computer th
 
 Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread
 of its own does that for each device as it connects, instead of the main loop. The tooltip
-reads what it found. The cursor comes from the window's messages, like the select box's, so
+reads what it found. The cursor comes from the window's messages, like the combo box's, so
 the tooltip only shows while the window has focus. It goes under the cursor, or above it if
 there isn't room, or beside the device's row if it's too tall for either, and it stays inside
 the window.
@@ -214,8 +217,8 @@ The file is in Git. If it doesn't exist, the demo writes it with the defaults:
 
 - If `Display` names a display that isn't connected, the demo opens on the primary display.
 - `F11` switches between the two window modes, whichever the demo opened in.
-- A setting that's missing keeps its default. So does one that's wrong, and the header
-  says what's wrong with it. If the file isn't valid JSON, the header says where, and the
+- A setting that's missing keeps its default. So does one that's wrong, and a notice under
+  the app bar says what's wrong with it. If the file isn't valid JSON, it says where, and the
   demo uses the defaults. Values that are words, like `"Maximized"`, ignore case, but
   setting names don't.
 - The demo never changes the file once it exists. Delete it to get the defaults back.
@@ -229,7 +232,7 @@ on the primary display.
 
 The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, finds
 and loads the newest runtime, and puts the runtime from Microsoft's NuGet package next to the
-demo's exe. The header of the demo's window shows which runtime it loaded.
+demo's exe. The status bar of the demo's window shows which runtime it loaded.
 
 ## How it reads input
 
@@ -255,13 +258,13 @@ data, so that the rest of the demo also runs on input from tests and scripts (se
 [Testing](#testing)).
 
 Like every KGames program, the demo only handles input while its window has focus, and the
-header says whether it has focus. GameInput gives gamepad input to windows without focus. It's
+app bar says whether it has focus. GameInput gives gamepad input to windows without focus. It's
 meant to give keyboard and mouse input only to the window in focus, but the 4.0.306 runtime
 that the demo loads from its folder gives it to the demo without focus too, even after
 `EnableBackgroundInput(false)`. So the demo drops it all itself: readings that come while the
 window doesn't have focus or is minimized, and from before it got focus. Otherwise it would
 show and log what's typed into other windows, and its shortcuts would run when they're pressed
-in other apps. When the window loses focus, the panels stop showing keys, buttons and sticks
+in other apps. When the window loses focus, the cards stop showing keys, buttons and sticks
 as held, and a gamepad that the demo switches to then shows at rest.
 
 Keys and buttons that are still held when the window gets focus, like the button of the click
@@ -346,10 +349,9 @@ Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 
 The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse
-in its panels' real layout, which Library/UserInterface's `Headless` draws without a window or
-a GPU: the select box and its list, and the Devices panel's rows and their tooltips. The
-scripts in `Test/GameInputDemo/Scripts`
-run the real demo, in its window, as
+in its cards' real layout, which Library/UserInterface's `Headless` draws without a window or
+a GPU: the combo box and its list, and the Devices card's rows and their tooltips. The
+scripts in `Test/GameInputDemo/Scripts` run the real demo, in its window, as
 [Library/Application](../../Library/Application/README.md#scripts) describes. Their `Program`
 steps connect and disconnect devices, and give their readings:
 
@@ -381,23 +383,24 @@ buttons.
 |              | `Mouse`, and `Motors` from `LowFrequency`, `HighFrequency`, `LeftTrigger` and   |
 |              | `RightTrigger`                                                                  |
 | `Gamepad`    | `Id`, `LeftStick` and `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`,  |
-|              | and `Buttons`, named as the gamepad panel names them                            |
+|              | and `Buttons`, named as the gamepad card names them                             |
 | `Keyboard`   | `Id`, and the keys `Down`, like `F1`, `A` or `Left`                             |
-| `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the mouse panel |
+| `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the mouse card  |
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |
 
-The state that scripts save and check has what the panels show, the log's 10 newest lines, and
+The state that scripts save and check has what the cards show, the log's 10 newest lines, and
 the rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`
 (see [Library/UserInterface](../../Library/UserInterface/README.md#testing)). Its `Targets` say
-where the select box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and so on,
-are, and where each row of the Devices panel is, `Devices/0`, `Devices/1` and so on, in the
-panel's order, with its device's label as its `Label`, for a `Move` step to put the cursor on
-one. Each choice's `Label` is its gamepad's, and the select box's is the chosen one's. `Popup`
-is `Gamepad` while the select box's list is open, and `null` otherwise. `Tooltip` has the label
-of the device whose tooltip shows, as its `Name`, and where it is, or is `null` without one. A device from a script
-has no PnP path, so its tooltip only has what the `Connect` step gives, and says that Windows
-has nothing on it.
+where the combo box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and so on,
+are, and where each row of the Devices card is, `Devices/0`, `Devices/1` and so on, in the
+card's order, with its device's label as its `Label`. Steps point at them by name, like
+`{ "Frame": 3, "Move": "Devices/1" }`, or `{ "Frame": 6, "Click": "Gamepad/1" }` for a choice,
+which a press takes away. Each choice's `Label` is its gamepad's, and the combo box's is the
+chosen one's. `Popup` is `Gamepad` while the combo box's list is open, and `null` otherwise.
+`Tooltip` has the label of the device whose tooltip shows, as its `Name`, and where it is, or is
+`null` without one. A device from a script has no PnP path, so its tooltip only has what the
+`Connect` step gives, and says that Windows has nothing on it.
 
 What only real devices show still needs a person: GameInput's own readings and device events,
 how the motors feel, and focus changing while a gamepad is held.
@@ -412,7 +415,7 @@ has focus, so it's for trying the demo by hand, not for coding agents.
 A precision touchpad, like a laptop's, moves the pointer the same way. Windows' touchpad
 driver reads where the fingers are, and moves the pointer with mouse input of its own, which
 doesn't say what device it came from. So the touchpad is the "Unidentified mouse" too: it's
-only in the Devices panel once it's used, its tooltip has no PnP path, and its input can't be
+only in the Devices card once it's used, its tooltip has no PnP path, and its input can't be
 told apart from `SendInput`'s.
 
 The virtual gamepad that Windows' `InputInjector.InitializeGamepadInjection` creates doesn't
@@ -437,8 +440,8 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/DeviceTree.rs`             | Looks up a device's nodes in Windows' device tree, from its PnP path             |
 | `Source/GameInputSource.rs`        | Reads devices and readings with GameInput                                        |
 | `Source/ScriptedSource.rs`         | Devices and readings from tests and scripts, instead of GameInput                |
-| `Source/Input.rs`                  | Keeps what the panels show, from the devices and readings                        |
-| `Source/Panels.rs`                 | Lays out the panels in fixed pixels, and draws them with Library/UserInterface   |
+| `Source/Input.rs`                  | Keeps what the cards show, from the devices and readings                         |
+| `Source/Panels.rs`                 | Lays out the cards in fixed pixels, and draws them with Library/UserInterface    |
 | `HumanRun.ps1`                     | Builds the demo and runs it on the primary display, for people to use it         |
 | `HumanRun.cmd`                     | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
 | `Settings.json`                    | The [settings file](#settings-file), which the demo writes if it's missing       |

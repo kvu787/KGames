@@ -30,6 +30,7 @@ members = [
     "Program/UiShowcase",
     "Program/Veehiicuul",
     "Test/Application",
+    "Test/Canvas",
     "Test/GameInputDemo",
     "Test/Gltf",
     "Test/Json",

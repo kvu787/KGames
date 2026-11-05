@@ -5,12 +5,10 @@ use std::path::Path;
 
 use graphics::Renderer;
 use json::Value;
-use scene_test::Line;
 use spinning_car_test::NAME;
 use spinning_car_test::controls;
 use spinning_car_test::scene::{self, Scene};
 use spinning_car_test::settings::SceneSettings;
-use user_interface::theme::{DIM, TEXT};
 use windows_core::Result;
 
 // The scene, with where the car is, which Library/SceneTest runs. The car
@@ -38,9 +36,9 @@ impl scene_test::Scene for SpinningCar {
         "A car moving at 8 units and turning at 90 degrees per second"
     }
 
-    fn lines(&self) -> Vec<Line> {
+    fn rows(&self) -> Vec<(&'static str, String)> {
         let car = if self.stationary { "stationary" } else { "moving" };
-        vec![vec![("Car: ".to_string(), DIM), (car.to_string(), TEXT)]]
+        vec![("Car", car.to_string())]
     }
 
     fn shortcuts(&self) -> &[(&'static str, &'static str)] {

@@ -4,7 +4,7 @@
 use std::collections::VecDeque;
 
 use json::Value;
-use user_interface::{Frame, Gamepad, Program, Setup, key_name};
+use user_interface::{Frame, Gamepad, Program, Setup, key_name, theme};
 use windows_api::*;
 use windows_core::Result;
 
@@ -14,26 +14,29 @@ use crate::panels;
 // The log keeps this many lines.
 const LOG_LINES: usize = 64;
 
+// The buttons' styles, in their row's order.
+pub const STYLES: [&str; 4] = ["Standard", "Accent", "Danger", "Subtle"];
 pub const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
+pub const VIEWS: [&str; 3] = ["Day", "Week", "Month"];
 pub const TABS: [&str; 3] = ["Overview", "Details", "Notes"];
-pub const TAGS: [&str; 6] = ["Rust", "Win32", "Direct3D 12", "DirectWrite", "Low latency", "Light theme"];
-// The colors that the color select box offers, with what each is for in
-// the theme.
+pub const TAGS: [&str; 6] = ["Rust", "Win32", "Direct3D 12", "DirectWrite", "Low latency", "Fluent"];
+// The colors that the color combo box offers, with what each is for in the
+// theme.
 pub const COLORS: [(&str, &str); 6] = [
-    ("Accent", "selected, and the first of a pair"),
-    ("Orange", "the second of a pair"),
-    ("Purple", "keyboards in GameInputDemo"),
-    ("Success", "what's on or held"),
-    ("Warning", "what needs attention"),
-    ("Error", "what failed"),
+    ("Accent", "what's chosen, and the main action"),
+    ("Success", "what's on, or went well"),
+    ("Caution", "what needs attention"),
+    ("Critical", "what failed"),
+    ("Orange", "the second of a chart's series"),
+    ("Purple", "the third of a chart's series"),
 ];
 pub const DENSITIES: [(&str, &str); 3] = [
-    ("Comfortable", "rows 28 pixels tall"),
-    ("Cozy", "rows 24 pixels tall"),
-    ("Compact", "rows 20 pixels tall"),
+    ("Comfortable", "rows 40 pixels tall"),
+    ("Standard", "rows 36 pixels tall"),
+    ("Compact", "rows 28 pixels tall"),
 ];
 // The list's rows, and how tall they are, for each density.
-pub const ROW_HEIGHTS: [f32; 3] = [28.0, 24.0, 20.0];
+pub const ROW_HEIGHTS: [f32; 3] = [40.0, 36.0, 28.0];
 
 const ADJECTIVES: [&str; 10] = [
     "Amber", "Brisk", "Cobalt", "Dusty", "Eager", "Fuzzy", "Gentle", "Hollow", "Ivory", "Jolly",
@@ -44,9 +47,10 @@ const NOUNS: [&str; 12] = [
 ];
 
 pub struct Showcase {
-    // How many times each tone of button was pressed: normal, primary and
-    // danger.
-    pub presses: [u32; 3],
+    // How many times each style of button was pressed, in STYLES' order.
+    pub presses: [u32; 4],
+    // What the icon buttons add to and take from.
+    pub count: i32,
     // Whether the controls under the first checkbox take input.
     pub enabled: bool,
     pub grid: bool,
@@ -54,7 +58,9 @@ pub struct Showcase {
     pub sound: bool,
     pub animate: bool,
     pub tooltips: bool,
+    pub dark: bool,
     pub size: usize,
+    pub view: usize,
     pub tab: usize,
     pub volume: f64,
     pub opacity: f64,
@@ -68,8 +74,12 @@ pub struct Showcase {
     // What the greeting says, once the name is submitted.
     pub greeting: Option<String>,
     pub search: String,
+    // Whether the caution info bar was closed.
+    pub caution_closed: bool,
     // The list's selected item, by its index among all of them.
     pub selected: Option<usize>,
+    // The item that was double-clicked last, which the list opens.
+    pub opened: Option<usize>,
     pub items: Vec<String>,
     // What changed, newest first.
     pub log: VecDeque<String>,
@@ -82,14 +92,17 @@ pub struct Showcase {
 impl Default for Showcase {
     fn default() -> Self {
         Self {
-            presses: [0; 3],
+            presses: [0; 4],
+            count: 3,
             enabled: true,
             grid: true,
             snap: false,
             sound: true,
             animate: true,
             tooltips: true,
+            dark: false,
             size: 1,
+            view: 1,
             tab: 0,
             volume: 40.0,
             opacity: 0.75,
@@ -101,7 +114,9 @@ impl Default for Showcase {
             name: String::new(),
             greeting: None,
             search: String::new(),
+            caution_closed: false,
             selected: None,
+            opened: None,
             items: (0..ADJECTIVES.len() * NOUNS.len())
                 .map(|index| {
                     let adjective = ADJECTIVES[index % ADJECTIVES.len()];
@@ -139,10 +154,12 @@ impl Showcase {
             .collect()
     }
 
-    // Everything back to how it started, but the log, which says so.
+    // Everything back to how it started, but the log, which says so, and
+    // the theme.
     pub fn reset(&mut self) {
         let log = std::mem::take(&mut self.log);
-        *self = Showcase { log, ..Showcase::default() };
+        let dark = self.dark;
+        *self = Showcase { log, dark, ..Showcase::default() };
         self.record("Everything", "reset".to_string());
     }
 }
@@ -162,16 +179,21 @@ impl Program for Showcase {
             self.tooltips = !self.tooltips;
             self.record("Tooltips", on_off(self.tooltips));
         }
+        if frame.shortcut(VK_F2) {
+            self.dark = !self.dark;
+            self.record("Dark theme", on_off(self.dark));
+        }
         if frame.control_shortcut('R' as i32) {
             self.reset();
         }
         self.held_keys = frame.input.held_keys.iter().map(|key| key_name(*key)).collect();
         self.gamepad = *frame.gamepad();
+        frame.set_theme(if self.dark { &theme::DARK } else { &theme::LIGHT });
         panels::draw(self, frame);
         Ok(())
     }
 
-    // What every widget shows, by the names of their panels' labels, for
+    // What every widget shows, by the names of their cards' labels, for
     // scripts to save and check.
     fn state(&self) -> Value {
         let tags: Vec<&str> = TAGS
@@ -181,22 +203,23 @@ impl Program for Showcase {
             .map(|(tag, _)| *tag)
             .collect();
         let log: Vec<String> = self.log.iter().take(8).cloned().collect();
+        let presses = STYLES
+            .iter()
+            .zip(self.presses)
+            .map(|(style, count)| (style.to_string(), Value::from(count)))
+            .collect();
         json::object([
-            (
-                "Presses",
-                json::object([
-                    ("Normal", self.presses[0].into()),
-                    ("Primary", self.presses[1].into()),
-                    ("Danger", self.presses[2].into()),
-                ]),
-            ),
+            ("Presses", Value::Object(presses)),
+            ("Count", (self.count as f64).into()),
             ("Enabled", self.enabled.into()),
             ("Grid", self.grid.into()),
             ("Snap", self.snap.into()),
             ("Sound", self.sound.into()),
             ("Animate", self.animate.into()),
             ("Tooltips", self.tooltips.into()),
+            ("Dark", self.dark.into()),
             ("Size", SIZES[self.size].into()),
+            ("View", VIEWS[self.view].into()),
             ("Tab", TABS[self.tab].into()),
             ("Volume", self.volume.into()),
             ("Opacity", self.opacity.into()),
@@ -207,7 +230,9 @@ impl Program for Showcase {
             ("Name", self.name.clone().into()),
             ("Greeting", self.greeting.clone().into()),
             ("Search", self.search.clone().into()),
+            ("CautionClosed", self.caution_closed.into()),
             ("Selected", self.selected.map(|index| self.items[index].clone()).into()),
+            ("Opened", self.opened.map(|index| self.items[index].clone()).into()),
             ("Matches", self.matches().len().into()),
             ("HeldKeys", self.held_keys.clone().into()),
             (

@@ -32,6 +32,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "canvas_tests"
+version = "0.1.0"
+dependencies = [
+ "canvas",
+]
+
+[[package]]
 name = "displays"
 version = "0.1.0"
 dependencies = [

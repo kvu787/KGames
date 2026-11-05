@@ -1,23 +1,22 @@
 // What MinimalSceneTest and SpinningCarTest share: a 3D scene that fills the
 // window at either supported height, drawn with the lowest latency, and a
-// text box over its bottom left corner with the test's name, its frame rate,
-// the GPU, the display, and whether the window has focus. F1 hides the text
-// box, and F11 switches between maximized and borderless fullscreen. Each
-// test gives `run` its scene, as a Scene, which adds to the text box and
-// handles the test's own keys. Library/UserInterface runs it, with the
-// scene under the text box.
+// card over its bottom left corner with the test's name, its frame rate,
+// the GPU, the display, and whether the window has focus. F1 hides the card,
+// and F11 switches between maximized and borderless fullscreen. Each test
+// gives `run` its scene, as a Scene, which adds rows to the card and handles
+// the test's own keys. Library/UserInterface runs it, with the scene under
+// the card.
 
 use std::path::Path;
 
 use application::{Event, ProgramSettings};
 use graphics::Renderer;
 use json::Value;
-use user_interface::theme::{DIM, SUCCESS, TEXT, TITLE, WARNING};
-use user_interface::{Color, Frame, MARGIN, PADDING, Program, Setup};
+use user_interface::{
+    Align, CARD_PADDING, Frame, Icon, MARGIN, Program, Rect, SPACE_M, SPACE_S, Setup, TextStyle, badge_width,
+    keycap_width,
+};
 use windows_core::Result;
-
-// A line of the text box, as pieces of text, each in its color.
-pub type Line = Vec<(String, Color)>;
 
 // What a test has of its own: its scene, what the text box says about it,
 // and its keys.
@@ -35,8 +34,9 @@ pub trait Scene: Sized {
     // 8 units per second".
     fn description(&self) -> &str;
 
-    // Lines of the text box after the display's, like what a key set.
-    fn lines(&self) -> Vec<Line> {
+    // Rows of the card after the display's, each a label and a value, like
+    // what a key set.
+    fn rows(&self) -> Vec<(&'static str, String)> {
         Vec::new()
     }
 
@@ -66,7 +66,7 @@ pub trait Scene: Sized {
 // What the keys that every test has do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
-    // F1: shows or hides the text box.
+    // F1: shows or hides the card.
     ToggleText,
     // F11: switches between maximized and borderless fullscreen.
     ToggleFullscreen,
@@ -116,12 +116,7 @@ impl<T: Scene> Program for SceneTest<T> {
         }
         self.scene.advance(frame.seconds());
         if self.show_text {
-            let lines = text(&self.scene, frame);
-            // At the bottom left, which the tests' objects never cross: they
-            // go off the top left and bottom right corners.
-            let box_height = frame.line_height() * lines.len() as f32 + PADDING * 2.0;
-            let y = frame.height - MARGIN - box_height;
-            frame.text_box(MARGIN, y, &lines);
+            card(&self.scene, frame);
         }
         Ok(())
     }
@@ -148,39 +143,94 @@ pub fn run<T: Scene>(folder: &Path) -> Result<()> {
     user_interface::run::<SceneTest<T>>(folder)
 }
 
-// The text box's lines.
-fn text<T: Scene>(scene: &T, frame: &Frame) -> Vec<Line> {
-    let piece = |text: &str, color| (text.to_string(), color);
+// The label column's width, and a row's height.
+const LABEL_WIDTH: f32 = 72.0;
+const ROW: f32 = 20.0;
+const KEYCAP_ROW: f32 = 28.0;
+
+// The card over the scene, at the bottom left, which the tests' objects
+// never cross: they go off the top left and bottom right corners. It's as
+// big as what it says.
+fn card<T: Scene>(scene: &T, frame: &mut Frame) {
+    let theme = frame.theme();
+    let fonts = frame.fonts();
     let status = frame.status;
     let rate = match status.frames_per_second {
         Some(rate) => format!("{rate:.0}  ({:.2} ms per frame)", 1000.0 / rate),
         None => "measuring".to_string(),
     };
-    let focus = if frame.focused() {
-        piece("Window has focus", SUCCESS)
+    let mut rows = vec![("FPS", rate), ("GPU", status.adapter.to_string()), ("Display", status.display.to_string())];
+    rows.extend(scene.rows());
+    let shortcuts: Vec<(&str, &str)> = [("F1", "hide this"), ("F11", "borderless fullscreen")]
+        .into_iter()
+        .chain(scene.shortcuts().iter().copied())
+        .collect();
+    let (focus, focus_color) = if frame.focused() {
+        ("Window has focus", theme.success)
     } else {
-        piece("Window doesn't have focus: input is ignored", WARNING)
+        ("No focus: input is ignored", theme.caution)
     };
-    let mut lines = vec![
-        vec![piece(T::NAME, TITLE), piece(&format!("  {}", scene.description()), DIM)],
-        vec![piece("FPS: ", DIM), piece(&rate, TEXT)],
-        vec![piece("GPU: ", DIM), piece(status.adapter, TEXT)],
-        vec![piece("Display: ", DIM), piece(status.display, TEXT)],
-    ];
-    lines.extend(scene.lines());
-    lines.push(vec![focus]);
-    let mut shortcuts = Line::new();
-    for (key, does) in [("F1", "hide this"), ("F11", "borderless fullscreen")]
+
+    // As wide as its widest line.
+    let title_width = fonts.measure(T::NAME, TextStyle::BodyStrong) + SPACE_M + fonts.measure(scene.description(), TextStyle::Body);
+    let rows_width = rows
         .iter()
-        .chain(scene.shortcuts())
-    {
-        if !shortcuts.is_empty() {
-            shortcuts.push(piece("   ", DIM));
-        }
-        shortcuts.push(piece(key, TEXT));
-        shortcuts.push(piece(&format!(" {does}"), DIM));
+        .map(|(_, value)| LABEL_WIDTH + fonts.measure(value, TextStyle::Body))
+        .fold(0.0, f32::max);
+    let shortcuts_width: f32 = shortcuts
+        .iter()
+        .map(|(key, does)| keycap_width(fonts, key) + 6.0 + fonts.measure(does, TextStyle::Caption) + SPACE_M)
+        .sum();
+    let notices_width = status
+        .notices
+        .iter()
+        .map(|notice| 24.0 + fonts.measure(notice, TextStyle::Body))
+        .fold(0.0, f32::max);
+    let content_width = title_width
+        .max(rows_width)
+        .max(shortcuts_width)
+        .max(badge_width(fonts, focus))
+        .max(notices_width)
+        .min(frame.width - MARGIN * 2.0 - CARD_PADDING * 2.0)
+        .ceil();
+    let content_height = ROW + SPACE_S + ROW * rows.len() as f32 + SPACE_S + KEYCAP_ROW + KEYCAP_ROW
+        + ROW * status.notices.len() as f32;
+    let area = Rect::new(
+        MARGIN,
+        frame.height - MARGIN - content_height - CARD_PADDING * 2.0,
+        content_width + CARD_PADDING * 2.0,
+        content_height + CARD_PADDING * 2.0,
+    );
+    frame.overlay_card(area);
+
+    let inner = area.inset(CARD_PADDING);
+    let canvas = &mut frame.canvas;
+    canvas.push_clip(inner);
+    let mut y = inner.y;
+    let end = canvas.text([inner.x, y], T::NAME, TextStyle::BodyStrong, theme.text);
+    canvas.text([end + SPACE_M, y], scene.description(), TextStyle::Body, theme.text_secondary);
+    y += ROW + SPACE_S;
+    for (label, value) in &rows {
+        canvas.text([inner.x, y], label, TextStyle::Body, theme.text_secondary);
+        canvas.text([inner.x + LABEL_WIDTH, y], value, TextStyle::Body, theme.text);
+        y += ROW;
     }
-    lines.push(shortcuts);
-    lines.extend(status.notices.iter().map(|notice| vec![piece(notice, WARNING)]));
-    lines
+    y += SPACE_S;
+    canvas.pop_clip();
+    frame.badge([inner.x, y + KEYCAP_ROW * 0.5], focus, focus_color);
+    y += KEYCAP_ROW;
+    let mut x = inner.x;
+    let middle = y + KEYCAP_ROW * 0.5;
+    for (key, does) in &shortcuts {
+        x = frame.keycap([x, middle], key).right() + 6.0;
+        let text = Rect::new(x, y, inner.right() - x, KEYCAP_ROW);
+        x = frame.label(text, does, TextStyle::Caption, theme.text_secondary, Align::Start) + SPACE_M;
+    }
+    y += KEYCAP_ROW;
+    for notice in status.notices {
+        frame.canvas.icon([inner.x + 8.0, y + ROW * 0.5], Icon::Warning, 16.0, theme.caution);
+        let text = Rect::new(inner.x + 24.0, y, inner.width - 24.0, ROW);
+        frame.label(text, notice, TextStyle::Body, theme.text, Align::Start);
+        y += ROW;
+    }
 }

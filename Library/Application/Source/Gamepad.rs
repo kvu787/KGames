@@ -20,7 +20,7 @@ use windows_core::{Interface, Result};
 
 // A gamepad's buttons, named as GameInputDemo names them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Button {
+pub enum GamepadButton {
     A,
     B,
     X,
@@ -37,65 +37,65 @@ pub enum Button {
     Right,
 }
 
-impl Button {
-    pub const ALL: [Button; 14] = [
-        Button::A,
-        Button::B,
-        Button::X,
-        Button::Y,
-        Button::View,
-        Button::Menu,
-        Button::LeftShoulder,
-        Button::RightShoulder,
-        Button::LeftStick,
-        Button::RightStick,
-        Button::Up,
-        Button::Down,
-        Button::Left,
-        Button::Right,
+impl GamepadButton {
+    pub const ALL: [GamepadButton; 14] = [
+        GamepadButton::A,
+        GamepadButton::B,
+        GamepadButton::X,
+        GamepadButton::Y,
+        GamepadButton::View,
+        GamepadButton::Menu,
+        GamepadButton::LeftShoulder,
+        GamepadButton::RightShoulder,
+        GamepadButton::LeftStick,
+        GamepadButton::RightStick,
+        GamepadButton::Up,
+        GamepadButton::Down,
+        GamepadButton::Left,
+        GamepadButton::Right,
     ];
 
     // Its name, like "A", "LB" or "Up", which scripts use too.
     pub fn name(self) -> &'static str {
         match self {
-            Button::A => "A",
-            Button::B => "B",
-            Button::X => "X",
-            Button::Y => "Y",
-            Button::View => "View",
-            Button::Menu => "Menu",
-            Button::LeftShoulder => "LB",
-            Button::RightShoulder => "RB",
-            Button::LeftStick => "LS",
-            Button::RightStick => "RS",
-            Button::Up => "Up",
-            Button::Down => "Down",
-            Button::Left => "Left",
-            Button::Right => "Right",
+            GamepadButton::A => "A",
+            GamepadButton::B => "B",
+            GamepadButton::X => "X",
+            GamepadButton::Y => "Y",
+            GamepadButton::View => "View",
+            GamepadButton::Menu => "Menu",
+            GamepadButton::LeftShoulder => "LB",
+            GamepadButton::RightShoulder => "RB",
+            GamepadButton::LeftStick => "LS",
+            GamepadButton::RightStick => "RS",
+            GamepadButton::Up => "Up",
+            GamepadButton::Down => "Down",
+            GamepadButton::Left => "Left",
+            GamepadButton::Right => "Right",
         }
     }
 
-    pub fn from_name(name: &str) -> Option<Button> {
-        Button::ALL.into_iter().find(|button| button.name() == name)
+    pub fn from_name(name: &str) -> Option<GamepadButton> {
+        GamepadButton::ALL.into_iter().find(|button| button.name() == name)
     }
 
     // Its bit in Gamepad's buttons, which is GameInput's.
     pub const fn bit(self) -> u32 {
         (match self {
-            Button::A => GameInputGamepadA,
-            Button::B => GameInputGamepadB,
-            Button::X => GameInputGamepadX,
-            Button::Y => GameInputGamepadY,
-            Button::View => GameInputGamepadView,
-            Button::Menu => GameInputGamepadMenu,
-            Button::LeftShoulder => GameInputGamepadLeftShoulder,
-            Button::RightShoulder => GameInputGamepadRightShoulder,
-            Button::LeftStick => GameInputGamepadLeftThumbstick,
-            Button::RightStick => GameInputGamepadRightThumbstick,
-            Button::Up => GameInputGamepadDPadUp,
-            Button::Down => GameInputGamepadDPadDown,
-            Button::Left => GameInputGamepadDPadLeft,
-            Button::Right => GameInputGamepadDPadRight,
+            GamepadButton::A => GameInputGamepadA,
+            GamepadButton::B => GameInputGamepadB,
+            GamepadButton::X => GameInputGamepadX,
+            GamepadButton::Y => GameInputGamepadY,
+            GamepadButton::View => GameInputGamepadView,
+            GamepadButton::Menu => GameInputGamepadMenu,
+            GamepadButton::LeftShoulder => GameInputGamepadLeftShoulder,
+            GamepadButton::RightShoulder => GameInputGamepadRightShoulder,
+            GamepadButton::LeftStick => GameInputGamepadLeftThumbstick,
+            GamepadButton::RightStick => GameInputGamepadRightThumbstick,
+            GamepadButton::Up => GameInputGamepadDPadUp,
+            GamepadButton::Down => GameInputGamepadDPadDown,
+            GamepadButton::Left => GameInputGamepadDPadLeft,
+            GamepadButton::Right => GameInputGamepadDPadRight,
         }) as u32
     }
 }
@@ -104,8 +104,8 @@ impl Button {
 const BUTTONS: u32 = {
     let mut bits = 0;
     let mut index = 0;
-    while index < Button::ALL.len() {
-        bits |= Button::ALL[index].bit();
+    while index < GamepadButton::ALL.len() {
+        bits |= GamepadButton::ALL[index].bit();
         index += 1;
     }
     bits
@@ -123,28 +123,28 @@ pub struct Gamepad {
     // How far each trigger is pulled, from 0 to 1.
     pub left_trigger: f32,
     pub right_trigger: f32,
-    // The buttons held down, as Button's bits.
+    // The buttons held down, as GamepadButton's bits.
     pub buttons: u32,
     // The buttons that went down since the frame before.
     pub went_down: u32,
 }
 
 impl Gamepad {
-    pub fn held(&self, button: Button) -> bool {
+    pub fn held(&self, button: GamepadButton) -> bool {
         self.buttons & button.bit() != 0
     }
 
     // Whether the button went down since the frame before.
-    pub fn pressed(&self, button: Button) -> bool {
+    pub fn pressed(&self, button: GamepadButton) -> bool {
         self.went_down & button.bit() != 0
     }
 
     // The buttons held down, by name.
     pub fn held_names(&self) -> Vec<&'static str> {
-        Button::ALL
+        GamepadButton::ALL
             .into_iter()
             .filter(|button| self.held(*button))
-            .map(Button::name)
+            .map(GamepadButton::name)
             .collect()
     }
 

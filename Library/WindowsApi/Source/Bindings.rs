@@ -89,6 +89,11 @@ pub unsafe fn ClientToScreen(hwnd: HWND, lppoint: *mut POINT) -> windows_core::B
     unsafe { ClientToScreen(hwnd, lppoint as _) }
 }
 #[inline]
+pub unsafe fn CloseClipboard() -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn CloseClipboard() -> windows_core::BOOL);
+    unsafe { CloseClipboard() }
+}
+#[inline]
 pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn CloseHandle(hobject : HANDLE) -> windows_core::BOOL);
     unsafe { CloseHandle(hobject) }
@@ -326,6 +331,11 @@ where
     unsafe { DrawTextW(hdc, lpchtext.param().abi(), cchtext, lprc as _, format) }
 }
 #[inline]
+pub unsafe fn EmptyClipboard() -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn EmptyClipboard() -> windows_core::BOOL);
+    unsafe { EmptyClipboard() }
+}
+#[inline]
 pub unsafe fn EndPaint(hwnd: HWND, lppaint: *const PAINTSTRUCT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn EndPaint(hwnd : HWND, lppaint : *const PAINTSTRUCT) -> windows_core::BOOL);
     unsafe { EndPaint(hwnd, lppaint) }
@@ -356,6 +366,11 @@ pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
+}
+#[inline]
+pub unsafe fn GetClipboardData(uformat: u32) -> HANDLE {
+    windows_core::link!("user32.dll" "system" fn GetClipboardData(uformat : u32) -> HANDLE);
+    unsafe { GetClipboardData(uformat) }
 }
 #[inline]
 pub unsafe fn GetCurrentProcess() -> HANDLE {
@@ -506,6 +521,31 @@ pub unsafe fn GetWindowPlacement(hwnd: HWND, lpwndpl: *mut WINDOWPLACEMENT) -> w
     unsafe { GetWindowPlacement(hwnd, lpwndpl as _) }
 }
 #[inline]
+pub unsafe fn GlobalAlloc(uflags: u32, dwbytes: usize) -> HGLOBAL {
+    windows_core::link!("kernel32.dll" "system" fn GlobalAlloc(uflags : u32, dwbytes : usize) -> HGLOBAL);
+    unsafe { GlobalAlloc(uflags, dwbytes) }
+}
+#[inline]
+pub unsafe fn GlobalFree(hmem: HGLOBAL) -> HGLOBAL {
+    windows_core::link!("kernel32.dll" "system" fn GlobalFree(hmem : HGLOBAL) -> HGLOBAL);
+    unsafe { GlobalFree(hmem) }
+}
+#[inline]
+pub unsafe fn GlobalLock(hmem: HGLOBAL) -> *mut core::ffi::c_void {
+    windows_core::link!("kernel32.dll" "system" fn GlobalLock(hmem : HGLOBAL) -> *mut core::ffi::c_void);
+    unsafe { GlobalLock(hmem) }
+}
+#[inline]
+pub unsafe fn GlobalUnlock(hmem: HGLOBAL) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn GlobalUnlock(hmem : HGLOBAL) -> windows_core::BOOL);
+    unsafe { GlobalUnlock(hmem) }
+}
+#[inline]
+pub unsafe fn IsClipboardFormatAvailable(format: u32) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn IsClipboardFormatAvailable(format : u32) -> windows_core::BOOL);
+    unsafe { IsClipboardFormatAvailable(format) }
+}
+#[inline]
 pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
     unsafe { IsIconic(hwnd) }
@@ -545,6 +585,11 @@ pub unsafe fn MapVirtualKeyW(ucode: u32, umaptype: u32) -> u32 {
 pub unsafe fn MonitorFromWindow(hwnd: HWND, dwflags: u32) -> HMONITOR {
     windows_core::link!("user32.dll" "system" fn MonitorFromWindow(hwnd : HWND, dwflags : u32) -> HMONITOR);
     unsafe { MonitorFromWindow(hwnd, dwflags) }
+}
+#[inline]
+pub unsafe fn OpenClipboard(hwndnewowner: Option<HWND>) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn OpenClipboard(hwndnewowner : HWND) -> windows_core::BOOL);
+    unsafe { OpenClipboard(hwndnewowner.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn PeekMessageW(
@@ -647,6 +692,11 @@ pub unsafe fn SetBkMode(hdc: HDC, mode: i32) -> i32 {
 pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
     windows_core::link!("user32.dll" "system" fn SetCapture(hwnd : HWND) -> HWND);
     unsafe { SetCapture(hwnd) }
+}
+#[inline]
+pub unsafe fn SetClipboardData(uformat: u32, hmem: Option<HANDLE>) -> HANDLE {
+    windows_core::link!("user32.dll" "system" fn SetClipboardData(uformat : u32, hmem : HANDLE) -> HANDLE);
+    unsafe { SetClipboardData(uformat, hmem.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
@@ -779,6 +829,7 @@ pub unsafe fn WaitMessage() -> windows_core::BOOL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ATOM(pub u16);
+pub const CF_UNICODETEXT: i32 = 13;
 pub const CLEARTYPE_QUALITY: i32 = 5;
 pub const CLIP_DEFAULT_PRECIS: i32 = 0;
 pub type CLSCTX = u32;
@@ -2860,6 +2911,7 @@ pub const FIXED_PITCH: i32 = 1;
 pub const FW_BOLD: i32 = 700;
 pub const FW_NORMAL: i32 = 400;
 pub const GENERIC_WRITE: i32 = 1073741824;
+pub const GMEM_MOVEABLE: i32 = 2;
 pub const GUID_ContainerFormatPng: windows_core::GUID =
     windows_core::GUID::from_u128(0x1b7cfaf4_713f_473c_bbcd_6137425faeaf);
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
@@ -2882,6 +2934,7 @@ pub struct HFONT(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HGDIOBJ(pub *mut core::ffi::c_void);
+pub type HGLOBAL = HANDLE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HICON(pub *mut core::ffi::c_void);
@@ -7299,6 +7352,8 @@ pub const VK_F11: i32 = 122;
 pub const VK_F2: i32 = 113;
 pub const VK_HOME: i32 = 36;
 pub const VK_LEFT: i32 = 37;
+pub const VK_NEXT: i32 = 34;
+pub const VK_PRIOR: i32 = 33;
 pub const VK_RETURN: i32 = 13;
 pub const VK_RIGHT: i32 = 39;
 pub const VK_SHIFT: i32 = 16;

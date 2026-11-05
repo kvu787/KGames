@@ -23,7 +23,7 @@ pub mod window_check;
 
 pub use arguments::Arguments;
 pub use frame_counter::FrameCounter;
-pub use gamepad::{Button, FocusFilter, Gamepad, Gamepads};
+pub use gamepad::{FocusFilter, Gamepad, GamepadButton, Gamepads};
 pub use process::prepare_process;
 pub use settings::{ProgramSettings, Settings, WindowMode};
 pub use script::{key_name, virtual_key};

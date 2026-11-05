@@ -1,6 +1,6 @@
-// What input does to SimplePaintDemo's editor, through the panels' real
+// What input does to SimplePaintDemo's editor, through the cards' real
 // layout, which a canvas builds without a window or a GPU, and where the
-// panels go at both supported window heights.
+// cards go at both supported window heights.
 
 use std::path::{Path, PathBuf};
 
@@ -10,7 +10,7 @@ use simple_paint_demo::editor::{self, Editor, SLIDERS};
 use simple_paint_demo::panels::{self, Cache, Layout};
 use simple_paint_demo::preview::IMAGE_SIZE;
 use user_interface::headless::{FULLSCREEN, Headless, MAXIMIZED, click, control, key, shifted};
-use user_interface::{Rect, track};
+use user_interface::{Rect, slider_rail};
 use windows_api::*;
 
 // The editor in a window without a GPU, drawn once, so that the next
@@ -57,10 +57,10 @@ impl Demo {
         self.headless.target(name)
     }
 
-    // The point at `fraction` along a slider's track.
+    // The point at `fraction` along a slider's rail.
     fn along(&self, name: &str, fraction: f32) -> [f32; 2] {
         let area = self.target(name);
-        let [left, right] = track(area);
+        let [left, right] = slider_rail(area);
         [left + (right - left) * fraction, area.center()[1]]
     }
 
@@ -351,14 +351,14 @@ fn any_input_leaves_a_valid_material() {
 }
 
 #[test]
-fn the_panels_fit_both_window_heights() {
+fn the_cards_fit_both_window_heights() {
     let names = |demo: &Demo| demo.headless.interface.target_names();
     let maximized = Demo::new(Parameters::default(), nowhere());
     for size in [MAXIMIZED, FULLSCREEN] {
         let mut demo = Demo::sized(Parameters::default(), nowhere(), size);
         let (layout, _) = demo.step(&[]);
         let [x, y] = layout.image.unwrap();
-        assert!(y + IMAGE_SIZE <= size[1] as u32 - 40, "the sphere's image runs into the footer at {size:?}");
+        assert!(y + IMAGE_SIZE <= size[1] as u32 - 40, "the sphere's image runs into the status bar at {size:?}");
         assert!(x + IMAGE_SIZE <= 1200, "the sphere's image runs into the editor");
         // The sliders, then the two buttons, all in the editor's column.
         let mut expected: Vec<String> = SLIDERS.iter().map(|slider| slider.name.to_string()).collect();
@@ -367,11 +367,11 @@ fn the_panels_fit_both_window_heights() {
         for name in names(&demo) {
             let area = demo.target(&name);
             assert!(area.x >= 1200.0 && area.right() <= size[0], "{name}: {area:?}");
-            // The layout doesn't depend on the height above the footer.
+            // The layout doesn't depend on the height above the status bar.
             assert_eq!(area, maximized.target(&name));
         }
     }
-    // Every panel's text fits, with the tone curve's labels all on one tone,
+    // Every card's text fits, with the tone curve's labels all on one tone,
     // where each takes a line of its own.
     let crowded = Parameters {
         brightness: 0.5,
