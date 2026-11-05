@@ -12,4 +12,14 @@ If I remember correctly, Everspace has stronger yaw. Having strong yaw and pitch
 "point to where you want to fly"-style control approach, which I find less interesting and
 enjoyable.
 
+I did a direct comparison between AC7 and AC8 using the base (no part upgrades) using the F/A-18F
+and F-22. I definitely liked AC8 and didn't like AC7. Also, I used these settings:
+
+- G-SYNC = on
+- NVCP frame rate limit = 100
+- Low latency mode = Ultra
+
+From what I read online, AC7 uses lighter feeling physics while AC8 uses heavier, which corresponds
+to what I felt.
+
 There are many flying games or games that have flight in them that could be worth checking out.
