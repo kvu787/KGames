@@ -42,8 +42,8 @@ This decision was primarily motivated by my experience working with those depend
   - Optimize for minimal input latency
 
 GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), whose main
-loop runs them, and whose widgets are their controls. [UiShowcase](Program/UiShowcase/README.md)
-shows every widget. GUI programs ignore input without focus, including gamepads, and a click that
+loop runs them, and whose widgets are their controls. They look and act like Windows 11's, after
+Fluent 2, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore input without focus, including gamepads, and a click that
 gives a window focus does only that. [Library/Application](Library/Application/README.md) has the
 details, and the two window setups that programs support. [AGENTS.md](AGENTS.md) has the rules for
 coding agents, like how to run programs without disrupting you.
@@ -67,14 +67,14 @@ coding agents, like how to run programs without disrupting you.
 | [Application](Library/Application/README.md)                  | The window, its input, settings, and the supported window setups  |
 | [UserInterface](Library/UserInterface/README.md)              | The UI framework: widgets, input, and the main loop of programs   |
 | [Graphics](Library/Graphics/README.md)                        | The Direct3D 12 renderer and its low-latency frame pacing         |
-| [Canvas](Library/Canvas/README.md)                            | 2D text and shapes, the light theme, and rectangles               |
+| [Canvas](Library/Canvas/README.md)                            | 2D shapes and text, Windows 11's fonts, themes, and layout        |
 | [SimplePaint](Library/SimplePaint/README.md)                  | The SimplePaint shader: its specification, Rust and HLSL          |
 | [GameInput](Library/GameInput/README.md)                      | GameInput bindings, and the runtime next to each exe              |
 | [Displays](Library/Displays/README.md)                        | Finds the displays, and gives each a lasting identifier           |
 | [Math](Library/Math/README.md)                                | Vectors and matrices, in DirectXMath's conventions                |
 | [Meshes](Library/Meshes/README.md)                            | A UV sphere, a box and a plane for SimplePaint                    |
 | [PaintSettings](Library/PaintSettings/README.md)              | SimplePaint materials in JSON settings files                      |
-| [SceneTest](Library/SceneTest/README.md)                      | The loop and text box of MinimalSceneTest and SpinningCarTest     |
+| [SceneTest](Library/SceneTest/README.md)                      | The loop and card of MinimalSceneTest and SpinningCarTest         |
 | [Json](Library/Json/README.md)                                | A JSON parser                                                     |
 | [ShaderCompiler](Library/ShaderCompiler/README.md)            | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time     |
 | [WindowsApi](Library/WindowsApi/README.md)                    | The generated Windows API bindings that every crate shares        |
