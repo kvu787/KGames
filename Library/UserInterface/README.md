@@ -254,7 +254,7 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 
 Every program's window shows its performance along its top, in the PerfBar
 (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second and
-the input latency over the last 2 seconds. It changes what it says 4 times a second:
+the input latency over the last 2 seconds. It changes what it says 10 times a second:
 
 | Stat              | What it is                                                                                      |
 | ----------------- | ----------------------------------------------------------------------------------------------- |

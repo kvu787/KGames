@@ -182,7 +182,7 @@ impl Ui {
     // columns. The main loop draws it every frame; programs don't.
     pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
-        // summary's words are made a few times a second, not copied here
+        // summary's words are made 10 times a second, not copied here
         // every frame.
         let Some(performance) = self.performance.take() else {
             return;

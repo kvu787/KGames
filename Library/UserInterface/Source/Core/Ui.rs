@@ -210,7 +210,7 @@ pub(crate) enum Request {
 }
 
 // The frame rate, as the PerfBar along the top of the window measures it:
-// over the last second, refreshed four times a second.
+// over the last second, refreshed 10 times a second.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameStats {
     pub frames_per_second: f32,
