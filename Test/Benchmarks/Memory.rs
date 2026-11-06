@@ -1,77 +1,9 @@
-// The memory harness: the counting allocator, the usage that it makes of the
-// counts, how many runs a budget asks for, the tables, and the process's
-// memory.
-//
-// The counters are the whole process's, so the tests that count take them in
-// turn. Every allocation goes through `black_box`, so that the optimizer
-// can't drop one whose block is never read.
+// The memory harness: how many runs a budget asks for, the usage that it
+// makes of the counts, the tables, and the process's memory. Counting.rs
+// tests the counting allocator, and the measurements that turn it on.
 
-use std::sync::Mutex;
-
-use benchmarks::memory::{self, Counts, Video, counts, held, measure, process_memory, runs, start, stop, table, video_table};
+use benchmarks::memory::{self, Counts, Video, process_memory, runs, table, video_table};
 use benchmarks::{Budget, Usage};
-
-static COUNTERS: Mutex<()> = Mutex::new(());
-
-#[test]
-fn the_allocator_counts_the_bytes_it_hands_out_and_takes_back() {
-    let _counters = COUNTERS.lock().unwrap();
-    start();
-    let block: Vec<u8> = std::hint::black_box(vec![7; 4096]);
-    let after = counts();
-    assert!(after.allocations >= 1, "{after:?}");
-    assert!(after.bytes >= 4096, "{after:?}");
-    assert!(after.live >= 4096, "{after:?}");
-    drop(block);
-    let done = stop();
-    assert!(done.frees >= 1, "{done:?}");
-    assert!(done.live <= 0, "{done:?}");
-    assert!(done.peak >= 4096, "{done:?}");
-}
-
-#[test]
-fn it_counts_nothing_until_a_benchmark_turns_it_on() {
-    let _counters = COUNTERS.lock().unwrap();
-    start();
-    let quiet = stop();
-    let block: Vec<u8> = std::hint::black_box(vec![7; 8192]);
-    std::hint::black_box(&block);
-    assert_eq!(counts(), quiet);
-}
-
-#[test]
-fn a_measurement_is_of_one_run_of_the_work() {
-    let _counters = COUNTERS.lock().unwrap();
-    let mut runs_done = 0;
-    let usage = measure("memory/test/vector", "run", Budget { seconds: 0.0, iterations: 100, warmup: 2 }, 4, || {
-        runs_done += 1;
-        let block: Vec<u64> = std::hint::black_box(vec![1; 128]);
-        std::hint::black_box(&block);
-    });
-    // Two warm-up runs that aren't counted, and four that are.
-    assert_eq!(runs_done, 6);
-    assert_eq!(usage.units, 4.0);
-    assert_eq!(usage.allocations, 1.0);
-    assert_eq!(usage.bytes, 1024.0);
-    // It frees what it allocates, and never holds more than one at a time.
-    assert_eq!(usage.kept, 0);
-    assert_eq!(usage.peak, 1024);
-}
-
-#[test]
-fn what_is_held_is_counted_while_it_is_alive() {
-    let _counters = COUNTERS.lock().unwrap();
-    let (usage, held_block) = held("memory/test/held", "block", || std::hint::black_box(vec![0u8; 2048]));
-    assert_eq!(held_block.len(), 2048);
-    std::hint::black_box(&held_block);
-    assert_eq!(usage.units, 1.0);
-    assert_eq!(usage.kept, 2048);
-    assert_eq!(usage.peak, 2048);
-    // Counting is off again, so the drop isn't counted.
-    let before = counts();
-    drop(held_block);
-    assert_eq!(counts(), before);
-}
 
 #[test]
 fn the_budget_bounds_the_runs_and_one_run_is_enough_for_a_test() {

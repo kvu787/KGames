@@ -16,6 +16,13 @@ path = "Groups.rs"
 name = "Memory"
 path = "Memory.rs"
 
+# Counts the whole process's heap, so it runs without libtest, whose other
+# threads would allocate while it counts.
+[[test]]
+name = "Counting"
+path = "Counting.rs"
+harness = false
+
 [dependencies]
 benchmarks = { path = "../../Program/Benchmarks" }
 json = { path = "../../Library/Json" }
