@@ -35,7 +35,7 @@ fn check(image: &Image, view: Rect, card: [u8; 3]) -> [u8; 3] {
 
 #[test]
 fn the_sphere_fills_the_preview_card_s_view_at_both_heights() {
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(Demo::new(Parameters::default(), r"C:\Nowhere\Paint.json".into()));
     let theme = app.ui.theme().clone();
     let [r, g, b, _] = theme.card_background.over(theme.background).to_bytes();

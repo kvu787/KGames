@@ -23,7 +23,7 @@ fn close(a: [u8; 4], b: [u8; 4]) -> bool {
 
 #[test]
 fn a_frame_draws_the_background_the_widgets_and_their_text() {
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     for kind in [ThemeKind::Light, ThemeKind::Dark] {
         let mut app = Headless::with_theme(Card, kind);
         let image = app.render(&mut gpu).unwrap();
@@ -67,7 +67,7 @@ impl Program for Unsupported {
 
 #[test]
 fn an_unsupported_setup_says_what_is_wrong() {
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::with_size(Unsupported, ThemeKind::Light, user_interface::Size::new(1280.0, 720.0));
     let image = app.render(&mut gpu).unwrap();
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");

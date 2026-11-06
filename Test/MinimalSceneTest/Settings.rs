@@ -77,7 +77,7 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     assert!(card.contains(notice.origin()) && card.contains(Point::new(notice.right(), notice.bottom())));
 
     // It's a warning, in its colors.
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let image = app.render(&mut gpu).unwrap();
     let output = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
     std::fs::create_dir_all(&output).unwrap();

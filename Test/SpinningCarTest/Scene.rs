@@ -93,7 +93,7 @@ fn close(a: [u8; 4], b: [u8; 4]) -> bool {
 
 #[test]
 fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = car();
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
     std::fs::create_dir_all(&folder).unwrap();

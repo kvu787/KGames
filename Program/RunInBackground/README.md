@@ -13,13 +13,12 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\Simple
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The program opens with `--display`, `--no-activate`, `--no-input`, `--power-saving-gpu`, `--vsync`
-and `--frame-rate-limit 100`, which every program built on
+The program opens with `--display`, `--no-activate`, `--no-input`, `--vsync` and
+`--frame-rate-limit 100`, which every program built on
 [Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
 other windows on that display, but without taking focus, and typing in the window that has focus
 stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
-keyboards and mice. It draws with the GPU that uses the least power, like a laptop's integrated
-one, which leaves the discrete GPU to a game that you're playing. Its frames wait for vertical sync, at most 100 a second, and it waits between
+keyboards and mice. Its frames wait for vertical sync, at most 100 a second, and it waits between
 them instead of spinning, so it's light on the GPU and the CPU for someone who's using the
 computer, like playing a game, unlike the programs' own runs, which keep both busy for the lowest
 input latency. Without focus, programs ignore all input. A run fails if the program's

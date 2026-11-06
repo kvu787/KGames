@@ -355,7 +355,7 @@ fn close(a: [u8; 4], b: [u8; 4]) -> bool {
 
 #[test]
 fn the_stick_graphs_draw_where_the_sticks_are() {
-    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = demo(&["Pad"]);
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0], "RightStick": [0, 1], "Buttons": ["A"] } }"#);
     let image = app.render(&mut gpu).unwrap();

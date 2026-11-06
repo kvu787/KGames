@@ -12,12 +12,8 @@ pub enum AdapterChoice {
     // copy between the GPUs to every frame, and keep Windows from flipping
     // frames straight to the screen.
     Monitor(HMONITOR),
-    // The fastest hardware GPU, or WARP if there's none.
+    // The fastest hardware GPU, or WARP if there's none, like for tests.
     HighPerformance,
-    // The hardware GPU that uses the least power, like a laptop's integrated
-    // one, or WARP if there's none. It leaves the discrete GPU to a game that
-    // the user is playing, like for tests and test runs.
-    PowerSaving,
     // Microsoft's software rasterizer.
     Warp,
 }
@@ -246,8 +242,6 @@ unsafe fn create_device(
                 candidates.extend(others);
             }
             AdapterChoice::HighPerformance => candidates.extend(hardware),
-            // The hardware GPUs come fastest first.
-            AdapterChoice::PowerSaving => candidates.extend(hardware.into_iter().rev()),
             AdapterChoice::Warp => {}
         }
         candidates.push(factory.EnumWarpAdapter()?);
