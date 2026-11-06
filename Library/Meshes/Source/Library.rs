@@ -4,8 +4,14 @@
 // wound counterclockwise when seen from outside, the right-handed
 // convention.
 
-#[path = "Car.rs"]
-pub mod car;
+// The car, with Y up and its front toward +Z. It's 3 units wide, from X =
+// -1.5 to 1.5, and about 6 long, from Z = -3 to 3.16, with its wheels on Y =
+// 0. Build.rs makes it from Program/Veehiicuul/Models/SlopeCar.glb, the model
+// that Blender exported: VERTICES, INDICES, and MATERIAL_COUNT materials, one
+// for each part, AXLES, BODY, CABIN, HEADLIGHTS and WHEELS.
+pub mod car {
+    include!(concat!(env!("OUT_DIR"), "/Car.rs"));
+}
 
 use simple_paint::Vertex;
 
