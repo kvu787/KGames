@@ -34,6 +34,7 @@ const FILE_MENU: &[MenuItem] = &[
     MenuItem::new("Reset").icon(Icon::Refresh).accelerator("Ctrl+R"),
 ];
 const VIEW_MENU: &[MenuItem] = &[
+    MenuItem::new("VSync").accelerator("F10"),
     MenuItem::new("Fullscreen").icon(Icon::FullScreen).accelerator("F11"),
     MenuItem::submenu("Theme", THEME_MENU).icon(Icon::Color),
     MenuItem::separator(),

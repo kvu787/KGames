@@ -77,6 +77,7 @@ pub enum Command {
     ToggleXray,
     ToggleGrid,
     ToggleTheme,
+    VerticalSync,
     Fullscreen,
 }
 
@@ -140,6 +141,7 @@ pub const COMMANDS: &[(Command, &str, &[&str])] = &[
     (Command::ToggleXray, "X-ray", &["Alt+Z"]),
     (Command::ToggleGrid, "Grid", &["Shift+G"]),
     (Command::ToggleTheme, "Dark theme", &["F2"]),
+    (Command::VerticalSync, "VSync", &["F10"]),
     (Command::Fullscreen, "Fullscreen", &["F11"]),
 ];
 
@@ -398,6 +400,7 @@ impl Modeler {
                 let kind = if ui.theme().kind == ThemeKind::Dark { ThemeKind::Light } else { ThemeKind::Dark };
                 ui.set_theme(kind);
             }
+            Command::VerticalSync => ui.toggle_vertical_sync(),
             Command::Fullscreen => ui.toggle_fullscreen(),
         }
     }

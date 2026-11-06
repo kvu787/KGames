@@ -63,6 +63,7 @@ borderless fullscreen.
 | `F1`               | Shows or hides the tooltips                                              |
 | `F2`               | Switches between the light and dark themes                               |
 | `Ctrl+R`           | Resets every widget                                                      |
+| `F10`              | Switches vertical sync on or off, as the View menu's VSync does          |
 | `F11`              | Switches between maximized and borderless fullscreen                     |
 | A gamepad          | Shows in the Interface card                                              |
 

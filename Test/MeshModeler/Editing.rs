@@ -442,6 +442,18 @@ fn menus_run_commands() {
 }
 
 #[test]
+fn f10_and_the_view_menu_switch_vertical_sync_once() {
+    let mut app = modeler("VerticalSync");
+    // The library switches it on F10, and the modeler's keys leave F10 to
+    // it, so one press switches it once.
+    app.key(Key::F10);
+    assert!(app.vertical_sync());
+    app.click("Menu/View");
+    app.click("Menu/View/Menu/VSync");
+    assert!(!app.vertical_sync());
+}
+
+#[test]
 fn the_cards_fit_at_both_window_heights() {
     for (height, fullscreen) in [(MAXIMIZED_HEIGHT, false), (FULLSCREEN_HEIGHT, true)] {
         let mut app = modeler(if fullscreen { "Fullscreen" } else { "Maximized" });

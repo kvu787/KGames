@@ -147,6 +147,7 @@ fn app_bar(modeler: &mut Modeler, ui: &mut Ui) {
         item(m, Command::ToggleGrid, None),
         MenuItem::separator(),
         item(m, Command::ToggleTheme, Some(Icon::Moon)),
+        item(m, Command::VerticalSync, None).checked(ui.vertical_sync()),
         item(m, Command::Fullscreen, Some(Icon::FullScreen)),
     ];
     let menus: [(&str, &[MenuItem]); 5] = [("File", &file), ("Edit", &edit), ("Mesh", &mesh), ("Paint", &paint), ("View", &view)];

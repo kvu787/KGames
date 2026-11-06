@@ -136,6 +136,7 @@ impl Showcase {
             "Reset" => self.reset(ui.time()),
             "Dark theme" => self.dark = !self.dark,
             "Tooltips" => self.tooltips = !self.tooltips,
+            "VSync" => ui.toggle_vertical_sync(),
             "Fullscreen" => ui.toggle_fullscreen(),
             "Ask a question" => self.dialog_open = true,
             _ => {}
