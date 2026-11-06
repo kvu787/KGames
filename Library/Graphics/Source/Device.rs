@@ -86,6 +86,15 @@ pub fn gpu_priority() -> Result<GpuPriority> {
         .unwrap_or(GpuPriority::Normal))
 }
 
+// What a GPU memory segment holds for this process: the bytes of it that the
+// process has reserved, and the bytes that the GPU's scheduler is letting it
+// have, which depends on what else is running.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct VideoMemory {
+    pub used: u64,
+    pub budget: u64,
+}
+
 pub struct Gpu {
     pub factory: IDXGIFactory6,
     pub adapter: IDXGIAdapter1,
@@ -163,6 +172,25 @@ impl Gpu {
                 info_queue,
             })
         }
+    }
+
+    // How much GPU memory this process has reserved, and how much the GPU's
+    // scheduler is letting it have, for both of the GPU's segments: local,
+    // which on a discrete GPU is its own memory, and non-local, which is
+    // system memory that it reads across PCIe. Every committed resource
+    // counts, and so does what the driver allocates for the process.
+    pub fn video_memory(&self) -> Result<[VideoMemory; 2]> {
+        let adapter = self.adapter.cast::<IDXGIAdapter3>()?;
+        let mut segments = [VideoMemory::default(); 2];
+        for (segment, group) in [DXGI_MEMORY_SEGMENT_GROUP_LOCAL, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL].into_iter().enumerate() {
+            let mut info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+            unsafe { adapter.QueryVideoMemoryInfo(0, group, &mut info).ok()? };
+            segments[segment] = VideoMemory {
+                used: info.CurrentUsage,
+                budget: info.Budget,
+            };
+        }
+        Ok(segments)
     }
 
     // The fence that `signal` has the queue signal, for what waits on its
