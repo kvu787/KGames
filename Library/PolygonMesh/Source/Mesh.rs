@@ -203,6 +203,31 @@ impl Mesh {
         }
         Ok(())
     }
+
+    // Drops the creases of edges that no face has any more.
+    pub(crate) fn prune_creases(&mut self) {
+        if self.creases.is_empty() {
+            return;
+        }
+        let edges = self.edges();
+        self.creases.retain(|edge, _| edges.contains(edge));
+    }
+
+    // The faces that are in the mesh, each once.
+    pub(crate) fn face_set(&self, faces: impl IntoIterator<Item = usize>) -> BTreeSet<usize> {
+        faces.into_iter().filter(|&face| face < self.faces.len()).collect()
+    }
+
+    // The vertices that are in the mesh, each once.
+    pub(crate) fn vertex_set(&self, vertices: impl IntoIterator<Item = u32>) -> BTreeSet<u32> {
+        vertices.into_iter().filter(|&vertex| (vertex as usize) < self.positions.len()).collect()
+    }
+
+    // The edges that some face has, each once.
+    pub(crate) fn edge_set(&self, edges: impl IntoIterator<Item = Edge>) -> BTreeSet<Edge> {
+        let existing = self.edges();
+        edges.into_iter().filter(|edge| existing.contains(edge)).collect()
+    }
 }
 
 // v at length 1, or zero if it has no length, or none that a float can
@@ -223,4 +248,9 @@ pub(crate) fn average(positions: impl IntoIterator<Item = Vector3>) -> Option<Ve
         count += 1;
     }
     (count > 0).then(|| sum.map(|s| (s / count as f64) as f32))
+}
+
+// From a at t = 0 to b at t = 1.
+pub(crate) fn lerp(a: Vector3, b: Vector3, t: f32) -> Vector3 {
+    add(a, scale(subtract(b, a), t))
 }

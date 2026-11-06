@@ -46,6 +46,12 @@ them, and returns the selection that results.
 |               | `new` (none), `inverted`, `in_mode`, `union`, `edge_loop`, `edge_ring`, `face_loop`, |
 |               | `center`, `is_empty`                                                                 |
 | `primitives`  | `cube`, `plane`, `cylinder`, `cone`, `uv_sphere`, `torus`                            |
+| Editing       | `translate`, `rotate`, `scale`, `transform`, `extrude_faces`, `extrude_edges`,       |
+|               | `inset_region`, `inset_individual`, `delete_vertices`, `delete_edges`,               |
+|               | `delete_faces`, `delete_only_faces`, `remove_unused_vertices`, `make_face`, `fill`,  |
+|               | `merge_at_center`, `merge_by_distance`, `subdivide_faces`, `loop_cut`,               |
+|               | `flip_faces`, `recalculate_normals_outside`, `crease_edges`, `assign_material`,      |
+|               | all methods of `Mesh`                                                                |
 
 ## Topology
 
@@ -92,3 +98,62 @@ and triangles only around a sphere's poles and a cone's tip.
 | `cone(bottom_radius, top_radius, height, sides)`          | A tip of triangles where a radius is 0, and a cap where it isn't         |
 | `uv_sphere(radius, segments, rings)`                      | `segments` around, `rings` bands from pole to pole                       |
 | `torus(major_radius, minor_radius, major_segments, ...)`  | `major_segments` around the Y axis, `minor_segments` around the tube     |
+
+## Editing
+
+The edits are Blender's, in edit mode, as methods of `Mesh`. Each takes its vertices, edges or
+faces as any iterator of them, like a `Selection`'s sets or an array, and leaves out the ones that
+aren't in the mesh. One that changes which faces there are returns the selection that results, as
+Blender leaves it, and the others leave the selection as it was.
+
+| Edit                           | What it does                                                                           | What it selects |
+| ------------------------------ | -------------------------------------------------------------------------------------- | --------------- |
+| `translate`, `rotate`, `scale` | Moves the vertices by an offset, about an axis through a pivot, or by factors about it | As before       |
+| `transform`                    | Moves the vertices by a `Matrix`, about a pivot                                        | As before       |
+| `extrude_faces`                | Moves the faces onto new vertices as a region, with quads along its boundary           | The region      |
+| `extrude_edges`                | Makes a quad from each edge to a copy of it                                            | The copies      |
+| `inset_region`                 | Shrinks the region onto copies of its boundary, with quads between                     | The region      |
+| `inset_individual`             | Shrinks each face on its own onto a copy of it, with quads between                     | The copies      |
+| `delete_vertices`              | Deletes the vertices, and the faces that use them                                      | Nothing         |
+| `delete_edges`                 | Deletes the edges' faces, and the edges' vertices that are left unused                 | Nothing         |
+| `delete_faces`                 | Deletes the faces, and their vertices that are left unused                             | Nothing         |
+| `delete_only_faces`            | Deletes the faces, and leaves their vertices, maybe loose                              | Nothing         |
+| `remove_unused_vertices`       | Removes loose vertices, and returns each old vertex's new number                       | -               |
+| `make_face`                    | Makes a face of the vertices, along their boundary or around their middle              | The face        |
+| `fill`                         | Fills each hole that the boundary edges go around with a face                          | The faces       |
+| `merge_at_center`              | Merges the vertices into one, at their average                                         | The vertex      |
+| `merge_by_distance`            | Merges each vertex into the first within the distance of it                            | What's left     |
+| `subdivide_faces`              | Cuts each face into 4 triangles, or a quad at each corner, without smoothing           | The pieces      |
+| `loop_cut`                     | Cuts a loop across the edge ring through an edge                                       | The new loop    |
+| `flip_faces`                   | Reverses the faces' winding                                                            | As before       |
+| `recalculate_normals_outside`  | Winds the faces consistently, and each surface facing out                              | As before       |
+| `crease_edges`                 | Sets the edges' sharpness                                                              | As before       |
+| `assign_material`              | Sets the faces' material                                                               | As before       |
+
+- **Numbers.** Edits keep the numbers of the faces that they don't change, and add new vertices
+  and faces at the end, so extruded and inset regions keep their faces' numbers. Edits that
+  remove vertices renumber the rest in order, without gaps, and `remove_unused_vertices` returns
+  each old vertex's new number.
+- **Where new vertices start.** Extruded vertices start where the ones that they're copied from
+  are, so a modeler moves the selection that the edit returns, as Blender does after E, for
+  example along the region's `face_normal`. Inset copies are `thickness` inside each edge of the
+  boundary that they're on, in the planes of its faces, and farther at corners, up to 4 times as
+  far.
+- **Regions.** An extruded region's walls go along each edge that only one of its faces has.
+  Vertices in its middle that nothing else uses move with it rather than being copied, and a
+  region that shares no edge with another face leaves a flipped copy of itself behind, so that
+  a lone quad becomes a closed box.
+- **Materials.** Walls, inset quads and pieces take the material of the face that they come from,
+  and made and filled faces take a neighbor's.
+- **Creases.** A crease stays with its edge as vertices are renumbered, and goes when its edge
+  does. Both halves of a cut edge keep its sharpness, extruded edges copy it to their copies, and
+  edges that merge keep the sharper.
+- **Merging.** Faces lose the sides that collapse, split where they come to touch themselves, and
+  go when they're left with fewer than 3 vertices or the same vertices as another face, so an
+  extrusion that hasn't moved merges back by distance into what it was.
+- **Cuts.** Faces next to subdivided ones, and at the ends of a loop cut, get the new vertices on
+  the edges that they share, so no edge ends partway along another, like Blender's Create N-Gons.
+  A loop cut's `fraction` is from the edge's first vertex, the smaller, and the other edges of
+  the ring are cut the same way along, from their ends beside it.
+- **Wire edges.** A mesh has no edges without faces, so where Blender would leave one, like after
+  `delete_only_faces`, the vertices stay but the edge doesn't.

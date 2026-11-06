@@ -16,6 +16,10 @@ path = "Topology.rs"
 name = "Selection"
 path = "Selection.rs"
 
+[[test]]
+name = "Editing"
+path = "Editing.rs"
+
 [dependencies]
 math = { path = "../../Library/Math" }
 polygon_mesh = { path = "../../Library/PolygonMesh" }
