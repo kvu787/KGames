@@ -242,13 +242,15 @@ impl Widget for TextBox<'_, '_> {
         }
 
         if focused && response.enabled {
-            let input = ui.input().clone();
-            let modifiers = input.modifiers();
+            // The frame's keys and text, apart from the input, which the
+            // editing below borrows the interface away from.
+            let modifiers = ui.input().modifiers();
+            let keys: Vec<Key> = ui.input().keys_pressed().iter().map(|(key, _)| *key).collect();
+            let text_typed = ui.input().text.clone();
             let control = modifiers.control;
             let shift = modifiers.shift;
             let mut moved = false;
-            for (key, _) in input.keys_pressed() {
-                let key = *key;
+            for key in keys {
                 match key {
                     Key::LEFT => {
                         if editing.has_selection() && !shift {
@@ -318,7 +320,7 @@ impl Widget for TextBox<'_, '_> {
                 }
             }
             if !control {
-                let typed: String = input.text.chars().filter(|character| !character.is_control()).filter(|character| self.accept.is_none_or(|accept| accept(*character))).collect();
+                let typed: String = text_typed.chars().filter(|character| !character.is_control()).filter(|character| self.accept.is_none_or(|accept| accept(*character))).collect();
                 if !typed.is_empty() {
                     let typed = limit(self.text, &editing, &typed, self.max_length);
                     replace_selection(self.text, &mut editing, &typed);

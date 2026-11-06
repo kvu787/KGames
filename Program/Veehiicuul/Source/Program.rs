@@ -72,6 +72,9 @@ pub struct Veehiicuul {
     committed: Document,
     // The document as of the last save, or as it was loaded.
     pub saved: Document,
+    // Whether the document differed from `saved` as the frame began, for
+    // the bars, which ask twice a frame.
+    unsaved_now: bool,
     // Where Save writes: the game's folder, or a script's output folder.
     save_folder: PathBuf,
     // What the last save, or anything else, said.
@@ -91,6 +94,7 @@ impl Veehiicuul {
         Veehiicuul {
             committed: game.document.clone(),
             saved: game.document.clone(),
+            unsaved_now: false,
             eye: Eye::game(game.camera_center(), game.camera.height),
             game,
             mode: PLAY,
@@ -231,7 +235,7 @@ impl Veehiicuul {
 
         // From the right end: save, redo and undo, then the scene.
         let save = Button::new("Save").icon(Icon::Save);
-        let save = if self.unsaved() { save.accent() } else { save };
+        let save = if self.unsaved_now { save.accent() } else { save };
         let undo = Button::new("Undo").icon(Icon::Undo);
         let redo = Button::new("Redo").icon(Icon::Redo);
         let new_scene = Button::new("New scene").icon(Icon::Add);
@@ -310,7 +314,7 @@ impl Veehiicuul {
         if !self.status.is_empty() {
             items.push(Status::Text(&self.status));
         }
-        items.push(if self.unsaved() {
+        items.push(if self.unsaved_now {
             Status::Indicator(Severity::Warning, "Unsaved changes")
         } else {
             Status::Indicator(Severity::Success, "No unsaved changes")
@@ -408,6 +412,7 @@ impl Program for Veehiicuul {
         // Only text fields take keyboard focus, so that Space, the arrows
         // and the other keys that drive and pan never go to a control.
         ui.set_focusable(false);
+        self.unsaved_now = self.unsaved();
         self.shortcuts(ui);
         self.app_bar(ui);
         self.status_bar(ui);

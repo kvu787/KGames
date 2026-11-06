@@ -207,14 +207,13 @@ pub(crate) enum Request {
     Close,
 }
 
-// The frame rate, over half-second windows.
+// The frame rate, as the performance stats along the top of the window say
+// it: over the last second, refreshed four times a second.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameStats {
     pub frames_per_second: f32,
     // Milliseconds.
     pub frame_time: f32,
-    window_start: f64,
-    window_frames: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -288,7 +287,6 @@ pub struct Ui {
     pub(crate) clipboard: Clipboard,
     cursor: Cursor,
     frame: u64,
-    stats: FrameStats,
     pub(crate) environment: Environment,
     pub(crate) requests: Vec<Request>,
     // The page's: notices under the app bar, and where the page is.
@@ -331,7 +329,6 @@ impl Ui {
             clipboard,
             cursor: Cursor::Arrow,
             frame: 0,
-            stats: FrameStats::default(),
             environment: Environment::default(),
             requests: Vec::new(),
             notices: Vec::new(),
@@ -360,7 +357,6 @@ impl Ui {
         self.page_top = self.content_top();
         self.page_bottom = size.height;
         self.modal = std::mem::replace(&mut self.modal_now, false);
-        self.update_stats(time);
         if let Some(performance) = &mut self.performance {
             performance.frame_started(time);
             performance.update(time);
@@ -499,18 +495,6 @@ impl Ui {
         }
     }
 
-    fn update_stats(&mut self, time: f64) {
-        let stats = &mut self.stats;
-        stats.window_frames += 1;
-        let elapsed = time - stats.window_start;
-        if elapsed >= 0.5 {
-            stats.frames_per_second = (stats.window_frames as f64 / elapsed) as f32;
-            stats.frame_time = (elapsed * 1000.0 / stats.window_frames as f64) as f32;
-            stats.window_start = time;
-            stats.window_frames = 0;
-        }
-    }
-
     // The theme, whose roles color everything.
     pub fn theme(&self) -> &Theme {
         &self.theme
@@ -568,8 +552,19 @@ impl Ui {
         self.frame
     }
 
+    // The frame rate, from the performance stats, so that a program's own
+    // card says what the bar along the top says. Zero without them.
     pub fn stats(&self) -> FrameStats {
-        self.stats
+        match &self.performance {
+            Some(performance) => {
+                let summary = performance.summary();
+                FrameStats {
+                    frames_per_second: summary.frames_per_second as f32,
+                    frame_time: summary.frame_time as f32,
+                }
+            }
+            None => FrameStats::default(),
+        }
     }
 
     pub fn environment(&self) -> &Environment {
