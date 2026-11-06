@@ -15,8 +15,8 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 
 The program opens with `--display`, `--no-activate`, `--no-input`, `--vsync` and
 `--frame-rate-limit 100`, which every program built on
-[Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
-other windows on that display, but without taking focus, and typing in the window that has focus
+[Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens beneath the
+other windows on that display, without taking focus, and typing in the window that has focus
 stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
 keyboards and mice. Its frames wait for vertical sync, at most 100 a second, and it waits between
 them instead of spinning, so it's light on the GPU and the CPU for someone who's using the

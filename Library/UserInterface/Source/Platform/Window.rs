@@ -177,6 +177,7 @@ impl Window {
     pub fn show(&mut self, activate: bool) {
         unsafe {
             if activate {
+                set_power_throttling(false);
                 let _ = ShowWindow(self.hwnd, SW_SHOW);
                 return;
             }
@@ -184,6 +185,7 @@ impl Window {
             // someone works or plays a game, goes beneath the other windows,
             // where it never covers theirs or takes their pointer, and a click
             // on it never activates it. Screenshots of it work all the same.
+            set_power_throttling(true);
             let style = GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE);
             SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE as isize);
             let _ = ShowWindow(self.hwnd, SW_SHOWNA);
@@ -454,24 +456,34 @@ pub(crate) unsafe fn monitor_info(monitor: HMONITOR) -> MONITORINFO {
 }
 
 // Once a process: per-monitor DPI awareness, so that Windows never scales the
-// window, and no power throttling, which would slow the main loop on
-// efficiency cores while the window is in the background.
+// window.
 unsafe fn prepare_process() {
     static PREPARED: std::sync::Once = std::sync::Once::new();
     PREPARED.call_once(|| unsafe {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        let state = PROCESS_POWER_THROTTLING_STATE {
-            Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION as u32,
-            ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED as u32,
-            StateMask: 0,
-        };
+    });
+}
+
+// Whether Windows may throttle the process's execution speed, as it does on
+// efficiency cores while a process's window is in the background. A window
+// that someone uses asks it not to, so that the main loop stays fast. One
+// that opens without focus, like a coding agent's test run while someone
+// plays a game, asks for efficiency mode instead, so that it runs at
+// efficient clocks and the chip's power budget stays with the game.
+unsafe fn set_power_throttling(throttle: bool) {
+    let state = PROCESS_POWER_THROTTLING_STATE {
+        Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION as u32,
+        ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED as u32,
+        StateMask: if throttle { PROCESS_POWER_THROTTLING_EXECUTION_SPEED as u32 } else { 0 },
+    };
+    unsafe {
         let _ = SetProcessInformation(
             GetCurrentProcess(),
             ProcessPowerThrottling,
             &state as *const PROCESS_POWER_THROTTLING_STATE as *const core::ffi::c_void,
             size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
         );
-    });
+    }
 }
 
 unsafe fn register_class(name: PCWSTR) -> Result<()> {

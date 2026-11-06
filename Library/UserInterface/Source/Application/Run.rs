@@ -193,9 +193,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let clipboard = if scripted { Clipboard::Own(String::new()) } else { Clipboard::Windows };
     let mut ui = Ui::new(fonts, options.theme, clipboard);
     // The performance stats along the top of the window, with the input
-    // latency to the screen, which a scripted run has no input for.
+    // latency to the screen, which a scripted run has no input for, nor a
+    // run without input, which then also doesn't start the ETW session that
+    // every process's presents would go through.
     ui.performance = Some(if scripted {
         Performance::without_latency("none in a scripted run")
+    } else if arguments.no_input {
+        Performance::without_latency("none without input")
     } else {
         Performance::measure(options.name)
     });
