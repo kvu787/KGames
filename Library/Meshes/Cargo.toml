@@ -2,6 +2,7 @@
 name = "meshes"
 version = "0.1.0"
 edition = "2024"
+build = "Build.rs"
 
 [lib]
 path = "Source/Library.rs"
@@ -11,6 +12,10 @@ doctest = false
 
 [dependencies]
 simple_paint = { path = "../SimplePaint" }
+
+# Build.rs makes the car from its model with it.
+[build-dependencies]
+gltf = { path = "../Gltf" }
 
 [lints]
 workspace = true
