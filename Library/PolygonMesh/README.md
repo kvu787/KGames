@@ -143,10 +143,10 @@ Blender leaves it, and the others leave the selection as it was.
 | `crease_edges`                 | Sets the edges' sharpness                                                              | As before       |
 | `assign_material`              | Sets the faces' material                                                               | As before       |
 
-- **Numbers.** Edits keep the numbers of the faces that they don't change, and add new vertices
-  and faces at the end, so extruded and inset regions keep their faces' numbers. Edits that
-  remove vertices renumber the rest in order, without gaps, and `remove_unused_vertices` returns
-  each old vertex's new number.
+- **Numbers.** Edits that add vertices and faces add them at the end, and keep the numbers of
+  the faces that they change in place, so extruded and inset regions keep their faces' numbers.
+  Edits that remove vertices or faces, deleting and merging, renumber the rest in order, without
+  gaps, and `remove_unused_vertices` returns each old vertex's new number.
 - **Where new vertices start.** Extruded vertices start where the ones that they're copied from
   are, so a modeler moves the selection that the edit returns, as Blender does after E, for
   example along the region's `face_normal`. Inset copies are `thickness` inside each edge of the

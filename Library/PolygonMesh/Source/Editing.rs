@@ -6,8 +6,9 @@
 // leave the selection as it was. Elements that aren't in the mesh are left
 // out of an edit, and so is an edit with nothing to do.
 //
-// Edits keep the numbers of the faces that they don't touch, and add new
-// vertices and faces at the end. The ones that remove vertices renumber the
+// Edits that add vertices and faces add them at the end, and keep the
+// numbers of the faces that they change in place, like an extruded region's.
+// Edits that remove vertices or faces, deleting and merging, renumber the
 // rest in order, without gaps.
 
 use crate::mesh::{average, normalize_or_zero};
