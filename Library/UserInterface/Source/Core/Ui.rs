@@ -365,8 +365,14 @@ impl Ui {
             performance.frame_started(time);
             performance.update(time);
         }
-        if self.frame.is_multiple_of(600) {
-            self.animations.retain(|_, animation| !animation.done(time));
+        // Now and then, the animations of widgets that are gone go. A done
+        // animation of a widget that's shown stays, so that its next change
+        // starts from where it is. On a frame of its own, apart from the
+        // fonts' purge of old layouts, so that the two don't make one long
+        // frame.
+        if self.frame % 600 == 300 {
+            let shown: std::collections::HashSet<Id> = self.previous.iter().map(|target| target.id).collect();
+            self.animations.retain(|(id, _), animation| !animation.done(time) || shown.contains(id));
         }
 
         if self.input.focus_lost {
@@ -809,7 +815,9 @@ impl Ui {
                 MouseButton::Middle => response.middle_pressed = true,
             }
         }
-        if response.hovered && !sense.right && self.input.button_pressed(MouseButton::Right) {
+        // A widget that doesn't take the right button still hears a right
+        // press, for a context menu, unless the press closed the popups.
+        if response.hovered && !sense.right && self.input.button_pressed(MouseButton::Right) && !self.press_consumed[MouseButton::Right.index()] {
             response.secondary_pressed = true;
         }
         if let Some((active, button)) = self.active
@@ -878,6 +886,28 @@ impl Ui {
     // Whether the pointer is in the area, whatever covers it.
     pub fn pointer_in(&self, rect: Rect) -> bool {
         self.input.pointer.is_some_and(|pointer| rect.contains(pointer))
+    }
+
+    // Whether the wheel turned over the area this frame, for what scrolls:
+    // the pointer is in it, nothing of a higher layer, like a menu or a
+    // dialog, is under the pointer, and the widget under the pointer doesn't
+    // take the wheel itself, like a slider.
+    pub fn wheel_over(&self, rect: Rect) -> bool {
+        self.pointer_in(rect)
+            && self.input.wheel.y != 0.0
+            && !self.hovered_takes_wheel()
+            && self.hovered_layer().is_none_or(|layer| layer <= self.layer())
+    }
+
+    // Whether the widget under the pointer is the one with keyboard focus.
+    pub(crate) fn hovered_has_focus(&self) -> bool {
+        self.hovered.is_some() && self.hovered == self.focused
+    }
+
+    // The layer of the widget under the pointer.
+    fn hovered_layer(&self) -> Option<Layer> {
+        let hovered = self.hovered?;
+        self.previous.iter().rev().find(|target| target.id == hovered).map(|target| target.layer)
     }
 
     // Whether a press of the button that nothing took happened this frame.

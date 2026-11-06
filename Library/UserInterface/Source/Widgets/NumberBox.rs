@@ -136,7 +136,16 @@ impl<T: Number> Widget for NumberBox<'_, '_, T> {
             if input.key_pressed(Key::PAGE_DOWN) {
                 steps -= self.large_step / self.step;
             }
-            steps += input.wheel.y.round() as f64;
+        }
+        // The wheel steps it while it has focus and the pointer is on it, or
+        // on one of its buttons, as WinUI's does; elsewhere, the wheel is for
+        // what's under the pointer.
+        let on_it = ui
+            .hovered_name()
+            .and_then(|hovered| hovered.strip_prefix(name))
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'));
+        if response.focused && on_it {
+            steps += ui.input().wheel.y.round() as f64;
         }
         if steps != 0.0 {
             if draft.editing && let Ok(typed) = draft.text.trim().parse::<f64>() {

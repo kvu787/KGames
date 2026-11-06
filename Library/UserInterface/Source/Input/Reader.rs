@@ -148,9 +148,23 @@ impl InputReader {
             Focus(bool),
             Reading(GameInputKind, &'a Reading),
         }
+        let (cursor, inside) = (window.cursor, window.inside);
+        let mut frame = FrameInput::default();
+        // A device that's unplugged lets go of what it held: a gamepad's
+        // state goes, and a keyboard's keys and a mouse's buttons are
+        // released, unless another keyboard or mouse holds them.
         if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
             self.gamepad_state = Gamepad::default();
             self.gamepad_device = None;
+        }
+        let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
+        if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
+            self.keyboards.retain(|(device, _)| !unplugged(device));
+            self.update_keys(now, &mut frame.events);
+        }
+        if self.mice.iter().any(|(device, _)| unplugged(device)) {
+            self.mice.retain(|(device, _)| !unplugged(device));
+            self.update_buttons(cursor, inside, &mut frame.events);
         }
         let mut items: Vec<(i64, Item)> = window.focus_changes.iter().map(|change| (change.time, Item::Focus(change.gained))).collect();
         for (time, kind, reading) in readings {
@@ -159,8 +173,6 @@ impl InputReader {
         // Stable, so that a reading with two kinds of input keeps its order.
         items.sort_by_key(|(time, _)| *time);
 
-        let (cursor, inside) = (window.cursor, window.inside);
-        let mut frame = FrameInput::default();
         for (time, item) in items {
             match item {
                 Item::Focus(true) => {
@@ -241,6 +253,12 @@ impl InputReader {
             Some((_, held)) => *held = keys,
             None => self.keyboards.push((reading.device, keys)),
         }
+        self.update_keys(time, events);
+    }
+
+    // The presses and releases since the last time, from what every keyboard
+    // holds now, at a time on the counter.
+    fn update_keys(&mut self, time: i64, events: &mut Vec<Event>) {
         let mut down = [false; 256];
         for (_, held) in &self.keyboards {
             for (key, scan_code) in held {
@@ -289,6 +307,26 @@ impl InputReader {
                 None
             }
         };
+        self.update_buttons(cursor, inside, events);
+        // The wheels are running totals, in Windows' units of 120 a notch.
+        if let Some(previous) = previous
+            && self.focused
+            && inside
+        {
+            let turned = Point::new(
+                (state.wheelX - previous.wheelX) as f32 / WHEEL_DELTA as f32,
+                (state.wheelY - previous.wheelY) as f32 / WHEEL_DELTA as f32,
+            );
+            if turned != Point::default() {
+                self.point(cursor, inside, events);
+                events.push(Event::Wheel(turned));
+            }
+        }
+    }
+
+    // The presses and releases since the last time, from what every mouse
+    // holds now.
+    fn update_buttons(&mut self, cursor: Point, inside: bool, events: &mut Vec<Event>) {
         let mut down = 0;
         for (_, mouse) in &self.mice {
             down |= button_bits(mouse.buttons);
@@ -311,20 +349,6 @@ impl InputReader {
                     self.point(cursor, inside, events);
                     events.push(Event::ButtonReleased(button));
                 }
-            }
-        }
-        // The wheels are running totals, in Windows' units of 120 a notch.
-        if let Some(previous) = previous
-            && self.focused
-            && inside
-        {
-            let turned = Point::new(
-                (state.wheelX - previous.wheelX) as f32 / WHEEL_DELTA as f32,
-                (state.wheelY - previous.wheelY) as f32 / WHEEL_DELTA as f32,
-            );
-            if turned != Point::default() {
-                self.point(cursor, inside, events);
-                events.push(Event::Wheel(turned));
             }
         }
     }

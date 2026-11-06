@@ -64,6 +64,12 @@ impl Widget for ComboBox<'_, '_> {
         ui.set_label(name, chosen);
         let id = response.id;
         let mut open = ui.popup_open(id);
+        // The list can't show nothing, like after its last item went while
+        // it was open.
+        if open && count == 0 {
+            ui.close_popup(id);
+            open = false;
+        }
         if response.clicked && count > 0 {
             if open {
                 ui.close_popup(id);

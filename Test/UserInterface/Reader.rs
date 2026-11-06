@@ -244,3 +244,15 @@ fn the_gamepad_is_its_newest_reading_until_it_disconnects() {
     let frame = reader.read(&[], &[GAMEPAD], &window(None), 30);
     assert_eq!(frame.events.last(), Some(&Event::Gamepad(Default::default())));
 }
+
+#[test]
+fn keys_and_buttons_held_on_a_device_that_is_unplugged_are_let_go_of() {
+    let mut reader = focused();
+    reader.read(&[keyboard(10, &[A]), mouse(11, GameInputMouseLeftButton, 0)], &[], &window(None), 11);
+    let frame = reader.read(&[], &[KEYBOARD, MOUSE], &window(None), 20);
+    assert_eq!(keys(&frame.events), vec![Event::KeyReleased(Key::A)]);
+    assert!(frame.events.contains(&Event::ButtonReleased(MouseButton::Left)));
+    // Nothing is held any more, so the next press is a press.
+    let frame = reader.read(&[keyboard(30, &[A])], &[], &window(None), 30);
+    assert!(frame.events.contains(&Event::KeyPressed { key: Key::A, repeat: false }));
+}

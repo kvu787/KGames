@@ -158,6 +158,16 @@ fn next_word(text: &str, index: usize) -> usize {
     at
 }
 
+// The byte index, or the start of the character it's in, if it's inside
+// one, or the text's end, if it's past it.
+fn boundary(text: &str, index: usize) -> usize {
+    let mut index = index.min(text.len());
+    while !text.is_char_boundary(index) {
+        index -= 1;
+    }
+    index
+}
+
 // The word around the index, for a double-click.
 fn word_at(text: &str, index: usize) -> (usize, usize) {
     let mut start = index.min(text.len());
@@ -197,8 +207,9 @@ impl Widget for TextBox<'_, '_> {
         let now = ui.time();
         let text_before = self.text.clone();
         let mut editing = std::mem::take(ui.memory::<Editing>(id));
-        editing.caret = editing.caret.min(self.text.len());
-        editing.anchor = editing.anchor.min(self.text.len());
+        // The program may have changed the text since the last frame.
+        editing.caret = boundary(self.text, editing.caret);
+        editing.anchor = boundary(self.text, editing.anchor);
 
         // The pointer puts the caret where it presses, selects as it drags,
         // and selects a word with a double-click.

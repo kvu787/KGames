@@ -127,7 +127,7 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
                 }
             }
         }
-        if ui.pointer_in(rect) && ui.input().wheel.y != 0.0 && !ui.hovered_takes_wheel() {
+        if ui.wheel_over(rect) {
             offset -= ui.input().wheel.y * WHEEL_ROWS * row_height;
         }
         offset = offset.clamp(0.0, range);
