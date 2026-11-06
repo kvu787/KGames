@@ -171,6 +171,33 @@ fn the_mean_and_99th_percentile_are_of_the_last_second() {
 }
 
 #[test]
+fn presents_whose_events_come_more_than_a_second_late_still_count() {
+    // ETW hands over its events about presents at least once a second, so
+    // they can come more than a second after the frames, which the main loop
+    // updates the stats for in the meantime.
+    let base = clock::now() - ticks(1500.0);
+    let mut performance = Performance::given();
+    let mut presents = Vec::new();
+    for index in 0..20 {
+        let input = base + ticks(index as f64 * 10.0);
+        let frame = Frame {
+            input: Some(input),
+            read: input,
+            present: input,
+        };
+        performance.presented(frame);
+        presents.push(present(frame.present, Some(input + ticks(8.0))));
+    }
+    performance.update(0.0);
+    performance.known(presents);
+    performance.update(1.0);
+    let summary = performance.summary();
+    assert_eq!(summary.latency, LatencyState::Measuring);
+    assert_eq!(summary.samples, 20);
+    close(summary.mean, 8.0);
+}
+
+#[test]
 fn without_presents_there_is_no_latency_and_it_says_why() {
     let mut performance = Performance::without_latency("none in a test");
     performance.frame_started(0.0);

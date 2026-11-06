@@ -24,9 +24,14 @@ use present_timing::{Present, PresentMode, PresentTiming, StartError};
 
 use crate::platform::clock;
 
-// The stats, the frames' and the input latency's, are of this many seconds
-// before now.
+// The stats, the frames' and the input latency's, are of this many seconds:
+// the frames' before now, and the input latency's before the newest frame
+// known on the screen.
 pub const WINDOW_SECONDS: f64 = 1.0;
+// How late Windows' events about presents can come: ETW hands them over at
+// least once a second, so a frame waits this long for its present's before
+// it's taken as lost.
+const LATE_SECONDS: f64 = 5.0;
 // How often what the PerfBar says changes, so that it can be read.
 const REFRESH_SECONDS: f64 = 0.1;
 // How far before its Present call's start a frame's own present time can be,
@@ -304,18 +309,21 @@ impl Performance {
         }
         let now = clock::now();
         let window = (WINDOW_SECONDS * clock::frequency() as f64) as i64;
-        while self.samples.front().is_some_and(|sample| sample.screen < now - window) {
+        let late = (LATE_SECONDS * clock::frequency() as f64) as i64;
+        // The frames on the screen, and the input latency's samples, over the
+        // window before the newest frame known on the screen, as Windows'
+        // events about them come late, and none from longer ago than events
+        // can be late, like if they stopped.
+        let newest = self.displayed.back().copied().unwrap_or(now);
+        let start = (newest - window).max(now - late - window);
+        while self.displayed.front().is_some_and(|screen| *screen < start) {
+            self.displayed.pop_front();
+        }
+        while self.samples.front().is_some_and(|sample| sample.screen < start) {
             self.samples.pop_front();
         }
-        // The frames on the screen, over the window before the newest one
-        // known, as Windows' events about them come late.
-        if let Some(newest) = self.displayed.back().copied() {
-            while self.displayed.front().is_some_and(|screen| *screen < newest - window) {
-                self.displayed.pop_front();
-            }
-        }
         // Frames whose presents never came, like if ETW lost an event.
-        while self.presented.front().is_some_and(|frame| frame.present < now - window) {
+        while self.presented.front().is_some_and(|frame| frame.present < now - late) {
             self.presented.pop_front();
         }
         if time - self.refreshed >= REFRESH_SECONDS || time < self.refreshed {
