@@ -55,7 +55,7 @@ const CONTEXT_MENU: &[MenuItem] = &[
 const BUTTONS_HEIGHT: f32 = 260.0;
 const TOGGLES_HEIGHT: f32 = 344.0;
 const SLIDERS_HEIGHT: f32 = 492.0;
-const FIELDS_HEIGHT: f32 = 404.0;
+const CHOICES_HEIGHT: f32 = 320.0;
 const INFO_HEIGHT: f32 = 324.0;
 const COLOR_HEIGHT: f32 = 492.0;
 
@@ -96,11 +96,11 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     let mut column = first;
     buttons(showcase, ui, column.cut_top(BUTTONS_HEIGHT, CARD_GAP));
     toggles(showcase, ui, column.cut_top(TOGGLES_HEIGHT, CARD_GAP));
-    choices(showcase, ui, column);
+    fields(showcase, ui, column);
 
     let mut column = second;
     sliders(showcase, ui, column.cut_top(SLIDERS_HEIGHT, CARD_GAP));
-    fields(showcase, ui, column.cut_top(FIELDS_HEIGHT, CARD_GAP));
+    choices(showcase, ui, column.cut_top(CHOICES_HEIGHT, CARD_GAP));
     menus(showcase, ui, column);
 
     tabs(showcase, ui, third);

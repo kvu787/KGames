@@ -16,13 +16,13 @@ An app bar with a menu bar and a button for the theme, five columns of cards, an
 |                            | button, a drop-down button with a menu, and buttons of icons alone       |
 | Checkboxes and switches    | A checkbox that disables the four under it, and switches for the         |
 |                            | tooltips, the dark theme, and the progress bar that fills                |
-| Radio buttons and segments | Radio buttons, and a square of the chosen size; segments that align a    |
-|                            | line of text; and segments with icons, like a tool's modes               |
+| Combo boxes and fields     | A color of the theme and what it's for, a name that Enter or Greet says  |
+|                            | hello to, a search of the list, and number boxes with spin buttons       |
 | Sliders and progress       | Sliders of whole numbers, of thousandths and of tenths of a degree, with |
 |                            | their headers and values, and a disabled one; progress bars at the       |
 |                            | volume, filling every 4 seconds, and of unknown length; progress rings   |
-| Combo boxes and fields     | A color of the theme and what it's for, a name that Enter or Greet says  |
-|                            | hello to, a search of the list, and number boxes with spin buttons       |
+| Radio buttons and segments | Radio buttons, and a square of the chosen size; segments that align a    |
+|                            | line of text; and segments with icons, like a tool's modes               |
 | Menus and dialogs          | A content dialog, an area with a context menu, what was chosen from the  |
 |                            | menus, and an expander                                                   |
 | Tabs                       | The type ramp and a line of spans, the icons, the theme's colors, and    |
