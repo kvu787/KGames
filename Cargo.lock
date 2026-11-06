@@ -3,6 +3,35 @@
 version = 4
 
 [[package]]
+name = "benchmarks"
+version = "0.1.0"
+dependencies = [
+ "game_input_demo",
+ "gltf",
+ "graphics",
+ "json",
+ "math",
+ "mesh_modeler",
+ "minimal_scene_test",
+ "polygon_mesh",
+ "present_timing",
+ "simple_paint",
+ "simple_paint_demo",
+ "spinning_car_test",
+ "ui_showcase",
+ "user_interface",
+ "veehiicuul",
+]
+
+[[package]]
+name = "benchmarks_tests"
+version = "0.1.0"
+dependencies = [
+ "benchmarks",
+ "json",
+]
+
+[[package]]
 name = "displays"
 version = "0.1.0"
 dependencies = [
