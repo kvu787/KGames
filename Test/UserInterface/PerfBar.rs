@@ -1,6 +1,6 @@
-// Tests what the performance stats bar says: every label and value stays in
-// the same columns whatever the stats are, starting, without input latency,
-// or measuring it, with small numbers or large, in every present mode, and
+// Tests what the PerfBar says: every label and value stays in the same
+// columns whatever the stats are, starting, without input latency, or
+// measuring it, with small numbers or large, in every present mode, and
 // numbers that aren't known yet are dashes.
 
 use present_timing::{Present, PresentMode};
@@ -119,13 +119,8 @@ fn every_present_mode_shows_whole_in_the_same_columns() {
 #[test]
 fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
     let summary = measuring(0.01, 10.0, true);
-    let left = values(&summary.left);
-    // Frames a second, the mean and the longest frame, and the frames on the
-    // screen, which are only the 20 given, over 19 milliseconds.
-    assert_eq!(&left[..4], ["  100", "  10.00", "  10.00", " 1000"]);
-    // The latency's median and 99th percentile, how many frames they're of,
-    // and the median wait.
-    assert_eq!(left[4..8], ["  10.00", "  10.00", "    20", "   0.00"]);
+    // Frames a second, and the latency's median.
+    assert_eq!(values(&summary.left), ["  100", "  10.00"]);
     assert_eq!(values(&summary.right), ["Independent flip ", "yes"]);
     assert!(summary.note.is_empty());
 
@@ -140,11 +135,9 @@ fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
         Run { text: "none in a test".to_string(), value: true },
     ]);
 
-    // Frames without input have no latency, but they count on the screen.
+    // Frames without input have no latency.
     let summary = measuring(0.01, 10.0, false);
-    let left = values(&summary.left);
-    assert_ne!(left[3].trim(), "-");
-    assert_eq!(left[4..7], ["      -", "      -", "     0"]);
+    assert_eq!(values(&summary.left), ["  100", "      -"]);
 }
 
 #[test]
@@ -154,6 +147,5 @@ fn a_number_too_wide_for_its_field_fills_it() {
     performance.frame_started(0.000_001);
     performance.update(0.000_001);
     let summary = performance.summary();
-    assert_eq!(values(&summary.left)[0], "#####");
-    assert_eq!(values(&summary.left)[1], "   0.00");
+    assert_eq!(values(&summary.left), ["#####", "      -"]);
 }

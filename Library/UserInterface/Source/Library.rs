@@ -3,7 +3,7 @@
 // Windows 11, with WinUI 3's own values. See README.md.
 //
 // - application: what a program is, its settings, the main loop, and its
-//   performance stats.
+//   PerfBar's stats.
 // - platform: the window, the clipboard, the clock, and GameInput's devices.
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
@@ -129,7 +129,7 @@ pub mod testing {
 // The design system, as AGENTS.md names it: `tokens` and `controls`.
 pub use design::{controls, tokens};
 // The clock that input, frames and the screen's flips are timed on, and the
-// performance stats with the input latency that every program's window shows.
+// stats with the input latency that every program's PerfBar shows.
 pub use application::performance;
 pub use platform::clock;
 

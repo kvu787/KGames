@@ -10,8 +10,8 @@ use user_interface::{
     Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
 };
 
-// Where the program's part of the window starts, under the performance stats.
-const STATS: f32 = user_interface::tokens::STATS_BAR_HEIGHT;
+// Where the program's part of the window starts, under the PerfBar.
+const PERF_BAR: f32 = user_interface::tokens::PERF_BAR_HEIGHT;
 
 const MENU: &[MenuItem] = &[MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", RECENT)];
 const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
@@ -53,7 +53,7 @@ impl Program for Test {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        // Under the performance stats.
+        // Under the PerfBar.
         let top = ui.content_top();
         if ui.key_pressed(Key::A) {
             self.shortcut += 1;
@@ -214,7 +214,7 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
 #[test]
 fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     let mut app = Headless::new(Test::default());
-    app.move_point(Point::new(60.0, STATS + 30.0)).wait(TOOLTIP_DELAY * 0.6);
+    app.move_point(Point::new(60.0, PERF_BAR + 30.0)).wait(TOOLTIP_DELAY * 0.6);
     assert_eq!(app.ui.tooltip_name(), None);
     app.wait(TOOLTIP_DELAY);
     assert_eq!(app.ui.tooltip_name(), Some("Button"));
@@ -223,8 +223,8 @@ fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     let area = state.get("Tooltip").and_then(|tooltip| tooltip.get("Area")).cloned().unwrap();
     let Value::Array(area) = area else { panic!() };
     let Value::Number(y) = area[1] else { panic!() };
-    assert!(y >= (STATS + 30.0 + 20.0) as f64, "{y}");
-    app.press_point(Point::new(60.0, STATS + 30.0));
+    assert!(y >= (PERF_BAR + 30.0 + 20.0) as f64, "{y}");
+    app.press_point(Point::new(60.0, PERF_BAR + 30.0));
     assert_eq!(app.ui.tooltip_name(), None);
 }
 
@@ -297,7 +297,7 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     let mut app = Headless::new(Test::default());
     app.click("Ask");
     assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
-    app.click_point(Point::new(60.0, STATS + 26.0));
+    app.click_point(Point::new(60.0, PERF_BAR + 26.0));
     assert_eq!(app.program.clicks, 0, "the page is under the smoke");
     app.key(Key::A);
     assert_eq!(app.program.shortcut, 0, "the program's keys wait too");
@@ -380,7 +380,7 @@ impl Program for Ported {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        // Under the performance stats.
+        // Under the PerfBar.
         let top = ui.content_top();
         ui.set_focusable(false);
         ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
@@ -450,7 +450,7 @@ fn headed_columns_sit_side_by_side_under_their_headers() {
     app.frame();
     let [left, right] = [app.program.columns[0], app.program.columns[1]];
     let header = user_interface::tokens::BODY.line_height + user_interface::controls::TEXT_BOX_HEADER_GAP;
-    assert_eq!(left.y, STATS + 10.0 + header);
+    assert_eq!(left.y, PERF_BAR + 10.0 + header);
     assert_eq!((left.height, right.y), (32.0, left.y));
     assert_eq!(right.x - left.right(), user_interface::tokens::CARD_PADDING);
     assert_eq!(right.right(), 800.0);
@@ -525,7 +525,7 @@ fn a_caret_in_text_the_program_replaced_lands_on_a_character() {
 #[test]
 fn the_wheel_over_a_menu_leaves_the_list_under_it_alone() {
     let mut app = Headless::new(Test::default());
-    let at = Point::new(999.0, STATS + 450.0);
+    let at = Point::new(999.0, PERF_BAR + 450.0);
     app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
     assert_eq!(app.ui.popup_name(), Some("Context"));
     let over = app.target("Context/First").center();

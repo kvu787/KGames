@@ -5,7 +5,7 @@ use minimal_scene_test::moving_sphere::MovingSphere;
 use minimal_scene_test::scene::{BACKGROUND, Motion, SPHERE_RADIUS, TRAVEL_DISTANCE, VIEW_HEIGHT, sphere_center, to_screen};
 use minimal_scene_test::settings::SceneSettings;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, InfoCard, Rect, Theme};
 
 fn sphere() -> Headless<MovingSphere> {
@@ -132,9 +132,9 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
         assert_eq!((image.width, image.height), (WINDOW_WIDTH as u32, height as u32));
 
-        // The background, at the top right corner under the performance
-        // stats, which nothing covers.
-        let corner = (2550, STATS_BAR_HEIGHT as u32 + 10);
+        // The background, at the top right corner under the PerfBar, which
+        // nothing covers.
+        let corner = (2550, PERF_BAR_HEIGHT as u32 + 10);
         assert!(close(image.pixel(corner.0, corner.1), background), "{:?}", image.pixel(corner.0, corner.1));
         // The sphere, in front of the cube, in its blue.
         let [x, y] = to_screen(sphere_center(app.program.motion.position), WINDOW_WIDTH, height);

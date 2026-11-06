@@ -1,6 +1,6 @@
-// The page that every program's window shows: the performance stats along
-// the very top, which the library draws; an app bar under them, as tall as
-// WinUI's TitleBar control, with the program's icon, title and its own
+// The page that every program's window shows: the PerfBar along the very
+// top, which the library draws; an app bar under it, as tall as WinUI's
+// TitleBar control, with the program's icon, title and its own
 // commands; notices under it; a status bar along the bottom with shortcuts
 // and status; and the page between them, where the cards go.
 
@@ -9,8 +9,8 @@ use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
 use crate::design::tokens::{
-    APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_CAPTION, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATS_BAR_HEIGHT,
-    STATUS_BAR_HEIGHT, SUBTITLE,
+    APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_INK_DROP, PAGE_PADDING, PERF_BAR_HEIGHT, PERF_BAR_TEXT, RADIUS_CONTROL, SPACE_L, SPACE_M,
+    SPACE_S, SPACE_XS, STATUS_BAR_HEIGHT, SUBTITLE,
 };
 use crate::drawing::geometry::{Color, Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Painter};
@@ -174,14 +174,13 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 }
 
 impl Ui {
-    // Draws the performance stats along the top of the window: the frames,
-    // the frames that reach the screen, the input latency from GameInput's
-    // readings to the screen with its parts, and at the right, how frames
-    // reach the screen and whether they wait for vertical sync. They're set
-    // in Cascadia Mono, in fields whose widths never change, so that every
-    // label and value stays in the same columns. The main loop draws them
-    // every frame; programs don't.
-    pub(crate) fn stats_bar(&mut self) {
+    // Draws the PerfBar along the top of the window: the frames a second,
+    // the input latency's median from GameInput's readings to the screen,
+    // and at the right, how frames reach the screen and whether they wait for
+    // vertical sync, set in Cascadia Mono, black on white, in fields whose
+    // widths never change, so that every label and value stays in the same
+    // columns. The main loop draws it every frame; programs don't.
+    pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made a few times a second, not copied here
         // every frame.
@@ -189,10 +188,8 @@ impl Ui {
             return;
         };
         let summary = performance.summary();
-        let bar = Rect::new(0.0, 0.0, self.size().width, STATS_BAR_HEIGHT);
-        let theme = self.theme();
-        let (background, fill, divider, label, value) =
-            (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
+        let bar = Rect::new(0.0, 0.0, self.size().width, PERF_BAR_HEIGHT);
+        let divider = self.theme().divider;
         // Vertical sync from this frame on, as F10 switches it, not as of the
         // summary, as wide whether it's on or off.
         let vertical_sync = if self.environment.vertical_sync { "on " } else { "off" };
@@ -200,14 +197,14 @@ impl Ui {
         {
             let mut painter = self.painter();
             // Opaque, even over a 3D view.
-            painter.fill(bar, background);
-            painter.fill(bar, fill);
+            painter.fill(bar, Color::hex(0xFFFFFF));
             painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
-            let grid = StatsGrid {
-                advance: painter.measure("0", MONO_CAPTION).width,
-                y: ((bar.height - MONO_CAPTION.line_height) / 2.0).round(),
-                label,
-                value,
+            // The text's ink centered above the divider.
+            let above = bar.height - 1.0;
+            let grid = PerfBarGrid {
+                advance: painter.measure("0", PERF_BAR_TEXT).width,
+                y: ((above - PERF_BAR_TEXT.line_height) / 2.0 - MONO_INK_DROP * PERF_BAR_TEXT.size).round(),
+                color: Color::hex(0x000000),
             };
             let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;
             // The right's runs end at the last column, the left's start at
@@ -229,33 +226,31 @@ impl Ui {
     }
 }
 
-// The stats bar's text, as runs of labels and values.
+// The PerfBar's text, as runs of labels and values.
 fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> + Clone {
     runs.iter().map(|run| (run.text.as_str(), run.value))
 }
 
-// The stats bar's columns, each a character of Cascadia Mono wide, from the
-// bar's padding, and the colors of its labels and values.
-struct StatsGrid {
+// The PerfBar's columns, each a character of Cascadia Mono wide, from the
+// bar's padding, and its text's color.
+struct PerfBarGrid {
     advance: f32,
     y: f32,
-    label: Color,
-    value: Color,
+    color: Color,
 }
 
-impl StatsGrid {
+impl PerfBarGrid {
     // Draws runs from a column, cutting short what would reach another, and
     // returns the column after them.
     fn draw<'a>(&self, painter: &mut Painter, mut column: usize, end: usize, runs: impl Iterator<Item = (&'a str, bool)>) -> usize {
-        for (text, is_value) in runs {
+        for (text, _) in runs {
             let count = text.chars().count();
-            let color = if is_value { self.value } else { self.label };
             let at = Point::new(PAGE_PADDING + column as f32 * self.advance, self.y);
             if column + count <= end {
-                painter.text(at, text, MONO_CAPTION, color);
+                painter.text(at, text, PERF_BAR_TEXT, self.color);
             } else if column < end {
-                let fitted = painter.fit(text, MONO_CAPTION, (end - column) as f32 * self.advance + 0.5);
-                painter.text(at, &fitted, MONO_CAPTION, color);
+                let fitted = painter.fit(text, PERF_BAR_TEXT, (end - column) as f32 * self.advance + 0.5);
+                painter.text(at, &fitted, PERF_BAR_TEXT, self.color);
             }
             column += count;
         }

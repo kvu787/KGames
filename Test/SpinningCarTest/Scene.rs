@@ -8,7 +8,7 @@ use spinning_car_test::scene::{BACKGROUND, SPHERE_CENTER, SPHERE_RADIUS, VIEW_HE
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, InfoCard, Rect, Theme};
 
 fn car() -> Headless<SpinningCar> {
@@ -106,9 +106,9 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
         assert_eq!((image.width, image.height), (WINDOW_WIDTH as u32, height as u32));
 
-        // The background, at the top right corner under the performance
-        // stats, which nothing covers.
-        let corner = (2550, STATS_BAR_HEIGHT as u32 + 10);
+        // The background, at the top right corner under the PerfBar, which
+        // nothing covers.
+        let corner = (2550, PERF_BAR_HEIGHT as u32 + 10);
         assert!(close(image.pixel(corner.0, corner.1), background), "{:?}", image.pixel(corner.0, corner.1));
         // The sphere, in its dark blue, under the light at its middle.
         let [x, y] = to_screen(SPHERE_CENTER, WINDOW_WIDTH, height);

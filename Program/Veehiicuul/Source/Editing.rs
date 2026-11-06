@@ -38,7 +38,7 @@ pub fn right_card(page: Rect) -> Rect {
 }
 
 // Where the 3D view takes input: the window between the app bar, under the
-// performance stats, and the status bar, all the way across. The cards, and
+// PerfBar, and the status bar, all the way across. The cards, and
 // the notices under the app bar, cover it.
 pub fn view_area(ui: &Ui) -> Rect {
     let size = ui.size();

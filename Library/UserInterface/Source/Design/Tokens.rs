@@ -57,10 +57,18 @@ pub const TITLE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 28.
 pub const TITLE_LARGE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 40.0, 52.0);
 pub const DISPLAY: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 68.0, 92.0);
 // Cascadia Mono, for text whose columns line up, like logs and codes, and at
-// the caption's size, like the performance stats along the top of the window.
+// the caption's size.
 pub const MONO: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 13.0, 20.0);
 pub const MONO_STRONG: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 13.0, 20.0);
 pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 12.0, 16.0);
+// The PerfBar along the top of every window: Cascadia Mono at 14 pixels.
+// Its ink, from the top of "/", 1610 of its 2048 units a size above the
+// baseline, to the bottom of "y", 480 below, is 14.29 pixels tall, which the
+// bar centers in the 29 above its divider.
+pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 14.0, 30.0);
+// How far Cascadia Mono's ink is below the middle of its ascent and descent,
+// which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
+pub const MONO_INK_DROP: f32 = 0.0708;
 
 // Motion: WinUI's ControlFasterAnimationDuration, for colors, Fast, for
 // things that move, and Normal, for surfaces that open.
@@ -180,12 +188,12 @@ pub const ELEVATION_DIALOG: Elevation = elevation(128.0);
 // A card over a 3D view floats like a flyout.
 pub const ELEVATION_FLOATING_CARD: Elevation = ELEVATION_FLYOUT;
 
-// How KGames lays out a program's window, in fixed pixels: the performance
-// stats along the very top, which every program has, an app bar under them,
-// which is as tall as WinUI's TitleBar control, a status bar at the bottom,
+// How KGames lays out a program's window, in fixed pixels: the PerfBar
+// along the very top, which every program has, an app bar under it, which
+// is as tall as WinUI's TitleBar control, a status bar at the bottom,
 // and cards between them, PAGE_PADDING from the window's edges and CARD_GAP
 // from each other.
-pub const STATS_BAR_HEIGHT: f32 = 30.0;
+pub const PERF_BAR_HEIGHT: f32 = 30.0;
 pub const APP_BAR_HEIGHT: f32 = 48.0;
 pub const STATUS_BAR_HEIGHT: f32 = 32.0;
 pub const PAGE_PADDING: f32 = SPACE_L;
