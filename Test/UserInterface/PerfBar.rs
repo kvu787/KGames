@@ -131,7 +131,7 @@ fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
         assert_eq!(value.trim(), "-", "{value:?}");
     }
     assert_eq!(summary.note, [
-        Run { text: " | Input latency ".to_string(), value: false },
+        Run { text: " | Input latency = ".to_string(), value: false },
         Run { text: "none in a test".to_string(), value: true },
     ]);
 
@@ -144,8 +144,8 @@ fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
 fn sections_are_separated_by_bars() {
     let summary = measuring(0.01, 10.0, true);
     let text = |runs: &[Run]| runs.iter().map(|run| run.text.as_str()).collect::<String>();
-    assert_eq!(text(&summary.left), "FPS   100.00 | Input latency   10.00 ms | Lookback 1 s");
-    assert_eq!(text(&summary.right), "| Mode Independent flip  | Tearing yes");
+    assert_eq!(text(&summary.left), "FPS =   100.00 | Input latency =   10.00 ms | Lookback = 1 s");
+    assert_eq!(text(&summary.right), "| Mode = Independent flip  | Tearing = yes");
 }
 
 #[test]

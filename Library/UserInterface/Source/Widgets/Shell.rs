@@ -233,7 +233,7 @@ impl Ui {
             // The right's runs end at the last column, the left's start at
             // the first, and why there's no input latency goes right after
             // the left's, which a space at least keeps from the right's.
-            let right = runs(&summary.right).chain([(SEPARATOR, false), ("VSync ", false), (vertical_sync, true)]);
+            let right = runs(&summary.right).chain([(SEPARATOR, false), ("VSync = ", false), (vertical_sync, true)]);
             let right_start = columns.saturating_sub(right.clone().map(|(text, _)| text.chars().count()).sum());
             let end = right_start.saturating_sub(1);
             let left_end = grid.draw(&mut painter, 0, end, runs(&summary.left));

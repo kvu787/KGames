@@ -258,7 +258,8 @@ Every program's window shows its performance along its top, in the PerfBar
 (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second, and
 the input latency over the second before the newest frame known on the screen, since Windows' events
 about presents come late: about 15 ms, as PresentTiming flushes ETW's buffers every 8 ms. A `|`
-separates its sections. It changes what it says 10 times a second:
+separates its sections, and a `=` each label from its value, as in `FPS = 100.00`. It changes what
+it says 10 times a second:
 
 | Stat            | What it is                                                                                      |
 | --------------- | ----------------------------------------------------------------------------------------------- |

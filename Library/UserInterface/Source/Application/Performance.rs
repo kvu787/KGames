@@ -179,24 +179,24 @@ impl Summary {
         let time = |value: f64, known: bool| number(known.then_some(value), 2, MILLISECONDS_WIDTH);
 
         let mut left = Runs::default();
-        left.label("FPS ");
+        left.label("FPS = ");
         left.value(rate(self.frames_per_second, frames));
         left.label(SEPARATOR);
-        left.label("Input latency ");
+        left.label("Input latency = ");
         left.value(time(self.mean, latency));
         left.label(" ms");
         // How far back the stats look.
         left.label(SEPARATOR);
-        left.label("Lookback ");
+        left.label("Lookback = ");
         left.value(format!("{WINDOW_SECONDS}"));
         left.label(" s");
         self.left = left.0;
 
         let mut right = Runs::default();
-        right.label("| Mode ");
+        right.label("| Mode = ");
         right.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
         right.label(SEPARATOR);
-        right.label("Tearing ");
+        right.label("Tearing = ");
         right.value(words(measuring.then_some(if self.tearing { "yes" } else { "no" }), YES_NO_WIDTH));
         self.right = right.0;
 
@@ -208,7 +208,7 @@ impl Summary {
         };
         if let Some(reason) = reason {
             note.label(SEPARATOR);
-            note.label("Input latency ");
+            note.label("Input latency = ");
             note.value(reason.to_string());
         }
         self.note = note.0;
