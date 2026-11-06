@@ -8,31 +8,39 @@
 // height, so the cards have fixed places in pixels. The 71 pixels that
 // fullscreen adds go to the bottom row of cards and to the log.
 //
-// The combo box and the Devices card's rows read the mouse from the window's
+// The combo box and the Devices card's list read the mouse from the window's
 // messages, not from GameInput, because they say where the pointer is in the
 // window. Everything else that the cards show comes from GameInput.
 
 use game_input::*;
+use user_interface::controls::{
+    INFO_BADGE_HEIGHT, LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, LIST_ITEM_PADDING, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH,
+    SELECTION_PILL_THICKNESS,
+};
 use user_interface::tokens::{
-    BODY, BODY_STRONG, CAPTION, CARD_GAP, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, CONTROL_HEIGHT,
-    DURATION_FASTER, ICON, LIST_ROW_HEIGHT, MONO, RADIUS_CONTROL, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS,
+    BODY, BODY_STRONG, CAPTION, CARD_GAP, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, CONTROL_HEIGHT, ICON, MONO, RADIUS_CONTROL,
     SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SPACE_XXL,
 };
 use user_interface::{
-    Align, Color, Corners, Icon, Painter, Point, Rect, Sense, Status, Stroke, TextStyle, Theme, TooltipLine, Ui,
+    Align, AppBar, Border, Card, Color, ComboBox, Icon, Insets, KEYCAP_HEIGHT, ListView, Painter, Point, Rect, Severity, Span, Status,
+    Theme, TooltipLine, Ui,
 };
 
 use crate::NAME;
 use crate::devices::{Device, rumble_motor_names};
-use crate::input::{GAMEPAD_BUTTONS, Input, Listen, MOUSE_BUTTONS, Source};
+use crate::input::{GAMEPAD_BUTTONS, Input, LatestEvent, Listen, MOUSE_BUTTONS, Source};
 
 // The combo box that picks which gamepad the demo listens to. The library
 // names the items of its list "Gamepad/0", "Gamepad/1" and so on.
 pub const GAMEPAD_COMBO_BOX: &str = "Gamepad";
-// The Devices card's rows are "Devices/0", "Devices/1" and so on, in the
-// card's order, each labeled with its device's label. Two devices can have
-// the same label, so the rows are named by their place.
+// The Devices card's list. Its rows are "Devices/0", "Devices/1" and so on,
+// in the card's order, each labeled with its device's label. Two devices can
+// have the same label, so the rows are named by their place.
 pub const DEVICE_ROWS: &str = "Devices";
+// The Latest input event card's details, and the Keyboard card's keys, which
+// scroll if they don't fit.
+const LATEST_DETAILS: &str = "Latest";
+const KEY_ROWS: &str = "Keys";
 
 // The widths of the first two columns. The log takes the rest of the page.
 pub const GAMEPAD_COLUMN: f32 = 1000.0;
@@ -47,23 +55,18 @@ const CHIP_HEIGHT: f32 = 24.0;
 const CHIP_MIN_WIDTH: f32 = 32.0;
 // A row of the Keyboard card: a keycap with the key's name, then its codes.
 const KEY_ROW: f32 = 28.0;
-const KEYCAP_HEIGHT: f32 = 22.0;
 const KEY_NAME_COLUMN: f32 = 112.0;
-// A row of the Devices card.
-const DEVICE_ROW: f32 = LIST_ROW_HEIGHT;
 // Where the values of the Latest input event card's and the Mouse card's
 // fields start.
 const LATEST_LABEL: f32 = 200.0;
 const MOUSE_LABEL: f32 = 104.0;
 // The combo box is as wide as its widest choice, within these.
-const COMBO_BOX_MIN_WIDTH: f32 = 200.0;
-const COMBO_BOX_MAX_WIDTH: f32 = 420.0;
-// Around a combo box's text: its padding, and its chevron.
-const COMBO_BOX_CHROME: f32 = SPACE_M + 38.0 + SPACE_S;
-// A device tooltip's values wrap at this width.
-const TOOLTIP_VALUE_WIDTH: f32 = 560.0;
+const GAMEPAD_COMBO_BOX_MIN_WIDTH: f32 = 200.0;
+const GAMEPAD_COMBO_BOX_MAX_WIDTH: f32 = 420.0;
 // The combo box's choice that listens to no gamepad, as Listen names it.
 const NO_GAMEPAD: &str = "None";
+// Taller than any card's details, to measure them in.
+const UNBOUNDED: f32 = 100_000.0;
 
 // What the colors mean: the left and right sticks and triggers, and each
 // source of input, from the theme's colors for telling series apart.
@@ -125,30 +128,28 @@ pub fn draw(ui: &mut Ui, input: &mut Result<Input, String>) {
 // The app bar: what the demo is, whether the window has focus, which it
 // needs to read input, and the frame rate.
 fn app_bar(ui: &mut Ui) {
-    let mut bar = ui.app_bar(Icon::Gamepad, NAME);
+    let mut bar = ui.app_bar(AppBar::new(Icon::Gamepad, NAME).subtitle("Gamepads, keyboards and mice, as GameInput reads them"));
     let theme = ui.theme().clone();
     let stats = ui.stats();
     let rate = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
     let width = ui.measure(&rate, CAPTION).width.ceil();
     ui.text(bar.cut_right(width, SPACE_XXL), &rate, CAPTION, theme.text_secondary);
 
-    let (status, color, mark) = if ui.window_focused() {
-        ("Focused: reading input", theme.success, Icon::StatusSuccess)
+    let (status, severity) = if ui.window_focused() {
+        ("Focused: reading input", Severity::Success)
     } else {
-        ("Not focused: input is ignored", theme.caution, Icon::StatusWarning)
+        ("Not focused: input is ignored", Severity::Warning)
     };
     let width = ICON + SPACE_S + ui.measure(status, CAPTION).width.ceil();
-    let area = bar.cut_right(width, SPACE_XXL);
-    let mut painter = ui.painter();
-    let center = Point::new(area.x + ICON / 2.0, area.center().y);
-    painter.icon(center, Icon::StatusCircle, ICON, color);
-    painter.icon(center, mark, ICON, theme.text_on_accent);
-    painter.text_in(area.inset_by(ICON + SPACE_S, 0.0, 0.0, 0.0), status, CAPTION, theme.text_primary, Align::Start);
-    ui.text(bar, "Gamepads, keyboards and mice, as GameInput reads them", CAPTION, theme.text_secondary);
+    let mut area = bar.cut_right(width, SPACE_XXL);
+    let icon = area.cut_left(ICON, SPACE_S);
+    ui.status_icon(icon.center(), severity, ICON);
+    ui.text(area, status, CAPTION, theme.text_primary);
 }
 
 // The status bar: the shortcuts, the GameInput runtime, how many readings
-// the demo handled, and the display that the window is on.
+// the demo handled, and the display that the window is on. A runtime deep
+// in folders is cut short where it meets the items on the right.
 fn status_bar(ui: &mut Ui, input: &Result<Input, String>) {
     let environment = ui.environment();
     let display = if environment.display.is_empty() {
@@ -160,14 +161,12 @@ fn status_bar(ui: &mut Ui, input: &Result<Input, String>) {
         Ok(input) => (runtime(input), format!("Readings handled: {}", input.reading_count)),
         Err(_) => ("GameInput isn't available".to_string(), String::new()),
     };
-    // A runtime deep in folders is cut short, so that the rest fits.
-    let runtime = ui.painter().fit(&runtime, CAPTION, 1000.0);
     let mut items = vec![
         Status::Shortcut("F1", "Rumble test"),
         Status::Shortcut("F2", "Clear the log"),
         Status::Shortcut("F11", "Fullscreen"),
-        Status::Spacer,
         Status::Text(&runtime),
+        Status::Spacer,
     ];
     for text in [&readings, &display] {
         if !text.is_empty() {
@@ -213,7 +212,7 @@ fn gamepad_height(ui: &mut Ui) -> f32 {
 // The Gamepad card: a graph for each stick, a bar for each trigger, the raw
 // values, and a chip for each button, which lights up while it's held.
 fn gamepad(ui: &mut Ui, input: &mut Input, rect: Rect) {
-    let card = ui.card(rect, "Gamepad");
+    let card = ui.card(rect, Card::new("Gamepad"));
     gamepad_combo_box(ui, input, card.header);
     let theme = ui.theme().clone();
     let colors = Palette::of(&theme);
@@ -278,7 +277,7 @@ fn gamepad(ui: &mut Ui, input: &mut Input, rect: Rect) {
         view.rate.per_second,
         rumble_motor_names(view.rumble_motors)
     );
-    ui.text(status, &line, CAPTION, theme.text_secondary);
+    ui.caption(status, &line);
 }
 
 // The combo box in the Gamepad card's header, which shows which gamepad the
@@ -304,10 +303,9 @@ fn gamepad_combo_box(ui: &mut Ui, input: &mut Input, header: Rect) {
             Listen::NoGamepad => None,
         };
         let mut selected = choices.iter().position(|choice| choice.map(|device| device.id) == chosen).unwrap_or(0);
-        let widest = labels.iter().map(|label| ui.measure(label, BODY).width).fold(0.0, f32::max);
-        let width = (widest + COMBO_BOX_CHROME).clamp(COMBO_BOX_MIN_WIDTH, COMBO_BOX_MAX_WIDTH).min(header.width).ceil();
+        let width = ComboBox::width(ui, &labels).clamp(GAMEPAD_COMBO_BOX_MIN_WIDTH, GAMEPAD_COMBO_BOX_MAX_WIDTH).min(header.width);
         let rect = Rect::new(header.x, header.y, width, CONTROL_HEIGHT);
-        let response = ui.combo_box(GAMEPAD_COMBO_BOX, rect, &mut selected, &labels);
+        let response = ui.add(GAMEPAD_COMBO_BOX, rect, ComboBox::new(&mut selected, &labels));
         let picked = response.changed.then(|| match choices[selected] {
             Some(device) => Listen::Gamepad(device.clone()),
             None => Listen::NoGamepad,
@@ -331,21 +329,21 @@ fn gamepad_combo_box(ui: &mut Ui, input: &mut Input, header: Rect) {
     let mut area = Rect::new(combo_box.right() + SPACE_M, header.y, (header.right() - combo_box.right() - SPACE_M).max(0.0), header.height);
     if caution {
         let icon = area.cut_left(ICON, SPACE_S);
-        ui.icon(icon, Icon::Warning, ICON, theme.caution);
+        ui.status_icon(icon.center(), Severity::Warning, ICON);
     }
-    ui.text(area, note, BODY, if caution { theme.caution } else { theme.text_secondary });
+    ui.text(area, note, BODY, if caution { theme.text_primary } else { theme.text_secondary });
 }
 
 // A dot in a series' color, and its name.
 fn legend(painter: &mut Painter, theme: &Theme, area: Rect, text: &str, color: Color) {
     painter.circle(Point::new(area.x + 4.0, area.center().y), 4.0, color);
-    painter.text_in(area.inset_by(SPACE_M, 0.0, 0.0, 0.0), text, BODY_STRONG, theme.text_primary, Align::Start);
+    painter.text_fit(area.pad(Insets::new(SPACE_M, 0.0, 0.0, 0.0)), text, BODY_STRONG, theme.text_primary, Align::Start);
 }
 
 // A stick's position, from -1 to 1 across and up, in a square with rings at
 // its edge, half way, and the dead zone, if it has one.
 fn stick_graph(painter: &mut Painter, theme: &Theme, area: Rect, value: [f32; 2], dead_zone: f32, color: Color) {
-    painter.shape(area, Corners::all(RADIUS_CONTROL), theme.control_alt_fill_secondary, Some(Stroke::new(theme.control_stroke, 1.0)));
+    painter.shape(area, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
     let center = Point::new(area.center().x.floor(), area.center().y.floor());
     let radius = area.width / 2.0 - SPACE_S;
     // The mouse pad has no dead zone, and a ring of radius 0 would be a dot.
@@ -368,7 +366,7 @@ fn stick_graph(painter: &mut Painter, theme: &Theme, area: Rect, value: [f32; 2]
 // A trigger's value, as a bar that fills its track from the bottom, with a
 // mark at each quarter.
 fn trigger_bar(painter: &mut Painter, theme: &Theme, area: Rect, value: f32, color: Color) {
-    painter.shape(area, Corners::all(RADIUS_CONTROL), theme.control_alt_fill_secondary, Some(Stroke::new(theme.control_stroke, 1.0)));
+    painter.shape(area, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
     for quarter in 1..4 {
         let y = (area.y + area.height * quarter as f32 / 4.0).round();
         painter.fill(Rect::new(area.x + 1.0, y, area.width * 0.25, 1.0), theme.control_stroke_secondary);
@@ -424,98 +422,133 @@ fn draw_chips(ui: &mut Ui, area: Rect, chips: &[Chip]) -> f32 {
         } else {
             (Color::TRANSPARENT, theme.control_stroke, theme.text_disabled)
         };
-        painter.shape(*rect, Corners::all(RADIUS_CONTROL), fill, Some(Stroke::new(stroke, 1.0)));
+        painter.shape(*rect, RADIUS_CONTROL, fill, Some(Border::new(stroke, 1.0)));
         painter.text_in(*rect, chip.label, CAPTION, text, Align::Center);
     }
     rects.last().map_or(0.0, |rect| rect.bottom() - area.y)
 }
 
 // The Latest input event card: the newest reading that changed something,
-// described in full.
+// described in full. Details that don't fit scroll.
 fn latest(ui: &mut Ui, input: &Input, rect: Rect) {
-    let card = ui.card(rect, "Latest input event");
-    let theme = ui.theme().clone();
-    let colors = Palette::of(&theme);
-    let mut area = card.content;
+    let time = input.latest.as_ref().map(|event| format!("at {:.6} s", event.time));
+    let card = match &time {
+        Some(time) => Card::new("Latest input event").subtitle(time),
+        None => Card::new("Latest input event"),
+    };
+    let area = ui.card(rect, card).content;
     let Some(event) = &input.latest else {
-        let text = "Waiting for input. Press a key, move the mouse, or use a gamepad.";
-        ui.paragraph(area, text, BODY, theme.text_secondary);
+        let secondary = ui.theme().text_secondary;
+        ui.paragraph(area, "Waiting for input. Press a key, move the mouse, or use a gamepad.", BODY, secondary);
         return;
     };
-    ui.text_aligned(card.header, &format!("at {:.6} s", event.time), CAPTION, theme.text_secondary, Align::End);
-    ui.painter().push_clip(area);
+    let mut height = latest_details(ui, event, Rect::new(area.x, area.y, area.width, UNBOUNDED), false);
+    if height > area.height {
+        let width = area.width - SCROLL_BAR_SIZE;
+        height = latest_details(ui, event, Rect::new(area.x, area.y, width, UNBOUNDED), false);
+    }
+    let scroll = ui.begin_scroll(LATEST_DETAILS, area, height);
+    latest_details(ui, event, scroll.content, true);
+    ui.end_scroll(scroll);
+}
 
-    let mut heading = area.cut_top(BODY.line_height, SPACE_S);
-    let icon = heading.cut_left(ICON, SPACE_S);
-    ui.icon(icon, source_icon(event.source), ICON, colors.source(event.source));
-    let title = format!("{} reading #{}", event.source.name(), event.number);
-    ui.text(heading, &title, BODY_STRONG, theme.text_primary);
-    for (label, value) in [
+// Lays the event's details out from the top of the area, and draws them if
+// `draw`, so that they can be measured first. Returns how tall they are.
+fn latest_details(ui: &mut Ui, event: &LatestEvent, area: Rect, draw: bool) -> f32 {
+    let theme = ui.theme().clone();
+    let colors = Palette::of(&theme);
+    let mut rest = area;
+
+    let mut heading = rest.cut_top(BODY.line_height, SPACE_S);
+    if draw {
+        let icon = heading.cut_left(ICON, SPACE_S);
+        ui.icon(icon, source_icon(event.source), ICON, colors.source(event.source));
+        ui.heading(heading, &format!("{} reading #{}", event.source.name(), event.number));
+    }
+    let timestamp = format!("{} µs", event.timestamp);
+    let interval = event.interval.map(|interval| format!("{interval:.3} ms"));
+    let mut fields = vec![
         ("Device", event.device.as_str()),
         ("Reading has", event.kinds.as_str()),
-        ("Timestamp", &format!("{} µs", event.timestamp)),
-    ] {
-        ui.field(area.cut_top(BODY.line_height, SPACE_XS), label, LATEST_LABEL, value);
+        ("Timestamp", timestamp.as_str()),
+    ];
+    if let Some(interval) = &interval {
+        fields.push(("Since its previous reading", interval));
     }
-    match event.interval {
-        Some(interval) => {
-            let value = format!("{interval:.3} ms");
-            ui.field(area.cut_top(BODY.line_height, SPACE_XS), "Since its previous reading", LATEST_LABEL, &value);
+    for (label, value) in fields {
+        let row = rest.cut_top(BODY.line_height, SPACE_XS);
+        if draw {
+            ui.field(row, label, LATEST_LABEL, value);
         }
-        None => {
-            let text = "No earlier reading from this device, so this is compared with an idle state.";
-            let height = ui.paragraph(area, text, BODY, theme.text_secondary);
-            area.cut_top(height, SPACE_XS);
+    }
+    if interval.is_none() {
+        let text = "No earlier reading from this device, so this is compared with an idle state.";
+        let height = ui.paragraph_height(rest.width, text, BODY);
+        let row = rest.cut_top(height, SPACE_XS);
+        if draw {
+            ui.paragraph(row, text, BODY, theme.text_secondary);
         }
     }
 
-    ui.divider(area.cut_top(SPACE_L, SPACE_XS));
-    ui.text(area.cut_top(BODY.line_height, SPACE_XS), "Changed", BODY_STRONG, theme.text_primary);
+    let divider = rest.cut_top(SPACE_L, SPACE_XS);
+    let title = rest.cut_top(BODY.line_height, SPACE_XS);
+    if draw {
+        ui.divider(divider);
+        ui.heading(title, "Changed");
+    }
     for change in &event.changes {
-        let bullet = area.inset_by(SPACE_XS, 0.0, 0.0, 0.0);
-        ui.text(bullet.top_strip(BODY.line_height), "•", BODY, theme.text_secondary);
-        let height = ui.paragraph(bullet.inset_by(SPACE_M, 0.0, 0.0, 0.0), change, BODY, theme.text_primary);
-        area.cut_top(height, SPACE_XS);
+        // A bullet, and the change after it, which may wrap.
+        let text = rest.pad(Insets::new(SPACE_XS + SPACE_M, 0.0, 0.0, 0.0));
+        let height = ui.paragraph_height(text.width, change, BODY);
+        let row = rest.cut_top(height, SPACE_XS);
+        if draw {
+            ui.text(Rect::new(row.x + SPACE_XS, row.y, SPACE_M, BODY.line_height), "•", BODY, theme.text_secondary);
+            ui.paragraph(Rect::new(text.x, row.y, text.width, height), change, BODY, theme.text_primary);
+        }
     }
 
-    ui.divider(area.cut_top(SPACE_L, SPACE_XS));
-    ui.text(area.cut_top(BODY.line_height, SPACE_XS), "State now", BODY_STRONG, theme.text_primary);
-    for line in &event.state {
-        ui.text(area.cut_top(MONO.line_height, 0.0), line, MONO, theme.text_primary);
+    let divider = rest.cut_top(SPACE_L, SPACE_XS);
+    let title = rest.cut_top(BODY.line_height, SPACE_XS);
+    if draw {
+        ui.divider(divider);
+        ui.heading(title, "State now");
     }
-    ui.painter().pop_clip();
+    for line in &event.state {
+        let row = rest.cut_top(MONO.line_height, 0.0);
+        if draw {
+            ui.text(row, line, MONO, theme.text_primary);
+        }
+    }
+    rest.y - area.y
 }
 
 // The Keyboard card: the keys held on the keyboard that last changed them,
-// each with its codes, and the character it types.
+// each with its codes, and the character it types. Keys that don't fit
+// scroll.
 fn keyboard(ui: &mut Ui, input: &Input, rect: Rect) {
     let view = &input.keyboard;
-    let card = ui.card(rect, "Keyboard");
+    let card = ui.card(rect, Card::new("Keyboard").subtitle(&view.label));
     let theme = ui.theme().clone();
-    ui.text_aligned(card.header, &view.label, CAPTION, theme.text_secondary, Align::End);
     let mut area = card.content;
     let status = area.cut_bottom(CAPTION.line_height, SPACE_M);
-    ui.text(status, &format!("Readings: {}/s", view.rate.per_second), CAPTION, theme.text_secondary);
+    ui.caption(status, &format!("Readings: {}/s", view.rate.per_second));
 
     let heading = area.cut_top(BODY.line_height, SPACE_S);
-    let title = ui.text(heading, "Keys down", BODY_STRONG, theme.text_primary);
+    let title = ui.heading(heading, "Keys down");
     if view.keys.is_empty() {
         ui.text(area.top_strip(BODY.line_height), "None", BODY, theme.text_tertiary);
         return;
     }
-    ui.badge(Point::new(title.right() + SPACE_S, heading.center().y), &view.keys.len().to_string());
-    // If they don't all fit, the last row says how many more there are.
-    let fits = (area.height / KEY_ROW).floor() as usize;
-    let shown = if view.keys.len() > fits { fits.saturating_sub(1) } else { view.keys.len() };
-    for (name, details) in view.descriptions.iter().take(shown) {
-        let row = area.cut_top(KEY_ROW, 0.0);
+    // The badge is centered on its point, and a count of one digit is round.
+    ui.badge(Point::new(title.right() + SPACE_S + INFO_BADGE_HEIGHT / 2.0, heading.center().y), &view.keys.len().to_string());
+    let scroll = ui.begin_scroll(KEY_ROWS, area, view.descriptions.len() as f32 * KEY_ROW);
+    let mut rows = scroll.content;
+    for (name, details) in &view.descriptions {
+        let row = rows.cut_top(KEY_ROW, 0.0);
         ui.keycap(Point::new(row.x, row.y + ((KEY_ROW - KEYCAP_HEIGHT) / 2.0).round()), name);
-        ui.text(row.inset_by(KEY_NAME_COLUMN, 0.0, 0.0, 0.0), details, MONO, theme.text_primary);
+        ui.text(row.pad(Insets::new(KEY_NAME_COLUMN, 0.0, 0.0, 0.0)), details, MONO, theme.text_primary);
     }
-    if shown < view.keys.len() {
-        let more = format!("and {} more", view.keys.len() - shown);
-        ui.text(area.top_strip(KEY_ROW), &more, BODY, theme.text_secondary);
-    }
+    ui.end_scroll(scroll);
 }
 
 // The Mouse card: the buttons held on the mouse that last changed, its
@@ -524,17 +557,16 @@ fn keyboard(ui: &mut Ui, input: &Input, rect: Rect) {
 fn mouse(ui: &mut Ui, input: &Input, rect: Rect) {
     let view = &input.mouse;
     let state = &view.state;
-    let card = ui.card(rect, "Mouse");
+    let card = ui.card(rect, Card::new("Mouse").subtitle(&view.label));
     let theme = ui.theme().clone();
     let colors = Palette::of(&theme);
-    ui.text_aligned(card.header, &view.label, CAPTION, theme.text_secondary, Align::End);
     let mut area = card.content;
     let status = area.cut_bottom(CAPTION.line_height, SPACE_M);
     let mut readings = format!("Readings: {}/s", view.rate.per_second);
     if let Some(rate) = view.sample_rate {
         readings += &format!("   ·   Device reports {rate} Hz");
     }
-    ui.text(status, &readings, CAPTION, theme.text_secondary);
+    ui.caption(status, &readings);
 
     let mut pad_column = area.cut_right(MOUSE_PAD, SPACE_L);
     let caption = pad_column.cut_top(BODY.line_height, SPACE_S);
@@ -544,7 +576,7 @@ fn mouse(ui: &mut Ui, input: &Input, rect: Rect) {
     stick_graph(&mut painter, &theme, pad, [view.pad[0], -view.pad[1]], 0.0, colors.mouse);
 
     let heading = area.cut_top(BODY.line_height, SPACE_S);
-    ui.text(heading, "Buttons", BODY_STRONG, theme.text_primary);
+    ui.heading(heading, "Buttons");
     let chips: Vec<Chip> = MOUSE_BUTTONS
         .iter()
         .map(|&(button, label)| Chip {
@@ -568,75 +600,69 @@ fn mouse(ui: &mut Ui, input: &Input, rect: Rect) {
     }
 }
 
-// The Devices card: a row for each connected device, which shows a tooltip
-// of everything known about it while the pointer rests on it. The gamepad
-// that the Gamepad card shows is in the accent color, and the gamepads that
-// the demo ignores are faint.
+// The Devices card: a list with a row for each connected device, which
+// shows a tooltip of everything known about it while the pointer rests on
+// it, and scrolls if they don't all fit. The gamepad that the Gamepad card
+// shows is in the accent color, with the pill of a selection, and the
+// gamepads that the demo ignores are faint.
 fn devices(ui: &mut Ui, input: &Input, rect: Rect) {
-    let card = ui.card(rect, "Devices");
-    let theme = ui.theme().clone();
     let count = format!("{} connected", input.devices.len());
-    ui.text_aligned(card.header, &count, CAPTION, theme.text_secondary, Align::End);
-    let content = card.content;
+    let card = ui.card(rect, Card::new("Devices").subtitle(&count));
+    let theme = ui.theme().clone();
     if input.devices.is_empty() {
-        ui.text(content.top_strip(BODY.line_height), "None yet", BODY, theme.text_tertiary);
+        ui.text(card.content.top_strip(BODY.line_height), "None yet", BODY, theme.text_tertiary);
         return;
     }
-    // The rows reach nearer the card's edges than its content does, like a
-    // list's, and their text lines up with the content.
-    let mut rows = content.inset_by(-SPACE_S, 0.0, -SPACE_S, 0.0);
-    // If they don't all fit, the last row says how many more there are.
-    let fits = (rows.height / DEVICE_ROW).floor() as usize;
-    let shown = if input.devices.len() > fits { fits.saturating_sub(1) } else { input.devices.len() };
-    for (index, device) in input.devices.iter().take(shown).enumerate() {
-        let row = rows.cut_top(DEVICE_ROW, 0.0);
-        let name = format!("{DEVICE_ROWS}/{index}");
-        let response = ui.interact(&name, row, Sense::NONE, "DeviceRow");
-        ui.set_label(&name, &device.label);
-        let fill = if response.hovered { theme.subtle_fill_secondary } else { Color::TRANSPARENT };
-        let fill = ui.animate_color(response.id, 0, fill, DURATION_FASTER);
-        let listened = input.gamepad.device == Some(device.id);
-        let (style, color, icon_color) = if listened {
-            (BODY_STRONG, theme.accent_text, theme.accent_text)
-        } else if !input.listens_to(device) {
-            (BODY, theme.text_tertiary, theme.text_tertiary)
-        } else {
-            (BODY, theme.text_primary, theme.text_secondary)
-        };
-        let mut details = format!("{}: {}", device.family_name(), device.kinds());
-        if let Some(index) = device.xinput_index {
-            details += &format!(", XInput #{index}");
-        }
-        if device.rumble_motors != 0 {
-            details += ", rumble";
-        }
+    let list = ListView::new(input.devices.len(), LIST_ITEM_HEIGHT, |ui, index, content, _| {
+        let device = &input.devices[index];
+        ui.set_label(&format!("{DEVICE_ROWS}/{index}"), &device.label);
+        device_row(ui, input, device, content);
+    });
+    let response = ui.add(DEVICE_ROWS, card.content, list);
+    if let Some(index) = response.hovered {
+        device_tooltip(ui, &format!("{DEVICE_ROWS}/{index}"), &input.devices[index]);
+    }
+}
 
-        let background = row.inset_by(0.0, 2.0, 0.0, 2.0);
-        let inner = row.inset_by(SPACE_S, 0.0, SPACE_S, 0.0);
-        let mut painter = ui.painter();
-        painter.shape(background, Corners::all(RADIUS_CONTROL), fill, None);
-        if listened {
-            let pill = Rect::new(
-                background.x,
-                (background.center().y - SELECTION_PILL_LENGTH / 2.0).round(),
-                SELECTION_PILL_THICKNESS,
-                SELECTION_PILL_LENGTH,
-            );
-            painter.rounded(pill, SELECTION_PILL_THICKNESS / 2.0, theme.accent);
-        }
-        painter.icon(Point::new(inner.x + ICON / 2.0, row.center().y), device_icon(device), ICON, icon_color);
-        let details_width = painter.measure(&details, CAPTION).width.ceil();
-        let label_area = inner.inset_by(ICON + SPACE_M, 0.0, details_width + SPACE_L, 0.0);
-        painter.text_fit(label_area, &device.label, style, color, Align::Start);
-        painter.text_in(inner, &details, CAPTION, theme.text_secondary, Align::End);
-        if response.hovered {
-            device_tooltip(ui, &name, device);
-        }
+// A device's row in the list, in its content area: an icon for what it is,
+// its label, and its family and kinds of input.
+fn device_row(ui: &mut Ui, input: &Input, device: &Device, content: Rect) {
+    let theme = ui.theme().clone();
+    let listened = input.gamepad.device == Some(device.id);
+    let (style, color, icon_color) = if listened {
+        (BODY_STRONG, theme.accent_text, theme.accent_text)
+    } else if !input.listens_to(device) {
+        (BODY, theme.text_tertiary, theme.text_tertiary)
+    } else {
+        (BODY, theme.text_primary, theme.text_secondary)
+    };
+    let mut details = format!("{}: {}", device.family_name(), device.kinds());
+    if let Some(index) = device.xinput_index {
+        details += &format!(", XInput #{index}");
     }
-    if shown < input.devices.len() {
-        let more = format!("and {} more", input.devices.len() - shown);
-        ui.text(rows.top_strip(DEVICE_ROW).inset_by(SPACE_S, 0.0, SPACE_S, 0.0), &more, BODY, theme.text_secondary);
+    if device.rumble_motors != 0 {
+        details += ", rumble";
     }
+
+    let mut painter = ui.painter();
+    if listened {
+        // The list's selection pill, on its row's backplate, though the
+        // combo box picks the gamepad, and not the list.
+        let row = Rect::new(
+            content.x - LIST_ITEM_PADDING.left,
+            content.y - LIST_ITEM_PADDING.top,
+            content.width + LIST_ITEM_PADDING.horizontal(),
+            content.height + LIST_ITEM_PADDING.vertical(),
+        );
+        let plate = row.pad(LIST_ITEM_BACKPLATE_MARGIN);
+        let pill = Rect::new(plate.x, plate.center().y - SELECTION_PILL_LENGTH / 2.0, SELECTION_PILL_THICKNESS, SELECTION_PILL_LENGTH);
+        painter.rounded(pill, SELECTION_PILL_THICKNESS / 2.0, theme.accent);
+    }
+    painter.icon(Point::new(content.x + ICON / 2.0, content.center().y), device_icon(device), ICON, icon_color);
+    let details_width = painter.measure(&details, CAPTION).width.ceil();
+    let label_area = content.pad(Insets::new(ICON + SPACE_M, 0.0, details_width + SPACE_L, 0.0));
+    painter.text_fit(label_area, &device.label, style, color, Align::Start);
+    painter.text_in(content, &details, CAPTION, theme.text_secondary, Align::End);
 }
 
 fn device_icon(device: &Device) -> Icon {
@@ -658,99 +684,47 @@ fn source_icon(source: Source) -> Icon {
     }
 }
 
-// A line of a device's tooltip, before it borrows its text.
-enum Line {
-    Heading(String),
-    Pair(String, String),
-    Separator,
-}
-
 // Everything that GameInput and Windows say about a device, in a tooltip on
 // its row, in three parts: what GameInput says, Windows' node for it, and
 // what that's connected through. Long values, like the device's path, wrap.
 fn device_tooltip(ui: &mut Ui, name: &str, device: &Device) {
-    let mut lines = vec![Line::Heading(device.label.clone())];
-    for section in device.details() {
-        lines.push(Line::Separator);
-        lines.push(Line::Heading(section.title));
-        for (label, value) in section.rows {
-            let mut label = Some(label);
-            for part in value.split('\n') {
-                for line in wrap(ui, part, CAPTION, TOOLTIP_VALUE_WIDTH) {
-                    lines.push(Line::Pair(label.take().unwrap_or_default(), line));
-                }
-            }
+    let sections = device.details();
+    let mut lines = vec![TooltipLine::Heading(&device.label)];
+    for section in &sections {
+        lines.push(TooltipLine::Separator);
+        lines.push(TooltipLine::Heading(&section.title));
+        for (label, value) in &section.rows {
+            lines.push(TooltipLine::Pair(label, value));
         }
     }
-    let lines: Vec<TooltipLine> = lines
-        .iter()
-        .map(|line| match line {
-            Line::Heading(text) => TooltipLine::Heading(text),
-            Line::Pair(label, value) => TooltipLine::Pair(label, value),
-            Line::Separator => TooltipLine::Separator,
-        })
-        .collect();
-    ui.tooltip_lines(name, &lines);
-}
-
-// The text in lines no wider than `width`, broken at spaces, or where it must
-// be in a word that's wider on its own, like a device's path.
-fn wrap(ui: &mut Ui, text: &str, style: TextStyle, width: f32) -> Vec<String> {
-    let mut lines = Vec::new();
-    let mut line = String::new();
-    for word in text.split_inclusive(' ') {
-        let joined = format!("{line}{word}");
-        if ui.measure(joined.trim_end(), style).width <= width {
-            line = joined;
-            continue;
-        }
-        if !line.trim_end().is_empty() {
-            lines.push(line.trim_end().to_string());
-        }
-        let mut rest = word;
-        loop {
-            let ends: Vec<usize> = rest.char_indices().skip(1).map(|(index, _)| index).chain([rest.len()]).collect();
-            let fitting = ends.partition_point(|&end| ui.measure(rest[..end].trim_end(), style).width <= width);
-            if fitting == ends.len() {
-                break;
-            }
-            // At least a character a line.
-            let end = ends[fitting.saturating_sub(1)];
-            lines.push(rest[..end].to_string());
-            rest = &rest[end..];
-        }
-        line = rest.to_string();
-    }
-    if !line.trim_end().is_empty() || lines.is_empty() {
-        lines.push(line.trim_end().to_string());
-    }
-    lines
+    ui.tooltip_for(name, &lines);
 }
 
 // The Event log card: everything above as it happens, newest first, in
 // Cascadia Mono, so that its columns line up: when, where from, and what.
 fn log(ui: &mut Ui, input: &Input, rect: Rect) {
-    let card = ui.card(rect, "Event log");
+    let card = ui.card(rect, Card::new("Event log").subtitle("Newest first   ·   a run of motion from one device shares a line"));
     let theme = ui.theme().clone();
     let colors = Palette::of(&theme);
-    let note = "Newest first   ·   a run of motion from one device shares a line";
-    ui.text_aligned(card.header, note, CAPTION, theme.text_secondary, Align::End);
     let mut area = card.content;
     if input.log.is_empty() {
         ui.text(area.top_strip(BODY.line_height), "Nothing yet", BODY, theme.text_tertiary);
         return;
     }
-    let mut painter = ui.painter();
     for entry in &input.log {
         if area.height < MONO.line_height {
             break;
         }
         let row = area.cut_top(MONO.line_height, 0.0);
         let line = &entry.line;
-        let mut x = row.x;
-        x += painter.text(Point::new(x, row.y), &line[..entry.source_at], MONO, theme.text_secondary).width;
-        x += painter.text(Point::new(x, row.y), &line[entry.source_at..entry.text_at], MONO, colors.source(entry.source)).width;
-        let text = Rect::new(x, row.y, (row.right() - x).max(0.0), row.height);
-        painter.text_fit(text, &line[entry.text_at..], MONO, theme.text_primary, Align::Start);
+        // The time and the source, then what happened, cut short to fit.
+        let lead = ui.measure(&line[..entry.text_at], MONO).width;
+        let text = ui.painter().fit(&line[entry.text_at..], MONO, (row.width - lead).max(0.0));
+        let spans = [
+            Span::new(&line[..entry.source_at], MONO, theme.text_secondary),
+            Span::new(&line[entry.source_at..entry.text_at], MONO, colors.source(entry.source)),
+            Span::new(&text, MONO, theme.text_primary),
+        ];
+        ui.spans(row.origin(), &spans);
     }
 }

@@ -24,7 +24,7 @@ version = "0.1.0"
 dependencies = [
  "game_input",
  "json",
- "user_interface_old",
+ "user_interface",
  "windows-core",
  "windows_api",
 ]
@@ -36,7 +36,7 @@ dependencies = [
  "game_input",
  "game_input_demo",
  "json",
- "user_interface_old",
+ "user_interface",
  "windows-core",
 ]
 

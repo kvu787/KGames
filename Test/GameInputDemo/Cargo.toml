@@ -20,7 +20,7 @@ path = "Input.rs"
 game_input = { path = "../../Library/GameInput" }
 game_input_demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
-user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
+user_interface = { path = "../../Library/UserInterface" }
 
 [dependencies.windows-core]
 version = "0.100"

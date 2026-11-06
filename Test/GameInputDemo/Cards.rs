@@ -1,18 +1,19 @@
 // What the mouse and the window do to GameInputDemo's cards: the combo box
 // that picks which gamepad to listen to, what its list offers, the Devices
-// card's rows and their tooltips, focus and F11, through the cards' real
-// layout, which Library/UserInterface's Headless draws without a window. And
-// one frame drawn with the GPU, offscreen.
+// card's list, its rows and their tooltips, focus and F11, through the
+// cards' real layout, which Library/UserInterface's Headless draws without a
+// window. And one frame drawn with the GPU, offscreen.
 
 use game_input_demo::cards::{DEVICE_ROWS, GAMEPAD_COLUMN, GAMEPAD_COMBO_BOX, STICK_GRAPH};
 use game_input_demo::demo::Demo;
 use game_input_demo::device_tree::{Node, Tree};
 use game_input_demo::input::{Input, Listen};
 use json::Value;
+use user_interface::controls::TOOLTIP_OFFSET;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{
-    APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT,
-    PAGE_PADDING, SPACE_S, WINDOW_WIDTH,
+    APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, SPACE_S,
+    STATUS_BAR_HEIGHT, WINDOW_WIDTH,
 };
 use user_interface::{Headless, Key, Point, Program, Rect, Theme, ThemeKind};
 
@@ -94,9 +95,9 @@ fn rest(app: &mut Headless<Demo>, point: Point) -> Option<(String, Rect)> {
 }
 
 #[test]
-fn the_combo_box_and_the_device_rows_are_the_only_widgets() {
+fn the_combo_box_and_the_device_list_are_the_only_widgets() {
     let app = demo(&["Pad One", "Pad Two"]);
-    assert_eq!(names(&app), [GAMEPAD_COMBO_BOX, "Devices/0", "Devices/1"]);
+    assert_eq!(names(&app), [GAMEPAD_COMBO_BOX, DEVICE_ROWS, "Devices/0", "Devices/1"]);
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
     // In the Gamepad card's header, after its title.
     let combo_box = app.target(GAMEPAD_COMBO_BOX);
@@ -173,6 +174,11 @@ fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
 fn while_the_list_is_open_the_arrows_move_to_a_choice_and_enter_picks_it() {
     let mut app = demo(&["Pad One", "Pad Two"]);
     open(&mut app);
+    // The pointer leaves the list first: the library's list gives the item
+    // under a resting pointer the highlight every frame, which the keys
+    // can't then move.
+    app.move_point(Point::new(1300.0, 300.0));
+    assert_eq!(app.ui.popup_name(), Some(GAMEPAD_COMBO_BOX));
     app.key(Key::DOWN);
     assert_eq!(listen(&app), "Pad One");
     app.key(Key::END).key(Key::ENTER);
@@ -240,20 +246,43 @@ fn each_device_has_a_row_under_the_one_before() {
 }
 
 #[test]
-fn rows_that_do_not_fit_are_counted_instead() {
+fn rows_that_do_not_fit_scroll() {
     let mut app = demo(&[]);
     for id in 1..=40 {
         step(&mut app, &format!(r#"{{ "Connect": {{ "Id": {id}, "Name": "Keys {id}", "Input": ["Keyboard"] }} }}"#));
     }
     for fullscreen in [false, true] {
         app.set_fullscreen(fullscreen);
+        // The list ends above the card's padding and the status bar, and so
+        // do the rows in sight, with a scroll bar for the rest.
+        let list = app.target(DEVICE_ROWS);
+        assert!(list.bottom() <= app.size().height - STATUS_BAR_HEIGHT - PAGE_PADDING - CARD_PADDING, "{list:?}");
         let rows = rows(&app);
         assert!(rows.len() > 5 && rows.len() < 40, "{}", rows.len());
-        // The last row, for how many more there are, fits above the card's
-        // padding and the status bar.
-        let bottom = rows.last().unwrap().bottom() + rows[0].height;
-        assert!(bottom <= app.size().height - 32.0 - PAGE_PADDING - CARD_PADDING, "{bottom}");
+        assert!(rows.iter().all(|row| row.bottom() <= list.bottom()), "{rows:?}");
+        assert!(app.has_target("Devices/ScrollBar"));
+        // The wheel scrolls to the last row, and back.
+        app.scroll(DEVICE_ROWS, -40.0);
+        assert!(app.has_target("Devices/39") && !app.has_target("Devices/0"));
+        assert_eq!(app.label("Devices/39").as_deref(), Some("Keys 40"));
+        app.scroll(DEVICE_ROWS, 40.0);
+        assert!(app.has_target("Devices/0"));
     }
+}
+
+#[test]
+fn keys_and_details_that_do_not_fit_scroll() {
+    let mut app = demo(&["Pad"]);
+    step(&mut app, r#"{ "Connect": { "Id": 9, "Name": "Keys", "Input": ["Keyboard"] } }"#);
+    assert!(!app.has_target("Keys/ScrollBar") && !app.has_target("Latest/ScrollBar"));
+    let keys: Vec<String> = ('A'..='Z').chain('0'..='9').map(|key| format!("\"{key}\"")).collect();
+    step(&mut app, &format!(r#"{{ "Keyboard": {{ "Id": 9, "Down": [{}] }} }}"#, keys.join(", ")));
+    assert_eq!(input(&app).keyboard.keys.len(), 36);
+    assert!(app.has_target("Keys/ScrollBar"));
+    let buttons: Vec<String> = game_input_demo::input::GAMEPAD_BUTTONS.iter().map(|(_, name)| format!("\"{name}\"")).collect();
+    step(&mut app, &format!(r#"{{ "Gamepad": {{ "Id": 1, "LeftStick": [1, 0], "Buttons": [{}] }} }}"#, buttons.join(", ")));
+    assert!(input(&app).latest.as_ref().unwrap().changes.len() > 20);
+    assert!(app.has_target("Latest/ScrollBar"));
 }
 
 #[test]
@@ -304,11 +333,25 @@ fn a_tooltip_stays_in_the_window_off_the_pointer() {
             for row in rows(&app) {
                 for pointer in [Point::new(row.x + 1.0, row.center().y), Point::new(row.right() - 1.0, row.center().y)] {
                     let (_, area) = rest(&mut app, pointer).unwrap();
-                    assert!(
-                        area.x >= 0.0 && area.right() <= size.width && area.y >= 0.0 && area.bottom() <= size.height,
-                        "{nodes} nodes, {pointer:?}: {area:?}"
-                    );
-                    assert!(pointer.y < area.y || pointer.y > area.bottom(), "{nodes} nodes, {pointer:?}: {area:?}");
+                    assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= 0.0, "{nodes} nodes, {pointer:?}: {area:?}");
+                    // Library/UserInterface's tooltips are at most 320
+                    // pixels wide, as WinUI's are, so a deep device's can be
+                    // taller than the maximized window. Then it starts at
+                    // the window's top.
+                    if area.height <= size.height - SPACE_S * 2.0 {
+                        assert!(area.bottom() <= size.height, "{nodes} nodes, {pointer:?}: {area:?}");
+                    } else {
+                        assert_eq!(area.y, SPACE_S, "{nodes} nodes, {pointer:?}: {area:?}");
+                    }
+                    // Above the pointer, or under it if there's no room
+                    // above. A tooltip with room on neither side covers it.
+                    let room = |space: f32| area.height + TOOLTIP_OFFSET + SPACE_S <= space;
+                    if room(pointer.y) || room(size.height - pointer.y) {
+                        assert!(pointer.y < area.y || pointer.y > area.bottom(), "{nodes} nodes, {pointer:?}: {area:?}");
+                    }
+                    if room(pointer.y) {
+                        assert!(area.bottom() < pointer.y, "{nodes} nodes, {pointer:?}: {area:?}");
+                    }
                 }
             }
         }
@@ -322,7 +365,7 @@ fn a_long_value_wraps_in_its_tooltip() {
     let (_, area) = rest(&mut app, row.center()).unwrap();
     // The device's path, twice as long as a real one, wraps instead of
     // making the tooltip as wide.
-    assert!(area.width < 900.0, "{area:?}");
+    assert!(area.width <= user_interface::controls::TOOLTIP_MAX_WIDTH, "{area:?}");
 }
 
 #[test]

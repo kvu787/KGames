@@ -5,15 +5,15 @@
         { "Frame": 2, "Expect": { "Listen": "Pad One", "Interface": { "Popup": null, "Targets": { "Gamepad": { "Label": "Pad One" } } } } },
         { "Frame": 3, "Click": "Gamepad" },
         { "Frame": 5, "Expect": { "Interface": { "Popup": "Gamepad", "Focused": null } } },
+        { "Frame": 10, "Capture": "Open" },
+        { "Frame": 11, "Move": "Gamepad/1" },
         {
             "Frame": 20,
             "Expect": {
                 "Interface": { "Targets": { "Gamepad/0": { "Label": "Pad One" }, "Gamepad/1": { "Label": "Pad Two" }, "Gamepad/2": { "Label": "None" } } }
             }
         },
-        { "Frame": 20, "Capture": "Open" },
-        { "Frame": 21, "Move": "Gamepad/1" },
-        { "Frame": 22, "Capture": "Hovered" },
+        { "Frame": 20, "Capture": "Hovered" },
         { "Frame": 23, "Click": "Gamepad/1" },
         { "Frame": 25, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": null, "Focused": null, "Targets": { "Gamepad": { "Label": "Pad Two" } } } } },
         { "Frame": 26, "Program": { "Gamepad": { "Id": 1, "Buttons": ["A"] } } },
@@ -29,10 +29,11 @@
         { "Frame": 39, "Click": [1300, 300] },
         { "Frame": 41, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": null } } },
         { "Frame": 42, "Click": "Gamepad" },
-        { "Frame": 44, "Key": "Down" },
-        { "Frame": 45, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": "Gamepad" } } },
-        { "Frame": 46, "Key": "Enter" },
-        { "Frame": 48, "Expect": { "Listen": "None", "Interface": { "Popup": null, "Targets": { "Gamepad": { "Label": "None" } } } } },
-        { "Frame": 48, "Capture": "None" }
+        { "Frame": 44, "Move": [1300, 300] },
+        { "Frame": 45, "Key": "Down" },
+        { "Frame": 46, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": "Gamepad" } } },
+        { "Frame": 47, "Key": "Enter" },
+        { "Frame": 49, "Expect": { "Listen": "None", "Interface": { "Popup": null, "Targets": { "Gamepad": { "Label": "None" } } } } },
+        { "Frame": 49, "Capture": "None" }
     ]
 }

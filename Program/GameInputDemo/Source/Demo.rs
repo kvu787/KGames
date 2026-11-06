@@ -7,7 +7,7 @@
 // notice under the app bar says why there's no input.
 
 use json::Value;
-use user_interface::script::DEFAULT_FRAME_TIME;
+use user_interface::testing::script::DEFAULT_FRAME_TIME;
 use user_interface::{Program, Severity, Startup, Ui};
 
 use crate::NAME;

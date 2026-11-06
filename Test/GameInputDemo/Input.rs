@@ -7,7 +7,7 @@ use game_input::*;
 use game_input_demo::devices::InputSource;
 use game_input_demo::input::{Input, Listen, key_name};
 use game_input_demo::scripted_source::{ScriptedSource, key_state};
-use user_interface::script::compare;
+use user_interface::testing::script::compare;
 
 const PAD_ONE: &str = r#"{ "Connect": { "Id": 1, "Name": "Pad One", "Input": ["Gamepad"],
                                         "Motors": ["LowFrequency", "HighFrequency"] } }"#;
