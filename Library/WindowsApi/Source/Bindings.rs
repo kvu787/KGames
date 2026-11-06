@@ -3476,6 +3476,7 @@ impl Default for EVENT_TRACE_0 {
         unsafe { core::mem::zeroed() }
     }
 }
+pub const EVENT_TRACE_CONTROL_FLUSH: i32 = 3;
 pub const EVENT_TRACE_CONTROL_STOP: i32 = 1;
 #[repr(C)]
 #[derive(Clone, Copy)]
