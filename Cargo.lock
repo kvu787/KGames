@@ -252,7 +252,7 @@ dependencies = [
 name = "ui_showcase"
 version = "0.1.0"
 dependencies = [
- "user_interface_old",
+ "user_interface",
 ]
 
 [[package]]
@@ -260,7 +260,7 @@ name = "ui_showcase_tests"
 version = "0.1.0"
 dependencies = [
  "ui_showcase",
- "user_interface_old",
+ "user_interface",
 ]
 
 [[package]]
@@ -293,7 +293,7 @@ dependencies = [
 name = "user_interface_tests"
 version = "0.1.0"
 dependencies = [
- "user_interface_old",
+ "user_interface",
 ]
 
 [[package]]
