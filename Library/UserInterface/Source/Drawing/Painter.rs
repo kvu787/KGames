@@ -580,17 +580,20 @@ impl<'a> Painter<'a> {
             return Size::new(0.0, style.line_height);
         }
         let packed = color.pack_premultiplied();
-        // Dark text gets more of DirectWrite's contrast, as Direct2D gives
-        // grayscale text, and light text less, which keeps it from looking
-        // bold on dark backgrounds.
-        let contrast = 1.0 - 0.75 * color.luminance().sqrt();
+        // Direct2D's grayscale text blending, as Windows Terminal's copy of
+        // DirectWrite's has it: enhanced contrast, the default 1 for dark
+        // text and none for light, and the text's intensity, for the alpha
+        // correction that the shader applies with them.
+        let lightness = 0.30 * color.r + 0.59 * color.g + 0.11 * color.b;
+        let contrast = (4.0 * (0.75 - lightness)).clamp(0.0, 1.0);
+        let intensity = 0.25 * color.r + 0.5 * color.g + 0.25 * color.b;
         let list = &mut *self.list;
         let mut emit = |quad: GlyphQuad| {
             list.push(
                 KIND_GLYPH,
                 Instance {
                     bounds: [quad.x, quad.y, quad.x + quad.width, quad.y + quad.height],
-                    radii: [quad.atlas_x, quad.atlas_y, contrast, 0.0],
+                    radii: [quad.atlas_x, quad.atlas_y, contrast, intensity],
                     colors: [packed, 0, 0, 0],
                     ..Default::default()
                 },
