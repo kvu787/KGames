@@ -3,8 +3,8 @@
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
-use user_interface::controls::MENU_BAR_ITEM_MARGIN;
-use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PERF_BAR_HEIGHT, SPACE_L, TOOLTIP_DELAY};
+use user_interface::controls::{MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
@@ -213,15 +213,17 @@ fn a_tooltip_shows_once_the_pointer_rests_and_sits_above_it() {
 }
 
 #[test]
-fn the_menu_bar_starts_at_the_window_s_left_edge_under_the_title() {
+fn the_menu_bar_lines_up_with_the_cards_under_the_title() {
     let app = showcase();
+    // The File menu's name starts on the cards' left edge.
     let file = app.target("Menu/File");
-    assert_eq!(file.x, MENU_BAR_ITEM_MARGIN.left);
+    assert_eq!(file.x + MENU_BAR_ITEM_PADDING.left, PAGE_PADDING);
     assert_eq!(file.y, PERF_BAR_HEIGHT + APP_BAR_HEIGHT + MENU_BAR_ITEM_MARGIN.top);
-    // The theme's button is at the other end of the menu bar's row.
+    // The theme's button is at the other end of the menu bar's row, on the
+    // cards' right edge.
     let theme = app.target("Theme");
     assert_eq!(theme.center().y, file.center().y);
-    assert_eq!(theme.right(), 2560.0 - SPACE_L);
+    assert_eq!(theme.right(), 2560.0 - PAGE_PADDING);
 }
 
 #[test]

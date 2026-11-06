@@ -4,7 +4,7 @@
 // motion.
 
 use user_interface::json::Value;
-use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN};
+use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox,
@@ -372,12 +372,14 @@ impl Program for MenuRow {
 }
 
 #[test]
-fn the_menu_row_puts_a_menu_bar_at_the_window_s_left_edge_under_the_app_bar() {
+fn the_menu_row_puts_a_menu_bar_in_line_with_the_page_under_the_app_bar() {
     let mut app = Headless::new(MenuRow::default());
     app.frame();
     let row_top = PERF_BAR + APP_BAR_HEIGHT;
     let file = app.target("Menus/File");
-    assert_eq!((file.x, file.y), (MENU_BAR_ITEM_MARGIN.left, row_top + MENU_BAR_ITEM_MARGIN.top));
+    // The first menu's name starts on the page's left edge, and its
+    // backplate out in the padding.
+    assert_eq!((file.x + MENU_BAR_ITEM_PADDING.left, file.y), (PAGE_PADDING, row_top + MENU_BAR_ITEM_MARGIN.top));
     assert_eq!(app.program.page.y, row_top + MENU_BAR_HEIGHT + PAGE_PADDING);
     app.click("Menus/File").click("Menus/File/Menu/Open");
     assert_eq!(app.program.chosen.as_deref(), Some("Open"));

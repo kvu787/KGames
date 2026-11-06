@@ -1,5 +1,5 @@
 // The showcase's page: an app bar with its icon and title, a menu row under
-// it with a menu bar along the window's left edge, five columns of cards
+// it with a menu bar in line with the icon and the cards, five columns of cards
 // that show every widget, and a status bar. The cards at the bottom of their
 // columns take the 71 pixels that borderless fullscreen adds.
 
@@ -70,7 +70,7 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     if let Some(label) = ui.add("Menu", row.left_strip(menu_width), menu) {
         showcase.command(ui, label);
     }
-    let theme_button = Rect::new(row.right() - SPACE_L - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
+    let theme_button = Rect::new(row.right() - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
     let response = ui.add("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
     ui.tooltip(&response, "Switch the theme (F2)");
     if response.clicked {

@@ -7,8 +7,8 @@ the two window setups in [Library/UserInterface](../../Library/UserInterface/REA
 
 ## What it shows
 
-An app bar with the showcase's icon and title, a row under it with a menu bar from the window's
-left edge and a button for the theme, five columns of cards, and a status bar:
+An app bar with the showcase's icon and title, a row under it with a menu bar in line with the
+icon and the cards, and a button for the theme, five columns of cards, and a status bar:
 
 | Card                       | What it shows                                                            |
 | -------------------------- | ------------------------------------------------------------------------ |

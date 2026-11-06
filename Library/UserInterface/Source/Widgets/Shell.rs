@@ -2,14 +2,14 @@
 // top, which the library draws; an app bar under it, as tall as WinUI's
 // TitleBar control, with the program's icon, title and its own
 // commands; a menu row under that, if the program wants one, for a menu bar
-// along the window's left edge; notices under them; a status bar along the
-// bottom with shortcuts and status; and the page between them, where the
-// cards go.
+// whose menus' names line up with the page's left edge; notices under them; a
+// status bar along the bottom with shortcuts and status; and the page between
+// them, where the cards go.
 
 use crate::application::performance::{GAP, Run};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
-use crate::design::controls::MENU_BAR_HEIGHT;
+use crate::design::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use crate::design::icons::Icon;
 use crate::design::tokens::{
     APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_INK_DROP, PAGE_PADDING, PERF_BAR_HEIGHT, PERF_BAR_TEXT, RADIUS_CONTROL, SPACE_L, SPACE_M,
@@ -76,9 +76,12 @@ impl Ui {
     }
 
     // A row under the app bar, the window's width and as tall as WinUI's
-    // MenuBar, which it returns, for a menu bar flush with the window's left
-    // edge and the program's commands. The page starts under it. Call it
-    // after the app bar.
+    // MenuBar, for a menu bar and the program's commands. The page starts
+    // under it. Call it after the app bar. It returns the area for them: from
+    // where a menu bar's first menu has its name on the page's left edge, in
+    // line with the PerfBar's text, the app bar's icon and the cards, as
+    // Windows 11 lines up a navigation item's icon under the title bar's, with
+    // its backplate out in the padding; to the page's right edge.
     pub fn menu_row(&mut self) -> Rect {
         let rect = Rect::new(0.0, self.page_top, self.size().width, MENU_BAR_HEIGHT);
         self.cover(rect);
@@ -87,7 +90,8 @@ impl Ui {
         // Opaque, like the app bar.
         painter.fill(rect, theme.background);
         self.page_top = rect.bottom();
-        rect
+        let left = PAGE_PADDING - MENU_BAR_ITEM_MARGIN.left - MENU_BAR_ITEM_PADDING.left;
+        Rect::new(left, rect.y, rect.right() - PAGE_PADDING - left, rect.height)
     }
 
     // The status bar along the bottom.
