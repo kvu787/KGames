@@ -295,6 +295,9 @@ pub struct Ui {
     pub(crate) notices: Vec<Notice>,
     pub(crate) page_top: f32,
     pub(crate) page_bottom: f32,
+    // The performance stats along the top of the window, which every
+    // program's window has, and overlays don't.
+    pub(crate) performance: Option<crate::application::performance::Performance>,
 }
 
 impl Ui {
@@ -334,6 +337,7 @@ impl Ui {
             notices: Vec::new(),
             page_top: 0.0,
             page_bottom: 0.0,
+            performance: None,
         }
     }
 
@@ -353,10 +357,14 @@ impl Ui {
         self.press_consumed = [false; 3];
         self.escape_consumed = false;
         self.shown_tooltip = None;
-        self.page_top = 0.0;
+        self.page_top = self.content_top();
         self.page_bottom = size.height;
         self.modal = std::mem::replace(&mut self.modal_now, false);
         self.update_stats(time);
+        if let Some(performance) = &mut self.performance {
+            performance.frame_started(time);
+            performance.update(time);
+        }
         if self.frame.is_multiple_of(600) {
             self.animations.retain(|_, animation| !animation.done(time));
         }
@@ -480,6 +488,9 @@ impl Ui {
         if self.input.key_pressed_once(Key::F11) && !self.is_captured(Key::F11) {
             self.requests.push(Request::ToggleFullscreen);
         }
+        if self.performance.is_some() {
+            self.stats_bar();
+        }
     }
 
     fn update_stats(&mut self, time: f64) {
@@ -510,8 +521,17 @@ impl Ui {
         self.size
     }
 
+    // The part of the client area that the program has: all of it, under the
+    // performance stats along its top.
     pub fn bounds(&self) -> Rect {
-        Rect::new(0.0, 0.0, self.size.width, self.size.height)
+        let top = self.content_top();
+        Rect::new(0.0, top, self.size.width, (self.size.height - top).max(0.0))
+    }
+
+    // Where the program's part of the window starts: under the performance
+    // stats, STATS_BAR_HEIGHT pixels down, or at the top in an overlay.
+    pub fn content_top(&self) -> f32 {
+        if self.performance.is_some() { crate::design::tokens::STATS_BAR_HEIGHT } else { 0.0 }
     }
 
     pub fn fullscreen(&self) -> bool {

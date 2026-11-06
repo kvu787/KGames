@@ -1,7 +1,8 @@
 // What the demo reads, as plain data: the devices, and readings of their
-// state. Input.rs works on this data only, from an InputSource: GameInput
-// itself (GameInputSource.rs), or a script or a test (ScriptedSource.rs), so
-// that tests can give the demo any readings, like a gamepad's, without one.
+// state. Input.rs works on this data only, from an InputSource: GameInput, as
+// Library/UserInterface reads it (GameInputSource.rs), or a script or a test
+// (ScriptedSource.rs), so that tests can give the demo any readings, like a
+// gamepad's, without one.
 
 use game_input::*;
 use windows_core::GUID;
@@ -56,6 +57,32 @@ pub struct Section {
 const BUILT_IN_CONTAINER: GUID = GUID::from_u128(0x00000000_0000_0000_ffff_ffffffffffff);
 
 impl Device {
+    // A device as the library reads it from GameInput, with its node in
+    // Windows' device tree.
+    pub fn from_game_input(device: &user_interface::Device, tree: Tree) -> Device {
+        Device {
+            id: device.id,
+            label: device.label.clone(),
+            vendor_id: device.vendor_id,
+            product_id: device.product_id,
+            revision: device.revision,
+            usage: device.usage,
+            hardware_version: device.hardware_version,
+            firmware_version: device.firmware_version,
+            family: device.family,
+            supported_input: device.supported_input,
+            rumble_motors: device.rumble_motors,
+            system_buttons: device.system_buttons,
+            container_id: device.container_id,
+            pnp_path: device.pnp_path.clone(),
+            xinput_index: device.xinput_index,
+            keyboard: device.keyboard,
+            mouse: device.mouse,
+            gamepad: device.gamepad,
+            tree,
+        }
+    }
+
     // Matching on GameInput's constants needs their native names allowed.
     #[allow(non_upper_case_globals)]
     pub fn family_name(&self) -> &'static str {
@@ -324,23 +351,9 @@ fn gamepad_info(info: &GameInputGamepadInfo) -> String {
     )
 }
 
-// A snapshot of one device's whole state, at a time. GameInput keeps a
-// short history of these, and doesn't send events.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Reading {
-    // The ID of the device it's from (see Device), or None when GameInput
-    // doesn't say. The device's data comes with its device events, so a
-    // reading doesn't copy it.
-    pub device: Option<usize>,
-    // On GameInput's clock, in microseconds.
-    pub timestamp: u64,
-    // Which kinds of input the reading has, like a gamepad's, or both a
-    // keyboard's and a mouse's.
-    pub kinds: GameInputKind,
-    pub gamepad: GameInputGamepadState,
-    pub keys: Vec<GameInputKeyState>,
-    pub mouse: GameInputMouseState,
-}
+// A snapshot of one device's whole state, at a time: the library's, which
+// it reads from GameInput, and which a script makes up too.
+pub use user_interface::Reading;
 
 // Where devices and readings come from.
 pub trait InputSource {

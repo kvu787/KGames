@@ -224,7 +224,7 @@ impl Veehiicuul {
         // its middle, with their pills under it.
         let tabs = bar.cut_left(SelectorBar::width(ui, &MODES), SPACE_XXL);
         let mut mode = self.mode;
-        ui.add("Mode", Rect::new(tabs.x, 0.0, tabs.width, APP_BAR_HEIGHT), SelectorBar::new(&mut mode, &MODES));
+        ui.add("Mode", Rect::new(tabs.x, ui.content_top(), tabs.width, APP_BAR_HEIGHT), SelectorBar::new(&mut mode, &MODES));
         if mode != self.mode {
             self.go_to(mode, seconds);
         }

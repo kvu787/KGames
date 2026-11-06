@@ -13,7 +13,7 @@ use user_interface::controls::TOOLTIP_OFFSET;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{
     APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, SPACE_S,
-    STATUS_BAR_HEIGHT, WINDOW_WIDTH,
+    STATS_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH,
 };
 use user_interface::{Headless, Key, Point, Program, Rect, Theme, ThemeKind};
 
@@ -101,7 +101,7 @@ fn the_combo_box_and_the_device_list_are_the_only_widgets() {
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
     // In the Gamepad card's header, after its title.
     let combo_box = app.target(GAMEPAD_COMBO_BOX);
-    let header_y = APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING;
+    let header_y = STATS_BAR_HEIGHT + APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING;
     assert_eq!(combo_box.y, header_y);
     assert!(combo_box.x > PAGE_PADDING + CARD_PADDING + 40.0, "{combo_box:?}");
     assert!(combo_box.right() < PAGE_PADDING + GAMEPAD_COLUMN, "{combo_box:?}");
@@ -329,23 +329,25 @@ fn a_tooltip_stays_in_the_window_off_the_pointer() {
             for row in rows(&app) {
                 for pointer in [Point::new(row.x + 1.0, row.center().y), Point::new(row.right() - 1.0, row.center().y)] {
                     let (_, area) = rest(&mut app, pointer).unwrap();
-                    assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= 0.0, "{nodes} nodes, {pointer:?}: {area:?}");
-                    // Library/UserInterface's tooltips are at most 320
-                    // pixels wide, as WinUI's are, so a deep device's can be
-                    // taller than the maximized window. Then it starts at
-                    // the window's top.
-                    if area.height <= size.height - SPACE_S * 2.0 {
+                    // The program's part of the window, under the
+                    // performance stats.
+                    let top = STATS_BAR_HEIGHT;
+                    assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= top, "{nodes} nodes, {pointer:?}: {area:?}");
+                    // A deep device's tooltip, though wider than WinUI's, can
+                    // be taller than the maximized window. Then it starts at
+                    // the top of the program's part of it.
+                    if area.height <= size.height - top - SPACE_S * 2.0 {
                         assert!(area.bottom() <= size.height, "{nodes} nodes, {pointer:?}: {area:?}");
                     } else {
-                        assert_eq!(area.y, SPACE_S, "{nodes} nodes, {pointer:?}: {area:?}");
+                        assert_eq!(area.y, top + SPACE_S, "{nodes} nodes, {pointer:?}: {area:?}");
                     }
                     // Above the pointer, or under it if there's no room
                     // above. A tooltip with room on neither side covers it.
                     let room = |space: f32| area.height + TOOLTIP_OFFSET + SPACE_S <= space;
-                    if room(pointer.y) || room(size.height - pointer.y) {
+                    if room(pointer.y - top) || room(size.height - pointer.y) {
                         assert!(pointer.y < area.y || pointer.y > area.bottom(), "{nodes} nodes, {pointer:?}: {area:?}");
                     }
-                    if room(pointer.y) {
+                    if room(pointer.y - top) {
                         assert!(area.bottom() < pointer.y, "{nodes} nodes, {pointer:?}: {area:?}");
                     }
                 }
@@ -407,7 +409,7 @@ fn the_stick_graphs_draw_where_the_sticks_are() {
     // The graphs are under the Gamepad card's header and the captions over
     // them, with a ring at the stick's edge, SPACE_S inside the graph.
     let theme = Theme::new(ThemeKind::Light);
-    let top = APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + BODY.line_height + SPACE_S;
+    let top = STATS_BAR_HEIGHT + APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + BODY.line_height + SPACE_S;
     let left = PAGE_PADDING + CARD_PADDING;
     let radius = STICK_GRAPH / 2.0 - SPACE_S;
     let center = Point::new(left + STICK_GRAPH / 2.0, top + STICK_GRAPH / 2.0);

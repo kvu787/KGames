@@ -142,6 +142,17 @@ with clipping.
 
 ## Input
 
+All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads.
+`Platform/InputDevices.rs` reads every device's readings once a frame, right before the frame,
+and `Input/Reader.rs` turns them into the interface's events, in the order they happened, with
+the window's focus changes between them. The window's messages bring none of it.
+
+- Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
+  and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
+  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate.
+- The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
+  moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
+  window's.
 - The pointer is on the topmost target under it, by the last frame's targets, so a combo box's
   list, a menu or a dialog takes the pointer from what's under it. `ui.cover` makes a surface, like
   a card over a 3D view, cover what's under it.
@@ -159,7 +170,9 @@ with clipping.
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
 - `F11` switches between maximized and borderless fullscreen.
-- With `Options::gamepad`, the library reads the gamepad with GameInput for `ui.gamepad()`.
+- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
+- Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
+  frame's readings and device events from `startup.devices`, which the interface reads them with.
 
 ## Window setups
 
@@ -172,8 +185,13 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 | Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
 
 In any other setup, the window says what's wrong instead of showing the program. It checks again
-whenever the window moves or changes size, or the displays, the scale or the taskbar change. Lay out
-cards in fixed pixels for these two client areas; they differ by 71 pixels of height.
+whenever the window moves or changes size, or the displays, the scale or the taskbar change.
+
+The top `STATS_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
+[performance stats](#performance-stats). The program has the rest, `ui.bounds()`, which starts at
+`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
+areas, which leaves the program 2560 × 1339 maximized and 2560 × 1410 in borderless fullscreen;
+they differ by 71 pixels of height. A 3D view may still fill the window, under the stats.
 
 ## Settings and the command line
 
@@ -181,21 +199,22 @@ cards in fixed pixels for these two client areas; they differ by 71 pixels of he
 own, which it reads from `startup.settings` with their defaults. A missing file is written with every
 default; a wrong setting keeps its default, and a notice under the app bar says what's wrong.
 
-| Setting        | Value                                                                  |
-| -------------- | ---------------------------------------------------------------------- |
-| `Display`      | `"Primary"`, or the identifier of the display to open on               |
-| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                              |
-| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh  |
-| `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing |
-| `FrameLimit`   | The most frames a second, or 0 for no limit                            |
+| Setting          | Value                                                                  |
+| ---------------- | ---------------------------------------------------------------------- |
+| `Display`        | `"Primary"`, or the identifier of the display to open on               |
+| `WindowMode`     | `"Maximized"` or `"BorderlessFullscreen"`                              |
+| `AllowTearing`   | Whether frames may tear, which lets them reach the screen mid-refresh  |
+| `VerticalSync`   | Whether frames wait for the screen's refresh, which also stops tearing |
+| `FrameRateLimit` | The most frames a second, or 0 for no limit                            |
 
-| Argument              | What it does                                                             |
-| --------------------- | ------------------------------------------------------------------------ |
-| `--display <id>`      | Opens on the display, which must be connected. `Primary` for the primary |
-| `--no-activate`       | Opens beneath the other windows, without taking focus                    |
-| `--vsync`             | Waits for vertical sync, as `VerticalSync` does                          |
-| `--frame-limit <fps>` | Starts no more frames a second than this, sleeping between them          |
-| `--script <path>`     | Runs a script instead of the user's input, with `--output <folder>`      |
+| Argument                 | What it does                                                             |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `--display <id>`         | Opens on the display, which must be connected. `Primary` for the primary |
+| `--no-activate`          | Opens beneath the other windows, without taking focus                    |
+| `--no-input`             | Doesn't start GameInput, so the program reads no input at all            |
+| `--vsync`                | Waits for vertical sync, as `VerticalSync` does                          |
+| `--frame-rate-limit <n>` | At most n frames a second, which wait between them instead of spinning   |
+| `--script <path>`        | Runs a script instead of the user's input, with `--output <folder>`      |
 
 ## Input latency
 
@@ -209,8 +228,57 @@ coverage from its signed distance. Text layouts are cached, so a frame that show
 the last one asks DirectWrite for nothing, and glyphs are rasterized once each into an atlas.
 Minimizing the window stops the loop drawing.
 
-With vertical sync or a frame limit, as coding agents' test runs have, the loop sleeps while it
-waits instead of spinning a core, so that it leaves the machine to whoever's using it.
+RunInBackground's test runs use `--vsync`, `--frame-rate-limit 100` and `--no-input` instead, so
+that they share the computer lightly with someone using it, like playing a game: frames wait for
+vertical sync, at most 100 a second, the loop waits on a timer and on DXGI between them, instead
+of spinning, and GameInput, with its helper process that reads keyboards and mice, doesn't start.
+
+## Performance stats
+
+Every program's window shows its performance along its top (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`),
+over the last 2 seconds, and changes what it says 4 times a second:
+
+| Stat              | What it is                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Frames`          | Frames a second that the main loop draws, the mean time between them, and the longest                         |
+| `On screen`       | Frames a second that reach the screen                                                                         |
+| `Input to screen` | The input latency's median and 99th percentile, and how many frames they're of                                |
+| `Medians`         | The median of each of the input latency's three parts                                                         |
+| At the right      | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM, and whether they tear |
+
+The input latency runs from when GameInput got the input that a frame took to when the display took
+that frame, all on the performance counter's clock, in three parts:
+
+```text
+input --- read ----------- present ------------- screen
+   waiting       building           presenting
+```
+
+| Time      | What it is                                                                             |
+| --------- | -------------------------------------------------------------------------------------- |
+| `input`   | The newest GameInput reading that the frame took: when Windows got the device's report |
+| `read`    | When the main loop read the frame's input                                              |
+| `present` | Right before the frame's `Present` call                                                |
+| `screen`  | When the display took the frame, from Windows' own events about presents               |
+
+The screen time comes from [Library/PresentTiming](../PresentTiming/README.md), which reads it as
+PresentMon does, so the input latency is comparable with PresentMon's: it's the counterpart of its
+`MsAllInputToPhotonLatency` for every device that GameInput reads, gamepads too, and `presenting`
+is its `MsUntilDisplayed`. Like PresentMon's, a frame's input is the newest that it took, and a
+frame that never reaches the screen, like one that a newer one replaced, passes its input on to the
+next frame that does, unless that one has input of its own. Readings of the gamepad count only in
+programs whose `Options::gamepad` is on.
+
+What it leaves out is what software can't see: the time before Windows gets the device's report,
+in the device and on its way, and after the display takes the frame, as scanout reaches the part of
+the screen you look at, and the display's own processing and response. With tearing, the display
+takes a frame mid-refresh, where it shows from the tear down, so the screen time is when the frame
+starts to show anywhere.
+
+Reading Windows' events about presents needs an elevated administrator, or the
+**Performance Log Users** group (see [Library/PresentTiming](../PresentTiming/README.md#privileges)).
+Without either, the stats say that input latency needs the group. A scripted run, or a test, has
+no input latency.
 
 ## Testing
 
@@ -279,29 +347,32 @@ clipboard, never Windows'. A scripted run reads and writes its files in its outp
 
 ## Layout
 
-| Path                             | Contents                                                                    |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `Source/Library.rs`              | The library's modules and what it exports                                   |
-| `Source/Application/Program.rs`  | `Program`, `Options`, `Startup`, and the command line                       |
-| `Source/Application/Run.rs`      | The main loop                                                               |
-| `Source/Application/Settings.rs` | `Settings.json`                                                             |
-| `Source/Application/Overlays.rs` | Frameless windows over each display, like IdentifyDisplays' boxes           |
-| `Source/Core/Ui.rs`              | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
-| `Source/Platform/Window.rs`      | The Win32 window, its input, its two setups, and their check                |
-| `Source/Platform/Gamepad.rs`     | Reads the gamepad with GameInput                                            |
-| `Source/Platform/Clipboard.rs`   | Windows' clipboard, and the interface's own for scripts and tests           |
-| `Source/Input/Devices.rs`        | Keys, shortcuts, mouse buttons and the gamepad                              |
-| `Source/Input/Events.rs`         | A frame's input, from the window's events                                   |
-| `Source/Design/Theme.rs`         | WinUI's theme resources, light and dark                                     |
-| `Source/Design/Tokens.rs`        | Fluent's spacing, radii, type ramp, motion, elevation, and the page's sizes |
-| `Source/Design/Controls.rs`      | WinUI 3's controls' sizes, paddings and parts                               |
-| `Source/Design/Icons.rs`         | Segoe Fluent Icons                                                          |
-| `Source/Drawing/Geometry.rs`     | Points, sizes, insets, rectangles and colors                                |
-| `Source/Drawing/Text.rs`         | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas        |
-| `Source/Drawing/Painter.rs`      | The draw list, and the Painter that programs draw their own graphics with   |
-| `Source/Drawing/Renderer.rs`     | Draws the draw list with Direct3D 12, in one draw call                      |
-| `Shaders/Interface.hlsl`         | The shapes' and glyphs' shader                                              |
-| `Source/Widgets/*.rs`            | The widgets, cards, menus, dialogs, and the page's bars                     |
-| `Source/Testing/Script.rs`       | Scripts                                                                     |
-| `Source/Testing/Headless.rs`     | Runs a program's frames without a window, for tests                         |
-| `Build.rs`                       | Compiles the shader at build time                                           |
+| Path                                | Contents                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------- |
+| `Source/Library.rs`                 | The library's modules and what it exports                                   |
+| `Source/Application/Program.rs`     | `Program`, `Options`, `Startup`, and the command line                       |
+| `Source/Application/Run.rs`         | The main loop                                                               |
+| `Source/Application/Settings.rs`    | `Settings.json`                                                             |
+| `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
+| `Source/Application/Performance.rs` | The performance stats, and the input latency from GameInput to the screen   |
+| `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
+| `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
+| `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |
+| `Source/Platform/Clock.rs`          | The performance counter, which input and frames are timed on                |
+| `Source/Platform/Clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests           |
+| `Source/Input/Devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                              |
+| `Source/Input/Events.rs`            | A frame's input, from its events                                            |
+| `Source/Input/Reader.rs`            | Turns a frame's GameInput readings into events                              |
+| `Source/Design/Theme.rs`            | WinUI's theme resources, light and dark                                     |
+| `Source/Design/Tokens.rs`           | Fluent's spacing, radii, type ramp, motion, elevation, and the page's sizes |
+| `Source/Design/Controls.rs`         | WinUI 3's controls' sizes, paddings and parts                               |
+| `Source/Design/Icons.rs`            | Segoe Fluent Icons                                                          |
+| `Source/Drawing/Geometry.rs`        | Points, sizes, insets, rectangles and colors                                |
+| `Source/Drawing/Text.rs`            | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas        |
+| `Source/Drawing/Painter.rs`         | The draw list, and the Painter that programs draw their own graphics with   |
+| `Source/Drawing/Renderer.rs`        | Draws the draw list with Direct3D 12, in one draw call                      |
+| `Shaders/Interface.hlsl`            | The shapes' and glyphs' shader                                              |
+| `Source/Widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                     |
+| `Source/Testing/Script.rs`          | Scripts                                                                     |
+| `Source/Testing/Headless.rs`        | Runs a program's frames without a window, for tests                         |
+| `Build.rs`                          | Compiles the shader at build time                                           |

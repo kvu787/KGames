@@ -2,13 +2,16 @@
 // interface and handles its input, may draw 3D under it, and tells scripts
 // its state. `run` runs one with the Options that say how.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
 use crate::application::settings::{Settings, WindowMode};
 use crate::core::ui::Ui;
 use crate::design::theme::ThemeKind;
+use crate::platform::input_devices::Devices;
 use crate::widgets::info_bar::Severity;
 
 pub trait Program {
@@ -59,7 +62,8 @@ pub struct Options {
     // The window mode when Settings.json doesn't say.
     pub window_mode: WindowMode,
     pub theme: ThemeKind,
-    // Whether the library reads the gamepad, for Ui::gamepad.
+    // Whether the program reads the gamepad: its newest reading goes to
+    // Ui::gamepad, and its readings count as input for input latency.
     pub gamepad: bool,
     // Arguments of the program's own, which it reads from Startup.
     pub arguments: &'static [&'static str],
@@ -118,6 +122,11 @@ pub struct Startup {
     pub scripted: bool,
     // The program's own arguments, of those that Options allows.
     pub arguments: Vec<String>,
+    // The input devices that the interface reads, for programs that show
+    // them or run their motors, like GameInputDemo. Each frame's readings are
+    // there when the program's update runs. None in a scripted run, and when
+    // GameInput isn't available.
+    pub devices: Option<Rc<RefCell<Devices>>>,
     pub(crate) notices: Vec<Notice>,
 }
 
@@ -128,6 +137,7 @@ impl Startup {
             data_folder: data_folder.to_path_buf(),
             scripted,
             arguments: Vec::new(),
+            devices: None,
             notices: Vec::new(),
         }
     }
@@ -170,10 +180,14 @@ pub struct Arguments {
     pub display: Option<String>,
     // Opens without taking focus.
     pub no_activate: bool,
-    // Frames wait for the screen's refresh, as test runs want.
-    pub vertical_sync: bool,
-    // At most this many frames a second, as test runs want.
-    pub frame_limit: Option<f64>,
+    // Frames wait for vertical sync, like for test runs.
+    pub vsync: bool,
+    // The most frames a second, for test runs, which then wait for frames
+    // instead of spinning.
+    pub frame_rate_limit: Option<f64>,
+    // Doesn't start GameInput, for test runs, which never have focus, so
+    // that nothing of theirs reads the devices of someone using the computer.
+    pub no_input: bool,
     // A script to run instead of the user's input, and the folder for what
     // it saves.
     pub script: Option<PathBuf>,
@@ -191,22 +205,17 @@ impl Arguments {
             match argument.as_str() {
                 "--display" => parsed.display = Some(value("--display")?),
                 "--no-activate" => parsed.no_activate = true,
-                "--vsync" => parsed.vertical_sync = true,
-                "--frame-limit" => {
-                    let text = value("--frame-limit")?;
-                    match text.parse::<f64>() {
-                        Ok(fps) if fps > 0.0 && fps.is_finite() => parsed.frame_limit = Some(fps),
-                        _ => return Err(format!("--frame-limit needs frames a second after it, more than 0, not {text}.")),
-                    }
+                "--vsync" => parsed.vsync = true,
+                "--no-input" => parsed.no_input = true,
+                "--frame-rate-limit" => {
+                    let text = value("--frame-rate-limit")?;
+                    let rate = text.parse::<f64>().ok().filter(|rate| *rate > 0.0);
+                    parsed.frame_rate_limit = Some(rate.ok_or_else(|| format!("--frame-rate-limit needs a number of frames a second, not {text}"))?);
                 }
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => {
-                    return Err(format!(
-                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --vsync, --frame-limit <fps>, and --script <path> with --output <folder>."
-                    ));
-                }
+                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync, --frame-rate-limit <frames a second>, and --script <path> with --output <folder>.")),
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {

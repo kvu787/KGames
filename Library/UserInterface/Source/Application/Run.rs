@@ -3,24 +3,28 @@
 // 1. Handle the window's messages, without waiting.
 // 2. Go on handling them until the presenter is ready: the GPU has finished
 //    the last frame, and DXGI's queue has room.
-// 3. Only then read the input, build the frame's interface with the newest of
-//    it, draw the frame, and present it without waiting for vertical sync.
+// 3. Only then read the input, from GameInput, build the frame's interface
+//    with the newest of it, draw the frame, and present it without waiting
+//    for vertical sync.
 //
 // So the input that a frame shows is as fresh as it can be when the frame
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// A frame limit, and vertical sync, are for runs that mustn't take the
+// A frame rate limit, and vertical sync, are for runs that mustn't take the
 // machine from someone, like coding agents' test runs while the user plays a
-// game: then the loop sleeps while it waits, instead of spinning a core, and
-// starts frames no more often than the limit.
+// game: then the loop waits on a timer and on the GPU instead of spinning a
+// core, and starts frames no more often than the limit.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::{Duration, Instant};
+use std::rc::Rc;
+use std::time::Instant;
 
 use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 
+use crate::application::performance::{Frame, Performance};
 use crate::application::program::{Arguments, Options, Program, Startup};
 use crate::application::settings::{Settings, WindowMode};
 use crate::core::ui::{Environment, Request, Ui};
@@ -28,12 +32,74 @@ use crate::design::theme::ThemeKind;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
-use crate::input::events::Event;
+use crate::input::reader::InputReader;
 use crate::platform::clipboard::Clipboard;
-use crate::platform::gamepad::GamepadReader;
+use crate::platform::clock;
+use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptRunner};
 use crate::widgets::info_bar::Severity;
+
+// Keeps frames at least an interval apart, for test runs that share the
+// computer with someone, like one playing a game. It waits on a
+// high-resolution timer, and for messages, instead of spinning.
+struct FrameLimiter {
+    timer: windows_api::HANDLE,
+    interval: i64,
+    next: i64,
+}
+
+impl FrameLimiter {
+    fn new(rate: f64) -> Result<FrameLimiter, String> {
+        use windows_api::*;
+        let timer = unsafe {
+            CreateWaitableTimerExW(
+                None,
+                windows_core::PCWSTR::null(),
+                CREATE_WAITABLE_TIMER_HIGH_RESOLUTION as u32,
+                TIMER_ALL_ACCESS as u32,
+            )
+        };
+        if timer.0.is_null() {
+            return Err(format!("Couldn't make a timer: {}", windows_core::Error::from_thread()));
+        }
+        Ok(FrameLimiter {
+            timer,
+            interval: (clock::frequency() as f64 / rate) as i64,
+            next: 0,
+        })
+    }
+
+    // Whether the next frame may begin. If not, waits until it may, or a
+    // message comes.
+    fn ready(&mut self) -> bool {
+        use windows_api::*;
+        let now = clock::now();
+        if now >= self.next {
+            return true;
+        }
+        // In 100-nanosecond units, and less than 0 for a time from now.
+        let due = -((self.next - now) as i128 * 10_000_000 / clock::frequency() as i128).max(1) as i64;
+        unsafe {
+            let _ = SetWaitableTimer(self.timer, &due, 0, None, None, false);
+            let _ = MsgWaitForMultipleObjects(Some(&[self.timer]), false, 1000, QS_ALLINPUT as u32);
+        }
+        clock::now() >= self.next
+    }
+
+    // A frame began at the time.
+    fn began(&mut self, time: i64) {
+        self.next = time + self.interval;
+    }
+}
+
+impl Drop for FrameLimiter {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = windows_api::CloseHandle(self.timer);
+        }
+    }
+}
 
 // Runs the program that `create` makes until its window closes or its script
 // ends. If it can't start, or a script's expectation isn't met, it says why
@@ -76,14 +142,28 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mode = settings.choice("WindowMode", options.window_mode.name(), &modes);
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
-    let vertical_sync = settings.boolean("VerticalSync", false) || arguments.vertical_sync;
-    let limit_setting = settings.number("FrameLimit", 0.0, |fps| if fps >= 0.0 && fps.is_finite() { Ok(()) } else { Err("must be 0, for no limit, or more".to_string()) });
-    let frame_limit = arguments.frame_limit.or((limit_setting > 0.0).then_some(limit_setting));
-    let frame_interval = frame_limit.map(|fps| Duration::from_secs_f64(1.0 / fps));
-    // Whether the loop sleeps while it waits, instead of spinning.
-    let rest = vertical_sync || frame_limit.is_some();
+    let vertical_sync = settings.boolean("VerticalSync", false) || arguments.vsync;
+    let limit_setting = settings.number("FrameRateLimit", 0.0, |rate| if rate >= 0.0 && rate.is_finite() { Ok(()) } else { Err("must be 0, for no limit, or more".to_string()) });
+    let frame_rate_limit = arguments.frame_rate_limit.or((limit_setting > 0.0).then_some(limit_setting));
+    // Whether the loop waits instead of spinning.
+    let rest = vertical_sync || frame_rate_limit.is_some();
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();
+
+    // All input comes from GameInput, except in a scripted run, which the
+    // user's input never reaches, and with --no-input.
+    let devices = if scripted || arguments.no_input {
+        None
+    } else {
+        match Devices::new() {
+            Ok(devices) => Some(Rc::new(RefCell::new(devices))),
+            Err(message) => {
+                startup.notify(Severity::Error, "GameInput isn't available", &format!("The program can't read any input: {message}."));
+                None
+            }
+        }
+    };
+    startup.devices = devices.clone();
 
     // The display: --display's, which must be connected, or else the
     // setting's, or else the primary one.
@@ -112,6 +192,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
     let clipboard = if scripted { Clipboard::Own(String::new()) } else { Clipboard::Windows };
     let mut ui = Ui::new(fonts, options.theme, clipboard);
+    // The performance stats along the top of the window, with the input
+    // latency to the screen, which a scripted run has no input for.
+    ui.performance = Some(if scripted {
+        Performance::without_latency("none in a scripted run")
+    } else {
+        Performance::measure(options.name)
+    });
     let mut program = create(&mut startup)?;
     ui.notices = startup.take_notices();
     if !scripted && let Err(error) = startup.settings.write_if_missing() {
@@ -127,7 +214,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing).map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
-    presenter.set_vertical_sync(vertical_sync);
+    presenter.set_vsync(vertical_sync);
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
@@ -141,10 +228,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
-    let gamepad = (options.gamepad && !scripted).then(GamepadReader::new);
+    let mut reader = InputReader::new(options.gamepad);
+    let mut limiter = frame_rate_limit.map(FrameLimiter::new).transpose()?;
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
-    let mut next_frame = start;
     let mut frame = 0u64;
     let mut problems = Vec::new();
     'frames: loop {
@@ -162,13 +249,17 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         let (width, height) = window.client_size();
         if (window.minimized() || width == 0 || height == 0) && runner.is_none() {
             // A minimized window doesn't draw, but the program still hears
-            // what happens, like the window losing focus as it minimizes, so
-            // that it can stop what it's doing, like a gamepad's motors.
-            let events = window.take_events();
-            if !events.is_empty() && problems.is_empty() {
+            // what happened, like the window losing focus as it minimized,
+            // so that it can stop what it's doing, like a gamepad's motors.
+            let focus_changes = window.take_focus_changes();
+            if let Some(devices) = &devices {
+                devices.borrow_mut().read();
+            }
+            let input = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &mut window, &focus_changes);
+            if !focus_changes.is_empty() && problems.is_empty() && runner.is_none() {
                 let (width, height) = presenter.size();
                 let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
-                ui.begin_frame(&events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
+                ui.begin_frame(&input.events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
                 program.update(&mut ui);
                 ui.end_frame();
                 for request in std::mem::take(&mut ui.requests) {
@@ -183,17 +274,16 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if (width, height) != presenter.size() {
             presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
         }
-        if let Some(interval) = frame_interval {
-            let now = Instant::now();
-            if now < next_frame {
-                std::thread::sleep((next_frame - now).min(Duration::from_millis(2)));
-                continue;
-            }
-            next_frame = now.max(next_frame) + interval;
+        if let Some(limiter) = &mut limiter
+            && !limiter.ready()
+        {
+            continue;
         }
         if !presenter.poll_ready(&gpu) {
+            // With vertical sync or a limited frame rate, the loop waits for
+            // the GPU and DXGI instead of spinning.
             if rest {
-                std::thread::sleep(Duration::from_micros(500));
+                presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             }
             continue;
         }
@@ -202,7 +292,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         // 0, and the user's input never reaches a scripted run.
         let script_number = frame;
         frame += 1;
-        let mut events = window.take_events();
+        let focus_changes = window.take_focus_changes();
+        let read = clock::now();
+        if let Some(limiter) = &mut limiter {
+            limiter.began(read);
+        }
+        let mut input_time = None;
+        let events;
         let mut script_frame = None;
         let time = match &mut runner {
             Some(runner) => {
@@ -215,9 +311,12 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 script_number as f64 * runner.frame_time()
             }
             None => {
-                if let Some(gamepad) = &gamepad {
-                    events.push(Event::Gamepad(gamepad.read()));
+                if let Some(devices) = &devices {
+                    devices.borrow_mut().read();
                 }
+                let input = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &mut window, &focus_changes);
+                events = input.events;
+                input_time = input.input_time;
                 start.elapsed().as_secs_f64()
             }
         };
@@ -259,6 +358,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             Some(unsafe { Readback::record(&gpu.device, &target) }.map_err(|error| format!("Couldn't capture the frame: {error}"))?)
         };
         let fence = presenter.present(&mut gpu, target).map_err(|error| format!("Couldn't present: {error}"))?;
+        if let Some(performance) = &mut ui.performance {
+            performance.presented(Frame {
+                input: input_time,
+                read,
+                present: presenter.present_time(),
+            });
+        }
         gpu.report_messages();
 
         if let (Some(runner), Some(script_frame)) = (&mut runner, script_frame) {
@@ -278,9 +384,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
     }
 
-    // The GPU finishes the last frame before the swap chain and the renderer
-    // are let go of, which the debug layer otherwise reports as it exits.
-    let _ = gpu.flush();
+    // The swap chain and the renderer's buffers go as this returns, before
+    // the GPU does, so the GPU must be done with the last frame first:
+    // releasing what a frame still draws with makes its shaders fault, which
+    // NVIDIA's driver logs, and which stutters every app on the GPU.
+    gpu.flush().map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
     if let Some(runner) = runner {
         if !runner.failures.is_empty() {
             return Err(format!("The script's expectations weren't met:\n{}", runner.failures.join("\n")));

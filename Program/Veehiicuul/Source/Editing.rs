@@ -37,12 +37,13 @@ pub fn right_card(page: Rect) -> Rect {
     page.right_strip(CARD_WIDTH)
 }
 
-// Where the 3D view takes input: the window between the app bar and the
-// status bar, all the way across. The cards, and the notices under the app
-// bar, cover it.
+// Where the 3D view takes input: the window between the app bar, under the
+// performance stats, and the status bar, all the way across. The cards, and
+// the notices under the app bar, cover it.
 pub fn view_area(ui: &Ui) -> Rect {
     let size = ui.size();
-    Rect::new(0.0, APP_BAR_HEIGHT, size.width, size.height - APP_BAR_HEIGHT - STATUS_BAR_HEIGHT)
+    let top = ui.content_top() + APP_BAR_HEIGHT;
+    Rect::new(0.0, top, size.width, size.height - top - STATUS_BAR_HEIGHT)
 }
 
 // The part of the view that a card down the left side leaves, whose middle

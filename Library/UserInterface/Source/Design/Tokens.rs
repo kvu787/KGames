@@ -181,10 +181,12 @@ pub const ELEVATION_DIALOG: Elevation = elevation(128.0);
 // A card over a 3D view floats like a flyout.
 pub const ELEVATION_FLOATING_CARD: Elevation = ELEVATION_FLYOUT;
 
-// How KGames lays out a program's window, in fixed pixels: an app bar at the
-// top, which is as tall as WinUI's TitleBar control, a status bar at the
-// bottom, and cards between them, PAGE_PADDING from the window's edges and
-// CARD_GAP from each other.
+// How KGames lays out a program's window, in fixed pixels: the performance
+// stats along the very top, which every program has, an app bar under them,
+// which is as tall as WinUI's TitleBar control, a status bar at the bottom,
+// and cards between them, PAGE_PADDING from the window's edges and CARD_GAP
+// from each other.
+pub const STATS_BAR_HEIGHT: f32 = 30.0;
 pub const APP_BAR_HEIGHT: f32 = 48.0;
 pub const STATUS_BAR_HEIGHT: f32 = 32.0;
 pub const PAGE_PADDING: f32 = SPACE_L;

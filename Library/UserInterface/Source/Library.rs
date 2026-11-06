@@ -2,9 +2,10 @@
 // after Microsoft's Fluent 2 design system as WinUI 3 implements it on
 // Windows 11, with WinUI 3's own values. See README.md.
 //
-// - application: what a program is, its settings, and the main loop.
-// - platform: the window, the clipboard and the gamepad.
-// - input: keys, buttons and the gamepad, and a frame's input.
+// - application: what a program is, its settings, the main loop, and its
+//   performance stats.
+// - platform: the window, the clipboard, the clock, and GameInput's devices.
+// - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
 // - core: a frame's interface: targets, presses, focus, popups, motion.
@@ -14,6 +15,8 @@
 mod application {
     #[path = "Overlays.rs"]
     pub mod overlays;
+    #[path = "Performance.rs"]
+    pub mod performance;
     #[path = "Program.rs"]
     pub mod program;
     #[path = "Run.rs"]
@@ -25,8 +28,10 @@ mod application {
 mod platform {
     #[path = "Clipboard.rs"]
     pub mod clipboard;
-    #[path = "Gamepad.rs"]
-    pub mod gamepad;
+    #[path = "Clock.rs"]
+    pub mod clock;
+    #[path = "InputDevices.rs"]
+    pub mod input_devices;
     #[path = "Window.rs"]
     pub mod window;
 }
@@ -36,6 +41,8 @@ pub mod input {
     pub mod devices;
     #[path = "Events.rs"]
     pub mod events;
+    #[path = "Reader.rs"]
+    pub mod reader;
 }
 
 pub mod design {
@@ -119,6 +126,10 @@ pub mod testing {
 
 // The design system, as AGENTS.md names it: `tokens` and `controls`.
 pub use design::{controls, tokens};
+// The clock that input, frames and the screen's flips are timed on, and the
+// performance stats with the input latency that every program's window shows.
+pub use application::performance;
+pub use platform::clock;
 
 pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
@@ -134,7 +145,8 @@ pub use drawing::text::{Font, Fonts, TextStyle, Weight};
 pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 pub use input::events::{Event, Input};
 pub use platform::clipboard::Clipboard;
-pub use platform::gamepad::GamepadReader;
+pub use platform::input_devices::{Device, Devices, Reading};
+pub use platform::window::FocusChange;
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};
@@ -159,5 +171,6 @@ pub use widgets::tool_tip::TooltipLine;
 pub use widgets::widget::{Elevation, StateColors, Widget, focus_visual};
 
 // The crates that programs use with the interface, so that they share them.
+pub use game_input;
 pub use graphics;
 pub use json;

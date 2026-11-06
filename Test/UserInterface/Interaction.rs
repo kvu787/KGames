@@ -10,6 +10,9 @@ use user_interface::{
     Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
 };
 
+// Where the program's part of the window starts, under the performance stats.
+const STATS: f32 = user_interface::tokens::STATS_BAR_HEIGHT;
+
 const MENU: &[MenuItem] = &[MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", RECENT)];
 const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
 
@@ -39,46 +42,48 @@ impl Program for Test {
     }
 
     fn update(&mut self, ui: &mut Ui) {
+        // Under the performance stats.
+        let top = ui.content_top();
         if ui.key_pressed(Key::A) {
             self.shortcut += 1;
         }
-        let response = ui.add("Button", Rect::new(10.0, 10.0, 100.0, 32.0), Button::new("Button"));
+        let response = ui.add("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button"));
         if response.clicked {
             self.clicks += 1;
         }
         ui.tooltip(&response, "A tip");
-        ui.add("Field", Rect::new(10.0, 60.0, 200.0, 32.0), TextBox::new(&mut self.text));
-        ui.add("Combo", Rect::new(10.0, 110.0, 200.0, 32.0), ComboBox::new(&mut self.choice, &["Zero", "One", "Two"]));
+        ui.add("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&mut self.text));
+        ui.add("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.choice, &["Zero", "One", "Two"]));
         // A surface over a button covers it from the pointer.
-        if ui.add("Under", Rect::new(300.0, 10.0, 100.0, 32.0), Button::new("Under")).clicked {
+        if ui.add("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under")).clicked {
             self.covered = true;
         }
-        ui.cover(Rect::new(290.0, 0.0, 200.0, 60.0));
+        ui.cover(Rect::new(290.0, top, 200.0, 60.0));
         ui.set_enabled(!self.disabled);
-        if ui.add("Maybe", Rect::new(10.0, 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
+        if ui.add("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
             self.clicks += 100;
         }
         ui.set_enabled(true);
-        ui.add("Rows", Rect::new(500.0, 10.0, 200.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
+        ui.add("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
             ui.label(row, &format!("Row {index}"));
         }).selection(&mut self.rows));
-        ui.add("Check", Rect::new(10.0, 210.0, 200.0, 32.0), CheckBox::new(&mut self.checked, "Check"));
-        ui.add("Level", Rect::new(10.0, 260.0, 220.0, 32.0), Slider::new(&mut self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8));
-        ui.add("Number", Rect::new(10.0, 310.0, 200.0, 32.0), NumberBox::new(&mut self.number).range(0.0, 10.0));
-        let menu_button = ui.add("MenuButton", Rect::new(10.0, 360.0, 100.0, 32.0), Button::new("Menu").chevron());
+        ui.add("Check", Rect::new(10.0, top + 210.0, 200.0, 32.0), CheckBox::new(&mut self.checked, "Check"));
+        ui.add("Level", Rect::new(10.0, top + 260.0, 220.0, 32.0), Slider::new(&mut self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8));
+        ui.add("Number", Rect::new(10.0, top + 310.0, 200.0, 32.0), NumberBox::new(&mut self.number).range(0.0, 10.0));
+        let menu_button = ui.add("MenuButton", Rect::new(10.0, top + 360.0, 100.0, 32.0), Button::new("Menu").chevron());
         if let Some(label) = ui.flyout_menu("Menu", &menu_button, MENU) {
             self.chosen.push(label.to_string());
         }
-        let area = ui.interact("Area", Rect::new(800.0, 400.0, 200.0, 200.0), Sense::VIEW, "Area");
+        let area = ui.interact("Area", Rect::new(800.0, top + 400.0, 200.0, 200.0), Sense::VIEW, "Area");
         if let Some(label) = ui.context_menu("Context", &area, RECENT) {
             self.chosen.push(label.to_string());
         }
-        let open = ui.begin_card(Rect::new(1200.0, 10.0, 300.0, 1000.0), Card::new("Sized").named("Sized"));
+        let open = ui.begin_card(Rect::new(1200.0, top + 10.0, 300.0, 1000.0), Card::new("Sized").named("Sized"));
         let mut content = open.area.content;
         ui.label(content.cut_top(20.0, 8.0), "One");
         ui.label(content.cut_top(20.0, 0.0), "Two");
         self.card = ui.end_card(open, content.y);
-        if ui.add("Ask", Rect::new(10.0, 410.0, 100.0, 32.0), Button::new("Ask")).clicked {
+        if ui.add("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask")).clicked {
             self.dialog = true;
         }
         if self.dialog && let Some(answer) = ui.dialog("Question", Dialog::new("Sure?", "Really.").primary("Yes")) {
@@ -181,7 +186,7 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
 #[test]
 fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     let mut app = Headless::new(Test::default());
-    app.move_point(Point::new(60.0, 30.0)).wait(TOOLTIP_DELAY * 0.6);
+    app.move_point(Point::new(60.0, STATS + 30.0)).wait(TOOLTIP_DELAY * 0.6);
     assert_eq!(app.ui.tooltip_name(), None);
     app.wait(TOOLTIP_DELAY);
     assert_eq!(app.ui.tooltip_name(), Some("Button"));
@@ -190,8 +195,8 @@ fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     let area = state.get("Tooltip").and_then(|tooltip| tooltip.get("Area")).cloned().unwrap();
     let Value::Array(area) = area else { panic!() };
     let Value::Number(y) = area[1] else { panic!() };
-    assert!(y >= 30.0 + 20.0, "{y}");
-    app.press_point(Point::new(60.0, 30.0));
+    assert!(y >= (STATS + 30.0 + 20.0) as f64, "{y}");
+    app.press_point(Point::new(60.0, STATS + 30.0));
     assert_eq!(app.ui.tooltip_name(), None);
 }
 
@@ -264,7 +269,7 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     let mut app = Headless::new(Test::default());
     app.click("Ask");
     assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
-    app.click_point(Point::new(60.0, 26.0));
+    app.click_point(Point::new(60.0, STATS + 26.0));
     assert_eq!(app.program.clicks, 0, "the page is under the smoke");
     app.key(Key::A);
     assert_eq!(app.program.shortcut, 0, "the program's keys wait too");
@@ -347,17 +352,19 @@ impl Program for Ported {
     }
 
     fn update(&mut self, ui: &mut Ui) {
+        // Under the performance stats.
+        let top = ui.content_top();
         ui.set_focusable(false);
-        ui.add("Segments", Rect::new(10.0, 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
+        ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
         ui.set_focusable(true);
-        ui.add("Hex", Rect::new(10.0, 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
-        ui.add("Other", Rect::new(10.0, 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
-        ui.add("Fine", Rect::new(10.0, 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));
-        let mut form = user_interface::Form::new(Rect::new(400.0, 10.0, 400.0, 200.0));
+        ui.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
+        ui.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
+        ui.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));
+        let mut form = user_interface::Form::new(Rect::new(400.0, top + 10.0, 400.0, 200.0));
         self.columns = form.headed_columns(ui, ["Left", "Right"], 32.0).to_vec();
         self.keys = ui.keys_width("RB+Left stick");
         self.parts = ui.keycap_width("RB") + ui.keycap_width("Left stick");
-        let wide = ui.add("Wide", Rect::new(10.0, 600.0, 100.0, 32.0), Button::new("Wide"));
+        let wide = ui.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide"));
         let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
         ui.tooltip_lines_wide(&wide, &[user_interface::TooltipLine::Text(long)], 640.0);
     }
@@ -400,7 +407,7 @@ fn headed_columns_sit_side_by_side_under_their_headers() {
     app.frame();
     let [left, right] = [app.program.columns[0], app.program.columns[1]];
     let header = user_interface::tokens::BODY.line_height + user_interface::controls::TEXT_BOX_HEADER_GAP;
-    assert_eq!(left.y, 10.0 + header);
+    assert_eq!(left.y, STATS + 10.0 + header);
     assert_eq!((left.height, right.y), (32.0, left.y));
     assert_eq!(right.x - left.right(), user_interface::tokens::CARD_PADDING);
     assert_eq!(right.right(), 800.0);

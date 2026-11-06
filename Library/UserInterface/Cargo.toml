@@ -15,6 +15,7 @@ displays = { path = "../Displays" }
 game_input = { path = "../GameInput" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
+present_timing = { path = "../PresentTiming" }
 windows_api = { path = "../WindowsApi" }
 
 # Without its proc macros: the one COM object written here, the text

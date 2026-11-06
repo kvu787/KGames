@@ -1,0 +1,307 @@
+// What the performance stats along the top of every program's window say:
+// how fast frames come, how fast the display shows them, and the input
+// latency, from when GameInput got the input that a frame took to when the
+// display took that frame, all on the performance counter's clock:
+//
+//     input --- read ----------- present ------------- screen
+//       waiting      building          presenting
+//
+// - input: the GameInput reading's time, when Windows got the device's report.
+// - read: when the main loop read the frame's input, right before the frame.
+// - present: right before the frame's Present call.
+// - screen: when the display took the frame, from Windows' own events about
+//   presents (Library/PresentTiming), as PresentMon times it, so that the
+//   numbers compare with PresentMon's.
+//
+// A frame's input is the newest reading it took, as PresentMon's is the
+// newest input that a frame took. A frame that never reaches the screen,
+// like one that a newer frame replaced, passes its input on to the next frame
+// that does, unless that one has input of its own.
+
+use std::collections::VecDeque;
+
+use present_timing::{Present, PresentMode, PresentTiming, StartError};
+
+use crate::platform::clock;
+
+// The stats are of this many seconds before now.
+pub const WINDOW_SECONDS: f64 = 2.0;
+// How often what the stats say changes, so that it can be read.
+const REFRESH_SECONDS: f64 = 0.25;
+// How far before its Present call's start a frame's own present time can be,
+// to be the same present.
+const MATCH_SECONDS: f64 = 0.005;
+
+// A frame that the main loop presented, with the times of its input.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Frame {
+    // When the frame's newest input reading came, if it took any.
+    pub input: Option<i64>,
+    pub read: i64,
+    pub present: i64,
+}
+
+// One frame's input latency, in milliseconds, and its parts.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sample {
+    // When the display took the frame, as the counter's ticks.
+    pub screen: i64,
+    pub total: f64,
+    pub waiting: f64,
+    pub building: f64,
+    pub presenting: f64,
+}
+
+// What the stats say about input latency.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum LatencyState {
+    // Before the first frame's present is known.
+    #[default]
+    Starting,
+    // Why the presents' times aren't known, like in a scripted run.
+    Unavailable(String),
+    Measuring,
+}
+
+// What the performance stats show, which changes a few times a second.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Summary {
+    pub frames_per_second: f64,
+    // Milliseconds, the mean and the longest.
+    pub frame_time: f64,
+    pub longest_frame: f64,
+    pub latency: LatencyState,
+    // Frames a second that reached the screen.
+    pub displayed_per_second: f64,
+    // The input latency's samples, their median and 99th percentile, and the
+    // median of each part.
+    pub samples: usize,
+    pub median: f64,
+    pub percentile_99: f64,
+    pub waiting: f64,
+    pub building: f64,
+    pub presenting: f64,
+    // How the newest frame on the screen got there.
+    pub mode: PresentMode,
+    pub tearing: bool,
+}
+
+// Where the presents' fates come from.
+enum Source {
+    Timing(PresentTiming),
+    // From `known`, like a test's.
+    Given,
+    // Nowhere, and why.
+    Unavailable(String),
+}
+
+pub struct Performance {
+    source: Source,
+    // The frames' start times on the frames' clock, in seconds.
+    frame_times: VecDeque<f64>,
+    // Frames whose presents aren't known yet, oldest first.
+    presented: VecDeque<Frame>,
+    // The input of frames that didn't reach the screen, for the next one that
+    // does.
+    carried: Option<Frame>,
+    samples: VecDeque<Sample>,
+    displayed: VecDeque<i64>,
+    mode: PresentMode,
+    tearing: bool,
+    known: bool,
+    summary: Summary,
+    refreshed: f64,
+}
+
+impl Performance {
+    // Input latency for the process's presents, from an ETW session named
+    // after the program.
+    pub fn measure(name: &str) -> Performance {
+        let source = match PresentTiming::start(name, std::process::id()) {
+            Ok(timing) => Source::Timing(timing),
+            Err(StartError::AccessDenied) => Source::Unavailable("needs the Performance Log Users group".to_string()),
+            Err(StartError::Failed(message)) => Source::Unavailable(format!("unavailable: {message}")),
+        };
+        Performance::new(source)
+    }
+
+    // Without input latency, saying why, like in a scripted run.
+    pub fn without_latency(reason: &str) -> Performance {
+        Performance::new(Source::Unavailable(reason.to_string()))
+    }
+
+    // Input latency for presents that `known` gives, like a test's.
+    pub fn given() -> Performance {
+        Performance::new(Source::Given)
+    }
+
+    fn new(source: Source) -> Performance {
+        Performance {
+            source,
+            frame_times: VecDeque::new(),
+            presented: VecDeque::new(),
+            carried: None,
+            samples: VecDeque::new(),
+            displayed: VecDeque::new(),
+            mode: PresentMode::Unknown,
+            tearing: false,
+            known: false,
+            summary: Summary::default(),
+            refreshed: f64::NEG_INFINITY,
+        }
+    }
+
+    // A frame starts, at a time on the frames' clock, in seconds.
+    pub fn frame_started(&mut self, time: f64) {
+        self.frame_times.push_back(time);
+        while self.frame_times.front().is_some_and(|start| *start < time - 1.0) {
+            self.frame_times.pop_front();
+        }
+    }
+
+    // The main loop presented a frame.
+    pub fn presented(&mut self, frame: Frame) {
+        if !matches!(self.source, Source::Unavailable(_)) {
+            self.presented.push_back(frame);
+        }
+    }
+
+    // Presents whose fates are known, in the order they started.
+    pub fn known(&mut self, presents: Vec<Present>) {
+        for present in presents {
+            self.present(present);
+        }
+    }
+
+    // Takes what's known about presents, and refreshes what the stats say,
+    // a few times a second, at a time on the frames' clock, in seconds.
+    pub fn update(&mut self, time: f64) {
+        if let Source::Timing(timing) = &mut self.source {
+            let presents = timing.take();
+            self.known(presents);
+        }
+        let now = clock::now();
+        let window = (WINDOW_SECONDS * clock::frequency() as f64) as i64;
+        while self.samples.front().is_some_and(|sample| sample.screen < now - window) {
+            self.samples.pop_front();
+        }
+        // The frames on the screen, over the window before the newest one
+        // known, as Windows' events about them come late.
+        if let Some(newest) = self.displayed.back().copied() {
+            while self.displayed.front().is_some_and(|screen| *screen < newest - window) {
+                self.displayed.pop_front();
+            }
+        }
+        // Frames whose presents never came, like if ETW lost an event.
+        while self.presented.front().is_some_and(|frame| frame.present < now - window) {
+            self.presented.pop_front();
+        }
+        if time - self.refreshed >= REFRESH_SECONDS || time < self.refreshed {
+            self.refreshed = time;
+            self.summary = self.summarize();
+        }
+    }
+
+    pub fn summary(&self) -> &Summary {
+        &self.summary
+    }
+
+    // A present whose fate is known: which frame it was, and that frame's
+    // input latency, if it reached the screen.
+    fn present(&mut self, present: Present) {
+        let slack = (MATCH_SECONDS * clock::frequency() as f64) as i64;
+        // Frames before this present that no present came for.
+        while self.presented.front().is_some_and(|frame| frame.present < present.start - slack) {
+            self.presented.pop_front();
+        }
+        let Some(frame) = self.presented.front().copied() else {
+            return;
+        };
+        if frame.present > present.start {
+            // Not one of the main loop's presents.
+            return;
+        }
+        self.presented.pop_front();
+        self.known = true;
+        let Some(screen) = present.screen else {
+            if frame.input.is_some() {
+                self.carried = Some(frame);
+            }
+            return;
+        };
+        self.displayed.push_back(screen);
+        self.mode = present.mode;
+        self.tearing = present.tearing;
+        let source = if frame.input.is_some() { Some(frame) } else { self.carried };
+        self.carried = None;
+        if let Some(source) = source
+            && let Some(input) = source.input
+        {
+            self.samples.push_back(Sample {
+                screen,
+                total: clock::milliseconds(screen - input),
+                waiting: clock::milliseconds(source.read - input),
+                building: clock::milliseconds(source.present - source.read),
+                presenting: clock::milliseconds(screen - source.present),
+            });
+        }
+    }
+
+    fn summarize(&self) -> Summary {
+        let mut summary = Summary::default();
+        if let (Some(first), Some(last)) = (self.frame_times.front(), self.frame_times.back()) {
+            let count = self.frame_times.len() - 1;
+            if count > 0 && last > first {
+                summary.frames_per_second = count as f64 / (last - first);
+                summary.frame_time = (last - first) * 1000.0 / count as f64;
+                summary.longest_frame = self
+                    .frame_times
+                    .iter()
+                    .zip(self.frame_times.iter().skip(1))
+                    .map(|(before, after)| (after - before) * 1000.0)
+                    .fold(0.0, f64::max);
+            }
+        }
+        summary.latency = match &self.source {
+            Source::Unavailable(reason) => LatencyState::Unavailable(reason.clone()),
+            _ if !self.known => LatencyState::Starting,
+            _ => LatencyState::Measuring,
+        };
+        if let (Some(first), Some(last)) = (self.displayed.front(), self.displayed.back())
+            && last > first
+        {
+            summary.displayed_per_second = (self.displayed.len() - 1) as f64 / clock::seconds(last - first);
+        }
+        summary.mode = self.mode;
+        summary.tearing = self.tearing;
+        summary.samples = self.samples.len();
+        if !self.samples.is_empty() {
+            let mut totals: Vec<f64> = self.samples.iter().map(|sample| sample.total).collect();
+            summary.median = median(&mut totals);
+            summary.percentile_99 = percentile(&totals, 0.99);
+            summary.waiting = median(&mut self.samples.iter().map(|sample| sample.waiting).collect::<Vec<_>>());
+            summary.building = median(&mut self.samples.iter().map(|sample| sample.building).collect::<Vec<_>>());
+            summary.presenting = median(&mut self.samples.iter().map(|sample| sample.presenting).collect::<Vec<_>>());
+        }
+        summary
+    }
+}
+
+// Sorts the values, and gives their median.
+fn median(values: &mut [f64]) -> f64 {
+    values.sort_by(f64::total_cmp);
+    percentile(values, 0.5)
+}
+
+// The value of sorted values at a fraction of the way through them, between
+// the two nearest.
+fn percentile(sorted: &[f64], fraction: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let position = fraction * (sorted.len() - 1) as f64;
+    let below = position.floor() as usize;
+    let above = position.ceil() as usize;
+    let weight = position - below as f64;
+    sorted[below] * (1.0 - weight) + sorted[above] * weight
+}

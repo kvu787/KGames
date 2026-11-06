@@ -13,19 +13,28 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\Simple
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The program opens with `--display` and `--no-activate`, which every program built on
+The program opens with `--display`, `--no-activate`, `--no-input`, `--vsync` and
+`--frame-rate-limit 100`, which every program built on
 [Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
-other windows on that display, but without taking focus, and typing in the window that has
-focus stays there. Without focus, programs ignore all input. A run fails if the program's
+other windows on that display, but without taking focus, and typing in the window that has focus
+stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
+keyboards and mice. Its frames wait for vertical sync, at most 100 a second, and it waits between
+them instead of spinning, so it's light on the GPU and the CPU for someone who's using the
+computer, like playing a game, unlike the programs' own runs, which keep both busy for the lowest
+input latency. Without focus, programs ignore all input. A run fails if the program's
 window ever becomes the foreground window, which would mean that it took focus from you.
 Windows reports every change of the foreground window to RunInBackground, so even one that
 lasts a moment counts.
 
-It also opens with `--vsync` and `--frame-limit 100`, so that the program's frames wait for the
-display's refresh, it draws at most 100 frames a second, and it sleeps while it waits instead of
-spinning a core. So a test run doesn't take the machine from you, like while you play a game.
-Scripts run on their own fixed clock, so their frames and expectations are the same either way.
-`--no-vsync` and `--fps` change that, like for measuring frame times.
+It also opens with `--vsync` and `--frame-rate-limit 100`, so that the program's frames wait for
+the display's refresh, it draws at most 100 frames a second, and it waits between them instead of
+spinning a core, and with `--no-input`, so that it doesn't start GameInput. So a test run doesn't
+take the machine from you, like while you play a game. Scripts run on their own fixed clock, so
+their frames and expectations are the same either way. `--no-vsync` and `--fps` change that, like
+for measuring frame times.
+
+RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it
+starts: only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time.
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time

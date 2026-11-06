@@ -1,17 +1,19 @@
-// The page that every program's window shows: an app bar along the top, as
-// tall as WinUI's TitleBar control, with the program's icon, title and its
-// own commands; notices under it; a status bar along the bottom with
-// shortcuts and status; and the page between them, where the cards go.
+// The page that every program's window shows: the performance stats along
+// the very top, which the library draws; an app bar under them, as tall as
+// WinUI's TitleBar control, with the program's icon, title and its own
+// commands; notices under it; a status bar along the bottom with shortcuts
+// and status; and the page between them, where the cards go.
 
+use crate::application::performance::{LatencyState, WINDOW_SECONDS};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
 use crate::design::tokens::{
-    APP_BAR_HEIGHT, BODY, CAPTION, ICON, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATUS_BAR_HEIGHT,
-    SUBTITLE,
+    APP_BAR_HEIGHT, BODY, CAPTION, ICON, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SPACE_XXL, STATS_BAR_HEIGHT,
+    STATUS_BAR_HEIGHT, SUBTITLE,
 };
-use crate::drawing::geometry::{Point, Rect, Size};
-use crate::drawing::painter::{Align, Border};
+use crate::drawing::geometry::{Color, Point, Rect, Size};
+use crate::drawing::painter::{Align, Border, Painter};
 use crate::widgets::info_bar::{InfoBar, Severity};
 use crate::widgets::text::KEYCAP_HEIGHT;
 
@@ -50,7 +52,7 @@ impl Ui {
     // The app bar: the program's icon and title, and the rest of the bar,
     // which it returns, for the program's own tabs and commands.
     pub fn app_bar(&mut self, bar: AppBar) -> Rect {
-        let rect = Rect::new(0.0, 0.0, self.size().width, APP_BAR_HEIGHT);
+        let rect = Rect::new(0.0, self.content_top(), self.size().width, APP_BAR_HEIGHT);
         self.cover(rect);
         let mut painter = self.painter();
         let theme = painter.theme();
@@ -65,7 +67,7 @@ impl Ui {
             let shown = painter.text_in(Rect::new(x + SPACE_S, rect.y, rect.width, rect.height), subtitle, CAPTION, theme.text_secondary, Align::Start);
             x = shown.right();
         }
-        self.page_top = APP_BAR_HEIGHT;
+        self.page_top = rect.bottom();
         let left = x + SPACE_L;
         Rect::new(left, rect.y + SPACE_S, rect.right() - SPACE_L - left, rect.height - SPACE_S * 2.0)
     }
@@ -172,6 +174,82 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 }
 
 impl Ui {
+    // Draws the performance stats along the top of the window: the frames,
+    // the frames that reach the screen, the input latency from GameInput's
+    // readings to the screen with its parts, and how frames reach the
+    // screen. The main loop draws them every frame; programs don't.
+    pub(crate) fn stats_bar(&mut self) {
+        let Some(performance) = &self.performance else {
+            return;
+        };
+        let summary = performance.summary().clone();
+        let bar = Rect::new(0.0, 0.0, self.size().width, STATS_BAR_HEIGHT);
+        let theme = self.theme();
+        let (background, fill, divider, label, value) =
+            (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
+        self.cover(bar);
+
+        let window = WINDOW_SECONDS;
+        let mut items: Vec<(&str, String)> = Vec::new();
+        if summary.frames_per_second > 0.0 {
+            items.push((
+                "Frames",
+                format!(
+                    "{:.0} a second, {:.2} ms each, the longest {:.2} ms",
+                    summary.frames_per_second, summary.frame_time, summary.longest_frame
+                ),
+            ));
+        }
+        let mut mode = String::new();
+        match &summary.latency {
+            LatencyState::Unavailable(reason) => items.push(("Input to screen", reason.clone())),
+            LatencyState::Starting => items.push(("Input to screen", "starting".to_string())),
+            LatencyState::Measuring => {
+                items.push(("On screen", format!("{:.0} frames a second", summary.displayed_per_second)));
+                if summary.samples == 0 {
+                    items.push(("Input to screen", format!("no input in the last {window:.0} seconds")));
+                } else {
+                    items.push((
+                        "Input to screen",
+                        format!(
+                            "{:.2} ms median, {:.2} ms 99th percentile, of {} frames in {window:.0} seconds",
+                            summary.median, summary.percentile_99, summary.samples
+                        ),
+                    ));
+                    items.push((
+                        "Medians",
+                        format!(
+                            "waiting {:.2} ms, building {:.2} ms, presenting {:.2} ms",
+                            summary.waiting, summary.building, summary.presenting
+                        ),
+                    ));
+                }
+                mode = summary.mode.name().to_string();
+                if summary.tearing {
+                    mode += ", tearing";
+                }
+            }
+        }
+
+        let mut painter = self.painter();
+        // Opaque, even over a 3D view.
+        painter.fill(bar, background);
+        painter.fill(bar, fill);
+        painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
+        let text = |painter: &mut Painter, x: f32, text: &str, color: Color| {
+            painter.text_in(Rect::new(x, bar.y, (bar.right() - x).max(0.0), bar.height), text, CAPTION, color, Align::Start).right()
+        };
+        let mut x = PAGE_PADDING;
+        for (name, item) in &items {
+            x = text(&mut painter, x, name, label) + SPACE_S;
+            x = text(&mut painter, x, item, value) + SPACE_XXL;
+        }
+        if !mode.is_empty() {
+            let width = painter.measure(&mode, CAPTION).width;
+            text(&mut painter, bar.right() - PAGE_PADDING - width, &mode, label);
+        }
+    }
+
     // What the window shows instead of the program in a setup that programs
     // don't support: what's wrong, and the setups that are.
     pub fn unsupported_setup(&mut self, problems: &[String]) {

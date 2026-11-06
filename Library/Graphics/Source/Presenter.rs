@@ -27,7 +27,6 @@ pub struct Presenter {
     waitable: HANDLE,
     flags: u32,
     tearing: bool,
-    vertical_sync: bool,
     buffers: Vec<ID3D12Resource>,
     views: DescriptorHeap,
     allocator: ID3D12CommandAllocator,
@@ -39,6 +38,10 @@ pub struct Presenter {
     // Whether the waitable object was signaled since the last frame began.
     // Waiting on it takes the signal, so it's remembered until the frame.
     waitable_signaled: bool,
+    // The performance counter right before the last Present call.
+    present_time: i64,
+    // Whether frames wait for vertical sync, like in test runs.
+    vsync: bool,
 }
 
 impl Presenter {
@@ -78,7 +81,6 @@ impl Presenter {
                 waitable,
                 flags,
                 tearing,
-                vertical_sync: false,
                 buffers: Vec::new(),
                 views,
                 allocator,
@@ -87,6 +89,8 @@ impl Presenter {
                 height: description.Height,
                 last_frame: 0,
                 waitable_signaled: false,
+                present_time: 0,
+                vsync: false,
             };
             presenter.create_views(gpu)?;
             Ok(presenter)
@@ -95,16 +99,19 @@ impl Presenter {
 
     // Whether frames may tear.
     pub fn tearing(&self) -> bool {
-        self.tearing && !self.vertical_sync
+        self.tearing && !self.vsync
     }
 
-    // Whether frames wait for the screen's refresh.
-    pub fn vertical_sync(&self) -> bool {
-        self.vertical_sync
+    // Makes frames wait for vertical sync, which paces them at the display's
+    // refresh rate instead of as fast as the GPU goes, like for test runs, so
+    // that they don't keep the GPU busy. They don't tear then.
+    pub fn set_vsync(&mut self, vsync: bool) {
+        self.vsync = vsync;
     }
 
-    pub fn set_vertical_sync(&mut self, on: bool) {
-        self.vertical_sync = on;
+    // Whether frames wait for vertical sync.
+    pub fn vsync(&self) -> bool {
+        self.vsync
     }
 
     pub fn size(&self) -> (u32, u32) {
@@ -149,6 +156,18 @@ impl Presenter {
         self.waitable_signaled && gpu.is_complete(self.last_frame)
     }
 
+    // Waits, without spinning, until a frame can begin, a window message
+    // comes, or the milliseconds pass, for runs that share the computer and
+    // don't need the lowest latency, like tests.
+    pub fn wait_ready(&mut self, gpu: &Gpu, milliseconds: u32) -> Result<()> {
+        gpu.wait_for(self.last_frame)?;
+        if !self.waitable_signaled {
+            let result = unsafe { MsgWaitForMultipleObjects(Some(&[self.waitable]), false, milliseconds, QS_ALLINPUT as u32) };
+            self.waitable_signaled = result == WAIT_OBJECT_0 as u32;
+        }
+        Ok(())
+    }
+
     // Begins a frame in the back buffer, once poll_ready says so. The back
     // buffer is in the render target state.
     pub fn begin(&mut self) -> Result<Frame> {
@@ -174,6 +193,12 @@ impl Presenter {
         }
     }
 
+    // The performance counter right before the last frame's Present call,
+    // which input latency measures to and from.
+    pub fn present_time(&self) -> i64 {
+        self.present_time
+    }
+
     // Submits the frame's commands and presents it. Returns the fence value
     // that the GPU signals once it has drawn the frame.
     pub fn present(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<u64> {
@@ -185,11 +210,12 @@ impl Presenter {
             )]);
             frame.list.Close().ok()?;
             execute(&gpu.queue, &frame.list)?;
-            let (interval, flags) = if self.vertical_sync {
-                (1, 0)
-            } else {
-                (0, if self.tearing { DXGI_PRESENT_ALLOW_TEARING } else { 0 })
+            let (interval, flags) = match (self.vsync, self.tearing) {
+                (true, _) => (1, 0),
+                (false, true) => (0, DXGI_PRESENT_ALLOW_TEARING),
+                (false, false) => (0, 0),
             };
+            let _ = QueryPerformanceCounter(&mut self.present_time);
             // DXGI_STATUS_OCCLUDED and the like are successes that say the
             // frame isn't visible, which changes nothing here.
             self.swap_chain.Present(interval, flags).ok()?;
