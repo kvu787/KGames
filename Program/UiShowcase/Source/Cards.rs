@@ -1,4 +1,5 @@
-// The showcase's page: an app bar with a menu bar, five columns of cards
+// The showcase's page: an app bar with its icon and title, a menu row under
+// it with a menu bar along the window's left edge, five columns of cards
 // that show every widget, and a status bar. The cards at the bottom of their
 // columns take the 71 pixels that borderless fullscreen adds.
 
@@ -62,13 +63,14 @@ const COLOR_HEIGHT: f32 = 492.0;
 pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     let theme_name = if showcase.dark { "Dark theme" } else { "Light theme" };
     let subtitle = format!("Fluent 2 · WinUI 3 · {theme_name}");
-    let bar = ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
+    ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
+    let row = ui.menu_row();
     let menu = MenuBar::new(MENUS);
     let menu_width = menu.width(ui);
-    if let Some(label) = ui.add("Menu", Rect::new(bar.x, bar.y, menu_width, bar.height), menu) {
+    if let Some(label) = ui.add("Menu", row.left_strip(menu_width), menu) {
         showcase.command(ui, label);
     }
-    let theme_button = Rect::new(bar.right() - 32.0, bar.y, 32.0, bar.height).centered(Size::square(32.0));
+    let theme_button = Rect::new(row.right() - SPACE_L - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
     let response = ui.add("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
     ui.tooltip(&response, "Switch the theme (F2)");
     if response.clicked {
