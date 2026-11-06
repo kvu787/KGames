@@ -7,12 +7,12 @@
 //   previous frame and DXGI can take another. The main loop polls it while it
 //   handles window messages, and reads input only once it's ready, so no input
 //   ages during the wait.
-// - Frames present without waiting for vertical sync. With tearing allowed,
-//   a frame can reach the screen mid-refresh, when Windows flips it straight
-//   there, like in borderless fullscreen.
-// - With vertical sync on, frames wait for the screen's refresh instead, and
-//   never tear. Coding agents' test runs use it, so that a program they run
-//   draws no faster than the screen shows.
+// - With vertical sync on, as every program starts, frames wait for the
+//   screen's refresh, and never tear, so a program draws no faster than the
+//   screen shows.
+// - With it off, frames present without waiting for vertical sync. With
+//   tearing allowed, a frame can reach the screen mid-refresh, when Windows
+//   flips it straight there, like in borderless fullscreen.
 
 use windows_api::*;
 use windows_core::{Interface, Result};
@@ -45,7 +45,7 @@ pub struct Presenter {
     waitable_signaled: bool,
     // The performance counter right before the last Present call.
     present_time: i64,
-    // Whether frames wait for vertical sync, like in test runs.
+    // Whether frames wait for vertical sync, which `set_vsync` switches.
     vsync: bool,
 }
 
@@ -112,8 +112,8 @@ impl Presenter {
     }
 
     // Makes frames wait for vertical sync, which paces them at the display's
-    // refresh rate instead of as fast as the GPU goes, like for test runs, so
-    // that they don't keep the GPU busy. They don't tear then.
+    // refresh rate instead of as fast as the GPU goes, so that they don't
+    // keep the GPU busy. They don't tear then. Every program starts with it.
     pub fn set_vsync(&mut self, vsync: bool) {
         self.vsync = vsync;
     }

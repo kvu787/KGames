@@ -19,17 +19,19 @@ beneath the other windows on that display, without taking focus, and typing in t
 focus stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
 keyboards and mice. Its frames wait for vertical sync, at most one a refresh, and it waits between
 them instead of spinning, so it's light on the GPU and the CPU for someone who's using the
-computer, like playing a game, unlike the programs' own runs, which keep both busy for the lowest
-input latency. Without focus, programs ignore all input. A run fails if the program's
-window ever becomes the foreground window, which would mean that it took focus from you.
-Windows reports every change of the foreground window to RunInBackground, so even one that
-lasts a moment counts.
+computer, like playing a game. Without focus, programs ignore all input. A run fails if the
+program's window ever becomes the foreground window, which would mean that it took focus from you.
+Windows reports every change of the foreground window to RunInBackground, so even one that lasts a
+moment counts.
+
+Every program also starts with vertical sync on by itself, but a run's `--vsync` keeps it on even if
+the program's Settings.json says `"VerticalSync": false`.
 
 Scripts run on their own fixed clock, so their frames and expectations are the same with vertical
-sync or without. `--no-vsync` runs the program with `--no-vsync`, as fast as it can draw, as its
-own runs do, like for measuring frame times, which keeps a core and the GPU busy. A script's `F10`
-switches vertical sync as the user's would, so the program draws as fast as it can from then until
-the script presses it again, or ends. The state's `VerticalSync` says which. It starts on, or off with `--no-vsync`, and
+sync or without. `--no-vsync` runs the program with `--no-vsync`, as fast as it can draw, like for
+measuring frame times, which keeps a core and the GPU busy. A script's `F10` switches vertical sync
+as the user's would, so the program draws as fast as it can from then until the script presses it
+again, or ends. The state's `VerticalSync` says which. It starts on, or off with `--no-vsync`, and
 UiShowcase's `VerticalSync.json` expects it to start on.
 
 RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it

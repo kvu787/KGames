@@ -203,12 +203,13 @@ they differ by 71 pixels of height. A 3D view may still fill the window, under t
 own, which it reads from `startup.settings` with their defaults. A missing file is written with every
 default; a wrong setting keeps its default, and a notice under the app bar says what's wrong.
 
-| Setting        | Value                                                                  |
-| -------------- | ---------------------------------------------------------------------- |
-| `Display`      | `"Primary"`, or the identifier of the display to open on               |
-| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                              |
-| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh  |
-| `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing |
+| Setting        | Value                                                                    |
+| -------------- | ------------------------------------------------------------------------ |
+| `Display`      | `"Primary"`, or the identifier of the display to open on                 |
+| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                                |
+| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh    |
+| `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing.  |
+|                | `true` by default                                                        |
 
 | Argument          | What it does                                                              |
 | ----------------- | ------------------------------------------------------------------------- |
@@ -223,28 +224,30 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 
 The main loop (`Application/Run.rs`) handles the window's messages without waiting, and waits until
 the GPU has finished the last frame and DXGI can take another. Only then does it read the input,
-build the frame's interface, draw it and present it, without waiting for vertical sync, so a
-frame's input is as fresh as it can be. The swap chain has a frame latency waitable object and a
-maximum frame latency of 1, and draws on the GPU that the window's monitor is an output of. The
-whole interface is one draw call of instanced quads, whose pixel shader computes each shape's
-coverage from its signed distance. Text layouts are cached, so a frame that shows the same text as
-the last one asks DirectWrite for nothing, and glyphs are rasterized once each into an atlas.
-Minimizing the window stops the loop drawing.
+build the frame's interface, draw it and present it, so a frame's input is as fresh as it can be.
+The swap chain has a frame latency waitable object and a maximum frame latency of 1, and draws on
+the GPU that the window's monitor is an output of. The whole interface is one draw call of
+instanced quads, whose pixel shader computes each shape's coverage from its signed distance. Text
+layouts are cached, so a frame that shows the same text as the last one asks DirectWrite for
+nothing, and glyphs are rasterized once each into an atlas. Minimizing the window stops the loop
+drawing.
 
-With `VerticalSync`, frames wait for the screen's refresh, and DXGI can take another only once the
-last one has gone to the screen, so the loop waits for that, and for messages, instead of spinning:
-a frame couldn't begin any sooner, and the input is still read as soon as one can. `F10` switches
-it on and off while the program runs.
+Programs start with vertical sync on, unless `VerticalSync` or `--no-vsync` says otherwise: frames
+wait for the screen's refresh, and DXGI can take another only once the last one has gone to the
+screen, so the loop waits for that, and for messages, instead of spinning: a frame couldn't begin
+any sooner, and the input is still read as soon as one can. `F10` switches it on and off while the
+program runs. With it off, frames present as soon as they're drawn, and may tear, and the loop
+spins, so that the input that reaches the screen is as fresh as it can be.
 
-RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input` instead, so that they
-share the computer lightly with someone using it, like playing a game: the window opens beneath the
-others and the process asks Windows for efficiency mode, where a window that someone uses asks for
-full execution speed; frames wait for vertical sync, at most one a refresh, and the loop waits on
-DXGI between them, instead of spinning; GameInput, with its helper process that reads keyboards and
-mice, doesn't start; and without input there's no input latency to measure, so the ETW session that
-every process's presents would go through isn't started either. RunLightly, which RunInBackground
-runs through, also has the process put its GPU work after other processes' (see
-[Library/Graphics](../Graphics/README.md#gpu-priority)).
+RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input`, so that they share the
+computer lightly with someone using it, like playing a game: the window opens beneath the others
+and the process asks Windows for efficiency mode, where a window that someone uses asks for full
+execution speed; frames wait for vertical sync, whatever the program's settings say, at most one a
+refresh, and the loop waits on DXGI between them, instead of spinning; GameInput, with its helper
+process that reads keyboards and mice, doesn't start; and without input there's no input latency to
+measure, so the ETW session that every process's presents would go through isn't started either.
+RunLightly, which RunInBackground runs through, also has the process put its GPU work after other
+processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 
 ## Performance stats
 

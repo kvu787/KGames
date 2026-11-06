@@ -4,19 +4,18 @@
 // 2. Go on handling them until the presenter is ready: the GPU has finished
 //    the last frame, and DXGI's queue has room.
 // 3. Only then read the input, from GameInput, build the frame's interface
-//    with the newest of it, draw the frame, and present it without waiting
-//    for vertical sync.
+//    with the newest of it, draw the frame, and present it.
 //
 // So the input that a frame shows is as fresh as it can be when the frame
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// With vertical sync, frames present at the screen's refreshes, and DXGI's
-// queue has room again only once the last frame has gone to the screen, so
-// the loop waits for that, and for messages, instead of spinning: a frame
-// couldn't begin any sooner, and the input is still read as soon as one can.
-// Coding agents' test runs use it, so that they don't take the machine from
-// someone, like the user playing a game. F10 switches it on and off.
+// Programs start with vertical sync on: frames present at the screen's
+// refreshes, and DXGI's queue has room again only once the last frame has
+// gone to the screen, so the loop waits for that, and for messages, instead
+// of spinning: a frame couldn't begin any sooner, and the input is still read
+// as soon as one can. F10 switches it on and off. Without it, frames present
+// as soon as they're drawn, and the loop spins, for the lowest latency.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -83,7 +82,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mode = settings.choice("WindowMode", options.window_mode.name(), &modes);
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
-    let vertical_sync_setting = settings.boolean("VerticalSync", false);
+    let vertical_sync_setting = settings.boolean("VerticalSync", true);
     let vertical_sync = arguments.vsync.unwrap_or(vertical_sync_setting);
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();

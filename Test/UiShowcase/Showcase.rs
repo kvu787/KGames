@@ -293,12 +293,12 @@ fn ctrl_r_resets_every_widget() {
 #[test]
 fn f10_and_the_view_menu_switch_vertical_sync() {
     let mut app = showcase();
-    assert!(!app.vertical_sync());
-    app.key(Key::F10);
     assert!(app.vertical_sync());
-    assert_eq!(interface(&app, "VerticalSync"), Some(Value::Bool(true)));
-    app.click("Menu/View").click("Menu/View/Menu/VSync");
+    app.key(Key::F10);
     assert!(!app.vertical_sync());
+    assert_eq!(interface(&app, "VerticalSync"), Some(Value::Bool(false)));
+    app.click("Menu/View").click("Menu/View/Menu/VSync");
+    assert!(app.vertical_sync());
 }
 
 #[test]

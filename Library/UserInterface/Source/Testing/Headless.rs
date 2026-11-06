@@ -62,6 +62,8 @@ impl<P: Program> Headless<P> {
             closed: false,
         };
         headless.ui.environment.scripted = true;
+        // Frames would wait for vertical sync, as a real run's start out.
+        headless.ui.environment.vertical_sync = true;
         headless.ui.performance = Some(Performance::without_latency("none in a test"));
         headless.run_frame();
         headless
@@ -102,7 +104,7 @@ impl<P: Program> Headless<P> {
     }
 
     // Whether frames would wait for vertical sync, which a test's frames
-    // start without, and F10 switches.
+    // start with, as a real run's do, and F10 switches.
     pub fn vertical_sync(&self) -> bool {
         self.ui.vertical_sync()
     }

@@ -422,14 +422,15 @@ fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
 #[test]
 fn f10_switches_vertical_sync_even_while_a_text_field_has_focus() {
     let mut app = Headless::new(Test::default());
-    assert!(!app.vertical_sync());
-    app.key(Key::F10);
+    // It starts on, as every program does.
     assert!(app.vertical_sync());
-    assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(true)));
-    // A text field takes what's typed, but not the function keys.
-    app.click("Field").key(Key::F10);
+    app.key(Key::F10);
     assert!(!app.vertical_sync());
     assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(false)));
+    // A text field takes what's typed, but not the function keys.
+    app.click("Field").key(Key::F10);
+    assert!(app.vertical_sync());
+    assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(true)));
     assert!(app.program.text.is_empty());
 }
 

@@ -80,12 +80,12 @@ fn the_performance_stats_say_whether_vertical_sync_is_on() {
     let mut app = Headless::new(Page);
     // A second of frames, so that the stats have a frame rate to show.
     app.wait(1.0);
-    let off = app.render(&mut gpu).unwrap();
-    app.key(Key::F10);
     let on = app.render(&mut gpu).unwrap();
-    save(&off, "VerticalSyncOff");
+    app.key(Key::F10);
+    let off = app.render(&mut gpu).unwrap();
     save(&on, "VerticalSyncOn");
-    // "VSync off" turns to "VSync on" at the bar's right end, and nothing
+    save(&off, "VerticalSyncOff");
+    // "VSync on" turns to "VSync off" at the bar's right end, and nothing
     // else along the bar changes.
     let right = off.width - 200;
     let changed = |from: u32, to: u32| (from..to).any(|x| (0..STATS_BAR_HEIGHT as u32).any(|y| off.pixel(x, y) != on.pixel(x, y)));

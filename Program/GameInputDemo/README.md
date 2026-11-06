@@ -204,6 +204,7 @@ it doesn't exist, the demo writes it with the defaults:
     "Display": "Primary",
     "WindowMode": "Maximized",
     "AllowTearing": true,
+    "VerticalSync": true,
     "RumbleTestInnerDeadZone": 0.1
 }
 ```
@@ -213,9 +214,10 @@ it doesn't exist, the demo writes it with the defaults:
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
 | `WindowMode`              | `"Maximized"` or `"BorderlessFullscreen"`, the two supported setups         |
 | `AllowTearing`            | Whether frames may tear, which lets them reach the screen mid-refresh       |
+| `VerticalSync`            | Whether frames wait for the screen's refresh, which `F10` switches          |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first three are the settings that every KGames program has, which
+The first four are the settings that every KGames program has, which
 [Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 
@@ -291,22 +293,24 @@ device's own polling, its connection, and the monitor's scanout and response, is
 
 Library/UserInterface's main loop does most of it (see its
 [README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
-time, the loop spins until the GPU and DXGI can take another, and only then calls the demo's
-`update`, which reads GameInput, so no readings age during the wait. Frames are presented without
-waiting for vertical sync, unless `F10` says to, so the demo draws thousands of frames a second,
-and whenever the screen takes a frame, the newest one read its input a fraction of a millisecond
+time, the loop waits until the GPU and DXGI can take another, and only then calls the demo's
+`update`, which reads GameInput, so no readings age during the wait. The demo starts with vertical
+sync on, as every program does, so its frames wait for the screen's refresh, and never tear. With
+`F10`, or `"VerticalSync": false` in the [settings](#settings-file), they're presented without
+waiting, and the loop spins instead of waiting, so the demo draws thousands of frames a second, and
+whenever the screen takes a frame, the newest one read its input a fraction of a millisecond
 earlier. The window draws with the GPU that its monitor is an output of, and the process opts out
 of power throttling, so its frames are paced the same in the background. On the development
 machine, an RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a whole frame takes about 0.2 ms.
 
-When Windows flips the demo's frames straight to the screen, a frame can replace the one being
-scanned out mid-refresh, which can show as tearing. Otherwise, the desktop compositor shows the
-newest frame at its next refresh. With `"AllowTearing": false` in the [settings](#settings-file),
-frames still don't wait, but the screen takes the newest one at each refresh, so none tear, even in
-fullscreen. `F11`, or `"WindowMode": "BorderlessFullscreen"`, makes the window cover its monitor,
-which lets Windows flip the frames straight to the screen, instead of the compositor copying them
-into its own frame. That saves up to a refresh, and lets frames tear. In a window, Windows can only
-do that if the GPU supports multiplane overlays.
+Without vertical sync, when Windows flips the demo's frames straight to the screen, a frame can
+replace the one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
+compositor shows the newest frame at its next refresh. With `"AllowTearing": false` in the
+[settings](#settings-file), frames still don't wait, but the screen takes the newest one at each
+refresh, so none tear, even in fullscreen. `F11`, or `"WindowMode": "BorderlessFullscreen"`, makes
+the window cover its monitor, which lets Windows flip the frames straight to the screen, instead of
+the compositor copying them into its own frame. That saves up to a refresh, and lets frames tear. In
+a window, Windows can only do that if the GPU supports multiplane overlays.
 
 What it doesn't do:
 
@@ -322,8 +326,8 @@ What it doesn't do:
   about 0.2 ms to reach the demo. Opting the helper out of power throttling too made no difference,
   and forcing it into efficiency mode added about 0.1 ms.
 
-The cost is power: the main thread keeps a CPU core busy, and the GPU draws thousands of frames a
-second, even when nothing changes. Minimizing the window stops both.
+Without vertical sync, the cost is power: the main thread keeps a CPU core busy, and the GPU draws
+thousands of frames a second, even when nothing changes. Minimizing the window stops both.
 
 ## Testing
 

@@ -28,7 +28,7 @@ ignores input without focus, and supports the two
 |            | +X and +Z. `Shaders/FlatShading.hlsl` draws them                           |
 | Background | #4c4c4c                                                                    |
 | Frames     | Through Library/UserInterface's main loop, paced for the lowest latency,   |
-|            | without waiting for vertical sync, unless `F10` says to                    |
+|            | waiting for vertical sync, unless `F10` says not to                        |
 
 Every frame draws the whole scene, with one depth buffer as big as the window: the ground and the
 cube, in colors that are stored as they are, then the car and the sphere, whose linear colors are

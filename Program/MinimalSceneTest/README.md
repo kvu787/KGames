@@ -24,8 +24,8 @@ ignores input without focus, and supports the two
 |            | and the cube's paint their color on faces that face up, and the sphere's    |
 |            | has equal Dark and Light Points, a constant color                           |
 | Background | #4c4c4c                                                                     |
-| Frames     | Borderless fullscreen by default, presented without waiting for vertical    |
-|            | sync, tearing allowed, and without antialiasing                             |
+| Frames     | Borderless fullscreen by default, waiting for vertical sync, unless `F10`   |
+|            | says not to, tearing allowed without it, and without antialiasing           |
 
 The scene fills the window at either height, with its own depth buffer, and the card goes over
 it. Library/UserInterface's main loop reads the input and the time right before it draws a
