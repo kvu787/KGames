@@ -4,11 +4,12 @@
 // commands; notices under it; a status bar along the bottom with shortcuts
 // and status; and the page between them, where the cards go.
 
+use crate::application::performance::{GAP, Run};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
 use crate::design::tokens::{
-    APP_BAR_HEIGHT, BODY, CAPTION, ICON, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SPACE_XXL, STATS_BAR_HEIGHT,
+    APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_CAPTION, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATS_BAR_HEIGHT,
     STATUS_BAR_HEIGHT, SUBTITLE,
 };
 use crate::drawing::geometry::{Color, Point, Rect, Size};
@@ -176,8 +177,10 @@ impl Ui {
     // Draws the performance stats along the top of the window: the frames,
     // the frames that reach the screen, the input latency from GameInput's
     // readings to the screen with its parts, and at the right, how frames
-    // reach the screen and whether they wait for vertical sync. The main loop
-    // draws them every frame; programs don't.
+    // reach the screen and whether they wait for vertical sync. They're set
+    // in Cascadia Mono, in fields whose widths never change, so that every
+    // label and value stays in the same columns. The main loop draws them
+    // every frame; programs don't.
     pub(crate) fn stats_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made a few times a second, not copied here
@@ -191,33 +194,30 @@ impl Ui {
         let (background, fill, divider, label, value) =
             (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
         // Vertical sync from this frame on, as F10 switches it, not as of the
-        // summary.
-        let vertical_sync = if self.environment.vertical_sync { "on" } else { "off" };
+        // summary, as wide whether it's on or off.
+        let vertical_sync = if self.environment.vertical_sync { "on " } else { "off" };
         self.cover(bar);
-        let (items, mode) = (&summary.lines, &summary.mode_text);
         {
-        let mut painter = self.painter();
-        // Opaque, even over a 3D view.
-        painter.fill(bar, background);
-        painter.fill(bar, fill);
-        painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
-        let text = |painter: &mut Painter, x: f32, text: &str, color: Color| {
-            painter.text_in(Rect::new(x, bar.y, (bar.right() - x).max(0.0), bar.height), text, CAPTION, color, Align::Start).right()
-        };
-        let mut x = PAGE_PADDING;
-        for (name, item) in items {
-            x = text(&mut painter, x, name, label) + SPACE_S;
-            x = text(&mut painter, x, item, value) + SPACE_XXL;
-        }
-        // From the right edge in: vertical sync, then the present mode.
-        let mut right = bar.right() - PAGE_PADDING - painter.measure(vertical_sync, CAPTION).width;
-        text(&mut painter, right, vertical_sync, value);
-        right -= SPACE_S + painter.measure("VSync", CAPTION).width;
-        text(&mut painter, right, "VSync", label);
-        if !mode.is_empty() {
-            right -= SPACE_XXL + painter.measure(mode, CAPTION).width;
-            text(&mut painter, right, mode, label);
-        }
+            let mut painter = self.painter();
+            // Opaque, even over a 3D view.
+            painter.fill(bar, background);
+            painter.fill(bar, fill);
+            painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
+            let grid = StatsGrid {
+                advance: painter.measure("0", MONO_CAPTION).width,
+                y: ((bar.height - MONO_CAPTION.line_height) / 2.0).round(),
+                label,
+                value,
+            };
+            let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;
+            // The right's runs end at the last column, the left's start at
+            // the first, and why there's no input latency goes between them.
+            let right = runs(&summary.right).chain([("  VSync ", false), (vertical_sync, true)]);
+            let right_start = columns.saturating_sub(right.clone().map(|(text, _)| text.chars().count()).sum());
+            let gap = GAP.len();
+            let left_end = grid.draw(&mut painter, 0, right_start.saturating_sub(gap), runs(&summary.left));
+            grid.draw(&mut painter, left_end + gap, right_start.saturating_sub(gap), runs(&summary.note));
+            grid.draw(&mut painter, right_start, columns, right);
         }
         self.performance = Some(performance);
     }
@@ -226,6 +226,40 @@ impl Ui {
     // don't support: what's wrong, and the setups that are.
     pub fn unsupported_setup(&mut self, problems: &[String]) {
         unsupported_setup(self, problems);
+    }
+}
+
+// The stats bar's text, as runs of labels and values.
+fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> + Clone {
+    runs.iter().map(|run| (run.text.as_str(), run.value))
+}
+
+// The stats bar's columns, each a character of Cascadia Mono wide, from the
+// bar's padding, and the colors of its labels and values.
+struct StatsGrid {
+    advance: f32,
+    y: f32,
+    label: Color,
+    value: Color,
+}
+
+impl StatsGrid {
+    // Draws runs from a column, cutting short what would reach another, and
+    // returns the column after them.
+    fn draw<'a>(&self, painter: &mut Painter, mut column: usize, end: usize, runs: impl Iterator<Item = (&'a str, bool)>) -> usize {
+        for (text, is_value) in runs {
+            let count = text.chars().count();
+            let color = if is_value { self.value } else { self.label };
+            let at = Point::new(PAGE_PADDING + column as f32 * self.advance, self.y);
+            if column + count <= end {
+                painter.text(at, text, MONO_CAPTION, color);
+            } else if column < end {
+                let fitted = painter.fit(text, MONO_CAPTION, (end - column) as f32 * self.advance + 0.5);
+                painter.text(at, &fitted, MONO_CAPTION, color);
+            }
+            column += count;
+        }
+        column
     }
 }
 

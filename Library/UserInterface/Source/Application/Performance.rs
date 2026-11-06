@@ -32,6 +32,18 @@ const REFRESH_SECONDS: f64 = 0.25;
 // to be the same present.
 const MATCH_SECONDS: f64 = 0.005;
 
+// The stats bar's fields' widths, in characters: frames a second, times in
+// milliseconds with two decimals, counts of frames, and the present mode,
+// as wide as the longest mode's name, "Independent flip".
+const RATE_WIDTH: usize = 5;
+const MILLISECONDS_WIDTH: usize = 7;
+const COUNT_WIDTH: usize = 6;
+const MODE_WIDTH: usize = 16;
+const YES_NO_WIDTH: usize = 3;
+// The gap between the bar's groups, like the frames' and the input
+// latency's.
+pub(crate) const GAP: &str = "    ";
+
 // A frame that the main loop presented, with the times of its input.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frame {
@@ -84,50 +96,118 @@ pub struct Summary {
     // How the newest frame on the screen got there.
     pub mode: PresentMode,
     pub tearing: bool,
-    // What the stats bar says, as its labels and their text, and the
-    // present mode at its right, made here when the summary is, a few times
-    // a second, not every frame.
-    pub lines: Vec<(&'static str, String)>,
-    pub mode_text: String,
+    // What the stats bar says, made here when the summary is, a few times a
+    // second, not every frame: the runs along its left, those along its
+    // right, which the bar ends with whether vertical sync is on, and why
+    // there's no input latency, if there isn't, between them.
+    pub left: Vec<Run>,
+    pub right: Vec<Run>,
+    pub note: Vec<Run>,
+}
+
+// A run of the stats bar's text, which the bar sets in Cascadia Mono, whose
+// characters are all as wide: a label, or a value, which the bar colors
+// apart. Every run is as many characters wide whatever the stats are,
+// numbers right-aligned in their fields and a dash for one that isn't known,
+// so that every label and value stays in the same columns.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Run {
+    pub text: String,
+    pub value: bool,
+}
+
+// Runs, one after another, with a label's words joined into one run.
+#[derive(Default)]
+struct Runs(Vec<Run>);
+
+impl Runs {
+    fn label(&mut self, text: &str) {
+        match self.0.last_mut() {
+            Some(run) if !run.value => run.text.push_str(text),
+            _ => self.0.push(Run { text: text.to_string(), value: false }),
+        }
+    }
+
+    fn value(&mut self, text: String) {
+        self.0.push(Run { text, value: true });
+    }
+}
+
+// A number with so many decimals, right-aligned in a field so many
+// characters wide, or a dash where its last digit would go if it isn't
+// known. One too wide for its field fills it with #, as a spreadsheet's
+// cell does, instead of pushing what comes after it out of place.
+fn number(value: Option<f64>, decimals: usize, width: usize) -> String {
+    let text = match value {
+        Some(value) => format!("{value:>width$.decimals$}"),
+        None => format!("{:>width$}", "-"),
+    };
+    if text.len() > width { "#".repeat(width) } else { text }
+}
+
+// Words, left-aligned in a field so many characters wide, cut short if
+// they're wider, or a dash if they aren't known.
+fn words(value: Option<&str>, width: usize) -> String {
+    format!("{:<width$.width$}", value.unwrap_or("-"))
 }
 
 impl Summary {
-    // Words the stats bar's lines and its present mode.
+    // Words the stats bar.
     fn word(&mut self) {
-        self.lines.clear();
-        if self.frames_per_second > 0.0 {
-            self.lines.push((
-                "Frames",
-                format!("{:.0} a second, {:.2} ms each, the longest {:.2} ms", self.frames_per_second, self.frame_time, self.longest_frame),
-            ));
+        let frames = self.frames_per_second > 0.0;
+        let measuring = self.latency == LatencyState::Measuring;
+        let latency = measuring && self.samples > 0;
+        let rate = |value: f64, known: bool| number(known.then_some(value), 0, RATE_WIDTH);
+        let time = |value: f64, known: bool| number(known.then_some(value), 2, MILLISECONDS_WIDTH);
+
+        let mut left = Runs::default();
+        left.label("Frames ");
+        left.value(rate(self.frames_per_second, frames));
+        left.label("/s  mean ");
+        left.value(time(self.frame_time, frames));
+        left.label(" ms  longest ");
+        left.value(time(self.longest_frame, frames));
+        left.label(" ms");
+        left.label(GAP);
+        left.label("On screen ");
+        left.value(rate(self.displayed_per_second, measuring));
+        left.label("/s");
+        left.label(GAP);
+        left.label("Input to screen  median ");
+        left.value(time(self.median, latency));
+        left.label(" ms  99th percentile ");
+        left.value(time(self.percentile_99, latency));
+        left.label(" ms  of ");
+        left.value(number(measuring.then_some(self.samples as f64), 0, COUNT_WIDTH));
+        left.label(&format!(" frames in {WINDOW_SECONDS:.0} seconds"));
+        left.label(GAP);
+        left.label("Medians  waiting ");
+        left.value(time(self.waiting, latency));
+        left.label(" ms  building ");
+        left.value(time(self.building, latency));
+        left.label(" ms  presenting ");
+        left.value(time(self.presenting, latency));
+        left.label(" ms");
+        self.left = left.0;
+
+        let mut right = Runs::default();
+        right.label("Mode ");
+        right.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
+        right.label("  Tearing ");
+        right.value(words(measuring.then_some(if self.tearing { "yes" } else { "no" }), YES_NO_WIDTH));
+        self.right = right.0;
+
+        let mut note = Runs::default();
+        let reason = match &self.latency {
+            LatencyState::Unavailable(reason) => Some(reason.as_str()),
+            LatencyState::Starting => Some("starting"),
+            LatencyState::Measuring => None,
+        };
+        if let Some(reason) = reason {
+            note.label("Input to screen ");
+            note.value(reason.to_string());
         }
-        self.mode_text.clear();
-        match &self.latency {
-            LatencyState::Unavailable(reason) => self.lines.push(("Input to screen", reason.clone())),
-            LatencyState::Starting => self.lines.push(("Input to screen", "starting".to_string())),
-            LatencyState::Measuring => {
-                self.lines.push(("On screen", format!("{:.0} frames a second", self.displayed_per_second)));
-                if self.samples == 0 {
-                    self.lines.push(("Input to screen", format!("no input in the last {WINDOW_SECONDS:.0} seconds")));
-                } else {
-                    self.lines.push((
-                        "Input to screen",
-                        format!(
-                            "{:.2} ms median, {:.2} ms 99th percentile, of {} frames in {WINDOW_SECONDS:.0} seconds",
-                            self.median, self.percentile_99, self.samples
-                        ),
-                    ));
-                    self.lines.push((
-                        "Medians",
-                        format!("waiting {:.2} ms, building {:.2} ms, presenting {:.2} ms", self.waiting, self.building, self.presenting),
-                    ));
-                }
-                self.mode_text = self.mode.name().to_string();
-                if self.tearing {
-                    self.mode_text += ", tearing";
-                }
-            }
-        }
+        self.note = note.0;
     }
 }
 

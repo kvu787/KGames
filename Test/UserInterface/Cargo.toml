@@ -25,6 +25,10 @@ name = "Latency"
 path = "Latency.rs"
 
 [[test]]
+name = "StatsBar"
+path = "StatsBar.rs"
+
+[[test]]
 name = "Reader"
 path = "Reader.rs"
 
