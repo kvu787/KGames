@@ -15,9 +15,6 @@ theme, ignores input without focus, and supports the two
   its value and range, and the base color as a swatch, in hex and in linear, with the tone
   it appears at. **Reset** and **Save** are in the card's header, with what the last save did,
   whose whole message shows as a tooltip when it's cut short.
-- **Tone curve**: each channel's displayed value over the tone, the tones from Dark Point to
-  Light Point that the sphere shows, the tone where the base color appears, and the colors
-  along the curve.
 - **GPU constants**: the 80 bytes of `GpuMaterial` that `Material::compile` makes, which the
   shader reads.
 

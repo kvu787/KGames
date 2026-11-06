@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use simple_paint::{Material, Parameters};
-use simple_paint_demo::cards::{self, PREVIEW_WIDTH};
+use simple_paint_demo::cards::PREVIEW_WIDTH;
 use simple_paint_demo::demo::Demo;
 use simple_paint_demo::editor::{self, Command, SETTINGS};
 use simple_paint_demo::preview::{CopyPlace, IMAGE_HEIGHT, IMAGE_WIDTH, copy_place};
@@ -373,35 +373,13 @@ fn the_cards_fit_both_window_heights() {
         assert_eq!(place.destination, [view.x as u32, view.y as u32]);
         assert_eq!(box_size, [view.width as u32, view.height as u32]);
     }
-    // Every card's text fits, with the tone curve's labels all on one tone,
-    // where each takes a line of its own, and a long message from Save.
-    let crowded = Parameters {
-        brightness: 0.5,
-        dark_point: 0.5,
-        light_point: 0.5,
-        ..Parameters::default()
-    };
-    for parameters in [Parameters::default(), crowded] {
-        for fullscreen in [false, true] {
-            let mut app = demo(parameters, folder("Fit").join("A folder with a long name to save in").join("Paint.json"));
-            app.key_with(Modifiers::CONTROL, Key::S).set_fullscreen(fullscreen);
-            assert!(app.program.editor.status.as_ref().is_some_and(|(_, failed)| *failed));
-            assert_eq!(app.program.overflow, Vec::<&str>::new(), "cards whose content didn't fit, fullscreen {fullscreen}");
-        }
+    // Every card's text fits, with a long message from Save.
+    for fullscreen in [false, true] {
+        let mut app = demo(Parameters::default(), folder("Fit").join("A folder with a long name to save in").join("Paint.json"));
+        app.key_with(Modifiers::CONTROL, Key::S).set_fullscreen(fullscreen);
+        assert!(app.program.editor.status.as_ref().is_some_and(|(_, failed)| *failed));
+        assert_eq!(app.program.overflow, Vec::<&str>::new(), "cards whose content didn't fit, fullscreen {fullscreen}");
     }
-}
-
-#[test]
-fn the_tone_curve_s_labels_go_on_lines_where_they_don_t_overlap() {
-    let gap = 16.0;
-    // Apart, they share the first line.
-    assert_eq!(cards::label_lines(&[[0.0, 100.0], [200.0, 300.0], [400.0, 500.0]], gap), [0, 0, 0]);
-    // At one tone, each gets a line.
-    assert_eq!(cards::label_lines(&[[0.0, 100.0], [4.0, 96.0], [2.0, 98.0]], gap), [0, 1, 2]);
-    // Too close to the first, the second goes on the next line, and the
-    // third on the first line where it's clear of the others.
-    assert_eq!(cards::label_lines(&[[0.0, 100.0], [110.0, 210.0], [220.0, 320.0]], gap), [0, 1, 0]);
-    assert_eq!(cards::label_lines(&[[0.0, 100.0], [110.0, 210.0], [90.0, 190.0]], gap), [0, 1, 2]);
 }
 
 #[test]
