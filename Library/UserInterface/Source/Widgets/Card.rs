@@ -84,6 +84,14 @@ impl<'a> Card<'a> {
         self.padding = padding;
         self
     }
+
+    // How tall the card is around content `content_height` tall: its
+    // padding, and its header if it has a title. For a card that must end
+    // where it ends, like at the window's bottom.
+    pub fn height_around(&self, content_height: f32) -> f32 {
+        let header = if self.title.is_empty() { 0.0 } else { CARD_HEADER_HEIGHT + CARD_HEADER_GAP };
+        self.padding * 2.0 + header + content_height
+    }
 }
 
 // Where a card's parts are.

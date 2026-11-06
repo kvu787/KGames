@@ -187,6 +187,7 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
         {
             let fraction = ((pointer.x - left) / (right - left).max(1.0)).clamp(0.0, 1.0) as f64;
             value = self.snap(self.minimum + span * fraction);
+            value = value.clamp(self.allowed.0, self.allowed.1);
         }
         if response.focused {
             let input = ui.input();
@@ -224,16 +225,31 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
                 let direction = (notches as f64) * span.signum();
                 let current = match self.step {
                     Some(step) if step > 0.0 => {
+                        // A value on a step, give or take rounding, is on it;
+                        // between steps, it goes from the one behind it.
                         let index = (value - self.minimum) / step;
-                        let snapped = if direction > 0.0 { index.floor() } else { index.ceil() };
+                        let nearest = index.round();
+                        let snapped = if (index - nearest).abs() < 1e-6 {
+                            nearest
+                        } else if direction > 0.0 {
+                            index.floor()
+                        } else {
+                            index.ceil()
+                        };
                         self.minimum + snapped * step
                     }
                     _ => value,
                 };
-                value = (current + direction * step).clamp(self.allowed.0, self.allowed.1);
+                let moved = (current + direction * step).clamp(self.allowed.0, self.allowed.1);
+                // Never back against the wheel, like from a value just past
+                // what's allowed.
+                if (moved - value) * direction > 0.0 {
+                    value = moved;
+                }
             }
         }
-        value = value.clamp(self.allowed.0, self.allowed.1);
+        // Only input moves the value: one that's outside what's allowed,
+        // like from a file, stays until the user changes it.
         if value != before {
             *self.value = T::from_f64(value);
             response.changed = true;

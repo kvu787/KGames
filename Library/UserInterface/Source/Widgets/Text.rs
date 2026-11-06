@@ -108,6 +108,13 @@ impl Ui {
         self.painter().fill(line, color);
     }
 
+    // A color in a rounded square, only to show, like a paint's in a row.
+    pub fn swatch(&mut self, rect: Rect, color: Color) {
+        let mut painter = self.painter();
+        let theme = painter.theme();
+        painter.shape(rect, RADIUS_CONTROL, color, Some(Border::new(theme.control_stroke_secondary, 1.0)));
+    }
+
     // A key, like "Ctrl" or "S", on a keycap whose top left is at the point.
     // Returns its width.
     pub fn keycap(&mut self, origin: Point, key: &str) -> f32 {

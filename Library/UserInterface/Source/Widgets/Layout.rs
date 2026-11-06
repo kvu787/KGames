@@ -18,6 +18,8 @@ pub struct Form {
     label_width: Option<f32>,
     gap: f32,
     used: f32,
+    // Whether everything taken so far fit in the area.
+    fits: bool,
 }
 
 impl Form {
@@ -28,6 +30,7 @@ impl Form {
             label_width: None,
             gap: FORM_ROW_GAP,
             used: area.y,
+            fits: true,
         }
     }
 
@@ -47,6 +50,7 @@ impl Form {
 
     // A rectangle `height` tall for anything, and the gap after it.
     pub fn take(&mut self, height: f32) -> Rect {
+        self.fits &= height <= self.area.height;
         let rect = self.area.cut_top(height, self.gap);
         self.used = rect.bottom();
         rect
@@ -118,6 +122,11 @@ impl Form {
     // Where the content ends.
     pub fn bottom(&self) -> f32 {
         self.used
+    }
+
+    // Whether everything taken fit in the area, for content that may not.
+    pub fn fits(&self) -> bool {
+        self.fits
     }
 
     pub fn width(&self) -> f32 {
