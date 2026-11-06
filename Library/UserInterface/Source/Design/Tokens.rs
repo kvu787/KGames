@@ -61,11 +61,11 @@ pub const DISPLAY: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 6
 pub const MONO: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 13.0, 20.0);
 pub const MONO_STRONG: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 13.0, 20.0);
 pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 12.0, 16.0);
-// The PerfBar along the top of every window: Cascadia Mono at 15 pixels.
+// The PerfBar along the top of every window: Cascadia Mono at 14 pixels.
 // Its ink, from the top of "/", 1610 of its 2048 units a size above the
-// baseline, to the bottom of "y", 480 below, is 15.31 pixels tall, which the
+// baseline, to the bottom of "y", 480 below, is 14.29 pixels tall, which the
 // bar centers in the 29 above its divider.
-pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 15.0, 30.0);
+pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 14.0, 30.0);
 // How far Cascadia Mono's ink is below the middle of its ascent and descent,
 // which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
 pub const MONO_INK_DROP: f32 = 0.0708;
