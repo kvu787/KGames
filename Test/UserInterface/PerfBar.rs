@@ -105,7 +105,7 @@ fn every_label_and_value_stays_in_its_columns() {
 fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
     let summary = measuring(0.01, 10.0, true);
     // Frames a second, and the latency's median.
-    assert_eq!(values(&summary.left), ["  100", "  10.00"]);
+    assert_eq!(values(&summary.left), ["  100.00", "  10.00"]);
     assert_eq!(values(&summary.right), ["Independent flip", "yes"]);
     assert!(summary.note.is_empty());
 
@@ -122,7 +122,7 @@ fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
 
     // Frames without input have no latency.
     let summary = measuring(0.01, 10.0, false);
-    assert_eq!(values(&summary.left), ["  100", "      -"]);
+    assert_eq!(values(&summary.left), ["  100.00", "      -"]);
 }
 
 #[test]
@@ -132,5 +132,5 @@ fn a_number_too_wide_for_its_field_fills_it() {
     performance.frame_started(0.000_001);
     performance.update(0.000_001);
     let summary = performance.summary();
-    assert_eq!(values(&summary.left), ["#####", "      -"]);
+    assert_eq!(values(&summary.left), ["########", "      -"]);
 }

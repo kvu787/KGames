@@ -258,7 +258,7 @@ the input latency over the last 2 seconds. It changes what it says 10 times a se
 
 | Stat              | What it is                                                                                      |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
-| `Frames`          | Frames a second that the main loop draws                                                        |
+| `FPS`             | Frames a second that the main loop draws, with two decimals                                     |
 | `Input to screen` | The input latency's median                                                                      |
 | `Mode`            | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM          |
 | `Tearing`         | Whether they tear                                                                               |

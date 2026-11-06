@@ -32,10 +32,10 @@ const REFRESH_SECONDS: f64 = 0.1;
 // to be the same present.
 const MATCH_SECONDS: f64 = 0.005;
 
-// The PerfBar's fields' widths, in characters: frames a second, times in
-// milliseconds with two decimals, and the present mode, as wide as the
+// The PerfBar's fields' widths, in characters: frames a second and times in
+// milliseconds, both with two decimals, and the present mode, as wide as the
 // longest mode's name, "Independent flip".
-const RATE_WIDTH: usize = 5;
+const RATE_WIDTH: usize = 8;
 const MILLISECONDS_WIDTH: usize = 7;
 const MODE_WIDTH: usize = 16;
 const YES_NO_WIDTH: usize = 3;
@@ -156,13 +156,12 @@ impl Summary {
         let frames = self.frames_per_second > 0.0;
         let measuring = self.latency == LatencyState::Measuring;
         let latency = measuring && self.samples > 0;
-        let rate = |value: f64, known: bool| number(known.then_some(value), 0, RATE_WIDTH);
+        let rate = |value: f64, known: bool| number(known.then_some(value), 2, RATE_WIDTH);
         let time = |value: f64, known: bool| number(known.then_some(value), 2, MILLISECONDS_WIDTH);
 
         let mut left = Runs::default();
-        left.label("Frames ");
+        left.label("FPS ");
         left.value(rate(self.frames_per_second, frames));
-        left.label("/s");
         left.label(GAP);
         left.label("Input to screen  median ");
         left.value(time(self.median, latency));
