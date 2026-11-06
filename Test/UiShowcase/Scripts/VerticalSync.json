@@ -1,0 +1,11 @@
+{
+    "Steps": [
+        { "Frame": 1, "Expect": { "Interface": { "VerticalSync": true } } },
+        { "Frame": 2, "Key": "F10" },
+        { "Frame": 4, "Expect": { "Interface": { "VerticalSync": false } } },
+        { "Frame": 4, "Capture": "VerticalSyncOff" },
+        { "Frame": 5, "Key": "F10" },
+        { "Frame": 7, "Expect": { "Interface": { "VerticalSync": true } } },
+        { "Frame": 7, "Capture": "VerticalSyncOn" }
+    ]
+}

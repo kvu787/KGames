@@ -16,7 +16,7 @@
 // the loop waits for that, and for messages, instead of spinning: a frame
 // couldn't begin any sooner, and the input is still read as soon as one can.
 // Coding agents' test runs use it, so that they don't take the machine from
-// someone, like the user playing a game.
+// someone, like the user playing a game. F10 switches it on and off.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -222,7 +222,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             // of spinning, which ends as soon as a frame can begin, or a
             // message comes. Without it, the loop spins, so that the frame
             // begins the moment that it can, without a thread's wake-up.
-            if vertical_sync {
+            if presenter.vsync() {
                 presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             }
             continue;
@@ -268,6 +268,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleFullscreen => window.set_mode(window.mode().other()),
+                Request::ToggleVerticalSync => {
+                    presenter.set_vsync(!presenter.vsync());
+                    ui.environment.vertical_sync = presenter.vsync();
+                    ui.environment.tearing = presenter.tearing();
+                }
                 Request::Close => break 'frames,
             }
         }

@@ -1,10 +1,11 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
-// a standard button's elevation border, and the page for an unsupported
-// setup.
+// a standard button's elevation border, whether the performance stats say
+// that vertical sync is on, and the page for an unsupported setup.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
-use user_interface::{Button, Card, Headless, Program, Rect, Theme, ThemeKind, Ui};
+use user_interface::tokens::STATS_BAR_HEIGHT;
+use user_interface::{Button, Card, Headless, Key, Program, Rect, Theme, ThemeKind, Ui};
 
 struct Page;
 
@@ -71,6 +72,25 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
             ThemeKind::Dark => assert!(brightness(stronger) > brightness(weaker), "{top:?} {bottom:?}"),
         }
     }
+}
+
+#[test]
+fn the_performance_stats_say_whether_vertical_sync_is_on() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(Page);
+    // A second of frames, so that the stats have a frame rate to show.
+    app.wait(1.0);
+    let off = app.render(&mut gpu).unwrap();
+    app.key(Key::F10);
+    let on = app.render(&mut gpu).unwrap();
+    save(&off, "VerticalSyncOff");
+    save(&on, "VerticalSyncOn");
+    // "VSync off" turns to "VSync on" at the bar's right end, and nothing
+    // else along the bar changes.
+    let right = off.width - 200;
+    let changed = |from: u32, to: u32| (from..to).any(|x| (0..STATS_BAR_HEIGHT as u32).any(|y| off.pixel(x, y) != on.pixel(x, y)));
+    assert!(changed(right, off.width));
+    assert!(!changed(0, right));
 }
 
 struct Unsupported;

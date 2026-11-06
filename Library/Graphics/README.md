@@ -38,7 +38,8 @@ and DXGI can take another, so the main loop can keep handling messages while it 
 input only once a frame can start. Frames present without waiting for vertical sync, and may tear
 if `allow_tearing` and the system allow it. With `VerticalSync` in a program's Settings.json, or
 `--vsync`, which RunInBackground's runs use, frames wait for the display's refresh instead, and
-never tear. Alt+Enter's exclusive fullscreen is off.
+never tear. `Presenter::set_vsync` switches between the two from the next frame on, as `F10` does
+in every program. Alt+Enter's exclusive fullscreen is off.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.

@@ -175,8 +175,9 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 impl Ui {
     // Draws the performance stats along the top of the window: the frames,
     // the frames that reach the screen, the input latency from GameInput's
-    // readings to the screen with its parts, and how frames reach the
-    // screen. The main loop draws them every frame; programs don't.
+    // readings to the screen with its parts, and at the right, how frames
+    // reach the screen and whether they wait for vertical sync. The main loop
+    // draws them every frame; programs don't.
     pub(crate) fn stats_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made a few times a second, not copied here
@@ -189,6 +190,9 @@ impl Ui {
         let theme = self.theme();
         let (background, fill, divider, label, value) =
             (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
+        // Vertical sync from this frame on, as F10 switches it, not as of the
+        // summary.
+        let vertical_sync = if self.environment.vertical_sync { "on" } else { "off" };
         self.cover(bar);
         let (items, mode) = (&summary.lines, &summary.mode_text);
         {
@@ -205,9 +209,14 @@ impl Ui {
             x = text(&mut painter, x, name, label) + SPACE_S;
             x = text(&mut painter, x, item, value) + SPACE_XXL;
         }
+        // From the right edge in: vertical sync, then the present mode.
+        let mut right = bar.right() - PAGE_PADDING - painter.measure(vertical_sync, CAPTION).width;
+        text(&mut painter, right, vertical_sync, value);
+        right -= SPACE_S + painter.measure("VSync", CAPTION).width;
+        text(&mut painter, right, "VSync", label);
         if !mode.is_empty() {
-            let width = painter.measure(mode, CAPTION).width;
-            text(&mut painter, bar.right() - PAGE_PADDING - width, mode, label);
+            right -= SPACE_XXL + painter.measure(mode, CAPTION).width;
+            text(&mut painter, right, mode, label);
         }
         }
         self.performance = Some(performance);

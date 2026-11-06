@@ -170,6 +170,9 @@ the window's focus changes between them. The window's messages bring none of it.
 - Without focus, the window has no input at all, including the gamepad's. The click that gives it
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
+- `F10` switches vertical sync on or off, whatever `VerticalSync` or `--vsync` started it as, and
+  the [performance stats](#performance-stats) say which. A program's own command for it calls
+  `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
 - `F11` switches between maximized and borderless fullscreen.
 - With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
@@ -229,7 +232,8 @@ Minimizing the window stops the loop drawing.
 
 With `VerticalSync`, frames wait for the screen's refresh, and DXGI can take another only once the
 last one has gone to the screen, so the loop waits for that, and for messages, instead of spinning:
-a frame couldn't begin any sooner, and the input is still read as soon as one can.
+a frame couldn't begin any sooner, and the input is still read as soon as one can. `F10` switches
+it on and off while the program runs.
 
 RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input` instead, so that they
 share the computer lightly with someone using it, like playing a game: the window opens beneath the
@@ -253,7 +257,8 @@ it says 4 times a second:
 | `On screen`       | Frames a second that reach the screen                                                                         |
 | `Input to screen` | The input latency's median and 99th percentile, and how many frames they're of                                |
 | `Medians`         | The median of each of the input latency's three parts                                                         |
-| At the right      | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM, and whether they tear |
+| `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it               |
+| Left of `VSync`   | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM, and whether they tear |
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:
@@ -345,12 +350,12 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 | `Program`     | A step for the program's `script`                                                |
 
 The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`, `Fullscreen`,
-`WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open `Popup` and
-`Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`, `Enabled` and
-`Label`, by name. Menu items are named after their menu and label, like `Menu/File/Menu/Save`, and
-a dialog's buttons like `Question/Primary`. Scripts copy and paste on the interface's own
-clipboard, never Windows'. A scripted run reads and writes its files in its output folder, through
-`startup.data_folder`.
+`VerticalSync`, `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
+`Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,
+`Enabled` and `Label`, by name. Menu items are named after their menu and label, like
+`Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. Scripts copy and paste on the
+interface's own clipboard, never Windows'. A scripted run reads and writes its files in its output
+folder, through `startup.data_folder`.
 
 `Test/UserInterface` tests the library itself, with a GPU test that draws offscreen.
 

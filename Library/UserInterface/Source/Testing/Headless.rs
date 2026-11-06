@@ -101,6 +101,12 @@ impl<P: Program> Headless<P> {
         self.run_frame()
     }
 
+    // Whether frames would wait for vertical sync, which a test's frames
+    // start without, and F10 switches.
+    pub fn vertical_sync(&self) -> bool {
+        self.ui.vertical_sync()
+    }
+
     // Whether the program closed its window with Ui::close.
     pub fn closed(&self) -> bool {
         self.closed
@@ -125,6 +131,7 @@ impl<P: Program> Headless<P> {
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
                 Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
+                Request::ToggleVerticalSync => self.ui.environment.vertical_sync = !self.ui.environment.vertical_sync,
                 Request::Close => self.closed = true,
             }
         }

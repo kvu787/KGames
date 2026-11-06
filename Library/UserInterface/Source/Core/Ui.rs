@@ -193,7 +193,8 @@ pub struct Environment {
     // The display's identifier, like "CVVNY2", and its model.
     pub display: String,
     pub display_name: String,
-    // Whether frames may tear, and whether they wait for the screen.
+    // Whether frames may tear, and whether they wait for the screen, which
+    // F10 switches.
     pub tearing: bool,
     pub vertical_sync: bool,
     // Whether input comes from a script instead of the user.
@@ -204,6 +205,7 @@ pub struct Environment {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Request {
     ToggleFullscreen,
+    ToggleVerticalSync,
     Close,
 }
 
@@ -487,6 +489,9 @@ impl Ui {
         }
         let shown: Vec<Id> = self.targets.iter().map(|target| target.id).collect();
         self.popups.retain(|popup| shown.contains(&popup.owner));
+        if self.input.key_pressed_once(Key::F10) && !self.is_captured(Key::F10) {
+            self.requests.push(Request::ToggleVerticalSync);
+        }
         if self.input.key_pressed_once(Key::F11) && !self.is_captured(Key::F11) {
             self.requests.push(Request::ToggleFullscreen);
         }
@@ -530,6 +535,16 @@ impl Ui {
 
     pub fn toggle_fullscreen(&mut self) {
         self.requests.push(Request::ToggleFullscreen);
+    }
+
+    // Whether frames wait for the screen's refresh.
+    pub fn vertical_sync(&self) -> bool {
+        self.environment.vertical_sync
+    }
+
+    // Switches vertical sync, as F10 does, from the next frame on.
+    pub fn toggle_vertical_sync(&mut self) {
+        self.requests.push(Request::ToggleVerticalSync);
     }
 
     // Closes the window, whatever Program::may_close says.
@@ -1103,6 +1118,7 @@ impl Ui {
             ("Theme".to_string(), Value::from(self.theme.kind.name())),
             ("Size".to_string(), Value::from(vec![self.size.width as f64, self.size.height as f64])),
             ("Fullscreen".to_string(), Value::from(self.fullscreen)),
+            ("VerticalSync".to_string(), Value::from(self.environment.vertical_sync)),
             ("WindowFocused".to_string(), Value::from(self.input.focused)),
             ("Pointer".to_string(), pointer),
             ("Hovered".to_string(), name(self.hovered_name())),
