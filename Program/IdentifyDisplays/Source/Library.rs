@@ -4,7 +4,7 @@
 
 use displays::Display;
 use user_interface::tokens::{BODY, BODY_LARGE, SPACE_XXXL, TITLE};
-use user_interface::{Align, Color, Corners, Font, Fonts, Rect, Stroke, TextStyle, Ui, Weight};
+use user_interface::{Align, Border, Color, Corners, Font, Fonts, Rect, TextStyle, Ui, Weight};
 
 // The identifier is in Cascadia Mono, whose 0 has a slash through it.
 const IDENTIFIER: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 112.0, 132.0);
@@ -107,9 +107,9 @@ impl Identity {
         let theme = ui.theme().clone();
         let bounds = ui.bounds();
         let mut painter = ui.painter();
-        painter.fill(bounds, theme.flyout);
+        painter.fill(bounds, theme.acrylic);
         painter.fill(bounds.top_strip((ACCENT_BAR * self.scale).round()), theme.accent);
-        painter.shape(bounds, Corners::default(), Color::TRANSPARENT, Some(Stroke::new(theme.surface_stroke_flyout, 1.0)));
+        painter.shape(bounds, Corners::ZERO, Color::TRANSPARENT, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
         let padding = self.padding();
         let mut y = ACCENT_BAR * self.scale + padding;
         for line in &self.lines {
