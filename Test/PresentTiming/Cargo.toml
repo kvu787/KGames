@@ -8,6 +8,10 @@ publish = false
 name = "Tracker"
 path = "Tracker.rs"
 
+[[test]]
+name = "Gold"
+path = "Gold.rs"
+
 [dependencies]
 present_timing = { path = "../../Library/PresentTiming" }
 

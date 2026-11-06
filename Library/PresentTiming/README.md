@@ -12,13 +12,14 @@ PresentMon's: its "screen time", which PresentMon's `MsUntilDisplayed`, `Display
 Windows says what happens to every present in its own events, which a real-time ETW session
 (`Source/Session.rs`) reads on a thread of its own, as they happen:
 
-| Provider                     | What it says                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| `Microsoft-Windows-DXGI`     | A `Present` call started and ended, on which thread                            |
-| `Microsoft-Windows-Win32k`   | The present's token for composition, and whether DWM composed it or skipped it |
-| `Microsoft-Windows-DxgKrnl`  | The present's queue packet, the flips, and the display's sync interrupts       |
-| `Microsoft-Windows-Dwm-Core` | DWM's frames, which composed presents show in                                  |
-| `NVIDIA-DD-External`         | When NVIDIA's driver means to flip, if that's later than the kernel's flip     |
+| Provider                     | What it says                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `Microsoft-Windows-DXGI`     | A DXGI `Present` call started and ended, on which thread                        |
+| `Microsoft-Windows-D3D9`     | The same, for Direct3D 9                                                        |
+| `Microsoft-Windows-Win32k`   | The present's token for composition, and whether DWM composed it or skipped it  |
+| `Microsoft-Windows-DxgKrnl`  | The present's copy or flip, its queue packet, and the display's sync interrupts |
+| `Microsoft-Windows-Dwm-Core` | DWM's frames, which composed presents show in, and the copies that DWM takes    |
+| `NVIDIA-DD-External`         | When NVIDIA's driver means to flip, if that's later than the kernel's flip      |
 
 The session enables the same events, levels and keywords as PresentMon. `Source/Decoder.rs` finds
 the events' fields by name, with the layouts that Windows' trace data helper (TDH) gives from the
@@ -28,24 +29,62 @@ follows each present through them, by the keys that each event has: its thread w
 call runs, then Win32k's token, the kernel's present history token, and its queue packet's submit
 sequence, which the flips and sync interrupts name.
 
-A present is on the screen:
+The presents are of any API: DXGI's and Direct3D 9's, whose `Present` calls have events of their
+own, and others', like OpenGL's or Vulkan's, which only the kernel's and Win32k's events tell of.
+Windows 7's events aren't read.
 
-- **Independent flip** (the display takes the swap chain's buffer itself, like in borderless
-  fullscreen): when the flip happens, if it's immediate and can tear, or else at the sync
-  interrupt of the refresh that takes it.
-- **Overlay plane** (the same, on one of the display's overlay planes): the same.
-- **Composed** (DWM draws it into its own frame): when DWM's frame is, of which only the newest
-  present of each window is shown.
+A present that a newer one replaced before the screen took it, that the kernel found it didn't need
+to copy, or that DXGI or Direct3D 9 says is occluded, never reaches the screen. Like PresentMon, the
+first present to complete, and the ones under way then, are taken as lost, since their earlier
+events may not have been seen. PresentMon's console then puts a present that NVIDIA's flip delay
+would put before the one before it on the screen with that one, which `Corrector` does too.
 
-A present that a newer one replaced before the screen took it, or that DXGI says is occluded,
-never reaches the screen. Like PresentMon, the first present to complete, and the ones under way
-then, are taken as lost, since their earlier events may not have been seen. PresentMon's console
-then puts a present that NVIDIA's flip delay would put before the one before it on the screen with
-that one, which `Corrector` does too.
+## Present modes
 
-Only the paths that DXGI's flip-model swap chains take are followed, which are the only ones
-that KGames' programs use. Copies to the front buffer and composition atlases aren't, and legacy
-fullscreen flips only as far as DWM's own frames need, never as a mode of the process's presents.
+A present's mode is how it got to the screen. There's one for every mode that PresentMon tells
+apart:
+
+| Mode                | PresentMon's name                       |
+| ------------------- | --------------------------------------- |
+| `Independent flip`  | `Hardware: Independent Flip`            |
+| `Overlay plane`     | `Hardware Composed: Independent Flip`   |
+| `Composed flip`     | `Composed: Flip`                        |
+| `Legacy flip`       | `Hardware: Legacy Flip`                 |
+| `Legacy copy`       | `Hardware: Legacy Copy to front buffer` |
+| `Composed GPU copy` | `Composed: Copy with GPU GDI`           |
+| `Composed CPU copy` | `Composed: Copy with CPU GDI`           |
+| `Unknown`           | `Other`                                 |
+
+Each follows its own path through the events, which says when the present was on the screen:
+
+- **Independent flip**: the display took a flip model swap chain's buffer itself, without DWM,
+  like in borderless fullscreen. It's on the screen when the flip happens, if it's immediate and
+  can tear, or else at the sync interrupt of the refresh that takes it.
+- **Overlay plane**: the same, on one of the display's overlay planes, over the desktop's, which
+  lets it skip DWM while other things on the screen, like a title bar or the taskbar, don't. The
+  same.
+- **Composed flip**: DWM drew a flip model swap chain's buffer into its own frame. It's on the
+  screen when DWM's frame is, which shows only the newest present of each window.
+- **Legacy flip**: the process owned the display, in fullscreen exclusive mode, which showed its
+  buffer. As an independent flip. DWM's own frames go to the screen this way too.
+- **Legacy copy**: the process owned the display, and copied its buffer into the one that the
+  display showed. When the copy is done.
+- **Composed GPU copy**: a bitblt model swap chain's buffer was copied on the GPU into the
+  window's surface, which DWM drew into its own frame. As a composed flip.
+- **Composed CPU copy**: the same, copied on the CPU. As a composed flip.
+- **Unknown**: its events didn't say.
+
+Which a process can have depends on how it presents. KGames' programs present with Direct3D 12,
+which only has flip model swap chains, in a window or borderless fullscreen, never fullscreen
+exclusive, so theirs are independent flips, overlay planes and composed flips. A game that
+[FrameTimes](../../Program/FrameTimes/README.md) measures can have any: Direct3D 9, 10 and 11 have
+bitblt model swap chains, which copy, and every API but Direct3D 12 can take fullscreen exclusive
+mode.
+
+As in PresentMon, two more ways aren't modes of their own. DWM flipping the process's buffer to
+the screen itself, without drawing it into a frame of its own, is a composed flip, as Windows'
+events don't tell them apart. And presents to DirectComposition's composition swap chains are left
+out, as they can't be followed to DWM's frames.
 
 ## Privileges
 
@@ -70,15 +109,26 @@ providers, and gives a process's presents with the performance counter's frequen
 with what `PresentMon --etl_file` says of the same file: a present's `TimeInQPC` is its `start`,
 and `MsUntilDisplayed` is its `screen` less its `start`, in milliseconds.
 
-On the six gold traces in PresentMon's repository, from Windows 10, every flip-model present that
-PresentMon reports, in 11 processes, independent flips, overlay planes and composed, has the same
-screen time to PresentMon's printed 0.1 µs, and the same mode. `read_file` gives two presents of
-each swap chain that PresentMon's console doesn't write: its first, and its last, which PresentMon
-writes only once the next one reaches the screen. Those traces don't have Windows 11's hardware
-flip queue, whose flips' status after the flip tells immediate flips from ones that wait for the
-sync interrupt.
+`Test/PresentTiming/Gold.rs` does that for the six gold traces in PresentMon's repository
+(`Tests/Gold`), from Windows 10, with the CSVs that PresentMon 2.6.1 wrote for them. All 1,448
+presents that PresentMon writes, of every process, DXGI's, Direct3D 9's and others', have the
+same mode, tearing, and time on the screen, to a millionth of a millisecond: 858 legacy flips, 329
+composed flips, 147 composed GPU copies, 81 independent flips, 31 overlay planes and 2 unknown.
+`read_file` gives two presents of each swap chain that PresentMon's console doesn't write: its
+first, and its last, which PresentMon writes only once the next one reaches the screen.
 
-`Test/PresentTiming` tests the tracker with made-up events in the order that Windows sends them.
+The traces aren't in this repository, so the test is ignored unless it's asked for, with
+`PRESENTMON_GOLD` naming a folder that has them:
+
+```powershell
+$env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
+Program\RunLightly\RunLightly.ps1 cargo test -p present_timing_tests --test Gold '--' --ignored --nocapture
+```
+
+The traces don't have legacy copies, composed CPU copies, or Windows 11's hardware flip queue,
+whose flips' status after the flip tells immediate flips from ones that wait for the sync
+interrupt. `Test/PresentTiming/Tracker.rs` tests the tracker with made-up events in the order that
+Windows sends them, for every mode.
 
 ## Layout
 
@@ -88,4 +138,4 @@ sync interrupt.
 | `Source/Session.rs` | The real-time ETW session, and reading trace files                              |
 | `Source/Events.rs`  | The providers, their events, and the events as plain data                       |
 | `Source/Decoder.rs` | Finds events' fields by name, with TDH's layouts                                |
-| `Source/Tracker.rs` | Follows presents through the events to when the display took them               |
+| `Source/Tracker.rs` | Follows presents through the events to when the display took them, and how      |
