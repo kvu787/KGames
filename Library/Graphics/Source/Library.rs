@@ -18,6 +18,8 @@ mod png;
 mod presenter;
 #[path = "Resources.rs"]
 mod resources;
+#[path = "Timer.rs"]
+mod timer;
 
 pub use depth::DepthBuffer;
 pub use device::{AdapterChoice, Gpu, GpuPriority, gpu_priority, set_gpu_priority};
@@ -28,6 +30,7 @@ pub use resources::{
     DescriptorHeap, UploadBuffer, bytecode, create_buffer, create_texture, heap_properties,
     transition,
 };
+pub use timer::{GpuTimer, Span};
 
 use windows_api::*;
 

@@ -208,14 +208,21 @@ impl Offscreen {
 
     // Runs the frame's commands, waits for them, and returns what they drew.
     pub fn finish(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<Image> {
+        let readback = unsafe { Readback::record(&gpu.device, &frame)? };
+        let fence = self.submit(gpu, frame)?;
+        let image = readback.read(gpu, fence);
+        gpu.report_messages();
+        image
+    }
+
+    // Runs the frame's commands without reading anything back, like for
+    // timing them, and returns the fence value that the GPU signals once
+    // it has finished them.
+    pub fn submit(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<u64> {
         unsafe {
-            let readback = Readback::record(&gpu.device, &frame)?;
             frame.list.Close().ok()?;
             execute(&gpu.queue, &frame.list)?;
-            let fence = gpu.signal()?;
-            let image = readback.read(gpu, fence);
-            gpu.report_messages();
-            image
         }
+        gpu.signal()
     }
 }

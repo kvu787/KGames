@@ -12,6 +12,10 @@ path = "GpuPriority.rs"
 name = "DepthBuffer"
 path = "DepthBuffer.rs"
 
+[[test]]
+name = "Timer"
+path = "Timer.rs"
+
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
 

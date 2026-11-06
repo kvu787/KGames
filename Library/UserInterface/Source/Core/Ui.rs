@@ -736,6 +736,13 @@ impl Ui {
         self.targets.len()
     }
 
+    // How many instances the frame drew: each shape, glyph, line, arc,
+    // polygon and shadow is one, which the renderer draws in one call. For
+    // benchmarks.
+    pub fn instance_count(&self) -> usize {
+        self.draw.instance_count()
+    }
+
     // Moves the targets from `middle` on to before those from `first`, so
     // that the pointer finds the ones from `first` over them.
     pub(crate) fn move_targets_back(&mut self, first: usize, middle: usize) {

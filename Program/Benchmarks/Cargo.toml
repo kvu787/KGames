@@ -1,0 +1,37 @@
+[package]
+name = "benchmarks"
+version = "0.1.0"
+edition = "2024"
+
+# The harness and the benchmarks, which Test/Benchmarks tests.
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
+[[bin]]
+name = "Benchmarks"
+path = "Source/Main.rs"
+# Every test is in Test.
+test = false
+
+[dependencies]
+game_input_demo = { path = "../GameInputDemo" }
+gltf = { path = "../../Library/Gltf" }
+graphics = { path = "../../Library/Graphics" }
+json = { path = "../../Library/Json" }
+math = { path = "../../Library/Math" }
+mesh_modeler = { path = "../MeshModeler" }
+minimal_scene_test = { path = "../MinimalSceneTest" }
+polygon_mesh = { path = "../../Library/PolygonMesh" }
+present_timing = { path = "../../Library/PresentTiming" }
+simple_paint = { path = "../../Library/SimplePaint" }
+simple_paint_demo = { path = "../SimplePaintDemo" }
+spinning_car_test = { path = "../SpinningCarTest" }
+ui_showcase = { path = "../UiShowcase" }
+user_interface = { path = "../../Library/UserInterface" }
+veehiicuul = { path = "../Veehiicuul" }
+
+[lints]
+workspace = true

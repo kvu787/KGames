@@ -332,7 +332,8 @@ assert!(app.fullscreen());
 ```
 
 `render` draws the last frame offscreen with the GPU, with the program's 3D, for tests that check
-pixels.
+pixels, and `record` draws it into a frame of the caller's, for timing frames into one target, as
+[Benchmarks](../../Program/Benchmarks/README.md) does.
 
 **Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
 instead of from the user, and saves frames and its state. RunInBackground runs them (see its
