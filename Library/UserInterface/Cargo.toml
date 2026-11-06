@@ -1,0 +1,31 @@
+[package]
+name = "user_interface"
+version = "0.1.0"
+edition = "2024"
+build = "Build.rs"
+
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test/UserInterface.
+test = false
+doctest = false
+
+[dependencies]
+displays = { path = "../Displays" }
+game_input = { path = "../GameInput" }
+graphics = { path = "../Graphics" }
+json = { path = "../Json" }
+windows_api = { path = "../WindowsApi" }
+
+# Without its proc macros: the one COM object written here, the text
+# renderer that collects DirectWrite's glyphs, is written by hand.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../ShaderCompiler" }
+
+[lints]
+workspace = true
