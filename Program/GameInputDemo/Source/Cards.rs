@@ -8,9 +8,10 @@
 // height, so the cards have fixed places in pixels. The 71 pixels that
 // fullscreen adds go to the bottom row of cards and to the log.
 //
-// The combo box and the Devices card's rows read the mouse from the window's
-// messages, not from GameInput, because they say where the pointer is in the
-// window. Everything else that the cards show comes from GameInput.
+// The combo box and the Devices card's rows are the library's widgets, which
+// read the mouse's buttons from GameInput, and the pointer from where Windows'
+// cursor is in the window. Everything else that the cards show comes from the
+// devices' readings.
 
 use game_input::*;
 use user_interface::tokens::{

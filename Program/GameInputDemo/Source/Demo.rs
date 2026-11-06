@@ -1,14 +1,15 @@
 // The demo, as a Program that Library/UserInterface's main loop runs: what
 // it does each frame, before Cards.rs draws what it read.
 //
-// The demo reads its input with GameInput, or from a script's Program steps
-// in a scripted run, its shortcuts F1 and F2 too. F11 is the library's, from
-// the window's messages. Without GameInput the window still opens, and a
-// notice under the app bar says why there's no input.
+// The demo reads its input from the devices that Library/UserInterface reads
+// with GameInput, or from a script's Program steps in a scripted run, its
+// shortcuts F1 and F2 too. F11 is the library's, from the same readings.
+// Without GameInput the window still opens, and the library's notice under
+// the app bar says why there's no input.
 
 use json::Value;
 use user_interface::script::DEFAULT_FRAME_TIME;
-use user_interface::{Program, Severity, Startup, Ui};
+use user_interface::{Program, Startup, Ui};
 
 use crate::NAME;
 use crate::cards;
@@ -39,13 +40,11 @@ impl Demo {
         let source: Result<Box<dyn InputSource>, String> = if startup.scripted {
             Ok(Box::new(ScriptedSource::default()))
         } else {
-            GameInputSource::new()
-                .map(|source| Box::new(source) as Box<dyn InputSource>)
-                .map_err(|error| format!("{} ({})", error.message(), error.code()))
+            match &startup.devices {
+                Some(devices) => Ok(Box::new(GameInputSource::new(devices.clone()))),
+                None => Err("GameInput isn't available".to_string()),
+            }
         };
-        if let Err(message) = &source {
-            startup.notify(Severity::Error, "GameInput isn't available", &format!("The demo can't read input: {message}."));
-        }
         Demo::with_input(source.map(|source| Input::new(source, settings.rumble_dead_zone)))
     }
 

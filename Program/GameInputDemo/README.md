@@ -57,9 +57,9 @@ Shortcuts, while the demo's window has focus:
 | `F2`  | Clear the event log                                                                       |
 | `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
 
-The demo reads `F1` and `F2` with GameInput, like any other key. `F11` is Library/UserInterface's,
-which reads it from the window's messages, as in every KGames program, so the demo doesn't also
-switch on GameInput's `F11`, which would switch it back.
+The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F11` is
+Library/UserInterface's, which reads it from the same readings, as in every KGames program, so the
+demo doesn't also switch on `F11`, which would switch it back.
 
 ### Rumble test
 
@@ -102,8 +102,8 @@ and a mouse.
 The choice isn't saved. Until one is picked, the demo chooses for itself: the first gamepad it finds
 connected. If that one disconnects, it switches to another that's still connected, or else to the
 next one that connects. Before any gamepad connects, the combo box shows `None`, and a note after it
-says that no gamepad is connected. The combo box reads the mouse from the window's messages, not
-from GameInput, because they say where the pointer is in the window.
+says that no gamepad is connected. The combo box is the library's, which reads the mouse's buttons
+from GameInput too, and the pointer from where Windows' cursor is in the window.
 
 ### Device tooltips
 
@@ -130,8 +130,8 @@ has for its macros. Windows gives devices built into the computer the container
 
 Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread of its
 own does that for each device as it connects, instead of the main loop. The tooltip reads what it
-found. Long values, like the PnP path, wrap. The pointer comes from the window's messages, like the
-combo box's, so the tooltip only shows while the window has focus. Library/UserInterface places it
+found. Long values, like the PnP path, wrap. The pointer is the library's, like the combo box's, so
+the tooltip only shows while the window has focus. Library/UserInterface places it
 under the pointer, or above it if there isn't room, and always inside the window.
 
 ## Requirements
@@ -234,24 +234,31 @@ window still opens, and a notice under the app bar says why there's no input.
 ## How it reads input
 
 GameInput doesn't send input events. It keeps a short history of *readings*, where each reading is a
-timestamped snapshot of one device's whole state. Every frame, the demo:
+timestamped snapshot of one device's whole state. Library/UserInterface reads every program's input
+with GameInput, once a frame, right before the frame, and the demo shows the same readings that the
+library makes its events from, from `startup.devices`. Every frame, the library:
 
 1. Drains the queue of device events that its `RegisterDeviceCallback` callback fills. That callback
    runs on one of GameInput's threads, and also reports the devices that were already connected when
-   the demo started.
+   the program started.
 2. For each of gamepad, keyboard and mouse input, walks the history from the last reading it handled
    with `GetNextReading`, so no reading is missed between frames. GameInput keeps readings for only
    a short time, so after a pause in input the last reading handled has left the history, and
-   `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The demo then walks back from
-   the newest reading with `GetPreviousReading` to find the ones it hasn't handled.
+   `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The library then walks back
+   from the newest reading with `GetPreviousReading` to find the ones it hasn't handled.
+
+Then the demo:
+
 3. Compares each reading with the same device's previous one to work out what changed. It keeps
    every device's last reading itself for that, including the ones it drops without focus.
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
    pause a held key would show as pressed again.
 
-`Source/GameInputSource.rs` does the first two, and hands the devices and readings on as plain data,
-so that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)).
-Library/UserInterface doesn't read the gamepad for it: `Options::gamepad` is off.
+`Source/GameInputSource.rs` takes the library's devices and readings, once each a frame, as plain
+data, so that the rest of the demo also runs on input from tests and scripts (see
+[Testing](#testing)). Its `Options::gamepad` is on, so that gamepads' readings count as input that
+its frames take, for the [input latency](../../Library/UserInterface/README.md) that every program
+measures.
 
 Like every KGames program, the demo only handles input while its window has focus, and the app bar
 says whether it has focus. GameInput gives gamepad input to windows without focus. It's meant to give
@@ -425,7 +432,7 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 | `Source/Settings.rs`        | The demo's own setting, `RumbleTestInnerDeadZone`                                |
 | `Source/Devices.rs`         | Devices and readings as plain data, and `InputSource`, which gives them          |
 | `Source/DeviceTree.rs`      | Looks up a device's nodes in Windows' device tree, from its PnP path             |
-| `Source/GameInputSource.rs` | Reads devices and readings with GameInput                                        |
+| `Source/GameInputSource.rs` | Takes the devices and readings that the library reads with GameInput             |
 | `Source/ScriptedSource.rs`  | Devices and readings from tests and scripts, instead of GameInput                |
 | `Source/Input.rs`           | Keeps what the cards show, from the devices and readings                         |
 | `Source/Cards.rs`           | Lays out the cards in fixed pixels, and draws them with Library/UserInterface    |
