@@ -252,6 +252,16 @@ pub unsafe fn DisplayConfigGetDeviceInfo(
     unsafe { DisplayConfigGetDeviceInfo(requestpacket as _) }
 }
 #[inline]
+pub unsafe fn DwmSetWindowAttribute(
+    hwnd: HWND,
+    dwattribute: u32,
+    pvattribute: *const core::ffi::c_void,
+    cbattribute: u32,
+) -> windows_core::HRESULT {
+    windows_core::link!("dwmapi.dll" "system" fn DwmSetWindowAttribute(hwnd : HWND, dwattribute : u32, pvattribute : *const core::ffi::c_void, cbattribute : u32) -> windows_core::HRESULT);
+    unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
+}
+#[inline]
 pub unsafe fn EmptyClipboard() -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn EmptyClipboard() -> windows_core::BOOL);
     unsafe { EmptyClipboard() }
@@ -2482,6 +2492,34 @@ impl DISPLAYCONFIG_VIDEO_SIGNAL_INFO_0_0 {
 pub struct DPI_AWARENESS_CONTEXT(pub *mut core::ffi::c_void);
 pub const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
     DPI_AWARENESS_CONTEXT(-4 as _);
+pub const DWMWA_ALLOW_NCPAINT: DWMWINDOWATTRIBUTE = 4;
+pub const DWMWA_BORDER_COLOR: DWMWINDOWATTRIBUTE = 34;
+pub const DWMWA_BORDER_MARGINS: DWMWINDOWATTRIBUTE = 40;
+pub const DWMWA_CAPTION_BUTTON_BOUNDS: DWMWINDOWATTRIBUTE = 5;
+pub const DWMWA_CAPTION_COLOR: DWMWINDOWATTRIBUTE = 35;
+pub const DWMWA_CLOAK: DWMWINDOWATTRIBUTE = 13;
+pub const DWMWA_CLOAKED: DWMWINDOWATTRIBUTE = 14;
+pub const DWMWA_DISALLOW_PEEK: DWMWINDOWATTRIBUTE = 11;
+pub const DWMWA_EXCLUDED_FROM_PEEK: DWMWINDOWATTRIBUTE = 12;
+pub const DWMWA_EXTENDED_FRAME_BOUNDS: DWMWINDOWATTRIBUTE = 9;
+pub const DWMWA_FLIP3D_POLICY: DWMWINDOWATTRIBUTE = 8;
+pub const DWMWA_FORCE_ICONIC_REPRESENTATION: DWMWINDOWATTRIBUTE = 7;
+pub const DWMWA_FREEZE_REPRESENTATION: DWMWINDOWATTRIBUTE = 15;
+pub const DWMWA_HAS_ICONIC_BITMAP: DWMWINDOWATTRIBUTE = 10;
+pub const DWMWA_LAST: DWMWINDOWATTRIBUTE = 41;
+pub const DWMWA_NCRENDERING_ENABLED: DWMWINDOWATTRIBUTE = 1;
+pub const DWMWA_NCRENDERING_POLICY: DWMWINDOWATTRIBUTE = 2;
+pub const DWMWA_NONCLIENT_RTL_LAYOUT: DWMWINDOWATTRIBUTE = 6;
+pub const DWMWA_PASSIVE_UPDATE_MODE: DWMWINDOWATTRIBUTE = 16;
+pub const DWMWA_REDIRECTIONBITMAP_ALPHA: DWMWINDOWATTRIBUTE = 39;
+pub const DWMWA_SYSTEMBACKDROP_TYPE: DWMWINDOWATTRIBUTE = 38;
+pub const DWMWA_TEXT_COLOR: DWMWINDOWATTRIBUTE = 36;
+pub const DWMWA_TRANSITIONS_FORCEDISABLED: DWMWINDOWATTRIBUTE = 3;
+pub const DWMWA_USE_HOSTBACKDROPBRUSH: DWMWINDOWATTRIBUTE = 17;
+pub const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = 20;
+pub const DWMWA_VISIBLE_FRAME_BORDER_THICKNESS: DWMWINDOWATTRIBUTE = 37;
+pub const DWMWA_WINDOW_CORNER_PREFERENCE: DWMWINDOWATTRIBUTE = 33;
+pub type DWMWINDOWATTRIBUTE = i32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
@@ -5694,8 +5732,11 @@ pub const IDC_ARROW: windows_core::PCWSTR = windows_core::PCWSTR(32512 as _);
 pub const IDC_CROSS: windows_core::PCWSTR = windows_core::PCWSTR(32515 as _);
 pub const IDC_HAND: windows_core::PCWSTR = windows_core::PCWSTR(32649 as _);
 pub const IDC_IBEAM: windows_core::PCWSTR = windows_core::PCWSTR(32513 as _);
+pub const IDC_NO: windows_core::PCWSTR = windows_core::PCWSTR(32648 as _);
 pub const IDC_SIZEALL: windows_core::PCWSTR = windows_core::PCWSTR(32646 as _);
+pub const IDC_SIZENESW: windows_core::PCWSTR = windows_core::PCWSTR(32643 as _);
 pub const IDC_SIZENS: windows_core::PCWSTR = windows_core::PCWSTR(32645 as _);
+pub const IDC_SIZENWSE: windows_core::PCWSTR = windows_core::PCWSTR(32642 as _);
 pub const IDC_SIZEWE: windows_core::PCWSTR = windows_core::PCWSTR(32644 as _);
 windows_core::imp::define_interface!(
     IDWriteFactory,

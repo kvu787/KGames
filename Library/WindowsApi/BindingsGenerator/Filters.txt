@@ -330,3 +330,11 @@ WM_SETCURSOR
 WM_SETFOCUS
 WM_SYSCHAR
 WS_EX_APPWINDOW
+
+// Library/UserInterface's rewrite: a dark title bar in the dark theme, and
+// the cursors for diagonal resizing and for what can't be done
+DwmSetWindowAttribute
+DWMWINDOWATTRIBUTE
+IDC_NO
+IDC_SIZENESW
+IDC_SIZENWSE
