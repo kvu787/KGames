@@ -65,7 +65,7 @@ pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 
 // large as the bar fits it. Its ink, from the top of "/", 1610 of its 2048
 // units a size above the baseline, to the bottom of "y", 480 below, is 28.06
 // pixels tall at 27.5, of the 29 above the bar's divider.
-pub const STATS_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 27.5, 30.0);
+pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 27.5, 30.0);
 // How far Cascadia Mono's ink is below the middle of its ascent and descent,
 // which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
 pub const MONO_INK_DROP: f32 = 0.0708;
@@ -193,7 +193,7 @@ pub const ELEVATION_FLOATING_CARD: Elevation = ELEVATION_FLYOUT;
 // which is as tall as WinUI's TitleBar control, a status bar at the bottom,
 // and cards between them, PAGE_PADDING from the window's edges and CARD_GAP
 // from each other.
-pub const STATS_BAR_HEIGHT: f32 = 30.0;
+pub const PERF_BAR_HEIGHT: f32 = 30.0;
 pub const APP_BAR_HEIGHT: f32 = 48.0;
 pub const STATUS_BAR_HEIGHT: f32 = 32.0;
 pub const PAGE_PADDING: f32 = SPACE_L;

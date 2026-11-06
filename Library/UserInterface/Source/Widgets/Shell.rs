@@ -9,8 +9,8 @@ use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
 use crate::design::tokens::{
-    APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_INK_DROP, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATS_BAR_HEIGHT,
-    STATS_BAR_TEXT, STATUS_BAR_HEIGHT, SUBTITLE,
+    APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_INK_DROP, PAGE_PADDING, PERF_BAR_HEIGHT, PERF_BAR_TEXT, RADIUS_CONTROL, SPACE_L, SPACE_M,
+    SPACE_S, SPACE_XS, STATUS_BAR_HEIGHT, SUBTITLE,
 };
 use crate::drawing::geometry::{Color, Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Painter};
@@ -181,7 +181,7 @@ impl Ui {
     // in fields whose widths never change, so that every label and value
     // stays in the same columns. The main loop draws them every frame;
     // programs don't.
-    pub(crate) fn stats_bar(&mut self) {
+    pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made a few times a second, not copied here
         // every frame.
@@ -189,7 +189,7 @@ impl Ui {
             return;
         };
         let summary = performance.summary();
-        let bar = Rect::new(0.0, 0.0, self.size().width, STATS_BAR_HEIGHT);
+        let bar = Rect::new(0.0, 0.0, self.size().width, PERF_BAR_HEIGHT);
         let divider = self.theme().divider;
         // Vertical sync from this frame on, as F10 switches it, not as of the
         // summary, as wide whether it's on or off.
@@ -202,9 +202,9 @@ impl Ui {
             painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
             // The text's ink centered above the divider.
             let above = bar.height - 1.0;
-            let grid = StatsGrid {
-                advance: painter.measure("0", STATS_BAR_TEXT).width,
-                y: ((above - STATS_BAR_TEXT.line_height) / 2.0 - MONO_INK_DROP * STATS_BAR_TEXT.size).round(),
+            let grid = PerfBarGrid {
+                advance: painter.measure("0", PERF_BAR_TEXT).width,
+                y: ((above - PERF_BAR_TEXT.line_height) / 2.0 - MONO_INK_DROP * PERF_BAR_TEXT.size).round(),
                 color: Color::hex(0x000000),
             };
             let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;
@@ -234,13 +234,13 @@ fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> + Clone {
 
 // The stats bar's columns, each a character of Cascadia Mono wide, from the
 // bar's padding, and its text's color.
-struct StatsGrid {
+struct PerfBarGrid {
     advance: f32,
     y: f32,
     color: Color,
 }
 
-impl StatsGrid {
+impl PerfBarGrid {
     // Draws runs from a column, cutting short what would reach another, and
     // returns the column after them.
     fn draw<'a>(&self, painter: &mut Painter, mut column: usize, end: usize, runs: impl Iterator<Item = (&'a str, bool)>) -> usize {
@@ -248,10 +248,10 @@ impl StatsGrid {
             let count = text.chars().count();
             let at = Point::new(PAGE_PADDING + column as f32 * self.advance, self.y);
             if column + count <= end {
-                painter.text(at, text, STATS_BAR_TEXT, self.color);
+                painter.text(at, text, PERF_BAR_TEXT, self.color);
             } else if column < end {
-                let fitted = painter.fit(text, STATS_BAR_TEXT, (end - column) as f32 * self.advance + 0.5);
-                painter.text(at, &fitted, STATS_BAR_TEXT, self.color);
+                let fitted = painter.fit(text, PERF_BAR_TEXT, (end - column) as f32 * self.advance + 0.5);
+                painter.text(at, &fitted, PERF_BAR_TEXT, self.color);
             }
             column += count;
         }

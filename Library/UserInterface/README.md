@@ -192,7 +192,7 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 In any other setup, the window says what's wrong instead of showing the program. It checks again
 whenever the window moves or changes size, or the displays, the scale or the taskbar change.
 
-The top `STATS_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
+The top `PERF_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
 [performance stats](#performance-stats). The program has the rest, `ui.bounds()`, which starts at
 `ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
 areas, which leaves the program 2560 × 1339 maximized and 2560 × 1410 in borderless fullscreen;
@@ -264,7 +264,7 @@ it says 4 times a second:
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
-The bar is set in Cascadia Mono, `STATS_BAR_TEXT`, black on white, as large as fits above its
+The bar is set in Cascadia Mono, `PERF_BAR_TEXT`, black on white, as large as fits above its
 divider, in fields whose widths never change, so that every label and value stays in the same
 place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
 latency's before the first present, is a dash, and one too wide for its field fills it with `#`.

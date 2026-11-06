@@ -25,8 +25,8 @@ name = "Latency"
 path = "Latency.rs"
 
 [[test]]
-name = "StatsBar"
-path = "StatsBar.rs"
+name = "PerfBar"
+path = "PerfBar.rs"
 
 [[test]]
 name = "Reader"

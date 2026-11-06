@@ -496,7 +496,7 @@ impl Ui {
             self.requests.push(Request::ToggleFullscreen);
         }
         if self.performance.is_some() {
-            self.stats_bar();
+            self.perf_bar();
         }
     }
 
@@ -524,9 +524,9 @@ impl Ui {
     }
 
     // Where the program's part of the window starts: under the performance
-    // stats, STATS_BAR_HEIGHT pixels down, or at the top in an overlay.
+    // stats, PERF_BAR_HEIGHT pixels down, or at the top in an overlay.
     pub fn content_top(&self) -> f32 {
-        if self.performance.is_some() { crate::design::tokens::STATS_BAR_HEIGHT } else { 0.0 }
+        if self.performance.is_some() { crate::design::tokens::PERF_BAR_HEIGHT } else { 0.0 }
     }
 
     pub fn fullscreen(&self) -> bool {
