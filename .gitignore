@@ -1,2 +1,5 @@
 # Cargo's build output, at the root and in the bindings generator.
 target/
+
+# What MeshModeler saves when people use it.
+Program/MeshModeler/Models/

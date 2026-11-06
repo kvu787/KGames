@@ -11,6 +11,12 @@ path = "Source/Library.rs"
 test = false
 doctest = false
 
+[[bin]]
+name = "MeshModeler"
+path = "Source/Main.rs"
+# Every test is in Test.
+test = false
+
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
