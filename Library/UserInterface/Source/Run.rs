@@ -367,6 +367,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
     }
 
+    // The swap chain and the renderer's buffers go as this returns, before
+    // the GPU does, so the GPU must be done with the last frame first:
+    // releasing what a frame still draws with makes its shaders fault.
+    gpu.flush().map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
+
     if let Some(runner) = runner {
         if !runner.failures.is_empty() {
             return Err(format!("The script's expectations weren't met:\n{}", runner.failures.join("\n")));

@@ -112,6 +112,9 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
         }
         devices.read();
         if shown.iter().any(|overlay| overlay.window.close_requested()) || presses.closing(&devices, &mut shown) {
+            // The overlays' swap chains and buffers go before the GPU
+            // does, so it must be done with their frames first.
+            gpu.flush().map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             return Ok(());
         }
         let mut waiting = false;
