@@ -1,6 +1,6 @@
 {
     "Steps": [
-        { "Frame": 1, "Expect": { "TextShown": true, "Interface": { "Fullscreen": true, "Size": [2560, 1440], "WindowFocused": true, "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1186, 480, 238] } } } } },
+        { "Frame": 1, "Expect": { "TextShown": true, "Interface": { "Fullscreen": true, "Size": [2560, 1440], "WindowFocused": true, "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1188, 480, 236] } } } } },
         { "Frame": 1, "Capture": "Start" },
         { "Frame": 2, "Key": "F1" },
         { "Frame": 3, "Expect": { "TextShown": false } },
@@ -8,7 +8,7 @@
         { "Frame": 4, "Key": "F1" },
         { "Frame": 5, "Expect": { "TextShown": true } },
         { "Frame": 5, "Key": "F11" },
-        { "Frame": 15, "Expect": { "TextShown": true, "Interface": { "Fullscreen": false, "Size": [2560, 1369], "Targets": { "InfoCard": { "Area": [16, 1115, 480, 238] } } } } },
+        { "Frame": 15, "Expect": { "TextShown": true, "Interface": { "Fullscreen": false, "Size": [2560, 1369], "Targets": { "InfoCard": { "Area": [16, 1117, 480, 236] } } } } },
         { "Frame": 15, "Capture": "Maximized" },
         { "Frame": 16, "Key": "Esc" },
         { "Frame": 17, "Key": "V" },

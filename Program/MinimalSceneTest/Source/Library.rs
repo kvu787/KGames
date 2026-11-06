@@ -18,8 +18,5 @@ use user_interface::{Options, WindowMode};
 // How Library/UserInterface runs the test: unlike most programs, it opens
 // borderless fullscreen unless Settings.json says otherwise.
 pub fn options() -> Options {
-    Options {
-        window_mode: WindowMode::BorderlessFullscreen,
-        ..Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR"))
-    }
+    Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR")).window_mode(WindowMode::BorderlessFullscreen)
 }

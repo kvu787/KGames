@@ -71,7 +71,8 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     let startup = Startup::for_tests(r#"{ "Sphere": { "Brightness": "Bright" } }"#, &folder);
     let mut app = Headless::start(startup, |startup| Ok(MovingSphere::start(startup)));
     assert_eq!(app.program.settings, SceneSettings::default());
-    assert_eq!(app.label("Notice/0").as_deref(), Some("Settings.json"));
+    let label = app.label("Notice/0").unwrap();
+    assert!(label.starts_with("Warning: Settings.json Sphere "), "{label}");
     let card = app.target(minimal_scene_test::info_card::NAME);
     let notice = app.target("Notice/0");
     assert!(card.contains(notice.origin()) && card.contains(Point::new(notice.right(), notice.bottom())));
@@ -84,6 +85,6 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     write_png(&output.join("MinimalSceneTestNotice.png"), &image).unwrap();
     let theme = Theme::light();
     let fill = image.pixel(notice.right() as u32 - 8, notice.bottom() as u32 - 8);
-    let expected = theme.caution_background.over(theme.flyout).to_bytes();
+    let expected = theme.caution_background.over(theme.acrylic).to_bytes();
     assert!(fill.iter().zip(expected).take(3).all(|(a, b)| (*a as i32 - b as i32).abs() <= 2), "{fill:?} isn't {expected:?}");
 }

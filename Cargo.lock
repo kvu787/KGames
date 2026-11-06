@@ -130,7 +130,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface_old",
+ "user_interface",
  "windows-core",
  "windows_api",
 ]
@@ -141,7 +141,7 @@ version = "0.1.0"
 dependencies = [
  "minimal_scene_test",
  "simple_paint",
- "user_interface_old",
+ "user_interface",
 ]
 
 [[package]]
@@ -261,6 +261,19 @@ version = "0.1.0"
 dependencies = [
  "ui_showcase",
  "user_interface_old",
+]
+
+[[package]]
+name = "user_interface"
+version = "0.1.0"
+dependencies = [
+ "displays",
+ "game_input",
+ "graphics",
+ "json",
+ "shader_compiler",
+ "windows-core",
+ "windows_api",
 ]
 
 [[package]]

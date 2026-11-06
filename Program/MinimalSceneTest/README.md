@@ -39,9 +39,10 @@ fresh as it can be.
 | `F1`  | Shows or hides the card at the bottom left           |
 | `F11` | Switches between borderless fullscreen and maximized |
 
-The card says the frame rate, the GPU, the display, whether the window has focus, the keys, and
-what's wrong with `Settings.json`, if anything. It's at the bottom left, which the sphere never
-crosses.
+The card floats over the scene at the bottom left, which the sphere never crosses, and is as tall
+as what it says: the test's name and what the scene shows, the frame rate, the GPU, the display,
+whether the window has focus, with an info bar's status icon, the keys on keycaps, and what's
+wrong with `Settings.json`, if anything, as warning info bars.
 
 ```powershell
 cargo run --release
@@ -74,7 +75,8 @@ settings file, and frames drawn offscreen with the GPU. The scripts in
 the sphere is frame by frame, that a long frame counts a tenth of a second, and what F1, F11 and
 the window's focus do. The state that scripts save and check has `SpherePosition`,
 `SphereDirection` and `TextShown`, and the interface's, whose targets have the card as
-`InfoCard`.
+`InfoCard`, of kind `Card`, and what's wrong with `Settings.json` as `Notice/0`, `Notice/1` and
+so on.
 
 ## Layout
 

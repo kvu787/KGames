@@ -142,6 +142,6 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         // The card, opaque, right of its title.
         let card = app.target(info_card::NAME);
         let fill = image.pixel(card.right() as u32 - 24, card.y as u32 + 24);
-        assert!(close(fill, Theme::light().flyout.to_bytes()), "{fill:?}");
+        assert!(close(fill, Theme::light().acrylic.to_bytes()), "{fill:?}");
     }
 }
