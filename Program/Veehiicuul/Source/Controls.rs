@@ -53,10 +53,12 @@ impl Controls {
     pub fn read(ui: &Ui, notches: f64) -> Controls {
         let gamepad = *ui.gamepad();
         let input = ui.input();
-        let held = |keys: [Key; 2]| keys.iter().any(|&key| ui.key_down(key));
-        // A key's press, not its repeats, and not with Ctrl, which is for
-        // the editors' shortcuts, like Ctrl+S.
-        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !input.modifiers().control;
+        // Not with Ctrl, which is for the editors' shortcuts, like Ctrl+S,
+        // which mustn't push the car.
+        let control = input.modifiers().control;
+        let held = |keys: [Key; 2]| !control && keys.iter().any(|&key| ui.key_down(key));
+        // A key's press, not its repeats.
+        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         // Keys push all the way, and a diagonal as far as a straight push.
         let keys = [

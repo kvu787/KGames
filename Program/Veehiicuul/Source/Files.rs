@@ -103,7 +103,7 @@ pub fn color(value: &Value, name: &str) -> Result<Color, String> {
 
 // A color from text like "#1CDA61".
 pub fn parse_color(text: &str) -> Option<Color> {
-    if text.len() != 7 || !text.is_ascii() || !text.starts_with('#') {
+    if text.len() != 7 || !text.starts_with('#') || !text[1..].chars().all(|character| character.is_ascii_hexdigit()) {
         return None;
     }
     let channel = |index: usize| u8::from_str_radix(&text[index..index + 2], 16).ok();

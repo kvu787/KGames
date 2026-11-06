@@ -238,9 +238,20 @@ pub fn saved_names(folder: &Path) -> Vec<String> {
     names
 }
 
-// Whether a name can be a file's: not empty, and without what Windows
-// forbids in names.
+// Whether a name can be a file's: not empty, without what Windows forbids
+// in names, and not one of its devices, like NUL, which a file's name can't
+// be, with or without an extension; writing to NUL.json "succeeds", into
+// nowhere.
 pub fn valid_name(name: &str) -> bool {
     let name = name.trim();
-    !name.is_empty() && name.len() <= 64 && !name.chars().any(|character| "<>:\"/\\|?*".contains(character) || character.is_control()) && !name.ends_with('.')
+    let device = {
+        let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
+        matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+            || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.ends_with(|digit: char| digit.is_ascii_digit()))
+    };
+    !name.is_empty()
+        && name.len() <= 64
+        && !name.chars().any(|character| "<>:\"/\\|?*".contains(character) || character.is_control())
+        && !name.ends_with('.')
+        && !device
 }

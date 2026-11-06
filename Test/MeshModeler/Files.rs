@@ -58,8 +58,11 @@ fn names_are_checked_for_what_windows_forbids() {
     for good in ["Cube", "My model 2", "a.b"] {
         assert!(document::valid_name(good), "{good}");
     }
-    for bad in ["", "   ", "a/b", "a:b", "what?", "dot.", "a\tb"] {
+    for bad in ["", "   ", "a/b", "a:b", "what?", "dot.", "a\tb", "NUL", "nul", "con", "COM1", "lpt9", "Aux.old"] {
         assert!(!document::valid_name(bad), "{bad:?}");
+    }
+    for good in ["Null", "Console", "COM", "LPT10", "Nulls"] {
+        assert!(document::valid_name(good), "{good}");
     }
 }
 

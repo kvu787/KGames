@@ -217,7 +217,7 @@ impl Game {
         }
         let car = self.car;
         let footprint = self.footprint();
-        if self.shape().edges.touch(&footprint, car.position, car.heading) {
+        if !self.paused() && self.shape().edges.touch(&footprint, car.position, car.heading) {
             self.crashes += 1;
             self.put_at_start(seconds);
         }

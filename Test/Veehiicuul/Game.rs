@@ -305,3 +305,39 @@ fn the_view_draws_the_scene_under_the_interface() {
     assert_ne!(image.pixel(image.width / 2, image.height / 2), image.pixel(image.width / 2, 100));
     assert!(count(&image, [0xF3, 0xF3, 0xF3]) > total / 4);
 }
+
+// Ctrl's chords are the editors' shortcuts, like Ctrl+S, and don't push
+// the car.
+#[test]
+fn keys_with_ctrl_do_not_drive_the_car() {
+    let mut app = start();
+    app.hold(Key::CONTROL).hold(Key::S).frames(30);
+    assert_eq!(speed(&app), 0.0);
+    assert_eq!(moved(&app), [0.0, 0.0]);
+    app.release_key(Key::CONTROL).frames(16);
+    assert!(speed(&app) > 0.0, "without Ctrl, S drives");
+}
+
+// A start that touches an edge counts one crash, and the car waits out the
+// pause at the start, instead of a crash every frame.
+#[test]
+fn a_crash_counts_once() {
+    let mut app = start();
+    let start = start_of(&app);
+    let right = to_ground([1.0, 0.0]);
+    let touching = {
+        let game = &mut app.program.game;
+        let footprint = game.footprint();
+        let shape = game.shape();
+        (1..400)
+            .map(|step| [start.position[0] + right[0] * step as f64 * 0.25, start.position[1] + right[1] * step as f64 * 0.25])
+            .find(|&position| shape.edges.touch(&footprint, position, start.radians()))
+            .expect("an edge to the right of the start")
+    };
+    let scene = app.program.game.scene;
+    app.program.game.document.scenes[scene].track.start.position = touching;
+    app.program.game.car.position = touching;
+    app.frames(10);
+    assert_eq!(app.program.game.crashes, 1);
+    assert!(app.program.game.paused());
+}
