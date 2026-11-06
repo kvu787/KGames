@@ -59,11 +59,12 @@ Shortcuts, while the demo's window has focus:
 | ----- | ----------------------------------------------------------------------------------------- |
 | `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors                    |
 | `F2`  | Clear the event log                                                                       |
+| `F10` | Switches vertical sync on or off                                                          |
 | `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
 
-The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F11` is
-Library/UserInterface's, which reads it from the same readings, as in every KGames program, so the
-demo doesn't also switch on `F11`, which would switch it back.
+The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F10` and `F11` are
+Library/UserInterface's, which reads them from the same readings, as in every KGames program, so
+the demo doesn't also switch on them, which would switch them back.
 
 ### Rumble test
 
@@ -292,11 +293,11 @@ Library/UserInterface's main loop does most of it (see its
 [README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
 time, the loop spins until the GPU and DXGI can take another, and only then calls the demo's
 `update`, which reads GameInput, so no readings age during the wait. Frames are presented without
-waiting for vertical sync, so the demo draws thousands of frames a second, and whenever the screen
-takes a frame, the newest one read its input a fraction of a millisecond earlier. The window draws
-with the GPU that its monitor is an output of, and the process opts out of power throttling, so its
-frames are paced the same in the background. On the development machine, an RTX 5090 Laptop GPU and
-a Core Ultra 9 275HX, a whole frame takes about 0.2 ms.
+waiting for vertical sync, unless `F10` says to, so the demo draws thousands of frames a second,
+and whenever the screen takes a frame, the newest one read its input a fraction of a millisecond
+earlier. The window draws with the GPU that its monitor is an output of, and the process opts out
+of power throttling, so its frames are paced the same in the background. On the development
+machine, an RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a whole frame takes about 0.2 ms.
 
 When Windows flips the demo's frames straight to the screen, a frame can replace the one being
 scanned out mid-refresh, which can show as tearing. Otherwise, the desktop compositor shows the

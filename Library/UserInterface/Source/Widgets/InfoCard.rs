@@ -26,7 +26,7 @@ pub struct InfoCard<'a> {
     pub description: &'a str,
     // Fields after the display's, each a label and its value.
     pub rows: &'a [(&'a str, &'a str)],
-    // Keys after F1's and F11's, each with what it does.
+    // Keys after F1's, F10's and F11's, each with what it does.
     pub keys: &'a [(&'a str, &'a str)],
 }
 
@@ -60,7 +60,7 @@ impl Ui {
         let display = format!("{} {}", environment.display, environment.display_name);
         let mut rows = vec![("Frame rate", rate.as_str()), ("GPU", environment.gpu.as_str()), ("Display", display.trim())];
         rows.extend_from_slice(contents.rows);
-        let mut keys = vec![("F1", "Hide this"), ("F11", "Fullscreen")];
+        let mut keys = vec![("F1", "Hide this"), ("F10", "VSync"), ("F11", "Fullscreen")];
         keys.extend_from_slice(contents.keys);
         let notices = self.notices().to_vec();
         let width = InfoCard::WIDTH;

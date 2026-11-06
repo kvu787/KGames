@@ -60,7 +60,7 @@ theme, ignores input without focus, and supports the two
 | `Numpad1`, `3`, `7`    | Looks from the front, the right or the top; with `Ctrl`, the other side       |
 | `Ctrl+Z`, `Ctrl+Y`     | Undoes and redoes, up to 200 steps                                            |
 | `Ctrl+N`, `O`, `S`     | New, Open and Save; `Ctrl+Shift+S` saves as, `Ctrl+E` exports OBJ             |
-| `F2`, `F11`            | Dark theme, and borderless fullscreen                                         |
+| `F2`, `F10`, `F11`     | Dark theme, vertical sync, and borderless fullscreen                          |
 
 Moving, rotating, scaling, insetting and the move after an extrusion are modal, as in Blender:
 

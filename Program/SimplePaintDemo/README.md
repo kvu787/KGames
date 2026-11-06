@@ -32,6 +32,7 @@ theme, ignores input without focus, and supports the two
 | `Left`, `Right`        | Moves the selected setting by its smallest step, or 10 with Shift |
 | `Ctrl+S`, **Save**     | Saves the material to `Paint.json` in this folder                 |
 | **Reset**              | Goes back to SimplePaint's default material                       |
+| `F10`                  | Switches vertical sync on or off                                  |
 | `F11`                  | Switches between maximized and borderless fullscreen              |
 
 Settings step by 0.001, and Rotation by 0.1 degrees, and stop at the last step inside the range

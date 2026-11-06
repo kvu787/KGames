@@ -37,6 +37,7 @@ fresh as it can be.
 | Key   | Action                                               |
 | ----- | ---------------------------------------------------- |
 | `F1`  | Shows or hides the card at the bottom left           |
+| `F10` | Switches vertical sync on or off                     |
 | `F11` | Switches between borderless fullscreen and maximized |
 
 The card floats over the scene at the bottom left, which the sphere never crosses, and is as tall

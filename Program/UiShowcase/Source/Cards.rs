@@ -82,6 +82,7 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
         Status::Shortcut("F2", "Theme"),
         Status::Shortcut("Tab", "Next widget"),
         Status::Shortcut("Ctrl+R", "Reset"),
+        Status::Shortcut("F10", "VSync"),
         Status::Shortcut("F11", "Fullscreen"),
         Status::Spacer,
         Status::Indicator(Severity::Success, &fps),
