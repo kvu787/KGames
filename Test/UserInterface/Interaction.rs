@@ -325,3 +325,87 @@ fn notices_from_the_start_show_and_close() {
     assert_eq!(app.ui.notices()[0].title, "Paint.json");
 }
 
+
+// What porting the programs found: segments where widgets can't take focus,
+// a color field left while it's typed in, a slider's steps of a thousandth,
+// controls side by side under their headers, and a gamepad's combination's
+// keycaps.
+#[derive(Default)]
+struct Ported {
+    segment: usize,
+    color: user_interface::Color,
+    other: String,
+    fine: f64,
+    columns: Vec<Rect>,
+    keys: f32,
+    parts: f32,
+}
+
+impl Program for Ported {
+    fn title(&self) -> String {
+        "Ported".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        ui.set_focusable(false);
+        ui.add("Segments", Rect::new(10.0, 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
+        ui.set_focusable(true);
+        ui.add("Hex", Rect::new(10.0, 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
+        ui.add("Other", Rect::new(10.0, 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
+        ui.add("Fine", Rect::new(10.0, 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));
+        let mut form = user_interface::Form::new(Rect::new(400.0, 10.0, 400.0, 200.0));
+        self.columns = form.headed_columns(ui, ["Left", "Right"], 32.0).to_vec();
+        self.keys = ui.keys_width("RB+Left stick");
+        self.parts = ui.keycap_width("RB") + ui.keycap_width("Left stick");
+    }
+}
+
+#[test]
+fn segments_take_no_focus_where_widgets_can_t() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    app.click("Segments/B");
+    assert_eq!(app.program.segment, 1);
+    assert_eq!(app.ui.focused_name(), None);
+}
+
+#[test]
+fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    app.click("Hex");
+    app.key_with(Modifiers::CONTROL, Key::A);
+    app.type_text("#FF8000");
+    assert_eq!(app.program.color, user_interface::Color::default());
+    app.click("Other");
+    assert_eq!(app.program.color.to_hex(), "#FF8000");
+}
+
+#[test]
+fn a_slider_s_steps_land_on_their_decimals() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    for _ in 0..107 {
+        app.scroll("Fine", 1.0);
+    }
+    assert_eq!(app.program.fine, 0.107);
+}
+
+#[test]
+fn headed_columns_sit_side_by_side_under_their_headers() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    let [left, right] = [app.program.columns[0], app.program.columns[1]];
+    let header = user_interface::tokens::BODY.line_height + user_interface::controls::TEXT_BOX_HEADER_GAP;
+    assert_eq!(left.y, 10.0 + header);
+    assert_eq!((left.height, right.y), (32.0, left.y));
+    assert_eq!(right.x - left.right(), user_interface::tokens::CARD_PADDING);
+    assert_eq!(right.right(), 800.0);
+}
+
+#[test]
+fn a_gamepad_s_combination_has_a_keycap_for_each_part() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    assert!(app.program.keys > app.program.parts && app.program.keys < app.program.parts + 16.0, "{} {}", app.program.keys, app.program.parts);
+}

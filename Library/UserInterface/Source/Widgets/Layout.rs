@@ -8,7 +8,7 @@
 
 use crate::core::ui::{Cursor, Response, Sense, Ui};
 use crate::design::controls::TEXT_BOX_HEADER_GAP;
-use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
+use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CARD_PADDING, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
 use crate::drawing::geometry::Rect;
 use crate::widgets::widget::Widget;
 
@@ -108,6 +108,23 @@ impl Form {
     // N columns of equal width, `height` tall, like a row of buttons.
     pub fn columns<const N: usize>(&mut self, height: f32) -> [Rect; N] {
         self.take(height).columns::<N>(SPACE_S)
+    }
+
+    // N controls side by side, each with its header above it, as `row` puts
+    // one, in columns of equal width with a gap of a card's padding between
+    // them. Returns the controls' rectangles, `height` tall.
+    pub fn headed_columns<const N: usize>(&mut self, ui: &mut Ui, labels: [&str; N], height: f32) -> [Rect; N] {
+        let color = if ui.enabled() { ui.theme().text_primary } else { ui.theme().text_disabled };
+        let headed = labels.iter().any(|label| !label.is_empty());
+        let header_height = if headed { BODY.line_height + TEXT_BOX_HEADER_GAP } else { 0.0 };
+        let area = self.take(header_height + height);
+        let columns = area.columns::<N>(CARD_PADDING);
+        for (column, label) in columns.iter().zip(labels) {
+            if !label.is_empty() {
+                ui.text(Rect::new(column.x, column.y, column.width, BODY.line_height), label, BODY, color);
+            }
+        }
+        columns.map(|column| Rect::new(column.x, column.y + header_height, column.width, height))
     }
 
     pub fn space(&mut self, height: f32) {

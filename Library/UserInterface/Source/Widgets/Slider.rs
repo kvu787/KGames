@@ -61,6 +61,12 @@ macro_rules! whole_numbers {
 
 whole_numbers!(i32, i64, u8, u32, usize);
 
+// A step's value without what binary fractions add to it, like 0.107
+// instead of 0.10700000000000001, to nine decimals.
+fn tidy(value: f64) -> f64 {
+    (value * 1e9).round() / 1e9
+}
+
 pub struct Slider<'a, 'v, T: Number> {
     value: &'v mut T,
     // The rail's ends.
@@ -146,7 +152,7 @@ impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
 
     fn snap(&self, value: f64) -> f64 {
         let value = match self.step {
-            Some(step) if step > 0.0 => self.minimum + ((value - self.minimum) / step).round() * step,
+            Some(step) if step > 0.0 => tidy(self.minimum + ((value - self.minimum) / step).round() * step),
             _ => value,
         };
         value.clamp(self.allowed.0, self.allowed.1)
@@ -240,7 +246,7 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
                     }
                     _ => value,
                 };
-                let moved = (current + direction * step).clamp(self.allowed.0, self.allowed.1);
+                let moved = tidy(current + direction * step).clamp(self.allowed.0, self.allowed.1);
                 // Never back against the wheel, like from a value just past
                 // what's allowed.
                 if (moved - value) * direction > 0.0 {

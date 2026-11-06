@@ -10,7 +10,6 @@ use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, RADIUS_CONTROL, RADIUS_S
 use crate::drawing::geometry::{Color, Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Span};
 use crate::drawing::text::TextStyle;
-use crate::input::devices::Shortcut;
 use crate::widgets::info_bar::Severity;
 use crate::widgets::widget::Widget;
 
@@ -169,11 +168,11 @@ impl Ui {
 
 // The keys of a shortcut's name, with "Ctrl+S" as ["Ctrl", "S"], and a plain
 // key's name as itself.
+// The keys of a combination like "Ctrl+S" or "RB+Left stick", each on its
+// own keycap. "+" alone is the plus key's.
 fn keys_of(keys: &str) -> Vec<String> {
-    match Shortcut::parse(keys) {
-        Some(_) if keys.contains('+') && keys.len() > 1 => keys.split('+').map(|key| key.trim().to_string()).collect(),
-        _ => vec![keys.to_string()],
-    }
+    let parts: Vec<String> = keys.split('+').map(|key| key.trim().to_string()).collect();
+    if parts.len() > 1 && parts.iter().all(|part| !part.is_empty()) { parts } else { vec![keys.to_string()] }
 }
 
 // A color in a rounded square, which shows that it's chosen with an accent

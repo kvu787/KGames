@@ -145,7 +145,9 @@ impl Widget for ColorField<'_> {
     fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
         let draft_id = id(&format!("{name}/Draft"));
         let mut draft = std::mem::take(ui.memory::<ColorDraft>(draft_id));
-        if !ui.is_focused(name) || !draft.editing {
+        // What's typed stays until it's taken or left, even as the field
+        // loses focus, when it's taken.
+        if !draft.editing {
             draft.text = self.color.to_hex();
         }
         let swatch_size = 16.0;
