@@ -262,7 +262,7 @@ it says 4 times a second:
 | `On screen`       | Frames a second that reach the screen                                                           |
 | `Input to screen` | The input latency's median and 99th percentile, and how many frames they're of                  |
 | `Medians`         | The median of each of the input latency's three parts                                           |
-| `Mode`            | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM          |
+| `Mode`            | How frames reach the screen, one of PresentTiming's present modes                               |
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 

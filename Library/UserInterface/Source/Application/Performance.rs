@@ -34,11 +34,22 @@ const MATCH_SECONDS: f64 = 0.005;
 
 // The stats bar's fields' widths, in characters: frames a second, times in
 // milliseconds with two decimals, counts of frames, and the present mode,
-// as wide as the longest mode's name, "Independent flip".
+// as wide as the longest mode's name.
 const RATE_WIDTH: usize = 5;
 const MILLISECONDS_WIDTH: usize = 7;
 const COUNT_WIDTH: usize = 6;
-const MODE_WIDTH: usize = 16;
+const MODE_WIDTH: usize = {
+    let mut width = 0;
+    let mut index = 0;
+    while index < PresentMode::ALL.len() {
+        let name = PresentMode::ALL[index].name();
+        if name.len() > width {
+            width = name.len();
+        }
+        index += 1;
+    }
+    width
+};
 const YES_NO_WIDTH: usize = 3;
 // The gap between the bar's groups, like the frames' and the input
 // latency's.
