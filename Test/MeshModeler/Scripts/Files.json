@@ -1,0 +1,32 @@
+{
+    "Steps": [
+        { "Frame": 1, "Key": "A" },
+        { "Frame": 3, "Key": "Ctrl+N" },
+        { "Frame": 5, "Expect": { "Prompt": "Unsaved", "Dirty": true } },
+        { "Frame": 20, "Capture": "Unsaved" },
+        { "Frame": 21, "Click": "Unsaved/Close" },
+        { "Frame": 23, "Expect": { "Prompt": null, "Dirty": true } },
+        { "Frame": 24, "Key": "Ctrl+S" },
+        { "Frame": 26, "Expect": { "Prompt": "SaveAs" } },
+        { "Frame": 27, "Click": "SaveAs/Name" },
+        { "Frame": 29, "Key": "Ctrl+A" },
+        { "Frame": 30, "Type": "Scripted" },
+        { "Frame": 45, "Capture": "SaveAs" },
+        { "Frame": 46, "Click": "SaveAs/Primary" },
+        { "Frame": 48, "Expect": { "Prompt": null, "Name": "Scripted", "Dirty": false } },
+        { "Frame": 49, "Key": "Ctrl+O" },
+        { "Frame": 51, "Expect": { "Prompt": "OpenModel" } },
+        { "Frame": 65, "Capture": "Open" },
+        { "Frame": 66, "Key": "Esc" },
+        { "Frame": 68, "Expect": { "Prompt": null } },
+        { "Frame": 69, "Click": "Menu/Mesh" },
+        { "Frame": 71, "Move": "Menu/Mesh/Menu/Add" },
+        { "Frame": 90, "Capture": "AddMenu" },
+        { "Frame": 91, "Click": "Menu/Mesh/Menu/Add/Menu/UV sphere" },
+        { "Frame": 93, "Expect": { "Undo": "Add UV sphere", "Mesh": { "Faces": 294 } } },
+        { "Frame": 94, "Key": "Home" },
+        { "Frame": 96, "Key": "F11" },
+        { "Frame": 110, "Expect": { "Interface": { "Fullscreen": true } } },
+        { "Frame": 110, "Capture": "Fullscreen" }
+    ]
+}

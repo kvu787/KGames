@@ -1,0 +1,27 @@
+[package]
+name = "mesh_modeler_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Editing"
+path = "Editing.rs"
+
+[[test]]
+name = "Files"
+path = "Files.rs"
+
+[[test]]
+name = "Rendering"
+path = "Rendering.rs"
+
+[dependencies]
+json = { path = "../../Library/Json" }
+math = { path = "../../Library/Math" }
+mesh_modeler = { path = "../../Program/MeshModeler" }
+polygon_mesh = { path = "../../Library/PolygonMesh" }
+user_interface = { path = "../../Library/UserInterface" }
+
+[lints]
+workspace = true

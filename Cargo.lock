@@ -121,6 +121,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mesh_modeler_tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "math",
+ "mesh_modeler",
+ "polygon_mesh",
+ "user_interface",
+]
+
+[[package]]
 name = "meshes"
 version = "0.1.0"
 dependencies = [

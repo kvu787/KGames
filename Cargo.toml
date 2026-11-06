@@ -34,6 +34,7 @@ members = [
     "Test/IdentifyDisplays",
     "Test/Json",
     "Test/Math",
+    "Test/MeshModeler",
     "Test/Meshes",
     "Test/MinimalSceneTest",
     "Test/PolygonMesh",

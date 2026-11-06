@@ -1,0 +1,18 @@
+{
+    "Steps": [
+        { "Frame": 1, "Click": "View" },
+        { "Frame": 3, "Expect": { "Selection": { "Faces": 1 }, "Undo": "Select" } },
+        { "Frame": 4, "Key": "E" },
+        { "Frame": 5, "Move": { "Target": "View", "At": [0.45, 0.6] } },
+        { "Frame": 10, "Capture": "Extruding" },
+        { "Frame": 10, "Expect": { "Operation": { "Kind": "Move", "Axis": "Normal" }, "Mesh": { "Faces": 10 } } },
+        { "Frame": 11, "Click": { "Target": "View", "At": [0.45, 0.6] } },
+        { "Frame": 13, "Expect": { "Operation": null, "Undo": "Extrude", "Mesh": { "Faces": 10, "Vertices": 12, "Valid": true } } },
+        { "Frame": 14, "Key": "Ctrl+Z" },
+        { "Frame": 16, "Expect": { "Mesh": { "Faces": 6 }, "Redo": "Extrude" } },
+        { "Frame": 17, "Key": "Ctrl+Y" },
+        { "Frame": 19, "Expect": { "Mesh": { "Faces": 10 } } },
+        { "Frame": 20, "Move": { "Target": "View", "At": [0.8, 0.2] } },
+        { "Frame": 30, "Capture": "Extruded" }
+    ]
+}
