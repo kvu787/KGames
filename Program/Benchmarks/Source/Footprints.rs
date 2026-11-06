@@ -180,7 +180,7 @@ pub fn caches(budget: Budget) -> Report {
     let counts = memory::stop();
     all.push(
         Usage::from_counts("memory/text/glyphs", "glyph", counts, glyphs as f64)
-            .with_note(format!("{glyphs} glyphs rasterized, their pixels still waiting for the renderer")),
+            .with_note(format!("{glyphs} glyphs at {sizes} sizes, with each size's layout, their pixels waiting for the renderer")),
     );
 
     // Layouts unused for 600 frames go, which `begin_frame` does on the
@@ -219,7 +219,7 @@ pub fn libraries(budget: Budget) -> Report {
         memory::measure("memory/mesh/catmull-clark/torus/2", "subdivide", budget, RUNS, || {
             std::hint::black_box(torus.catmull_clark(2));
         })
-        .with_note(format!("1152 quads in, {faces} out")),
+        .with_note(format!("{} quads in, {faces} out", torus.face_count())),
     );
     let (topology, built) = memory::held("memory/mesh/topology", "topology", || subdivided.topology());
     let edges = built.edges().len();
@@ -231,7 +231,7 @@ pub fn libraries(budget: Budget) -> Report {
         })
         .with_note(format!("{faces} quads, with the topology built again inside")),
     );
-    let (triangles, drawn) = memory::held("memory/mesh/triangles", "triangulate", || subdivided.triangulate(Shading::Flat));
+    let (triangles, drawn) = memory::held("memory/mesh/triangles", "triangles", || subdivided.triangulate(Shading::Flat));
     all.push(triangles.with_note(format!("{} triangles, {} vertices", drawn.indices.len() / 3, drawn.vertices.len())));
     drop(drawn);
 

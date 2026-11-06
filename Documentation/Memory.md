@@ -324,8 +324,8 @@ the PerfBar's numbers, stays flat.
 
 A rasterized glyph's pixels sit on our heap, in `Atlas::uploads`, until the renderer copies them
 into the atlas texture, which it does on the next frame it draws. A test or a benchmark that
-never draws keeps them all: 334 bytes a glyph, 74 KiB for 400 glyphs, which is what `Headless`
-holds in a run that only updates.
+never draws keeps them all: 74 KiB for that row's 400 glyphs, which are ten digits at forty
+sizes, counting the forty layouts and the atlas's index of what it has along with the pixels.
 
 ## Meshes
 
@@ -357,7 +357,7 @@ The shape of all of this is `Vec<Vec<_>>`:
   pushing and double when they're full: 73,728 vertices of 28 bytes sit in room for 131,072,
   110,592 indices in room for 131,072, and 36,864 face numbers in room for 65,536. The corner
   count is known before the loop, so `Vec::with_capacity` there, or a `shrink_to_fit` at the end,
-  gives back exactly 1.9 MiB of this mesh.
+  gives back 1.8 MiB on this mesh.
 
 All of which matters because of the undo history. `Document::commit` keeps a `Snapshot` of the
 whole mesh, the paints and the selection, up to `HISTORY = 200` steps. The snapshot is of the
@@ -412,7 +412,7 @@ and it grows with the model, in system memory that the GPU reads every frame it 
    also where [Performance.md](Performance.md)'s second recommendation points. Do this before
    MeshModeler's history meets a real model.
 3. **Bound MeshModeler's undo history by bytes**, not only by 200 steps, once meshes are
-   flattened, and give `Triangles` its capacity up front, which is 1.9 MiB on an 18,432-quad
+   flattened, and give `Triangles` its capacity up front, which is 1.8 MiB on an 18,432-quad
    mesh.
 4. **Stop allocating names a frame**: an `Id` from a parent id and a part without `format!`, and
    targets' names in a per-frame arena or kept only when something reads them. About 700
