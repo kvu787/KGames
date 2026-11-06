@@ -12,7 +12,7 @@ use json::Value;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{
     APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT,
-    PAGE_PADDING, SPACE_S, WINDOW_WIDTH,
+    PAGE_PADDING, SPACE_S, STATS_BAR_HEIGHT, WINDOW_WIDTH,
 };
 use user_interface::{Headless, Key, Point, Program, Rect, Theme, ThemeKind};
 
@@ -100,7 +100,7 @@ fn the_combo_box_and_the_device_rows_are_the_only_widgets() {
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
     // In the Gamepad card's header, after its title.
     let combo_box = app.target(GAMEPAD_COMBO_BOX);
-    let header_y = APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING;
+    let header_y = STATS_BAR_HEIGHT + APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING;
     assert_eq!(combo_box.y, header_y);
     assert!(combo_box.x > PAGE_PADDING + CARD_PADDING + 40.0, "{combo_box:?}");
     assert!(combo_box.right() < PAGE_PADDING + GAMEPAD_COLUMN, "{combo_box:?}");
@@ -366,7 +366,7 @@ fn the_stick_graphs_draw_where_the_sticks_are() {
     // The graphs are under the Gamepad card's header and the captions over
     // them, with a ring at the stick's edge, SPACE_S inside the graph.
     let theme = Theme::new(ThemeKind::Light);
-    let top = APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + BODY.line_height + SPACE_S;
+    let top = STATS_BAR_HEIGHT + APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + BODY.line_height + SPACE_S;
     let left = PAGE_PADDING + CARD_PADDING;
     let radius = STICK_GRAPH / 2.0 - SPACE_S;
     let center = Point::new(left + STICK_GRAPH / 2.0, top + STICK_GRAPH / 2.0);
