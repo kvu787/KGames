@@ -110,9 +110,10 @@ with what `PresentMon --etl_file` says of the same file: a present's `TimeInQPC`
 and `MsUntilDisplayed` is its `screen` less its `start`, in milliseconds.
 
 `Test/PresentTiming/Gold.rs` does that for the six gold traces in PresentMon's repository
-(`Tests/Gold`), from Windows 10, with the CSVs that PresentMon 2.6.1 wrote for them. All 1,448
-presents that PresentMon writes, of every process, DXGI's, Direct3D 9's and others', have the
-same mode, tearing, and time on the screen, to a millionth of a millisecond: 858 legacy flips, 329
+(`Tests/Gold`), from Windows 10, without running PresentMon: it compares with the gold CSVs beside
+them, which PresentMon 2.6.1's own tests require its output for the traces to match, row for row.
+All 1,448 presents in them, of every process, DXGI's, Direct3D 9's and others', have the same
+mode, tearing, and time on the screen, to a millionth of a millisecond: 858 legacy flips, 329
 composed flips, 147 composed GPU copies, 81 independent flips, 31 overlay planes and 2 unknown.
 `read_file` gives two presents of each swap chain that PresentMon's console doesn't write: its
 first, and its last, which PresentMon writes only once the next one reaches the screen.

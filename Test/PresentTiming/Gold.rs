@@ -1,10 +1,11 @@
 // Tests that read_file gives what PresentMon 2.6.1 writes for the gold
-// traces in its repository (Tests/Gold): every present that PresentMon
-// writes, of every process, with the same mode, tearing and screen time.
-// The traces aren't in this repository, so the test is ignored unless it's
-// asked for, with PRESENTMON_GOLD naming a folder that has test_case_0.etl
-// to test_case_5.etl and their gold CSVs, test_case_0.csv to
-// test_case_5.csv:
+// traces in its repository (Tests/Gold), without running PresentMon: the
+// gold CSVs beside them are what its own tests require its output to match,
+// row for row. Every present in them, of every process, has the same mode,
+// tearing and screen time. The traces aren't in this repository, so the
+// test is ignored unless it's asked for, with PRESENTMON_GOLD naming a
+// folder that has test_case_0.etl to test_case_5.etl and their gold CSVs,
+// test_case_0.csv to test_case_5.csv:
 //
 //   $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
 //   cargo test -p present_timing_tests --test Gold -- --ignored --nocapture
