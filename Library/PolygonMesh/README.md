@@ -1,16 +1,23 @@
 # PolygonMesh
 
 The geometry of a polygon mesh modeler, like Blender's edit mode: a mesh of polygons with a
-material each and creased edges, its topology, selections of vertices, edges and faces, and
-primitives to start from. It has no interface or GPU, so a modeler and its tests use it alike.
-`Test/PolygonMesh` tests it.
+material each and creased edges, its topology, selections of vertices, edges and faces,
+primitives to start from, the edits of a modeler, Catmull-Clark subdivision surfaces, triangles
+for [SimplePaint](../SimplePaint/README.md) to draw, picking, and files. It has no interface or
+GPU, so a modeler and its tests use it alike. `Test/PolygonMesh` tests it.
 
 ```rust
-use polygon_mesh::{Selection, primitives};
+use polygon_mesh::{Shading, primitives};
+use std::path::Path;
 
 let mut mesh = primitives::cube(2.0);
-let top = Selection::from_faces(&mesh, [3]);
-let loop_around = Selection::edge_loop(&mesh, polygon_mesh::Edge::new(2, 3));
+let top = mesh.extrude_faces([3]);
+mesh.translate(top.vertices.iter().copied(), [0.0, 1.0, 0.0]);
+let surface = mesh.catmull_clark(2);
+let triangles = surface.mesh.triangulate(Shading::Smooth { angle: 0.5 });
+simple_paint::validate_mesh(&triangles.vertices, &triangles.indices, mesh.material_count())?;
+let picked = surface.ray_cast([0.0, 5.0, 0.0], [0.0, -1.0, 0.0]).map(|hit| hit.face);
+mesh.save(Path::new("Mesh.json"))?;
 ```
 
 A `Mesh` has `positions`, `faces` and `creases`, all public. A `Face` is its `vertices`,
@@ -53,6 +60,11 @@ them, and returns the selection that results.
 |               | `flip_faces`, `recalculate_normals_outside`, `crease_edges`, `assign_material`,      |
 |               | all methods of `Mesh`                                                                |
 | Subdivision   | `Mesh::catmull_clark`, `SubdivisionSurface`'s `mesh` and `base_faces`                |
+| Triangles     | `Mesh::triangulate`, `Shading::Flat` and `Shading::Smooth { angle }`, `Triangles`'   |
+|               | `vertices`, `indices` and `faces`, `Mesh::face_triangles`                            |
+| Picking       | `Mesh::ray_cast` and `SubdivisionSurface::ray_cast`, to a `Hit`'s `face`, `distance` |
+|               | and `point`; `nearest_vertex`, `nearest_edge`, `bounds`, `center_of`                 |
+| Files         | `to_json`, `from_json`, `save`, `load`, `to_obj`, all methods of `Mesh`              |
 
 ## Topology
 
@@ -245,3 +257,80 @@ $$
 
 So a cube whose edges have sharpness 1 subdivides like an infinitely sharp one for its first
 level, and like a smooth one after, and sharpness 0.5 is halfway between the two for the first.
+
+## Triangles for SimplePaint
+
+`Mesh::triangulate(shading)` gives `Triangles`: `simple_paint::Vertex`es, `u32` indices, three
+for each triangle, wound like the faces, and in `faces`, the face that each triangle comes from,
+for picking and for drawing the selected faces. A subdivision surface draws by triangulating its
+`mesh`, and `base_faces[faces[i]]` is the base face of triangle i.
+
+Each face is cut into n - 2 triangles by ear clipping in the plane of its normal, so concave faces
+work. `face_triangles(face)` gives a face's triangles as places in its list of vertices.
+
+- `Shading::Flat` gives each face its own normal.
+- `Shading::Smooth { angle }` smooths normals across each edge between two faces that meet at up
+  to `angle` radians, like Blender's Auto Smooth, weighing each face by the angle of its corner.
+  They split at sharper edges, at creased edges of any sharpness, at boundary and non-manifold
+  edges, and between materials. An angle of PI smooths every edge that isn't creased.
+
+What it gives passes `simple_paint::validate_mesh(&triangles.vertices, &triangles.indices,
+mesh.material_count())` for any mesh with positions that SimplePaint accepts: every vertex is
+used, triangles without area, like the walls of an extrusion that hasn't moved, are left out, and
+a triangle whose smooth normals don't share SimplePaint's cone gets its own flat normal instead,
+as some do around a UV sphere of 3 segments.
+
+## Picking
+
+`ray_cast(origin, direction)` gives the nearest face that the ray hits, from the front or the
+back, as a `Hit`: the `face`, the `distance` along the ray in the mesh's units, whatever the
+length of `direction`, and the `point`. It goes through the faces' triangles, so a concave face is
+hit only where it is, and a ray along the edge between two triangles hits one of them.
+`SubdivisionSurface::ray_cast` gives the base face that the hit face comes from.
+
+`nearest_vertex` and `nearest_edge(origin, direction, radius)` give the vertex or edge nearest
+the ray, of those within `radius` of it and in front of `origin`, the nearer to `origin` of two
+as near. They don't look for faces in the way, which a modeler can compare with `ray_cast`'s
+distance. `bounds` is the box around every vertex, as its least and greatest corners, and
+`center_of(vertices)` and `Selection::center` the average of some vertices' positions.
+
+## Files
+
+`to_json` and `from_json`, and `save` and `load` with a path, keep all of a mesh in JSON, with
+each position, face and crease on its own line, and every number as it is, so a mesh reads back
+exactly:
+
+```json
+{
+    "Positions": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0.5]
+    ],
+    "Faces": [
+        [0, 1, 2]
+    ],
+    "Materials": [2],
+    "Creases": [
+        [0, 1, 2.5]
+    ]
+}
+```
+
+| Member      | What it has                                                                         |
+| ----------- | ----------------------------------------------------------------------------------- |
+| `Positions` | Each vertex's X, Y and Z                                                            |
+| `Faces`     | Each face's vertices, by their places in `Positions` from 0, counterclockwise when  |
+|             | seen from the front                                                                 |
+| `Materials` | Each face's material, a whole number from 0; it can be left out, for all 0          |
+| `Creases`   | Each creased edge's two vertices and its sharpness, more than 0 and at most 10; it  |
+|             | can be left out, for none                                                           |
+
+`from_json` and `load` say what's wrong with a file that isn't a mesh, and where, like
+`Faces[3] uses vertex 12, but there are only 8 positions.`, or the line and column of a mistake
+in its JSON. They read only meshes that `Mesh::validate` passes, with each crease on an edge of a
+face.
+
+`to_obj` gives the mesh as Wavefront OBJ, for other programs: its positions, and its faces, with
+a `usemtl` of each face's material, `Material0` for material 0, wherever the material changes.
+OBJ has no creases.

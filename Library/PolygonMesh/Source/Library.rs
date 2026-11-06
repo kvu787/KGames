@@ -10,6 +10,9 @@
 // - extrusion: extruding faces and edges, and insetting faces.
 // - cutting: subdividing faces, and loop cuts.
 // - subdivision: Catmull-Clark subdivision surfaces, as OpenSubdiv makes them.
+// - triangulation: triangles for SimplePaint, with flat or smooth normals.
+// - picking: ray casts, the nearest vertex and edge, bounds and centers.
+// - files: JSON, and Wavefront OBJ.
 
 #[path = "Cutting.rs"]
 mod cutting;
@@ -17,8 +20,12 @@ mod cutting;
 mod editing;
 #[path = "Extrusion.rs"]
 mod extrusion;
+#[path = "Files.rs"]
+mod files;
 #[path = "Mesh.rs"]
 mod mesh;
+#[path = "Picking.rs"]
+mod picking;
 #[path = "Primitives.rs"]
 pub mod primitives;
 #[path = "Selection.rs"]
@@ -27,8 +34,12 @@ mod selection;
 mod subdivision;
 #[path = "Topology.rs"]
 mod topology;
+#[path = "Triangulation.rs"]
+mod triangulation;
 
 pub use mesh::{Edge, Face, INFINITELY_SHARP, Mesh};
+pub use picking::Hit;
 pub use selection::{SelectMode, Selection};
 pub use subdivision::SubdivisionSurface;
 pub use topology::{Ring, Topology};
+pub use triangulation::{Shading, Triangles};
