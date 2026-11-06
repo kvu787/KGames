@@ -73,7 +73,7 @@ In any other setup, the window shows an error that says what's wrong, instead of
 
 So:
 
-- The top 30 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of these two client areas, from `ui.content_top()`: 2560 × 1339 and 2560 × 1410. The only difference between the two is 71 pixels of height.
+- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of these two client areas, from `ui.content_top()`: 2560 × 1352 and 2560 × 1423. The only difference between the two is 71 pixels of height.
 - Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window at either height.
 
 ## Non-disruptive workflow

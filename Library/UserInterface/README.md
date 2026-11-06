@@ -194,10 +194,10 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 In any other setup, the window says what's wrong instead of showing the program. It checks again
 whenever the window moves or changes size, or the displays, the scale or the taskbar change.
 
-The top `PERF_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
+The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at
 `ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
-areas, which leaves the program 2560 × 1339 maximized and 2560 × 1410 in borderless fullscreen;
+areas, which leaves the program 2560 × 1352 maximized and 2560 × 1423 in borderless fullscreen;
 they differ by 71 pixels of height. A 3D view may still fill the window, under the PerfBar.
 
 ## Settings and the command line

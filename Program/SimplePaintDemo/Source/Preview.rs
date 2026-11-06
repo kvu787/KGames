@@ -32,7 +32,7 @@ static PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePai
 // The image's size in pixels: the preview card's view in borderless
 // fullscreen. Maximized, the view is 71 pixels shorter.
 pub const IMAGE_WIDTH: u32 = 1152;
-pub const IMAGE_HEIGHT: u32 = 1226;
+pub const IMAGE_HEIGHT: u32 = 1239;
 const SAMPLE_COUNT: u32 = 4;
 // Bytes stored as sRGB, in the frame's order, viewed as sRGB for drawing and
 // resolving, and copied into the frame as they are.
