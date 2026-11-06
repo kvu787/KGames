@@ -40,9 +40,15 @@ const REFRESH_SECONDS: f64 = 0.1;
 // to be the same present.
 const MATCH_SECONDS: f64 = 0.005;
 
+// How the display took the newest frame: at once, when Windows' events say
+// that its flip was immediate, or at its next refresh. An immediate flip
+// tears without a variable refresh rate, but not with G-SYNC, which starts a
+// new refresh for the frame, so it's immediate with vertical sync on too.
+const IMMEDIATE: &str = "immediate";
+const AT_REFRESH: &str = "at refresh";
 // The PerfBar's fields' widths, in characters: frames a second and times in
-// milliseconds, both with two decimals, and the present mode, as wide as the
-// longest mode's name.
+// milliseconds, both with two decimals, the present mode, as wide as the
+// longest mode's name, and the flip, as wide as its longer word.
 const RATE_WIDTH: usize = 8;
 const MILLISECONDS_WIDTH: usize = 7;
 const MODE_WIDTH: usize = {
@@ -57,7 +63,7 @@ const MODE_WIDTH: usize = {
     }
     width
 };
-const YES_NO_WIDTH: usize = 3;
+const FLIP_WIDTH: usize = AT_REFRESH.len();
 // What separates the bar's sections, like the frames' and the input
 // latency's.
 pub(crate) const SEPARATOR: &str = " | ";
@@ -111,9 +117,10 @@ pub struct Summary {
     pub waiting: f64,
     pub building: f64,
     pub presenting: f64,
-    // How the newest frame on the screen got there.
+    // How the newest frame on the screen got there, and whether the display
+    // took it at once, instead of at its next refresh.
     pub mode: PresentMode,
-    pub tearing: bool,
+    pub immediate: bool,
     // What the PerfBar says, made here when the summary is, 10 times a
     // second, not every frame: the runs along its left, those along its
     // right, which the bar ends with whether vertical sync is on, and why
@@ -196,8 +203,8 @@ impl Summary {
         right.label("| Mode = ");
         right.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
         right.label(SEPARATOR);
-        right.label("Tearing = ");
-        right.value(words(measuring.then_some(if self.tearing { "yes" } else { "no" }), YES_NO_WIDTH));
+        right.label("Flip = ");
+        right.value(words(measuring.then_some(if self.immediate { IMMEDIATE } else { AT_REFRESH }), FLIP_WIDTH));
         self.right = right.0;
 
         let mut note = Runs::default();
@@ -236,7 +243,7 @@ pub struct Performance {
     samples: VecDeque<Sample>,
     displayed: VecDeque<i64>,
     mode: PresentMode,
-    tearing: bool,
+    immediate: bool,
     known: bool,
     summary: Summary,
     refreshed: f64,
@@ -273,7 +280,7 @@ impl Performance {
             samples: VecDeque::new(),
             displayed: VecDeque::new(),
             mode: PresentMode::Unknown,
-            tearing: false,
+            immediate: false,
             known: false,
             summary: Summary::default(),
             refreshed: f64::NEG_INFINITY,
@@ -363,7 +370,8 @@ impl Performance {
         };
         self.displayed.push_back(screen);
         self.mode = present.mode;
-        self.tearing = present.tearing;
+        // PresentTiming calls an immediate flip tearing, as PresentMon does.
+        self.immediate = present.tearing;
         let source = if frame.input.is_some() { Some(frame) } else { self.carried };
         self.carried = None;
         if let Some(source) = source
@@ -405,7 +413,7 @@ impl Performance {
             summary.displayed_per_second = (self.displayed.len() - 1) as f64 / clock::seconds(last - first);
         }
         summary.mode = self.mode;
-        summary.tearing = self.tearing;
+        summary.immediate = self.immediate;
         summary.samples = self.samples.len();
         if !self.samples.is_empty() {
             let mean = |part: fn(&Sample) -> f64| self.samples.iter().map(part).sum::<f64>() / self.samples.len() as f64;

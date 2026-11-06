@@ -267,15 +267,15 @@ it says 10 times a second:
 | `Input latency` | The input latency's mean                                                                        |
 | `Lookback`      | How many seconds back the stats look, 1                                                         |
 | `Mode`          | How frames reach the screen, one of PresentTiming's present modes                               |
-| `Tearing`       | Whether the display took the newest frame at once, instead of at its next refresh               |
+| `Flip`          | `immediate` if the display took the newest frame at once, or `at refresh` at its next refresh   |
 | `VSync`         | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
-`Tearing` is what Windows' events say about the flip of the newest frame on the screen, like
+`Flip` is what Windows' events say about the flip of the newest frame on the screen, like
 PresentMon's `AllowsTearing`, not whether the program lets frames tear. Without a variable refresh
 rate, a frame that the display takes at once replaces the one that it's scanning out, mid-refresh,
 which tears. With G-SYNC, or another variable refresh rate, the display waits for the frame and
-starts a new refresh for it instead, which doesn't tear, so `Tearing` can say `yes` with VSync on
-too.
+starts a new refresh for it instead, which doesn't tear, so `Flip` can say `immediate` with VSync
+on too.
 
 The PerfBar is set in Cascadia Mono at 14 pixels, `PERF_BAR_TEXT`, black on white, centered above
 its divider, in fields whose widths never change, so that every label and value stays in the same

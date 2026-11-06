@@ -49,7 +49,7 @@ fn a_frame_s_latency_runs_from_its_input_to_the_screen_in_three_parts() {
     close(summary.building, 2.0);
     close(summary.presenting, 7.0);
     assert_eq!(summary.mode, PresentMode::IndependentFlip);
-    assert!(summary.tearing);
+    assert!(summary.immediate);
 }
 
 #[test]
