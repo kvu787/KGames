@@ -29,7 +29,6 @@
         { "Frame": 39, "Click": [1300, 300] },
         { "Frame": 41, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": null } } },
         { "Frame": 42, "Click": "Gamepad" },
-        { "Frame": 44, "Move": [1300, 300] },
         { "Frame": 45, "Key": "Down" },
         { "Frame": 46, "Expect": { "Listen": "Pad Two", "Interface": { "Popup": "Gamepad" } } },
         { "Frame": 47, "Key": "Enter" },

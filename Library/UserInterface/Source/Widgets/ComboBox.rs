@@ -217,7 +217,9 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
         let item_name = format!("{name}/{index}");
         let response = ui.interact(&item_name, item, Sense::CLICK, "ComboBoxItem");
         ui.set_label(&item_name, items[index]);
-        if response.hovered {
+        // The pointer moves the highlight only as it moves, so that the
+        // keys can move it while the pointer rests on the list.
+        if response.hovered && ui.input().pointer_delta != Point::ZERO {
             highlighted = index;
         }
         if response.clicked {

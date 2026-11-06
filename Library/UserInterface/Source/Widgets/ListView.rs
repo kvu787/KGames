@@ -146,8 +146,10 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
             }
             if row_response.pressed && selectable {
                 selected = Some(index);
-                ui.focus(name);
-                ui.set_focus_visible(false);
+                if ui.focusable() {
+                    ui.focus(name);
+                    ui.set_focus_visible(false);
+                }
             }
             if row_response.clicked {
                 result.clicked = Some(index);

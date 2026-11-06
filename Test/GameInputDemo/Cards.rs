@@ -174,10 +174,6 @@ fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
 fn while_the_list_is_open_the_arrows_move_to_a_choice_and_enter_picks_it() {
     let mut app = demo(&["Pad One", "Pad Two"]);
     open(&mut app);
-    // The pointer leaves the list first: the library's list gives the item
-    // under a resting pointer the highlight every frame, which the keys
-    // can't then move.
-    app.move_point(Point::new(1300.0, 300.0));
     assert_eq!(app.ui.popup_name(), Some(GAMEPAD_COMBO_BOX));
     app.key(Key::DOWN);
     assert_eq!(listen(&app), "Pad One");
