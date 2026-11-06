@@ -33,6 +33,9 @@ pub struct FrameInput {
     pub input_time: Option<i64>,
 }
 
+// A keyboard's held keys, with their scan codes.
+type HeldKeys = Vec<(Key, u32)>;
+
 struct Repeat {
     key: Key,
     scan_code: u32,
@@ -45,7 +48,7 @@ pub struct InputReader {
     gamepad: bool,
     focused: bool,
     // Each keyboard's held keys, with their scan codes, by device.
-    keyboards: Vec<(Option<usize>, Vec<(Key, u32)>)>,
+    keyboards: Vec<(Option<usize>, HeldKeys)>,
     keys_down: [bool; 256],
     scan_codes: [u32; 256],
     // Each mouse's last reading, by device.
@@ -232,7 +235,7 @@ impl InputReader {
     }
 
     fn keyboard(&mut self, reading: &Reading, time: i64, events: &mut Vec<Event>) {
-        let keys: Vec<(Key, u32)> = reading.keys.iter().filter_map(|state| key(state).map(|key| (key, state.scanCode))).collect();
+        let keys: HeldKeys = reading.keys.iter().filter_map(|state| key(state).map(|key| (key, state.scanCode))).collect();
         match self.keyboards.iter_mut().find(|(device, _)| *device == reading.device) {
             Some((_, held)) => *held = keys,
             None => self.keyboards.push((reading.device, keys)),
@@ -244,8 +247,8 @@ impl InputReader {
                 self.scan_codes[key.0 as usize] = *scan_code;
             }
         }
-        for code in 0..256 {
-            if self.keys_down[code] && !down[code] {
+        for (code, held) in down.iter().enumerate() {
+            if self.keys_down[code] && !held {
                 self.keys_down[code] = false;
                 if self.focused {
                     events.push(Event::KeyReleased(Key(code as u8)));
@@ -255,8 +258,8 @@ impl InputReader {
                 }
             }
         }
-        for code in 0..256 {
-            if !self.keys_down[code] && down[code] {
+        for (code, held) in down.iter().enumerate() {
+            if !self.keys_down[code] && *held {
                 self.keys_down[code] = true;
                 let key = Key(code as u8);
                 if self.focused {
@@ -334,9 +337,9 @@ impl InputReader {
             return;
         }
         let mut state = [0u8; 256];
-        for code in 0..256 {
-            if self.keys_down[code] {
-                state[code] = 0x80;
+        for (state, down) in state.iter_mut().zip(self.keys_down) {
+            if down {
+                *state = 0x80;
             }
         }
         for (generic, left) in [(Key::SHIFT, 0xA0), (Key::CONTROL, 0xA2), (Key::ALT, 0xA4)] {

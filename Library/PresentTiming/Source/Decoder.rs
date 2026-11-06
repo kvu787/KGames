@@ -165,7 +165,7 @@ fn element_size(layout: &Layout, property: &Property, pointer: usize, data: &[u8
         TDH_INTYPE_UNICODESTRING if length > 0 => length * 2,
         TDH_INTYPE_UNICODESTRING => {
             let rest = data.get(offset..)?;
-            rest.chunks_exact(2).position(|unit| unit == [0, 0]).map_or(rest.len(), |units| (units + 1) * 2)
+            rest.as_chunks::<2>().0.iter().position(|unit| *unit == [0, 0]).map_or(rest.len(), |units| (units + 1) * 2)
         }
         TDH_INTYPE_ANSISTRING if length > 0 => length,
         TDH_INTYPE_ANSISTRING => {
@@ -226,8 +226,10 @@ fn wide_string(bytes: &[u8], offset: usize) -> String {
     let units: Vec<u16> = bytes
         .get(offset..)
         .unwrap_or_default()
-        .chunks_exact(2)
-        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| u16::from_le_bytes(*pair))
         .take_while(|unit| *unit != 0)
         .collect();
     String::from_utf16_lossy(&units)

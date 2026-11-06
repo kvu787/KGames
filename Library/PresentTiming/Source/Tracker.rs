@@ -172,21 +172,20 @@ impl Tracker {
                     self.present_stop(event, *result);
                 }
             }
-            Kind::TokenCompositionSurfaceObject { key } => loop {
-                let Some(id) = self.find_or_create(event) else {
+            Kind::TokenCompositionSurfaceObject { key } => {
+                while let Some(id) = self.find_or_create(event) {
+                    if self.get(id).seen_win32k {
+                        self.remove_lost(id);
+                        continue;
+                    }
+                    let present = self.get_mut(id);
+                    present.mode = Mode::ComposedFlip;
+                    present.seen_win32k = true;
+                    present.win32k_key = Some(*key);
+                    self.by_win32k_key.insert(*key, id);
                     break;
-                };
-                if self.get(id).seen_win32k {
-                    self.remove_lost(id);
-                    continue;
                 }
-                let present = self.get_mut(id);
-                present.mode = Mode::ComposedFlip;
-                present.seen_win32k = true;
-                present.win32k_key = Some(*key);
-                self.by_win32k_key.insert(*key, id);
-                break;
-            },
+            }
             Kind::PresentHistoryStart { token, model } => {
                 if *model != MODEL_REDIRECTED_GDI {
                     self.present_history_start(event, *token, *model);
@@ -561,10 +560,7 @@ impl Tracker {
     // that it's of.
     fn flip(&mut self, event: &Event) -> Option<u64> {
         let mut usable = None;
-        loop {
-            let Some(id) = self.by_thread.get(&event.thread).copied() else {
-                break;
-            };
+        while let Some(id) = self.by_thread.get(&event.thread).copied() {
             let present = self.get(id);
             if present.seen_dxgk_present || (present.submit_sequence != 0 && present.time_in_present != 0 && present.dxgi) {
                 self.remove_lost(id);
