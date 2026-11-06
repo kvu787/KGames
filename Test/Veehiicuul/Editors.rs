@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use user_interface::json::Value;
-use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Startup};
 use veehiicuul::curve;
 use veehiicuul::program::{PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
@@ -93,7 +93,7 @@ fn the_editors_controls_fit_in_their_cards() {
             }
             for target in app.ui.targets().iter().filter(|target| target.listed) {
                 let area = target.rect;
-                if target.name.ends_with("/View") || area.y < APP_BAR_HEIGHT {
+                if target.name.ends_with("/View") || area.y < STATS_BAR_HEIGHT + APP_BAR_HEIGHT {
                     continue;
                 }
                 assert!(
@@ -227,7 +227,7 @@ fn a_track_with_a_problem_says_so() {
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(app.has_target("Play/Problem"));
     let card = app.target("Play/Card");
-    assert!(card.y > APP_BAR_HEIGHT && card.bottom() == MAXIMIZED_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING, "{card:?}");
+    assert!(card.y > STATS_BAR_HEIGHT + APP_BAR_HEIGHT && card.bottom() == MAXIMIZED_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING, "{card:?}");
     app.click("Mode/Track");
     assert!(app.has_target("Track/Problem/0") && !app.has_target("Track/Problem/1"));
     let state = app.state();
