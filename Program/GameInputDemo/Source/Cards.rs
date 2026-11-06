@@ -686,7 +686,7 @@ fn source_icon(source: Source) -> Icon {
 
 // How wide a device's tooltip may be, so that its every detail fits in the
 // window's height.
-const DEVICE_TOOLTIP_WIDTH: f32 = 720.0;
+pub const DEVICE_TOOLTIP_WIDTH: f32 = 720.0;
 
 // Everything that GameInput and Windows say about a device, in a tooltip on
 // its row, in three parts: what GameInput says, Windows' node for it, and

@@ -360,8 +360,10 @@ fn a_long_value_wraps_in_its_tooltip() {
     let row = rows(&app)[1];
     let (_, area) = rest(&mut app, row.center()).unwrap();
     // The device's path, twice as long as a real one, wraps instead of
-    // making the tooltip as wide.
-    assert!(area.width <= user_interface::controls::TOOLTIP_MAX_WIDTH, "{area:?}");
+    // making the tooltip as wide, which is wider than WinUI's, so that every
+    // detail fits in the window's height.
+    assert!(area.width > user_interface::controls::TOOLTIP_MAX_WIDTH && area.width <= game_input_demo::cards::DEVICE_TOOLTIP_WIDTH, "{area:?}");
+    assert!(area.bottom() <= user_interface::tokens::MAXIMIZED_HEIGHT, "{area:?}");
 }
 
 #[test]
