@@ -52,7 +52,7 @@ runs, and sets the process's priority before it creates the device, so the GPU's
 the process's frames after other processes', like a game's. The other values are `BelowNormal`,
 `Normal`, which is the default, `AboveNormal` and `High`; raising it above `Normal` needs a
 privilege that only administrators have. A frame that's on the GPU runs to its end either way, so
-test runs also draw small frames, at most 100 a second.
+test runs also draw small frames, at most one a refresh.
 
 ## The debug layer
 
