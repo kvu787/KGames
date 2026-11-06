@@ -1,9 +1,10 @@
 # Benchmarks
 
-Times KGames' hot paths, and prints their statistics: the programs' frames on the CPU and the
-GPU, text, input, the PerfBar, meshes, models, JSON, math and the present tracker. It's a console
-program, without a window. [Documentation/Performance.md](../../Documentation/Performance.md) is
-the analysis made with it.
+Times KGames' hot paths, and counts what they hold in memory: the programs' frames on the CPU and
+the GPU, text, input, the PerfBar, meshes, models, JSON, math and the present tracker, and then
+each program's heap, the caches, the mesh and file data, and the GPU's memory. It's a console
+program, without a window. [Documentation/Performance.md](../../Documentation/Performance.md) and
+[Documentation/Memory.md](../../Documentation/Memory.md) are the analyses made with it.
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
@@ -58,6 +59,27 @@ RunLightly's job.
 The GPU is the fastest one, as the tests use, not the one a window's monitor is wired to. Each
 `gpu` iteration waits for the GPU, so the CPU and GPU times are of the same frames.
 
+## Memory groups
+
+These count instead of timing, and print their own tables after the times: how many allocations
+and bytes a frame or a run takes, the most the work held at once, and what it still held when it
+was done, which is the footprint of what it built, or a leak for work that should keep nothing.
+
+| Group              | What it counts                                                                 |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `memory/frames`    | Each program's heap once it has started, what a frame churns through, and      |
+|                    | what 1,500 frames leave behind                                                 |
+| `memory/caches`    | The text layouts and their glyphs, what the purge gives back, and what the     |
+|                    | interface keeps for widgets whose names change every frame                     |
+| `memory/libraries` | A subdivided mesh, its topology and its triangles, a model, and a scene        |
+| `memory/gpu`       | How much of the GPU's memory a program's drawing takes, from the device        |
+
+The counts are of the Rust heap, from a global allocator in `Source/Memory.rs` that counts
+nothing until a memory benchmark turns it on, so the timing benchmarks are unaffected. What
+DirectWrite, Direct3D and the display driver allocate is in their own heaps, which the counts
+can't see: the text benchmarks give what a layout adds to the process's private commit instead,
+the GPU's memory comes from the device, and the last line says what the whole process holds.
+
 ## Testing
 
 ```powershell
@@ -65,7 +87,7 @@ Program\RunLightly\RunLightly.ps1 cargo test -p benchmarks_tests
 ```
 
 The tests in `Test/Benchmarks` check the harness's statistics, budget, table, JSON and command
-line, and run every group once.
+line, the counting allocator and what it measures, and run every group once.
 
 ## Layout
 
@@ -76,3 +98,6 @@ line, and run every group once.
 | `Source/Harness.rs`    | Times a body within a budget, and keeps the statistics                |
 | `Source/Interface.rs`  | The programs' frames, on the CPU and the GPU, text, input, the PerfBar |
 | `Source/Libraries.rs`  | Meshes, models, JSON, math and the present tracker                    |
+| `Source/Memory.rs`     | The counting allocator, the usage it makes of the counts, and the     |
+|                        | process's and the GPU's memory                                        |
+| `Source/Footprints.rs` | What the programs and the libraries hold and churn                    |

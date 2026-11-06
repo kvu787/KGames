@@ -32,6 +32,7 @@ spinning_car_test = { path = "../SpinningCarTest" }
 ui_showcase = { path = "../UiShowcase" }
 user_interface = { path = "../../Library/UserInterface" }
 veehiicuul = { path = "../Veehiicuul" }
+windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]
 workspace = true

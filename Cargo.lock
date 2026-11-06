@@ -21,6 +21,7 @@ dependencies = [
  "ui_showcase",
  "user_interface",
  "veehiicuul",
+ "windows_api",
 ]
 
 [[package]]
