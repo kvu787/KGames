@@ -43,15 +43,19 @@ The app bar at the top of the window has the tabs, and in the editors, "The game
 shows the view at the game's angle instead of straight down. At its right end are the scene to
 play and edit, New scene, Undo and Redo, which Ctrl+Z and Ctrl+Y do too, and Save, which Ctrl+S
 does too, in the accent color while there are unsaved changes. The status bar at the bottom has
-the shortcuts, and says whether there are unsaved changes. The 3D view fills the window under
-them, and the cards float over it: each editor has a card down the left side, and the Vehicles
-tab another at the top right, for the paint. Where the cards don't cover the view, Space and a
-drag pan it, and the wheel zooms it around the pointer.
+the shortcuts, what the last save did, and whether there are unsaved changes. The 3D view fills
+the window under them, and the cards float over it, each as tall as what's in it: each editor
+has a card at the top left, and the Vehicles tab another at the top right, for the paint. Where
+the cards don't cover the view, Space and a drag pan it, and the wheel zooms it around the
+pointer. A color in a card is a field of its code, like `#1CDA61`, with a swatch of it, and what's
+typed in it takes effect with Enter. Those fields and the vehicle's name are the only controls
+that take keyboard focus, so that Space, the arrows and the keys that drive always pan and drive.
 
 | Tab      | What it does                                                                      |
 | -------- | --------------------------------------------------------------------------------- |
 | Play     | Drives the scene's track, with a card over the bottom left corner that says       |
-|          | what's going on and what the controls do. Going to Play puts the car at the start |
+|          | what's going on, and what the gamepad's and the keyboard's controls do. Going to  |
+|          | Play puts the car at the start                                                    |
 | Scene    | Arranges decorations and parked vehicles: a press picks one, a drag moves it, and |
 |          | the card turns and scales it, adds and deletes them, and paints a decoration's    |
 |          | model. Sets the background, the view of the camera that follows the car, and the  |
@@ -204,10 +208,11 @@ hexels, brushes and fills; the models from Blender, the vehicles, the settings, 
 files write back as they were; Play through its frames, with Library/UserInterface's `Headless`,
 and its card, which fits the page at either height, under notices about the settings; the
 editors through their frames, with presses and drags in their real layout: the tabs, that every
-editor's controls fit in its cards at either height, painting hexels, panning and zooming the
-view, moving, adding and deleting control points, a track's problems, dragging a footprint's
-side, renaming a vehicle, picking and moving a decoration, undo, and saving; and, with the GPU,
-offscreen, that the 3D view draws the scene under the interface.
+editor's controls fit in its cards at either height, that only text fields keep keyboard focus,
+color fields, painting hexels, panning and zooming the view, moving, adding and deleting control
+points, a track's problems, dragging a footprint's side, renaming a vehicle, picking and moving a
+decoration, undo, and saving; and, with the GPU, offscreen, that the 3D view draws the scene
+under the interface.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Gamepad`

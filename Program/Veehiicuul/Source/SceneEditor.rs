@@ -4,12 +4,13 @@
 // the paint of a decoration's model, which every use of the model shares.
 
 use json::Value;
-use user_interface::tokens::{BODY, BODY_STRONG, LIST_ROW_HEIGHT, SPACE_M};
-use user_interface::{Button, Icon, Rect, Ui};
+use user_interface::controls::LIST_ITEM_HEIGHT;
+use user_interface::tokens::{BODY, CONTROL_HEIGHT};
+use user_interface::{Button, Card, ComboBox, Form, Icon, ListView, Rect, Ui};
 
 use crate::collision::Footprint;
 use crate::document::Document;
-use crate::editing::{self, Form, Overlay, SliderRange, Viewport, subtitle, window_size};
+use crate::editing::{self, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, slider_height, window_size};
 use crate::models::{Models, set_slot};
 use crate::scene::{Decoration, LARGEST_SCALE, Parked, SMALLEST_SCALE};
 use crate::track::Pose;
@@ -33,7 +34,6 @@ pub struct SceneEditor {
     pub model: usize,
     pub vehicle: usize,
     pub slot: usize,
-    background_text: String,
 }
 
 // The rectangle that a thing takes on the ground, as its corners.
@@ -103,42 +103,50 @@ impl SceneEditor {
                 Picked::Parked(index) => current.parked[index].pose.position = position,
             }
         }
-        if !input.response.held {
+        if !input.held {
             self.grab = None;
         }
 
         // Each thing's place, and the picked one's rectangle.
-        let theme = ui.theme().clone();
         let things = footprints(document, models, scene);
-        let mut overlay = Overlay::new(ui, viewport.eye, view);
+        let projection = Projection::new(ui, viewport.eye);
+        let mut painter = ui.painter();
+        let theme = painter.theme();
+        painter.push_clip(view);
         for (row, (footprint, pose, scale)) in things.iter().enumerate() {
             let picked = self.picked == Some(row_of(row));
             if picked {
-                overlay.outline(&corners(*footprint, pose, *scale), 2.0, theme.accent);
+                projection.outline(&mut painter, &corners(*footprint, pose, *scale), 2.0, theme.accent);
             }
-            let center = overlay.screen(pose.position);
-            overlay.dot(center, 5.0, if picked { theme.accent } else { theme.text_primary });
-            overlay.dot(center, 2.0, theme.flyout);
+            let center = projection.point(pose.position);
+            painter.circle(center, 5.0, if picked { theme.accent } else { theme.text_primary });
+            painter.circle(center, 2.0, theme.acrylic);
         }
-        drop(overlay);
-        self.card(ui, view, viewport, document, models, scene);
+        painter.pop_clip();
+        let page = ui.page();
+        self.card(ui, page, view, viewport, document, models, scene);
     }
 
-    fn card(&mut self, ui: &mut Ui, view: Rect, viewport: &Viewport, document: &mut Document, models: &Models, scene: usize) {
-        let page = ui.page();
-        let card = ui.floating_card(editing::left_card(page), "Scene");
-        subtitle(ui, card.header, &document.scenes[scene].name);
-        let mut form = Form::new(card.content);
+    #[allow(clippy::too_many_arguments)]
+    fn card(&mut self, ui: &mut Ui, page: Rect, view: Rect, viewport: &Viewport, document: &mut Document, models: &Models, scene: usize) {
+        let name = document.scenes[scene].name.clone();
+        let open = ui.begin_card(editing::left_card(page), Card::new("Scene").subtitle(&name).floating());
+        let mut form = Form::new(open.area.content);
         let vehicle_names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
+        let vehicle_names: Vec<&str> = vehicle_names.iter().map(String::as_str).collect();
         let model_names = models.names();
         let current = &mut document.scenes[scene];
-        form.color(ui, "Scene/Background", "Background", &mut self.background_text, &mut current.background);
-        let heights = SliderRange::new(5.0, 200.0, 1.0);
-        form.slider(ui, "Scene/FollowHeight", "Following view", &mut current.follow_height, heights, |value| {
-            format!("{value:.0} tall")
-        });
+        let [background, follow] = form.columns::<2>(HEADED_HEIGHT);
+        let background = header(ui, background, "Background");
+        editing::color_field(ui, "Scene/Background", background, &mut current.background);
+        let heights = SliderRange::new(5.0, 200.0, 1.0, 0).suffix(" tall");
+        // Its header lines up with the field's.
+        let follow = follow.top_strip(slider_height());
+        editing::slider(ui, "Scene/FollowHeight", follow, "Following view", &mut current.follow_height, heights);
         let camera = Button::new("Make this view the fixed camera's").icon(Icon::Camera);
-        if form.buttons(ui, &[("Scene/Camera", camera)]).is_some() {
+        let response = ui.add("Scene/Camera", form.take(CONTROL_HEIGHT), camera);
+        ui.tooltip(&response, "The fixed camera looks where the middle of the view right of this card is");
+        if response.clicked {
             let middle = editing::visible(view).center();
             current.camera_center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
             current.camera_height = viewport.eye.height;
@@ -158,10 +166,11 @@ impl SceneEditor {
         let mut selected = picked_row;
         let shown = rows.len().clamp(1, LIST_ROWS) as f32;
         let text = ui.theme().text_primary;
-        ui.list_view("Scene/Objects", form.next(shown * LIST_ROW_HEIGHT), rows.len(), LIST_ROW_HEIGHT, &mut selected, |ui, index, rect, state| {
-            let style = if state.selected { BODY_STRONG } else { BODY };
-            ui.text(rect.inset_by(SPACE_M + 4.0, 0.0, SPACE_M, 0.0), &rows[index], style, text);
+        let list = ListView::new(rows.len(), LIST_ITEM_HEIGHT, |ui, index, rect, _| {
+            ui.text(rect, &rows[index], BODY, text);
+            ui.set_label(&format!("Scene/Objects/{index}"), &rows[index]);
         });
+        ui.add("Scene/Objects", form.take(shown * LIST_ITEM_HEIGHT), list.selection(&mut selected));
         if selected != picked_row {
             self.picked = selected.map(|row| {
                 if row < current.decorations.len() {
@@ -173,49 +182,49 @@ impl SceneEditor {
         }
         let middle = editing::visible(view).center();
         let center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
-        form.combo(ui, "Scene/Model", "Model", &model_names, &mut self.model);
-        self.vehicle = self.vehicle.min(vehicle_names.len() - 1);
-        form.combo(ui, "Scene/Vehicle", "Vehicle", &vehicle_names, &mut self.vehicle);
-        let buttons = [
-            ("Scene/AddDecoration", Button::new("Add the model").icon(Icon::Add)),
-            ("Scene/Park", Button::new("Park the vehicle").icon(Icon::Car)),
-            ("Scene/Delete", Button::new("Delete").icon(Icon::Delete)),
-        ];
-        match form.buttons(ui, &buttons) {
-            Some(0) => {
-                current.decorations.push(Decoration {
-                    model: model_names[self.model.min(model_names.len() - 1)].to_string(),
-                    pose: Pose {
-                        position: center,
-                        heading: 0.0,
-                    },
-                    scale: 1.0,
-                });
-                self.picked = Some(Picked::Decoration(current.decorations.len() - 1));
-            }
-            Some(1) => {
-                current.parked.push(Parked {
-                    vehicle: vehicle_names[self.vehicle].clone(),
-                    pose: Pose {
-                        position: center,
-                        heading: 0.0,
-                    },
-                });
-                self.picked = Some(Picked::Parked(current.parked.len() - 1));
-            }
-            Some(2) => {
-                match self.picked {
-                    Some(Picked::Decoration(index)) if index < current.decorations.len() => {
-                        current.decorations.remove(index);
-                    }
-                    Some(Picked::Parked(index)) if index < current.parked.len() => {
-                        current.parked.remove(index);
-                    }
-                    _ => {}
+        let [model, vehicle] = form.columns::<2>(HEADED_HEIGHT);
+        let (model, vehicle) = (header(ui, model, "Model"), header(ui, vehicle, "Vehicle"));
+        ui.add("Scene/Model", model, ComboBox::new(&mut self.model, &model_names));
+        ui.add("Scene/Vehicle", vehicle, ComboBox::new(&mut self.vehicle, &vehicle_names));
+        let [add, park, delete] = form.columns::<3>(CONTROL_HEIGHT);
+        let add = ui.add("Scene/AddDecoration", add, Button::new("Add the model").icon(Icon::Add));
+        ui.tooltip(&add, "Puts the model in the middle of the view");
+        let park = ui.add("Scene/Park", park, Button::new("Park the vehicle").icon(Icon::Car));
+        ui.tooltip(&park, "Parks the vehicle in the middle of the view");
+        let delete = ui.add("Scene/Delete", delete, Button::new("Delete").icon(Icon::Delete));
+        ui.tooltip(&delete, "Deletes the one that's picked");
+        if add.clicked {
+            current.decorations.push(Decoration {
+                model: model_names[self.model].to_string(),
+                pose: Pose {
+                    position: center,
+                    heading: 0.0,
+                },
+                scale: 1.0,
+            });
+            self.picked = Some(Picked::Decoration(current.decorations.len() - 1));
+        }
+        if park.clicked {
+            current.parked.push(Parked {
+                vehicle: vehicle_names[self.vehicle].to_string(),
+                pose: Pose {
+                    position: center,
+                    heading: 0.0,
+                },
+            });
+            self.picked = Some(Picked::Parked(current.parked.len() - 1));
+        }
+        if delete.clicked {
+            match self.picked {
+                Some(Picked::Decoration(index)) if index < current.decorations.len() => {
+                    current.decorations.remove(index);
                 }
-                self.picked = None;
+                Some(Picked::Parked(index)) if index < current.parked.len() => {
+                    current.parked.remove(index);
+                }
+                _ => {}
             }
-            _ => {}
+            self.picked = None;
         }
         // A pick that's gone, like after an undo.
         self.picked = self.picked.filter(|picked| match *picked {
@@ -223,21 +232,22 @@ impl SceneEditor {
             Picked::Parked(index) => index < current.parked.len(),
         });
 
-        let degrees = SliderRange::new(-180.0, 180.0, 10.0);
+        let degrees = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
         let mut paint_model = None;
         match self.picked {
             Some(Picked::Decoration(index)) => {
                 let decoration = &mut current.decorations[index];
                 form.heading(ui, &format!("The {}", decoration.model));
-                form.slider(ui, "Scene/Heading", "Heading", &mut decoration.pose.heading, degrees, |value| format!("{value:.1}°"));
-                let scale = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE.min(20.0), 100.0);
-                form.slider(ui, "Scene/Scale", "Scale", &mut decoration.scale, scale, |value| format!("{value:.2}"));
+                let [heading, scale] = form.columns::<2>(slider_height());
+                editing::slider(ui, "Scene/Heading", heading, "Heading", &mut decoration.pose.heading, degrees);
+                let scales = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE.min(20.0), 100.0, 2);
+                editing::slider(ui, "Scene/Scale", scale, "Scale", &mut decoration.scale, scales);
                 paint_model = models.find(&decoration.model);
             }
             Some(Picked::Parked(index)) => {
                 let parked = &mut current.parked[index];
                 form.heading(ui, &format!("The parked {}", parked.vehicle));
-                form.slider(ui, "Scene/Heading", "Heading", &mut parked.pose.heading, degrees, |value| format!("{value:.1}°"));
+                editing::slider_row(&mut form, ui, "Scene/Heading", "Heading", &mut parked.pose.heading, degrees);
                 form.caption(ui, "The Vehicles tab paints vehicles.");
             }
             None => form.caption(ui, "Press one in the view, or in the list, to pick it."),
@@ -248,11 +258,12 @@ impl SceneEditor {
             self.slot = self.slot.min(slots.len() - 1);
             let mut parameters = document.model_materials(models, model)[self.slot];
             form.heading(ui, &format!("The {name}'s paint, everywhere it is"));
-            if form.paint(ui, "ModelPaint", slots, &mut self.slot, &mut parameters) {
+            if editing::paint(&mut form, ui, "ModelPaint", slots, &mut self.slot, &mut parameters) {
                 let slot = slots[self.slot].clone();
                 set_slot(document.paint_mut(&name), slots, &slot, parameters);
             }
         }
+        ui.end_card(open, form.bottom());
     }
 
     pub fn state(&self, document: &Document, scene: usize) -> Value {
