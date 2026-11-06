@@ -26,6 +26,9 @@ window ever becomes the foreground window, which would mean that it took focus f
 Windows reports every change of the foreground window to RunInBackground, so even one that
 lasts a moment counts.
 
+RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it
+starts: only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time.
+
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
 limit, doesn't leave it running on the display.
