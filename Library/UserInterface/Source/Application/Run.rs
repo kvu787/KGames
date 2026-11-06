@@ -217,9 +217,12 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
+    // The renderer before the presenter: what's made last goes first, and
+    // the presenter waits for the GPU to finish the last frame as it goes,
+    // before the renderer's buffers and the program's resources go.
+    let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing).map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
     presenter.set_vsync(vertical_sync);
-    let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
         gpu: gpu.name.clone(),
@@ -388,10 +391,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
     }
 
-    // The swap chain and the renderer's buffers go as this returns, before
-    // the GPU does, so the GPU must be done with the last frame first:
-    // releasing what a frame still draws with makes its shaders fault, which
-    // NVIDIA's driver logs, and which stutters every app on the GPU.
+    // The presenter waits for the GPU to finish the last frame as it goes,
+    // on every way out of here. This also says so when the wait fails.
     gpu.flush().map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
     if let Some(runner) = runner {
         if !runner.failures.is_empty() {

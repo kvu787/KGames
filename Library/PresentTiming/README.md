@@ -58,9 +58,10 @@ from an elevated PowerShell, then sign out and back in:
 Add-LocalGroupMember -Group 'Performance Log Users' -Member $env:USERNAME
 ```
 
-The session is named after the program, like `KGames UiShowcase`. Sessions are the system's, and
-outlive a process that ends without stopping its own, so a program stops a leftover session of its
-name before it starts its own.
+The session is named after the program and its process, like `KGames UiShowcase 4172`. Sessions
+are the system's, and outlive a process that ends without stopping its own, like one that's
+killed, so a program stops the `KGames` sessions whose processes are gone before it starts its
+own, and leaves another process's running session alone.
 
 ## Checking against PresentMon
 

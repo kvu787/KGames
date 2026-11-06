@@ -165,6 +165,12 @@ impl Gpu {
         }
     }
 
+    // The fence that `signal` has the queue signal, for what waits on its
+    // own, like the presenter as it goes.
+    pub(crate) fn fence(&self) -> ID3D12Fence {
+        self.fence.clone()
+    }
+
     // Has the queue signal the fence once the GPU finishes all the work
     // submitted so far, and returns the value that it will signal.
     pub fn signal(&mut self) -> Result<u64> {

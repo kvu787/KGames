@@ -390,9 +390,9 @@ pub unsafe fn GetCurrentProcess() -> HANDLE {
     unsafe { GetCurrentProcess() }
 }
 #[inline]
-pub unsafe fn GetCurrentThreadId() -> u32 {
-    windows_core::link!("kernel32.dll" "system" fn GetCurrentThreadId() -> u32);
-    unsafe { GetCurrentThreadId() }
+pub unsafe fn GetCurrentProcessId() -> u32 {
+    windows_core::link!("kernel32.dll" "system" fn GetCurrentProcessId() -> u32);
+    unsafe { GetCurrentProcessId() }
 }
 #[inline]
 pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
@@ -428,6 +428,11 @@ pub unsafe fn GetDpiForMonitor(
 pub unsafe fn GetDpiForWindow(hwnd: HWND) -> u32 {
     windows_core::link!("user32.dll" "system" fn GetDpiForWindow(hwnd : HWND) -> u32);
     unsafe { GetDpiForWindow(hwnd) }
+}
+#[inline]
+pub unsafe fn GetExitCodeProcess(hprocess: HANDLE, lpexitcode: *mut u32) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn GetExitCodeProcess(hprocess : HANDLE, lpexitcode : *mut u32) -> windows_core::BOOL);
+    unsafe { GetExitCodeProcess(hprocess, lpexitcode as _) }
 }
 #[inline]
 pub unsafe fn GetFileVersionInfoSizeW<P0>(lptstrfilename: P0, lpdwhandle: Option<*mut u32>) -> u32
@@ -605,6 +610,11 @@ pub unsafe fn OpenClipboard(hwndnewowner: Option<HWND>) -> windows_core::BOOL {
     unsafe { OpenClipboard(hwndnewowner.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
+pub unsafe fn OpenProcess(dwdesiredaccess: u32, binherithandle: bool, dwprocessid: u32) -> HANDLE {
+    windows_core::link!("kernel32.dll" "system" fn OpenProcess(dwdesiredaccess : u32, binherithandle : windows_core::BOOL, dwprocessid : u32) -> HANDLE);
+    unsafe { OpenProcess(dwdesiredaccess, binherithandle.into(), dwprocessid) }
+}
+#[inline]
 pub unsafe fn OpenTraceW(logfile: *mut EVENT_TRACE_LOGFILEW) -> PROCESSTRACE_HANDLE {
     windows_core::link!("advapi32.dll" "system" fn OpenTraceW(logfile : *mut EVENT_TRACE_LOGFILEW) -> PROCESSTRACE_HANDLE);
     unsafe { OpenTraceW(logfile as _) }
@@ -643,6 +653,15 @@ pub unsafe fn ProcessTrace(
             endtime.unwrap_or(core::mem::zeroed()) as _,
         )
     }
+}
+#[inline]
+pub unsafe fn QueryAllTracesW(
+    propertyarray: *mut PEVENT_TRACE_PROPERTIES,
+    propertyarraycount: u32,
+    loggercount: *mut u32,
+) -> u32 {
+    windows_core::link!("advapi32.dll" "system" fn QueryAllTracesW(propertyarray : *mut PEVENT_TRACE_PROPERTIES, propertyarraycount : u32, loggercount : *mut u32) -> u32);
+    unsafe { QueryAllTracesW(propertyarray as _, propertyarraycount, loggercount as _) }
 }
 #[inline]
 pub unsafe fn QueryDisplayConfig(
@@ -3216,6 +3235,7 @@ pub const ENABLE_TRACE_PARAMETERS_VERSION_2: i32 = 2;
 pub const ERROR_ACCESS_DENIED: i32 = 5;
 pub const ERROR_ALREADY_EXISTS: i32 = 183;
 pub const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
+pub const ERROR_MORE_DATA: i32 = 234;
 pub const ERROR_SUCCESS: i32 = 0;
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -8746,6 +8766,7 @@ pub type PEVENT_HEADER_EXTENDED_DATA_ITEM = *mut EVENT_HEADER_EXTENDED_DATA_ITEM
 pub type PEVENT_RECORD_CALLBACK = Option<unsafe extern "system" fn(eventrecord: *mut EVENT_RECORD)>;
 pub type PEVENT_TRACE_BUFFER_CALLBACKW =
     Option<unsafe extern "system" fn(logfile: *mut EVENT_TRACE_LOGFILEW) -> u32>;
+pub type PEVENT_TRACE_PROPERTIES = *mut EVENT_TRACE_PROPERTIES;
 pub const PM_REMOVE: i32 = 1;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -8772,6 +8793,7 @@ pub struct PROCESS_POWER_THROTTLING_STATE {
     pub ControlMask: u32,
     pub StateMask: u32,
 }
+pub const PROCESS_QUERY_LIMITED_INFORMATION: i32 = 4096;
 pub const PROCESS_TRACE_MODE_EVENT_RECORD: i32 = 268435456;
 pub const PROCESS_TRACE_MODE_RAW_TIMESTAMP: i32 = 4096;
 pub const PROCESS_TRACE_MODE_REAL_TIME: i32 = 256;
@@ -8826,6 +8848,7 @@ pub struct SECURITY_ATTRIBUTES {
 pub const SIZE_MINIMIZED: i32 = 1;
 pub const SPI_GETKEYBOARDDELAY: i32 = 22;
 pub const SPI_GETKEYBOARDSPEED: i32 = 10;
+pub const STILL_ACTIVE: i32 = 259;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;

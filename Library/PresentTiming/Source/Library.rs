@@ -90,14 +90,15 @@ pub struct PresentTiming {
 
 impl PresentTiming {
     // Starts reading the process's presents, in an ETW session named after
-    // the program, which stops one of the same name that's left over.
+    // the program and this process, after stopping sessions of programs
+    // whose processes are gone.
     pub fn start(name: &str, process: u32) -> Result<PresentTiming, StartError> {
         let presents = Arc::new(Mutex::new(Vec::new()));
         let output = presents.clone();
         let mut decoder = Decoder::default();
         let mut tracker = Tracker::new(process);
         let session = Session::start(
-            &format!("KGames {name}"),
+            name,
             Box::new(move |record| {
                 if let Some(event) = events::decode(&mut decoder, record) {
                     tracker.handle(&event);
