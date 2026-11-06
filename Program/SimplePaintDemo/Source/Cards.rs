@@ -10,13 +10,10 @@
 
 use user_interface::controls::{LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, LIST_ITEM_RADIUS, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS};
 use user_interface::tokens::{
-    BODY, CAPTION, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, MONO, RADIUS_CONTROL,
-    SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SPACE_XXL,
+    BODY, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, MONO, RADIUS_CONTROL, SPACE_L,
+    SPACE_M, SPACE_S, SPACE_XXL,
 };
-use user_interface::{
-    Align, AppBar, Border, Brush, Button, Card, Color, Corners, Icon, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Theme,
-    Ui, id,
-};
+use user_interface::{Align, AppBar, Border, Button, Card, Color, Icon, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Ui, id};
 
 use crate::demo::{Demo, TITLE};
 use crate::editor::{self, Editor, SETTINGS};
@@ -24,9 +21,8 @@ use crate::preview::IMAGE_WIDTH;
 
 // The preview's card, whose view is as wide as the sphere's image.
 pub const PREVIEW_WIDTH: f32 = IMAGE_WIDTH as f32 + CARD_PADDING * 2.0;
-// The heights of the cards that aren't at the bottom of their column.
+// The height of the settings card, above the GPU constants.
 pub const SETTINGS_HEIGHT: f32 = 468.0;
-pub const CURVE_HEIGHT: f32 = 508.0;
 // Reset and Save, which are as wide as each other.
 const BUTTON_WIDTH: f32 = 96.0;
 // Each setting's row, like a list's, and the parts of it.
@@ -35,11 +31,6 @@ const LABEL_WIDTH: f32 = 120.0;
 const VALUE_WIDTH: f32 = 72.0;
 const RANGE_WIDTH: f32 = 128.0;
 const SWATCH_SIZE: Size = Size::new(64.0, 24.0);
-// The tone curve's plot and its color ramp.
-const PLOT_HEIGHT: f32 = 320.0;
-const RAMP_HEIGHT: f32 = 24.0;
-// The ramp's colors, each this wide, which shade into the next.
-const RAMP_SEGMENT: f32 = 4.0;
 // The GPU constants' names, and their values right of them.
 const NAME_WIDTH: f32 = 152.0;
 
@@ -54,7 +45,6 @@ pub fn draw(demo: &mut Demo, ui: &mut Ui) {
     let mut column = page;
     let fits = [
         ("Settings", settings(demo, ui, column.cut_top(SETTINGS_HEIGHT, CARD_GAP))),
-        ("Tone curve", tone_curve(&demo.editor, ui, column.cut_top(CURVE_HEIGHT, CARD_GAP))),
         ("GPU constants", constants(&demo.editor, ui, column)),
     ];
     demo.overflow.extend(fits.iter().filter(|(_, fits)| !fits).map(|(name, _)| *name));
@@ -296,130 +286,6 @@ fn base_color(ui: &mut Ui, row: Rect, editor: &Editor) {
     }
 }
 
-// The curves' colors, one for each channel.
-fn channels(theme: &Theme) -> [Color; 3] {
-    [theme.data.red, theme.data.green, theme.data.blue]
-}
-
-// The color curve of each channel over the tone, as it's displayed, with the
-// tones that the sphere shows marked, and a ramp of the colors.
-fn tone_curve(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
-    let card = ui.card(rect, Card::new("Tone curve").subtitle("Each channel's displayed value over the tone, from 0 at the left to 1 at the right"));
-    let parameters = editor.parameters;
-    let mut content = Content::new(card.content);
-    let plot = content.take(PLOT_HEIGHT, SPACE_XS);
-    let mut painter = ui.painter();
-    let theme = painter.theme();
-    painter.shape(plot, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
-    // Inside the plot's border.
-    let area = plot.inset(1.0);
-    for quarter in 1..4 {
-        let fraction = quarter as f32 * 0.25;
-        painter.fill(Rect::new((area.x + area.width * fraction).round(), area.y, 1.0, area.height), theme.divider);
-        painter.fill(Rect::new(area.x, (area.y + area.height * fraction).round(), area.width, 1.0), theme.divider);
-    }
-    let x_of = |tone: f64| area.x + area.width * tone as f32;
-    let y_of = |value: f64| area.bottom() - area.height * value as f32;
-
-    // The tones from Dark Point at the sphere's rim to Light Point at its peak.
-    let (dark, light) = (parameters.dark_point, parameters.light_point);
-    let (low, high) = (dark.min(light), dark.max(light));
-    let span = Rect::new(x_of(low), area.y, (x_of(high) - x_of(low)).max(1.0), area.height);
-    painter.fill(span, theme.accent.fade(0.08));
-    let anchor = 1.0 - parameters.brightness;
-    for (tone, color) in [(dark, theme.text_secondary), (light, theme.text_secondary), (anchor, theme.text_tertiary)] {
-        painter.fill(Rect::new(x_of(tone) - 0.5, area.y, 1.0, area.height), color);
-    }
-
-    // Each channel's curve, as displayed: the shader's linear output, encoded
-    // to sRGB.
-    const SEGMENTS: usize = 256;
-    let curves = parameters.base_color_srgb.map(|base| curve(base, parameters.brightness));
-    painter.push_clip(area);
-    for (curve, color) in curves.iter().zip(channels(theme)) {
-        let points: Vec<Point> = (0..=SEGMENTS)
-            .map(|segment| {
-                let tone = segment as f64 / SEGMENTS as f64;
-                Point::new(x_of(tone), y_of(srgb(curve(tone))))
-            })
-            .collect();
-        painter.polyline(&points, 2.0, color);
-    }
-    painter.pop_clip();
-
-    // Labels under the plot, at the marks, on as many lines as there are
-    // labels, so that they never overlap, even when they're all at one tone.
-    let labels = [
-        (dark, format!("Dark Point {dark:.3}"), theme.text_secondary),
-        (light, format!("Light Point {light:.3}"), theme.text_secondary),
-        (anchor, format!("Base color {anchor:.3}"), theme.text_tertiary),
-    ];
-    let label_area = content.take(CAPTION.line_height * labels.len() as f32, SPACE_S);
-    let spans: Vec<[f32; 2]> = labels
-        .iter()
-        .map(|(tone, label, _)| {
-            let width = painter.measure(label, CAPTION).width;
-            let x = (x_of(*tone) - width / 2.0).clamp(area.x, area.right() - width);
-            [x, x + width]
-        })
-        .collect();
-    let lines = label_lines(&spans, SPACE_L);
-    for ((_, label, color), (span, line)) in labels.iter().zip(spans.iter().zip(lines)) {
-        let origin = Point::new(span[0], label_area.y + CAPTION.line_height * line as f32);
-        painter.text(origin, label, CAPTION, *color);
-    }
-
-    // The colors along the curve, with the sphere's tones marked.
-    let ramp = content.take(RAMP_HEIGHT, SPACE_M);
-    let ramp_color = |tone: f64| {
-        let [r, g, b] = curves.each_ref().map(|curve| srgb(curve(tone)).clamp(0.0, 1.0) as f32);
-        Color::rgba(r, g, b, 1.0)
-    };
-    let count = (ramp.width / RAMP_SEGMENT).ceil() as usize;
-    for segment in 0..count {
-        let left = ramp.x + segment as f32 * RAMP_SEGMENT;
-        let right = (left + RAMP_SEGMENT).min(ramp.right());
-        let piece = Rect::new(left, ramp.y, right - left, ramp.height);
-        let from = ramp_color(((left - ramp.x) / ramp.width) as f64);
-        let to = ramp_color(((right - ramp.x) / ramp.width) as f64);
-        painter.shape(piece, Corners::ZERO, Brush::horizontal(piece, from, to), None);
-    }
-    painter.shape(ramp, Corners::ZERO, Color::TRANSPARENT, Some(Border::new(theme.control_stroke, 1.0)));
-    for tone in [low, high] {
-        let mark = Rect::new(x_of(tone) - 1.5, ramp.y - 4.0, 3.0, ramp.height + 8.0);
-        painter.shape(mark, 1.5, theme.text_primary, Some(Border::new(theme.card_opaque(), 1.0)));
-    }
-    content.paragraph(
-        ui,
-        "The sphere shows the tones between the marks: Dark Point at its rim and on its back, and Light Point where \
-         it faces the camera most, which Shift moves toward Rotation.",
-    );
-    content.fits
-}
-
-// Which line each label goes on, from 0, given where each one goes across,
-// from its left to its right: the first line where it's at least `gap` from
-// the labels already there.
-pub fn label_lines(spans: &[[f32; 2]], gap: f32) -> Vec<usize> {
-    let mut lines: Vec<Vec<[f32; 2]>> = Vec::new();
-    spans
-        .iter()
-        .map(|&[left, right]| {
-            let clear = |placed: &Vec<[f32; 2]>| {
-                placed
-                    .iter()
-                    .all(|&[other_left, other_right]| right + gap <= other_left || left >= other_right + gap)
-            };
-            let line = lines.iter().position(clear).unwrap_or(lines.len());
-            if line == lines.len() {
-                lines.push(Vec::new());
-            }
-            lines[line].push([left, right]);
-            line
-        })
-        .collect()
-}
-
 // What Material::compile made for the GPU, in columns of Cascadia Mono.
 fn constants(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
     let card = ui.card(rect, Card::new("GPU constants").subtitle("GpuMaterial: 80 bytes at b1, five float4 registers"));
@@ -465,21 +331,4 @@ fn linear(srgb: f64) -> f64 {
     } else {
         ((srgb + 0.055) / 1.055).powf(2.4)
     }
-}
-
-fn srgb(linear: f64) -> f64 {
-    if linear <= 0.0031308 {
-        12.92 * linear
-    } else {
-        1.055 * linear.powf(1.0 / 2.4) - 0.055
-    }
-}
-
-// SimplePaint's color curve for one channel, from Specification.md, as a
-// function of the tone, with what doesn't depend on the tone worked out once.
-fn curve(color_srgb: f64, brightness: f64) -> impl Fn(f64) -> f64 {
-    let c = linear(color_srgb);
-    let a = c * brightness;
-    let b = (1.0 - c) * (1.0 - brightness);
-    move |tone| a * tone / (a * tone + b * (1.0 - tone))
 }
