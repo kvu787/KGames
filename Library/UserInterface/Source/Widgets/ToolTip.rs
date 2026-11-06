@@ -28,6 +28,16 @@ impl Ui {
         self.tooltip_lines(response, &[TooltipLine::Text(text)]);
     }
 
+    // The tooltip of the widget with the name, like a list's row, whose
+    // response the program doesn't have.
+    pub fn tooltip_for(&mut self, name: &str, lines: &[TooltipLine]) {
+        let response = Response {
+            id: crate::core::ui::id(name),
+            ..Default::default()
+        };
+        self.tooltip_lines(&response, lines);
+    }
+
     pub fn tooltip_lines(&mut self, response: &Response, lines: &[TooltipLine]) {
         if lines.is_empty() {
             return;
