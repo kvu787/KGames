@@ -39,6 +39,21 @@ impl Ui {
     }
 
     pub fn tooltip_lines(&mut self, response: &Response, lines: &[TooltipLine]) {
+        self.tooltip_lines_wide(response, lines, TOOLTIP_MAX_WIDTH);
+    }
+
+    // A tooltip with more in it than WinUI's 320 pixels hold well, like a
+    // device's every detail, up to `max_width` wide, so that it fits in the
+    // window's height.
+    pub fn tooltip_for_wide(&mut self, name: &str, lines: &[TooltipLine], max_width: f32) {
+        let response = Response {
+            id: crate::core::ui::id(name),
+            ..Default::default()
+        };
+        self.tooltip_lines_wide(&response, lines, max_width);
+    }
+
+    pub fn tooltip_lines_wide(&mut self, response: &Response, lines: &[TooltipLine], max_width: f32) {
         if lines.is_empty() {
             return;
         }
@@ -46,7 +61,7 @@ impl Ui {
             return;
         };
         let name = self.targets().iter().rev().find(|target| target.id == response.id).map(|target| target.name.clone()).unwrap_or_default();
-        let inner_width = TOOLTIP_MAX_WIDTH - TOOLTIP_PADDING.horizontal();
+        let inner_width = max_width.min(self.bounds().width - SPACE_S * 2.0) - TOOLTIP_PADDING.horizontal();
         // The label column of pairs is as wide as its widest label.
         let label_width = lines
             .iter()

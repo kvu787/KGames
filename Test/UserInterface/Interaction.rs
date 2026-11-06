@@ -357,6 +357,9 @@ impl Program for Ported {
         self.columns = form.headed_columns(ui, ["Left", "Right"], 32.0).to_vec();
         self.keys = ui.keys_width("RB+Left stick");
         self.parts = ui.keycap_width("RB") + ui.keycap_width("Left stick");
+        let wide = ui.add("Wide", Rect::new(10.0, 600.0, 100.0, 32.0), Button::new("Wide"));
+        let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
+        ui.tooltip_lines_wide(&wide, &[user_interface::TooltipLine::Text(long)], 640.0);
     }
 }
 
@@ -408,4 +411,15 @@ fn a_gamepad_s_combination_has_a_keycap_for_each_part() {
     let mut app = Headless::new(Ported::default());
     app.frame();
     assert!(app.program.keys > app.program.parts && app.program.keys < app.program.parts + 16.0, "{} {}", app.program.keys, app.program.parts);
+}
+
+#[test]
+fn a_wide_tooltip_is_wider_than_winui_s() {
+    let mut app = Headless::new(Ported::default());
+    app.frame();
+    app.move_to("Wide").wait(TOOLTIP_DELAY * 2.0);
+    let state = app.ui.state();
+    let Some(Value::Array(area)) = state.get("Tooltip").and_then(|tooltip| tooltip.get("Area")).cloned() else { panic!("no tooltip") };
+    let Value::Number(width) = area[2] else { panic!() };
+    assert!(width > 320.0 && width <= 640.0, "{width}");
 }

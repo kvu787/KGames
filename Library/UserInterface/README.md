@@ -103,35 +103,35 @@ A widget is a value that the program builds, like `Button::new("Save").accent()`
 to frame, and what scripts and tests point at. Each widget is a target, whose area, kind and label
 the interface's state lists. A widget of a program's own implements `Widget`.
 
-| Widget                             | WinUI's                   | Notes                                                          |
-| ---------------------------------- | ------------------------- | -------------------------------------------------------------- |
-| `Button`, `HyperlinkButton`        | Button, HyperlinkButton   | Standard, accent or subtle; text, an icon, or both             |
-| `ToggleButton`                     | ToggleButton              | In the accent color while it's on                              |
-| `CheckBox`, `RadioButton`          | CheckBox, RadioButton     | A radio button is checked while the value is its own           |
-| `ToggleSwitch`                     | ToggleSwitch              |                                                                |
-| `Slider`                           | Slider                    | Steps, the wheel, the keys, a header, and the value as dragged |
-| `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons, the arrows or the wheel       |
-| `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is       |
-| `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own  |
-| `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                |
-| `Swatch`                           |                           | A color to pick, with an accent ring while it's picked         |
-| `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected             |
-| `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one that slides           |
-| `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both             |
-| `MenuBar`, `ui.flyout_menu`        | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus           |
-| `ui.context_menu`                  | MenuFlyout                | Opens at the pointer on a right-click                          |
-| `ui.dialog`, `ui.dialog_with`      | ContentDialog             | Over smoke, with up to three buttons and content of your own   |
-| `Expander`                         | Expander                  | A header that shows and hides what's under it                  |
-| `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable             |
-| `ScrollBar`, `ui.begin_scroll`     | ScrollViewer              | Content taller than its area, with the wheel                   |
-| `ui.tooltip`                       | ToolTip                   | After the pointer rests half a second, above it                |
-| `ui.progress_bar`, `progress_ring` | ProgressBar, ProgressRing | Determinate, or of unknown length                              |
-| `ui.card`, `card_with_view`        | Card                      | A card with a view leaves a hole for the program's 3D          |
-| `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                  |
-| `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                  |
-| `View`                             |                           | A 3D view's area, which takes every button but never focus     |
-| `Form`                             |                           | Lays a card's content out top to bottom, with headers          |
-| `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines              |
+| Widget                             | WinUI's                   | Notes                                                           |
+| ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
+| `Button`, `HyperlinkButton`        | Button, HyperlinkButton   | Standard, accent or subtle; text, an icon, or both              |
+| `ToggleButton`                     | ToggleButton              | In the accent color while it's on                               |
+| `CheckBox`, `RadioButton`          | CheckBox, RadioButton     | A radio button is checked while the value is its own            |
+| `ToggleSwitch`                     | ToggleSwitch              |                                                                 |
+| `Slider`                           | Slider                    | Steps, the wheel, the keys, a header, and the value as dragged  |
+| `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons, the arrows or the wheel        |
+| `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is        |
+| `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own   |
+| `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
+| `Swatch`                           |                           | A color to pick, with an accent ring while it's picked          |
+| `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
+| `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one that slides            |
+| `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |
+| `MenuBar`, `ui.flyout_menu`        | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
+| `ui.context_menu`                  | MenuFlyout                | Opens at the pointer on a right-click                           |
+| `ui.dialog`, `ui.dialog_with`      | ContentDialog             | Over smoke, with up to three buttons and content of your own    |
+| `Expander`                         | Expander                  | A header that shows and hides what's under it                   |
+| `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable              |
+| `ScrollBar`, `ui.begin_scroll`     | ScrollViewer              | Content taller than its area, with the wheel                    |
+| `ui.tooltip`, `tooltip_for_wide`   | ToolTip                   | After the pointer rests half a second, above it; wider if asked |
+| `ui.progress_bar`, `progress_ring` | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
+| `ui.card`, `card_with_view`        | Card                      | A card with a view leaves a hole for the program's 3D           |
+| `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
+| `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
+| `View`                             |                           | A 3D view's area, which takes every button but never focus      |
+| `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
+| `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
 
 `ui.set_enabled(false)` disables the widgets after it, and `ui.set_focusable(false)` keeps them
 from taking keyboard focus, until each is set back; each frame starts enabled and focusable.

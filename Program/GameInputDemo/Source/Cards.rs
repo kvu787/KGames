@@ -684,6 +684,10 @@ fn source_icon(source: Source) -> Icon {
     }
 }
 
+// How wide a device's tooltip may be, so that its every detail fits in the
+// window's height.
+const DEVICE_TOOLTIP_WIDTH: f32 = 720.0;
+
 // Everything that GameInput and Windows say about a device, in a tooltip on
 // its row, in three parts: what GameInput says, Windows' node for it, and
 // what that's connected through. Long values, like the device's path, wrap.
@@ -697,7 +701,7 @@ fn device_tooltip(ui: &mut Ui, name: &str, device: &Device) {
             lines.push(TooltipLine::Pair(label, value));
         }
     }
-    ui.tooltip_for(name, &lines);
+    ui.tooltip_for_wide(name, &lines, DEVICE_TOOLTIP_WIDTH);
 }
 
 // The Event log card: everything above as it happens, newest first, in

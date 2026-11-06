@@ -84,10 +84,16 @@ impl Ui {
         let (left, right) = items.split_at(spacer);
         let right = right.get(1..).unwrap_or(&[]);
         // The right's items, from the right edge in, so that the left's can
-        // be cut short where they'd meet them.
+        // be cut short where they'd meet them. They take at most the bar's
+        // right half, and the one that would go past its middle is cut
+        // short, like a long message.
+        let middle = rect.center().x;
         let mut right_edge = rect.right() - SPACE_L;
         for item in right.iter().rev() {
-            let width = status_width(self, item);
+            let width = status_width(self, item).min(right_edge - middle);
+            if width <= 0.0 {
+                break;
+            }
             draw_status(self, item, Rect::new(right_edge - width, rect.y + 1.0, width, rect.height - 1.0));
             right_edge -= width + SPACE_L + SPACE_S;
         }
