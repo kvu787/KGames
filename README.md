@@ -88,9 +88,9 @@ you.
 ## Documentation
 
 `Documentation` holds design notes for what isn't code yet, like
-[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and
-[Performance](Documentation/Performance.md), the analysis of where the programs' time goes, made
-with [Benchmarks](Program/Benchmarks/README.md).
+[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and the analyses made with
+[Benchmarks](Program/Benchmarks/README.md): [Performance](Documentation/Performance.md), where the
+programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
 
 ## Test
 
