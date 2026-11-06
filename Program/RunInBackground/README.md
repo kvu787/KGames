@@ -38,7 +38,9 @@ starts: only on the CPU's efficiency cores, at idle priority, with at most a thi
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
-limit, doesn't leave it running on the display.
+limit, doesn't leave it running on the display. A program that's kept open holds a handle to
+RunLightly's job, which would otherwise end it with RunInBackground, so it keeps running with the
+job's limits until it's stopped.
 
 The script only runs `RunInBackground.cs`, a .NET file-based app, with `dotnet run`, which
 builds it into its own cache first. It needs the .NET 10 SDK.

@@ -9,20 +9,25 @@ Program\RunLightly\RunLightly.ps1 cargo test --workspace
 Program\RunLightly\RunLightly.ps1 cargo build --release -p UiShowcase
 ```
 
-It puts itself in a Windows job object before it runs the command, and the job's limits hold the
-command and every process that it starts, like Cargo's `rustc` and linker, which can't escape them:
+It runs the command in a PowerShell process of its own (`RunLightlyInJob.ps1`), which puts itself
+in a Windows job object first, so that the shell it's run from stays as it is. The job's limits hold
+the command and every process that it starts, like Cargo's `rustc` and linker, which can't escape
+them:
 
 | Limit    | What it does                                                                 |
 | -------- | ---------------------------------------------------------------------------- |
 | Affinity | Only the CPU's efficiency cores                                              |
 | Priority | Idle: anything else that wants a core gets it first                          |
 | CPU time | At most 33% of the whole CPU's, or `KGAMES_LIGHT_CPU_PERCENT`'s              |
-| Lifetime | The job's processes are killed when RunLightly ends, however that happens    |
+| Lifetime | The job's processes are killed when RunLightly ends, however that happens,   |
+|          | unless one holds a handle to the job, by the name in `KGAMES_LIGHT_JOB`      |
 
 The efficiency cores leave the performance cores, where a game's threads run, to the game. On a
 CPU whose cores are all alike, it takes all of them but a quarter. The cap on CPU time also leaves
 a laptop's power to the game's cores. The lifetime limit means that a run that's stopped partway,
-like by a coding agent's time limit, leaves no build running unseen.
+like by a coding agent's time limit, leaves no build running unseen. A program that
+[RunInBackground](../RunInBackground/README.md) keeps open holds a handle to the job, so it keeps
+running, with the limits, after RunInBackground ends.
 
 Jobs can't hold the rest, so RunLightly sets it itself:
 
@@ -33,6 +38,11 @@ Jobs can't hold the rest, so RunLightly sets it itself:
 | Efficiency mode | On every process in the job, a few times a second, as processes don't inherit it: |
 |                 | the efficiency cores run them at efficient clocks, and the chip's power budget     |
 |                 | stays with the game's cores (Task Manager shows the leaf)                          |
+| Membership      | The command's process is made suspended, put in the job, and then let run, and a  |
+|                 | process whose parent is in the job but that Windows left out, like what a .NET    |
+|                 | process starts here, is put in within a quarter second, unless it's in a job of   |
+|                 | its own by then, as rustup's cargo is: so run cargo as the command, not from a    |
+|                 | script                                                                            |
 | GPU priority    | `KGAMES_GPU_PRIORITY=Idle` in the environment, which                              |
 |                 | [Library/Graphics](../../Library/Graphics/README.md) reads: every process that    |
 |                 | draws, like a test or a test run of a program, puts its GPU work after other      |
@@ -49,7 +59,8 @@ and 23. RunLightly asks Windows each core's efficiency class instead of assuming
 
 It turns off .NET's and MSBuild's build servers, which would otherwise run outside the job and
 outlive it. It exits with the command's exit code. Commands run slower than they would directly,
-which is what a game that's running needs.
+which is what a game that's running needs. Run from a command that's already in its job, like
+RunInBackground run through it, it just runs the command, which the job holds already.
 
 What it can't hold:
 

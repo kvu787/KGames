@@ -160,15 +160,13 @@ static void Run(string[] arguments) {
         scripts.AddRange(found.Order(StringComparer.OrdinalIgnoreCase));
     }
 
-    var build = new List<string> { "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
+    var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
     if (!debugBuild) {
         build.Add("--release");
     }
-    using (var cargo = Process.Start("cargo", build)) {
-        cargo.WaitForExit();
-        if (cargo.ExitCode != 0) {
-            throw new FailureException($"cargo build failed with exit code {cargo.ExitCode}");
-        }
+    var cargoExit = ProgramProcess.RunInLightJob(build);
+    if (cargoExit != 0) {
+        throw new FailureException($"cargo build failed with exit code {cargoExit}");
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
     var sync = (verticalSync ? " --vsync" : "") + (frameLimit > 0 ? $" --frame-rate-limit {frameLimit.ToString(CultureInfo.InvariantCulture)}" : "");
@@ -449,6 +447,17 @@ sealed class FailureException(string message) : Exception(message);
 // this program exits, however that happens. Otherwise a run that's stopped
 // partway, like by Ctrl+C or a coding agent's time limit, would leave it
 // running on the display, drawing as fast as it can, until someone noticed.
+//
+// Run through RunLightly, this program is in its job, whose name
+// KGAMES_LIGHT_JOB gives, and the processes it starts should be too: the
+// build, and the program. Windows doesn't always put them there itself (see
+// RunLightlyInJob.ps1), and rustup's cargo, once it runs, is in a job of its
+// own that it can't be taken out of, so they're made with that job in their
+// list of jobs, the program's before the job that ends it, which nests in
+// it. A program that's to keep running also gets a handle to RunLightly's
+// job, which it holds until it exits: the job ends its processes when its
+// last handle closes, as RunLightly's does when it ends, so the program
+// keeps running, with the job's limits, until it's stopped.
 static partial class ProgramProcess {
     [StructLayout(LayoutKind.Sequential)]
     struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
@@ -497,9 +506,16 @@ static partial class ProgramProcess {
     private static partial bool CloseHandle(IntPtr handle);
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr CreateJobObjectW(IntPtr attributes, IntPtr name);
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr OpenJobObjectW(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, string name);
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetInformationJobObject(IntPtr job, int informationClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION information, int size);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetExitCodeProcess(IntPtr process, out int exitCode);
 
     const uint HANDLE_FLAG_INHERIT = 1;
     const int STARTF_USESTDHANDLES = 0x100;
@@ -509,11 +525,94 @@ static partial class ProgramProcess {
     const uint CREATE_NO_WINDOW = 0x8000000;
     const int JobObjectExtendedLimitInformation = 9;
     const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+    const uint JOB_OBJECT_ASSIGN_PROCESS = 0x1;
+    const uint JOB_OBJECT_QUERY = 0x4;
     static readonly IntPtr PROC_THREAD_ATTRIBUTE_HANDLE_LIST = new(0x20002);
     static readonly IntPtr PROC_THREAD_ATTRIBUTE_JOB_LIST = new(0x2000D);
 
     // Its handle closes only when this program exits.
     static readonly Lazy<IntPtr> job = new(CreateJob);
+
+    // RunLightly's job, if this program runs in one, with the access to put
+    // processes in it. Its handle closes only when this program exits.
+    static readonly Lazy<IntPtr> lightJob = new(() => {
+        if (Environment.GetEnvironmentVariable("KGAMES_LIGHT_JOB") is not { Length: > 0 } name) {
+            return IntPtr.Zero;
+        }
+        var job = OpenJobObjectW(JOB_OBJECT_ASSIGN_PROCESS | JOB_OBJECT_QUERY, false, name);
+        if (job == IntPtr.Zero) {
+            throw new Win32Exception();
+        }
+        return job;
+    });
+
+    // Runs a command with this program's console and standard handles, in
+    // RunLightly's job if this program is in one, and returns its exit code.
+    // The command's first word is a program, which Windows finds as it does
+    // for any command line.
+    public static int RunInLightJob(List<string> words) {
+        var commandLine = string.Join(' ', words.Select(Quote));
+        var jobs = lightJob.Value != IntPtr.Zero ? new[] { lightJob.Value } : [];
+        var size = IntPtr.Zero;
+        _ = InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+        var list = Marshal.AllocHGlobal(size);
+        var jobList = Marshal.AllocHGlobal(IntPtr.Size * Math.Max(jobs.Length, 1));
+        var initialized = false;
+        try {
+            if (!InitializeProcThreadAttributeList(list, 1, 0, ref size)) {
+                throw new Win32Exception();
+            }
+            initialized = true;
+            if (jobs.Length > 0) {
+                Marshal.Copy(jobs, 0, jobList, jobs.Length);
+                if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, jobList, new IntPtr(IntPtr.Size * jobs.Length), IntPtr.Zero, IntPtr.Zero)) {
+                    throw new Win32Exception();
+                }
+            }
+            var startupInfo = new STARTUPINFOEX {
+                cb = Marshal.SizeOf<STARTUPINFOEX>(),
+                lpAttributeList = list,
+            };
+            if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT, IntPtr.Zero, null, ref startupInfo, out var information)) {
+                throw new Win32Exception();
+            }
+            _ = CloseHandle(information.hThread);
+            _ = WaitForSingleObject(information.hProcess, uint.MaxValue);
+            if (!GetExitCodeProcess(information.hProcess, out var exitCode)) {
+                throw new Win32Exception();
+            }
+            _ = CloseHandle(information.hProcess);
+            return exitCode;
+        } finally {
+            if (initialized) {
+                DeleteProcThreadAttributeList(list);
+            }
+            Marshal.FreeHGlobal(jobList);
+            Marshal.FreeHGlobal(list);
+        }
+    }
+
+    // The word as a command line's, quoted as CommandLineToArgvW and C
+    // runtimes read it.
+    static string Quote(string word) {
+        if (word.Length > 0 && word.IndexOfAny([' ', '\t', '\n', '\v', '"']) < 0) {
+            return word;
+        }
+        var quoted = new System.Text.StringBuilder("\"");
+        var backslashes = 0;
+        foreach (var character in word) {
+            if (character == '\\') {
+                backslashes++;
+            } else if (character == '"') {
+                quoted.Append('\\', backslashes * 2 + 1).Append('"');
+                backslashes = 0;
+            } else {
+                quoted.Append('\\', backslashes).Append(character);
+                backslashes = 0;
+            }
+        }
+        return quoted.Append('\\', backslashes * 2).Append('"').ToString();
+    }
 
     static IntPtr CreateJob() {
         var job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
@@ -530,27 +629,44 @@ static partial class ProgramProcess {
     public static Process Start(string commandLine, string outputPath, string errorPath, bool keepRunning) {
         using var output = Open(outputPath);
         using var error = Open(errorPath);
-        var handles = new[] { output.SafeFileHandle.DangerousGetHandle(), error.SafeFileHandle.DangerousGetHandle() };
-        var attributes = keepRunning ? 1 : 2;
+        var handles = new List<IntPtr> { output.SafeFileHandle.DangerousGetHandle(), error.SafeFileHandle.DangerousGetHandle() };
+        var jobs = new List<IntPtr>();
+        var inherited = IntPtr.Zero;
+        if (lightJob.Value != IntPtr.Zero) {
+            jobs.Add(lightJob.Value);
+            if (keepRunning) {
+                // An inheritable handle of its own, so that the program gets
+                // a copy.
+                inherited = OpenJobObjectW(JOB_OBJECT_QUERY, true, Environment.GetEnvironmentVariable("KGAMES_LIGHT_JOB")!);
+                if (inherited == IntPtr.Zero) {
+                    throw new Win32Exception();
+                }
+                handles.Add(inherited);
+            }
+        }
+        if (!keepRunning) {
+            jobs.Add(job.Value);
+        }
+        var attributes = jobs.Count > 0 ? 2 : 1;
         var size = IntPtr.Zero;
         // This call only gets the size, and fails because the list is missing.
         _ = InitializeProcThreadAttributeList(IntPtr.Zero, attributes, 0, ref size);
         var list = Marshal.AllocHGlobal(size);
-        var handleList = Marshal.AllocHGlobal(IntPtr.Size * handles.Length);
-        var jobList = Marshal.AllocHGlobal(IntPtr.Size);
+        var handleList = Marshal.AllocHGlobal(IntPtr.Size * handles.Count);
+        var jobList = Marshal.AllocHGlobal(IntPtr.Size * Math.Max(jobs.Count, 1));
         var initialized = false;
         try {
             if (!InitializeProcThreadAttributeList(list, attributes, 0, ref size)) {
                 throw new Win32Exception();
             }
             initialized = true;
-            Marshal.Copy(handles, 0, handleList, handles.Length);
-            if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handleList, new IntPtr(IntPtr.Size * handles.Length), IntPtr.Zero, IntPtr.Zero)) {
+            Marshal.Copy(handles.ToArray(), 0, handleList, handles.Count);
+            if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handleList, new IntPtr(IntPtr.Size * handles.Count), IntPtr.Zero, IntPtr.Zero)) {
                 throw new Win32Exception();
             }
-            if (!keepRunning) {
-                Marshal.WriteIntPtr(jobList, job.Value);
-                if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, jobList, new IntPtr(IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) {
+            if (jobs.Count > 0) {
+                Marshal.Copy(jobs.ToArray(), 0, jobList, jobs.Count);
+                if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, jobList, new IntPtr(IntPtr.Size * jobs.Count), IntPtr.Zero, IntPtr.Zero)) {
                     throw new Win32Exception();
                 }
             }
@@ -572,6 +688,10 @@ static partial class ProgramProcess {
             _ = CloseHandle(information.hProcess);
             return process;
         } finally {
+            if (inherited != IntPtr.Zero) {
+                // The program has its own copy.
+                _ = CloseHandle(inherited);
+            }
             if (initialized) {
                 DeleteProcThreadAttributeList(list);
             }
