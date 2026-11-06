@@ -7,8 +7,8 @@ API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
 crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
 KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
-whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, keycaps
-and tooltips, after Microsoft's Fluent 2 design system.
+whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, list,
+scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
 
 ## Supported window setups
 
@@ -31,23 +31,27 @@ event log. In any other setup, the window shows what's wrong instead of the card
   button, in the accent color while it's held, and faint if the gamepad says it lacks it. A combo
   box after the card's title picks which [gamepad the demo listens to](#choosing-a-gamepad), if any.
 - **Latest input event**: the newest reading that changed something: its device, what changed, how
-  long after that device's previous reading it came, and the device's whole state.
-- **Keyboard**: the keys held down, each as a keycap with the key's name, then its scan code,
-  virtual-key code and character, in Cascadia Mono, so that they line up.
+  long after that device's previous reading it came, and the device's whole state. If that doesn't
+  all fit, the card's details scroll.
+- **Keyboard**: how many keys are held down, on a badge, and each of them as a keycap with the key's
+  name, then its scan code, virtual-key code and character, in Cascadia Mono, so that they line up.
+  Keys that don't fit scroll.
 - **Mouse**: the buttons held, the motion and wheel, and a pad that moves with the raw relative
   motion, which has no pointer acceleration.
 
   Each of the two shows the last device whose keys, or mouse input, changed. A device can be both,
   like a keyboard with a touchpad, and its readings then have both kinds of input. A key press on
   it doesn't move the Mouse card to it.
-- **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback. The
-  gamepad that the Gamepad card shows is in the accent color, with the accent pill of a selection,
-  and gamepads that the demo ignores are faint. The pointer resting on a device's row shows a
-  [tooltip](#device-tooltips) of everything known about it.
+- **Devices**: every connected gamepad, keyboard and mouse, from GameInput's device callback, as a
+  list that scrolls if they don't all fit. The gamepad that the Gamepad card shows is in the accent
+  color, with the accent pill of a selection, and gamepads that the demo ignores are faint. The
+  pointer resting on a device's row shows a [tooltip](#device-tooltips) of everything known about
+  it.
 - **Event log**: everything above as it happens, newest first, in Cascadia Mono, so that its columns
   line up. A run of analog motion from one device shares a line, with a count.
 - **Status bar**: the shortcuts, the GameInput runtime the demo loaded, how many readings it has
-  handled, and the [identifier](#display-identifiers) and model of the display the window is on.
+  handled, and the [identifier](#display-identifiers) and model of the display the window is on. A
+  runtime deep in folders is cut short where it would reach the readings.
 
 Shortcuts, while the demo's window has focus:
 
@@ -130,9 +134,12 @@ has for its macros. Windows gives devices built into the computer the container
 
 Windows' configuration manager takes a few milliseconds to read a device's nodes, so a thread of its
 own does that for each device as it connects, instead of the main loop. The tooltip reads what it
-found. Long values, like the PnP path, wrap. The pointer comes from the window's messages, like the
+found. Long values, like the PnP path, wrap, at the width of Library/UserInterface's tooltips, which
+are at most 320 pixels wide, as WinUI's are. The pointer comes from the window's messages, like the
 combo box's, so the tooltip only shows while the window has focus. Library/UserInterface places it
-under the pointer, or above it if there isn't room, and always inside the window.
+above the pointer, or under it if there isn't room, and inside the window. A device deep in Windows'
+device tree, behind hubs, can have a tooltip too tall for both, which then covers the pointer, or
+even taller than the maximized window, which then shows its top.
 
 ## Requirements
 
@@ -325,11 +332,12 @@ Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 
 The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse in its
 cards' real layout, which Library/UserInterface's `Headless` draws without a window: the combo box
-and its list, and the Devices card's rows and their tooltips. One draws a frame with the GPU,
-offscreen, and checks where the sticks' dots are. The scripts in `Test/GameInputDemo/Scripts` run the
-real demo, in its window, as [Library/UserInterface](../../Library/UserInterface/README.md#testing)
-describes. Their `Program` steps, which the demo's `Program::script` does, connect and disconnect
-devices, and give their readings:
+and its list, the Devices card's list, its rows and their tooltips, and what scrolls when it doesn't
+fit. One draws a frame with the GPU, offscreen, and checks where the sticks' dots are. The scripts in
+`Test/GameInputDemo/Scripts` run the real demo, in its window, as
+[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Program`
+steps, which the demo's `Program::script` does, connect and disconnect devices, and give their
+readings:
 
 ```json
 {
@@ -371,8 +379,9 @@ combo box, the Devices card's rows and `F11` read, like `{ "Frame": 10, "Key": "
 The state that scripts save and check has what the cards show, the log's 10 newest lines, and the
 rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`. Its
 `Targets` say where the combo box, `Gamepad`, and each of its choices, `Gamepad/0`, `Gamepad/1` and
-so on, are, and where each row of the Devices card is, `Devices/0`, `Devices/1` and so on, in the
-card's order, with its device's label as its `Label`. Steps point at them by name, like
+so on, are, where the Devices card's list, `Devices`, is, and each of its rows in sight,
+`Devices/0`, `Devices/1` and so on, in the card's order, with its device's label as its `Label`.
+Steps point at them by name, like
 `{ "Frame": 3, "Move": "Devices/1" }`, or `{ "Frame": 6, "Click": "Gamepad/1" }` for a choice. Each
 choice's `Label` is its gamepad's, and the combo box's is the chosen one's. `Popup` is `Gamepad`
 while the combo box's list is open, and `null` otherwise. `Tooltip` has the name of the row whose
