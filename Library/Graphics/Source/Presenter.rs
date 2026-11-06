@@ -166,8 +166,9 @@ impl Presenter {
     }
 
     // Waits, without spinning, until a frame can begin, a window message
-    // comes, or the milliseconds pass, for runs that share the computer and
-    // don't need the lowest latency, like tests.
+    // comes, or the milliseconds pass. With vertical sync, a frame can't
+    // begin before the last one has gone to the screen anyway, so waiting
+    // instead of polling costs only the thread's wake-up.
     pub fn wait_ready(&mut self, gpu: &Gpu, milliseconds: u32) -> Result<()> {
         gpu.wait_for(self.last_frame)?;
         if !self.waitable_signaled {

@@ -180,11 +180,9 @@ pub struct Arguments {
     pub display: Option<String>,
     // Opens without taking focus.
     pub no_activate: bool,
-    // Frames wait for vertical sync, like for test runs.
+    // Frames wait for vertical sync, as with the VerticalSync setting, like
+    // for test runs.
     pub vsync: bool,
-    // The most frames a second, for test runs, which then wait for frames
-    // instead of spinning.
-    pub frame_rate_limit: Option<f64>,
     // Doesn't start GameInput, for test runs, which never have focus, so
     // that nothing of theirs reads the devices of someone using the computer.
     pub no_input: bool,
@@ -207,15 +205,10 @@ impl Arguments {
                 "--no-activate" => parsed.no_activate = true,
                 "--vsync" => parsed.vsync = true,
                 "--no-input" => parsed.no_input = true,
-                "--frame-rate-limit" => {
-                    let text = value("--frame-rate-limit")?;
-                    let rate = text.parse::<f64>().ok().filter(|rate| *rate > 0.0);
-                    parsed.frame_rate_limit = Some(rate.ok_or_else(|| format!("--frame-rate-limit needs a number of frames a second, not {text}"))?);
-                }
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync, --frame-rate-limit <frames a second>, and --script <path> with --output <folder>.")),
+                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync, and --script <path> with --output <folder>.")),
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {
