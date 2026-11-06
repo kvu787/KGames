@@ -84,6 +84,51 @@ pub struct Summary {
     // How the newest frame on the screen got there.
     pub mode: PresentMode,
     pub tearing: bool,
+    // What the stats bar says, as its labels and their text, and the
+    // present mode at its right, made here when the summary is, a few times
+    // a second, not every frame.
+    pub lines: Vec<(&'static str, String)>,
+    pub mode_text: String,
+}
+
+impl Summary {
+    // Words the stats bar's lines and its present mode.
+    fn word(&mut self) {
+        self.lines.clear();
+        if self.frames_per_second > 0.0 {
+            self.lines.push((
+                "Frames",
+                format!("{:.0} a second, {:.2} ms each, the longest {:.2} ms", self.frames_per_second, self.frame_time, self.longest_frame),
+            ));
+        }
+        self.mode_text.clear();
+        match &self.latency {
+            LatencyState::Unavailable(reason) => self.lines.push(("Input to screen", reason.clone())),
+            LatencyState::Starting => self.lines.push(("Input to screen", "starting".to_string())),
+            LatencyState::Measuring => {
+                self.lines.push(("On screen", format!("{:.0} frames a second", self.displayed_per_second)));
+                if self.samples == 0 {
+                    self.lines.push(("Input to screen", format!("no input in the last {WINDOW_SECONDS:.0} seconds")));
+                } else {
+                    self.lines.push((
+                        "Input to screen",
+                        format!(
+                            "{:.2} ms median, {:.2} ms 99th percentile, of {} frames in {WINDOW_SECONDS:.0} seconds",
+                            self.median, self.percentile_99, self.samples
+                        ),
+                    ));
+                    self.lines.push((
+                        "Medians",
+                        format!("waiting {:.2} ms, building {:.2} ms, presenting {:.2} ms", self.waiting, self.building, self.presenting),
+                    ));
+                }
+                self.mode_text = self.mode.name().to_string();
+                if self.tearing {
+                    self.mode_text += ", tearing";
+                }
+            }
+        }
+    }
 }
 
 // Where the presents' fates come from.
@@ -283,6 +328,7 @@ impl Performance {
             summary.building = median(&mut self.samples.iter().map(|sample| sample.building).collect::<Vec<_>>());
             summary.presenting = median(&mut self.samples.iter().map(|sample| sample.presenting).collect::<Vec<_>>());
         }
+        summary.word();
         summary
     }
 }

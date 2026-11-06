@@ -14,7 +14,7 @@
 
 use user_interface::{Cursor, Key, MouseButton, Response, Shortcut, Ui, View};
 
-use crate::editing::{Axis, Element, Tool};
+use crate::editing::{Axis, Drawn, Element, Tool};
 use crate::modeler::{COMMANDS, Command, Modeler};
 
 // Runs the commands whose shortcuts were pressed this frame, without
@@ -74,17 +74,17 @@ pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
     // What's under the pointer, for the tool.
     let inside = pointer.filter(|point| view.contains(*point) && (response.hovered || response.held));
     let see_through = modeler.xray;
-    let surface = modeler.surface.as_ref();
+    let drawn = Drawn { surface: modeler.surface.as_ref(), triangles: &modeler.scene.triangles };
     modeler.editor.hover = None;
     modeler.editor.loop_preview = None;
     if let Some(point) = inside {
         match modeler.editor.tool {
             Tool::Select => {
                 if !modeler.editor.pressing() || modeler.editor.selecting_box.is_none() {
-                    modeler.editor.hover = modeler.editor.pick(&modeler.document, &modeler.camera, view, point, see_through, surface);
+                    modeler.editor.hover = modeler.editor.pick(&modeler.document, &modeler.camera, view, point, see_through, drawn);
                 }
             }
-            Tool::Paint => modeler.editor.hover = face_at(modeler, point, surface).map(Element::Face),
+            Tool::Paint => modeler.editor.hover = face_at(modeler, point, drawn).map(Element::Face),
             Tool::LoopCut => modeler.editor.loop_preview = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point),
         }
     }
@@ -118,7 +118,7 @@ pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
         }
         Tool::Paint => {
             if response.held_button == Some(MouseButton::Left) {
-                let face = inside.and_then(|point| face_at(modeler, point, surface));
+                let face = inside.and_then(|point| face_at(modeler, point, drawn));
                 modeler.editor.paint_at(&mut modeler.document, face);
             }
             if response.released {
@@ -135,15 +135,10 @@ pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
     }
 }
 
-// The face of the mesh under the pointer, through its surface when it's
-// subdivided.
-fn face_at(modeler: &Modeler, point: user_interface::Point, surface: Option<&polygon_mesh::SubdivisionSurface>) -> Option<usize> {
+// The face of the mesh under the pointer, through what the view draws.
+fn face_at(modeler: &Modeler, point: user_interface::Point, drawn: Drawn) -> Option<usize> {
     let (origin, direction) = modeler.camera.ray(point, modeler.view);
-    let hit = match surface {
-        Some(surface) => surface.ray_cast(origin, direction),
-        None => modeler.document.mesh.ray_cast(origin, direction),
-    };
-    hit.map(|hit| hit.face)
+    drawn.hit(origin, direction).map(|hit| hit.face)
 }
 
 // A modal edit: a target over the whole window takes the pointer from

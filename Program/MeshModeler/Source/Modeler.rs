@@ -11,7 +11,7 @@ use json::Value;
 use math::Vector3;
 use polygon_mesh::{Selection, Shading, SubdivisionSurface};
 use simple_paint::orthographic::build_object_transforms;
-use user_interface::{Color, Program, Rect, Severity, Startup, ThemeKind, Ui};
+use user_interface::{Program, Rect, Severity, Startup, ThemeKind, Ui};
 use windows_core::Result;
 
 use crate::camera::{Camera, Viewpoint};
@@ -644,7 +644,7 @@ impl Modeler {
                 "Mesh",
                 object(vec![
                     ("Vertices", Value::from(mesh.positions.len())),
-                    ("Edges", Value::from(mesh.edges().len())),
+                    ("Edges", Value::from(self.document.edges().len())),
                     ("Faces", Value::from(mesh.faces.len())),
                     ("Creases", Value::from(mesh.creases.len())),
                     ("Valid", Value::from(mesh.validate().is_ok())),
@@ -688,11 +688,6 @@ impl Modeler {
 
 fn object(members: Vec<(&str, Value)>) -> Value {
     Value::Object(members.into_iter().map(|(name, value)| (name.to_string(), value)).collect())
-}
-
-// The color of a paint, as its card's swatch shows it.
-pub fn paint_color(paint: &Paint) -> Color {
-    paint.color()
 }
 
 impl Program for Modeler {

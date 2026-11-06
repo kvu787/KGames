@@ -14,7 +14,7 @@
 use simple_paint::{INTERIOR_MAXIMUM, MARGIN};
 use user_interface::tokens::{BODY, CAPTION, CARD_GAP, CONTROL_HEIGHT, MONO, SPACE_M, SPACE_S, SPACE_XS};
 use user_interface::{
-    AppBar, Border, Button, Card, ColorField, ColorPicker, ComboBox, Dialog, DialogResult, Form, Icon, ListView, MenuBar, MenuItem, Point, Rect,
+    AppBar, Border, Button, Card, ColorField, ColorPicker, ComboBox, Dialog, DialogResult, Form, Icon, ListView, MenuBar, MenuItem, Rect,
     Response, Segmented, Severity, Size, Slider, Status, TextBox, ToggleSwitch, Ui, View,
 };
 
@@ -311,7 +311,7 @@ fn model_card(modeler: &mut Modeler, ui: &mut Ui, rect: Rect) {
         ("Name", document.name.clone()),
         ("Saved", if document.dirty { "No".to_string() } else { "Yes".to_string() }),
         ("Vertices", format!("{} · {} selected", mesh.positions.len(), selection.vertices.len())),
-        ("Edges", format!("{} · {} selected", mesh.edges().len(), selection.edges.len())),
+        ("Edges", format!("{} · {} selected", document.edges().len(), selection.edges.len())),
         ("Faces", format!("{} · {} selected", mesh.faces.len(), selection.faces.len())),
         ("Creased edges", mesh.creases.len().to_string()),
         ("Surface faces", surface_faces.to_string()),
@@ -611,12 +611,6 @@ fn finish(modeler: &mut Modeler, ui: &mut Ui, pending: Pending) {
     } else {
         modeler.proceed(pending);
     }
-}
-
-// Where a point of the window is, for scripts' and tests' convenience: the
-// center of the view.
-pub fn view_center(modeler: &Modeler) -> Point {
-    modeler.view.center()
 }
 
 // The size of the paint list's swatches, for tests.

@@ -4,10 +4,13 @@
 //
 //     { "Mesh": { "Positions": [...], "Faces": [...], ... }, "Paints": [{ "Name": "Blue", "Paint": {...} }] }
 
+use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use json::Value;
-use polygon_mesh::{Mesh, Selection, primitives};
+use polygon_mesh::{Edge, Mesh, Selection, primitives};
 
 use crate::paint::{MAXIMUM_PAINTS, Paint, default_paints};
 
@@ -36,6 +39,8 @@ pub struct Document {
     // Counts every change, so that what's drawn from the mesh knows to remake
     // itself.
     pub version: u64,
+    // The mesh's edges, for the version they're of.
+    edges: RefCell<Option<(u64, Rc<BTreeSet<Edge>>)>>,
 }
 
 impl Default for Document {
@@ -56,7 +61,22 @@ impl Document {
             undo: Vec::new(),
             redo: Vec::new(),
             version: 1,
+            edges: RefCell::new(None),
         }
+    }
+
+    // The mesh's edges, made once for each version of the document: the
+    // overlay, the cards and picking ask for them every frame.
+    pub fn edges(&self) -> Rc<BTreeSet<Edge>> {
+        let mut cached = self.edges.borrow_mut();
+        if let Some((version, edges)) = &*cached
+            && *version == self.version
+        {
+            return edges.clone();
+        }
+        let edges = Rc::new(self.mesh.edges());
+        *cached = Some((self.version, edges.clone()));
+        edges
     }
 
     pub fn snapshot(&self) -> Snapshot {

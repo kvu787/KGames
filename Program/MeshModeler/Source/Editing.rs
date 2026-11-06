@@ -8,8 +8,8 @@
 // follow the pointer from where they began until a click or Enter keeps them,
 // or a right-click or Esc takes them back.
 
-use math::{Vector3, add, cross, dot, length, normalize, scale, subtract};
-use polygon_mesh::{Edge, Mesh, SelectMode, Selection, SubdivisionSurface, primitives};
+use math::{Vector3, add, dot, length, normalize, scale, subtract};
+use polygon_mesh::{Edge, Hit, Mesh, SelectMode, Selection, SubdivisionSurface, Triangles, primitives};
 use user_interface::{Point, Rect};
 
 use crate::camera::Camera;
@@ -135,6 +135,25 @@ pub struct Operation {
     pub amount: String,
 }
 
+// What the view draws, which a ray from the pointer goes through: the
+// surface, when the mesh is subdivided, and the triangles, of it or of the
+// mesh.
+#[derive(Clone, Copy)]
+pub struct Drawn<'a> {
+    pub surface: Option<&'a SubdivisionSurface>,
+    pub triangles: &'a Triangles,
+}
+
+impl Drawn<'_> {
+    // The nearest face that the ray hits, as one of the mesh's, through the
+    // surface's when the mesh is subdivided.
+    pub fn hit(&self, origin: Vector3, direction: Vector3) -> Option<Hit> {
+        self.triangles
+            .ray_cast(origin, direction)
+            .map(|hit| Hit { face: self.surface.map_or(hit.face, |surface| surface.base_faces[hit.face]), ..hit })
+    }
+}
+
 // A vertex, an edge or a face under the pointer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Element {
@@ -219,13 +238,11 @@ impl Editor {
     // The element under the pointer, in the selection mode: the nearest
     // vertex or edge within PICK_RADIUS pixels, or the face hit, that the
     // mesh doesn't hide, unless in X-ray or over a subdivided surface.
-    pub fn pick(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, surface: Option<&SubdivisionSurface>) -> Option<Element> {
+    pub fn pick(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, drawn: Drawn) -> Option<Element> {
         let mesh = &document.mesh;
         let (origin, direction) = camera.ray(pointer, view);
-        let hit = match surface {
-            Some(surface) => surface.ray_cast(origin, direction),
-            None => mesh.ray_cast(origin, direction),
-        };
+        let hit = drawn.hit(origin, direction);
+        let surface = drawn.surface;
         let hidden = |point: Vector3| -> bool {
             if see_through || surface.is_some() {
                 return false;
@@ -247,7 +264,7 @@ impl Editor {
             }
             Mode::Edges => {
                 let mut best: Option<(f32, Edge)> = None;
-                for edge in mesh.edges() {
+                for edge in document.edges().iter().copied() {
                     let [a, b] = edge.vertices();
                     let (sa, _) = camera.to_screen(mesh.position(a), view);
                     let (sb, _) = camera.to_screen(mesh.position(b), view);
@@ -317,7 +334,7 @@ impl Editor {
     pub fn nearest_edge(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point) -> Option<(Edge, f32)> {
         let mesh = &document.mesh;
         let mut best: Option<(f32, Edge, f32)> = None;
-        for edge in mesh.edges() {
+        for edge in document.edges().iter().copied() {
             let [a, b] = edge.vertices();
             let (sa, _) = camera.to_screen(mesh.position(a), view);
             let (sb, _) = camera.to_screen(mesh.position(b), view);
@@ -339,7 +356,7 @@ impl Editor {
         let inside: Vec<u32> = (0..mesh.positions.len() as u32).filter(|vertex| area.contains(camera.to_screen(mesh.position(*vertex), view).0)).collect();
         let boxed = match self.mode {
             Mode::Vertices => Selection::from_vertices(mesh, inside.iter().copied()),
-            Mode::Edges => Selection::from_edges(mesh, mesh.edges().into_iter().filter(|edge| edge.vertices().iter().all(|vertex| inside.contains(vertex)))),
+            Mode::Edges => Selection::from_edges(mesh, document.edges().iter().copied().filter(|edge| edge.vertices().iter().all(|vertex| inside.contains(vertex)))),
             Mode::Faces => Selection::from_faces(mesh, (0..mesh.faces.len()).filter(|face| mesh.faces[*face].vertices.iter().all(|vertex| inside.contains(vertex)))),
         };
         let mode = self.mode.select_mode();
@@ -775,9 +792,4 @@ impl Primitive {
             Primitive::Torus => primitives::torus(1.0, 0.35, 24, 12),
         }
     }
-}
-
-// The cross product, for tests of turns.
-pub fn turn_axis(a: Vector3, b: Vector3) -> Vector3 {
-    cross(a, b)
 }

@@ -131,7 +131,7 @@ pub fn build(document: &Document, editor: &Editor, look: &Look, xray: bool, test
     let cage = if look.surface.is_some() { theme.text_secondary.fade(0.8) } else { theme.text_primary.fade(0.7) };
     let crease = theme.data.pink;
     let mut selected_edges = Vec::new();
-    for edge in mesh.edges() {
+    for edge in document.edges().iter().copied() {
         let [a, b] = edge.vertices();
         let (pa, pb) = (mesh.position(a), mesh.position(b));
         if selection.edges.contains(&edge) {
