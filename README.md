@@ -2,17 +2,6 @@ This repo will contain some of the games I make.
 
 I plan to develop the latest versions of Veehiicuul and Automatou in here.
 
-# TODO
-
-- Implement in-app and logged measurement for these
-  - Input latency
-  - Frame time
-  - Jitters
-- Implement in-app frame rate limiter
-- Implement vsync option
-- Implement a scene that displays nothing or almost nothing to measure base fps
-- Figure out how to design or constrain UI
-
 # Motivation
 
 This repo aims to minimize dependencies on things like game engines and UI frameworks like Unity,
