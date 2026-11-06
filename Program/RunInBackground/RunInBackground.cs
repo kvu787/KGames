@@ -7,11 +7,10 @@
 //     at all.
 //   - It opens with --no-activate, so it opens without taking focus from the
 //     window that has it, and typing there stays there.
-//   - It opens with --vsync and --frame-rate-limit 100, so its frames wait
-//     for vertical sync, at most 100 a second, and it waits between them
-//     instead of spinning, which keeps it light on the GPU and the CPU, for
-//     someone who's using the computer, like playing a game. --no-vsync and
-//     --fps say otherwise, like for measuring frame times.
+//   - It opens with --vsync, so it draws at most one frame a refresh, and
+//     waits between them instead of spinning, which keeps it light on the
+//     GPU and the CPU, for someone who's using the computer, like playing a
+//     game. --no-vsync says otherwise, like for measuring frame times.
 //   - It opens with --no-input, so it doesn't start GameInput, or the helper
 //     process that GameInput starts to read keyboards and mice. Without
 //     focus, it would ignore all input anyway.
@@ -56,10 +55,8 @@ const string Usage = """
       --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds with Cargo's dev profile, which turns on the
                               D3D12 debug layer
-      --no-vsync              Runs without vertical sync. Runs are vertically
-                              synced by default
-      --fps <frames>          The most frames a second it draws. 100 by default;
-                              0 for no limit
+      --no-vsync              Runs without vertical sync, drawing frames as fast
+                              as it can. Runs are vertically synced by default
 
       --script <path>         Runs a script of input instead, and saves what it
                               captures in target\RunInBackground\<program>\<script>
@@ -83,7 +80,6 @@ static void Run(string[] arguments) {
     var keepOpen = false;
     var debugBuild = false;
     var verticalSync = true;
-    var frameLimit = 100.0;
     var scripts = new List<string>();
     var allScripts = false;
     var timeout = 60.0;
@@ -108,11 +104,6 @@ static void Run(string[] arguments) {
             break;
         case "--no-vsync":
             verticalSync = false;
-            break;
-        case "--fps":
-            if (!double.TryParse(Value(arguments, ref i), NumberStyles.Float, CultureInfo.InvariantCulture, out frameLimit) || frameLimit < 0) {
-                throw new FailureException($"--fps needs a number of frames a second after it, 0 for no limit, not {arguments[i]}");
-            }
             break;
         case "--script":
             // A path given on the command line is relative to the current directory.
@@ -169,7 +160,7 @@ static void Run(string[] arguments) {
         throw new FailureException($"cargo build failed with exit code {cargoExit}");
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
-    var sync = (verticalSync ? " --vsync" : "") + (frameLimit > 0 ? $" --frame-rate-limit {frameLimit.ToString(CultureInfo.InvariantCulture)}" : "");
+    var sync = verticalSync ? " --vsync" : "";
 
     if (scripts.Count > 0) {
         RunScripts(program, exe, display, sync, scripts, Path.Combine(output, program), timeout);

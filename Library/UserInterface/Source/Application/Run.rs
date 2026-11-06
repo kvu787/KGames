@@ -11,10 +11,12 @@
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// A frame rate limit, and vertical sync, are for runs that mustn't take the
-// machine from someone, like coding agents' test runs while the user plays a
-// game: then the loop waits on a timer and on the GPU instead of spinning a
-// core, and starts frames no more often than the limit.
+// With vertical sync, frames present at the screen's refreshes, and DXGI's
+// queue has room again only once the last frame has gone to the screen, so
+// the loop waits for that, and for messages, instead of spinning: a frame
+// couldn't begin any sooner, and the input is still read as soon as one can.
+// Coding agents' test runs use it, so that they don't take the machine from
+// someone, like the user playing a game.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -39,67 +41,6 @@ use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptRunner};
 use crate::widgets::info_bar::Severity;
-
-// Keeps frames at least an interval apart, for test runs that share the
-// computer with someone, like one playing a game. It waits on a
-// high-resolution timer, and for messages, instead of spinning.
-struct FrameLimiter {
-    timer: windows_api::HANDLE,
-    interval: i64,
-    next: i64,
-}
-
-impl FrameLimiter {
-    fn new(rate: f64) -> Result<FrameLimiter, String> {
-        use windows_api::*;
-        let timer = unsafe {
-            CreateWaitableTimerExW(
-                None,
-                windows_core::PCWSTR::null(),
-                CREATE_WAITABLE_TIMER_HIGH_RESOLUTION as u32,
-                TIMER_ALL_ACCESS as u32,
-            )
-        };
-        if timer.0.is_null() {
-            return Err(format!("Couldn't make a timer: {}", windows_core::Error::from_thread()));
-        }
-        Ok(FrameLimiter {
-            timer,
-            interval: (clock::frequency() as f64 / rate) as i64,
-            next: 0,
-        })
-    }
-
-    // Whether the next frame may begin. If not, waits until it may, or a
-    // message comes.
-    fn ready(&mut self) -> bool {
-        use windows_api::*;
-        let now = clock::now();
-        if now >= self.next {
-            return true;
-        }
-        // In 100-nanosecond units, and less than 0 for a time from now.
-        let due = -((self.next - now) as i128 * 10_000_000 / clock::frequency() as i128).max(1) as i64;
-        unsafe {
-            let _ = SetWaitableTimer(self.timer, &due, 0, None, None, false);
-            let _ = MsgWaitForMultipleObjects(Some(&[self.timer]), false, 1000, QS_ALLINPUT as u32);
-        }
-        clock::now() >= self.next
-    }
-
-    // A frame began at the time.
-    fn began(&mut self, time: i64) {
-        self.next = time + self.interval;
-    }
-}
-
-impl Drop for FrameLimiter {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = windows_api::CloseHandle(self.timer);
-        }
-    }
-}
 
 // Runs the program that `create` makes until its window closes or its script
 // ends. If it can't start, or a script's expectation isn't met, it says why
@@ -143,10 +84,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
     let vertical_sync = settings.boolean("VerticalSync", false) || arguments.vsync;
-    let limit_setting = settings.number("FrameRateLimit", 0.0, |rate| if rate >= 0.0 && rate.is_finite() { Ok(()) } else { Err("must be 0, for no limit, or more".to_string()) });
-    let frame_rate_limit = arguments.frame_rate_limit.or((limit_setting > 0.0).then_some(limit_setting));
-    // Whether the loop waits instead of spinning.
-    let rest = vertical_sync || frame_rate_limit.is_some();
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();
 
@@ -236,7 +173,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     window.show(!arguments.no_activate);
 
     let mut reader = InputReader::new(options.gamepad);
-    let mut limiter = frame_rate_limit.map(FrameLimiter::new).transpose()?;
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
     let mut frame = 0u64;
@@ -281,15 +217,12 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if (width, height) != presenter.size() {
             presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
         }
-        if let Some(limiter) = &mut limiter
-            && !limiter.ready()
-        {
-            continue;
-        }
         if !presenter.poll_ready(&gpu) {
-            // With vertical sync or a limited frame rate, the loop waits for
-            // the GPU and DXGI instead of spinning.
-            if rest {
+            // With vertical sync, the loop waits for the GPU and DXGI instead
+            // of spinning, which ends as soon as a frame can begin, or a
+            // message comes. Without it, the loop spins, so that the frame
+            // begins the moment that it can, without a thread's wake-up.
+            if vertical_sync {
                 presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             }
             continue;
@@ -301,9 +234,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         frame += 1;
         let focus_changes = window.take_focus_changes();
         let read = clock::now();
-        if let Some(limiter) = &mut limiter {
-            limiter.began(read);
-        }
         let mut input_time = None;
         let events;
         let mut script_frame = None;

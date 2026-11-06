@@ -65,7 +65,7 @@ RunInBackground run through it, it just runs the command, which the job holds al
 What it can't hold:
 
 - **GPU time.** The GPU's scheduler puts the job's work after other processes', but a frame that's
-  on the GPU runs to its end. The programs' test runs draw small frames, at most 100 a second.
+  on the GPU runs to its end. The programs' test runs draw small frames, at most one a refresh.
 - **Windows Defender**, which scans every file that a build writes, in its own process. A Dev
   Drive, or an exclusion for the repository's `target` folder, stops that, and only you can set
   either.

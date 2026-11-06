@@ -200,22 +200,20 @@ they differ by 71 pixels of height. A 3D view may still fill the window, under t
 own, which it reads from `startup.settings` with their defaults. A missing file is written with every
 default; a wrong setting keeps its default, and a notice under the app bar says what's wrong.
 
-| Setting          | Value                                                                  |
-| ---------------- | ---------------------------------------------------------------------- |
-| `Display`        | `"Primary"`, or the identifier of the display to open on               |
-| `WindowMode`     | `"Maximized"` or `"BorderlessFullscreen"`                              |
-| `AllowTearing`   | Whether frames may tear, which lets them reach the screen mid-refresh  |
-| `VerticalSync`   | Whether frames wait for the screen's refresh, which also stops tearing |
-| `FrameRateLimit` | The most frames a second, or 0 for no limit                            |
+| Setting        | Value                                                                  |
+| -------------- | ---------------------------------------------------------------------- |
+| `Display`      | `"Primary"`, or the identifier of the display to open on               |
+| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                              |
+| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh  |
+| `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing |
 
-| Argument                 | What it does                                                             |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `--display <id>`         | Opens on the display, which must be connected. `Primary` for the primary |
-| `--no-activate`          | Opens beneath the other windows, without taking focus, in efficiency mode |
-| `--no-input`             | Doesn't start GameInput, so the program reads no input at all            |
-| `--vsync`                | Waits for vertical sync, as `VerticalSync` does                          |
-| `--frame-rate-limit <n>` | At most n frames a second, which wait between them instead of spinning   |
-| `--script <path>`        | Runs a script instead of the user's input, with `--output <folder>`      |
+| Argument          | What it does                                                              |
+| ----------------- | ------------------------------------------------------------------------- |
+| `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary  |
+| `--no-activate`   | Opens beneath the other windows, without taking focus, in efficiency mode |
+| `--no-input`      | Doesn't start GameInput, so the program reads no input at all             |
+| `--vsync`         | Waits for vertical sync, as `VerticalSync` does                           |
+| `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`       |
 
 ## Input latency
 
@@ -229,15 +227,19 @@ coverage from its signed distance. Text layouts are cached, so a frame that show
 the last one asks DirectWrite for nothing, and glyphs are rasterized once each into an atlas.
 Minimizing the window stops the loop drawing.
 
-RunInBackground's test runs use `--no-activate`, `--vsync`, `--frame-rate-limit 100` and
-`--no-input` instead, so that they share the computer lightly with someone using it, like playing
-a game: the window opens beneath the others and the process asks Windows for efficiency mode, where
-a window that someone uses asks for full execution speed; frames wait for vertical sync, at most
-100 a second, and the loop waits on a timer and on DXGI between them, instead of spinning;
-GameInput, with its helper process that reads keyboards and mice, doesn't start; and without input
-there's no input latency to measure, so the ETW session that every process's presents would go
-through isn't started either. RunLightly, which RunInBackground runs through, also has the process
-put its GPU work after other processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
+With `VerticalSync`, frames wait for the screen's refresh, and DXGI can take another only once the
+last one has gone to the screen, so the loop waits for that, and for messages, instead of spinning:
+a frame couldn't begin any sooner, and the input is still read as soon as one can.
+
+RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input` instead, so that they
+share the computer lightly with someone using it, like playing a game: the window opens beneath the
+others and the process asks Windows for efficiency mode, where a window that someone uses asks for
+full execution speed; frames wait for vertical sync, at most one a refresh, and the loop waits on
+DXGI between them, instead of spinning; GameInput, with its helper process that reads keyboards and
+mice, doesn't start; and without input there's no input latency to measure, so the ETW session that
+every process's presents would go through isn't started either. RunLightly, which RunInBackground
+runs through, also has the process put its GPU work after other processes' (see
+[Library/Graphics](../Graphics/README.md#gpu-priority)).
 
 ## Performance stats
 
