@@ -177,6 +177,11 @@ where
     }
 }
 #[inline]
+pub unsafe fn CreateToolhelp32Snapshot(dwflags: u32, th32processid: u32) -> HANDLE {
+    windows_core::link!("kernel32.dll" "system" fn CreateToolhelp32Snapshot(dwflags : u32, th32processid : u32) -> HANDLE);
+    unsafe { CreateToolhelp32Snapshot(dwflags, th32processid) }
+}
+#[inline]
 pub unsafe fn CreateWaitableTimerExW<P1>(
     lptimerattributes: Option<*const SECURITY_ATTRIBUTES>,
     lptimername: P1,
@@ -637,6 +642,16 @@ pub unsafe fn PeekMessageW(
             wremovemsg,
         )
     }
+}
+#[inline]
+pub unsafe fn Process32FirstW(hsnapshot: HANDLE, lppe: *mut PROCESSENTRY32W) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn Process32FirstW(hsnapshot : HANDLE, lppe : *mut PROCESSENTRY32W) -> windows_core::BOOL);
+    unsafe { Process32FirstW(hsnapshot, lppe as _) }
+}
+#[inline]
+pub unsafe fn Process32NextW(hsnapshot: HANDLE, lppe: *mut PROCESSENTRY32W) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn Process32NextW(hsnapshot : HANDLE, lppe : *mut PROCESSENTRY32W) -> windows_core::BOOL);
+    unsafe { Process32NextW(hsnapshot, lppe as _) }
 }
 #[inline]
 pub unsafe fn ProcessTrace(
@@ -8780,6 +8795,25 @@ pub struct POINTL {
     pub x: i32,
     pub y: i32,
 }
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PROCESSENTRY32W {
+    pub dwSize: u32,
+    pub cntUsage: u32,
+    pub th32ProcessID: u32,
+    pub th32DefaultHeapID: usize,
+    pub th32ModuleID: u32,
+    pub cntThreads: u32,
+    pub th32ParentProcessID: u32,
+    pub pcPriClassBase: i32,
+    pub dwFlags: u32,
+    pub szExeFile: [u16; 260],
+}
+impl Default for PROCESSENTRY32W {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct PROCESSTRACE_HANDLE(pub u64);
@@ -8918,6 +8952,7 @@ pub const TDH_INTYPE_UNICODECHAR: _TDH_IN_TYPE = 306;
 pub const TDH_INTYPE_UNICODESTRING: _TDH_IN_TYPE = 1;
 pub const TDH_INTYPE_WBEMSID: _TDH_IN_TYPE = 310;
 pub type TEMPLATE_FLAGS = i32;
+pub const TH32CS_SNAPPROCESS: i32 = 2;
 pub const TIMER_ALL_ACCESS: i32 = 2031619;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

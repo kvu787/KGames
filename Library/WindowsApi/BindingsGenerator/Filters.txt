@@ -399,3 +399,11 @@ PROPERTY_FLAGS
 TRACE_EVENT_INFO
 WNODE_FLAG_TRACED_GUID
 _TDH_IN_TYPE
+
+// FrameTimes: finding a process by its exe's name or its ID, in a snapshot of
+// the system's processes
+CreateToolhelp32Snapshot
+Process32FirstW
+Process32NextW
+PROCESSENTRY32W
+TH32CS_SNAPPROCESS

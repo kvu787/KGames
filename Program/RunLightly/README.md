@@ -70,3 +70,26 @@ What it can't hold:
   Drive, or an exclusion for the repository's `target` folder, stops that, and only you can set
   either.
 - **The last level cache and memory bandwidth**, which every core shares.
+
+## Checking a build's effect on a game
+
+[FrameTimes](../FrameTimes/README.md) measures a game's frame times, which shows what a build does
+to it. Build FrameTimes once, and go somewhere in the game that draws steadily, to stay in for both
+runs. Start a build that has work to do, like the whole workspace into a new target folder, in one
+terminal:
+
+```powershell
+Program\RunLightly\RunLightly.ps1 cargo build --release --workspace --target-dir target\BuildCheck
+```
+
+While it builds, measure the game in another:
+
+```powershell
+target\release\FrameTimes.exe AceCombat8 --seconds 60
+```
+
+Then measure the game again, in the same place, without the build, and compare the two. The 99th
+percentile, the maximum and the stutters show the hitches that the build adds, more than the mean
+does. Run FrameTimes directly, not through RunLightly, so that it reads the game's events as they
+come, not at idle priority behind the build. Delete `target\BuildCheck` afterwards, so that the
+next check builds everything again.
