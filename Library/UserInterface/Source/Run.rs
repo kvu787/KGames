@@ -198,7 +198,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     }
 
     let mut window = Window::create(&program.title(), display.monitor, mode).map_err(|error| format!("Couldn't open the window: {error}"))?;
-    let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
+    let adapter = if arguments.power_saving_gpu { AdapterChoice::PowerSaving } else { AdapterChoice::Monitor(window.monitor()) };
+    let mut gpu = Gpu::new(adapter).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing)
         .map_err(|error| format!("Couldn't make the swap chain: {error}"))?;

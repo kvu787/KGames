@@ -279,7 +279,7 @@ fn count(image: &Image, [red, green, blue]: [u8; 3]) -> usize {
 // the vehicle on the theme's background.
 #[test]
 fn the_view_draws_the_scene_under_the_interface() {
-    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
     let mut app = start();
     let image = app.render(&mut gpu).unwrap();
     let total = (image.width * image.height) as usize;

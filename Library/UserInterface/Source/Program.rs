@@ -152,6 +152,10 @@ pub struct Arguments {
     // Doesn't start GameInput, for test runs, which never have focus, so
     // that nothing of theirs reads the devices of someone using the computer.
     pub no_input: bool,
+    // Draws with the GPU that uses the least power, like a laptop's
+    // integrated one, instead of the monitor's, for test runs, which leaves
+    // the discrete GPU to a game that the user is playing.
+    pub power_saving_gpu: bool,
     // A script to run instead of the user's input, and the folder for what
     // it saves.
     pub script: Option<PathBuf>,
@@ -170,6 +174,7 @@ impl Arguments {
                 "--no-activate" => parsed.no_activate = true,
                 "--vsync" => parsed.vsync = true,
                 "--no-input" => parsed.no_input = true,
+                "--power-saving-gpu" => parsed.power_saving_gpu = true,
                 "--frame-rate-limit" => {
                     let text = value("--frame-rate-limit")?;
                     let rate = text.parse::<f64>().ok().filter(|rate| *rate > 0.0);
@@ -178,7 +183,7 @@ impl Arguments {
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync, --frame-rate-limit <frames a second>, and --script <path> with --output <folder>.")),
+                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --power-saving-gpu, --vsync, --frame-rate-limit <frames a second>, and --script <path> with --output <folder>.")),
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {

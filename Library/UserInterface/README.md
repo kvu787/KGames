@@ -183,6 +183,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | `--display <id>`         | Opens on the display, which must be connected. `Primary` for the primary |
 | `--no-activate`          | Opens without taking focus                                               |
 | `--no-input`             | Doesn't start GameInput, so the program reads no input at all            |
+| `--power-saving-gpu`     | Draws with the GPU that uses the least power, not the monitor's          |
 | `--vsync`                | Frames wait for vertical sync, as RunInBackground's test runs do         |
 | `--frame-rate-limit <n>` | At most n frames a second, which wait between them instead of spinning   |
 | `--script <path>`        | Runs a script instead of the user's input, with `--output <folder>`      |
@@ -192,11 +193,12 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 The main loop (`Run.rs`) handles the window's messages without waiting, and spins until the GPU
 has finished the last frame and DXGI can take another. Only then does it read the input, build the
 frame's interface, draw it and present it, without waiting for vertical sync, so a frame's input
-is as fresh as it can be. RunInBackground's test runs use `--vsync`, `--frame-rate-limit 100` and
-`--no-input` instead, so that they share the computer lightly with someone using it, like playing
-a game: frames wait for vertical sync, at most 100 a second, the loop waits on a timer and on DXGI
-between them, instead of spinning, and GameInput, with its helper process that reads keyboards and
-mice, doesn't start. The swap chain has a frame latency waitable object and a maximum frame
+is as fresh as it can be. RunInBackground's test runs use `--vsync`, `--frame-rate-limit 100`,
+`--no-input` and `--power-saving-gpu` instead, so that they share the computer lightly with someone
+using it, like playing a game: frames wait for vertical sync, at most 100 a second, the loop waits
+on a timer and on DXGI between them, instead of spinning, GameInput, with its helper process that
+reads keyboards and mice, doesn't start, and a laptop's integrated GPU draws, which leaves the
+discrete one to the game. The swap chain has a frame latency waitable object and a maximum frame
 latency of 1, and draws on the GPU that the window's monitor is an output of. The whole interface
 is one draw call of instanced quads, whose pixel shader computes each shape's coverage from its
 signed distance. Text layouts are cached, so a frame that shows the same text as the last one asks

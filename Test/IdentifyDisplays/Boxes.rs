@@ -23,7 +23,7 @@ fn each_display_gets_a_box_that_fits_its_identifier() {
     let displays = displays::enumerate().unwrap();
     assert!(!displays.is_empty());
     let mut fonts = Fonts::new().unwrap();
-    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::PowerSaving).unwrap();
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
     std::fs::create_dir_all(&folder).unwrap();
     for display in &displays {
