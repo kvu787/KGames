@@ -21,7 +21,7 @@ name = "Rendering"
 path = "Rendering.rs"
 
 [dependencies]
-user_interface = { path = "../../Library/UserInterface" }
+user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
 
 [lints]
 workspace = true

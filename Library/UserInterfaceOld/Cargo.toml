@@ -1,5 +1,5 @@
 [package]
-name = "user_interface"
+name = "user_interface_old"
 version = "0.1.0"
 edition = "2024"
 build = "Build.rs"

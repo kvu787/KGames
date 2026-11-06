@@ -24,7 +24,7 @@ version = "0.1.0"
 dependencies = [
  "game_input",
  "json",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -36,7 +36,7 @@ dependencies = [
  "game_input",
  "game_input_demo",
  "json",
- "user_interface",
+ "user_interface_old",
  "windows-core",
 ]
 
@@ -68,7 +68,7 @@ name = "identify_displays"
 version = "0.1.0"
 dependencies = [
  "displays",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -79,7 +79,7 @@ version = "0.1.0"
 dependencies = [
  "displays",
  "identify_displays",
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
@@ -130,7 +130,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -141,7 +141,7 @@ version = "0.1.0"
 dependencies = [
  "minimal_scene_test",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
@@ -177,7 +177,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -189,7 +189,7 @@ dependencies = [
  "paint_settings",
  "simple_paint",
  "simple_paint_demo",
- "user_interface",
+ "user_interface_old",
  "windows_api",
 ]
 
@@ -216,7 +216,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -227,14 +227,14 @@ version = "0.1.0"
 dependencies = [
  "simple_paint",
  "spinning_car_test",
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
 name = "ui_showcase"
 version = "0.1.0"
 dependencies = [
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
@@ -242,11 +242,11 @@ name = "ui_showcase_tests"
 version = "0.1.0"
 dependencies = [
  "ui_showcase",
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
-name = "user_interface"
+name = "user_interface_old"
 version = "0.1.0"
 dependencies = [
  "displays",
@@ -262,7 +262,7 @@ dependencies = [
 name = "user_interface_tests"
 version = "0.1.0"
 dependencies = [
- "user_interface",
+ "user_interface_old",
 ]
 
 [[package]]
@@ -277,7 +277,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
  "windows-core",
  "windows_api",
 ]
@@ -288,7 +288,7 @@ version = "0.1.0"
 dependencies = [
  "json",
  "simple_paint",
- "user_interface",
+ "user_interface_old",
  "veehiicuul",
 ]
 
