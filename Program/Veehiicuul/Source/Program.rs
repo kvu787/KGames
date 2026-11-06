@@ -433,7 +433,6 @@ impl Program for Veehiicuul {
                 self.vehicle_editor.update(ui, view, &mut self.game.document, models, &mut self.game.vehicle);
             }
         }
-        keep_focus_in_text_fields(ui);
         self.game.keep_in_document();
         // A drag is one change, as of when it's let go of.
         if !ui.input().button_down(MouseButton::Left) {
@@ -492,18 +491,6 @@ impl Program for Veehiicuul {
     }
 }
 
-// Only text fields keep keyboard focus, so that Space, the arrows and the
-// keys that drive and pan never go to a control. Library/UserInterface's
-// selector bars and segments take it with a press on an item, even after
-// Ui::set_focusable(false), which keeps it from the others, so it's taken
-// back from them here, before the next frame's keys.
-fn keep_focus_in_text_fields(ui: &mut Ui) {
-    let focused = ui.focused_name().and_then(|name| ui.target(name)).map(|target| target.kind);
-    if focused.is_some_and(|kind| !matches!(kind, "TextBox" | "ColorField")) {
-        ui.clear_focus();
-    }
-}
-
 // What each control does in Play, with the gamepad's buttons, then the
 // keyboard's keys, each on a keycap. A "+" joins keys that go together, like
 // a shortcut's.
@@ -525,30 +512,19 @@ const COLUMN_GAP: f32 = SPACE_XL;
 const KEYCAP_ROW: f32 = 28.0;
 // The gap between the card's lines of what's going on.
 const LINE_GAP: f32 = SPACE_XS;
-// The gap between the keycaps of keys that go together, as Ui::keys joins
-// a shortcut's.
-const JOINED_GAP: f32 = 4.0;
-
 // Draws the keycaps of the ways to do something from `origin`, or only
 // measures them without it, and returns their width. Each way is a key, or
-// keys that go together, like "RB+Left stick", joined as Ui::keys joins a
-// shortcut's, which it only does for the keyboard's shortcuts, so it would
-// draw that as one keycap.
+// keys that go together, like "RB+Left stick", which Ui::keys joins.
 fn keycaps(ui: &mut Ui, origin: Option<Point>, ways: &[&str]) -> f32 {
     let mut width = 0.0;
     for (index, way) in ways.iter().enumerate() {
         if index > 0 {
             width += SPACE_S;
         }
-        for (part, key) in way.split('+').enumerate() {
-            if part > 0 {
-                width += JOINED_GAP;
-            }
-            width += match origin {
-                Some(origin) => ui.keycap(Point::new(origin.x + width, origin.y), key),
-                None => ui.keycap_width(key),
-            };
-        }
+        width += match origin {
+            Some(origin) => ui.keys(Point::new(origin.x + width, origin.y), way),
+            None => ui.keys_width(way),
+        };
     }
     width
 }
