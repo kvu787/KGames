@@ -7,10 +7,11 @@
 //     at all.
 //   - It opens with --no-activate, so it opens without taking focus from the
 //     window that has it, and typing there stays there.
-//   - It opens with --vsync, so it draws at most one frame a refresh, and
-//     waits between them instead of spinning, which keeps it light on the
-//     GPU and the CPU, for someone who's using the computer, like playing a
-//     game. --no-vsync says otherwise, like for measuring frame times.
+//   - It opens with --vsync, whatever its settings say, so it draws at most
+//     one frame a refresh, and waits between them instead of spinning, which
+//     keeps it light on the GPU and the CPU, for someone who's using the
+//     computer, like playing a game. --no-vsync opens it with --no-vsync
+//     instead, like for measuring frame times.
 //   - It opens with --no-input, so it doesn't start GameInput, or the helper
 //     process that GameInput starts to read keyboards and mice. Without
 //     focus, it would ignore all input anyway.
@@ -160,7 +161,7 @@ static void Run(string[] arguments) {
         throw new FailureException($"cargo build failed with exit code {cargoExit}");
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
-    var sync = verticalSync ? " --vsync" : "";
+    var sync = verticalSync ? " --vsync" : " --no-vsync";
 
     if (scripts.Count > 0) {
         RunScripts(program, exe, display, sync, scripts, Path.Combine(output, program), timeout);

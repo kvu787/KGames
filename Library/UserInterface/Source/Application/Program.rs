@@ -180,9 +180,9 @@ pub struct Arguments {
     pub display: Option<String>,
     // Opens without taking focus.
     pub no_activate: bool,
-    // Frames wait for vertical sync, as with the VerticalSync setting, like
-    // for test runs.
-    pub vsync: bool,
+    // Whether frames wait for vertical sync, with --vsync or --no-vsync,
+    // whatever the VerticalSync setting says, like for test runs.
+    pub vsync: Option<bool>,
     // Doesn't start GameInput, for test runs, which never have focus, so
     // that nothing of theirs reads the devices of someone using the computer.
     pub no_input: bool,
@@ -203,12 +203,13 @@ impl Arguments {
             match argument.as_str() {
                 "--display" => parsed.display = Some(value("--display")?),
                 "--no-activate" => parsed.no_activate = true,
-                "--vsync" => parsed.vsync = true,
+                "--vsync" => parsed.vsync = Some(true),
+                "--no-vsync" => parsed.vsync = Some(false),
                 "--no-input" => parsed.no_input = true,
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync, and --script <path> with --output <folder>.")),
+                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, and --script <path> with --output <folder>.")),
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {

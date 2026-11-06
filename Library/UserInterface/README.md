@@ -170,9 +170,9 @@ the window's focus changes between them. The window's messages bring none of it.
 - Without focus, the window has no input at all, including the gamepad's. The click that gives it
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
-- `F10` switches vertical sync on or off, whatever `VerticalSync` or `--vsync` started it as, and
-  the [performance stats](#performance-stats) say which. A program's own command for it calls
-  `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
+- `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
+  started it as, and the [performance stats](#performance-stats) say which. A program's own command
+  for it calls `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
 - `F11` switches between maximized and borderless fullscreen.
 - With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
@@ -215,7 +215,8 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary  |
 | `--no-activate`   | Opens beneath the other windows, without taking focus, in efficiency mode |
 | `--no-input`      | Doesn't start GameInput, so the program reads no input at all             |
-| `--vsync`         | Waits for vertical sync, as `VerticalSync` does                           |
+| `--vsync`         | Waits for vertical sync, whatever `VerticalSync` says                     |
+| `--no-vsync`      | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
 | `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`       |
 
 ## Input latency

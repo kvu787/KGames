@@ -1,11 +1,11 @@
 // Tests the library's parts that need no window: geometry, colors, easing,
 // the design system's values, keys, how events fold into a frame's input,
-// settings, and text layout.
+// settings, the command line, and text layout.
 
 use user_interface::tokens::{
     BODY, CURVE_EASY_EASE, CURVE_FAST_OUT_SLOW_IN, CURVE_LINEAR, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation,
 };
-use user_interface::{Color, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Theme};
+use user_interface::{Arguments, Color, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Theme};
 
 #[test]
 fn rectangles_cut_into_strips_and_columns() {
@@ -159,6 +159,15 @@ fn a_missing_settings_file_is_written_with_the_defaults() {
     let written = std::fs::read_to_string(&path).unwrap();
     assert!(written.contains("\"AllowTearing\": true") && written.contains("\"DeadZone\": 0.1"), "{written}");
     std::fs::remove_dir_all(&folder).unwrap();
+}
+
+#[test]
+fn vsync_arguments_override_the_setting_only_when_given() {
+    let parse = |arguments: &[&str]| Arguments::parse(arguments.iter().map(|argument| argument.to_string()), &[]).unwrap().vsync;
+    assert_eq!(parse(&[]), None);
+    assert_eq!(parse(&["--vsync"]), Some(true));
+    assert_eq!(parse(&["--no-vsync"]), Some(false));
+    assert_eq!(parse(&["--no-vsync", "--vsync"]), Some(true));
 }
 
 #[test]

@@ -26,10 +26,10 @@ Windows reports every change of the foreground window to RunInBackground, so eve
 lasts a moment counts.
 
 Scripts run on their own fixed clock, so their frames and expectations are the same with vertical
-sync or without. `--no-vsync` runs the program as fast as it can draw, as its own runs do, like for
-measuring frame times, which keeps a core and the GPU busy. A script's `F10` switches vertical sync
-as the user's would, so the program draws as fast as it can from then until the script presses it
-again, or ends. The state's `VerticalSync` says which. It starts on, or off with `--no-vsync`, and
+sync or without. `--no-vsync` runs the program with `--no-vsync`, as fast as it can draw, as its
+own runs do, like for measuring frame times, which keeps a core and the GPU busy. A script's `F10`
+switches vertical sync as the user's would, so the program draws as fast as it can from then until
+the script presses it again, or ends. The state's `VerticalSync` says which. It starts on, or off with `--no-vsync`, and
 UiShowcase's `VerticalSync.json` expects it to start on.
 
 RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it
