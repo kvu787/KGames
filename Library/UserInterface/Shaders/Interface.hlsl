@@ -23,6 +23,11 @@
 
 static const float TAU = 6.28318531;
 
+// DirectWrite's alpha correction for a gamma of 1.8, its default without
+// ClearType Tuner settings, as Windows Terminal's DWrite_GetGammaRatios
+// gives it.
+static const float4 GAMMA_RATIOS = float4(0.148054421, -0.894594550, 1.47590804, -0.324668258);
+
 cbuffer Frame : register(b0) {
     float2 viewport;
     float2 unused;
@@ -217,9 +222,14 @@ float4 PSMain(Varyings input) : SV_Target {
     if (kind == KIND_GLYPH) {
         int2 texel = int2(input.radii.xy + floor(p - input.bounds.xy));
         float alpha = atlas.Load(int3(texel, 0));
-        // Direct2D's enhanced contrast for grayscale text.
+        // Direct2D's grayscale blending: its enhanced contrast, then its
+        // alpha correction for the text's intensity, which make blending
+        // the coverage in sRGB look like blending it at a gamma of 1.8.
         float contrast = input.radii.z;
+        float intensity = input.radii.w;
         alpha = alpha * (contrast + 1.0) / (alpha * contrast + 1.0);
+        float4 g = GAMMA_RATIOS;
+        alpha = alpha + alpha * (1.0 - alpha) * ((g.x * intensity + g.y) * alpha + (g.z * intensity + g.w));
         return unpack(input.colors.x) * alpha;
     }
 
