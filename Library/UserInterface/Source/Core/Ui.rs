@@ -207,14 +207,13 @@ pub(crate) enum Request {
     Close,
 }
 
-// The frame rate, over half-second windows.
+// The frame rate, as the performance stats along the top of the window say
+// it: over the last second, refreshed four times a second.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameStats {
     pub frames_per_second: f32,
     // Milliseconds.
     pub frame_time: f32,
-    window_start: f64,
-    window_frames: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -288,7 +287,6 @@ pub struct Ui {
     pub(crate) clipboard: Clipboard,
     cursor: Cursor,
     frame: u64,
-    stats: FrameStats,
     pub(crate) environment: Environment,
     pub(crate) requests: Vec<Request>,
     // The page's: notices under the app bar, and where the page is.
@@ -331,7 +329,6 @@ impl Ui {
             clipboard,
             cursor: Cursor::Arrow,
             frame: 0,
-            stats: FrameStats::default(),
             environment: Environment::default(),
             requests: Vec::new(),
             notices: Vec::new(),
@@ -360,13 +357,18 @@ impl Ui {
         self.page_top = self.content_top();
         self.page_bottom = size.height;
         self.modal = std::mem::replace(&mut self.modal_now, false);
-        self.update_stats(time);
         if let Some(performance) = &mut self.performance {
             performance.frame_started(time);
             performance.update(time);
         }
-        if self.frame.is_multiple_of(600) {
-            self.animations.retain(|_, animation| !animation.done(time));
+        // Now and then, the animations of widgets that are gone go. A done
+        // animation of a widget that's shown stays, so that its next change
+        // starts from where it is. On a frame of its own, apart from the
+        // fonts' purge of old layouts, so that the two don't make one long
+        // frame.
+        if self.frame % 600 == 300 {
+            let shown: std::collections::HashSet<Id> = self.previous.iter().map(|target| target.id).collect();
+            self.animations.retain(|(id, _), animation| !animation.done(time) || shown.contains(id));
         }
 
         if self.input.focus_lost {
@@ -493,18 +495,6 @@ impl Ui {
         }
     }
 
-    fn update_stats(&mut self, time: f64) {
-        let stats = &mut self.stats;
-        stats.window_frames += 1;
-        let elapsed = time - stats.window_start;
-        if elapsed >= 0.5 {
-            stats.frames_per_second = (stats.window_frames as f64 / elapsed) as f32;
-            stats.frame_time = (elapsed * 1000.0 / stats.window_frames as f64) as f32;
-            stats.window_start = time;
-            stats.window_frames = 0;
-        }
-    }
-
     // The theme, whose roles color everything.
     pub fn theme(&self) -> &Theme {
         &self.theme
@@ -562,8 +552,19 @@ impl Ui {
         self.frame
     }
 
+    // The frame rate, from the performance stats, so that a program's own
+    // card says what the bar along the top says. Zero without them.
     pub fn stats(&self) -> FrameStats {
-        self.stats
+        match &self.performance {
+            Some(performance) => {
+                let summary = performance.summary();
+                FrameStats {
+                    frames_per_second: summary.frames_per_second as f32,
+                    frame_time: summary.frame_time as f32,
+                }
+            }
+            None => FrameStats::default(),
+        }
     }
 
     pub fn environment(&self) -> &Environment {
@@ -809,7 +810,9 @@ impl Ui {
                 MouseButton::Middle => response.middle_pressed = true,
             }
         }
-        if response.hovered && !sense.right && self.input.button_pressed(MouseButton::Right) {
+        // A widget that doesn't take the right button still hears a right
+        // press, for a context menu, unless the press closed the popups.
+        if response.hovered && !sense.right && self.input.button_pressed(MouseButton::Right) && !self.press_consumed[MouseButton::Right.index()] {
             response.secondary_pressed = true;
         }
         if let Some((active, button)) = self.active
@@ -878,6 +881,28 @@ impl Ui {
     // Whether the pointer is in the area, whatever covers it.
     pub fn pointer_in(&self, rect: Rect) -> bool {
         self.input.pointer.is_some_and(|pointer| rect.contains(pointer))
+    }
+
+    // Whether the wheel turned over the area this frame, for what scrolls:
+    // the pointer is in it, nothing of a higher layer, like a menu or a
+    // dialog, is under the pointer, and the widget under the pointer doesn't
+    // take the wheel itself, like a slider.
+    pub fn wheel_over(&self, rect: Rect) -> bool {
+        self.pointer_in(rect)
+            && self.input.wheel.y != 0.0
+            && !self.hovered_takes_wheel()
+            && self.hovered_layer().is_none_or(|layer| layer <= self.layer())
+    }
+
+    // Whether the widget under the pointer is the one with keyboard focus.
+    pub(crate) fn hovered_has_focus(&self) -> bool {
+        self.hovered.is_some() && self.hovered == self.focused
+    }
+
+    // The layer of the widget under the pointer.
+    fn hovered_layer(&self) -> Option<Layer> {
+        let hovered = self.hovered?;
+        self.previous.iter().rev().find(|target| target.id == hovered).map(|target| target.layer)
     }
 
     // Whether a press of the button that nothing took happened this frame.

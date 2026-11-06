@@ -7,7 +7,7 @@ use simple_paint::Material;
 use spinning_car_test::options;
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
-use user_interface::{Headless, Settings, Startup, WindowMode};
+use user_interface::{Headless, InfoCard, Settings, Startup, WindowMode};
 
 #[test]
 fn the_defaults_are_materials_that_simple_paint_accepts() {
@@ -86,6 +86,6 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     assert_eq!(app.program.settings, SceneSettings::default());
     let label = app.label("Notice/0").unwrap();
     assert!(label.starts_with("Warning: Settings.json Sphere "), "{label}");
-    let card = app.target(spinning_car_test::info_card::NAME);
+    let card = app.target(InfoCard::NAME);
     assert!(card.contains(app.target("Notice/0").center()));
 }

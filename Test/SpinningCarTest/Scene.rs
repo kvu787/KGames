@@ -4,13 +4,12 @@
 
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
-use spinning_car_test::info_card;
 use spinning_car_test::scene::{BACKGROUND, SPHERE_CENTER, SPHERE_RADIUS, VIEW_HEIGHT, car_on_screen, car_placement, to_screen};
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Rect, Theme};
+use user_interface::{Headless, InfoCard, Rect, Theme};
 
 fn car() -> Headless<SpinningCar> {
     Headless::new(SpinningCar::new(SceneSettings::default()))
@@ -69,8 +68,8 @@ fn the_card_is_at_the_bottom_left_out_of_the_car_s_path_at_both_heights() {
     for fullscreen in [false, true] {
         app.set_fullscreen(fullscreen);
         let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let card = app.target(info_card::NAME);
-        assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, info_card::WIDTH));
+        let card = app.target(InfoCard::NAME);
+        assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, InfoCard::WIDTH));
         // Every place and turn of the car comes in 28 seconds, 8 of its 3.5-second
         // trips and 7 of its 4-second turns.
         let mut closest = f32::MAX;
@@ -125,7 +124,7 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         let [red, green, blue, _] = image.pixel(middle.x as u32, middle.y as u32);
         assert!(blue > green && blue > red, "{:?}", [red, green, blue]);
         // The card, opaque, right of its title.
-        let card = app.target(info_card::NAME);
+        let card = app.target(InfoCard::NAME);
         let fill = image.pixel(card.right() as u32 - 24, card.y as u32 + 24);
         assert!(close(fill, Theme::light().acrylic.to_bytes()), "{fill:?}");
     }

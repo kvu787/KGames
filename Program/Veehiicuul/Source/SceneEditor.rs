@@ -79,6 +79,14 @@ impl SceneEditor {
         let input = viewport.interact(ui, "Scene/View", view);
         let things = footprints(document, models, scene);
         let current = &mut document.scenes[scene];
+        // A pick that's gone, like after an undo, even one during a drag.
+        self.picked = self.picked.filter(|picked| match *picked {
+            Picked::Decoration(index) => index < current.decorations.len(),
+            Picked::Parked(index) => index < current.parked.len(),
+        });
+        if self.picked.is_none() {
+            self.grab = None;
+        }
         let decorations = current.decorations.len();
         let row_of = |row: usize| if row < decorations { Picked::Decoration(row) } else { Picked::Parked(row - decorations) };
         if input.response.pressed
@@ -226,11 +234,6 @@ impl SceneEditor {
             }
             self.picked = None;
         }
-        // A pick that's gone, like after an undo.
-        self.picked = self.picked.filter(|picked| match *picked {
-            Picked::Decoration(index) => index < current.decorations.len(),
-            Picked::Parked(index) => index < current.parked.len(),
-        });
 
         let degrees = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
         let mut paint_model = None;
@@ -240,7 +243,7 @@ impl SceneEditor {
                 form.heading(ui, &format!("The {}", decoration.model));
                 let [heading, scale] = form.columns::<2>(slider_height());
                 editing::slider(ui, "Scene/Heading", heading, "Heading", &mut decoration.pose.heading, degrees);
-                let scales = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE.min(20.0), 100.0, 2);
+                let scales = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE, 100.0, 2);
                 editing::slider(ui, "Scene/Scale", scale, "Scale", &mut decoration.scale, scales);
                 paint_model = models.find(&decoration.model);
             }

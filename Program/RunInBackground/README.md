@@ -15,8 +15,8 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 
 The program opens with `--display`, `--no-activate`, `--no-input`, `--vsync` and
 `--frame-rate-limit 100`, which every program built on
-[Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
-other windows on that display, but without taking focus, and typing in the window that has focus
+[Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens beneath the
+other windows on that display, without taking focus, and typing in the window that has focus
 stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
 keyboards and mice. Its frames wait for vertical sync, at most 100 a second, and it waits between
 them instead of spinning, so it's light on the GPU and the CPU for someone who's using the
@@ -38,7 +38,9 @@ starts: only on the CPU's efficiency cores, at idle priority, with at most a thi
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
-limit, doesn't leave it running on the display.
+limit, doesn't leave it running on the display. A program that's kept open holds a handle to
+RunLightly's job, which would otherwise end it with RunInBackground, so it keeps running with the
+job's limits until it's stopped.
 
 The script only runs `RunInBackground.cs`, a .NET file-based app, with `dotnet run`, which
 builds it into its own cache first. It needs the .NET 10 SDK.

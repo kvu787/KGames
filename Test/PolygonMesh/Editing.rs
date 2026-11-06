@@ -525,3 +525,22 @@ fn creases_and_materials() {
     assert_eq!(cube.faces.iter().map(|face| face.material).collect::<Vec<_>>(), [0, 3, 3, 0, 0, 0]);
     assert_eq!(cube.material_count(), 4);
 }
+
+// Two holes that touch at a vertex: two triangles that share only vertex
+// 0, filled from their boundary. Each gets a face of its own, instead of
+// one face that goes through vertex 0 twice.
+#[test]
+fn filling_holes_that_touch_at_a_vertex() {
+    let mut mesh = Mesh::new();
+    for position in [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]] {
+        mesh.add_vertex(position);
+    }
+    mesh.add_face(vec![2, 0, 4], 0);
+    mesh.add_face(vec![0, 1, 3], 0);
+    let edges = mesh.edges();
+    let selection = mesh.fill(edges).unwrap();
+    assert_eq!(selection.faces, set([2, 3]));
+    assert_valid(&mesh, "two touching triangles with their backs filled");
+    assert_eq!(sides_histogram(&mesh), [4]);
+    assert_eq!(mesh.topology().boundary_edges().len(), 0);
+}

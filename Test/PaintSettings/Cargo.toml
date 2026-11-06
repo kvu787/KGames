@@ -1,0 +1,17 @@
+[package]
+name = "paint_settings_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Settings"
+path = "Settings.rs"
+
+[dependencies]
+json = { path = "../../Library/Json" }
+paint_settings = { path = "../../Library/PaintSettings" }
+simple_paint = { path = "../../Library/SimplePaint" }
+
+[lints]
+workspace = true

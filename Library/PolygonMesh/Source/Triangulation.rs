@@ -7,8 +7,7 @@
 // share a cone gets its own flat normal instead.
 
 use crate::Mesh;
-use crate::mesh::normalize_or_zero;
-use math::{Vector3, cross, dot, subtract};
+use math::{Vector3, cross, dot, normalize, subtract};
 use simple_paint::Vertex;
 use std::collections::HashMap;
 
@@ -69,7 +68,7 @@ impl Mesh {
                     }
                 }
                 let corner_normals: Vec<Vector3> =
-                    fans.iter().map(|&fan| normalize_or_zero(sums[fan].map(|s| s as f32))).collect();
+                    fans.iter().map(|&fan| normalize(sums[fan].map(|s| s as f32))).collect();
                 (corner_normals, fans)
             }
         };
@@ -82,7 +81,7 @@ impl Mesh {
             for triangle in self.face_triangles(index) {
                 let positions = triangle.map(|place| self.position(face.vertices[place]));
                 let [a, b, c] = positions;
-                let flat = normalize_or_zero(cross(subtract(b, a), subtract(c, a)));
+                let flat = normalize(cross(subtract(b, a), subtract(c, a)));
                 if flat == [0.0; 3] {
                     continue;
                 }
@@ -153,8 +152,8 @@ impl Mesh {
         let vertices = &self.faces[face].vertices;
         let count = vertices.len();
         let position = self.position(vertices[place]);
-        let previous = normalize_or_zero(subtract(self.position(vertices[(place + count - 1) % count]), position));
-        let next = normalize_or_zero(subtract(self.position(vertices[(place + 1) % count]), position));
+        let previous = normalize(subtract(self.position(vertices[(place + count - 1) % count]), position));
+        let next = normalize(subtract(self.position(vertices[(place + 1) % count]), position));
         dot(previous, next).clamp(-1.0, 1.0).acos()
     }
 
@@ -170,12 +169,12 @@ impl Mesh {
         }
         // Axes in the plane whose cross product is the normal, so that the
         // face is counterclockwise in them.
-        let u = normalize_or_zero(if normal[0].abs() > normal[1].abs() {
+        let u = normalize(if normal[0].abs() > normal[1].abs() {
             [-normal[2], 0.0, normal[0]]
         } else {
             [0.0, normal[2], -normal[1]]
         });
-        let v = normalize_or_zero(cross(normal, u));
+        let v = normalize(cross(normal, u));
         let points: Vec<[f64; 2]> = vertices
             .iter()
             .map(|&vertex| {

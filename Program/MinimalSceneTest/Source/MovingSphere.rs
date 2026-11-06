@@ -4,9 +4,8 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{Program, Startup, Ui};
+use user_interface::{InfoCard, Program, Startup, Ui};
 
-use crate::info_card::{self, Contents};
 use crate::scene::{Motion, Scene};
 use crate::settings::SceneSettings;
 
@@ -43,14 +42,13 @@ impl Program for MovingSphere {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        if info_card::toggled(ui.input()) {
+        if InfoCard::toggled(ui.input()) {
             self.text_shown = !self.text_shown;
         }
         self.motion.advance_frame(ui.delta());
         if self.text_shown {
-            info_card::draw(
-                ui,
-                &Contents {
+            ui.info_card(
+                &InfoCard {
                     title: NAME,
                     description: DESCRIPTION,
                     rows: &[],

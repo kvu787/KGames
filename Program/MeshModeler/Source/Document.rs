@@ -4,10 +4,13 @@
 //
 //     { "Mesh": { "Positions": [...], "Faces": [...], ... }, "Paints": [{ "Name": "Blue", "Paint": {...} }] }
 
+use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use json::Value;
-use polygon_mesh::{Mesh, Selection, primitives};
+use polygon_mesh::{Edge, Mesh, Selection, primitives};
 
 use crate::paint::{MAXIMUM_PAINTS, Paint, default_paints};
 
@@ -36,6 +39,8 @@ pub struct Document {
     // Counts every change, so that what's drawn from the mesh knows to remake
     // itself.
     pub version: u64,
+    // The mesh's edges, for the version they're of.
+    edges: RefCell<Option<(u64, Rc<BTreeSet<Edge>>)>>,
 }
 
 impl Default for Document {
@@ -56,7 +61,22 @@ impl Document {
             undo: Vec::new(),
             redo: Vec::new(),
             version: 1,
+            edges: RefCell::new(None),
         }
+    }
+
+    // The mesh's edges, made once for each version of the document: the
+    // overlay, the cards and picking ask for them every frame.
+    pub fn edges(&self) -> Rc<BTreeSet<Edge>> {
+        let mut cached = self.edges.borrow_mut();
+        if let Some((version, edges)) = &*cached
+            && *version == self.version
+        {
+            return edges.clone();
+        }
+        let edges = Rc::new(self.mesh.edges());
+        *cached = Some((self.version, edges.clone()));
+        edges
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -238,9 +258,20 @@ pub fn saved_names(folder: &Path) -> Vec<String> {
     names
 }
 
-// Whether a name can be a file's: not empty, and without what Windows
-// forbids in names.
+// Whether a name can be a file's: not empty, without what Windows forbids
+// in names, and not one of its devices, like NUL, which a file's name can't
+// be, with or without an extension; writing to NUL.json "succeeds", into
+// nowhere.
 pub fn valid_name(name: &str) -> bool {
     let name = name.trim();
-    !name.is_empty() && name.len() <= 64 && !name.chars().any(|character| "<>:\"/\\|?*".contains(character) || character.is_control()) && !name.ends_with('.')
+    let device = {
+        let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
+        matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+            || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.ends_with(|digit: char| digit.is_ascii_digit()))
+    };
+    !name.is_empty()
+        && name.len() <= 64
+        && !name.chars().any(|character| "<>:\"/\\|?*".contains(character) || character.is_control())
+        && !name.ends_with('.')
+        && !device
 }

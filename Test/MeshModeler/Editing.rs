@@ -473,3 +473,19 @@ fn closing_with_changes_asks_first() {
     app.click("Unsaved/Secondary");
     assert!(app.closed());
 }
+
+// How long a frame takes with the pointer over a subdivided mesh, where the
+// view picks what's under it: a benchmark, which only reports.
+#[test]
+fn benchmark_hover_over_a_subdivided_mesh() {
+    let mut app = modeler("HoverBenchmark");
+    app.program.levels = 4;
+    app.frames(2);
+    assert!(app.program.scene.triangles.indices.len() >= 6 * 256 * 2 * 3, "{} indices", app.program.scene.triangles.indices.len());
+    app.move_to("View");
+    let start = std::time::Instant::now();
+    app.frames(30);
+    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / 30.0;
+    eprintln!("A frame with the pointer over the subdivided cube takes {per_frame:.3} ms to build");
+    assert!(matches!(app.program.editor.hover, Some(mesh_modeler::editing::Element::Face(_))), "{:?}", app.program.editor.hover);
+}

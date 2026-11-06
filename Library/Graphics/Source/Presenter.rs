@@ -18,7 +18,7 @@ use windows_api::*;
 use windows_core::{Interface, Result};
 
 use crate::resources::{DescriptorHeap, command_list, create_target_views, execute, transition};
-use crate::{Frame, Gpu, TARGET_FORMAT};
+use crate::{Frame, Gpu, TARGET_FORMAT, check_handle};
 
 const BUFFER_COUNT: u32 = 2;
 
@@ -33,6 +33,11 @@ pub struct Presenter {
     list: ID3D12GraphicsCommandList,
     width: u32,
     height: u32,
+    // The GPU's fence, and an event to wait on it with, so that the swap
+    // chain and its buffers go only once the GPU is done with the last
+    // frame, however the main loop ends.
+    fence: ID3D12Fence,
+    fence_event: HANDLE,
     // What the fence reaches once the GPU finishes the last frame presented.
     last_frame: u64,
     // Whether the waitable object was signaled since the last frame began.
@@ -76,6 +81,8 @@ impl Presenter {
             let waitable = swap_chain.GetFrameLatencyWaitableObject();
             let views = DescriptorHeap::new(&gpu.device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BUFFER_COUNT * 2, false)?;
             let (allocator, list) = command_list(&gpu.device)?;
+            let fence_event = CreateEventW(None, false, false, None);
+            check_handle(fence_event.0)?;
             let mut presenter = Self {
                 swap_chain,
                 waitable,
@@ -87,6 +94,8 @@ impl Presenter {
                 list,
                 width: description.Width,
                 height: description.Height,
+                fence: gpu.fence(),
+                fence_event,
                 last_frame: 0,
                 waitable_signaled: false,
                 present_time: 0,
@@ -227,7 +236,18 @@ impl Presenter {
 
 impl Drop for Presenter {
     fn drop(&mut self) {
+        // The swap chain and its buffers go now, so the GPU must be done
+        // with the last frame first, whichever way the main loop ended:
+        // releasing what a frame still draws with makes its shaders fault,
+        // which NVIDIA's driver logs, and which stutters every app on the
+        // GPU.
         unsafe {
+            if self.fence.GetCompletedValue() < self.last_frame
+                && self.fence.SetEventOnCompletion(self.last_frame, self.fence_event).is_ok()
+            {
+                WaitForSingleObject(self.fence_event, INFINITE);
+            }
+            let _ = CloseHandle(self.fence_event);
             let _ = CloseHandle(self.waitable);
         }
     }

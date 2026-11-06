@@ -21,7 +21,7 @@ use crate::scripted_source::ScriptedSource;
 const LOG_CAPACITY: usize = 200;
 // Virtual-key codes of the demo's own shortcuts. F11, which switches the
 // window to and from fullscreen, is Library/UserInterface's, which reads it
-// from the window's messages.
+// from the same readings.
 const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
 

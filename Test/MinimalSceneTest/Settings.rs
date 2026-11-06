@@ -8,7 +8,7 @@ use minimal_scene_test::options;
 use minimal_scene_test::settings::SceneSettings;
 use simple_paint::{Material, Parameters};
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::{Headless, Point, Settings, Startup, Theme, WindowMode};
+use user_interface::{Headless, InfoCard, Point, Settings, Startup, Theme, WindowMode};
 
 #[test]
 fn the_defaults_open_fullscreen_with_a_constant_color_sphere() {
@@ -73,7 +73,7 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     assert_eq!(app.program.settings, SceneSettings::default());
     let label = app.label("Notice/0").unwrap();
     assert!(label.starts_with("Warning: Settings.json Sphere "), "{label}");
-    let card = app.target(minimal_scene_test::info_card::NAME);
+    let card = app.target(InfoCard::NAME);
     let notice = app.target("Notice/0");
     assert!(card.contains(notice.origin()) && card.contains(Point::new(notice.right(), notice.bottom())));
 

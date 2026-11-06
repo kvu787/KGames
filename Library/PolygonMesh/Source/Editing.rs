@@ -11,9 +11,9 @@
 // Edits that remove vertices or faces, deleting and merging, renumber the
 // rest in order, without gaps.
 
-use crate::mesh::{average, normalize_or_zero};
+use crate::mesh::average;
 use crate::{Edge, Face, Mesh, Selection, Topology};
-use math::{Matrix, Vector3, add, cross, dot, length, scale, subtract};
+use math::{Matrix, Vector3, add, cross, dot, length, normalize, scale, subtract};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 impl Mesh {
@@ -27,7 +27,7 @@ impl Mesh {
     // Rotates by `angle` radians about `axis` through `pivot`, counterclockwise
     // when seen from where the axis points, like Math's rotations.
     pub fn rotate(&mut self, vertices: impl IntoIterator<Item = u32>, pivot: Vector3, axis: Vector3, angle: f32) {
-        let axis = normalize_or_zero(axis);
+        let axis = normalize(axis);
         if axis == [0.0; 3] {
             return;
         }
@@ -186,9 +186,9 @@ impl Mesh {
             vertices.iter().copied().max_by(|&a, &b| measure(a).total_cmp(&measure(b))).unwrap()
         };
         let first = far(&|vertex| length(offset(vertex)));
-        let u = normalize_or_zero(offset(first));
+        let u = normalize(offset(first));
         let second = far(&|vertex| length(cross(u, offset(vertex))));
-        let normal = normalize_or_zero(cross(offset(first), offset(second)));
+        let normal = normalize(cross(offset(first), offset(second)));
         let w = cross(normal, u);
         let angle = |vertex: u32| dot(offset(vertex), w).atan2(dot(offset(vertex), u));
         let mut order: Vec<u32> = vertices.iter().copied().collect();
@@ -248,9 +248,19 @@ impl Mesh {
             }
             let mut cycle = vec![from];
             let mut vertex = to;
+            let mut loops = Vec::new();
             let closed = loop {
                 if vertex == from {
                     break true;
+                }
+                // Where two holes touch at a vertex, the walk can come back
+                // to a vertex on its way, around the second hole: that loop
+                // is a face of its own, and the walk goes on from the vertex.
+                if let Some(at) = cycle.iter().position(|&earlier| earlier == vertex) {
+                    let around: Vec<u32> = cycle.drain(at..).collect();
+                    if around.len() >= 3 {
+                        loops.push(around);
+                    }
                 }
                 let unused =
                     next.get(&vertex).and_then(|ends| ends.iter().find(|&&end| !used.contains(&[vertex, end])));
@@ -262,6 +272,9 @@ impl Mesh {
                 vertex = after;
             };
             if closed && cycle.len() >= 3 {
+                loops.push(cycle);
+            }
+            for cycle in loops {
                 let material = self.neighbor_material(&topology, &cycle);
                 filled.push(self.add_face(cycle, material));
             }

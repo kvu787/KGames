@@ -2,9 +2,9 @@
 // nearest it, and where a mesh or some of its vertices are, to frame them or
 // to rotate and scale about.
 
-use crate::mesh::{average, normalize_or_zero};
-use crate::{Edge, Mesh, SubdivisionSurface};
-use math::{Vector3, add, cross, dot, length, scale, subtract};
+use crate::mesh::average;
+use crate::{Edge, Mesh, SubdivisionSurface, Triangles};
+use math::{Vector3, add, cross, dot, length, normalize, scale, subtract};
 
 // How far past a triangle's edges, as a fraction of the triangle, a ray still
 // hits it.
@@ -25,7 +25,7 @@ impl Mesh {
     // concave face is hit only where it is. None if it hits none, or if
     // `direction` is zero.
     pub fn ray_cast(&self, origin: Vector3, direction: Vector3) -> Option<Hit> {
-        let direction = normalize_or_zero(direction);
+        let direction = normalize(direction);
         if direction == [0.0; 3] {
             return None;
         }
@@ -48,7 +48,7 @@ impl Mesh {
     // of `origin`, the nearer to `origin` of two as near. A modeler checks
     // whether a face hides it.
     pub fn nearest_vertex(&self, origin: Vector3, direction: Vector3, radius: f32) -> Option<u32> {
-        let direction = normalize_or_zero(direction);
+        let direction = normalize(direction);
         let mut nearest: Option<(f32, f32, u32)> = None;
         for (vertex, &position) in self.positions.iter().enumerate() {
             let along = dot(subtract(position, origin), direction);
@@ -66,7 +66,7 @@ impl Mesh {
     // The edge nearest the ray, of those within `radius` of it, in front of
     // `origin`, the nearer to `origin` of two as near.
     pub fn nearest_edge(&self, origin: Vector3, direction: Vector3, radius: f32) -> Option<Edge> {
-        let direction = normalize_or_zero(direction);
+        let direction = normalize(direction);
         let mut nearest: Option<(f32, f32, Edge)> = None;
         for edge in self.edges() {
             let [a, b] = edge.vertices().map(|vertex| self.position(vertex));
@@ -93,6 +93,30 @@ impl Mesh {
     // The average of the vertices' positions, or None for none.
     pub fn center_of(&self, vertices: impl IntoIterator<Item = u32>) -> Option<Vector3> {
         average(self.vertex_set(vertices).into_iter().map(|vertex| self.position(vertex)))
+    }
+}
+
+impl Triangles {
+    // The nearest triangle that the ray hits, as a hit on the face it's of:
+    // what Mesh::ray_cast gives on the mesh these are of, without
+    // triangulating every face again, for a modeler that asks every frame
+    // what's under the pointer, with the triangles it draws.
+    pub fn ray_cast(&self, origin: Vector3, direction: Vector3) -> Option<Hit> {
+        let direction = normalize(direction);
+        if direction == [0.0; 3] {
+            return None;
+        }
+        let mut nearest: Option<Hit> = None;
+        for (index, corners) in self.indices.as_chunks::<3>().0.iter().enumerate() {
+            let corners = corners.map(|corner| self.vertices[corner as usize].position);
+            let Some(distance) = ray_triangle(origin, direction, corners) else {
+                continue;
+            };
+            if nearest.is_none_or(|hit| distance < hit.distance) {
+                nearest = Some(Hit { face: self.faces[index], distance, point: add(origin, scale(direction, distance)) });
+            }
+        }
+        nearest
     }
 }
 

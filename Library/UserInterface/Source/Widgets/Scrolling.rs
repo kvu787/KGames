@@ -126,8 +126,9 @@ impl Ui {
         let range = (content_height - viewport.height).max(0.0);
         let mut offset = *self.memory::<f32>(scroll_id);
         // The wheel scrolls it while the pointer is over it, unless a widget
-        // under the pointer takes the wheel itself, like a slider.
-        if self.pointer_in(viewport) && self.input.wheel.y != 0.0 && !self.hovered_takes_wheel() {
+        // under the pointer takes the wheel itself, like a slider, or a menu
+        // or a dialog is over it.
+        if self.wheel_over(viewport) {
             offset -= self.input.wheel.y * WHEEL_SCROLL;
         }
         offset = offset.clamp(0.0, range);
@@ -157,19 +158,15 @@ impl Ui {
         *self.memory::<f32>(area.id) = offset;
     }
 
-    // Scrolls the region so that the rectangle, in its content, is in sight.
-    pub fn scroll_into_view(&mut self, name: &str, viewport_height: f32, top: f32, bottom: f32) {
-        let offset = self.memory::<f32>(id(name));
-        if top < *offset {
-            *offset = top;
-        } else if bottom > *offset + viewport_height {
-            *offset = bottom - viewport_height;
-        }
-    }
-
     // Whether the widget under the pointer takes the wheel, so that what
     // it's in shouldn't scroll.
     pub(crate) fn hovered_takes_wheel(&self) -> bool {
-        matches!(self.hovered_kind(), Some("Slider" | "NumberBox" | "View" | "ComboBoxPopup" | "ComboBoxItem"))
+        match self.hovered_kind() {
+            Some("Slider" | "View" | "ComboBoxPopup" | "ComboBoxItem") => true,
+            // A number box takes the wheel only while it has focus, as
+            // WinUI's does.
+            Some("NumberBox") => self.hovered_has_focus(),
+            _ => false,
+        }
     }
 }

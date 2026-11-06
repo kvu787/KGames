@@ -64,6 +64,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphics_tests"
+version = "0.1.0"
+dependencies = [
+ "graphics",
+]
+
+[[package]]
 name = "identify_displays"
 version = "0.1.0"
 dependencies = [
@@ -176,6 +183,15 @@ name = "paint_settings"
 version = "0.1.0"
 dependencies = [
  "json",
+ "simple_paint",
+]
+
+[[package]]
+name = "paint_settings_tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "paint_settings",
  "simple_paint",
 ]
 

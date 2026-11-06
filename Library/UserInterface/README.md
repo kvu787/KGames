@@ -130,6 +130,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
 | `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
 | `View`                             |                           | A 3D view's area, which takes every button but never focus      |
+| `ui.info_card`                     |                           | A test program's floating card: frame rate, GPU, display, keys  |
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
 | `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
 
@@ -210,7 +211,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | Argument                 | What it does                                                             |
 | ------------------------ | ------------------------------------------------------------------------ |
 | `--display <id>`         | Opens on the display, which must be connected. `Primary` for the primary |
-| `--no-activate`          | Opens beneath the other windows, without taking focus                    |
+| `--no-activate`          | Opens beneath the other windows, without taking focus, in efficiency mode |
 | `--no-input`             | Doesn't start GameInput, so the program reads no input at all            |
 | `--vsync`                | Waits for vertical sync, as `VerticalSync` does                          |
 | `--frame-rate-limit <n>` | At most n frames a second, which wait between them instead of spinning   |
@@ -228,15 +229,21 @@ coverage from its signed distance. Text layouts are cached, so a frame that show
 the last one asks DirectWrite for nothing, and glyphs are rasterized once each into an atlas.
 Minimizing the window stops the loop drawing.
 
-RunInBackground's test runs use `--vsync`, `--frame-rate-limit 100` and `--no-input` instead, so
-that they share the computer lightly with someone using it, like playing a game: frames wait for
-vertical sync, at most 100 a second, the loop waits on a timer and on DXGI between them, instead
-of spinning, and GameInput, with its helper process that reads keyboards and mice, doesn't start.
+RunInBackground's test runs use `--no-activate`, `--vsync`, `--frame-rate-limit 100` and
+`--no-input` instead, so that they share the computer lightly with someone using it, like playing
+a game: the window opens beneath the others and the process asks Windows for efficiency mode, where
+a window that someone uses asks for full execution speed; frames wait for vertical sync, at most
+100 a second, and the loop waits on a timer and on DXGI between them, instead of spinning;
+GameInput, with its helper process that reads keyboards and mice, doesn't start; and without input
+there's no input latency to measure, so the ETW session that every process's presents would go
+through isn't started either. RunLightly, which RunInBackground runs through, also has the process
+put its GPU work after other processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 
 ## Performance stats
 
 Every program's window shows its performance along its top (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`),
-over the last 2 seconds, and changes what it says 4 times a second:
+the frames over the last second and the input latency over the last 2 seconds, and changes what
+it says 4 times a second:
 
 | Stat              | What it is                                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------------------- |

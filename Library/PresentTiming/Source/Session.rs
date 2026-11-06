@@ -1,7 +1,10 @@
 // A real-time ETW session with the providers that Events.rs lists, whose
 // events a thread of its own reads as they come, and hands to a callback.
 // The session is the system's: it outlives the process if the process ends
-// without stopping it, so a session of the same name is stopped first.
+// without stopping it, like when the process is killed. So a session's name
+// has its process's ID, and a session whose process is gone is stopped
+// before a new one starts, while another process's live session is left
+// alone.
 
 use std::ffi::c_void;
 use std::thread::JoinHandle;
@@ -38,11 +41,24 @@ pub struct Session {
 // What the reading thread hands each event to.
 pub type Callback = Box<dyn FnMut(&EVENT_RECORD) + Send>;
 
+// The callback, and whether it panicked, after which no event goes to it: an
+// unwinding out of ETW's callback would abort the process, and a tracker's
+// mistake should lose the stats, not the program.
+struct Context {
+    callback: Callback,
+    failed: bool,
+}
+
+// What every session here is named: this, the program, and the process ID.
+const PREFIX: &str = "KGames ";
+
 impl Session {
-    // Starts the session, enables the providers, and starts reading.
-    pub fn start(name: &str, callback: Callback) -> Result<Session, StartError> {
-        let name: Vec<u16> = name.encode_utf16().chain([0]).collect();
+    // Starts the session, named after the program and this process, enables
+    // the providers, and starts reading.
+    pub fn start(program: &str, callback: Callback) -> Result<Session, StartError> {
+        let name: Vec<u16> = format!("{PREFIX}{program} {}", unsafe { GetCurrentProcessId() }).encode_utf16().chain([0]).collect();
         unsafe {
+            stop_leftovers();
             let mut control = CONTROLTRACE_ID(0);
             let mut properties = session_properties();
             let mut status = StartTraceW(&mut control, PCWSTR(name.as_ptr()), &mut properties.properties);
@@ -67,7 +83,7 @@ impl Session {
                 }
             }
 
-            let context = Box::into_raw(Box::new(callback));
+            let context = Box::into_raw(Box::new(Context { callback, failed: false }));
             let mut logfile: EVENT_TRACE_LOGFILEW = std::mem::zeroed();
             let mut logger_name = name.clone();
             logfile.LoggerName = PWSTR(logger_name.as_mut_ptr());
@@ -87,9 +103,17 @@ impl Session {
                 .spawn(move || {
                     // Returns once the session stops, or the trace closes.
                     let _ = ProcessTrace(&[trace], None, None);
-                    drop(Box::from_raw(context as *mut Callback));
-                })
-                .map_err(|error| StartError::Failed(format!("couldn't start a thread: {error}")))?;
+                    drop(Box::from_raw(context as *mut Context));
+                });
+            let thread = match thread {
+                Ok(thread) => thread,
+                Err(error) => {
+                    let _ = CloseTrace(trace);
+                    drop(Box::from_raw(context as *mut Context));
+                    stop(control, &name);
+                    return Err(StartError::Failed(format!("couldn't start a thread: {error}")));
+                }
+            };
             Ok(Session {
                 control,
                 name,
@@ -103,15 +127,16 @@ impl Session {
 // Reads the events in a trace file, like one that xperf or WPR saved, in
 // order, and gives the performance counter's frequency on the computer that
 // saved it.
-pub fn read_file(path: &std::path::Path, mut callback: Callback) -> Result<i64, String> {
+pub fn read_file(path: &std::path::Path, callback: Callback) -> Result<i64, String> {
     use std::os::windows::ffi::OsStrExt;
     let mut path: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+    let mut context = Context { callback, failed: false };
     unsafe {
         let mut logfile: EVENT_TRACE_LOGFILEW = std::mem::zeroed();
         logfile.LogFileName = PWSTR(path.as_mut_ptr());
         logfile.Anonymous.ProcessTraceMode = (PROCESS_TRACE_MODE_EVENT_RECORD | PROCESS_TRACE_MODE_RAW_TIMESTAMP) as u32;
         logfile.Anonymous2.EventRecordCallback = Some(on_event);
-        logfile.Context = &mut callback as *mut Callback as *mut c_void;
+        logfile.Context = &mut context as *mut Context as *mut c_void;
         let trace = OpenTraceW(&mut logfile);
         if trace.0 == u64::MAX {
             return Err(format!("OpenTrace failed: {}", windows_core::Error::from_thread()));
@@ -121,6 +146,9 @@ pub fn read_file(path: &std::path::Path, mut callback: Callback) -> Result<i64, 
         let _ = CloseTrace(trace);
         if status != 0 {
             return Err(format!("ProcessTrace failed with error {status}"));
+        }
+        if context.failed {
+            return Err("reading the events panicked".to_string());
         }
         Ok(frequency)
     }
@@ -153,8 +181,62 @@ impl Drop for Session {
 unsafe extern "system" fn on_event(record: *mut EVENT_RECORD) {
     unsafe {
         let record = &*record;
-        let callback = &mut *(record.UserContext as *mut Callback);
-        callback(record);
+        let context = &mut *(record.UserContext as *mut Context);
+        if context.failed {
+            return;
+        }
+        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (context.callback)(record))).is_err() {
+            context.failed = true;
+        }
+    }
+}
+
+// Stops the sessions named here whose processes are gone, which they
+// outlived: a process that's killed doesn't stop its own. A session's
+// process is the number at the end of its name.
+unsafe fn stop_leftovers() {
+    // QueryAllTracesW fills what fits, and says how many sessions there are.
+    const MOST: usize = 64;
+    let mut sessions: Vec<Box<Properties>> = (0..MOST).map(|_| Properties::new()).collect();
+    let mut pointers: Vec<*mut EVENT_TRACE_PROPERTIES> =
+        sessions.iter_mut().map(|session| &mut session.properties as *mut EVENT_TRACE_PROPERTIES).collect();
+    let mut count = 0u32;
+    let status = unsafe { QueryAllTracesW(pointers.as_mut_ptr(), MOST as u32, &mut count) };
+    if status != 0 && status != ERROR_MORE_DATA as u32 {
+        return;
+    }
+    for session in sessions.iter().take((count as usize).min(MOST)) {
+        let end = session.name.iter().position(|&unit| unit == 0).unwrap_or(session.name.len());
+        let name = String::from_utf16_lossy(&session.name[..end]);
+        let Some(rest) = name.strip_prefix(PREFIX) else {
+            continue;
+        };
+        let Some(process) = rest.rsplit(' ').next().and_then(|id| id.parse::<u32>().ok()) else {
+            continue;
+        };
+        if !unsafe { process_is_gone(process) } {
+            continue;
+        }
+        let wide: Vec<u16> = name.encode_utf16().chain([0]).collect();
+        unsafe { stop(CONTROLTRACE_ID(0), &wide) };
+    }
+}
+
+// Whether no process has the ID any more, or the one that has it has
+// exited. One that can't be opened at all, like a protected process, is
+// taken as alive.
+unsafe fn process_is_gone(process: u32) -> bool {
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION as u32, false, process);
+        if handle.0.is_null() {
+            // ERROR_INVALID_PARAMETER, which E_INVALIDARG is as an HRESULT:
+            // no process has the ID.
+            return windows_core::Error::from_thread().code() == E_INVALIDARG;
+        }
+        let mut code = 0u32;
+        let running = GetExitCodeProcess(handle, &mut code).as_bool() && code == STILL_ACTIVE as u32;
+        let _ = CloseHandle(handle);
+        !running
     }
 }
 

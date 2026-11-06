@@ -29,6 +29,11 @@ pub const PAUSE: f64 = 0.35;
 // that comes late, like after the window was minimized, doesn't carry it
 // far.
 pub const LONGEST_STEP: f64 = 0.1;
+// The car drives in steps of this long, as many as a frame's time holds,
+// so that it drives the same at any frame rate: the same push for the same
+// time puts it in the same place. What's left of a frame's time waits for
+// the next.
+pub const DRIVE_STEP: f64 = 1.0 / 240.0;
 
 pub struct Game {
     pub document: Document,
@@ -46,6 +51,8 @@ pub struct Game {
     // seconds.
     restarted: f64,
     last: Option<f64>,
+    // Time that the last frame's drive steps left over.
+    pending: f64,
     // The current scene's track's shape, and the track it's of.
     shape: Shape,
     shape_of: Track,
@@ -92,6 +99,7 @@ impl Game {
             show_card: true,
             restarted: f64::NEG_INFINITY,
             last: None,
+            pending: 0.0,
         };
         game.camera.height = game.default_height();
         game.put_at_start(f64::NEG_INFINITY);
@@ -210,14 +218,20 @@ impl Game {
         if controls.restart {
             self.put_at_start(seconds);
         }
-        if !self.paused() {
+        if self.paused() {
+            self.pending = 0.0;
+        } else {
             let push = camera::to_ground(controls.push);
             let acceleration = self.current_vehicle().acceleration;
-            drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, step);
+            self.pending += step;
+            while self.pending >= DRIVE_STEP {
+                drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, DRIVE_STEP);
+                self.pending -= DRIVE_STEP;
+            }
         }
         let car = self.car;
         let footprint = self.footprint();
-        if self.shape().edges.touch(&footprint, car.position, car.heading) {
+        if !self.paused() && self.shape().edges.touch(&footprint, car.position, car.heading) {
             self.crashes += 1;
             self.put_at_start(seconds);
         }

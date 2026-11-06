@@ -8,6 +8,7 @@
 // solid colors, and linear gradients, which is how WinUI draws the elevation
 // borders that make controls look raised.
 
+use std::borrow::Cow;
 use crate::design::icons::Icon;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::design::tokens::Elevation;
@@ -552,12 +553,13 @@ impl<'a> Painter<'a> {
     // whether it was cut.
     pub fn text_fit(&mut self, rect: Rect, text: &str, style: TextStyle, color: Color, align: Align) -> (Rect, bool) {
         let fitted = self.fit(text, style, rect.width);
-        let cut = fitted != text;
+        let cut = matches!(fitted, Cow::Owned(_));
         (self.text_in(rect, &fitted, style, color, align), cut)
     }
 
-    // The text, cut short with an ellipsis if it's wider than `width`.
-    pub fn fit(&mut self, text: &str, style: TextStyle, width: f32) -> String {
+    // The text, cut short with an ellipsis if it's wider than `width`, or
+    // the text itself if it fits, without a copy.
+    pub fn fit<'t>(&mut self, text: &'t str, style: TextStyle, width: f32) -> Cow<'t, str> {
         fit_text(self.fonts, text, style, width)
     }
 
@@ -608,10 +610,11 @@ impl<'a> Painter<'a> {
     }
 }
 
-// The text, cut short with an ellipsis if it's wider than `width`.
-pub(crate) fn fit_text(fonts: &mut Fonts, text: &str, style: TextStyle, width: f32) -> String {
+// The text, cut short with an ellipsis if it's wider than `width`, or the
+// text itself if it fits, without a copy: most labels fit, every frame.
+pub(crate) fn fit_text<'t>(fonts: &mut Fonts, text: &'t str, style: TextStyle, width: f32) -> Cow<'t, str> {
     if fonts.measure(text, style).width <= width {
-        return text.to_string();
+        return Cow::Borrowed(text);
     }
     let boundaries: Vec<usize> = text.char_indices().map(|(index, _)| index).skip(1).collect();
     // The most characters whose text with an ellipsis fits.
@@ -625,7 +628,7 @@ pub(crate) fn fit_text(fonts: &mut Fonts, text: &str, style: TextStyle, width: f
             high = middle - 1;
         }
     }
-    if low == 0 { "…".to_string() } else { format!("{}…", text[..boundaries[low - 1]].trim_end()) }
+    Cow::Owned(if low == 0 { "…".to_string() } else { format!("{}…", text[..boundaries[low - 1]].trim_end()) })
 }
 
 // The part of the segment inside the rectangle, by Liang and Barsky's

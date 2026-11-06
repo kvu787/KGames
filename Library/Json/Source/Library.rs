@@ -467,10 +467,14 @@ impl Parser<'_> {
                 return Err(self.error("expected a digit in the exponent"));
             }
         }
-        // Rust parses every number that JSON allows.
-        Ok(Value::Number(
-            self.text[start..self.position].parse().unwrap(),
-        ))
+        // Rust parses every number that JSON allows, to infinity past
+        // what a double holds, which the file would read back as null.
+        let number: f64 = self.text[start..self.position].parse().unwrap();
+        if !number.is_finite() {
+            self.position = start;
+            return Err(self.error("the number is too large"));
+        }
+        Ok(Value::Number(number))
     }
 
     // Steps past a run of digits, and returns how many there were.

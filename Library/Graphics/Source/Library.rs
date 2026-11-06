@@ -6,6 +6,8 @@
 // Library/UserInterface draws its widgets with it, and programs draw their 3D
 // views into the same frames, before the widgets go on top.
 
+#[path = "Depth.rs"]
+mod depth;
 #[path = "Device.rs"]
 mod device;
 #[path = "Frame.rs"]
@@ -17,7 +19,8 @@ mod presenter;
 #[path = "Resources.rs"]
 mod resources;
 
-pub use device::{AdapterChoice, Gpu};
+pub use depth::DepthBuffer;
+pub use device::{AdapterChoice, Gpu, GpuPriority, gpu_priority, set_gpu_priority};
 pub use frame::{Frame, Image, Offscreen, Readback};
 pub use png::write_png;
 pub use presenter::Presenter;

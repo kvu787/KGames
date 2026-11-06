@@ -103,8 +103,6 @@ as `Notice/0`, `Notice/1` and so on.
 | `Source/SpinningCar.rs`    | The test as a `Program`: where the car is, the keys, and the state       |
 | `Source/Controls.rs`       | What S does                                                              |
 | `Source/Scene.rs`          | The objects, the camera, the light and the animation                     |
-| `Source/InfoCard.rs`       | The card, and F1, the same as MinimalSceneTest's                         |
-| `Source/Depth.rs`          | The scene's depth buffer, the same as MinimalSceneTest's                 |
 | `Source/Settings.rs`       | The materials and the sphere's resolution, and their defaults            |
 | `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
 |                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |

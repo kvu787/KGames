@@ -7,7 +7,7 @@
 use crate::core::ui::{Response, Ui};
 use crate::design::controls::{TOOLTIP_MAX_WIDTH, TOOLTIP_OFFSET, TOOLTIP_PADDING};
 use crate::design::tokens::{CAPTION, CAPTION_STRONG, ELEVATION_TOOLTIP, MONO, RADIUS_CONTROL, SPACE_S, SPACE_XS};
-use crate::drawing::geometry::{Point, Rect, Size};
+use crate::drawing::geometry::{Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 
 // A line of a tooltip with more than a sentence in it.
@@ -151,10 +151,5 @@ impl Ui {
             self.tooltip(&response, text);
         }
         shown
-    }
-
-    // The point a tooltip is shown from, for tests: where the pointer rests.
-    pub fn tooltip_anchor(&self, response: &Response) -> Option<Point> {
-        self.tooltip_due(response.id)
     }
 }

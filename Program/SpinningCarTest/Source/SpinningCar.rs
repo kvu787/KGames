@@ -4,10 +4,9 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{Program, Startup, Ui};
+use user_interface::{InfoCard, Program, Startup, Ui};
 
 use crate::controls;
-use crate::info_card::{self, Contents};
 use crate::scene::{Scene, car_placement};
 use crate::settings::SceneSettings;
 
@@ -47,7 +46,7 @@ impl Program for SpinningCar {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        if info_card::toggled(ui.input()) {
+        if InfoCard::toggled(ui.input()) {
             self.text_shown = !self.text_shown;
         }
         if controls::toggles_stationary(ui.input()) {
@@ -56,9 +55,8 @@ impl Program for SpinningCar {
         self.placement = car_placement(ui.time(), self.stationary);
         if self.text_shown {
             let car = if self.stationary { "Stationary" } else { "Moving" };
-            info_card::draw(
-                ui,
-                &Contents {
+            ui.info_card(
+                &InfoCard {
                     title: NAME,
                     description: DESCRIPTION,
                     rows: &[("Car", car)],

@@ -44,8 +44,8 @@ then puts a present that NVIDIA's flip delay would put before the one before it 
 that one, which `Corrector` does too.
 
 Only the paths that DXGI's flip-model swap chains take are followed, which are the only ones
-that KGames' programs use. Copies to the front buffer, legacy fullscreen flips and composition
-atlases aren't.
+that KGames' programs use. Copies to the front buffer and composition atlases aren't, and legacy
+fullscreen flips only as far as DWM's own frames need, never as a mode of the process's presents.
 
 ## Privileges
 
@@ -58,9 +58,10 @@ from an elevated PowerShell, then sign out and back in:
 Add-LocalGroupMember -Group 'Performance Log Users' -Member $env:USERNAME
 ```
 
-The session is named after the program, like `KGames UiShowcase`. Sessions are the system's, and
-outlive a process that ends without stopping its own, so a program stops a leftover session of its
-name before it starts its own.
+The session is named after the program and its process, like `KGames UiShowcase 4172`. Sessions
+are the system's, and outlive a process that ends without stopping its own, like one that's
+killed, so a program stops the `KGames` sessions whose processes are gone before it starts its
+own, and leaves another process's running session alone.
 
 ## Checking against PresentMon
 

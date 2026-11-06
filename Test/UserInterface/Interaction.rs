@@ -34,6 +34,17 @@ struct Test {
     dialog: bool,
     answer: Option<DialogResult>,
     card: Rect,
+    // Right presses on the button.
+    secondary: u32,
+    // A combo box's items, which a test can take away while its list is open.
+    items: Vec<String>,
+    shrink: usize,
+    // Replaces the field's text with a two-byte character, once.
+    replace: bool,
+    // A list that a context menu can open over.
+    beneath: Option<usize>,
+    // A combo box in the dialog.
+    pick: usize,
 }
 
 impl Program for Test {
@@ -51,7 +62,14 @@ impl Program for Test {
         if response.clicked {
             self.clicks += 1;
         }
+        if response.secondary_pressed {
+            self.secondary += 1;
+        }
         ui.tooltip(&response, "A tip");
+        if self.replace {
+            self.text = "\u{e9}".to_string();
+            self.replace = false;
+        }
         ui.add("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&mut self.text));
         ui.add("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.choice, &["Zero", "One", "Two"]));
         // A surface over a button covers it from the pointer.
@@ -86,11 +104,21 @@ impl Program for Test {
         if ui.add("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask")).clicked {
             self.dialog = true;
         }
-        if self.dialog && let Some(answer) = ui.dialog("Question", Dialog::new("Sure?", "Really.").primary("Yes")) {
+        if self.dialog
+            && let Some(answer) = ui.dialog_with("Question", Dialog::new("Sure?", "Really.").primary("Yes"), 32.0, |ui, area| {
+                ui.add("Pick", area.top_strip(32.0), ComboBox::new(&mut self.pick, &["Yes", "No"]));
+            })
+        {
             self.answer = Some(answer);
             self.dialog = false;
         }
         self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
+        // Last, so that the tab order of the widgets above stays.
+        let items: Vec<&str> = self.items.iter().map(String::as_str).collect();
+        ui.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.shrink, &items));
+        ui.add("Beneath", Rect::new(1000.0, top + 400.0, 300.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
+            ui.label(row, &format!("Row {index}"));
+        }).selection(&mut self.beneath));
     }
 }
 
@@ -430,3 +458,78 @@ fn a_wide_tooltip_is_wider_than_winui_s() {
     let Value::Number(width) = area[2] else { panic!() };
     assert!(width > 320.0 && width <= 640.0, "{width}");
 }
+
+#[test]
+fn a_right_press_that_closes_a_menu_goes_nowhere_else() {
+    let mut app = Headless::new(Test::default());
+    app.click("MenuButton");
+    assert!(app.ui.any_popup());
+    app.right_click("Button");
+    assert!(!app.ui.any_popup());
+    assert_eq!(app.program.secondary, 0, "the press that closed the menu");
+    app.right_click("Button");
+    assert_eq!(app.program.secondary, 1);
+}
+
+#[test]
+fn enter_goes_to_an_open_list_in_a_dialog_not_to_its_default_button() {
+    let mut app = Headless::new(Test::default());
+    app.click("Ask").click("Pick");
+    assert!(app.ui.any_popup());
+    app.key(Key::DOWN).key(Key::ENTER);
+    assert_eq!((app.program.pick, app.program.answer), (1, None));
+    assert!(!app.ui.any_popup());
+    app.click("Question/Primary");
+    assert_eq!(app.program.answer, Some(DialogResult::Primary));
+}
+
+#[test]
+fn a_list_whose_items_go_while_it_is_open_closes() {
+    let mut app = Headless::new(Test {
+        items: vec!["Only".to_string()],
+        ..Test::default()
+    });
+    app.click("Shrink");
+    assert!(app.ui.any_popup());
+    app.program.items.clear();
+    app.frame();
+    assert!(!app.ui.any_popup());
+    assert_eq!(app.label("Shrink").as_deref(), Some(""));
+}
+
+#[test]
+fn a_caret_in_text_the_program_replaced_lands_on_a_character() {
+    let mut app = Headless::new(Test::default());
+    app.click("Field").type_text("abc").key(Key::LEFT).key(Key::LEFT);
+    // The caret was inside the two-byte character's bytes.
+    app.program.replace = true;
+    app.frame().type_text("x");
+    assert_eq!(app.program.text, "x\u{e9}");
+}
+
+#[test]
+fn the_wheel_over_a_menu_leaves_the_list_under_it_alone() {
+    let mut app = Headless::new(Test::default());
+    let at = Point::new(999.0, STATS + 450.0);
+    app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
+    assert_eq!(app.ui.popup_name(), Some("Context"));
+    let over = app.target("Context/First").center();
+    assert!(app.target("Beneath").contains(over), "the menu opens over the list");
+    app.scroll_point(over, -2.0);
+    assert!(app.has_target("Beneath/0"), "the list didn't scroll under the menu");
+    app.key(Key::ESCAPE);
+    app.scroll_point(over, -2.0);
+    assert!(!app.has_target("Beneath/0"), "the list scrolls once the menu is gone");
+}
+
+#[test]
+fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
+    let mut app = Headless::new(Test::default());
+    app.scroll("Number", 1.0);
+    assert_eq!(app.program.number, 0, "without focus");
+    app.click("Number").scroll("Check", 1.0);
+    assert_eq!(app.program.number, 0, "with the pointer elsewhere");
+    app.scroll("Number", 1.0);
+    assert_eq!(app.program.number, 1);
+}
+

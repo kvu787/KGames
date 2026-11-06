@@ -4,7 +4,6 @@
 // commands; notices under it; a status bar along the bottom with shortcuts
 // and status; and the page between them, where the cards go.
 
-use crate::application::performance::{LatencyState, WINDOW_SECONDS};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
@@ -179,58 +178,20 @@ impl Ui {
     // readings to the screen with its parts, and how frames reach the
     // screen. The main loop draws them every frame; programs don't.
     pub(crate) fn stats_bar(&mut self) {
-        let Some(performance) = &self.performance else {
+        // Out of self while the painter borrows it, and back after: the
+        // summary's words are made a few times a second, not copied here
+        // every frame.
+        let Some(performance) = self.performance.take() else {
             return;
         };
-        let summary = performance.summary().clone();
+        let summary = performance.summary();
         let bar = Rect::new(0.0, 0.0, self.size().width, STATS_BAR_HEIGHT);
         let theme = self.theme();
         let (background, fill, divider, label, value) =
             (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
         self.cover(bar);
-
-        let window = WINDOW_SECONDS;
-        let mut items: Vec<(&str, String)> = Vec::new();
-        if summary.frames_per_second > 0.0 {
-            items.push((
-                "Frames",
-                format!(
-                    "{:.0} a second, {:.2} ms each, the longest {:.2} ms",
-                    summary.frames_per_second, summary.frame_time, summary.longest_frame
-                ),
-            ));
-        }
-        let mut mode = String::new();
-        match &summary.latency {
-            LatencyState::Unavailable(reason) => items.push(("Input to screen", reason.clone())),
-            LatencyState::Starting => items.push(("Input to screen", "starting".to_string())),
-            LatencyState::Measuring => {
-                items.push(("On screen", format!("{:.0} frames a second", summary.displayed_per_second)));
-                if summary.samples == 0 {
-                    items.push(("Input to screen", format!("no input in the last {window:.0} seconds")));
-                } else {
-                    items.push((
-                        "Input to screen",
-                        format!(
-                            "{:.2} ms median, {:.2} ms 99th percentile, of {} frames in {window:.0} seconds",
-                            summary.median, summary.percentile_99, summary.samples
-                        ),
-                    ));
-                    items.push((
-                        "Medians",
-                        format!(
-                            "waiting {:.2} ms, building {:.2} ms, presenting {:.2} ms",
-                            summary.waiting, summary.building, summary.presenting
-                        ),
-                    ));
-                }
-                mode = summary.mode.name().to_string();
-                if summary.tearing {
-                    mode += ", tearing";
-                }
-            }
-        }
-
+        let (items, mode) = (&summary.lines, &summary.mode_text);
+        {
         let mut painter = self.painter();
         // Opaque, even over a 3D view.
         painter.fill(bar, background);
@@ -240,14 +201,16 @@ impl Ui {
             painter.text_in(Rect::new(x, bar.y, (bar.right() - x).max(0.0), bar.height), text, CAPTION, color, Align::Start).right()
         };
         let mut x = PAGE_PADDING;
-        for (name, item) in &items {
+        for (name, item) in items {
             x = text(&mut painter, x, name, label) + SPACE_S;
             x = text(&mut painter, x, item, value) + SPACE_XXL;
         }
         if !mode.is_empty() {
-            let width = painter.measure(&mode, CAPTION).width;
-            text(&mut painter, bar.right() - PAGE_PADDING - width, &mode, label);
+            let width = painter.measure(mode, CAPTION).width;
+            text(&mut painter, bar.right() - PAGE_PADDING - width, mode, label);
         }
+        }
+        self.performance = Some(performance);
     }
 
     // What the window shows instead of the program in a setup that programs

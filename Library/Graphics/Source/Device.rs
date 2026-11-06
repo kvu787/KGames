@@ -18,6 +18,74 @@ pub enum AdapterChoice {
     Warp,
 }
 
+// Where the GPU's scheduler puts the process's work among other processes'.
+// Windows' job objects can't limit the GPU, so a process that must stay out
+// of a game's way lowers its own priority: RunLightly asks for Idle through
+// KGAMES_GPU_PRIORITY, which Gpu::new reads, for coding agents' tests and
+// test runs while someone plays a game, whose frames then go first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GpuPriority {
+    Idle,
+    BelowNormal,
+    Normal,
+    AboveNormal,
+    High,
+}
+
+impl GpuPriority {
+    // The priority of the name, like "Idle".
+    pub fn from_name(name: &str) -> Option<GpuPriority> {
+        match name {
+            "Idle" => Some(GpuPriority::Idle),
+            "BelowNormal" => Some(GpuPriority::BelowNormal),
+            "Normal" => Some(GpuPriority::Normal),
+            "AboveNormal" => Some(GpuPriority::AboveNormal),
+            "High" => Some(GpuPriority::High),
+            _ => None,
+        }
+    }
+
+    // What KGAMES_GPU_PRIORITY asks for, or Normal when it's unset.
+    pub fn from_environment() -> Result<GpuPriority> {
+        match std::env::var("KGAMES_GPU_PRIORITY") {
+            Err(_) => Ok(GpuPriority::Normal),
+            Ok(value) => GpuPriority::from_name(&value).ok_or_else(|| {
+                Error::new(
+                    E_INVALIDARG,
+                    format!("KGAMES_GPU_PRIORITY must be Idle, BelowNormal, Normal, AboveNormal or High, not {value}"),
+                )
+            }),
+        }
+    }
+
+    fn class(self) -> D3DKMT_SCHEDULINGPRIORITYCLASS {
+        match self {
+            GpuPriority::Idle => D3DKMT_SCHEDULINGPRIORITYCLASS_IDLE,
+            GpuPriority::BelowNormal => D3DKMT_SCHEDULINGPRIORITYCLASS_BELOW_NORMAL,
+            GpuPriority::Normal => D3DKMT_SCHEDULINGPRIORITYCLASS_NORMAL,
+            GpuPriority::AboveNormal => D3DKMT_SCHEDULINGPRIORITYCLASS_ABOVE_NORMAL,
+            GpuPriority::High => D3DKMT_SCHEDULINGPRIORITYCLASS_HIGH,
+        }
+    }
+}
+
+// Sets where the GPU's scheduler puts this process's work, for every device
+// it has and makes. Raising it above Normal needs a privilege that only
+// administrators have.
+pub fn set_gpu_priority(priority: GpuPriority) -> Result<()> {
+    unsafe { D3DKMTSetProcessSchedulingPriorityClass(GetCurrentProcess(), priority.class()) }.ok()
+}
+
+// Where the GPU's scheduler puts this process's work now.
+pub fn gpu_priority() -> Result<GpuPriority> {
+    let mut class = D3DKMT_SCHEDULINGPRIORITYCLASS_NORMAL;
+    unsafe { D3DKMTGetProcessSchedulingPriorityClass(GetCurrentProcess(), &mut class) }.ok()?;
+    Ok([GpuPriority::Idle, GpuPriority::BelowNormal, GpuPriority::Normal, GpuPriority::AboveNormal, GpuPriority::High]
+        .into_iter()
+        .find(|priority| priority.class() == class)
+        .unwrap_or(GpuPriority::Normal))
+}
+
 pub struct Gpu {
     pub factory: IDXGIFactory6,
     pub adapter: IDXGIAdapter1,
@@ -39,6 +107,12 @@ pub struct Gpu {
 
 impl Gpu {
     pub fn new(choice: AdapterChoice) -> Result<Self> {
+        // Before the device, so that the GPU's scheduler has the priority
+        // for all of the process's devices.
+        let priority = GpuPriority::from_environment()?;
+        if priority != GpuPriority::Normal {
+            set_gpu_priority(priority)?;
+        }
         unsafe {
             let debug = cfg!(debug_assertions) && enable_debug_layer();
             let flags = if debug { DXGI_CREATE_FACTORY_DEBUG as u32 } else { 0 };
@@ -89,6 +163,12 @@ impl Gpu {
                 info_queue,
             })
         }
+    }
+
+    // The fence that `signal` has the queue signal, for what waits on its
+    // own, like the presenter as it goes.
+    pub(crate) fn fence(&self) -> ID3D12Fence {
+        self.fence.clone()
     }
 
     // Has the queue signal the fence once the GPU finishes all the work

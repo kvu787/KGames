@@ -118,6 +118,10 @@ impl Ui {
                 painter.text_wrapped(message, dialog.message, BODY, theme.text_primary);
             }
         }
+        // Whether a popup, like a combo box's list in the content, was open
+        // as the frame began: it takes this frame's Enter, even if it closes
+        // on it.
+        let popup_open = self.any_popup();
         if content_height > 0.0 {
             let top = rect.y + DIALOG_PADDING + title_height + gap(message_height + content_height) + message_height + gap(content_height);
             content(self, Rect::new(rect.x + DIALOG_PADDING, top, inner, content_height));
@@ -157,7 +161,15 @@ impl Ui {
         if self.dialog_escape() {
             chosen = Some(DialogResult::Close);
         }
-        if chosen.is_none() && dialog.default.is_some() && self.input().key_pressed_once(Key::ENTER) && self.focused_name().is_none_or(|focused| !focused.starts_with(name)) {
+        // Enter is the default button's, unless one of the dialog's own
+        // widgets has focus, or a popup is open, like a combo box's list in
+        // the dialog's content, which takes it.
+        if chosen.is_none()
+            && dialog.default.is_some()
+            && !popup_open
+            && self.input().key_pressed_once(Key::ENTER)
+            && self.focused_name().is_none_or(|focused| !focused.starts_with(name))
+        {
             chosen = dialog.default;
         }
         self.draw.pop_clip();

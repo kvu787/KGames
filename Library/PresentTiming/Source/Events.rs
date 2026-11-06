@@ -136,6 +136,18 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
             alloc: read(data, 36, 8)?,
         }
     } else {
+        // Finding an event's fields is most of the cost of decoding, and
+        // the providers send events that aren't read, so those go first.
+        let read = matches!(
+            (provider, id),
+            (DXGI, 0x2A | 0x37 | 0x2B | 0x38)
+                | (WIN32K, 0xC9 | 0x12D)
+                | (DXGKRNL, 0xAB | 0xD7 | 0xAC | 0xB2 | 0xB4 | 0xB8 | 0xA8 | 0xFC | 0x10A | 0x74 | 0x103 | 0x11 | 0x111 | 0x17E)
+                | (DWM, 0x0F | 0x40 | 0xC4)
+        );
+        if !read {
+            return None;
+        }
         let fields = decoder.fields(record)?;
         match (provider, id) {
             (DXGI, 0x2A | 0x37) => Kind::PresentStart {

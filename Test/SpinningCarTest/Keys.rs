@@ -6,11 +6,10 @@
 use std::f32::consts::FRAC_PI_2;
 
 use spinning_car_test::controls::toggles_stationary;
-use spinning_car_test::info_card;
 use spinning_car_test::scene::car_placement;
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
-use user_interface::{Event, Headless, Input, Key, Modifiers};
+use user_interface::{Event, Headless, InfoCard, Input, Key, Modifiers};
 
 fn car() -> Headless<SpinningCar> {
     Headless::new(SpinningCar::new(SceneSettings::default()))
@@ -34,14 +33,14 @@ fn s_keeps_the_car_in_the_middle_and_lets_it_move() {
 fn f1_hides_and_shows_the_card() {
     let mut app = car();
     assert!(app.program.text_shown);
-    assert_eq!(app.label(info_card::NAME).as_deref(), Some("Spinning Car Test"));
+    assert_eq!(app.label(InfoCard::NAME).as_deref(), Some("Spinning Car Test"));
     app.key(Key::F1);
     assert!(!app.program.text_shown);
-    assert!(!app.has_target(info_card::NAME));
+    assert!(!app.has_target(InfoCard::NAME));
     // With Ctrl too.
     app.key_with(Modifiers::CONTROL, Key::F1);
     assert!(app.program.text_shown);
-    assert!(app.has_target(info_card::NAME));
+    assert!(app.has_target(InfoCard::NAME));
 }
 
 #[test]
@@ -52,7 +51,7 @@ fn f11_switches_between_maximized_and_borderless_fullscreen() {
     assert!(app.fullscreen());
     assert_eq!(app.ui.size().height, 1440.0);
     // The card stays at the bottom left.
-    assert_eq!(app.target(info_card::NAME).bottom(), 1440.0 - 16.0);
+    assert_eq!(app.target(InfoCard::NAME).bottom(), 1440.0 - 16.0);
     app.key(Key::F11);
     assert!(!app.fullscreen());
     assert!(app.program.text_shown);
@@ -71,14 +70,14 @@ fn holding_a_key_down_does_not_do_it_again() {
         ],
     );
     assert!(toggles_stationary(&input));
-    assert!(info_card::toggled(&input));
+    assert!(InfoCard::toggled(&input));
     // Windows repeats a held key.
     input.begin(
         0.5,
         &[Event::KeyPressed { key: Key::S, repeat: true }, Event::KeyPressed { key: Key::F1, repeat: true }],
     );
     assert!(!toggles_stationary(&input));
-    assert!(!info_card::toggled(&input));
+    assert!(!InfoCard::toggled(&input));
 
     let mut app = car();
     app.hold(Key::S).wait(1.0).release_key(Key::S);

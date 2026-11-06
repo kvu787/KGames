@@ -346,3 +346,23 @@ fn save_writes_only_what_changed() {
     let vehicles = std::fs::read_to_string(saves.join("Vehicles.json")).unwrap();
     assert!(vehicles.contains("\"Forward\": 12.0"), "{vehicles}");
 }
+
+// Undo during a held drag takes the picked decoration away, and the pick
+// goes with it, instead of indexing past the decorations that are left.
+#[test]
+fn undo_during_a_drag_drops_the_pick() {
+    let mut app = start("UndoDrag");
+    app.click("Mode/Scene");
+    app.click("Scene/AddDecoration");
+    assert_eq!(app.program.game.current_scene().decorations.len(), 2);
+    let added = app.program.game.current_scene().decorations[1].pose.position;
+    look_at(&mut app, added);
+    let at = screen(&app, added);
+    app.press_point(at);
+    assert_eq!(app.program.scene_editor.picked, Some(Picked::Decoration(1)));
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.game.current_scene().decorations.len(), 1);
+    assert_eq!(app.program.scene_editor.picked, None);
+    app.move_point(offset(at, 30.0, 0.0)).release();
+    assert_eq!(app.program.game.current_scene().decorations.len(), 1);
+}

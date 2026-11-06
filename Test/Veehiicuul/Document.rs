@@ -165,3 +165,14 @@ fn settings_name_the_scene_vehicle_camera_and_dead_zones() {
     assert!(settings.problems().is_empty(), "{:?}", settings.problems());
     assert_eq!((read.scene.as_str(), read.vehicle.as_str(), read.follow), ("Ribeye", "Yellow", false));
 }
+
+// A color's channels are two hex digits each, with no sign or space.
+#[test]
+fn colors_are_hex_digits_only() {
+    assert_eq!(files::parse_color("#1CDA61"), Some([0x1C, 0xDA, 0x61]));
+    assert_eq!(files::parse_color("#1cda61"), Some([0x1C, 0xDA, 0x61]));
+    for bad in ["#+1+2+3", "#1CDA6", "#1CDA611", "1CDA61 ", "#1CDA6G", "# 1DA61"] {
+        assert_eq!(files::parse_color(bad), None, "{bad:?}");
+    }
+    assert_eq!(files::color_text([0x1C, 0xDA, 0x61]), "#1CDA61");
+}

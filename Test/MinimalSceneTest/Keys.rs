@@ -2,10 +2,9 @@
 // and hides the card, F11 switches between maximized and borderless
 // fullscreen, and holding a key down doesn't do it again.
 
-use minimal_scene_test::info_card;
 use minimal_scene_test::moving_sphere::MovingSphere;
 use minimal_scene_test::settings::SceneSettings;
-use user_interface::{Event, Headless, Input, Key, Modifiers};
+use user_interface::{Event, Headless, InfoCard, Input, Key, Modifiers};
 
 fn sphere() -> Headless<MovingSphere> {
     Headless::new(MovingSphere::new(SceneSettings::default()))
@@ -15,14 +14,14 @@ fn sphere() -> Headless<MovingSphere> {
 fn f1_hides_and_shows_the_card() {
     let mut app = sphere();
     assert!(app.program.text_shown);
-    assert_eq!(app.label(info_card::NAME).as_deref(), Some("Minimal Scene Test"));
+    assert_eq!(app.label(InfoCard::NAME).as_deref(), Some("Minimal Scene Test"));
     app.key(Key::F1);
     assert!(!app.program.text_shown);
-    assert!(!app.has_target(info_card::NAME));
+    assert!(!app.has_target(InfoCard::NAME));
     // With Ctrl too.
     app.key_with(Modifiers::CONTROL, Key::F1);
     assert!(app.program.text_shown);
-    assert!(app.has_target(info_card::NAME));
+    assert!(app.has_target(InfoCard::NAME));
 }
 
 #[test]
@@ -33,7 +32,7 @@ fn f11_switches_between_maximized_and_borderless_fullscreen() {
     assert!(app.fullscreen());
     assert_eq!(app.ui.size().height, 1440.0);
     // The card stays at the bottom left.
-    assert_eq!(app.target(info_card::NAME).bottom(), 1440.0 - 16.0);
+    assert_eq!(app.target(InfoCard::NAME).bottom(), 1440.0 - 16.0);
     app.key(Key::F11);
     assert!(!app.fullscreen());
     assert!(app.program.text_shown);
@@ -43,10 +42,10 @@ fn f11_switches_between_maximized_and_borderless_fullscreen() {
 fn holding_f1_down_does_not_show_and_hide_the_card_again() {
     let mut input = Input::default();
     input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed { key: Key::F1, repeat: false }]);
-    assert!(info_card::toggled(&input));
+    assert!(InfoCard::toggled(&input));
     // Windows repeats a held key.
     input.begin(0.5, &[Event::KeyPressed { key: Key::F1, repeat: true }]);
-    assert!(!info_card::toggled(&input));
+    assert!(!InfoCard::toggled(&input));
 
     let mut app = sphere();
     app.hold(Key::F1).wait(1.0).release_key(Key::F1);

@@ -4,10 +4,6 @@
 
 #[path = "Controls.rs"]
 pub mod controls;
-#[path = "Depth.rs"]
-pub mod depth;
-#[path = "InfoCard.rs"]
-pub mod info_card;
 #[path = "Scene.rs"]
 pub mod scene;
 #[path = "Settings.rs"]

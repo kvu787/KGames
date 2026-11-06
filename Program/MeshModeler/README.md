@@ -42,7 +42,7 @@ theme, ignores input without focus, and supports the two
 | `1`, `2`, `3`          | Vertex, edge or face mode, which converts the selection                       |
 | `A`, `Alt+A`, `Ctrl+I` | Selects all, none, or the inverse                                             |
 | `G`, `R`, `S`          | Moves, rotates or scales the selection with the pointer                       |
-| `E`                    | Extrudes the selected faces, or edges, and moves them along their normal      |
+| `E`                    | Extrudes the selected faces along their normal, or edges, which move freely   |
 | `I`                    | Insets the selected faces as a region, as far as the pointer moves in         |
 | `Ctrl+R`               | The Loop cut tool: click an edge to cut the loop across it                    |
 | `P`, `Q`               | The Paint tool, which paints the faces it drags over, and the Select tool     |
