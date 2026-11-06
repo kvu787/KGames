@@ -80,7 +80,7 @@ impl<P: Program> Headless<P> {
     }
 
     // A program in a window of the size, like an overlay, which has no
-    // performance stats.
+    // PerfBar.
     pub fn with_size(program: P, theme: ThemeKind, size: Size) -> Self {
         let mut headless = Self::with_theme(program, theme);
         headless.custom_size = Some(size);

@@ -1,4 +1,4 @@
-// Tests the input latency that the performance stats show: from when
+// Tests the input latency that the PerfBar shows: from when
 // GameInput got a frame's newest input to when the display took the frame,
 // with its parts, and how frames that never reach the screen pass their input
 // on, as PresentMon's input latency does. The presents' fates are made up,

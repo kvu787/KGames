@@ -172,8 +172,8 @@ the window's focus changes between them. The window's messages bring none of it.
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
-  started it as, and the [performance stats](#performance-stats) say which. A program's own command
-  for it calls `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
+  started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
+  `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
 - `F11` switches between maximized and borderless fullscreen.
 - With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
@@ -193,10 +193,10 @@ In any other setup, the window says what's wrong instead of showing the program.
 whenever the window moves or changes size, or the displays, the scale or the taskbar change.
 
 The top `PERF_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
-[performance stats](#performance-stats). The program has the rest, `ui.bounds()`, which starts at
+[PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at
 `ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
 areas, which leaves the program 2560 × 1339 maximized and 2560 × 1410 in borderless fullscreen;
-they differ by 71 pixels of height. A 3D view may still fill the window, under the stats.
+they differ by 71 pixels of height. A 3D view may still fill the window, under the PerfBar.
 
 ## Settings and the command line
 
@@ -250,11 +250,11 @@ measure, so the ETW session that every process's presents would go through isn't
 RunLightly, which RunInBackground runs through, also has the process put its GPU work after other
 processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 
-## Performance stats
+## PerfBar
 
-Every program's window shows its performance along its top (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`),
-the frames over the last second and the input latency over the last 2 seconds, and changes what
-it says 4 times a second:
+Every program's window shows its performance along its top, in the PerfBar
+(`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second and
+the input latency over the last 2 seconds. It changes what it says 4 times a second:
 
 | Stat              | What it is                                                                                      |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
@@ -264,11 +264,11 @@ it says 4 times a second:
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
-The bar is set in Cascadia Mono, `PERF_BAR_TEXT`, black on white, as large as fits above its
+The PerfBar is set in Cascadia Mono, `PERF_BAR_TEXT`, black on white, as large as fits above its
 divider, in fields whose widths never change, so that every label and value stays in the same
 place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
 latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
-Without input latency, the bar says why between `Input to screen` and `Mode`.
+Without input latency, the PerfBar says why between `Input to screen` and `Mode`.
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:
@@ -301,7 +301,7 @@ starts to show anywhere.
 
 Reading Windows' events about presents needs an elevated administrator, or the
 **Performance Log Users** group (see [Library/PresentTiming](../PresentTiming/README.md#privileges)).
-Without either, the stats say that input latency needs the group. A scripted run, or a test, has
+Without either, the PerfBar says that input latency needs the group. A scripted run, or a test, has
 no input latency.
 
 ## Testing
@@ -378,7 +378,7 @@ folder, through `startup.data_folder`.
 | `Source/Application/Run.rs`         | The main loop                                                               |
 | `Source/Application/Settings.rs`    | `Settings.json`                                                             |
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
-| `Source/Application/Performance.rs` | The performance stats, and the input latency from GameInput to the screen   |
+| `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
 | `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
 | `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
 | `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |

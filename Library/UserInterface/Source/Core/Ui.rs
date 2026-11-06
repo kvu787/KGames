@@ -209,8 +209,8 @@ pub(crate) enum Request {
     Close,
 }
 
-// The frame rate, as the performance stats along the top of the window say
-// it: over the last second, refreshed four times a second.
+// The frame rate, as the PerfBar along the top of the window measures it:
+// over the last second, refreshed four times a second.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameStats {
     pub frames_per_second: f32,
@@ -295,7 +295,7 @@ pub struct Ui {
     pub(crate) notices: Vec<Notice>,
     pub(crate) page_top: f32,
     pub(crate) page_bottom: f32,
-    // The performance stats along the top of the window, which every
+    // What the PerfBar along the top of the window shows, which every
     // program's window has, and overlays don't.
     pub(crate) performance: Option<crate::application::performance::Performance>,
 }
@@ -517,14 +517,14 @@ impl Ui {
     }
 
     // The part of the client area that the program has: all of it, under the
-    // performance stats along its top.
+    // PerfBar along its top.
     pub fn bounds(&self) -> Rect {
         let top = self.content_top();
         Rect::new(0.0, top, self.size.width, (self.size.height - top).max(0.0))
     }
 
-    // Where the program's part of the window starts: under the performance
-    // stats, PERF_BAR_HEIGHT pixels down, or at the top in an overlay.
+    // Where the program's part of the window starts: under the PerfBar,
+    // PERF_BAR_HEIGHT pixels down, or at the top in an overlay.
     pub fn content_top(&self) -> f32 {
         if self.performance.is_some() { crate::design::tokens::PERF_BAR_HEIGHT } else { 0.0 }
     }
@@ -567,8 +567,8 @@ impl Ui {
         self.frame
     }
 
-    // The frame rate, from the performance stats, so that a program's own
-    // card says what the bar along the top says. Zero without them.
+    // The frame rate, as the PerfBar measures it, so that a program's own
+    // card agrees with the PerfBar. Zero without it.
     pub fn stats(&self) -> FrameStats {
         match &self.performance {
             Some(performance) => {

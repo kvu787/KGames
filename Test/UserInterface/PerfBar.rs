@@ -1,7 +1,7 @@
-// Tests what the performance stats bar says: every label and value stays in
-// the same columns whatever the stats are, starting, without input latency,
-// or measuring it, with small numbers or large, and numbers that aren't
-// known yet are dashes.
+// Tests what the PerfBar says: every label and value stays in the same
+// columns whatever the stats are, starting, without input latency, or
+// measuring it, with small numbers or large, and numbers that aren't known
+// yet are dashes.
 
 use present_timing::{Present, PresentMode};
 use user_interface::clock;

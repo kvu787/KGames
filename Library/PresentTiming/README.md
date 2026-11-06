@@ -51,7 +51,7 @@ fullscreen flips only as far as DWM's own frames need, never as a mode of the pr
 
 Starting an ETW session with these providers needs an elevated administrator, or membership in
 the **Performance Log Users** group. Without either, `PresentTiming::start` fails with
-`StartError::AccessDenied`, and the programs' performance stats say so. To join the group, once,
+`StartError::AccessDenied`, and the programs' PerfBars say so. To join the group, once,
 from an elevated PowerShell, then sign out and back in:
 
 ```powershell

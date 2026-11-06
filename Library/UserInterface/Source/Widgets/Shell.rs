@@ -1,6 +1,6 @@
-// The page that every program's window shows: the performance stats along
-// the very top, which the library draws; an app bar under them, as tall as
-// WinUI's TitleBar control, with the program's icon, title and its own
+// The page that every program's window shows: the PerfBar along the very
+// top, which the library draws; an app bar under it, as tall as WinUI's
+// TitleBar control, with the program's icon, title and its own
 // commands; notices under it; a status bar along the bottom with shortcuts
 // and status; and the page between them, where the cards go.
 
@@ -174,13 +174,12 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 }
 
 impl Ui {
-    // Draws the performance stats along the top of the window: the frames
-    // a second, the input latency's median from GameInput's readings to the
-    // screen, and at the right, how frames reach the screen and whether they
-    // wait for vertical sync. They're set in Cascadia Mono, black on white,
-    // in fields whose widths never change, so that every label and value
-    // stays in the same columns. The main loop draws them every frame;
-    // programs don't.
+    // Draws the PerfBar along the top of the window: the frames a second,
+    // the input latency's median from GameInput's readings to the screen,
+    // and at the right, how frames reach the screen and whether they wait for
+    // vertical sync, set in Cascadia Mono, black on white, in fields whose
+    // widths never change, so that every label and value stays in the same
+    // columns. The main loop draws it every frame; programs don't.
     pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made a few times a second, not copied here
@@ -227,12 +226,12 @@ impl Ui {
     }
 }
 
-// The stats bar's text, as runs of labels and values.
+// The PerfBar's text, as runs of labels and values.
 fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> + Clone {
     runs.iter().map(|run| (run.text.as_str(), run.value))
 }
 
-// The stats bar's columns, each a character of Cascadia Mono wide, from the
+// The PerfBar's columns, each a character of Cascadia Mono wide, from the
 // bar's padding, and its text's color.
 struct PerfBarGrid {
     advance: f32,

@@ -1,4 +1,4 @@
-// What the performance stats along the top of every program's window say:
+// What the PerfBar along the top of every program's window measures:
 // how fast frames come, how fast the display shows them, and the input
 // latency, from when GameInput got the input that a frame took to when the
 // display took that frame, all on the performance counter's clock:
@@ -26,13 +26,13 @@ use crate::platform::clock;
 
 // The stats are of this many seconds before now.
 pub const WINDOW_SECONDS: f64 = 2.0;
-// How often what the stats say changes, so that it can be read.
+// How often what the PerfBar says changes, so that it can be read.
 const REFRESH_SECONDS: f64 = 0.25;
 // How far before its Present call's start a frame's own present time can be,
 // to be the same present.
 const MATCH_SECONDS: f64 = 0.005;
 
-// The stats bar's fields' widths, in characters: frames a second, times in
+// The PerfBar's fields' widths, in characters: frames a second, times in
 // milliseconds with two decimals, and the present mode, as wide as the
 // longest mode's name, "Independent flip".
 const RATE_WIDTH: usize = 5;
@@ -63,7 +63,7 @@ pub struct Sample {
     pub presenting: f64,
 }
 
-// What the stats say about input latency.
+// What the PerfBar says about input latency.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum LatencyState {
     // Before the first frame's present is known.
@@ -74,7 +74,7 @@ pub enum LatencyState {
     Measuring,
 }
 
-// What the performance stats show, which changes a few times a second.
+// What the PerfBar shows, which changes a few times a second.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Summary {
     pub frames_per_second: f64,
@@ -95,7 +95,7 @@ pub struct Summary {
     // How the newest frame on the screen got there.
     pub mode: PresentMode,
     pub tearing: bool,
-    // What the stats bar says, made here when the summary is, a few times a
+    // What the PerfBar says, made here when the summary is, a few times a
     // second, not every frame: the runs along its left, those along its
     // right, which the bar ends with whether vertical sync is on, and why
     // there's no input latency, if there isn't, between them.
@@ -104,10 +104,11 @@ pub struct Summary {
     pub note: Vec<Run>,
 }
 
-// A run of the stats bar's text, which the bar sets in Cascadia Mono, whose
-// characters are all as wide: a label, or a value. Every run is as many characters wide whatever the stats are,
-// numbers right-aligned in their fields and a dash for one that isn't known,
-// so that every label and value stays in the same columns.
+// A run of the PerfBar's text, which the bar sets in Cascadia Mono, whose
+// characters are all as wide: a label, or a value. Every run is as many
+// characters wide whatever the stats are, numbers right-aligned in their
+// fields and a dash for one that isn't known, so that every label and value
+// stays in the same columns.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Run {
     pub text: String,
@@ -150,7 +151,7 @@ fn words(value: Option<&str>, width: usize) -> String {
 }
 
 impl Summary {
-    // Words the stats bar.
+    // Words the PerfBar.
     fn word(&mut self) {
         let frames = self.frames_per_second > 0.0;
         let measuring = self.latency == LatencyState::Measuring;
@@ -276,8 +277,8 @@ impl Performance {
         }
     }
 
-    // Takes what's known about presents, and refreshes what the stats say,
-    // a few times a second, at a time on the frames' clock, in seconds.
+    // Takes what's known about presents, and refreshes what the PerfBar
+    // says, a few times a second, at a time on the frames' clock, in seconds.
     pub fn update(&mut self, time: f64) {
         if let Source::Timing(timing) = &mut self.source {
             let presents = timing.take();

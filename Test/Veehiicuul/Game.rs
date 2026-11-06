@@ -288,7 +288,7 @@ fn the_view_draws_the_scene_under_the_interface() {
     let background = count(&image, scene.background);
     let road = count(&image, scene.track.road_color);
     assert!(background > total / 5 && road > total / 20, "{background} and {road} of {total}");
-    // The app bar, under the performance stats, is opaque over it.
+    // The app bar, under the PerfBar, is opaque over it.
     let bar = image.pixel(1000, (PERF_BAR_HEIGHT + APP_BAR_HEIGHT / 2.0) as u32);
     assert!(bar[0] > 240 && bar[1] > 240 && bar[2] > 240, "{bar:?}");
     // The Vehicles tab shows the yellow car, big, in the middle of the

@@ -106,8 +106,8 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
         assert_eq!((image.width, image.height), (WINDOW_WIDTH as u32, height as u32));
 
-        // The background, at the top right corner under the performance
-        // stats, which nothing covers.
+        // The background, at the top right corner under the PerfBar, which
+        // nothing covers.
         let corner = (2550, PERF_BAR_HEIGHT as u32 + 10);
         assert!(close(image.pixel(corner.0, corner.1), background), "{:?}", image.pixel(corner.0, corner.1));
         // The sphere, in its dark blue, under the light at its middle.

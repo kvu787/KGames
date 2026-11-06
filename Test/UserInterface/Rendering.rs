@@ -1,7 +1,7 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
-// a standard button's elevation border, whether the performance stats say
-// that vertical sync is on, and the page for an unsupported setup.
+// a standard button's elevation border, whether the PerfBar says that
+// vertical sync is on, and the page for an unsupported setup.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
@@ -78,7 +78,7 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
 fn the_perf_bar_says_whether_vertical_sync_is_on() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(Page);
-    // A second of frames, so that the stats have a frame rate to show.
+    // A second of frames, so that the PerfBar has a frame rate to show.
     app.wait(1.0);
     let on = app.render(&mut gpu).unwrap();
     app.key(Key::F10);

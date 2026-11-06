@@ -330,7 +330,7 @@ fn a_tooltip_stays_in_the_window_off_the_pointer() {
                 for pointer in [Point::new(row.x + 1.0, row.center().y), Point::new(row.right() - 1.0, row.center().y)] {
                     let (_, area) = rest(&mut app, pointer).unwrap();
                     // The program's part of the window, under the
-                    // performance stats.
+                    // PerfBar.
                     let top = PERF_BAR_HEIGHT;
                     assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= top, "{nodes} nodes, {pointer:?}: {area:?}");
                     // A deep device's tooltip, though wider than WinUI's, can

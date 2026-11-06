@@ -10,7 +10,7 @@ use user_interface::{
     Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
 };
 
-// Where the program's part of the window starts, under the performance stats.
+// Where the program's part of the window starts, under the PerfBar.
 const PERF_BAR: f32 = user_interface::tokens::PERF_BAR_HEIGHT;
 
 const MENU: &[MenuItem] = &[MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", RECENT)];
@@ -53,7 +53,7 @@ impl Program for Test {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        // Under the performance stats.
+        // Under the PerfBar.
         let top = ui.content_top();
         if ui.key_pressed(Key::A) {
             self.shortcut += 1;
@@ -380,7 +380,7 @@ impl Program for Ported {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        // Under the performance stats.
+        // Under the PerfBar.
         let top = ui.content_top();
         ui.set_focusable(false);
         ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
