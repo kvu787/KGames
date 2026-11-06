@@ -20,6 +20,10 @@ path = "Selection.rs"
 name = "Editing"
 path = "Editing.rs"
 
+[[test]]
+name = "Subdivision"
+path = "Subdivision.rs"
+
 [dependencies]
 math = { path = "../../Library/Math" }
 polygon_mesh = { path = "../../Library/PolygonMesh" }

@@ -52,6 +52,7 @@ them, and returns the selection that results.
 |               | `merge_at_center`, `merge_by_distance`, `subdivide_faces`, `loop_cut`,               |
 |               | `flip_faces`, `recalculate_normals_outside`, `crease_edges`, `assign_material`,      |
 |               | all methods of `Mesh`                                                                |
+| Subdivision   | `Mesh::catmull_clark`, `SubdivisionSurface`'s `mesh` and `base_faces`                |
 
 ## Topology
 
@@ -157,3 +158,90 @@ Blender leaves it, and the others leave the selection as it was.
   the ring are cut the same way along, from their ends beside it.
 - **Wire edges.** A mesh has no edges without faces, so where Blender would leave one, like after
   `delete_only_faces`, the vertices stay but the edge doesn't.
+
+## Subdivision
+
+`Mesh::catmull_clark(levels)` subdivides the mesh into a `SubdivisionSurface`: the subdivided
+`mesh`, and for each of its faces, the base face that it comes from, in `base_faces`, for
+picking and drawing what's selected. It's Catmull-Clark subdivision, the Catmark scheme as
+[OpenSubdiv](https://graphics.pixar.com/opensubdiv/docs/subdivision_surfaces.html) defines it,
+with boundary interpolation `VTX_BOUNDARY_EDGE_AND_CORNER` and uniform creasing.
+
+Each level turns a face of n vertices into n quads, one at each corner, from the corner to the
+point of its edge after it, the face's point, and the point of its edge before it, so after one
+level every face is a quad, triangles and n-gons too. The quads keep their face's material, and
+come in their face's order. The base mesh's vertices keep their numbers at every level, then
+come the points of the edges, in `Topology`'s order, then the points of the faces. Loose
+vertices stay where they are.
+
+### Points
+
+A face's point is the average of its n vertices:
+
+$$
+F = \frac{1}{n} \sum_{i=1}^{n} v_i
+$$
+
+An edge from a to b, between faces whose points are $F_1$ and $F_2$, has a smooth point and a
+sharp one:
+
+$$
+E_{\text{smooth}} = \frac{a + b + F_1 + F_2}{4} \qquad E_{\text{sharp}} = \frac{a + b}{2}
+$$
+
+A vertex S with n edges, to $e_1$ to $e_n$, and n faces, whose points are $F_1$ to $F_n$, moves
+by one of three masks: smooth, crease, along its two sharp edges, to $e_a$ and $e_b$, or corner:
+
+$$
+V_{\text{smooth}} = \frac{n - 2}{n} S + \frac{1}{n^2} \sum_{j=1}^{n} e_j + \frac{1}{n^2} \sum_{j=1}^{n} F_j
+$$
+
+$$
+V_{\text{crease}} = \frac{e_a + 6 S + e_b}{8} \qquad V_{\text{corner}} = S
+$$
+
+Which mask is the vertex's rule, from how many of its edges are sharp:
+
+| Sharp edges at the vertex                 | Rule   | Mask   |
+| ----------------------------------------- | ------ | ------ |
+| None                                      | Smooth | Smooth |
+| 1                                         | Dart   | Smooth |
+| 2                                         | Crease | Crease |
+| 3 or more, or the vertex is sharp itself  | Corner | Corner |
+
+### Sharpness
+
+An edge is sharp when its sharpness is more than 0, and smooth at 0. Boundary edges, with one
+face, are infinitely sharp, and so are non-manifold ones, whatever their creases say. A vertex is
+infinitely sharp, a corner, when it's on the boundary with only one face, which on a manifold is
+a boundary vertex of 2 edges, like a plane's corners, so they stay put. Vertices where the
+surface isn't a manifold are corners too: on a non-manifold edge, on two stretches of boundary,
+or with faces that don't make one fan around them.
+
+Each level, both halves of an edge get its sharpness less 1, and infinitely sharp edges, of
+sharpness `INFINITELY_SHARP` or more, stay infinitely sharp:
+
+$$
+s' = \max(s - 1, 0)
+$$
+
+So a crease of sharpness s is sharp for about s levels, and then smooth. Between, the rules
+blend, as OpenSubdiv's do:
+
+- An edge that's sharp now and smooth after this level, of sharpness s up to 1, blends its
+  points by its sharpness:
+
+$$
+E = s E_{\text{sharp}} + (1 - s) E_{\text{smooth}}
+$$
+
+- A vertex whose rule is a crease or a corner now, and different after this level, by the
+  sharpness that its edges will have, blends the two masks by the fractional weight w: the
+  average sharpness of the k edges at the vertex that are sharp now and smooth after, at most 1:
+
+$$
+V = w V_{\text{now}} + (1 - w) V_{\text{after}} \qquad w = \min\left(1, \frac{1}{k} \sum_{i=1}^{k} s_i\right)
+$$
+
+So a cube whose edges have sharpness 1 subdivides like an infinitely sharp one for its first
+level, and like a smooth one after, and sharpness 0.5 is halfway between the two for the first.

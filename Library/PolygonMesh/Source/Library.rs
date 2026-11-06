@@ -9,6 +9,7 @@
 //   materials.
 // - extrusion: extruding faces and edges, and insetting faces.
 // - cutting: subdividing faces, and loop cuts.
+// - subdivision: Catmull-Clark subdivision surfaces, as OpenSubdiv makes them.
 
 #[path = "Cutting.rs"]
 mod cutting;
@@ -22,9 +23,12 @@ mod mesh;
 pub mod primitives;
 #[path = "Selection.rs"]
 mod selection;
+#[path = "Subdivision.rs"]
+mod subdivision;
 #[path = "Topology.rs"]
 mod topology;
 
 pub use mesh::{Edge, Face, INFINITELY_SHARP, Mesh};
 pub use selection::{SelectMode, Selection};
+pub use subdivision::SubdivisionSurface;
 pub use topology::{Ring, Topology};
