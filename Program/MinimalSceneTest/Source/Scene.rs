@@ -2,7 +2,7 @@
 // X, above a ground plane, past a cube, seen by an orthographic camera from
 // above and to the side.
 
-use graphics::{DEPTH_FORMAT, Frame, Gpu, TARGET_SRGB_FORMAT, UploadBuffer};
+use graphics::{DEPTH_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer};
 use math::Matrix;
 use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
 use simple_paint::orthographic::{Projection, build_object_transforms, make_projection};
@@ -10,7 +10,6 @@ use simple_paint::{GpuMaterial, Material, Parameters};
 use windows_api::*;
 use windows_core::{Error, Result};
 
-use crate::depth::DepthBuffer;
 use crate::settings::SceneSettings;
 
 static VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));

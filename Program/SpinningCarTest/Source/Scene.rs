@@ -3,7 +3,7 @@
 // 90 degrees per second, and a sphere that stays put, both painted with
 // SimplePaint, all with one depth buffer. Every frame draws all of it.
 
-use graphics::{DEPTH_FORMAT, Frame, Gpu, TARGET_FORMAT, TARGET_SRGB_FORMAT, UploadBuffer};
+use graphics::{DEPTH_FORMAT, TARGET_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer};
 use math::Matrix;
 use meshes::car as car_mesh;
 use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
@@ -13,7 +13,6 @@ use user_interface::Rect;
 use windows_api::*;
 use windows_core::{Error, Result};
 
-use crate::depth::DepthBuffer;
 use crate::settings::SceneSettings;
 
 static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));

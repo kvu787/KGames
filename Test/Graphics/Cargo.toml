@@ -8,6 +8,10 @@ publish = false
 name = "GpuPriority"
 path = "GpuPriority.rs"
 
+[[test]]
+name = "DepthBuffer"
+path = "DepthBuffer.rs"
+
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
 

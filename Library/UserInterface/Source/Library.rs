@@ -85,6 +85,8 @@ mod widgets {
     pub mod dialog;
     #[path = "Expander.rs"]
     pub mod expander;
+    #[path = "InfoCard.rs"]
+    pub mod info_card;
     #[path = "InfoBar.rs"]
     pub mod info_bar;
     #[path = "Layout.rs"]
@@ -156,6 +158,7 @@ pub use widgets::combo_box::ComboBox;
 pub use widgets::dialog::{Dialog, DialogResult};
 pub use widgets::expander::Expander;
 pub use widgets::info_bar::{InfoBar, InfoBarResponse, Severity};
+pub use widgets::info_card::InfoCard;
 pub use widgets::layout::{Form, View};
 pub use widgets::list_view::{ListResponse, ListView, RowState, WHEEL_ROWS};
 pub use widgets::menu::{MenuBar, MenuItem};

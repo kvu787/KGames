@@ -9,7 +9,7 @@
 // a frame only once the GPU has finished the last, so rewriting them before
 // drawing is safe.
 
-use graphics::{DEPTH_FORMAT, DescriptorHeap, Frame, Gpu, TARGET_FORMAT, TARGET_SRGB_FORMAT, UploadBuffer, bytecode, create_texture};
+use graphics::{DEPTH_FORMAT, TARGET_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer, bytecode};
 use math::Matrix;
 use polygon_mesh::Triangles;
 use simple_paint::GpuMaterial;
@@ -129,8 +129,7 @@ pub struct Viewport {
     paint: Pipeline,
     flat: Pipeline,
     overlay: OverlayPipeline,
-    depth: Option<(ID3D12Resource, u32, u32)>,
-    depth_views: DescriptorHeap,
+    depth: DepthBuffer,
     geometry: Option<UploadBuffer>,
     geometry_version: u64,
     index_count: u32,
@@ -153,8 +152,7 @@ impl Viewport {
                 paint: Pipeline::new(&gpu.device, PAINT_VERTEX, PAINT_PIXEL, &target)?,
                 flat: Pipeline::new(&gpu.device, FLAT_VERTEX, FLAT_PIXEL, &target)?,
                 overlay: overlay_pipeline(&gpu.device)?,
-                depth: None,
-                depth_views: DescriptorHeap::new(&gpu.device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false)?,
+                depth: DepthBuffer::new(gpu)?,
                 geometry: None,
                 geometry_version: 0,
                 index_count: 0,
@@ -162,33 +160,6 @@ impl Viewport {
                 frame_data: None,
             })
         }
-    }
-
-    fn depth_view(&mut self, gpu: &Gpu, frame: &Frame) -> Result<D3D12_CPU_DESCRIPTOR_HANDLE> {
-        let view = self.depth_views.cpu(0);
-        if !matches!(self.depth, Some((_, width, height)) if (width, height) == (frame.width, frame.height)) {
-            let clear = D3D12_CLEAR_VALUE {
-                Format: DEPTH_FORMAT,
-                Anonymous: D3D12_CLEAR_VALUE_0 {
-                    DepthStencil: D3D12_DEPTH_STENCIL_VALUE { Depth: 1.0, Stencil: 0 },
-                },
-            };
-            unsafe {
-                let texture = create_texture(
-                    &gpu.device,
-                    frame.width,
-                    frame.height,
-                    DEPTH_FORMAT,
-                    D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-                    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                    Some(&clear),
-                    1,
-                )?;
-                gpu.device.CreateDepthStencilView(&texture, None, view);
-                self.depth = Some((texture, frame.width, frame.height));
-            }
-        }
-        Ok(view)
     }
 
     // Copies the mesh's triangles into the geometry buffer, if they changed.
@@ -218,7 +189,7 @@ impl Viewport {
             return Ok(());
         }
         self.upload_geometry(gpu, scene)?;
-        let depth = self.depth_view(gpu, frame)?;
+        let depth = self.depth.view(gpu, frame)?;
 
         // This frame's constants and overlay.
         let flat = FlatConstants {

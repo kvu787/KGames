@@ -1,13 +1,12 @@
 // MinimalSceneTest without a window: the sphere's motion, the card out of its
 // path, and frames drawn offscreen with the GPU.
 
-use minimal_scene_test::info_card;
 use minimal_scene_test::moving_sphere::MovingSphere;
 use minimal_scene_test::scene::{BACKGROUND, Motion, SPHERE_RADIUS, TRAVEL_DISTANCE, VIEW_HEIGHT, sphere_center, to_screen};
 use minimal_scene_test::settings::SceneSettings;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Rect, Theme};
+use user_interface::{Headless, InfoCard, Rect, Theme};
 
 fn sphere() -> Headless<MovingSphere> {
     Headless::new(MovingSphere::new(SceneSettings::default()))
@@ -101,8 +100,8 @@ fn the_card_is_at_the_bottom_left_out_of_the_sphere_s_path_at_both_heights() {
     for fullscreen in [false, true] {
         app.set_fullscreen(fullscreen);
         let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let card = app.target(info_card::NAME);
-        assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, info_card::WIDTH));
+        let card = app.target(InfoCard::NAME);
+        assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, InfoCard::WIDTH));
         let radius = SPHERE_RADIUS * height / VIEW_HEIGHT;
         let mut closest = f32::MAX;
         for step in -700..=700 {
@@ -142,7 +141,7 @@ fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
         let [red, green, blue, _] = image.pixel(x as u32, y as u32);
         assert!(blue > 200 && blue > green && green > red, "{:?}", [red, green, blue]);
         // The card, opaque, right of its title.
-        let card = app.target(info_card::NAME);
+        let card = app.target(InfoCard::NAME);
         let fill = image.pixel(card.right() as u32 - 24, card.y as u32 + 24);
         assert!(close(fill, Theme::light().acrylic.to_bytes()), "{fill:?}");
     }

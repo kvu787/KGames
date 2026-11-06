@@ -2,10 +2,6 @@
 // test them without a window: the sphere's motion, the keys, the card, the
 // settings, and frames drawn offscreen. Main.rs runs the program.
 
-#[path = "Depth.rs"]
-pub mod depth;
-#[path = "InfoCard.rs"]
-pub mod info_card;
 #[path = "MovingSphere.rs"]
 pub mod moving_sphere;
 #[path = "Scene.rs"]

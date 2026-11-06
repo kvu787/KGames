@@ -28,6 +28,10 @@ path = "Latency.rs"
 name = "Reader"
 path = "Reader.rs"
 
+[[test]]
+name = "InfoCard"
+path = "InfoCard.rs"
+
 [dependencies]
 present_timing = { path = "../../Library/PresentTiming" }
 user_interface = { path = "../../Library/UserInterface" }

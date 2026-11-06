@@ -130,6 +130,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
 | `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
 | `View`                             |                           | A 3D view's area, which takes every button but never focus      |
+| `ui.info_card`                     |                           | A test program's floating card: frame rate, GPU, display, keys  |
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
 | `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
 

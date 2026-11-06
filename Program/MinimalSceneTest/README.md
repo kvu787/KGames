@@ -86,8 +86,6 @@ so on.
 | `Source/Library.rs`      | The test's parts, as a library that `Test/MinimalSceneTest` tests        |
 | `Source/MovingSphere.rs` | The test as a `Program`: the sphere's motion, the keys, and the state    |
 | `Source/Scene.rs`        | The camera, the objects, and the sphere's motion, drawn with SimplePaint |
-| `Source/InfoCard.rs`     | The card, and F1, the same as SpinningCarTest's                          |
-| `Source/Depth.rs`        | The scene's depth buffer, the same as SpinningCarTest's                  |
 | `Source/Settings.rs`     | The objects' materials, and their defaults                               |
 | `Build.rs`               | Compiles SimplePaint's shaders for three materials                       |
 | `HumanRun.ps1`           | Builds the test and runs it on the primary display, for people to use it |

@@ -10,7 +10,7 @@
 // GPU at a time, so by the time a frame is drawn, the GPU is done with what
 // the last one read, and the buffers can be written again.
 
-use graphics::{DEPTH_FORMAT, DescriptorHeap, Frame, Gpu, TARGET_SRGB_FORMAT, UploadBuffer, create_texture};
+use graphics::{DEPTH_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer};
 use math::Matrix;
 use meshes::Mesh as Triangles;
 use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
@@ -121,43 +121,6 @@ impl Changing {
     }
 }
 
-// A depth buffer as big as the frames, for the models.
-struct Depth {
-    _buffer: ID3D12Resource,
-    views: DescriptorHeap,
-    size: (u32, u32),
-}
-
-impl Depth {
-    fn new(device: &ID3D12Device, width: u32, height: u32) -> Result<Depth> {
-        unsafe {
-            let clear = D3D12_CLEAR_VALUE {
-                Format: DEPTH_FORMAT,
-                Anonymous: D3D12_CLEAR_VALUE_0 {
-                    DepthStencil: D3D12_DEPTH_STENCIL_VALUE { Depth: 1.0, Stencil: 0 },
-                },
-            };
-            let buffer = create_texture(
-                device,
-                width,
-                height,
-                DEPTH_FORMAT,
-                D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-                D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                Some(&clear),
-                1,
-            )?;
-            let views = DescriptorHeap::new(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false)?;
-            device.CreateDepthStencilView(&buffer, None, views.cpu(0));
-            Ok(Depth {
-                _buffer: buffer,
-                views,
-                size: (width, height),
-            })
-        }
-    }
-}
-
 pub struct Drawing {
     paint: Pipeline,
     ground: Pipeline,
@@ -172,7 +135,7 @@ pub struct Drawing {
     // Each instance's materials as of the last frame, and as the GPU takes
     // them, so that they're compiled again only when they change.
     compiled: Vec<(Vec<Parameters>, [GpuMaterial; MOST_SLOTS])>,
-    depth: Option<Depth>,
+    depth: DepthBuffer,
 }
 
 fn invalid(error: simple_paint::Error) -> Error {
@@ -217,7 +180,7 @@ impl Drawing {
                 track_of: None,
                 constants: UploadBuffer::new(&device, INSTANCES_OFFSET + INSTANCE_SIZE * MOST_INSTANCES)?,
                 compiled: Vec::new(),
-                depth: None,
+                depth: DepthBuffer::new(gpu)?,
             })
         }
     }
@@ -226,12 +189,7 @@ impl Drawing {
     // leaves its target in the render target state.
     pub fn draw(&mut self, gpu: &Gpu, frame: &Frame, view: &View) -> Result<()> {
         let device = &gpu.device;
-        if self.depth.as_ref().is_none_or(|depth| depth.size != (frame.width, frame.height)) {
-            // The GPU is done with the last frame, and so with the old one,
-            // which this drops.
-            self.depth = Some(Depth::new(device, frame.width, frame.height)?);
-        }
-        let depth = self.depth.as_ref().unwrap().views.cpu(0);
+        let depth = self.depth.clear(gpu, frame)?;
         let eye_view = view.eye.view();
         let aspect = frame.width as f32 / frame.height as f32;
         let height = view.eye.height as f32;
@@ -243,7 +201,6 @@ impl Drawing {
             if let Some([red, green, blue]) = view.background {
                 frame.clear([red, green, blue, 1.0]);
             }
-            list.ClearDepthStencilView(depth, D3D12_CLEAR_FLAG_DEPTH, 1.0, 0, &[]);
         }
         if let Some(ground) = &view.ground {
             if self.terrain_of.as_ref() != Some(ground.terrain) {
