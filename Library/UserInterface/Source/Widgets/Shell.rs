@@ -7,7 +7,7 @@ use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::icons::Icon;
 use crate::design::tokens::{
-    APP_BAR_HEIGHT, BODY, BODY_STRONG, CAPTION, ICON, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATUS_BAR_HEIGHT,
+    APP_BAR_HEIGHT, BODY, CAPTION, ICON, PAGE_PADDING, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, STATUS_BAR_HEIGHT,
     SUBTITLE,
 };
 use crate::drawing::geometry::{Point, Rect, Size};
@@ -165,9 +165,15 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
     }
 }
 
-// What the window shows instead of the program in a setup that programs
-// don't support: what's wrong, and the setups that are.
-pub(crate) fn unsupported_setup(ui: &mut Ui, problems: &[String]) {
+impl Ui {
+    // What the window shows instead of the program in a setup that programs
+    // don't support: what's wrong, and the setups that are.
+    pub fn unsupported_setup(&mut self, problems: &[String]) {
+        unsupported_setup(self, problems);
+    }
+}
+
+fn unsupported_setup(ui: &mut Ui, problems: &[String]) {
     let bounds = ui.bounds();
     let width = 720.0f32.min(bounds.width - SPACE_L * 2.0);
     let mut height = SPACE_L * 2.0 + 28.0 + SPACE_M + SPACE_S;
@@ -195,5 +201,4 @@ pub(crate) fn unsupported_setup(ui: &mut Ui, problems: &[String]) {
     }
     area.cut_top(SPACE_S, 0.0);
     painter.text_wrapped(area, advice, BODY, theme.text_secondary);
-    let _ = BODY_STRONG;
 }

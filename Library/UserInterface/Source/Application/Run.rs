@@ -201,7 +201,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if problems.is_empty() {
             program.update(&mut ui);
         } else {
-            crate::widgets::shell::unsupported_setup(&mut ui, &problems);
+            ui.unsupported_setup(&problems);
         }
         ui.end_frame();
         for request in std::mem::take(&mut ui.requests) {

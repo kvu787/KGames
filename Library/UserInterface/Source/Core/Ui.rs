@@ -747,12 +747,17 @@ impl Ui {
         let id = self.register(name, rect, sense, kind);
         let enabled = self.enabled;
         let visible = rect.intersect(self.draw.clip());
+        // While a popup or a dialog is open, the keys are theirs, as WinUI
+        // moves focus into them: a widget under one has focus, but not for
+        // keys.
+        let layer = self.draw.layer();
+        let keys_here = (self.popups.is_empty() || layer >= Layer::Popup) && (!self.modal || layer >= Layer::Dialog);
         let mut response = Response {
             id,
             rect,
             enabled,
             hovered: enabled && self.hovered == Some(id),
-            focused: self.focused == Some(id),
+            focused: self.focused == Some(id) && keys_here,
             ..Default::default()
         };
         if !enabled {
@@ -777,7 +782,7 @@ impl Ui {
                         self.focused = Some(id);
                         self.focus_visible = false;
                     }
-                    response.focused = self.focused == Some(id);
+                    response.focused = self.focused == Some(id) && keys_here;
                 }
                 MouseButton::Right => response.secondary_pressed = true,
                 MouseButton::Middle => response.middle_pressed = true,

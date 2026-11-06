@@ -2,8 +2,8 @@
 // expectations match the state.
 
 use user_interface::json;
-use user_interface::script::{Script, ScriptRunner, compare};
-use user_interface::{Button, Event, Headless, Key, MouseButton, Program, Rect, Ui};
+use user_interface::testing::script::compare;
+use user_interface::{Button, Event, Headless, Key, MouseButton, Point, Program, Rect, Script, ScriptRunner, Ui};
 
 struct Page;
 
@@ -13,7 +13,7 @@ impl Program for Page {
     }
 
     fn update(&mut self, ui: &mut Ui) {
-        ui.button("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
+        ui.add("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
     }
 }
 
@@ -37,7 +37,8 @@ fn steps_make_input_on_their_frames() {
             { "Frame": 3, "Key": "Ctrl+S" },
             { "Frame": 5, "Hold": ["W"] },
             { "Frame": 6, "Hold": [] },
-            { "Frame": 7, "Drag": { "From": [0, 0], "To": [10, 0], "Frames": 2 } }
+            { "Frame": 7, "Drag": { "From": [0, 0], "To": [10, 0], "Frames": 2, "Button": "Middle" } },
+            { "Frame": 12, "Press": { "At": [3, 4], "Button": "Right" } }
         ] }"#,
     )
     .unwrap();
@@ -49,17 +50,16 @@ fn steps_make_input_on_their_frames() {
     assert_eq!(first[1], Event::ButtonPressed(MouseButton::Left));
     assert_eq!(frame(2)[0], Event::ButtonReleased(MouseButton::Left));
     let third = frame(3);
-    assert_eq!(
-        &third[..2],
-        &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]
-    );
+    assert_eq!(&third[..2], &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]);
     assert_eq!(&frame(4)[..2], &[Event::KeyReleased(Key::S), Event::KeyReleased(Key::CONTROL)]);
     assert_eq!(frame(5)[0], Event::KeyPressed { key: Key::W, repeat: false });
     assert_eq!(frame(6)[0], Event::KeyReleased(Key::W));
-    assert_eq!(frame(7)[1], Event::ButtonPressed(MouseButton::Left));
+    assert_eq!(frame(7)[1], Event::ButtonPressed(MouseButton::Middle));
     frame(8);
     assert!(matches!(frame(9)[0], Event::PointerMoved(point) if point.x == 10.0));
-    assert_eq!(frame(10)[0], Event::ButtonReleased(MouseButton::Left));
+    assert_eq!(frame(10)[0], Event::ButtonReleased(MouseButton::Middle));
+    frame(11);
+    assert_eq!(&frame(12)[..2], &[Event::PointerMoved(Point::new(3.0, 4.0)), Event::ButtonPressed(MouseButton::Right)]);
 }
 
 #[test]
@@ -91,5 +91,5 @@ fn a_point_can_be_a_place_in_a_target() {
     let script = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Move": { "Target": "Save", "At": [0.25, 0.5] } } ] }"#).unwrap();
     let events = ScriptRunner::new(script).frame(1, &app.ui).unwrap().events;
     let save = app.target("Save");
-    assert_eq!(events[0], Event::PointerMoved(user_interface::Point::new(save.x + save.width / 4.0, save.center().y)));
+    assert_eq!(events[0], Event::PointerMoved(Point::new(save.x + save.width / 4.0, save.center().y)));
 }
