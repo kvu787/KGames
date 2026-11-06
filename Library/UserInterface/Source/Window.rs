@@ -1,9 +1,11 @@
-// A program's Win32 window, and the input that its messages bring.
+// A program's Win32 window. Its input comes from GameInput (Devices.rs and
+// InputReader.rs), not from its messages, which it handles only to be a
+// window: its focus, its cursor, its size and its close button.
 //
 // - It's maximized or borderless fullscreen, the two supported setups, and
 //   switches between them without taking focus.
-// - Without focus, it ignores input. The click that gives it focus does only
-//   that, and keys held when it gets focus count once they're let go of.
+// - It says when it gets and loses focus, on the clock that input is timed
+//   on, as input without focus is ignored.
 // - Drags keep going past its edges, as it captures the mouse while a button
 //   is held.
 // - It checks the setup whenever the window, the displays or the taskbar
@@ -12,8 +14,8 @@
 use windows_api::*;
 use windows_core::{Error, Result, w};
 
+use crate::clock;
 use crate::geometry::Point;
-use crate::input::{Button, Event, Key};
 use crate::settings::WindowMode;
 use crate::ui::Cursor;
 
@@ -27,18 +29,22 @@ pub const DISPLAY_HEIGHT: i32 = 1440;
 pub const TASKBAR_HEIGHT: i32 = 48;
 pub const MAXIMIZED_CLIENT_HEIGHT: i32 = 1369;
 
+// The window got focus, or lost it, at a time on the counter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FocusChange {
+    pub time: i64,
+    pub gained: bool,
+}
+
 struct State {
-    events: Vec<Event>,
+    focus_changes: Vec<FocusChange>,
     focused: bool,
     minimized: bool,
     close_requested: bool,
     setup_changed: bool,
-    tracking_leave: bool,
-    buttons_down: u32,
-    high_surrogate: Option<u16>,
+    // Whether the cursor was on the client area when last asked.
+    cursor_inside: bool,
     cursor: HCURSOR,
-    // Overlays close on a click or Esc.
-    overlay: bool,
 }
 
 pub struct Window {
@@ -78,7 +84,7 @@ impl Window {
                 None,
             );
             check_handle(hwnd.0)?;
-            let mut window = Window::wrap(hwnd, false);
+            let mut window = Window::wrap(hwnd);
             window.apply_mode(mode, false);
             Ok(window)
         }
@@ -106,25 +112,22 @@ impl Window {
                 None,
             );
             check_handle(hwnd.0)?;
-            Ok(Window::wrap(hwnd, true))
+            Ok(Window::wrap(hwnd))
         }
     }
 
-    unsafe fn wrap(hwnd: HWND, overlay: bool) -> Window {
+    unsafe fn wrap(hwnd: HWND) -> Window {
         unsafe {
             let cursors = [IDC_ARROW, IDC_IBEAM, IDC_HAND, IDC_SIZEALL, IDC_SIZEWE, IDC_SIZENS, IDC_CROSS]
                 .map(|cursor| LoadCursorW(None, cursor));
             let mut state = Box::new(State {
-                events: Vec::new(),
+                focus_changes: Vec::new(),
                 focused: false,
                 minimized: false,
                 close_requested: false,
                 setup_changed: true,
-                tracking_leave: false,
-                buttons_down: 0,
-                high_surrogate: None,
+                cursor_inside: false,
                 cursor: cursors[0],
-                overlay,
             });
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, &mut *state as *mut State as isize);
             Window {
@@ -216,7 +219,8 @@ impl Window {
                 if message.message == WM_QUIT as u32 {
                     return false;
                 }
-                let _ = TranslateMessage(&message);
+                // No TranslateMessage: typed text comes from GameInput's keys,
+                // and translating the messages too would use up dead keys.
                 DispatchMessageW(&message);
             }
         }
@@ -230,9 +234,49 @@ impl Window {
         }
     }
 
-    // The input since the last call.
-    pub fn take_events(&mut self) -> Vec<Event> {
-        std::mem::take(&mut self.state.events)
+    // Waits for a message, or for the milliseconds to pass.
+    pub fn wait_for(&self, milliseconds: u32) {
+        unsafe {
+            let _ = MsgWaitForMultipleObjects(None, false, milliseconds, QS_ALLINPUT as u32);
+        }
+    }
+
+    // The focus changes since the last call, oldest first.
+    pub fn take_focus_changes(&mut self) -> Vec<FocusChange> {
+        std::mem::take(&mut self.state.focus_changes)
+    }
+
+    // Where Windows' cursor is, in the client area's pixels, and whether it's
+    // on the client area, with no other window over it there.
+    pub fn cursor(&mut self) -> (Point, bool) {
+        let mut point = POINT::default();
+        unsafe {
+            let _ = GetCursorPos(&mut point);
+            let over = WindowFromPoint(point) == self.hwnd;
+            let _ = ScreenToClient(self.hwnd, &mut point);
+            let (width, height) = self.client_size();
+            let inside = over && point.x >= 0 && point.y >= 0 && (point.x as u32) < width && (point.y as u32) < height;
+            self.state.cursor_inside = inside;
+            (Point::new(point.x as f32, point.y as f32), inside)
+        }
+    }
+
+    // Whether Windows' cursor is on the client area.
+    pub fn cursor_over(&mut self) -> bool {
+        self.cursor().1
+    }
+
+    // Captures the mouse, so that a drag keeps going past the window's edges,
+    // or lets it go.
+    pub fn set_capture(&mut self, capture: bool) {
+        unsafe {
+            let captured = GetCapture() == self.hwnd;
+            if capture && !captured {
+                SetCapture(self.hwnd);
+            } else if !capture && captured {
+                let _ = ReleaseCapture();
+            }
+        }
     }
 
     pub fn focused(&self) -> bool {
@@ -285,7 +329,7 @@ impl Window {
         if self.state.cursor != cursor {
             self.state.cursor = cursor;
             // The pointer may be still, so set it now, not at its next move.
-            if self.state.focused && self.state.tracking_leave {
+            if self.state.focused && self.state.cursor_inside {
                 unsafe {
                     SetCursor(Some(cursor));
                 }
@@ -415,10 +459,6 @@ fn low_word(value: isize) -> i32 {
     (value & 0xFFFF) as u16 as i16 as i32
 }
 
-fn high_word(value: isize) -> i32 {
-    ((value >> 16) & 0xFFFF) as u16 as i16 as i32
-}
-
 unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
         let state = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut State;
@@ -430,142 +470,19 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
         match message_i {
             WM_SETFOCUS => {
                 state.focused = true;
-                // Keys held now, like the Alt of an Alt+Tab, count once
-                // they're let go of.
-                let mut keys = [0u8; 256];
-                let _ = GetKeyboardState(keys.as_mut_ptr());
-                let held: Vec<Key> = (1..=254u8).filter(|code| keys[*code as usize] & 0x80 != 0).map(Key).collect();
-                state.events.push(Event::FocusGained(held));
+                state.focus_changes.push(FocusChange {
+                    time: clock::now(),
+                    gained: true,
+                });
                 LRESULT(0)
             }
             WM_KILLFOCUS => {
                 state.focused = false;
-                state.buttons_down = 0;
+                state.focus_changes.push(FocusChange {
+                    time: clock::now(),
+                    gained: false,
+                });
                 let _ = ReleaseCapture();
-                state.events.push(Event::FocusLost);
-                LRESULT(0)
-            }
-            WM_MOUSEACTIVATE => {
-                // The click that gives the window focus does only that.
-                if low_word(lparam.0) == HTCLIENT {
-                    LRESULT(MA_ACTIVATEANDEAT as isize)
-                } else {
-                    DefWindowProcW(hwnd, message, wparam, lparam)
-                }
-            }
-            WM_MOUSEMOVE => {
-                if state.focused {
-                    if !state.tracking_leave {
-                        let mut track = TRACKMOUSEEVENT {
-                            cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
-                            dwFlags: TME_LEAVE as u32,
-                            hwndTrack: hwnd,
-                            dwHoverTime: 0,
-                        };
-                        let _ = TrackMouseEvent(&mut track);
-                        state.tracking_leave = true;
-                    }
-                    let point = Point::new(low_word(lparam.0) as f32, high_word(lparam.0) as f32);
-                    state.events.push(Event::PointerMoved(point));
-                }
-                LRESULT(0)
-            }
-            WM_MOUSELEAVE => {
-                state.tracking_leave = false;
-                state.events.push(Event::PointerLeft);
-                LRESULT(0)
-            }
-            WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
-                if state.overlay {
-                    state.close_requested = true;
-                }
-                if state.focused {
-                    let button = match message_i {
-                        WM_LBUTTONDOWN => Button::Left,
-                        WM_RBUTTONDOWN => Button::Right,
-                        _ => Button::Middle,
-                    };
-                    let point = Point::new(low_word(lparam.0) as f32, high_word(lparam.0) as f32);
-                    state.events.push(Event::PointerMoved(point));
-                    state.events.push(Event::ButtonPressed(button));
-                    if state.buttons_down == 0 {
-                        SetCapture(hwnd);
-                    }
-                    state.buttons_down |= 1 << button as u32;
-                }
-                LRESULT(0)
-            }
-            WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => {
-                let button = match message_i {
-                    WM_LBUTTONUP => Button::Left,
-                    WM_RBUTTONUP => Button::Right,
-                    _ => Button::Middle,
-                };
-                if state.buttons_down & (1 << button as u32) != 0 {
-                    state.events.push(Event::ButtonReleased(button));
-                    state.buttons_down &= !(1 << button as u32);
-                    if state.buttons_down == 0 {
-                        let _ = ReleaseCapture();
-                    }
-                }
-                LRESULT(0)
-            }
-            WM_CAPTURECHANGED => {
-                // Another window took the mouse, which ends any press.
-                for button in Button::ALL {
-                    if state.buttons_down & (1 << button as u32) != 0 {
-                        state.events.push(Event::ButtonReleased(button));
-                    }
-                }
-                state.buttons_down = 0;
-                LRESULT(0)
-            }
-            WM_MOUSEWHEEL | WM_MOUSEHWHEEL => {
-                if state.focused {
-                    let notches = high_word(wparam.0 as isize) as f32 / WHEEL_DELTA as f32;
-                    let notches = if message_i == WM_MOUSEWHEEL {
-                        Point::new(0.0, notches)
-                    } else {
-                        Point::new(notches, 0.0)
-                    };
-                    state.events.push(Event::Wheel(notches));
-                }
-                LRESULT(0)
-            }
-            WM_KEYDOWN | WM_SYSKEYDOWN => {
-                let key = Key(wparam.0 as u8);
-                if state.overlay && key == Key::ESCAPE {
-                    state.close_requested = true;
-                }
-                if state.focused {
-                    let repeat = (lparam.0 >> 30) & 1 == 1;
-                    state.events.push(Event::KeyPressed { key, repeat });
-                }
-                // Alt+F4 still closes the window.
-                if message_i == WM_SYSKEYDOWN && key == Key::F4 {
-                    return DefWindowProcW(hwnd, message, wparam, lparam);
-                }
-                LRESULT(0)
-            }
-            WM_KEYUP | WM_SYSKEYUP => {
-                state.events.push(Event::KeyReleased(Key(wparam.0 as u8)));
-                LRESULT(0)
-            }
-            WM_CHAR | WM_SYSCHAR => {
-                if state.focused && message_i == WM_CHAR {
-                    let unit = wparam.0 as u16;
-                    if (0xD800..0xDC00).contains(&unit) {
-                        state.high_surrogate = Some(unit);
-                    } else {
-                        let units: Vec<u16> = match state.high_surrogate.take() {
-                            Some(high) => vec![high, unit],
-                            None => vec![unit],
-                        };
-                        for character in char::decode_utf16(units).flatten() {
-                            state.events.push(Event::Text(character));
-                        }
-                    }
-                }
                 LRESULT(0)
             }
             WM_SYSCOMMAND => {

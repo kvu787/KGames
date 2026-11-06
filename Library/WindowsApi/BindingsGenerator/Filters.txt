@@ -26,7 +26,6 @@ SetProcessDpiAwarenessContext
 SetWindowLongPtrW
 SetWindowPos
 SetWindowTextW
-TranslateMessage
 WaitMessage
 DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 GWL_STYLE
@@ -77,33 +76,38 @@ QDC_ONLY_ACTIVE_PATHS
 ShowWindow
 GWLP_USERDATA
 SW_SHOW
-WM_KEYDOWN
-WM_LBUTTONDOWN
 WM_PAINT
-WM_RBUTTONDOWN
 WS_EX_TOOLWINDOW
 WS_EX_TOPMOST
 
-// Mouse and keyboard input from window messages
+// Input, which comes from GameInput: where Windows' cursor is, capturing the
+// mouse for drags, typed text from keys with the keyboard layout, Windows'
+// key repeat settings, and Caps Lock's toggle
+GetCapture
+GetCursorPos
+GetKeyboardLayout
 GetKeyState
+MAPVK_VSC_TO_VK_EX
 ReleaseCapture
+ScreenToClient
 SetCapture
-TrackMouseEvent
+SPI_GETKEYBOARDDELAY
+SPI_GETKEYBOARDSPEED
+SystemParametersInfoW
+ToUnicodeEx
+WindowFromPoint
 HTCLIENT
-MA_ACTIVATEANDEAT
-TME_LEAVE
 WHEEL_DELTA
-WM_CAPTURECHANGED
-WM_CHAR
-WM_KEYUP
 WM_KILLFOCUS
-WM_LBUTTONUP
-WM_MOUSEACTIVATE
-WM_MOUSELEAVE
-WM_MOUSEMOVE
-WM_MOUSEWHEEL
-WM_SYSKEYDOWN
-WM_SYSKEYUP
+
+// The performance counter, which input, frames and the display's flips are
+// timed on
+QueryPerformanceCounter
+QueryPerformanceFrequency
+
+// Waiting for messages for a while, like overlays between checks of the input
+MsgWaitForMultipleObjects
+QS_ALLINPUT
 
 // Key names for the keyboard panel, and scan codes for scripted keys
 GetKeyNameTextW
@@ -298,7 +302,6 @@ DWRITE_TEXT_ALIGNMENT
 DWRITE_TEXT_METRICS
 DWRITE_WORD_WRAPPING
 DestroyWindow
-GetKeyboardState
 IDC_CROSS
 IDC_HAND
 IDC_IBEAM
@@ -322,11 +325,6 @@ SetCursor
 ValidateRect
 WM_CLOSE
 WM_ERASEBKGND
-WM_MBUTTONDOWN
-WM_MBUTTONUP
-WM_MOUSEHWHEEL
-WM_RBUTTONUP
 WM_SETCURSOR
 WM_SETFOCUS
-WM_SYSCHAR
 WS_EX_APPWINDOW

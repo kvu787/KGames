@@ -1,14 +1,18 @@
 // Windows without a frame that float over the others, like IdentifyDisplays'
 // boxes, one on each display. Each has its own interface, drawn with one
 // GPU, and they draw only until their contents show: they don't change, so
-// the loop then waits for messages. A click on any of them, or Esc while one
-// has focus, closes them all.
+// the loop then only checks the input, a few times a frame of the display. A
+// click on any of them, or Esc while one has focus, closes them all. The
+// input comes from GameInput, like every program's.
 
+use game_input::{GameInputKindKeyboard, GameInputKindMouse, GameInputMouseLeftButton};
 use graphics::{AdapterChoice, Gpu, Presenter};
 use windows_api::RECT;
 
 use crate::clipboard::Clipboard;
+use crate::devices::Devices;
 use crate::geometry::Size;
+use crate::input::Key;
 use crate::renderer::Renderer;
 use crate::text::Fonts;
 use crate::theme::ThemeKind;
@@ -34,10 +38,54 @@ struct Shown {
 // that the first has reached the screen.
 const FRAMES: u32 = 2;
 
+// How long the loop waits for messages between checks of the input, once
+// the overlays have drawn.
+const WAIT_MILLISECONDS: u32 = 4;
+
+// Whether a left click or Esc came since the last check. Each device's first
+// reading only says what's held already.
+#[derive(Default)]
+struct Presses {
+    mice: Vec<(Option<usize>, bool)>,
+    keyboards: Vec<(Option<usize>, bool)>,
+}
+
+impl Presses {
+    // Whether the left button went down while the cursor was on an overlay,
+    // or Esc went down while one had focus.
+    fn closing(&mut self, devices: &Devices, shown: &mut [Shown]) -> bool {
+        let mut clicked = false;
+        for reading in devices.readings(GameInputKindMouse) {
+            let down = reading.mouse.buttons & GameInputMouseLeftButton != 0;
+            clicked |= went_down(&mut self.mice, reading.device, down);
+        }
+        let mut escaped = false;
+        for reading in devices.readings(GameInputKindKeyboard) {
+            let down = reading.keys.iter().any(|key| key.virtualKey == Key::ESCAPE.0);
+            escaped |= went_down(&mut self.keyboards, reading.device, down);
+        }
+        (clicked && shown.iter_mut().any(|overlay| overlay.window.cursor_over()))
+            || (escaped && shown.iter().any(|overlay| overlay.window.focused()))
+    }
+}
+
+// Whether the device's button or key went down, and remembers that it's down.
+fn went_down(devices: &mut Vec<(Option<usize>, bool)>, device: Option<usize>, down: bool) -> bool {
+    match devices.iter_mut().find(|(known, _)| *known == device) {
+        Some((_, was_down)) => !std::mem::replace(was_down, down) && down,
+        None => {
+            devices.push((device, down));
+            false
+        }
+    }
+}
+
 // Shows the overlays, with focus, and draws each with `draw`, given its
 // index, until one closes.
 pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut(&mut Ui, usize)) -> Result<(), String> {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
+    let mut devices = Devices::new().map_err(|error| format!("Couldn't start GameInput, which reads the click or Esc that closes the overlays: {error}"))?;
+    let mut presses = Presses::default();
     let mut shown = Vec::new();
     for overlay in overlays {
         let window = Window::create_overlay(&overlay.title, overlay.rect).map_err(|error| format!("Couldn't open a window: {error}"))?;
@@ -62,7 +110,8 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
         for overlay in &mut shown {
             overlay.window.pump();
         }
-        if shown.iter().any(|overlay| overlay.window.close_requested()) {
+        devices.read();
+        if shown.iter().any(|overlay| overlay.window.close_requested()) || presses.closing(&devices, &mut shown) {
             return Ok(());
         }
         let mut waiting = false;
@@ -75,8 +124,7 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
                 continue;
             }
             let (width, height) = overlay.presenter.size();
-            let events = overlay.window.take_events();
-            overlay.ui.begin_frame(&events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), false);
+            overlay.ui.begin_frame(&[], start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), false);
             draw(&mut overlay.ui, index);
             overlay.ui.end_frame();
             let frame = overlay.presenter.begin().map_err(|error| format!("Couldn't begin a frame: {error}"))?;
@@ -92,7 +140,7 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
             waiting |= overlay.frames < FRAMES;
         }
         if !waiting && let Some(first) = shown.first() {
-            first.window.wait();
+            first.window.wait_for(WAIT_MILLISECONDS);
         }
     }
 }

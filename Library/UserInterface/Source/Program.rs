@@ -1,10 +1,13 @@
 // What a GUI program is to the interface: a Program, which builds each
 // frame's interface, may draw 3D before it, and tells scripts its state.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
+use crate::devices::Devices;
 use crate::settings::{Settings, WindowMode};
 use crate::theme::ThemeKind;
 use crate::ui::Ui;
@@ -51,7 +54,7 @@ pub struct Options {
     pub folder: &'static str,
     // The window mode when Settings.json doesn't say.
     pub window_mode: WindowMode,
-    // Whether the interface reads the gamepad, for Ui::gamepad.
+    // Whether the gamepad goes to the interface, for Ui::gamepad.
     pub gamepad: bool,
     pub theme: ThemeKind,
     // Arguments of the program's own, which it reads from Startup.
@@ -82,6 +85,11 @@ pub struct Startup {
     pub scripted: bool,
     // The program's own arguments, of those that Options allows.
     pub arguments: Vec<String>,
+    // The input devices that the interface reads, for programs that show
+    // them or run their motors, like GameInputDemo. Each frame's readings are
+    // there when the program's update runs. None in a scripted run, and when
+    // GameInput isn't available.
+    pub devices: Option<Rc<RefCell<Devices>>>,
     pub(crate) notices: Vec<Notice>,
 }
 
@@ -92,6 +100,7 @@ impl Startup {
             data_folder: data_folder.to_path_buf(),
             scripted,
             arguments: Vec::new(),
+            devices: None,
             notices: Vec::new(),
         }
     }

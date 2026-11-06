@@ -6,8 +6,10 @@
 
 #[path = "Clipboard.rs"]
 mod clipboard;
-#[path = "Gamepad.rs"]
-mod gamepad;
+#[path = "Clock.rs"]
+pub mod clock;
+#[path = "Devices.rs"]
+pub mod devices;
 #[path = "Geometry.rs"]
 pub mod geometry;
 #[path = "Headless.rs"]
@@ -16,6 +18,8 @@ pub mod headless;
 mod icons;
 #[path = "Input.rs"]
 pub mod input;
+#[path = "InputReader.rs"]
+mod input_reader;
 #[path = "Overlay.rs"]
 mod overlay;
 #[path = "Painter.rs"]
@@ -65,7 +69,7 @@ mod widgets {
 }
 
 pub use clipboard::Clipboard;
-pub use gamepad::GamepadReader;
+pub use devices::{Device, Devices, Reading};
 pub use geometry::{Color, Point, Rect, Size};
 pub use headless::Headless;
 pub use icons::Icon;
@@ -88,5 +92,6 @@ pub use widgets::surfaces::{Card, InfoBar, Severity, TooltipLine};
 pub use widgets::text_box::{TextBox, TextBoxResponse};
 
 // The crates that programs need with the interface, so that they share them.
+pub use game_input;
 pub use graphics;
 pub use json;

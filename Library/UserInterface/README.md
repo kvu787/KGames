@@ -117,6 +117,17 @@ gradients, text and icons, with clipping and layers.
 
 ## Input
 
+All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads.
+`Devices.rs` reads every device's readings once a frame, right before the frame, and
+`InputReader.rs` turns them into the interface's events, in the order they happened, with the
+window's focus changes between them. The window's messages bring none of it.
+
+- Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
+  and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
+  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate.
+- The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
+  moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
+  window's.
 - The pointer is on the topmost target under it, by the last frame's targets, so a combo box's
   list or a tooltip takes the pointer from what's under it. `ui.cover` makes a surface, like a card
   over a 3D view, cover what's under it.
@@ -132,7 +143,9 @@ gradients, text and icons, with clipping and layers.
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
 - `F11` switches between maximized and borderless fullscreen.
-- With `Options::gamepad`, the library reads the gamepad with GameInput for `ui.gamepad()`.
+- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
+- Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
+  frame's readings and device events from `startup.devices`, which the interface reads them with.
 
 ## Window setups
 
@@ -249,9 +262,11 @@ writes its files in its output folder, through `startup.data_folder`.
 | `Source/Program.rs`      | `Program`, `Options`, `Startup`, and the command line                     |
 | `Source/Run.rs`          | The main loop                                                             |
 | `Source/Ui.rs`           | A frame's interface: targets, presses, focus, popups, tooltips, motion    |
-| `Source/Window.rs`       | The Win32 window, its input, its two setups, and their check              |
+| `Source/Window.rs`       | The Win32 window, its focus, its cursor, its two setups, and their check  |
 | `Source/Input.rs`        | Keys, buttons, the gamepad, and a frame's input from events               |
-| `Source/Gamepad.rs`      | Reads the gamepad with GameInput                                          |
+| `Source/Devices.rs`      | Reads gamepads, keyboards and mice with GameInput, once a frame           |
+| `Source/InputReader.rs`  | Turns a frame's GameInput readings into events                            |
+| `Source/Clock.rs`        | The performance counter, which input and frames are timed on              |
 | `Source/Clipboard.rs`    | Windows' clipboard, and the interface's own for scripts and tests         |
 | `Source/Settings.rs`     | `Settings.json`                                                           |
 | `Source/Theme.rs`        | Fluent's color roles, light and dark                                      |

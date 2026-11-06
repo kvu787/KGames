@@ -3,23 +3,26 @@
 // 1. Handle the window's messages, without waiting.
 // 2. Spin until the renderer is ready: the GPU has finished the last frame,
 //    and DXGI's queue has room. Messages keep being handled meanwhile.
-// 3. Only then read the input, build the frame's interface with the newest
-//    of it, draw the frame, and present it without waiting for vertical sync.
+// 3. Only then read the input, from GameInput, build the frame's interface
+//    with the newest of it, draw the frame, and present it without waiting
+//    for vertical sync.
 //
 // So the input that a frame shows is as fresh as it can be when the frame
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::rc::Rc;
 use std::time::Instant;
 
 use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 
 use crate::clipboard::Clipboard;
-use crate::gamepad::GamepadReader;
+use crate::devices::Devices;
 use crate::geometry::Size;
-use crate::input::Event;
+use crate::input_reader::InputReader;
 use crate::program::{Arguments, Options, Program, Startup};
 use crate::renderer::Renderer;
 use crate::script::{Script, ScriptRunner};
@@ -76,6 +79,21 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();
 
+    // All input comes from GameInput, except in a scripted run, which the
+    // user's input never reaches.
+    let devices = if scripted {
+        None
+    } else {
+        match Devices::new() {
+            Ok(devices) => Some(Rc::new(RefCell::new(devices))),
+            Err(message) => {
+                startup.notify(Severity::Error, "GameInput isn't available", &format!("The program can't read any input: {message}."));
+                None
+            }
+        }
+    };
+    startup.devices = devices.clone();
+
     // The display: --display's, which must be connected, or else the
     // setting's, or else the primary one.
     let displays = displays::enumerate().map_err(|error| format!("Couldn't find the displays: {error}"))?;
@@ -126,7 +144,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
-    let gamepad = (options.gamepad && !scripted).then(GamepadReader::new);
+    let mut reader = InputReader::new(options.gamepad);
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
     let mut frame = 0u64;
@@ -143,11 +161,15 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             // A minimized window doesn't draw, but the program still hears
             // what happened, like the window losing focus as it minimized,
             // so that it can stop what it's doing, like a gamepad's motors.
-            let events = window.take_events();
-            if !events.is_empty() && problems.is_empty() {
+            let focus_changes = window.take_focus_changes();
+            if let Some(devices) = &devices {
+                devices.borrow_mut().read();
+            }
+            let input = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &mut window, &focus_changes);
+            if !focus_changes.is_empty() && problems.is_empty() && runner.is_none() {
                 let (width, height) = presenter.size();
                 let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
-                ui.begin_frame(&events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
+                ui.begin_frame(&input.events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
                 program.update(&mut ui);
                 ui.end_frame();
                 for request in std::mem::take(&mut ui.requests) {
@@ -169,7 +191,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         // The input, read as late as it can be. A script's frames start at 0.
         let script_number = frame;
         frame += 1;
-        let mut events = window.take_events();
+        let focus_changes = window.take_focus_changes();
+        let events;
         let mut script_frame = None;
         let time = match &mut runner {
             Some(runner) => {
@@ -183,9 +206,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 script_number as f64 * runner.frame_time()
             }
             None => {
-                if let Some(gamepad) = &gamepad {
-                    events.push(Event::Gamepad(gamepad.read()));
+                if let Some(devices) = &devices {
+                    devices.borrow_mut().read();
                 }
+                let input = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &mut window, &focus_changes);
+                events = input.events;
                 start.elapsed().as_secs_f64()
             }
         };

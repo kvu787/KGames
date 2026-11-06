@@ -51,7 +51,8 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 
 # GUI programs
 
-- Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for input from window messages and for the gamepad that it reads, and programs that read GameInput themselves, like GameInputDemo, drop its readings themselves.
+- Read all input with GameInput, through `Library/UserInterface`, which reads keyboards, mice and gamepads with it, and not from window messages.
+- Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
 - Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - Use the light theme by default.
