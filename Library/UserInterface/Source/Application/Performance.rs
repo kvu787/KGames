@@ -33,11 +33,10 @@ const REFRESH_SECONDS: f64 = 0.25;
 const MATCH_SECONDS: f64 = 0.005;
 
 // The stats bar's fields' widths, in characters: frames a second, times in
-// milliseconds with two decimals, counts of frames, and the present mode,
-// as wide as the longest mode's name, "Independent flip".
+// milliseconds with two decimals, and the present mode, as wide as the
+// longest mode's name, "Independent flip".
 const RATE_WIDTH: usize = 5;
 const MILLISECONDS_WIDTH: usize = 7;
-const COUNT_WIDTH: usize = 6;
 const MODE_WIDTH: usize = 16;
 const YES_NO_WIDTH: usize = 3;
 // The gap between the bar's groups, like the frames' and the input
@@ -106,8 +105,7 @@ pub struct Summary {
 }
 
 // A run of the stats bar's text, which the bar sets in Cascadia Mono, whose
-// characters are all as wide: a label, or a value, which the bar colors
-// apart. Every run is as many characters wide whatever the stats are,
+// characters are all as wide: a label, or a value. Every run is as many characters wide whatever the stats are,
 // numbers right-aligned in their fields and a dash for one that isn't known,
 // so that every label and value stays in the same columns.
 #[derive(Clone, Debug, PartialEq)]
@@ -163,30 +161,10 @@ impl Summary {
         let mut left = Runs::default();
         left.label("Frames ");
         left.value(rate(self.frames_per_second, frames));
-        left.label("/s  mean ");
-        left.value(time(self.frame_time, frames));
-        left.label(" ms  longest ");
-        left.value(time(self.longest_frame, frames));
-        left.label(" ms");
-        left.label(GAP);
-        left.label("On screen ");
-        left.value(rate(self.displayed_per_second, measuring));
         left.label("/s");
         left.label(GAP);
         left.label("Input to screen  median ");
         left.value(time(self.median, latency));
-        left.label(" ms  99th percentile ");
-        left.value(time(self.percentile_99, latency));
-        left.label(" ms  of ");
-        left.value(number(measuring.then_some(self.samples as f64), 0, COUNT_WIDTH));
-        left.label(&format!(" frames in {WINDOW_SECONDS:.0} seconds"));
-        left.label(GAP);
-        left.label("Medians  waiting ");
-        left.value(time(self.waiting, latency));
-        left.label(" ms  building ");
-        left.value(time(self.building, latency));
-        left.label(" ms  presenting ");
-        left.value(time(self.presenting, latency));
         left.label(" ms");
         self.left = left.0;
 

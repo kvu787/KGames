@@ -57,10 +57,18 @@ pub const TITLE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 28.
 pub const TITLE_LARGE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 40.0, 52.0);
 pub const DISPLAY: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 68.0, 92.0);
 // Cascadia Mono, for text whose columns line up, like logs and codes, and at
-// the caption's size, like the performance stats along the top of the window.
+// the caption's size.
 pub const MONO: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 13.0, 20.0);
 pub const MONO_STRONG: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 13.0, 20.0);
 pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 12.0, 16.0);
+// The performance stats along the top of every window: Cascadia Mono, as
+// large as the bar fits it. Its ink, from the top of "/", 1610 of its 2048
+// units a size above the baseline, to the bottom of "y", 480 below, is 28.06
+// pixels tall at 27.5, of the 29 above the bar's divider.
+pub const STATS_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 27.5, 30.0);
+// How far Cascadia Mono's ink is below the middle of its ascent and descent,
+// which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
+pub const MONO_INK_DROP: f32 = 0.0708;
 
 // Motion: WinUI's ControlFasterAnimationDuration, for colors, Fast, for
 // things that move, and Normal, for surfaces that open.

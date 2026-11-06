@@ -258,18 +258,17 @@ it says 4 times a second:
 
 | Stat              | What it is                                                                                      |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
-| `Frames`          | Frames a second that the main loop draws, the mean time between them, and the longest           |
-| `On screen`       | Frames a second that reach the screen                                                           |
-| `Input to screen` | The input latency's median and 99th percentile, and how many frames they're of                  |
-| `Medians`         | The median of each of the input latency's three parts                                           |
+| `Frames`          | Frames a second that the main loop draws                                                        |
+| `Input to screen` | The input latency's median                                                                      |
 | `Mode`            | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM          |
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
-The bar is set in Cascadia Mono, `MONO_CAPTION`, in fields whose widths never change, so that every
-label and value stays in the same place: numbers are right-aligned in their fields, a number that
-isn't known yet, like the input latency's before the first present, is a dash, and one too wide for
-its field fills it with `#`. Without input latency, the bar says why between `Medians` and `Mode`.
+The bar is set in Cascadia Mono, `STATS_BAR_TEXT`, black on white, as large as fits above its
+divider, in fields whose widths never change, so that every label and value stays in the same
+place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
+latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
+Without input latency, the bar says why between `Input to screen` and `Mode`.
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:
