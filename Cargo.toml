@@ -23,6 +23,7 @@ members = [
     "Library/WindowsApi",
     "Program/GameInputDemo",
     "Program/IdentifyDisplays",
+    "Program/MeshModeler",
     "Program/MinimalSceneTest",
     "Program/SimplePaintDemo",
     "Program/SpinningCarTest",

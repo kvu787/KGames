@@ -105,6 +105,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mesh_modeler"
+version = "0.1.0"
+dependencies = [
+ "graphics",
+ "json",
+ "math",
+ "paint_settings",
+ "polygon_mesh",
+ "shader_compiler",
+ "simple_paint",
+ "user_interface",
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
 name = "meshes"
 version = "0.1.0"
 dependencies = [

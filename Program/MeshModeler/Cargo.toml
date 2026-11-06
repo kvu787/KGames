@@ -1,0 +1,34 @@
+[package]
+name = "mesh_modeler"
+version = "0.1.0"
+edition = "2024"
+build = "Build.rs"
+
+# The modeler's parts, which Test/MeshModeler tests without a window.
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+graphics = { path = "../../Library/Graphics" }
+json = { path = "../../Library/Json" }
+math = { path = "../../Library/Math" }
+paint_settings = { path = "../../Library/PaintSettings" }
+polygon_mesh = { path = "../../Library/PolygonMesh" }
+simple_paint = { path = "../../Library/SimplePaint" }
+user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
+
+# Its proc macros (for implementing COM interfaces in Rust) aren't needed.
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
+[build-dependencies]
+shader_compiler = { path = "../../Library/ShaderCompiler" }
+
+[lints]
+workspace = true
