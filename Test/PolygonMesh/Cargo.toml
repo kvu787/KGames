@@ -1,0 +1,25 @@
+[package]
+name = "polygon_mesh_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Primitives"
+path = "Primitives.rs"
+
+[[test]]
+name = "Topology"
+path = "Topology.rs"
+
+[[test]]
+name = "Selection"
+path = "Selection.rs"
+
+[dependencies]
+math = { path = "../../Library/Math" }
+polygon_mesh = { path = "../../Library/PolygonMesh" }
+simple_paint = { path = "../../Library/SimplePaint" }
+
+[lints]
+workspace = true

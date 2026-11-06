@@ -1,0 +1,18 @@
+[package]
+name = "polygon_mesh"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "Source/Library.rs"
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+json = { path = "../Json" }
+math = { path = "../Math" }
+simple_paint = { path = "../SimplePaint" }
+
+[lints]
+workspace = true

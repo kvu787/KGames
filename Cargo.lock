@@ -153,6 +153,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "polygon_mesh"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "math",
+ "simple_paint",
+]
+
+[[package]]
+name = "polygon_mesh_tests"
+version = "0.1.0"
+dependencies = [
+ "math",
+ "polygon_mesh",
+ "simple_paint",
+]
+
+[[package]]
 name = "shader_compiler"
 version = "0.1.0"
 
