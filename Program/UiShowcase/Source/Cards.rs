@@ -46,9 +46,9 @@ pub const ROW_HEIGHTS: [f32; 3] = [28.0, 36.0, 44.0];
 // The heights of the cards that aren't at the bottom of their column.
 pub const BUTTONS_HEIGHT: f32 = 284.0;
 pub const TOGGLES_HEIGHT: f32 = 372.0;
-pub const SLIDERS_HEIGHT: f32 = 488.0;
-pub const COMBO_HEIGHT: f32 = 236.0;
-pub const TEXT_HEIGHT: f32 = 268.0;
+pub const SLIDERS_HEIGHT: f32 = 480.0;
+pub const COMBO_HEIGHT: f32 = 228.0;
+pub const TEXT_HEIGHT: f32 = 260.0;
 pub const INFO_BARS_HEIGHT: f32 = 340.0;
 
 pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
@@ -342,7 +342,7 @@ fn text_boxes(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
 fn tooltips(ui: &mut Ui, rect: Rect) {
     let card = ui.card(rect, "Tooltips");
     let mut area = card.content;
-    let [sentence, details] = area.cut_top(CONTROL_HEIGHT, SPACE_M).columns::<2>(SPACE_S);
+    let [sentence, details] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<2>(SPACE_S);
     ui.button("TipSentence", sentence, Button::new("A sentence"));
     ui.tooltip("TipSentence", "Tooltips show after the pointer rests on a widget for half a second");
     ui.button("TipDetails", details, Button::new("Details").icon(Icon::Info));
@@ -358,13 +358,13 @@ fn tooltips(ui: &mut Ui, rect: Rect) {
         ],
     );
     let theme = ui.theme().clone();
-    let mut keys = area.cut_top(22.0, SPACE_M);
+    let mut keys = area.cut_top(22.0, SPACE_S);
     for key in ["Ctrl", "Shift", "S"] {
         let width = ui.keycap(keys.origin(), key);
         keys.cut_left(width, SPACE_XS);
     }
     ui.text(keys, "Keycaps, for shortcuts", CAPTION, theme.text_secondary);
-    let mut badges = area.cut_top(22.0, SPACE_M);
+    let mut badges = area.cut_top(22.0, SPACE_S);
     let width = ui.badge(Point::new(badges.x, badges.center().y), "3");
     badges.cut_left(width, SPACE_XS);
     let width = ui.badge(Point::new(badges.x, badges.center().y), "New");
