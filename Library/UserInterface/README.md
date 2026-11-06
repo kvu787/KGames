@@ -255,22 +255,23 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 ## PerfBar
 
 Every program's window shows its performance along its top, in the PerfBar
-(`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second and
-the input latency over the last 2 seconds. It changes what it says 10 times a second:
+(`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames and the input latency over
+the last second, in sections that `|` separates. It changes what it says 10 times a second:
 
-| Stat              | What it is                                                                                      |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| `FPS`             | Frames a second that the main loop draws, with two decimals                                     |
-| `Input to screen` | The input latency's median                                                                      |
-| `Mode`            | How frames reach the screen, one of PresentTiming's present modes                               |
-| `Tearing`         | Whether they tear                                                                               |
-| `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
+| Stat            | What it is                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| `FPS`           | Frames a second that the main loop draws, with two decimals                                     |
+| `Input latency` | The input latency's mean                                                                        |
+| `Lookback`      | How many seconds back the stats look, 1                                                         |
+| `Mode`          | How frames reach the screen, one of PresentTiming's present modes                               |
+| `Tearing`       | Whether they tear                                                                               |
+| `VSync`         | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
 The PerfBar is set in Cascadia Mono at 14 pixels, `PERF_BAR_TEXT`, black on white, centered above
 its divider, in fields whose widths never change, so that every label and value stays in the same
 place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
 latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
-Without input latency, the PerfBar says why between `Input to screen` and `Mode`.
+Without input latency, the PerfBar says why after its own, before `Mode`.
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:

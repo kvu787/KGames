@@ -44,7 +44,7 @@ fn a_frame_s_latency_runs_from_its_input_to_the_screen_in_three_parts() {
     let summary = performance.summary();
     assert_eq!(summary.latency, LatencyState::Measuring);
     assert_eq!(summary.samples, 1);
-    close(summary.median, 10.0);
+    close(summary.mean, 10.0);
     close(summary.waiting, 1.0);
     close(summary.building, 2.0);
     close(summary.presenting, 7.0);
@@ -72,7 +72,7 @@ fn a_frame_that_never_reaches_the_screen_passes_its_input_to_the_next_that_does(
     performance.update(0.0);
     let summary = performance.summary();
     assert_eq!(summary.samples, 1);
-    close(summary.median, 9.0);
+    close(summary.mean, 9.0);
     close(summary.presenting, 7.0);
 }
 
@@ -95,7 +95,7 @@ fn a_frame_on_the_screen_with_input_of_its_own_takes_only_its_own() {
     performance.known(vec![present(dropped.present, None), present(shown.present, Some(base + ticks(9.0)))]);
     performance.update(0.0);
     assert_eq!(performance.summary().samples, 1);
-    close(performance.summary().median, 6.5);
+    close(performance.summary().mean, 6.5);
 }
 
 #[test]
@@ -139,10 +139,19 @@ fn presents_that_aren_t_the_main_loop_s_are_left_alone() {
 }
 
 #[test]
-fn the_median_and_99th_percentile_are_of_the_last_two_seconds() {
-    let base = clock::now() - ticks(1000.0);
+fn the_mean_and_99th_percentile_are_of_the_last_second() {
+    let base = clock::now() - ticks(900.0);
     let mut performance = Performance::given();
     let mut presents = Vec::new();
+    // A frame that reached the screen more than a second ago, which doesn't
+    // count.
+    let old = Frame {
+        input: Some(base - ticks(600.0)),
+        read: base - ticks(600.0),
+        present: base - ticks(600.0),
+    };
+    performance.presented(old);
+    presents.push(present(old.present, Some(old.present + ticks(1.0))));
     for index in 0..100 {
         let input = base + ticks(index as f64 * 5.0);
         let frame = Frame {
@@ -157,7 +166,7 @@ fn the_median_and_99th_percentile_are_of_the_last_two_seconds() {
     performance.update(0.0);
     let summary = performance.summary();
     assert_eq!(summary.samples, 100);
-    close(summary.median, 50.5);
+    close(summary.mean, 50.5);
     close(summary.percentile_99, 99.01);
 }
 

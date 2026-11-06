@@ -24,8 +24,9 @@ use present_timing::{Present, PresentMode, PresentTiming, StartError};
 
 use crate::platform::clock;
 
-// The stats are of this many seconds before now.
-pub const WINDOW_SECONDS: f64 = 2.0;
+// The stats, the frames' and the input latency's, are of this many seconds
+// before now.
+pub const WINDOW_SECONDS: f64 = 1.0;
 // How often what the PerfBar says changes, so that it can be read.
 const REFRESH_SECONDS: f64 = 0.1;
 // How far before its Present call's start a frame's own present time can be,
@@ -50,9 +51,9 @@ const MODE_WIDTH: usize = {
     width
 };
 const YES_NO_WIDTH: usize = 3;
-// The gap between the bar's groups, like the frames' and the input
+// What separates the bar's sections, like the frames' and the input
 // latency's.
-pub(crate) const GAP: &str = "    ";
+pub(crate) const SEPARATOR: &str = " | ";
 
 // A frame that the main loop presented, with the times of its input.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -95,10 +96,10 @@ pub struct Summary {
     pub latency: LatencyState,
     // Frames a second that reached the screen.
     pub displayed_per_second: f64,
-    // The input latency's samples, their median and 99th percentile, and the
-    // median of each part.
+    // The input latency's samples, their mean and 99th percentile, and the
+    // mean of each part.
     pub samples: usize,
-    pub median: f64,
+    pub mean: f64,
     pub percentile_99: f64,
     pub waiting: f64,
     pub building: f64,
@@ -173,16 +174,22 @@ impl Summary {
         let mut left = Runs::default();
         left.label("FPS ");
         left.value(rate(self.frames_per_second, frames));
-        left.label(GAP);
-        left.label("Input to screen  median ");
-        left.value(time(self.median, latency));
+        left.label(SEPARATOR);
+        left.label("Input latency ");
+        left.value(time(self.mean, latency));
         left.label(" ms");
+        // How far back the stats look.
+        left.label(SEPARATOR);
+        left.label("Lookback ");
+        left.value(format!("{WINDOW_SECONDS}"));
+        left.label(" s");
         self.left = left.0;
 
         let mut right = Runs::default();
-        right.label("Mode ");
+        right.label("| Mode ");
         right.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
-        right.label("  Tearing ");
+        right.label(SEPARATOR);
+        right.label("Tearing ");
         right.value(words(measuring.then_some(if self.tearing { "yes" } else { "no" }), YES_NO_WIDTH));
         self.right = right.0;
 
@@ -193,7 +200,8 @@ impl Summary {
             LatencyState::Measuring => None,
         };
         if let Some(reason) = reason {
-            note.label("Input to screen ");
+            note.label(SEPARATOR);
+            note.label("Input latency ");
             note.value(reason.to_string());
         }
         self.note = note.0;
@@ -268,7 +276,7 @@ impl Performance {
     // A frame starts, at a time on the frames' clock, in seconds.
     pub fn frame_started(&mut self, time: f64) {
         self.frame_times.push_back(time);
-        while self.frame_times.front().is_some_and(|start| *start < time - 1.0) {
+        while self.frame_times.front().is_some_and(|start| *start < time - WINDOW_SECONDS) {
             self.frame_times.pop_front();
         }
     }
@@ -390,22 +398,18 @@ impl Performance {
         summary.tearing = self.tearing;
         summary.samples = self.samples.len();
         if !self.samples.is_empty() {
+            let mean = |part: fn(&Sample) -> f64| self.samples.iter().map(part).sum::<f64>() / self.samples.len() as f64;
             let mut totals: Vec<f64> = self.samples.iter().map(|sample| sample.total).collect();
-            summary.median = median(&mut totals);
+            totals.sort_by(f64::total_cmp);
+            summary.mean = mean(|sample| sample.total);
             summary.percentile_99 = percentile(&totals, 0.99);
-            summary.waiting = median(&mut self.samples.iter().map(|sample| sample.waiting).collect::<Vec<_>>());
-            summary.building = median(&mut self.samples.iter().map(|sample| sample.building).collect::<Vec<_>>());
-            summary.presenting = median(&mut self.samples.iter().map(|sample| sample.presenting).collect::<Vec<_>>());
+            summary.waiting = mean(|sample| sample.waiting);
+            summary.building = mean(|sample| sample.building);
+            summary.presenting = mean(|sample| sample.presenting);
         }
         summary.word();
         summary
     }
-}
-
-// Sorts the values, and gives their median.
-fn median(values: &mut [f64]) -> f64 {
-    values.sort_by(f64::total_cmp);
-    percentile(values, 0.5)
 }
 
 // The value of sorted values at a fraction of the way through them, between

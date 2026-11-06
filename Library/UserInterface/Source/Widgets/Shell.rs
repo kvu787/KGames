@@ -6,7 +6,7 @@
 // status bar along the bottom with shortcuts and status; and the page between
 // them, where the cards go.
 
-use crate::application::performance::{GAP, Run};
+use crate::application::performance::{Run, SEPARATOR};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
 use crate::design::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
@@ -198,11 +198,11 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 
 impl Ui {
     // Draws the PerfBar along the top of the window: the frames a second,
-    // the input latency's median from GameInput's readings to the screen,
+    // the input latency's mean from GameInput's readings to the screen,
     // and at the right, how frames reach the screen and whether they wait for
-    // vertical sync, set in Cascadia Mono, black on white, in fields whose
-    // widths never change, so that every label and value stays in the same
-    // columns. The main loop draws it every frame; programs don't.
+    // vertical sync, in sections that |s separate, set in Cascadia Mono,
+    // black on white, in fields whose widths never change, so that every
+    // label and value stays in the same columns. The main loop draws it every frame; programs don't.
     pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made 10 times a second, not copied here
@@ -231,12 +231,13 @@ impl Ui {
             };
             let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;
             // The right's runs end at the last column, the left's start at
-            // the first, and why there's no input latency goes between them.
-            let right = runs(&summary.right).chain([("  VSync ", false), (vertical_sync, true)]);
+            // the first, and why there's no input latency goes right after
+            // the left's, which a space at least keeps from the right's.
+            let right = runs(&summary.right).chain([(SEPARATOR, false), ("VSync ", false), (vertical_sync, true)]);
             let right_start = columns.saturating_sub(right.clone().map(|(text, _)| text.chars().count()).sum());
-            let gap = GAP.len();
-            let left_end = grid.draw(&mut painter, 0, right_start.saturating_sub(gap), runs(&summary.left));
-            grid.draw(&mut painter, left_end + gap, right_start.saturating_sub(gap), runs(&summary.note));
+            let end = right_start.saturating_sub(1);
+            let left_end = grid.draw(&mut painter, 0, end, runs(&summary.left));
+            grid.draw(&mut painter, left_end, end, runs(&summary.note));
             grid.draw(&mut painter, right_start, columns, right);
         }
         self.performance = Some(performance);

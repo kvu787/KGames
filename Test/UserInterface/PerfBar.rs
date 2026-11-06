@@ -119,25 +119,33 @@ fn every_present_mode_shows_whole_in_the_same_columns() {
 #[test]
 fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
     let summary = measuring(0.01, 10.0, true);
-    // Frames a second, and the latency's median.
-    assert_eq!(values(&summary.left), ["  100.00", "  10.00"]);
+    // Frames a second, and the latency's mean.
+    assert_eq!(values(&summary.left), ["  100.00", "  10.00", "1"]);
     assert_eq!(values(&summary.right), ["Independent flip ", "yes"]);
     assert!(summary.note.is_empty());
 
     // Without input latency, all of its numbers, and the present mode, are
     // dashes, and the note says why.
     let summary = without_latency("none in a test");
-    for value in values(&summary.left).into_iter().chain(values(&summary.right)) {
+    for value in values(&summary.left)[..2].iter().copied().chain(values(&summary.right)) {
         assert_eq!(value.trim(), "-", "{value:?}");
     }
     assert_eq!(summary.note, [
-        Run { text: "Input to screen ".to_string(), value: false },
+        Run { text: " | Input latency ".to_string(), value: false },
         Run { text: "none in a test".to_string(), value: true },
     ]);
 
     // Frames without input have no latency.
     let summary = measuring(0.01, 10.0, false);
-    assert_eq!(values(&summary.left), ["  100.00", "      -"]);
+    assert_eq!(values(&summary.left), ["  100.00", "      -", "1"]);
+}
+
+#[test]
+fn sections_are_separated_by_bars() {
+    let summary = measuring(0.01, 10.0, true);
+    let text = |runs: &[Run]| runs.iter().map(|run| run.text.as_str()).collect::<String>();
+    assert_eq!(text(&summary.left), "FPS   100.00 | Input latency   10.00 ms | Lookback 1 s");
+    assert_eq!(text(&summary.right), "| Mode Independent flip  | Tearing yes");
 }
 
 #[test]
@@ -147,5 +155,5 @@ fn a_number_too_wide_for_its_field_fills_it() {
     performance.frame_started(0.000_001);
     performance.update(0.000_001);
     let summary = performance.summary();
-    assert_eq!(values(&summary.left), ["########", "      -"]);
+    assert_eq!(values(&summary.left), ["########", "      -", "1"]);
 }
