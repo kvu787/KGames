@@ -1,8 +1,8 @@
-// The ETW events that tell when presents reach the screen, from DXGI, the
-// graphics kernel (DxgKrnl), Win32k and the desktop window manager (DWM),
-// and NVIDIA's display driver, as plain data. The session enables these
-// providers with these events, the levels and the keywords that PresentMon
-// uses, so that the times are the same as PresentMon's.
+// The ETW events that tell when presents reach the screen, from DXGI and
+// Direct3D 9, the graphics kernel (DxgKrnl), Win32k and the desktop window
+// manager (DWM), and NVIDIA's display driver, as plain data. The session
+// enables these providers with these events, the levels and the keywords
+// that PresentMon uses, so that the times are the same as PresentMon's.
 
 use windows_api::EVENT_RECORD;
 use windows_core::GUID;
@@ -13,6 +13,7 @@ pub const DXGKRNL: GUID = GUID::from_u128(0x802ec45a_1e99_4b83_9920_87c98277ba9d
 pub const WIN32K: GUID = GUID::from_u128(0x8c416c79_d49b_4f01_a467_e56d3aa8234c);
 pub const DWM: GUID = GUID::from_u128(0x9e9bba3c_2e38_40cb_99f4_9e8281425164);
 pub const DXGI: GUID = GUID::from_u128(0xca11c036_0102_4a2d_a6ad_f03cfed5d3c9);
+pub const D3D9: GUID = GUID::from_u128(0x783aca0a_790e_4d7f_8451_aa850511c6b9);
 pub const NVIDIA: GUID = GUID::from_u128(0xae4f8626_8265_40d1_a70b_11b64240e8e9);
 
 // A provider to enable: its level, keywords, and the events to let through.
@@ -26,7 +27,7 @@ pub struct Provider {
 
 // In the order that PresentMon enables them: the kernel's first, so that no
 // present is under way before its events come.
-pub const PROVIDERS: [Provider; 5] = [
+pub const PROVIDERS: [Provider; 6] = [
     Provider {
         guid: DXGKRNL,
         level: 4,
@@ -58,6 +59,13 @@ pub const PROVIDERS: [Provider; 5] = [
         events: &[0x2A, 0x2B, 0x37, 0x38],
     },
     Provider {
+        guid: D3D9,
+        level: 0,
+        any: 0x8000_0000_0000_0002,
+        all: 0x8000_0000_0000_0002,
+        events: &[0x1, 0x2],
+    },
+    Provider {
         guid: NVIDIA,
         level: 4,
         any: 0x1000_0000_0000_0000,
@@ -76,20 +84,32 @@ pub struct Event {
     pub kind: Kind,
 }
 
+// The API whose Present call a present came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Runtime {
+    Dxgi,
+    D3d9,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Kind {
-    // DXGI.
-    PresentStart { swap_chain: u64, flags: u32, sync_interval: i32 },
-    PresentStop { result: u32 },
+    // DXGI's and Direct3D 9's Present calls. Direct3D 9's flags are DXGI's
+    // that mean the same.
+    PresentStart { runtime: Runtime, swap_chain: u64, flags: u32, sync_interval: i32 },
+    PresentStop { runtime: Runtime, result: u32 },
     // Win32k: a present's token for composition, and its state changes.
     TokenCompositionSurfaceObject { key: (u64, u64, u64) },
     TokenStateChanged { key: (u64, u64, u64), state: u32, independent_flip: bool },
     // DxgKrnl.
-    PresentHistoryStart { token: u64, model: u32 },
+    PresentHistoryStart { token: u64, model: u32, token_data: u64 },
     PresentHistoryInfo { token: u64 },
     QueuePacketStart { packet_type: u32, submit_sequence: u32, context: u64, present: bool },
     QueuePacketStop { context: u64, submit_sequence: u32 },
     PresentInfo { window: u64 },
+    // A bitblt model present's copy, to the screen or else to the window's
+    // surface for DWM, and the kernel finding the copy unneeded.
+    Blit { window: u64, redirected: bool },
+    BlitCancel,
     Flip { interval: u32, mmio: bool },
     FlipMultiPlaneOverlay { source: u32, layer: u32 },
     IndependentFlip { submit_sequence: u32, interval: u32 },
@@ -102,8 +122,31 @@ pub enum Kind {
     DwmSchedulePresent,
     DwmGetPresentHistory,
     DwmScheduleSurfaceUpdate { key: (u64, u64, u64) },
+    // DWM taking a present that was copied on the CPU, by its present
+    // history token's data.
+    DwmFlipChain { token_data: u64, window: u64 },
     // NVIDIA's display driver: when it means to flip.
     NvidiaFlipRequest { alloc: u64, source: u32, time: u64, token: u32 },
+}
+
+// Direct3D 9's Present flags, and the DXGI flags that mean the same.
+const D3DPRESENT_DONOTWAIT: u32 = 0x1;
+const D3DPRESENT_DONOTFLIP: u32 = 0x4;
+const D3DPRESENT_FLIPRESTART: u32 = 0x8;
+const D3DPRESENT_FORCEIMMEDIATE: u32 = 0x100;
+const DXGI_PRESENT_DO_NOT_SEQUENCE: u32 = 0x2;
+const DXGI_PRESENT_RESTART: u32 = 0x4;
+const DXGI_PRESENT_DO_NOT_WAIT: u32 = 0x8;
+
+fn dxgi_flags(flags: u32) -> u32 {
+    [
+        (D3DPRESENT_DONOTFLIP, DXGI_PRESENT_DO_NOT_SEQUENCE),
+        (D3DPRESENT_DONOTWAIT, DXGI_PRESENT_DO_NOT_WAIT),
+        (D3DPRESENT_FLIPRESTART, DXGI_PRESENT_RESTART),
+    ]
+    .iter()
+    .filter(|(d3d9, _)| flags & d3d9 != 0)
+    .fold(0, |dxgi, (_, flag)| dxgi | flag)
 }
 
 // Win32k's token states.
@@ -141,9 +184,10 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
         let read = matches!(
             (provider, id),
             (DXGI, 0x2A | 0x37 | 0x2B | 0x38)
+                | (D3D9, 0x1 | 0x2)
                 | (WIN32K, 0xC9 | 0x12D)
-                | (DXGKRNL, 0xAB | 0xD7 | 0xAC | 0xB2 | 0xB4 | 0xB8 | 0xA8 | 0xFC | 0x10A | 0x74 | 0x103 | 0x11 | 0x111 | 0x17E)
-                | (DWM, 0x0F | 0x40 | 0xC4)
+                | (DXGKRNL, 0xAB | 0xD7 | 0xAC | 0xB2 | 0xB4 | 0xB8 | 0xA6 | 0x1F5 | 0xA8 | 0xFC | 0x10A | 0x74 | 0x103 | 0x11 | 0x111 | 0x17E)
+                | (DWM, 0x0F | 0x40 | 0xC4 | 0x45 | 0x46 | 0x65)
         );
         if !read {
             return None;
@@ -151,11 +195,22 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
         let fields = decoder.fields(record)?;
         match (provider, id) {
             (DXGI, 0x2A | 0x37) => Kind::PresentStart {
+                runtime: Runtime::Dxgi,
                 swap_chain: fields.u64("pIDXGISwapChain")?,
                 flags: fields.u32("Flags")?,
                 sync_interval: fields.u32("SyncInterval")? as i32,
             },
-            (DXGI, 0x2B | 0x38) => Kind::PresentStop { result: fields.u32("Result")? },
+            (DXGI, 0x2B | 0x38) => Kind::PresentStop { runtime: Runtime::Dxgi, result: fields.u32("Result")? },
+            (D3D9, 0x1) => {
+                let flags = fields.u32("Flags")?;
+                Kind::PresentStart {
+                    runtime: Runtime::D3d9,
+                    swap_chain: fields.u64("pSwapchain")?,
+                    flags: dxgi_flags(flags),
+                    sync_interval: if flags & D3DPRESENT_FORCEIMMEDIATE != 0 { 0 } else { -1 },
+                }
+            }
+            (D3D9, 0x2) => Kind::PresentStop { runtime: Runtime::D3d9, result: fields.u32("Result")? },
             (WIN32K, 0xC9) => Kind::TokenCompositionSurfaceObject {
                 key: (fields.u64("CompositionSurfaceLuid")?, fields.u64("PresentCount")?, fields.u64("BindId")?),
             },
@@ -170,6 +225,7 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
             (DXGKRNL, 0xAB | 0xD7) => Kind::PresentHistoryStart {
                 token: fields.u64("Token")?,
                 model: fields.u32("Model")?,
+                token_data: fields.u64("TokenData").unwrap_or(0),
             },
             (DXGKRNL, 0xAC) => Kind::PresentHistoryInfo { token: fields.u64("Token")? },
             (DXGKRNL, 0xB2) => Kind::QueuePacketStart {
@@ -183,6 +239,11 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
                 submit_sequence: fields.u32("SubmitSequence")?,
             },
             (DXGKRNL, 0xB8) => Kind::PresentInfo { window: fields.u64("hWindow")? },
+            (DXGKRNL, 0xA6) => Kind::Blit {
+                window: fields.u64("hwnd")?,
+                redirected: fields.u32("bRedirectedPresent")? != 0,
+            },
+            (DXGKRNL, 0x1F5) => Kind::BlitCancel,
             (DXGKRNL, 0xA8) => Kind::Flip {
                 interval: fields.u32("FlipInterval")?,
                 mmio: fields.u32("MMIOFlip")? != 0,
@@ -215,6 +276,12 @@ pub fn decode(decoder: &mut Decoder, record: &EVENT_RECORD) -> Option<Event> {
             (DWM, 0x40) => Kind::DwmGetPresentHistory,
             (DWM, 0xC4) => Kind::DwmScheduleSurfaceUpdate {
                 key: (fields.u64("luidSurface")?, fields.u64("PresentCount")?, fields.u64("bindId")?),
+            },
+            // The flip chain and the serial number are 4 bytes each, or 8 on
+            // Windows 8.1, and make the token data's high and low halves.
+            (DWM, 0x45 | 0x46 | 0x65) => Kind::DwmFlipChain {
+                token_data: (fields.u64("ulFlipChain")? << 32) | (fields.u64("ulSerialNumber")? & 0xFFFF_FFFF),
+                window: fields.u64("hwnd")?,
             },
             _ => return None,
         }

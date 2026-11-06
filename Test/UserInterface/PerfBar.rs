@@ -1,7 +1,7 @@
 // Tests what the PerfBar says: every label and value stays in the same
 // columns whatever the stats are, starting, without input latency, or
-// measuring it, with small numbers or large, and numbers that aren't known
-// yet are dashes.
+// measuring it, with small numbers or large, in every present mode, and
+// numbers that aren't known yet are dashes.
 
 use present_timing::{Present, PresentMode};
 use user_interface::clock;
@@ -22,6 +22,11 @@ fn frames(performance: &mut Performance, apart: f64) {
 // Stats that measure input latency, from frames whose inputs reach the
 // screen so many milliseconds later, a millisecond apart, near now.
 fn measuring(apart: f64, latency: f64, with_input: bool) -> Summary {
+    measuring_in(PresentMode::IndependentFlip, apart, latency, with_input)
+}
+
+// The same, with the frames reaching the screen in a mode.
+fn measuring_in(mode: PresentMode, apart: f64, latency: f64, with_input: bool) -> Summary {
     let base = clock::now() - ticks(500.0);
     let mut performance = Performance::given();
     frames(&mut performance, apart);
@@ -37,7 +42,7 @@ fn measuring(apart: f64, latency: f64, with_input: bool) -> Summary {
         presents.push(Present {
             start: frame.present + 5,
             thread: 1,
-            mode: PresentMode::IndependentFlip,
+            mode,
             tearing: true,
             screen: Some(input + ticks(latency)),
             flip_delay: 0,
@@ -102,11 +107,21 @@ fn every_label_and_value_stays_in_its_columns() {
 }
 
 #[test]
+fn every_present_mode_shows_whole_in_the_same_columns() {
+    let first = measuring_in(PresentMode::ALL[0], 0.01, 10.0, true);
+    for mode in PresentMode::ALL {
+        let summary = measuring_in(mode, 0.01, 10.0, true);
+        assert_eq!(values(&summary.right)[0].trim_end(), mode.name());
+        assert_eq!(columns(&summary.right), columns(&first.right), "{:?}", summary.right);
+    }
+}
+
+#[test]
 fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
     let summary = measuring(0.01, 10.0, true);
     // Frames a second, and the latency's median.
     assert_eq!(values(&summary.left), ["  100.00", "  10.00"]);
-    assert_eq!(values(&summary.right), ["Independent flip", "yes"]);
+    assert_eq!(values(&summary.right), ["Independent flip ", "yes"]);
     assert!(summary.note.is_empty());
 
     // Without input latency, all of its numbers, and the present mode, are

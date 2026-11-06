@@ -260,7 +260,7 @@ the input latency over the last 2 seconds. It changes what it says 10 times a se
 | ----------------- | ----------------------------------------------------------------------------------------------- |
 | `FPS`             | Frames a second that the main loop draws, with two decimals                                     |
 | `Input to screen` | The input latency's median                                                                      |
-| `Mode`            | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM          |
+| `Mode`            | How frames reach the screen, one of PresentTiming's present modes                               |
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 

@@ -41,8 +41,8 @@ Measuring AceCombat8.exe, process 1234, for 10 seconds.
 | 99th percentile | The nearest rank's: the shortest frame time that 99% of them are at or under     |
 | Maximum         | The longest frame time                                                           |
 | Stutters        | How many frames took more than twice the median, which shows as a hitch          |
-| Present mode    | How most of the presents reached the screen: an independent flip, an overlay     |
-|                 | plane, or composed by DWM                                                        |
+| Present mode    | How most of the presents reached the screen, one of PresentTiming's present      |
+|                 | modes, like a composed flip, or a legacy flip in fullscreen exclusive mode       |
 
 A frame time is the time from one frame on the screen to the next: the difference between the
 screen times of two presents in a row that reached the screen, which PresentTiming gives on the

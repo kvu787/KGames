@@ -20,27 +20,61 @@ use crate::decoder::Decoder;
 use crate::session::Session;
 use crate::tracker::Tracker;
 
-// How a present got to the screen.
+// How a present got to the screen: each of the ways that PresentMon tells
+// apart, which are every way that Windows' events tell apart.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PresentMode {
+    // Its events didn't say.
     #[default]
     Unknown,
-    // The display took the swap chain's buffer itself, like in borderless
-    // fullscreen.
+    // A fullscreen exclusive flip: the process owns the display, which
+    // shows its buffer. PresentMon's "Hardware: Legacy Flip". DWM's own
+    // frames go to the screen this way too.
+    LegacyFlip,
+    // A fullscreen exclusive bitblt: the process copies its buffer into the
+    // one that the display shows. PresentMon's "Hardware: Legacy Copy to
+    // front buffer".
+    LegacyCopy,
+    // The display took the swap chain's buffer itself, without DWM, like in
+    // borderless fullscreen. PresentMon's "Hardware: Independent Flip".
     IndependentFlip,
-    // The same, on one of the display's overlay planes, over other windows.
+    // The same, on one of the display's overlay planes, over the desktop's.
+    // PresentMon's "Hardware Composed: Independent Flip".
     OverlayPlane,
-    // The desktop window manager drew it into its own frame.
-    Composed,
+    // DWM drew the swap chain's buffer into its own frame. PresentMon's
+    // "Composed: Flip".
+    ComposedFlip,
+    // A bitblt model swap chain's buffer was copied into the window's
+    // surface on the GPU, which DWM drew into its own frame. PresentMon's
+    // "Composed: Copy with GPU GDI".
+    ComposedGpuCopy,
+    // The same, copied on the CPU. PresentMon's "Composed: Copy with CPU
+    // GDI".
+    ComposedCpuCopy,
 }
 
 impl PresentMode {
-    pub fn name(self) -> &'static str {
+    pub const ALL: [PresentMode; 8] = [
+        PresentMode::Unknown,
+        PresentMode::LegacyFlip,
+        PresentMode::LegacyCopy,
+        PresentMode::IndependentFlip,
+        PresentMode::OverlayPlane,
+        PresentMode::ComposedFlip,
+        PresentMode::ComposedGpuCopy,
+        PresentMode::ComposedCpuCopy,
+    ];
+
+    pub const fn name(self) -> &'static str {
         match self {
             PresentMode::Unknown => "Unknown",
+            PresentMode::LegacyFlip => "Legacy flip",
+            PresentMode::LegacyCopy => "Legacy copy",
             PresentMode::IndependentFlip => "Independent flip",
             PresentMode::OverlayPlane => "Overlay plane",
-            PresentMode::Composed => "Composed",
+            PresentMode::ComposedFlip => "Composed flip",
+            PresentMode::ComposedGpuCopy => "Composed GPU copy",
+            PresentMode::ComposedCpuCopy => "Composed CPU copy",
         }
     }
 }
