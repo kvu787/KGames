@@ -35,7 +35,7 @@ path = "Editors.rs"
 [dependencies]
 json = { path = "../../Library/Json" }
 simple_paint = { path = "../../Library/SimplePaint" }
-user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
+user_interface = { path = "../../Library/UserInterface" }
 veehiicuul = { path = "../../Program/Veehiicuul" }
 
 [lints]

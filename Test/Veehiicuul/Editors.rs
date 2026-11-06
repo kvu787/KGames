@@ -1,9 +1,10 @@
 // The editors through their frames, as the main loop runs them, with
 // presses and drags that the tests make up, in their cards' and views' real
 // layout, which Library/UserInterface's Headless lays out without a window
-// or a GPU: the tabs, what fits in the cards, painting the terrain, panning
-// and zooming the view, building the track, the vehicles' footprints,
-// arranging the scene, undo, and saving.
+// or a GPU: the tabs, what fits in the cards, which controls keep keyboard
+// focus, color fields, painting the terrain, panning and zooming the view,
+// building the track, the vehicles' footprints, arranging the scene, undo,
+// and saving.
 
 use std::path::PathBuf;
 
@@ -106,6 +107,32 @@ fn the_editors_controls_fit_in_their_cards() {
             }
         }
     }
+}
+
+// Only text fields keep keyboard focus, so that the arrows never go to a
+// control, like the tools' segments or the list. A color field's color
+// changes with Enter, and a press in the view takes its focus.
+#[test]
+fn only_text_fields_keep_keyboard_focus() {
+    let mut app = start("Focus");
+    app.click("Mode/Terrain");
+    app.click("Terrain/Tool/Fill");
+    assert_eq!(app.ui.state().get("Focused"), Some(&Value::Null));
+    app.key(Key::RIGHT).key(Key::LEFT);
+    assert_eq!(app.program.terrain_editor.tool, 2);
+    app.click("Mode/Scene").click("Scene/Objects/1");
+    assert_eq!(app.ui.state().get("Focused"), Some(&Value::Null));
+    app.key(Key::DOWN);
+    assert_eq!(app.program.scene_editor.picked, Some(Picked::Parked(0)));
+
+    app.click("Mode/Terrain").click("Terrain/Color");
+    assert_eq!(app.ui.state().get("Focused"), Some(&"Terrain/Color".into()));
+    app.key_with(Modifiers::CONTROL, Key::A).type_text("#123456");
+    assert_ne!(app.program.game.current_scene().terrain.palette[0], [0x12, 0x34, 0x56], "not before Enter");
+    app.key(Key::ENTER);
+    assert_eq!(app.program.game.current_scene().terrain.palette[0], [0x12, 0x34, 0x56]);
+    app.press_point(MIDDLE);
+    assert_eq!(app.ui.state().get("Focused"), Some(&Value::Null));
 }
 
 // A press paints the hexels under the brush, a drag paints along it, Erase
