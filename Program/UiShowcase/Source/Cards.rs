@@ -4,7 +4,7 @@
 
 use user_interface::tokens::{
     BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DISPLAY, DURATION_FAST, ELEVATION_DIALOG,
-    ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
+    ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
     SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
@@ -340,7 +340,7 @@ fn tabs(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
 }
 
 fn type_ramp(ui: &mut Ui, mut area: Rect) {
-    let styles: [(&str, TextStyle, &str); 10] = [
+    let styles: [(&str, TextStyle, &str); 11] = [
         ("Caption · 12 on 16", CAPTION, "The quick brown fox jumps"),
         ("Body · 14 on 20", BODY, "The quick brown fox jumps"),
         ("Body strong · 14 on 20", BODY_STRONG, "The quick brown fox jumps"),
@@ -351,6 +351,7 @@ fn type_ramp(ui: &mut Ui, mut area: Rect) {
         ("Display · 68 on 92", DISPLAY, "Fluent"),
         ("Mono · 13 on 20", MONO, "The quick brown fox jumps"),
         ("Mono strong · 13 on 20", MONO.weight(user_interface::Weight::Semibold), "The quick brown fox jumps"),
+        ("Mono caption · 12 on 16", MONO_CAPTION, "The quick brown fox jumps"),
     ];
     let (secondary, primary) = (ui.theme().text_secondary, ui.theme().text_primary);
     for (label, style, sample) in styles {

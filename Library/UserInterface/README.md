@@ -77,9 +77,10 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Tokens** (`Design/Tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
   corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
   ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
-  `DISPLAY`, and `MONO` in Cascadia Mono), motion (83, 167, 250 and 333 ms, and Fluent's easing
-  curves), elevation as WinUI's ThemeShadow makes it from a depth (`elevation(z)`, with tooltips at
-  16, flyouts at 32, submenus 8 over their menu, and dialogs at 128), and the page's sizes.
+  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), motion (83, 167, 250 and 333 ms, and
+  Fluent's easing curves), elevation as WinUI's ThemeShadow makes it from a depth (`elevation(z)`,
+  with tooltips at 16, flyouts at 32, submenus 8 over their menu, and dialogs at 128), and the
+  page's sizes.
 - **Controls** (`Design/Controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
   a list item's backplate and selection pill, a menu item's padding, and the focus visual's two

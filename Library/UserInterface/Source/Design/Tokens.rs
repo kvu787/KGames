@@ -56,9 +56,11 @@ pub const SUBTITLE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 
 pub const TITLE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 28.0, 36.0);
 pub const TITLE_LARGE: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 40.0, 52.0);
 pub const DISPLAY: TextStyle = TextStyle::new(Font::Display, Weight::Semibold, 68.0, 92.0);
-// Cascadia Mono, for text whose columns line up, like logs and codes.
+// Cascadia Mono, for text whose columns line up, like logs and codes, and at
+// the caption's size, like the performance stats along the top of the window.
 pub const MONO: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 13.0, 20.0);
 pub const MONO_STRONG: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 13.0, 20.0);
+pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 12.0, 16.0);
 
 // Motion: WinUI's ControlFasterAnimationDuration, for colors, Fast, for
 // things that move, and Normal, for surfaces that open.
