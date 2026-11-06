@@ -42,9 +42,9 @@ This decision was primarily motivated by my experience working with those depend
   - Optimize for minimal input latency
 
 GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), a user
-interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system:
-its main loop runs them, its widgets are their controls, and they look and act like Windows 11's, in
-light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
+interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system,
+with WinUI 3's own colors, sizes and motion: its main loop runs them, its widgets are their
+controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
 input without focus, including gamepads, and a click that gives a window focus does only that. The
 library's README has the details, and the two window setups that programs support.
 [AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
@@ -52,16 +52,17 @@ you.
 
 ## Program
 
-| Program                                                | What it is                                                        |
-| ------------------------------------------------------ | ----------------------------------------------------------------- |
-| [Veehiicuul](Program/Veehiicuul/README.md)             | A racing game seen from above, and the editors of its levels      |
-| [GameInputDemo](Program/GameInputDemo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput    |
-| [SimplePaintDemo](Program/SimplePaintDemo/README.md)   | Edits a SimplePaint material live on a UV sphere                  |
-| [UiShowcase](Program/UiShowcase/README.md)             | Shows every widget of the UI framework, and what input does to it |
-| [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion   |
-| [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint |
-| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`    |
-| [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it       |
+| Program                                                | What it is                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| [Veehiicuul](Program/Veehiicuul/README.md)             | A racing game seen from above, and the editors of its levels             |
+| [GameInputDemo](Program/GameInputDemo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput           |
+| [SimplePaintDemo](Program/SimplePaintDemo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
+| [MeshModeler](Program/MeshModeler/README.md)           | Models polygon meshes, subdivides them, and paints them with SimplePaint |
+| [UiShowcase](Program/UiShowcase/README.md)             | Shows every widget of the UI framework, and what input does to it        |
+| [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
+| [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
+| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`           |
+| [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it              |
 
 ## Library
 
@@ -74,6 +75,7 @@ you.
 | [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
 | [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
 | [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
+| [PolygonMesh](Library/PolygonMesh/README.md)       | Polygon meshes: their edits, selections, Catmull-Clark subdivision, and files                               |
 | [PaintSettings](Library/PaintSettings/README.md)   | SimplePaint materials in JSON settings files                                                                |
 | [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
 | [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
