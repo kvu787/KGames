@@ -126,6 +126,9 @@ degrees from +Z toward +X, and colors are sRGB, like `"#1CDA61"`.
 |                        | vehicles, background and cameras                                         |
 | `Settings.json`        | The settings, which the game writes if it's missing                      |
 
+[Library/Meshes](../../Library/Meshes/README.md) makes its car, which SpinningCarTest draws, from
+`Models/SlopeCar.glb` as it builds, by its materials' names.
+
 ### Vehicles
 
 Each vehicle is a model with its own `Paint` over the model's, its `Acceleration`, and its
