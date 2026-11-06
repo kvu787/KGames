@@ -179,3 +179,41 @@ fn text_lays_out_with_directwrite() {
     assert_eq!(layout.hit(Point::new(-5.0, 5.0)), 0);
     assert_eq!(fonts.family(user_interface::Font::Text), "Segoe UI Variable Text");
 }
+
+// The README's example program, which must keep working as it says.
+mod readme {
+    use user_interface::{AppBar, Button, Card, Headless, Icon, Key, Program, Slider, Status, Ui};
+
+    struct Volume {
+        level: f64,
+    }
+
+    impl Program for Volume {
+        fn title(&self) -> String {
+            "Volume".to_string()
+        }
+
+        fn update(&mut self, ui: &mut Ui) {
+            ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
+            ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
+            let page = ui.page();
+            let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
+            let mut area = card.content;
+            let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
+            ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
+            if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
+                self.level = 0.0;
+            }
+        }
+    }
+
+    #[test]
+    fn the_readme_s_example_works_as_it_says() {
+        let mut app = Headless::new(Volume { level: 50.0 });
+        app.frame();
+        app.click("Mute");
+        assert_eq!(app.program.level, 0.0);
+        app.key(Key::F11);
+        assert!(app.fullscreen());
+    }
+}
