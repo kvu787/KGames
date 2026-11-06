@@ -408,16 +408,16 @@ fn the_tone_curve_s_labels_go_on_lines_where_they_don_t_overlap() {
 fn the_image_s_middle_goes_in_the_view_inside_the_frame() {
     let size = |place: CopyPlace| [place.source.right - place.source.left, place.source.bottom - place.source.top];
     // A view as big as the image takes all of it.
-    let whole = copy_place(Rect::new(32.0, 120.0, 1152.0, 1256.0), [2560, 1440]).unwrap();
-    assert_eq!(whole.source, D3D12_BOX { left: 0, top: 0, front: 0, right: 1152, bottom: 1256, back: 1 });
+    let whole = copy_place(Rect::new(32.0, 120.0, 1152.0, 1226.0), [2560, 1440]).unwrap();
+    assert_eq!(whole.source, D3D12_BOX { left: 0, top: 0, front: 0, right: 1152, bottom: 1226, back: 1 });
     // A shorter one takes its middle.
-    let middle = copy_place(Rect::new(32.0, 120.0, 1152.0, 1156.0), [2560, 1369]).unwrap();
-    assert_eq!((middle.destination, middle.source.top, size(middle)), ([32, 120], 50, [1152, 1156]));
+    let middle = copy_place(Rect::new(32.0, 120.0, 1152.0, 1126.0), [2560, 1369]).unwrap();
+    assert_eq!((middle.destination, middle.source.top, size(middle)), ([32, 120], 50, [1152, 1126]));
     // A bigger one has the image in its middle.
-    let centered = copy_place(Rect::new(0.0, 0.0, 1352.0, 1456.0), [2560, 1440]).unwrap();
-    assert_eq!((centered.destination, size(centered)), ([100, 100], [1152, 1256]));
+    let centered = copy_place(Rect::new(0.0, 0.0, 1352.0, 1426.0), [2560, 1440]).unwrap();
+    assert_eq!((centered.destination, size(centered)), ([100, 100], [1152, 1226]));
     // Past the frame's edges, it's cut there, and outside it, there's none.
-    let cut = copy_place(Rect::new(-100.0, 1000.0, 1152.0, 1256.0), [2560, 1440]).unwrap();
+    let cut = copy_place(Rect::new(-100.0, 1000.0, 1152.0, 1226.0), [2560, 1440]).unwrap();
     assert_eq!((cut.destination, cut.source.left, cut.source.top, size(cut)), ([0, 1000], 100, 0, [1052, 440]));
-    assert_eq!(copy_place(Rect::new(3000.0, 0.0, 1152.0, 1256.0), [2560, 1440]), None);
+    assert_eq!(copy_place(Rect::new(3000.0, 0.0, 1152.0, 1226.0), [2560, 1440]), None);
 }
