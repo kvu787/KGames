@@ -180,7 +180,6 @@ pub const INFO_BADGE_DOT: f32 = 6.0;
 pub const TOOLTIP_PADDING: Insets = Insets::new(9.0, 6.0, 9.0, 8.0);
 pub const TOOLTIP_MAX_WIDTH: f32 = 320.0;
 pub const TOOLTIP_OFFSET: f32 = 20.0;
-pub const TOOLTIP_KEYBOARD_OFFSET: f32 = 12.0;
 
 // ProgressBar: ProgressBarTrackHeight, ProgressBarMinHeight, and their
 // corners.
@@ -244,7 +243,6 @@ pub const DIALOG_MIN_HEIGHT: f32 = 184.0;
 pub const DIALOG_PADDING: f32 = 24.0;
 pub const DIALOG_TITLE_GAP: f32 = 12.0;
 pub const DIALOG_BUTTON_GAP: f32 = 8.0;
-pub const DIALOG_SHOW_SCALE: f32 = 1.05;
 
 // Expander: ExpanderMinHeight, ExpanderHeaderPadding, the chevron's button
 // (ExpanderChevronButtonSize) and ExpanderChevronMargin, and

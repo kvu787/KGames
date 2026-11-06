@@ -15,7 +15,7 @@ use crate::design::controls::{
     MENU_SEPARATOR_HEIGHT,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S, elevation};
+use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, ELEVATION_FLYOUT, ELEVATION_SUBMENU, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S, elevation};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::input::devices::Key;
@@ -238,7 +238,7 @@ impl Ui {
         {
             let mut painter = self.painter();
             let theme = painter.theme();
-            painter.shadow(panel, RADIUS_OVERLAY, elevation(32.0 + 8.0 * level as f32));
+            painter.shadow(panel, RADIUS_OVERLAY, elevation(ELEVATION_FLYOUT.z + (ELEVATION_SUBMENU.z - ELEVATION_FLYOUT.z) * level as f32));
             painter.shape(panel, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
         }
 

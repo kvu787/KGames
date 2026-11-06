@@ -82,6 +82,11 @@ you.
 | [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
 | [WindowsApi](Library/WindowsApi/README.md)         | The generated Windows API bindings that every crate shares                                                  |
 
+## Documentation
+
+`Documentation` holds design notes for what isn't code yet, like
+[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game.
+
 ## Test
 
 Each folder in `Test` tests the library or program of the same name. A GUI program's folder

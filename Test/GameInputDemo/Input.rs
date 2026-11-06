@@ -515,8 +515,8 @@ fn shortcuts_run_once_for_each_press() {
     input.update(true);
     assert!(!input.rumble_enabled);
 
-    // F11 is the library's, from the window's messages, so through
-    // GameInput it's only a key, which is logged.
+    // F11 is the library's, which reads the same readings, so to the demo
+    // it's only a key, which is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
     input.update(true);
     assert!(log(&input)[0].starts_with("Keys: F11 down"), "{:?}", log(&input));

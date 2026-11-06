@@ -241,7 +241,8 @@ put its GPU work after other processes' (see [Library/Graphics](../Graphics/READ
 ## Performance stats
 
 Every program's window shows its performance along its top (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`),
-over the last 2 seconds, and changes what it says 4 times a second:
+the frames over the last second and the input latency over the last 2 seconds, and changes what
+it says 4 times a second:
 
 | Stat              | What it is                                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------------------- |

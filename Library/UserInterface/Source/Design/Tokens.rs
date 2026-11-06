@@ -29,7 +29,6 @@ pub const RADIUS_NONE: f32 = 0.0;
 pub const RADIUS_SMALL: f32 = 2.0;
 pub const RADIUS_CONTROL: f32 = 4.0;
 pub const RADIUS_OVERLAY: f32 = 8.0;
-pub const RADIUS_CIRCLE: f32 = 10_000.0;
 
 // Strokes.
 pub const STROKE_THIN: f32 = 1.0;
@@ -79,8 +78,6 @@ pub struct Curve(pub f32, pub f32, pub f32, pub f32);
 pub const CURVE_LINEAR: Curve = Curve(0.0, 0.0, 1.0, 1.0);
 // WinUI's ControlFastOutSlowInKeySpline, for what enters or moves into place.
 pub const CURVE_FAST_OUT_SLOW_IN: Curve = Curve(0.0, 0.0, 0.0, 1.0);
-// For what leaves.
-pub const CURVE_SLOW_IN_FAST_OUT: Curve = Curve(1.0, 0.0, 1.0, 1.0);
 // Fluent's easy ease, for what moves in place.
 pub const CURVE_EASY_EASE: Curve = Curve(0.33, 0.0, 0.67, 1.0);
 

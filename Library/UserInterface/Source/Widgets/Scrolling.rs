@@ -158,16 +158,6 @@ impl Ui {
         *self.memory::<f32>(area.id) = offset;
     }
 
-    // Scrolls the region so that the rectangle, in its content, is in sight.
-    pub fn scroll_into_view(&mut self, name: &str, viewport_height: f32, top: f32, bottom: f32) {
-        let offset = self.memory::<f32>(id(name));
-        if top < *offset {
-            *offset = top;
-        } else if bottom > *offset + viewport_height {
-            *offset = bottom - viewport_height;
-        }
-    }
-
     // Whether the widget under the pointer takes the wheel, so that what
     // it's in shouldn't scroll.
     pub(crate) fn hovered_takes_wheel(&self) -> bool {

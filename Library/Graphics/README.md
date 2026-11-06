@@ -35,7 +35,9 @@ latency of 1, so no frame waits behind another in DXGI's queue, and only one fra
 a time. `Presenter::poll_ready` says, without blocking, whether the GPU has finished the last frame
 and DXGI can take another, so the main loop can keep handling messages while it waits, and read
 input only once a frame can start. Frames present without waiting for vertical sync, and may tear
-if `allow_tearing` and the system allow it. Alt+Enter's exclusive fullscreen is off.
+if `allow_tearing` and the system allow it. With `VerticalSync` in a program's Settings.json, or
+`--vsync`, which RunInBackground's runs use, frames wait for the display's refresh instead, and
+never tear. Alt+Enter's exclusive fullscreen is off.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.

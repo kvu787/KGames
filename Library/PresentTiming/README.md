@@ -44,8 +44,8 @@ then puts a present that NVIDIA's flip delay would put before the one before it 
 that one, which `Corrector` does too.
 
 Only the paths that DXGI's flip-model swap chains take are followed, which are the only ones
-that KGames' programs use. Copies to the front buffer, legacy fullscreen flips and composition
-atlases aren't.
+that KGames' programs use. Copies to the front buffer and composition atlases aren't, and legacy
+fullscreen flips only as far as DWM's own frames need, never as a mode of the process's presents.
 
 ## Privileges
 
