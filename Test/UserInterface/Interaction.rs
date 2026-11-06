@@ -25,27 +25,29 @@ impl Program for Test {
     }
 
     fn update(&mut self, ui: &mut Ui) {
+        // Under the performance stats.
+        let top = ui.content_top();
         if ui.key_pressed(Key::A) {
             self.shortcut += 1;
         }
-        if ui.button("Button", Rect::new(10.0, 10.0, 100.0, 32.0), Button::new("Button")).clicked {
+        if ui.button("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button")).clicked {
             self.clicks += 1;
         }
         ui.tooltip("Button", "A tip");
-        ui.text_box("Field", Rect::new(10.0, 60.0, 200.0, 32.0), &mut self.text, TextBox::new());
-        ui.combo_box("Combo", Rect::new(10.0, 110.0, 200.0, 32.0), &mut self.choice, &["Zero", "One", "Two"]);
+        ui.text_box("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), &mut self.text, TextBox::new());
+        ui.combo_box("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), &mut self.choice, &["Zero", "One", "Two"]);
         // A surface over a button covers it from the pointer.
-        if ui.button("Under", Rect::new(300.0, 10.0, 100.0, 32.0), Button::new("Under")).clicked {
+        if ui.button("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under")).clicked {
             self.covered = true;
         }
-        ui.cover(Rect::new(290.0, 0.0, 200.0, 60.0));
+        ui.cover(Rect::new(290.0, top, 200.0, 60.0));
         ui.set_enabled(!self.disabled);
-        if ui.button("Maybe", Rect::new(10.0, 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
+        if ui.button("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
             self.clicks += 100;
         }
         ui.set_enabled(true);
         let mut selected = self.rows;
-        ui.list_view("Rows", Rect::new(500.0, 10.0, 200.0, 100.0), 50, 20.0, &mut selected, |ui, index, row, _| {
+        ui.list_view("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), 50, 20.0, &mut selected, |ui, index, row, _| {
             ui.label(row, &format!("Row {index}"));
         });
         self.rows = selected;

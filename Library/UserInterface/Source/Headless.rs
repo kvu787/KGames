@@ -16,6 +16,7 @@ use graphics::{Gpu, Image, Offscreen};
 use crate::clipboard::Clipboard;
 use crate::geometry::{Point, Rect, Size};
 use crate::input::{Button, Event, Gamepad, Key, Modifiers};
+use crate::performance::Performance;
 use crate::program::{Program, Startup};
 use crate::renderer::Renderer;
 use crate::script::DEFAULT_FRAME_TIME;
@@ -57,6 +58,7 @@ impl<P: Program> Headless<P> {
             custom_size: None,
         };
         headless.ui.environment.scripted = true;
+        headless.ui.performance = Some(Performance::without_latency("none in a test"));
         headless.run_frame();
         headless
     }
@@ -71,10 +73,12 @@ impl<P: Program> Headless<P> {
         headless
     }
 
-    // A program in a window of the size, like an overlay.
+    // A program in a window of the size, like an overlay, which has no
+    // performance stats.
     pub fn with_size(program: P, theme: ThemeKind, size: Size) -> Self {
         let mut headless = Self::with_theme(program, theme);
         headless.custom_size = Some(size);
+        headless.ui.performance = None;
         headless.run_frame();
         headless
     }

@@ -153,6 +153,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "present_timing"
+version = "0.1.0"
+dependencies = [
+ "windows-core",
+ "windows_api",
+]
+
+[[package]]
+name = "present_timing_tests"
+version = "0.1.0"
+dependencies = [
+ "present_timing",
+]
+
+[[package]]
 name = "shader_compiler"
 version = "0.1.0"
 
@@ -253,6 +268,7 @@ dependencies = [
  "game_input",
  "graphics",
  "json",
+ "present_timing",
  "shader_compiler",
  "windows-core",
  "windows_api",
@@ -262,6 +278,7 @@ dependencies = [
 name = "user_interface_tests"
 version = "0.1.0"
 dependencies = [
+ "present_timing",
  "user_interface",
 ]
 

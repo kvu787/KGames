@@ -54,7 +54,8 @@ pub struct Options {
     pub folder: &'static str,
     // The window mode when Settings.json doesn't say.
     pub window_mode: WindowMode,
-    // Whether the gamepad goes to the interface, for Ui::gamepad.
+    // Whether the program reads the gamepad: its newest reading goes to
+    // Ui::gamepad, and its readings count as input for input latency.
     pub gamepad: bool,
     pub theme: ThemeKind,
     // Arguments of the program's own, which it reads from Startup.
@@ -143,6 +144,8 @@ pub struct Arguments {
     pub display: Option<String>,
     // Opens without taking focus.
     pub no_activate: bool,
+    // Frames wait for vertical sync, like for test runs.
+    pub vsync: bool,
     // A script to run instead of the user's input, and the folder for what
     // it saves.
     pub script: Option<PathBuf>,
@@ -159,10 +162,11 @@ impl Arguments {
             match argument.as_str() {
                 "--display" => parsed.display = Some(value("--display")?),
                 "--no-activate" => parsed.no_activate = true,
+                "--vsync" => parsed.vsync = true,
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, and --script <path> with --output <folder>.")),
+                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --vsync, and --script <path> with --output <folder>.")),
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {

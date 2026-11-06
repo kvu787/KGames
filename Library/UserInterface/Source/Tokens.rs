@@ -149,9 +149,11 @@ pub const ELEVATION_28: Elevation = elevation(8.0, 14.0, 28.0);
 // Dialogs.
 pub const ELEVATION_64: Elevation = elevation(8.0, 32.0, 64.0);
 
-// How KGames lays out a program's window, in fixed pixels: an app bar at the
-// top, a status bar at the bottom, and cards between them, PAGE_PADDING from
-// the window's edges and CARD_GAP from each other.
+// How KGames lays out a program's window, in fixed pixels: the performance
+// stats along the very top, which every program has, the app bar under them,
+// a status bar at the bottom, and cards between them, PAGE_PADDING from the
+// window's edges and CARD_GAP from each other.
+pub const STATS_BAR_HEIGHT: f32 = 30.0;
 pub const APP_BAR_HEIGHT: f32 = 48.0;
 pub const STATUS_BAR_HEIGHT: f32 = 32.0;
 pub const PAGE_PADDING: f32 = SPACE_L;

@@ -158,8 +158,13 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 | Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
 
 In any other setup, the window says what's wrong instead of showing the program. It checks again
-whenever the window moves or changes size, or the displays, the scale or the taskbar change. Lay out
-cards in fixed pixels for these two client areas; they differ by 71 pixels of height.
+whenever the window moves or changes size, or the displays, the scale or the taskbar change.
+
+The top `STATS_BAR_HEIGHT`, 30 pixels, of every program's client area is the library's: its
+[performance stats](#performance-stats). The program has the rest, `ui.bounds()`, which starts at
+`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
+areas, which leaves the program 2560 × 1339 maximized and 2560 × 1410 in borderless fullscreen;
+they differ by 71 pixels of height. A 3D view may still fill the window, under the stats.
 
 ## Settings and the command line
 
@@ -177,6 +182,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | ----------------- | ------------------------------------------------------------------------ |
 | `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary |
 | `--no-activate`   | Opens without taking focus                                               |
+| `--vsync`         | Frames wait for vertical sync, as RunInBackground's test runs do         |
 | `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`      |
 
 ## Input latency
@@ -184,13 +190,61 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 The main loop (`Run.rs`) handles the window's messages without waiting, and spins until the GPU
 has finished the last frame and DXGI can take another. Only then does it read the input, build the
 frame's interface, draw it and present it, without waiting for vertical sync, so a frame's input
-is as fresh as it can be. The swap chain has a frame latency waitable object and a maximum frame
+is as fresh as it can be. With `--vsync`, which RunInBackground's test runs use, frames wait for
+vertical sync instead, at the display's refresh rate, so that they don't keep the GPU busy. The swap chain has a frame latency waitable object and a maximum frame
 latency of 1, and draws on the GPU that the window's monitor is an output of. The whole interface
 is one draw call of instanced quads, whose pixel shader computes each shape's coverage from its
 signed distance. Text layouts are cached, so a frame that shows the same text as the last one asks
 DirectWrite for nothing, and glyphs are rasterized once each into an atlas. The process opts out of
 power throttling, so frames are paced the same in the background. Minimizing the window stops the
 loop drawing.
+
+## Performance stats
+
+Every program's window shows its performance along its top (`Performance.rs`, drawn by `Shell.rs`),
+over the last 2 seconds, and changes what it says 4 times a second:
+
+| Stat              | What it is                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Frames`          | Frames a second that the main loop draws, the mean time between them, and the longest                         |
+| `On screen`       | Frames a second that reach the screen                                                                         |
+| `Input to screen` | The input latency's median and 99th percentile, and how many frames they're of                                |
+| `Medians`         | The median of each of the input latency's three parts                                                         |
+| At the right      | How frames reach the screen: an independent flip, an overlay plane, or composed by DWM, and whether they tear |
+
+The input latency runs from when GameInput got the input that a frame took to when the display took
+that frame, all on the performance counter's clock, in three parts:
+
+```text
+input --- read ----------- present ------------- screen
+   waiting       building           presenting
+```
+
+| Time      | What it is                                                                             |
+| --------- | -------------------------------------------------------------------------------------- |
+| `input`   | The newest GameInput reading that the frame took: when Windows got the device's report |
+| `read`    | When the main loop read the frame's input                                              |
+| `present` | Right before the frame's `Present` call                                                |
+| `screen`  | When the display took the frame, from Windows' own events about presents               |
+
+The screen time comes from [Library/PresentTiming](../PresentTiming/README.md), which reads it as
+PresentMon does, so the input latency is comparable with PresentMon's: it's the counterpart of its
+`MsAllInputToPhotonLatency` for every device that GameInput reads, gamepads too, and `presenting`
+is its `MsUntilDisplayed`. Like PresentMon's, a frame's input is the newest that it took, and a
+frame that never reaches the screen, like one that a newer one replaced, passes its input on to the
+next frame that does, unless that one has input of its own. Readings of the gamepad count only in
+programs whose `Options::gamepad` is on.
+
+What it leaves out is what software can't see: the time before Windows gets the device's report,
+in the device and on its way, and after the display takes the frame, as scanout reaches the part of
+the screen you look at, and the display's own processing and response. With tearing, the display
+takes a frame mid-refresh, where it shows from the tear down, so the screen time is when the frame
+starts to show anywhere.
+
+Reading Windows' events about presents needs an elevated administrator, or the
+**Performance Log Users** group (see [Library/PresentTiming](../PresentTiming/README.md#privileges)).
+Without either, the stats say that input latency needs the group. A scripted run, or a test, has
+no input latency.
 
 ## Testing
 
@@ -266,6 +320,7 @@ writes its files in its output folder, through `startup.data_folder`.
 | `Source/Input.rs`        | Keys, buttons, the gamepad, and a frame's input from events               |
 | `Source/Devices.rs`      | Reads gamepads, keyboards and mice with GameInput, once a frame           |
 | `Source/InputReader.rs`  | Turns a frame's GameInput readings into events                            |
+| `Source/Performance.rs`  | The performance stats, and the input latency from GameInput to the screen |
 | `Source/Clock.rs`        | The performance counter, which input and frames are timed on              |
 | `Source/Clipboard.rs`    | Windows' clipboard, and the interface's own for scripts and tests         |
 | `Source/Settings.rs`     | `Settings.json`                                                           |

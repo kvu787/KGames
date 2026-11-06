@@ -19,11 +19,13 @@ mod icons;
 #[path = "Input.rs"]
 pub mod input;
 #[path = "InputReader.rs"]
-mod input_reader;
+pub mod input_reader;
 #[path = "Overlay.rs"]
 mod overlay;
 #[path = "Painter.rs"]
 pub mod painter;
+#[path = "Performance.rs"]
+pub mod performance;
 #[path = "Program.rs"]
 mod program;
 #[path = "Renderer.rs"]

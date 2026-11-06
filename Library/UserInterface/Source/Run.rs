@@ -20,9 +20,11 @@ use std::time::Instant;
 use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 
 use crate::clipboard::Clipboard;
+use crate::clock;
 use crate::devices::Devices;
 use crate::geometry::Size;
 use crate::input_reader::InputReader;
+use crate::performance::{Frame, Performance};
 use crate::program::{Arguments, Options, Program, Startup};
 use crate::renderer::Renderer;
 use crate::script::{Script, ScriptRunner};
@@ -121,6 +123,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
     let clipboard = if scripted { Clipboard::Own(String::new()) } else { Clipboard::Windows };
     let mut ui = Ui::new(fonts, options.theme, clipboard);
+    // The performance stats along the top of the window, with the input
+    // latency to the screen, which a scripted run has no input for.
+    ui.performance = Some(if scripted {
+        Performance::without_latency("none in a scripted run")
+    } else {
+        Performance::measure(options.name)
+    });
     let mut program = create(&mut startup)?;
     ui.notices = startup.take_notices();
     if !scripted && let Err(error) = startup.settings.write_if_missing() {
@@ -132,6 +141,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let (width, height) = window.client_size();
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing)
         .map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
+    presenter.set_vsync(arguments.vsync);
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
@@ -192,6 +202,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         let script_number = frame;
         frame += 1;
         let focus_changes = window.take_focus_changes();
+        let read = clock::now();
+        let mut input_time = None;
         let events;
         let mut script_frame = None;
         let time = match &mut runner {
@@ -211,6 +223,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 }
                 let input = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &mut window, &focus_changes);
                 events = input.events;
+                input_time = input.input_time;
                 start.elapsed().as_secs_f64()
             }
         };
@@ -253,6 +266,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             Some(unsafe { Readback::record(&gpu.device, &target) }.map_err(|error| format!("Couldn't capture the frame: {error}"))?)
         };
         let fence = presenter.present(&mut gpu, target).map_err(|error| format!("Couldn't present: {error}"))?;
+        if let Some(performance) = &mut ui.performance {
+            performance.presented(Frame {
+                input: input_time,
+                read,
+                present: presenter.present_time(),
+            });
+        }
         gpu.report_messages();
 
         if let (Some(runner), Some(script_frame)) = (&mut runner, script_frame) {

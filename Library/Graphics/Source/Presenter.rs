@@ -35,6 +35,10 @@ pub struct Presenter {
     // Whether the waitable object was signaled since the last frame began.
     // Waiting on it takes the signal, so it's remembered until the frame.
     waitable_signaled: bool,
+    // The performance counter right before the last Present call.
+    present_time: i64,
+    // Whether frames wait for vertical sync, like in test runs.
+    vsync: bool,
 }
 
 impl Presenter {
@@ -82,6 +86,8 @@ impl Presenter {
                 height: description.Height,
                 last_frame: 0,
                 waitable_signaled: false,
+                present_time: 0,
+                vsync: false,
             };
             presenter.create_views(gpu)?;
             Ok(presenter)
@@ -90,7 +96,14 @@ impl Presenter {
 
     // Whether frames may tear.
     pub fn tearing(&self) -> bool {
-        self.tearing
+        self.tearing && !self.vsync
+    }
+
+    // Makes frames wait for vertical sync, which paces them at the display's
+    // refresh rate instead of as fast as the GPU goes, like for test runs, so
+    // that they don't keep the GPU busy. They don't tear then.
+    pub fn set_vsync(&mut self, vsync: bool) {
+        self.vsync = vsync;
     }
 
     pub fn size(&self) -> (u32, u32) {
@@ -160,6 +173,12 @@ impl Presenter {
         }
     }
 
+    // The performance counter right before the last frame's Present call,
+    // which input latency measures to and from.
+    pub fn present_time(&self) -> i64 {
+        self.present_time
+    }
+
     // Submits the frame's commands and presents it. Returns the fence value
     // that the GPU signals once it has drawn the frame.
     pub fn present(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<u64> {
@@ -171,10 +190,15 @@ impl Presenter {
             )]);
             frame.list.Close().ok()?;
             execute(&gpu.queue, &frame.list)?;
-            let flags = if self.tearing { DXGI_PRESENT_ALLOW_TEARING } else { 0 };
+            let (interval, flags) = match (self.vsync, self.tearing) {
+                (true, _) => (1, 0),
+                (false, true) => (0, DXGI_PRESENT_ALLOW_TEARING),
+                (false, false) => (0, 0),
+            };
+            let _ = QueryPerformanceCounter(&mut self.present_time);
             // DXGI_STATUS_OCCLUDED and the like are successes that say the
             // frame isn't visible, which changes nothing here.
-            self.swap_chain.Present(0, flags).ok()?;
+            self.swap_chain.Present(interval, flags).ok()?;
         }
         self.last_frame = gpu.signal()?;
         Ok(self.last_frame)

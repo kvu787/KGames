@@ -58,7 +58,7 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Use the light theme by default.
 - Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/Source/Tokens.rs`, like its spacing, radii and type ramp.
 - `F11` toggles borderless fullscreen.
-- Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both.
+- Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the performance stats along the top of every window show.
 
 ## Supported window setups
 
@@ -71,7 +71,7 @@ In any other setup, the window shows an error that says what's wrong, instead of
 
 So:
 
-- Lay out cards in fixed pixels for these two client areas. The only difference between the two is 71 pixels of height.
+- The top 30 pixels of the client area are `Library/UserInterface`'s performance stats, in every program. Lay out cards in fixed pixels for what's left of these two client areas, from `ui.content_top()`: 2560 × 1339 and 2560 × 1410. The only difference between the two is 71 pixels of height.
 - Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window at either height.
 
 ## Non-disruptive workflow

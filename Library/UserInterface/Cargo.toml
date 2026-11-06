@@ -15,6 +15,7 @@ displays = { path = "../Displays" }
 game_input = { path = "../GameInput" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
+present_timing = { path = "../PresentTiming" }
 windows_api = { path = "../WindowsApi" }
 
 # Its proc macros (for implementing COM interfaces in Rust) aren't needed:

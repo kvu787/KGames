@@ -64,9 +64,25 @@ pub struct InputReader {
     pointer: Option<Point>,
 }
 
+// What the window says for a frame: where Windows' cursor is in it, whether
+// it's on it, and when it got or lost focus.
+#[derive(Clone, Debug, Default)]
+pub struct WindowState {
+    pub cursor: Point,
+    pub inside: bool,
+    pub focus_changes: Vec<FocusChange>,
+}
+
 impl InputReader {
+    // Held keys repeat at Windows' keyboard delay and rate.
     pub fn new(gamepad: bool) -> Self {
         let (delay, rate) = keyboard_repeat();
+        Self::with_repeat(gamepad, delay, rate)
+    }
+
+    // Held keys repeat after the delay, in seconds, at the rate, in repeats a
+    // second.
+    pub fn with_repeat(gamepad: bool, delay: f64, rate: f64) -> Self {
         Self {
             gamepad,
             focused: false,
@@ -86,31 +102,60 @@ impl InputReader {
     }
 
     // The frame's events, from the devices' readings since the last frame and
-    // the window's focus changes, in time order.
-    #[allow(non_upper_case_globals)]
+    // the window's focus changes, in time order. Captures the mouse while a
+    // press that the interface got is held.
     pub fn frame(&mut self, devices: Option<&Devices>, window: &mut Window, focus_changes: &[FocusChange]) -> FrameInput {
-        enum Item<'a> {
-            Focus(bool),
-            Reading(GameInputKind, &'a Reading),
-        }
-        let mut items: Vec<(i64, Item)> = focus_changes.iter().map(|change| (change.time, Item::Focus(change.gained))).collect();
+        let (cursor, inside) = window.cursor();
+        let state = WindowState {
+            cursor,
+            inside,
+            focus_changes: focus_changes.to_vec(),
+        };
+        let mut readings = Vec::new();
+        let mut disconnected = Vec::new();
         if let Some(devices) = devices {
             for (event, device) in devices.device_events() {
-                if *event == GameInputDeviceEventDisconnected && self.gamepad_device == Some(device.id) {
-                    self.gamepad_state = Gamepad::default();
-                    self.gamepad_device = None;
+                if *event == GameInputDeviceEventDisconnected {
+                    disconnected.push(device.id);
                 }
             }
             for kind in KINDS {
                 for reading in devices.readings(kind) {
-                    items.push((devices.qpc(reading.timestamp), Item::Reading(kind, reading)));
+                    readings.push((devices.qpc(reading.timestamp), kind, reading.clone()));
                 }
             }
+        }
+        let frame = self.read(&readings, &disconnected, &state, clock::now());
+        window.set_capture(self.capturing());
+        frame
+    }
+
+    // Whether a press that the interface got is held.
+    pub fn capturing(&self) -> bool {
+        self.focused && self.buttons_down & !self.ignored_buttons != 0
+    }
+
+    // The frame's events from readings, each with its time on the counter and
+    // its kind of input, from the devices that disconnected, and from what the
+    // window says, at a time on the counter.
+    #[allow(non_upper_case_globals)]
+    pub fn read(&mut self, readings: &[(i64, GameInputKind, Reading)], disconnected: &[usize], window: &WindowState, now: i64) -> FrameInput {
+        enum Item<'a> {
+            Focus(bool),
+            Reading(GameInputKind, &'a Reading),
+        }
+        if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
+            self.gamepad_state = Gamepad::default();
+            self.gamepad_device = None;
+        }
+        let mut items: Vec<(i64, Item)> = window.focus_changes.iter().map(|change| (change.time, Item::Focus(change.gained))).collect();
+        for (time, kind, reading) in readings {
+            items.push((*time, Item::Reading(*kind, reading)));
         }
         // Stable, so that a reading with two kinds of input keeps its order.
         items.sort_by_key(|(time, _)| *time);
 
-        let (cursor, inside) = window.cursor();
+        let (cursor, inside) = (window.cursor, window.inside);
         let mut frame = FrameInput::default();
         for (time, item) in items {
             match item {
@@ -151,7 +196,6 @@ impl InputReader {
         if self.focused
             && let Some(repeat) = &mut self.repeat
         {
-            let now = clock::now();
             let (key, scan_code) = (repeat.key, repeat.scan_code);
             let mut count = 0;
             while repeat.next <= now {
@@ -167,7 +211,6 @@ impl InputReader {
         if self.gamepad {
             frame.events.push(Event::Gamepad(self.gamepad_state));
         }
-        window.set_capture(self.focused && self.buttons_down & !self.ignored_buttons != 0);
         frame
     }
 

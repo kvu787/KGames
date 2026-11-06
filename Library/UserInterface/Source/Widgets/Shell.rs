@@ -1,13 +1,15 @@
-// A program's frame: an app bar along the top, notices under it, a status
-// bar along the bottom, and the page between them, where the cards go. And
-// what the window shows instead, in a setup that programs don't support.
+// A program's frame: the performance stats along the very top, an app bar
+// under them, notices under it, a status bar along the bottom, and the page
+// between them, where the cards go. And what the window shows instead, in a
+// setup that programs don't support.
 
-use crate::geometry::{Point, Rect};
+use crate::geometry::{Color, Point, Rect};
 use crate::icons::Icon;
-use crate::painter::{Align, Corners, Stroke};
+use crate::painter::{Align, Corners, Painter, Stroke};
+use crate::performance::{LatencyState, WINDOW_SECONDS};
 use crate::tokens::{
     APP_BAR_HEIGHT, BODY, BODY_STRONG, CAPTION, ICON, ICON_LARGE, PAGE_PADDING, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S,
-    SPACE_XS, SPACE_XXL, STATUS_BAR_HEIGHT, SUBTITLE,
+    SPACE_XS, SPACE_XXL, STATS_BAR_HEIGHT, STATUS_BAR_HEIGHT, SUBTITLE,
 };
 use crate::ui::Ui;
 use crate::widgets::surfaces::{InfoBar, Severity};
@@ -35,7 +37,7 @@ impl Ui {
     // Draws the app bar, with the program's icon and title at its left, and
     // returns the rest of the bar, for the program's tabs and commands.
     pub fn app_bar(&mut self, icon: Icon, title: &str) -> Rect {
-        let bar = Rect::new(0.0, 0.0, self.size().width, APP_BAR_HEIGHT);
+        let bar = Rect::new(0.0, self.content_top(), self.size().width, APP_BAR_HEIGHT);
         let theme = self.theme();
         let (background, fill, divider, accent, text) = (theme.background, theme.layer, theme.divider, theme.accent, theme.text_primary);
         self.cover(bar);
@@ -158,6 +160,82 @@ impl Ui {
                 rect.right()
             }
             Status::Spacer => x,
+        }
+    }
+
+    // Draws the performance stats along the top of the window: the frames,
+    // the frames that reach the screen, the input latency from GameInput's
+    // readings to the screen with its parts, and how frames reach the
+    // screen. The main loop draws them every frame; programs don't.
+    pub(crate) fn stats_bar(&mut self) {
+        let Some(performance) = &self.performance else {
+            return;
+        };
+        let summary = performance.summary().clone();
+        let bar = Rect::new(0.0, 0.0, self.size().width, STATS_BAR_HEIGHT);
+        let theme = self.theme();
+        let (background, fill, divider, label, value) =
+            (theme.background, theme.layer, theme.divider, theme.text_secondary, theme.text_primary);
+        self.cover(bar);
+
+        let window = WINDOW_SECONDS;
+        let mut items: Vec<(&str, String)> = Vec::new();
+        if summary.frames_per_second > 0.0 {
+            items.push((
+                "Frames",
+                format!(
+                    "{:.0} a second, {:.2} ms each, the longest {:.2} ms",
+                    summary.frames_per_second, summary.frame_time, summary.longest_frame
+                ),
+            ));
+        }
+        let mut mode = String::new();
+        match &summary.latency {
+            LatencyState::Unavailable(reason) => items.push(("Input to screen", reason.clone())),
+            LatencyState::Starting => items.push(("Input to screen", "starting".to_string())),
+            LatencyState::Measuring => {
+                items.push(("On screen", format!("{:.0} frames a second", summary.displayed_per_second)));
+                if summary.samples == 0 {
+                    items.push(("Input to screen", format!("no input in the last {window:.0} seconds")));
+                } else {
+                    items.push((
+                        "Input to screen",
+                        format!(
+                            "{:.2} ms median, {:.2} ms 99th percentile, of {} frames in {window:.0} seconds",
+                            summary.median, summary.percentile_99, summary.samples
+                        ),
+                    ));
+                    items.push((
+                        "Medians",
+                        format!(
+                            "waiting {:.2} ms, building {:.2} ms, presenting {:.2} ms",
+                            summary.waiting, summary.building, summary.presenting
+                        ),
+                    ));
+                }
+                mode = summary.mode.name().to_string();
+                if summary.tearing {
+                    mode += ", tearing";
+                }
+            }
+        }
+
+        let mut painter = self.painter();
+        // Opaque, even over a 3D view.
+        painter.fill(bar, background);
+        painter.fill(bar, fill);
+        painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
+        let text = |painter: &mut Painter, x: f32, text: &str, color: Color| {
+            painter.text_in(Rect::new(x, bar.y, (bar.right() - x).max(0.0), bar.height), text, CAPTION, color, Align::Start).right()
+        };
+        let mut x = PAGE_PADDING;
+        for (name, item) in &items {
+            x = text(&mut painter, x, name, label) + SPACE_S;
+            x = text(&mut painter, x, item, value) + SPACE_XXL;
+        }
+        if !mode.is_empty() {
+            let width = painter.measure(&mode, CAPTION).width;
+            text(&mut painter, bar.right() - PAGE_PADDING - width, &mode, label);
         }
     }
 
