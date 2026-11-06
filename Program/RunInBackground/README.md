@@ -21,10 +21,11 @@ window ever becomes the foreground window, which would mean that it took focus f
 Windows reports every change of the foreground window to RunInBackground, so even one that
 lasts a moment counts.
 
-It also opens with `--vsync`, so that the program's frames wait for the display's refresh, and
-a test run draws no faster than the display shows, instead of as fast as the GPU can. Scripts run
-on their own fixed clock, so their frames and expectations are the same either way. `--no-vsync`
-leaves it out, like for measuring frame times.
+It also opens with `--vsync` and `--frame-limit 100`, so that the program's frames wait for the
+display's refresh, it draws at most 100 frames a second, and it sleeps while it waits instead of
+spinning a core. So a test run doesn't take the machine from you, like while you play a game.
+Scripts run on their own fixed clock, so their frames and expectations are the same either way.
+`--no-vsync` and `--fps` change that, like for measuring frame times.
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
@@ -43,8 +44,8 @@ builds it into its own cache first. It needs the .NET 10 SDK.
 |                       | `target\RunInBackground\<program>.png` by default                          |
 | `--keep-open`         | Leaves the program running after the screenshot                            |
 | `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer      |
-| `--no-vsync`          | Runs without vertical sync, as fast as the program can draw. Runs are      |
-|                       | vertically synced by default                                               |
+| `--no-vsync`          | Runs without vertical sync. Runs are vertically synced by default          |
+| `--fps <frames>`      | The most frames a second the program draws. 100 by default; 0 for no limit |
 | `--script <path>`     | Runs the program with a script of input instead, and saves what it         |
 |                       | captures in `target\RunInBackground\<program>\<script>`                    |
 | `--all-scripts`       | Runs every script in `Test\<program>\Scripts`, one at a time               |

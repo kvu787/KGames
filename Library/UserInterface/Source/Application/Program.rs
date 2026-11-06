@@ -172,6 +172,8 @@ pub struct Arguments {
     pub no_activate: bool,
     // Frames wait for the screen's refresh, as test runs want.
     pub vertical_sync: bool,
+    // At most this many frames a second, as test runs want.
+    pub frame_limit: Option<f64>,
     // A script to run instead of the user's input, and the folder for what
     // it saves.
     pub script: Option<PathBuf>,
@@ -190,12 +192,19 @@ impl Arguments {
                 "--display" => parsed.display = Some(value("--display")?),
                 "--no-activate" => parsed.no_activate = true,
                 "--vsync" => parsed.vertical_sync = true,
+                "--frame-limit" => {
+                    let text = value("--frame-limit")?;
+                    match text.parse::<f64>() {
+                        Ok(fps) if fps > 0.0 && fps.is_finite() => parsed.frame_limit = Some(fps),
+                        _ => return Err(format!("--frame-limit needs frames a second after it, more than 0, not {text}.")),
+                    }
+                }
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
                 other => {
                     return Err(format!(
-                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --vsync, and --script <path> with --output <folder>."
+                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --vsync, --frame-limit <fps>, and --script <path> with --output <folder>."
                     ));
                 }
             }

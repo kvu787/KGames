@@ -9,10 +9,15 @@
 // So the input that a frame shows is as fresh as it can be when the frame
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
+//
+// A frame limit, and vertical sync, are for runs that mustn't take the
+// machine from someone, like coding agents' test runs while the user plays a
+// game: then the loop sleeps while it waits, instead of spinning a core, and
+// starts frames no more often than the limit.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 
@@ -72,6 +77,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
     let vertical_sync = settings.boolean("VerticalSync", false) || arguments.vertical_sync;
+    let limit_setting = settings.number("FrameLimit", 0.0, |fps| if fps >= 0.0 && fps.is_finite() { Ok(()) } else { Err("must be 0, for no limit, or more".to_string()) });
+    let frame_limit = arguments.frame_limit.or((limit_setting > 0.0).then_some(limit_setting));
+    let frame_interval = frame_limit.map(|fps| Duration::from_secs_f64(1.0 / fps));
+    // Whether the loop sleeps while it waits, instead of spinning.
+    let rest = vertical_sync || frame_limit.is_some();
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();
 
@@ -134,9 +144,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let gamepad = (options.gamepad && !scripted).then(GamepadReader::new);
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
+    let mut next_frame = start;
     let mut frame = 0u64;
     let mut problems = Vec::new();
-    loop {
+    'frames: loop {
         if !window.pump() {
             // The window was asked to close. A program with unsaved work may
             // say not yet, and close itself later with Ui::close.
@@ -162,7 +173,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 ui.end_frame();
                 for request in std::mem::take(&mut ui.requests) {
                     if request == Request::Close {
-                        return Ok(());
+                        break 'frames;
                     }
                 }
             }
@@ -172,7 +183,18 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if (width, height) != presenter.size() {
             presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
         }
+        if let Some(interval) = frame_interval {
+            let now = Instant::now();
+            if now < next_frame {
+                std::thread::sleep((next_frame - now).min(Duration::from_millis(2)));
+                continue;
+            }
+            next_frame = now.max(next_frame) + interval;
+        }
         if !presenter.poll_ready(&gpu) {
+            if rest {
+                std::thread::sleep(Duration::from_micros(500));
+            }
             continue;
         }
 
@@ -210,7 +232,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleFullscreen => window.set_mode(window.mode().other()),
-                Request::Close => return Ok(()),
+                Request::Close => break 'frames,
             }
         }
         window.set_cursor(ui.cursor());
@@ -256,6 +278,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
     }
 
+    // The GPU finishes the last frame before the swap chain and the renderer
+    // are let go of, which the debug layer otherwise reports as it exits.
+    let _ = gpu.flush();
     if let Some(runner) = runner {
         if !runner.failures.is_empty() {
             return Err(format!("The script's expectations weren't met:\n{}", runner.failures.join("\n")));

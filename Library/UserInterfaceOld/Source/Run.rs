@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 
@@ -115,6 +115,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing)
         .map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
     presenter.set_vertical_sync(arguments.vertical_sync);
+    let frame_interval = arguments.frame_limit.map(|fps| Duration::from_secs_f64(1.0 / fps));
+    // Test runs sleep while they wait, instead of spinning a core.
+    let rest = arguments.vertical_sync || frame_interval.is_some();
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
@@ -130,6 +133,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let gamepad = (options.gamepad && !scripted).then(GamepadReader::new);
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
+    let mut next_frame = start;
     let mut frame = 0u64;
     let mut problems = Vec::new();
     loop {
@@ -163,7 +167,18 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if (width, height) != presenter.size() {
             presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
         }
+        if let Some(interval) = frame_interval {
+            let now = Instant::now();
+            if now < next_frame {
+                std::thread::sleep((next_frame - now).min(Duration::from_millis(2)));
+                continue;
+            }
+            next_frame = now.max(next_frame) + interval;
+        }
         if !presenter.poll_ready(&gpu) {
+            if rest {
+                std::thread::sleep(Duration::from_micros(500));
+            }
             continue;
         }
 
