@@ -28,10 +28,11 @@ use crate::platform::clock;
 // the frames' before now, and the input latency's before the newest frame
 // known on the screen.
 pub const WINDOW_SECONDS: f64 = 1.0;
-// How late Windows' events about presents can come: ETW hands them over in a
-// batch once a second, with its flush timer at a second, each 1 to 2 seconds
-// after it happened, as measured, so a frame waits this long for its
-// present's before it's taken as lost.
+// How late Windows' events about presents can come: PresentTiming has ETW
+// hand them over every 8 ms, each 7 to 52 ms after it happened, as measured,
+// but without that, ETW's flush timer hands them over once a second, each 1
+// to 2 seconds after. So a frame waits this long for its present's before
+// it's taken as lost.
 const LATE_SECONDS: f64 = 5.0;
 // How often what the PerfBar says changes, so that it can be read.
 const REFRESH_SECONDS: f64 = 0.1;

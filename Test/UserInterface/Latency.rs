@@ -172,9 +172,9 @@ fn the_mean_and_99th_percentile_are_of_the_last_second() {
 
 #[test]
 fn presents_whose_events_come_more_than_a_second_late_still_count() {
-    // ETW hands over its events about presents once a second, each 1 to 2
-    // seconds after the frame, which the main loop updates the stats for in
-    // the meantime.
+    // Without PresentTiming's flushes, ETW hands over its events about
+    // presents once a second, each 1 to 2 seconds after the frame, which the
+    // main loop updates the stats for in the meantime.
     let base = clock::now() - ticks(1500.0);
     let mut performance = Performance::given();
     let mut presents = Vec::new();

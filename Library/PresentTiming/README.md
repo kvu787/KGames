@@ -29,6 +29,14 @@ follows each present through them, by the keys that each event has: its thread w
 call runs, then Win32k's token, the kernel's present history token, and its queue packet's submit
 sequence, which the flips and sync interrupts name.
 
+ETW hands a real-time session's events to its reader a buffer at a time: when a buffer fills, or
+when the session's flush timer goes off, at most once a second, which hands each event over 1 to 2
+seconds after it happened. So a thread of the session's own flushes its buffers every 8 ms, with
+`ControlTraceW`'s `EVENT_TRACE_CONTROL_FLUSH`, as Intel's PresentMon service does for its overlay,
+at the shortest period that it allows. Then each event reaches the reader 7 to 52 ms after it
+happened, 13 ms in the median, as measured with UiShowcase. PresentMon's console doesn't flush, and
+waits for the timer.
+
 The presents are of any API: DXGI's and Direct3D 9's, whose `Present` calls have events of their
 own, and others', like OpenGL's or Vulkan's, which only the kernel's and Win32k's events tell of.
 Windows 7's events aren't read.
