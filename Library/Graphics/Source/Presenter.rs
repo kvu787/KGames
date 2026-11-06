@@ -10,6 +10,9 @@
 // - Frames present without waiting for vertical sync. With tearing allowed,
 //   a frame can reach the screen mid-refresh, when Windows flips it straight
 //   there, like in borderless fullscreen.
+// - With vertical sync on, frames wait for the screen's refresh instead, and
+//   never tear. Coding agents' test runs use it, so that a program they run
+//   draws no faster than the screen shows.
 
 use windows_api::*;
 use windows_core::{Interface, Result};
@@ -24,6 +27,7 @@ pub struct Presenter {
     waitable: HANDLE,
     flags: u32,
     tearing: bool,
+    vertical_sync: bool,
     buffers: Vec<ID3D12Resource>,
     views: DescriptorHeap,
     allocator: ID3D12CommandAllocator,
@@ -74,6 +78,7 @@ impl Presenter {
                 waitable,
                 flags,
                 tearing,
+                vertical_sync: false,
                 buffers: Vec::new(),
                 views,
                 allocator,
@@ -90,7 +95,16 @@ impl Presenter {
 
     // Whether frames may tear.
     pub fn tearing(&self) -> bool {
-        self.tearing
+        self.tearing && !self.vertical_sync
+    }
+
+    // Whether frames wait for the screen's refresh.
+    pub fn vertical_sync(&self) -> bool {
+        self.vertical_sync
+    }
+
+    pub fn set_vertical_sync(&mut self, on: bool) {
+        self.vertical_sync = on;
     }
 
     pub fn size(&self) -> (u32, u32) {
@@ -171,10 +185,14 @@ impl Presenter {
             )]);
             frame.list.Close().ok()?;
             execute(&gpu.queue, &frame.list)?;
-            let flags = if self.tearing { DXGI_PRESENT_ALLOW_TEARING } else { 0 };
+            let (interval, flags) = if self.vertical_sync {
+                (1, 0)
+            } else {
+                (0, if self.tearing { DXGI_PRESENT_ALLOW_TEARING } else { 0 })
+            };
             // DXGI_STATUS_OCCLUDED and the like are successes that say the
             // frame isn't visible, which changes nothing here.
-            self.swap_chain.Present(0, flags).ok()?;
+            self.swap_chain.Present(interval, flags).ok()?;
         }
         self.last_frame = gpu.signal()?;
         Ok(self.last_frame)

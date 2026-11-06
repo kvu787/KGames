@@ -114,6 +114,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let (width, height) = window.client_size();
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing)
         .map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
+    presenter.set_vertical_sync(arguments.vertical_sync);
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {

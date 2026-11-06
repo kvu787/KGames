@@ -71,6 +71,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mode = settings.choice("WindowMode", options.window_mode.name(), &modes);
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
+    let vertical_sync = settings.boolean("VerticalSync", false) || arguments.vertical_sync;
     let mut startup = Startup::new(settings, &data_folder, scripted);
     startup.arguments = arguments.own.clone();
 
@@ -116,6 +117,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing).map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
+    presenter.set_vertical_sync(vertical_sync);
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
@@ -123,6 +125,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         display: display.identifier.clone(),
         display_name: display.name.clone(),
         tearing: presenter.tearing(),
+        vertical_sync,
         scripted,
     };
     let mut title = program.title();

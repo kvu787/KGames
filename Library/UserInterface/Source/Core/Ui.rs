@@ -193,8 +193,9 @@ pub struct Environment {
     // The display's identifier, like "CVVNY2", and its model.
     pub display: String,
     pub display_name: String,
-    // Whether frames may tear.
+    // Whether frames may tear, and whether they wait for the screen.
     pub tearing: bool,
+    pub vertical_sync: bool,
     // Whether input comes from a script instead of the user.
     pub scripted: bool,
 }

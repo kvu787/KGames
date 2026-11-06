@@ -170,6 +170,8 @@ pub struct Arguments {
     pub display: Option<String>,
     // Opens without taking focus.
     pub no_activate: bool,
+    // Frames wait for the screen's refresh, as test runs want.
+    pub vertical_sync: bool,
     // A script to run instead of the user's input, and the folder for what
     // it saves.
     pub script: Option<PathBuf>,
@@ -187,12 +189,13 @@ impl Arguments {
             match argument.as_str() {
                 "--display" => parsed.display = Some(value("--display")?),
                 "--no-activate" => parsed.no_activate = true,
+                "--vsync" => parsed.vertical_sync = true,
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
                 other => {
                     return Err(format!(
-                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, and --script <path> with --output <folder>."
+                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --vsync, and --script <path> with --output <folder>."
                     ));
                 }
             }

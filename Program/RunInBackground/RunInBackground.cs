@@ -7,6 +7,9 @@
 //     at all.
 //   - It opens with --no-activate, so it opens without taking focus from the
 //     window that has it, and typing there stays there.
+//   - It opens with --vsync, so its frames wait for the screen's refresh,
+//     and it draws no faster than the screen shows, unless --no-vsync says
+//     otherwise, like for measuring frame times.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //   - It runs in a job that ends it if this program stops partway.
@@ -48,6 +51,8 @@ const string Usage = """
       --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds with Cargo's dev profile, which turns on the
                               D3D12 debug layer
+      --no-vsync              Runs without vertical sync, as fast as it can draw.
+                              Runs are vertically synced by default
 
       --script <path>         Runs a script of input instead, and saves what it
                               captures in target\RunInBackground\<program>\<script>
@@ -70,6 +75,7 @@ static void Run(string[] arguments) {
     string? screenshot = null;
     var keepOpen = false;
     var debugBuild = false;
+    var verticalSync = true;
     var scripts = new List<string>();
     var allScripts = false;
     var timeout = 60.0;
@@ -91,6 +97,9 @@ static void Run(string[] arguments) {
             break;
         case "--debug-build":
             debugBuild = true;
+            break;
+        case "--no-vsync":
+            verticalSync = false;
             break;
         case "--script":
             // A path given on the command line is relative to the current directory.
@@ -149,16 +158,17 @@ static void Run(string[] arguments) {
         }
     }
     var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
+    var sync = verticalSync ? " --vsync" : "";
 
     if (scripts.Count > 0) {
-        RunScripts(program, exe, display, scripts, Path.Combine(output, program), timeout);
+        RunScripts(program, exe, display, sync, scripts, Path.Combine(output, program), timeout);
         return;
     }
 
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate", outputLog, errorLog, keepOpen);
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate{sync}", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process.Id);
 
@@ -226,7 +236,7 @@ static void Run(string[] arguments) {
 // Runs each script, one at a time, and says which passed. A script fails if
 // the program exits with an error, which includes expectations it didn't
 // meet, if it runs past the timeout, or if its window takes focus.
-static void RunScripts(string program, string exe, string display, List<string> scripts, string output, double timeout) {
+static void RunScripts(string program, string exe, string display, string sync, List<string> scripts, string output, double timeout) {
     var failed = new List<string>();
     foreach (var script in scripts) {
         var name = Path.GetFileNameWithoutExtension(script);
@@ -238,7 +248,7 @@ static void RunScripts(string program, string exe, string display, List<string> 
         var outputLog = Path.Combine(folder, "Output.log");
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
-        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate{sync} --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
             var watch = new FocusWatch(process.Id);
             using (watch) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
