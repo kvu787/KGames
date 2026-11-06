@@ -195,7 +195,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface_old",
+ "user_interface",
  "windows-core",
  "windows_api",
 ]
@@ -207,7 +207,7 @@ dependencies = [
  "paint_settings",
  "simple_paint",
  "simple_paint_demo",
- "user_interface_old",
+ "user_interface",
  "windows_api",
 ]
 

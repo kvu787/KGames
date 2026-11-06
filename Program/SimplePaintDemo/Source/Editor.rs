@@ -1,7 +1,6 @@
 // The settings editor's state: the material being edited, its settings, and
 // what the keys and the wheel do to them. Cards.rs draws a slider for each
-// setting with Library/UserInterface, which handles what the pointer does to
-// it.
+// setting with Library/UserInterface, which handles what dragging it does.
 //
 // Settings move in steps of 0.001, or 0.1 degrees for Rotation, and stop at
 // the last step inside SimplePaint's accepted range, so the material they
@@ -34,9 +33,14 @@ impl Setting {
         (self.get)(parameters)
     }
 
-    // The slider that sets it, over its rail, a step at a time.
-    pub fn slider(&self) -> Slider {
-        Slider::new(self.start as f32, self.end as f32).step((1.0 / self.steps) as f32)
+    // The slider that sets `value`, over its rail, a step at a time, inside
+    // the range. Its label, which scripts see, is the value as it's shown.
+    pub fn slider<'v>(&self, value: &'v mut f64) -> Slider<'static, 'v, f64> {
+        Slider::new(value, self.start, self.end)
+            .step(1.0 / self.steps)
+            .allowed(self.minimum, self.maximum)
+            .decimals(self.decimals)
+            .suffix(self.unit)
     }
 
     // The step nearest `value`, inside the range. Dividing whole numbers,

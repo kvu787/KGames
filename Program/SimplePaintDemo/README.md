@@ -13,7 +13,8 @@ theme, ignores input without focus, and supports the two
   shows every normal that faces the camera once, so the sphere shows the whole material.
 - **Settings**: a slider for each of SimplePaint's parameters, in rows like a list's, with
   its value and range, and the base color as a swatch, in hex and in linear, with the tone
-  it appears at. **Reset** and **Save** are in the card's header, with what the last save did.
+  it appears at. **Reset** and **Save** are in the card's header, with what the last save did,
+  whose whole message shows as a tooltip when it's cut short.
 - **Tone curve**: each channel's displayed value over the tone, the tones from Dark Point to
   Light Point that the sphere shows, the tone where the base color appears, and the colors
   along the curve.
@@ -24,7 +25,7 @@ theme, ignores input without focus, and supports the two
 
 | Input                  | Action                                                            |
 | ---------------------- | ----------------------------------------------------------------- |
-| Drag a slider          | Sets the setting, and selects it                                  |
+| Drag a slider          | Sets the setting, with its value over the thumb, and selects it   |
 | Scroll over one        | Moves it by its smallest step for each notch, and selects it      |
 | Press a setting's name | Selects it                                                        |
 | `Up`, `Down`           | Selects a setting                                                 |
@@ -74,10 +75,11 @@ describes, including F11 there and back. A scripted run starts from SimplePaint'
 material, and saves `Paint.json` in its output folder, not in the demo's. The state that scripts
 save and check has the material's `Parameters`, the `Selected` setting, the one whose slider is
 `Dragging`, whether it's `Saved`, and the shader's `Constants`. The interface's state has where
-each slider, row and button is, as `Interface.Targets`, with each slider's value as its `Label`.
-Sliders are named after their settings, like `Light Point`, and their rows like
-`Setting/Light Point`. A slider's rail runs from 10 pixels past its area's left edge to 10
-before its right, so a press at its middle sets half its rail, like 180 degrees for Rotation.
+each slider, row and button is, as `Interface.Targets`, with each slider's value as its `Label`,
+and what the last save did as `SaveStatus`, with its message as its `Label`. Sliders are named
+after their settings, like `Light Point`, and their rows like `Setting/Light Point`. A slider's
+rail runs from 9 pixels past its area's left edge to 9 before its right, so a press at its
+middle sets half its rail, like 180 degrees for Rotation.
 
 ## How it draws
 
@@ -86,7 +88,10 @@ another frame, the demo does what it says and builds its cards, and the frame is
 demo's `render` copies the sphere into the preview card's view, and then the interface draws
 over the rest in one draw call. The sliders don't take keyboard focus, as the arrow keys move
 the selected one, which stands out like a list's selected row, with the accent's pill sliding
-to it. The demo turns the wheel over a slider itself, so that parts of a notch add up.
+to it. The library's slider handles dragging, inside the range that SimplePaint accepts, but the
+demo turns the wheel over a slider itself, by whole steps of the setting, so that a value always
+lands on the decimal that it shows, and a value from `Paint.json` between steps or past the
+range never moves the other way. Parts of a notch add up over the same slider.
 
 The demo draws the sphere into its own 4x multisampled texture, through an sRGB view, so the
 shader's linear output is encoded once, and resolves it, which averages the samples in linear

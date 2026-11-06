@@ -8,12 +8,15 @@
 // The preview card has a view in it, which the demo's render fills with the
 // sphere before the interface draws over the rest of the frame.
 
+use user_interface::controls::{LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, LIST_ITEM_RADIUS, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS};
 use user_interface::tokens::{
-    BODY, CAPTION, CARD_GAP, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, CONTROL_HEIGHT, CURVE_DECELERATE,
-    DURATION_FAST, DURATION_FASTER, ICON, MONO, RADIUS_CONTROL, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS,
+    BODY, CAPTION, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, MONO, RADIUS_CONTROL,
     SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SPACE_XXL,
 };
-use user_interface::{Align, Button, Color, Corners, Icon, Painter, Point, Rect, Sense, Size, Status, Stroke, Theme, Ui, id};
+use user_interface::{
+    Align, AppBar, Border, Brush, Button, Card, Color, Corners, Icon, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Theme,
+    Ui, id,
+};
 
 use crate::demo::{Demo, TITLE};
 use crate::editor::{self, Editor, SETTINGS};
@@ -24,12 +27,14 @@ pub const PREVIEW_WIDTH: f32 = IMAGE_WIDTH as f32 + CARD_PADDING * 2.0;
 // The heights of the cards that aren't at the bottom of their column.
 pub const SETTINGS_HEIGHT: f32 = 468.0;
 pub const CURVE_HEIGHT: f32 = 508.0;
-// Each setting's row, and the parts of it.
-const ROW_HEIGHT: f32 = 40.0;
+// Reset and Save, which are as wide as each other.
+const BUTTON_WIDTH: f32 = 96.0;
+// Each setting's row, like a list's, and the parts of it.
+const ROW_HEIGHT: f32 = LIST_ITEM_HEIGHT;
 const LABEL_WIDTH: f32 = 120.0;
 const VALUE_WIDTH: f32 = 72.0;
 const RANGE_WIDTH: f32 = 128.0;
-const SWATCH_SIZE: [f32; 2] = [64.0, 24.0];
+const SWATCH_SIZE: Size = Size::new(64.0, 24.0);
 // The tone curve's plot and its color ramp.
 const PLOT_HEIGHT: f32 = 320.0;
 const RAMP_HEIGHT: f32 = 24.0;
@@ -40,7 +45,7 @@ const NAME_WIDTH: f32 = 152.0;
 
 pub fn draw(demo: &mut Demo, ui: &mut Ui) {
     keys(demo, ui);
-    app_bar(ui);
+    ui.app_bar(AppBar::new(Icon::Color, TITLE).subtitle("A SimplePaint material on a UV sphere, with an editor for its settings"));
     status_bar(ui);
     let mut page = ui.page();
     demo.overflow.clear();
@@ -55,8 +60,8 @@ pub fn draw(demo: &mut Demo, ui: &mut Ui) {
     demo.overflow.extend(fits.iter().filter(|(_, fits)| !fits).map(|(name, _)| *name));
 }
 
-// Does what each key pressed this frame says, in order, unless a widget with
-// focus takes it, like a button takes Space.
+// Does what each key pressed this frame says, in order, with its repeats,
+// unless a widget with focus takes it, like a button takes Space.
 fn keys(demo: &mut Demo, ui: &Ui) {
     let modifiers = ui.input().modifiers();
     for &(key, repeat) in ui.input().keys_pressed() {
@@ -66,12 +71,6 @@ fn keys(demo: &mut Demo, ui: &Ui) {
             demo.editor.apply(command, &demo.paint_path);
         }
     }
-}
-
-fn app_bar(ui: &mut Ui) {
-    let bar = ui.app_bar(Icon::Color, TITLE);
-    let color = ui.theme().text_secondary;
-    ui.text(bar, "A SimplePaint material on a UV sphere, with an editor for its settings", CAPTION, color);
 }
 
 fn status_bar(ui: &mut Ui) {
@@ -109,66 +108,48 @@ impl Content {
     // A paragraph of secondary text, wrapped to the content's width.
     // Cut off where it doesn't fit.
     fn paragraph(&mut self, ui: &mut Ui, text: &str) {
-        let color = ui.theme().text_secondary;
-        let mut painter = ui.painter();
-        let height = painter.measure_wrapped(text, BODY, self.area.width).height;
+        let height = ui.paragraph_height(self.area.width, text, BODY);
         let rect = self.take(height, 0.0);
-        painter.push_clip(rect);
-        painter.text_wrapped(rect, text, BODY, color);
-        painter.pop_clip();
+        let color = ui.theme().text_secondary;
+        ui.painter().push_clip(rect);
+        ui.paragraph(rect, text, BODY, color);
+        ui.painter().pop_clip();
     }
 }
 
-// A caption right of a card's title, in its header.
-fn header_caption(ui: &mut Ui, header: Rect, text: &str) {
-    let color = ui.theme().text_secondary;
-    ui.text(header, text, BODY, color);
-}
-
-// The preview: a card whose view the demo's render fills with the sphere.
+// The preview: a card whose view the demo's render fills with the sphere,
+// around the card's color.
 fn preview(demo: &mut Demo, ui: &mut Ui, rect: Rect) {
-    let view = rect.inset_by(
-        CARD_PADDING,
-        CARD_PADDING + CARD_HEADER_HEIGHT + CARD_HEADER_GAP,
-        CARD_PADDING,
-        CARD_PADDING,
-    );
-    let card = ui.card_with_view(rect, "Preview", view);
-    header_caption(
-        ui,
-        card.header,
-        "A UV sphere, orthographic, 4x multisampled. Any view of a sphere shows every facing once.",
-    );
-    let theme = ui.theme();
-    demo.background = theme.card_background.over(theme.background);
-    demo.view = Some(view);
+    let card = Card::new("Preview").subtitle("A UV sphere, orthographic, 4x multisampled. Any view of a sphere shows every facing once.");
+    let area = ui.card_with_view(rect, card);
+    demo.view = Some(area.content);
+    demo.background = ui.theme().card_opaque();
 }
 
 // A slider for each setting, in rows like a list's, of which the arrow keys
 // move the selected one, the base color, and the buttons that save and reset
 // the material.
 fn settings(demo: &mut Demo, ui: &mut Ui, rect: Rect) -> bool {
-    let card = ui.card(rect, "Settings");
-    let theme = ui.theme().clone();
+    let card = ui.card(rect, Card::new("Settings"));
 
     // The buttons at the header's right, and what the last save did, left of
     // them.
     let mut header = card.header;
     let save = Button::new("Save").icon(Icon::Save).accent();
     let reset = Button::new("Reset").icon(Icon::Refresh);
-    let save_width = ui.button_width(&save).max(96.0);
-    let reset_width = ui.button_width(&reset).max(96.0);
-    let save_rect = header.cut_right(save_width, SPACE_S);
-    let reset_rect = header.cut_right(reset_width, SPACE_L);
-    if ui.button("Reset", reset_rect, reset).clicked {
+    let save_rect = header.cut_right(ui.button_width(&save).max(BUTTON_WIDTH), SPACE_S);
+    let reset_rect = header.cut_right(ui.button_width(&reset).max(BUTTON_WIDTH), SPACE_L);
+    let response = ui.add("Reset", reset_rect, reset);
+    ui.tooltip(&response, "Goes back to SimplePaint's default material");
+    if response.clicked {
         demo.editor.reset();
     }
-    ui.tooltip("Reset", "Goes back to SimplePaint's default material");
-    if ui.button("Save", save_rect, save).clicked {
+    let response = ui.add("Save", save_rect, save);
+    ui.tooltip(&response, "Saves the material to Paint.json (Ctrl+S)");
+    if response.clicked {
         demo.editor.save(&demo.paint_path);
     }
-    ui.tooltip("Save", "Saves the material to Paint.json (Ctrl+S)");
-    save_status(ui, header, &demo.editor.status, &theme);
+    save_status(ui, header, &demo.editor.status);
 
     // The sliders, which don't take keyboard focus, as the arrow keys move
     // the selected one.
@@ -176,25 +157,27 @@ fn settings(demo: &mut Demo, ui: &mut Ui, rect: Rect) -> bool {
     let editor = &mut demo.editor;
     editor.dragging = None;
     ui.set_focusable(false);
-    let mut selected_row = None;
+    let mut selected_face = None;
     for index in 0..SETTINGS.len() {
         let row = content.take(ROW_HEIGHT, 0.0);
-        setting(editor, ui, index, row, card.rect, &theme);
+        let face = setting(editor, ui, index, row, card.rect);
         if index == editor.selected {
-            selected_row = Some(row);
+            selected_face = Some(face);
         }
     }
     ui.set_focusable(true);
-    // The pill that marks the selected row, which slides to it.
-    if let Some(row) = selected_row {
-        let target = (row.center().y - SELECTION_PILL_LENGTH / 2.0).round();
-        let y = ui.animate(id("Settings/Selection"), 0, target, DURATION_FAST, CURVE_DECELERATE);
-        let pill = Rect::new(card.rect.x + SPACE_XS, y, SELECTION_PILL_THICKNESS, SELECTION_PILL_LENGTH);
-        ui.painter().rounded(pill, SELECTION_PILL_THICKNESS / 2.0, theme.accent);
+    // The pill that marks the selected row, at its face's left edge, as a
+    // list's does, which slides to it.
+    if let Some(face) = selected_face {
+        let target = (face.center().y - SELECTION_PILL_LENGTH / 2.0).round();
+        let y = ui.animate(id("Settings/Selection"), 0, target, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+        let pill = Rect::new(face.x, y, SELECTION_PILL_THICKNESS, SELECTION_PILL_LENGTH);
+        let accent = ui.theme().accent;
+        ui.painter().rounded(pill, SELECTION_PILL_THICKNESS / 2.0, accent);
     }
 
     content.take(0.0, SPACE_M);
-    base_color(ui, content.take(CONTROL_HEIGHT, SPACE_M), editor, &theme);
+    base_color(ui, content.take(CONTROL_HEIGHT, SPACE_M), editor);
     content.paragraph(
         ui,
         "Drag a slider, or scroll over it for its smallest step. Values step by 0.001, and Rotation by 0.1 degrees, \
@@ -204,41 +187,50 @@ fn settings(demo: &mut Demo, ui: &mut Ui, rect: Rect) -> bool {
 }
 
 // A setting's row: its name, its slider, its value, and its range. A press
-// on the row or its slider, or the wheel over the slider, selects it.
-fn setting(editor: &mut Editor, ui: &mut Ui, index: usize, row: Rect, card: Rect, theme: &Theme) {
+// on the row or its slider, or the wheel over the slider, selects it. Returns
+// the row's face, which is a list row's backplate.
+fn setting(editor: &mut Editor, ui: &mut Ui, index: usize, row: Rect, card: Rect) -> Rect {
     let setting = &SETTINGS[index];
-    // The row's face, from near the card's edges, like a list's row.
-    let face = Rect::new(card.x + SPACE_XS, row.y + 2.0, card.width - SPACE_XS * 2.0, row.height - 4.0);
+    // The row's face, from near the card's edges, like a list's row. The
+    // pointer on the slider or a press of it is on the row too.
+    let face = Rect::new(card.x, row.y, card.width, row.height).pad(LIST_ITEM_BACKPLATE_MARGIN);
     let row_name = format!("Setting/{}", setting.name);
     let row_response = ui.interact(&row_name, face, Sense::CLICK, "ListViewItem");
     ui.set_label(&row_name, setting.name);
     let hovered = row_response.hovered || ui.hovered_id() == Some(id(setting.name));
     let pressed = row_response.held || ui.pressed_name() == Some(setting.name);
     let selected = index == editor.selected;
-    let fill = match (pressed, hovered, selected) {
-        (true, _, _) | (false, true, true) => theme.subtle_fill_tertiary,
-        (false, true, false) | (false, false, true) => theme.subtle_fill_secondary,
-        _ => Color::TRANSPARENT,
+    // ListViewItemBackground in each of the row's states.
+    let theme = ui.theme();
+    let fill = match (selected, pressed, hovered) {
+        (false, true, _) | (true, false, true) => theme.subtle_fill_tertiary,
+        (false, false, true) | (true, _, _) => theme.subtle_fill_secondary,
+        (false, false, false) => theme.subtle_fill_transparent,
     };
     let fill = ui.animate_color(row_response.id, 0, fill, DURATION_FASTER);
-    ui.painter().shape(face, Corners::all(RADIUS_CONTROL), fill, None);
+    ui.painter().rounded(face, LIST_ITEM_RADIUS, fill);
 
     let mut parts = row;
     let label = parts.cut_left(LABEL_WIDTH, SPACE_M);
     let range = parts.cut_right(RANGE_WIDTH, SPACE_XXL);
     let value_rect = parts.cut_right(VALUE_WIDTH, SPACE_L);
-    let track = parts.inset_by(0.0, (row.height - CONTROL_HEIGHT) / 2.0, 0.0, (row.height - CONTROL_HEIGHT) / 2.0);
+    let track = parts.centered(Size::new(parts.width, Slider::<f64>::height(false)));
 
-    let mut value = setting.value(&editor.parameters) as f32;
-    let response = ui.slider(setting.name, track, &mut value, setting.slider());
-    // The editor turns the wheel itself, so that parts of a notch add up, and
-    // a value between steps never moves the other way.
-    let notches = ui.input().wheel.y as f64;
-    if response.hovered && !response.held && notches != 0.0 {
+    let mut value = setting.value(&editor.parameters);
+    let response = ui.add(setting.name, track, setting.slider(&mut value));
+    if response.wheel.y != 0.0 && !response.held {
+        // The editor turns the wheel instead of the slider, by whole steps
+        // of the setting, so that a value always lands on the decimal it
+        // shows, and one between steps never moves the other way. The
+        // slider's label is then the editor's value.
         editor.selected = index;
-        editor.wheel(index, notches);
-    } else if response.changed {
-        editor.set(index, setting.nearest(value as f64));
+        editor.wheel(index, response.wheel.y as f64);
+        ui.set_label(setting.name, &setting.format(setting.value(&editor.parameters)));
+    } else if response.held && response.changed {
+        // Only a drag sets the value. The slider also moves a value from
+        // Paint.json that's past the range into it, which the editor keeps
+        // as it is until it's changed.
+        editor.set(index, setting.nearest(value));
     }
     if response.pressed || row_response.pressed {
         editor.selected = index;
@@ -247,65 +239,59 @@ fn setting(editor: &mut Editor, ui: &mut Ui, index: usize, row: Rect, card: Rect
         editor.dragging = Some(index);
     }
 
-    // The value, which scripts see as the slider's label.
+    let theme = ui.theme().clone();
     let value = setting.format(setting.value(&editor.parameters));
-    ui.set_label(setting.name, &value);
-    let mut painter = ui.painter();
-    painter.text_in(label, setting.name, BODY, theme.text_primary, Align::Start);
-    painter.text_in(value_rect, &value, MONO, theme.text_primary, Align::End);
-    painter.text_in(range, &setting.range(), BODY, theme.text_secondary, Align::Start);
+    ui.label(label, setting.name);
+    ui.text_aligned(value_rect, &value, MONO, theme.text_primary, Align::End);
+    ui.text(range, &setting.range(), BODY, theme.text_secondary);
+    face
 }
 
 // What the last save did, at the right of the area: a success or an error,
-// in a status icon like an info bar's.
-fn save_status(ui: &mut Ui, area: Rect, status: &Option<(String, bool)>, theme: &Theme) {
+// with InfoBar's status icon, and the whole message as a tooltip if it's cut
+// short.
+fn save_status(ui: &mut Ui, area: Rect, status: &Option<(String, bool)>) {
     let Some((message, failed)) = status else {
         return;
     };
-    let (color, mark) = if *failed { (theme.critical, Icon::StatusError) } else { (theme.success, Icon::StatusSuccess) };
+    let severity = if *failed { Severity::Error } else { Severity::Success };
     let room = (area.width - ICON - SPACE_S).max(0.0);
-    let mut painter = ui.painter();
-    let width = painter.measure(message, BODY).width.min(room);
+    let width = ui.measure(message, BODY).width.min(room);
     let text = area.right_strip(width);
-    painter.text_fit(text, message, BODY, theme.text_primary, Align::Start);
-    let icon = Point::new(text.x - SPACE_S - ICON / 2.0, area.center().y);
-    painter.icon(icon, Icon::StatusCircle, ICON, color);
-    painter.icon(icon, mark, ICON, theme.text_on_accent);
-    // A message cut short shows whole while the pointer rests on it.
-    if width < painter.measure(message, BODY).width {
-        ui.register("SaveStatus", text, Sense::NONE, "Text");
-        ui.tooltip("SaveStatus", message);
-    }
+    let color = ui.theme().text_primary;
+    ui.text_with_tooltip("SaveStatus", text, message, BODY, color);
+    ui.status_icon(Point::new(text.x - SPACE_S - ICON / 2.0, area.center().y), severity, ICON);
 }
 
 // The base color, as the sliders make it: a swatch, in hex, in linear, and
 // the tone that it appears at.
-fn base_color(ui: &mut Ui, row: Rect, editor: &Editor, theme: &Theme) {
+fn base_color(ui: &mut Ui, row: Rect, editor: &Editor) {
     let parameters = editor.parameters;
     let srgb = parameters.base_color_srgb;
     let [red, green, blue] = srgb.map(|channel| (channel * 255.0).round() as u8);
-    let swatch_color = Color::rgba(red as f32 / 255.0, green as f32 / 255.0, blue as f32 / 255.0, 1.0);
-    let linear = srgb.map(linear);
+    let [r, g, b] = srgb.map(linear);
+    let hex = format!("#{red:02X}{green:02X}{blue:02X}");
+    let linear = format!("{r:.4}, {g:.4}, {b:.4}");
+    let tone = format!("{:.3}", 1.0 - parameters.brightness);
+
     let mut parts = row;
-    let label = parts.cut_left(LABEL_WIDTH, SPACE_M);
-    let mut painter = ui.painter();
-    painter.text_in(label, "Base color", BODY, theme.text_primary, Align::Start);
-    let swatch = Rect::from_center(
-        Point::new(parts.x + SWATCH_SIZE[0] / 2.0, row.center().y),
-        Size::new(SWATCH_SIZE[0], SWATCH_SIZE[1]),
-    );
-    painter.shape(swatch, Corners::all(RADIUS_CONTROL), swatch_color, Some(Stroke::new(theme.control_stroke, 1.0)));
-    parts.cut_left(SWATCH_SIZE[0], SPACE_M);
-    let pieces = [
-        (format!("#{red:02X}{green:02X}{blue:02X}"), MONO, theme.text_primary, SPACE_XXL),
-        ("Linear".to_string(), BODY, theme.text_secondary, SPACE_S),
-        (format!("{:.4}, {:.4}, {:.4}", linear[0], linear[1], linear[2]), MONO, theme.text_primary, SPACE_XXL),
-        ("Appears at tone 1 - Brightness =".to_string(), BODY, theme.text_secondary, SPACE_S),
-        (format!("{:.3}", 1.0 - parameters.brightness), MONO, theme.text_primary, 0.0),
+    ui.label(parts.cut_left(LABEL_WIDTH, SPACE_M), "Base color");
+    // Like a palette's swatch, which this one isn't, as it can't be chosen.
+    let swatch = parts.cut_left(SWATCH_SIZE.width, SPACE_M);
+    let swatch = Rect::new(swatch.x, row.center().y - SWATCH_SIZE.height / 2.0, SWATCH_SIZE.width, SWATCH_SIZE.height);
+    let theme = ui.theme().clone();
+    let border = Border::new(theme.control_stroke_secondary, 1.0);
+    ui.painter().shape(swatch, RADIUS_CONTROL, Color::from_bytes([red, green, blue, 255]), Some(border));
+    let (primary, secondary) = (theme.text_primary, theme.text_secondary);
+    let groups = [
+        vec![Span::new(&hex, MONO, primary)],
+        vec![Span::new("Linear ", BODY, secondary), Span::new(&linear, MONO, primary)],
+        vec![Span::new("Appears at tone 1 - Brightness = ", BODY, secondary), Span::new(&tone, MONO, primary)],
     ];
-    for (text, style, color, gap) in pieces {
-        let placed = painter.text_in(parts, &text, style, color, Align::Start);
-        parts.cut_left(placed.width, gap);
+    let top = (row.center().y - BODY.line_height / 2.0).round();
+    let mut x = parts.x;
+    for group in &groups {
+        x += ui.spans(Point::new(x, top), group) + SPACE_XXL;
     }
 }
 
@@ -317,21 +303,14 @@ fn channels(theme: &Theme) -> [Color; 3] {
 // The color curve of each channel over the tone, as it's displayed, with the
 // tones that the sphere shows marked, and a ramp of the colors.
 fn tone_curve(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
-    let card = ui.card(rect, "Tone curve");
-    header_caption(ui, card.header, "Each channel's displayed value over the tone, from 0 at the left to 1 at the right");
-    let theme = ui.theme().clone();
-    let card_color = theme.card_background.over(theme.background);
+    let card = ui.card(rect, Card::new("Tone curve").subtitle("Each channel's displayed value over the tone, from 0 at the left to 1 at the right"));
     let parameters = editor.parameters;
     let mut content = Content::new(card.content);
     let plot = content.take(PLOT_HEIGHT, SPACE_XS);
     let mut painter = ui.painter();
-    painter.shape(
-        plot,
-        Corners::all(RADIUS_CONTROL),
-        theme.control_alt_fill_secondary,
-        Some(Stroke::new(theme.control_stroke, 1.0)),
-    );
-    // Inside the plot's stroke.
+    let theme = painter.theme();
+    painter.shape(plot, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
+    // Inside the plot's border.
     let area = plot.inset(1.0);
     for quarter in 1..4 {
         let fraction = quarter as f32 * 0.25;
@@ -356,7 +335,7 @@ fn tone_curve(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
     const SEGMENTS: usize = 256;
     let curves = parameters.base_color_srgb.map(|base| curve(base, parameters.brightness));
     painter.push_clip(area);
-    for (curve, color) in curves.iter().zip(channels(&theme)) {
+    for (curve, color) in curves.iter().zip(channels(theme)) {
         let points: Vec<Point> = (0..=SEGMENTS)
             .map(|segment| {
                 let tone = segment as f64 / SEGMENTS as f64;
@@ -399,14 +378,15 @@ fn tone_curve(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
     for segment in 0..count {
         let left = ramp.x + segment as f32 * RAMP_SEGMENT;
         let right = (left + RAMP_SEGMENT).min(ramp.right());
+        let piece = Rect::new(left, ramp.y, right - left, ramp.height);
         let from = ramp_color(((left - ramp.x) / ramp.width) as f64);
         let to = ramp_color(((right - ramp.x) / ramp.width) as f64);
-        painter.gradient(Rect::new(left, ramp.y, right - left, ramp.height), 0.0, from, to, false);
+        painter.shape(piece, Corners::ZERO, Brush::horizontal(piece, from, to), None);
     }
-    painter.shape(ramp, Corners::default(), Color::TRANSPARENT, Some(Stroke::new(theme.control_stroke, 1.0)));
+    painter.shape(ramp, Corners::ZERO, Color::TRANSPARENT, Some(Border::new(theme.control_stroke, 1.0)));
     for tone in [low, high] {
         let mark = Rect::new(x_of(tone) - 1.5, ramp.y - 4.0, 3.0, ramp.height + 8.0);
-        painter.shape(mark, Corners::all(1.5), theme.text_primary, Some(Stroke::new(card_color, 1.0)));
+        painter.shape(mark, 1.5, theme.text_primary, Some(Border::new(theme.card_opaque(), 1.0)));
     }
     content.paragraph(
         ui,
@@ -441,9 +421,7 @@ pub fn label_lines(spans: &[[f32; 2]], gap: f32) -> Vec<usize> {
 
 // What Material::compile made for the GPU, in columns of Cascadia Mono.
 fn constants(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
-    let card = ui.card(rect, "GPU constants");
-    header_caption(ui, card.header, "GpuMaterial: 80 bytes at b1, five float4 registers");
-    let theme = ui.theme().clone();
+    let card = ui.card(rect, Card::new("GPU constants").subtitle("GpuMaterial: 80 bytes at b1, five float4 registers"));
     let mut content = Content::new(card.content);
     let m = &editor.material;
     // To the 6 decimals shown, where adding 0 turns -0, like the sine of
@@ -462,7 +440,7 @@ fn constants(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
     painter.push_clip(card.content);
     for (name, value) in &rows {
         let row = content.take(MONO.line_height, 0.0);
-        draw_constant(&mut painter, row, name, value, &theme);
+        draw_constant(&mut painter, row, name, value);
     }
     painter.pop_clip();
     content.take(0.0, SPACE_S);
@@ -474,7 +452,8 @@ fn constants(editor: &Editor, ui: &mut Ui, rect: Rect) -> bool {
     content.fits
 }
 
-fn draw_constant(painter: &mut Painter, row: Rect, name: &str, value: &str, theme: &Theme) {
+fn draw_constant(painter: &mut Painter, row: Rect, name: &str, value: &str) {
+    let theme = painter.theme();
     painter.text(row.origin(), name, MONO, theme.text_secondary);
     painter.text(Point::new(row.x + NAME_WIDTH, row.y), value, MONO, theme.text_primary);
 }

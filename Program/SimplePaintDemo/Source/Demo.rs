@@ -25,7 +25,7 @@ pub struct Demo {
     // the tests check is none of them.
     pub overflow: Vec<&'static str>,
     // Where the last frame's preview card has its view, which render fills
-    // with the sphere, and the card's color there.
+    // with the sphere, and the card's color, opaque, around the sphere.
     pub view: Option<Rect>,
     pub background: Color,
     // Made by prepare.
