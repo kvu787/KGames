@@ -2968,6 +2968,7 @@ pub const GUID_ContainerFormatPng: windows_core::GUID =
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
     windows_core::GUID::from_u128(0x6fddc324_4e03_4bfe_b185_3d77768dc90c);
 pub const GWLP_USERDATA: i32 = -21;
+pub const GWL_EXSTYLE: i32 = -20;
 pub const GWL_STYLE: i32 = -16;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -3001,6 +3002,7 @@ pub const HTCLIENT: i32 = 1;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HWND(pub *mut core::ffi::c_void);
+pub const HWND_BOTTOM: HWND = HWND(1 as _);
 windows_core::imp::define_interface!(
     ID3D10Blob,
     ID3D10Blob_Vtbl,
@@ -8089,7 +8091,9 @@ pub struct SECURITY_ATTRIBUTES {
 pub const SIZE_MINIMIZED: i32 = 1;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
+pub const SWP_NOMOVE: i32 = 2;
 pub const SWP_NOOWNERZORDER: i32 = 512;
+pub const SWP_NOSIZE: i32 = 1;
 pub const SWP_NOZORDER: i32 = 4;
 pub const SW_SHOW: i32 = 5;
 pub const SW_SHOWNA: i32 = 8;
@@ -8182,6 +8186,7 @@ pub type WNDPROC = Option<
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct WPARAM(pub usize);
 pub const WS_EX_APPWINDOW: i32 = 262144;
+pub const WS_EX_NOACTIVATE: i32 = 134217728;
 pub const WS_EX_TOOLWINDOW: i32 = 128;
 pub const WS_EX_TOPMOST: i32 = 8;
 pub const WS_MAXIMIZE: i32 = 16777216;

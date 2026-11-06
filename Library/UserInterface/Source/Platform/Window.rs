@@ -169,11 +169,23 @@ impl Window {
         self.hwnd
     }
 
-    // Shows the window. Without `activate`, it opens over the others without
-    // taking focus from the window that has it.
+    // Shows the window. Without `activate`, it opens beneath the others,
+    // without taking focus from the window that has it.
     pub fn show(&mut self, activate: bool) {
         unsafe {
-            let _ = ShowWindow(self.hwnd, if activate { SW_SHOW } else { SW_SHOWNA });
+            if activate {
+                let _ = ShowWindow(self.hwnd, SW_SHOW);
+                return;
+            }
+            // A window that mustn't take focus, like a test run's while
+            // someone works or plays a game, goes beneath the other windows,
+            // where it never covers theirs or takes their pointer, and a click
+            // on it never activates it. Screenshots of it work all the same.
+            let style = GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE);
+            SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE as isize);
+            let _ = ShowWindow(self.hwnd, SW_SHOWNA);
+            let flags = (SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER) as u32;
+            let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), 0, 0, 0, 0, flags);
         }
     }
 

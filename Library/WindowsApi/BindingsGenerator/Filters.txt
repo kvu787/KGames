@@ -338,3 +338,11 @@ DWMWINDOWATTRIBUTE
 IDC_NO
 IDC_SIZENESW
 IDC_SIZENWSE
+
+// Windows that test runs open beneath the others, and that a click never
+// activates
+GWL_EXSTYLE
+HWND_BOTTOM
+SWP_NOMOVE
+SWP_NOSIZE
+WS_EX_NOACTIVATE
