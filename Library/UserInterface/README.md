@@ -257,7 +257,7 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 Every program's window shows its performance along its top, in the PerfBar
 (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second, and
 the input latency over the second before the newest frame known on the screen, since Windows' events
-about presents come up to a second or so late. A `|` separates its sections. It changes what it says
+about presents come 1 to 2 seconds late. A `|` separates its sections. It changes what it says
 10 times a second:
 
 | Stat            | What it is                                                                                      |
