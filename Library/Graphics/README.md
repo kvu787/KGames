@@ -14,10 +14,11 @@ widgets go on top.
 | `GpuPriority`, `set_gpu_priority`, `gpu_priority`           | Where the GPU's scheduler puts the process's work among other processes'   |
 | `Presenter`                                                 | A window's swap chain, with `poll_ready`, `begin` and `present`            |
 | `Frame`                                                     | What a frame draws into: its command list, its target, and two views of it |
-| `Offscreen`                                                 | A texture to draw frames into without a window                             |
+| `Offscreen`                                                 | A texture to draw frames into without a window, and read back or time      |
 | `Readback`, `Image`                                         | A copy of a frame's pixels that the CPU reads                              |
 | `write_png`                                                 | Writes an image as a PNG, with the Windows Imaging Component               |
 | `DepthBuffer`                                               | A depth buffer as big as the frame, for 3D views                           |
+| `GpuTimer`                                                  | Times spans of a frame's GPU work with timestamp queries, for benchmarks   |
 | `UploadBuffer`                                              | A buffer in an upload heap that stays mapped                               |
 | `DescriptorHeap`                                            | A descriptor heap and its descriptors' handles                             |
 | `create_buffer`, `create_texture`, `transition`, `bytecode` | The rest of the basics                                                     |
