@@ -93,9 +93,9 @@ of your own, so that every program looks like one family, and like Windows 11.
   the type ramp says.
 - **Icons** (`Design/Icons.rs`): Fluent's system icons, from Segoe Fluent Icons.
 - **The page** (`Widgets/Shell.rs`): an app bar along the top with the program's icon, title, and
-  its own menus, tabs and commands, notices under it, a status bar along the bottom with shortcuts
-  and status, and cards between them, `PAGE_PADDING` from the window's edges and `CARD_GAP` from
-  each other.
+  its own menus, tabs and commands, a menu row under it if the program wants a menu bar along the
+  window's left edge, notices under them, a status bar along the bottom with shortcuts and status,
+  and cards between them, `PAGE_PADDING` from the window's edges and `CARD_GAP` from each other.
 
 ## Widgets
 
@@ -130,6 +130,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ui.card`, `card_with_view`        | Card                      | A card with a view leaves a hole for the program's 3D           |
 | `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
 | `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
+| `ui.menu_row`                      |                           | A row under the app bar, for a menu bar from the left edge      |
 | `View`                             |                           | A 3D view's area, which takes every button but never focus      |
 | `ui.info_card`                     |                           | A test program's floating card: frame rate, GPU, display, keys  |
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |

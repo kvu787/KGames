@@ -4,10 +4,11 @@
 // motion.
 
 use user_interface::json::Value;
-use user_interface::tokens::{CURVE_LINEAR, DURATION_NORMAL, TOOLTIP_DELAY};
+use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN};
+use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListView, MenuItem, Modifiers, MouseButton, NumberBox, Point,
-    Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
+    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox,
+    Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -342,6 +343,44 @@ impl Program for Notices {
         ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "Notices"));
         ui.page();
     }
+}
+
+// A menu bar in the menu row under the app bar.
+#[derive(Default)]
+struct MenuRow {
+    page: Rect,
+    chosen: Option<String>,
+}
+
+const MENUS: &[(&str, &[MenuItem])] = &[("File", MENU)];
+
+impl Program for MenuRow {
+    fn title(&self) -> String {
+        "MenuRow".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "MenuRow"));
+        let row = ui.menu_row();
+        let bar = MenuBar::new(MENUS);
+        let width = bar.width(ui);
+        if let Some(label) = ui.add("Menus", row.left_strip(width), bar) {
+            self.chosen = Some(label.to_string());
+        }
+        self.page = ui.page();
+    }
+}
+
+#[test]
+fn the_menu_row_puts_a_menu_bar_at_the_window_s_left_edge_under_the_app_bar() {
+    let mut app = Headless::new(MenuRow::default());
+    app.frame();
+    let row_top = PERF_BAR + APP_BAR_HEIGHT;
+    let file = app.target("Menus/File");
+    assert_eq!((file.x, file.y), (MENU_BAR_ITEM_MARGIN.left, row_top + MENU_BAR_ITEM_MARGIN.top));
+    assert_eq!(app.program.page.y, row_top + MENU_BAR_HEIGHT + PAGE_PADDING);
+    app.click("Menus/File").click("Menus/File/Menu/Open");
+    assert_eq!(app.program.chosen.as_deref(), Some("Open"));
 }
 
 #[test]
