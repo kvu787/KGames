@@ -19,7 +19,6 @@ members = [
     "Library/ShaderCompiler",
     "Library/SimplePaint",
     "Library/UserInterface",
-    "Library/UserInterfaceOld",
     "Library/WindowsApi",
     "Program/GameInputDemo",
     "Program/IdentifyDisplays",
