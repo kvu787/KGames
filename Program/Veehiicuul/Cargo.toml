@@ -25,7 +25,7 @@ math = { path = "../../Library/Math" }
 meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
 simple_paint = { path = "../../Library/SimplePaint" }
-user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
+user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 # Its proc macros (for implementing COM interfaces in Rust) aren't needed.

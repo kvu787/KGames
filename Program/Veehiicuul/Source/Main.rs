@@ -7,9 +7,6 @@ use user_interface::Options;
 use veehiicuul::program::Veehiicuul;
 
 fn main() -> ExitCode {
-    let options = Options {
-        gamepad: true,
-        ..Options::new(veehiicuul::NAME, veehiicuul::FOLDER)
-    };
+    let options = Options::new(veehiicuul::NAME, veehiicuul::FOLDER).gamepad();
     user_interface::run(options, Veehiicuul::start)
 }

@@ -23,17 +23,17 @@ use std::path::{Path, PathBuf};
 use json::Value;
 use user_interface::graphics::{Frame, Gpu};
 use user_interface::tokens::{
-    BODY, BODY_STRONG, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, PAGE_PADDING, SPACE_L, SPACE_M, SPACE_S,
-    SPACE_XS, SPACE_XXL, SPACE_XXS, STATUS_BAR_HEIGHT,
+    APP_BAR_HEIGHT, BODY, BODY_STRONG, CAPTION, CARD_PADDING, SPACE_L, SPACE_M, SPACE_S, SPACE_XL, SPACE_XS, SPACE_XXL,
 };
 use user_interface::{
-    Align, Button, Icon, InfoBar, Key, Modifiers, MouseButton, Point, Program, Rect, Sense, Severity, Startup, Status, Ui,
+    AppBar, Button, Card, CheckBox, ComboBox, Icon, InfoBar, Insets, KEYCAP_HEIGHT, Key, Modifiers, MouseButton, Point, Program,
+    Rect, SelectorBar, Severity, Startup, Status, Ui, View,
 };
 
 use crate::camera::Eye;
 use crate::controls::Controls;
 use crate::document::Document;
-use crate::drawing::{Drawing, Ground, Instance, View};
+use crate::drawing::{Drawing, Ground, Instance, View as Scene3d};
 use crate::editing::{self, Viewport};
 use crate::files::{self, srgb};
 use crate::game::Game;
@@ -218,11 +218,13 @@ impl Veehiicuul {
     // is at the game's angle, and at its right end, the scene and the
     // commands.
     fn app_bar(&mut self, ui: &mut Ui) {
-        let mut bar = ui.app_bar(Icon::Car, NAME);
+        let mut bar = ui.app_bar(AppBar::new(Icon::Car, NAME));
         let seconds = ui.time();
-        let tabs = bar.cut_left(ui.selector_bar_width(&MODES), SPACE_XXL);
+        // The tabs take the bar's whole height, so that their text is in
+        // its middle, with their pills under it.
+        let tabs = bar.cut_left(SelectorBar::width(ui, &MODES), SPACE_XXL);
         let mut mode = self.mode;
-        ui.selector_bar("Mode", tabs, &mut mode, &MODES);
+        ui.add("Mode", Rect::new(tabs.x, 0.0, tabs.width, APP_BAR_HEIGHT), SelectorBar::new(&mut mode, &MODES));
         if mode != self.mode {
             self.go_to(mode, seconds);
         }
@@ -233,37 +235,41 @@ impl Veehiicuul {
         let undo = Button::new("Undo").icon(Icon::Undo);
         let redo = Button::new("Redo").icon(Icon::Redo);
         let new_scene = Button::new("New scene").icon(Icon::Add);
-        let save_area = bar.cut_right(ui.button_width(&save), SPACE_S);
-        let redo_area = bar.cut_right(ui.button_width(&redo), SPACE_S);
-        let undo_area = bar.cut_right(ui.button_width(&undo), SPACE_L);
+        let save_area = bar.cut_right(save.width(ui), SPACE_S);
+        let redo_area = bar.cut_right(redo.width(ui), SPACE_S);
+        let undo_area = bar.cut_right(undo.width(ui), SPACE_L);
         let divider = bar.cut_right(1.0, SPACE_L);
-        let new_scene_area = bar.cut_right(ui.button_width(&new_scene), SPACE_S);
+        let new_scene_area = bar.cut_right(new_scene.width(ui), SPACE_S);
         let scene_area = bar.cut_right(SCENE_WIDTH, SPACE_S);
         let label_area = bar.cut_right(ui.measure("Scene", BODY).width.ceil(), SPACE_L);
 
-        if ui.button("Save", save_area, save).clicked {
+        let response = ui.add("Save", save_area, save);
+        ui.tooltip(&response, "Writes the files that changed (Ctrl+S)");
+        if response.clicked {
             self.save();
         }
-        ui.tooltip("Save", "Writes the files that changed (Ctrl+S)");
         ui.set_enabled(self.can_redo());
-        if ui.button("Redo", redo_area, redo).clicked {
+        let response = ui.add("Redo", redo_area, redo);
+        ui.tooltip(&response, "Does again what undo undid (Ctrl+Y)");
+        if response.clicked {
             self.redo();
         }
         ui.set_enabled(self.can_undo());
-        if ui.button("Undo", undo_area, undo).clicked {
+        let response = ui.add("Undo", undo_area, undo);
+        ui.tooltip(&response, "Takes back the last change (Ctrl+Z)");
+        if response.clicked {
             self.undo();
         }
         ui.set_enabled(true);
-        ui.tooltip("Redo", "Does again what undo undid (Ctrl+Y)");
-        ui.tooltip("Undo", "Takes back the last change (Ctrl+Z)");
-        ui.divider(divider.inset_by(0.0, SPACE_XS, 0.0, SPACE_XS));
-        if ui.button("NewScene", new_scene_area, new_scene).clicked {
+        ui.divider(divider.pad(Insets::symmetric(0.0, SPACE_XS)));
+        let response = ui.add("NewScene", new_scene_area, new_scene);
+        ui.tooltip(&response, "Makes an empty scene, and goes to it");
+        if response.clicked {
             self.new_scene(seconds);
         }
-        ui.tooltip("NewScene", "Makes an empty scene, and goes to it");
         let names: Vec<&str> = self.game.document.scenes.iter().map(|scene| scene.name.as_str()).collect();
         let mut scene = self.game.scene;
-        ui.combo_box("Scene", scene_area, &mut scene, &names);
+        ui.add("Scene", scene_area, ComboBox::new(&mut scene, &names));
         if scene != self.game.scene {
             self.game.go_to_scene(scene, seconds);
             let current = self.game.current_scene();
@@ -274,19 +280,19 @@ impl Veehiicuul {
 
         if self.mode != PLAY {
             let label = "The game's angle";
-            let width = ui.checkbox_width(label);
-            let area = bar.left_strip(width);
+            let area = bar.left_strip(CheckBox::width(ui, label));
             let viewport = if self.mode == VEHICLES { &mut self.vehicle_editor.viewport } else { &mut self.viewport };
             let mut game_angle = viewport.game_angle();
-            if ui.checkbox("GameAngle", area, &mut game_angle, label).changed {
+            let response = ui.add("GameAngle", area, CheckBox::new(&mut game_angle, label));
+            ui.tooltip(&response, "Shows the view as the game does, instead of straight down");
+            if response.changed {
                 viewport.set_game_angle(game_angle);
             }
-            ui.tooltip("GameAngle", "Shows the view as the game does, instead of straight down");
         }
     }
 
-    // The status bar: the shortcuts, and whether there are changes to save,
-    // with a dot of its color before it.
+    // The status bar: the shortcuts, what the last save said, and whether
+    // there are changes to save.
     fn status_bar(&self, ui: &mut Ui) {
         let mut items = vec![
             Status::Shortcut("Ctrl+S", "Save"),
@@ -304,25 +310,18 @@ impl Veehiicuul {
         if !self.status.is_empty() {
             items.push(Status::Text(&self.status));
         }
-        let theme = ui.theme().clone();
-        let (saved, color) = if self.unsaved() {
-            ("Unsaved changes", theme.caution)
+        items.push(if self.unsaved() {
+            Status::Indicator(Severity::Warning, "Unsaved changes")
         } else {
-            ("No unsaved changes", theme.success)
-        };
-        items.push(Status::Text(saved));
+            Status::Indicator(Severity::Success, "No unsaved changes")
+        });
         ui.status_bar(&items);
-        let size = ui.size();
-        let width = ui.measure(saved, CAPTION).width;
-        let center = Point::new(size.width - PAGE_PADDING - width - SPACE_S, size.height - STATUS_BAR_HEIGHT / 2.0);
-        ui.painter().circle(center, 4.0, color);
     }
 
     // Play: the controls drive the car, and the wheel over the view zooms.
     fn play(&mut self, ui: &mut Ui, view: Rect) {
-        let response = ui.interact("Play/View", view, Sense::NONE, "View");
-        let notches = if response.hovered { f64::from(ui.input().wheel.y) } else { 0.0 };
-        let controls = Controls::read(ui, notches);
+        let response = ui.add("Play/View", view, View::new());
+        let controls = Controls::read(ui, f64::from(response.wheel.y));
         self.game.update(&controls, ui.time());
         let page = ui.page();
         if self.game.show_card {
@@ -434,6 +433,7 @@ impl Program for Veehiicuul {
                 self.vehicle_editor.update(ui, view, &mut self.game.document, models, &mut self.game.vehicle);
             }
         }
+        keep_focus_in_text_fields(ui);
         self.game.keep_in_document();
         // A drag is one change, as of when it's let go of.
         if !ui.input().button_down(MouseButton::Left) {
@@ -464,7 +464,7 @@ impl Program for Veehiicuul {
             };
             (Some(srgb(scene.background)), Some(ground))
         };
-        let view = View {
+        let view = Scene3d {
             eye: self.eye,
             background,
             ground,
@@ -492,8 +492,21 @@ impl Program for Veehiicuul {
     }
 }
 
+// Only text fields keep keyboard focus, so that Space, the arrows and the
+// keys that drive and pan never go to a control. Library/UserInterface's
+// selector bars and segments take it with a press on an item, even after
+// Ui::set_focusable(false), which keeps it from the others, so it's taken
+// back from them here, before the next frame's keys.
+fn keep_focus_in_text_fields(ui: &mut Ui) {
+    let focused = ui.focused_name().and_then(|name| ui.target(name)).map(|target| target.kind);
+    if focused.is_some_and(|kind| !matches!(kind, "TextBox" | "ColorField")) {
+        ui.clear_focus();
+    }
+}
+
 // What each control does in Play, with the gamepad's buttons, then the
-// keyboard's keys, each on a keycap. A "+" joins keycaps that go together.
+// keyboard's keys, each on a keycap. A "+" joins keys that go together, like
+// a shortcut's.
 const CONTROLS: [(&str, &[&str], &[&str]); 9] = [
     ("Drive", &["Right stick"], &["Arrows", "WASD"]),
     ("Brake", &["LT"], &["Space"]),
@@ -505,49 +518,45 @@ const CONTROLS: [(&str, &[&str], &[&str]); 9] = [
     ("Zoom back", &["Y"], &["Home"]),
     ("Hide this", &["View"], &["F1"]),
 ];
-// The label column's width in the card, a row of keycaps' height, and a
-// keycap's, as Library/UserInterface draws them.
+// The label column's width in the card, the gap before the keyboard's
+// column, and a row of keycaps' height.
 const LABEL_WIDTH: f32 = 136.0;
+const COLUMN_GAP: f32 = SPACE_XL;
 const KEYCAP_ROW: f32 = 28.0;
-const KEYCAP_HEIGHT: f32 = 22.0;
 // The gap between the card's lines of what's going on.
 const LINE_GAP: f32 = SPACE_XS;
+// The gap between the keycaps of keys that go together, as Ui::keys joins
+// a shortcut's.
+const JOINED_GAP: f32 = 4.0;
 
-// How wide a keycap is, as Ui::keycap draws it.
-fn keycap_width(ui: &mut Ui, key: &str) -> f32 {
-    (ui.measure(key, CAPTION).width + SPACE_S * 2.0).max(KEYCAP_HEIGHT).ceil()
-}
-
-// Draws the keycaps of one way to do something from `x`, or only measures
-// them without `top`, and returns where they end. A "+" between keycaps
-// joins them.
-fn keycaps(ui: &mut Ui, mut x: f32, top: Option<f32>, keys: &[&str]) -> f32 {
-    let plus = ui.measure("+", CAPTION).width;
-    let color = ui.theme().text_secondary;
-    for (index, joined) in keys.iter().enumerate() {
+// Draws the keycaps of the ways to do something from `origin`, or only
+// measures them without it, and returns their width. Each way is a key, or
+// keys that go together, like "RB+Left stick", joined as Ui::keys joins a
+// shortcut's, which it only does for the keyboard's shortcuts, so it would
+// draw that as one keycap.
+fn keycaps(ui: &mut Ui, origin: Option<Point>, ways: &[&str]) -> f32 {
+    let mut width = 0.0;
+    for (index, way) in ways.iter().enumerate() {
         if index > 0 {
-            x += SPACE_XS;
+            width += SPACE_S;
         }
-        for (part, key) in joined.split('+').enumerate() {
+        for (part, key) in way.split('+').enumerate() {
             if part > 0 {
-                if let Some(top) = top {
-                    let area = Rect::new(x + SPACE_XXS, top, plus, KEYCAP_HEIGHT);
-                    ui.text_aligned(area, "+", CAPTION, color, Align::Center);
-                }
-                x += plus + SPACE_XXS * 2.0;
+                width += JOINED_GAP;
             }
-            x += match top {
-                Some(top) => ui.keycap(Point::new(x, top), key),
-                None => keycap_width(ui, key),
+            width += match origin {
+                Some(origin) => ui.keycap(Point::new(origin.x + width, origin.y), key),
+                None => ui.keycap_width(key),
             };
         }
     }
-    x
+    width
 }
 
 // The card over the bottom left corner of the page in Play: the scene, the
-// vehicle, how it's going, and what the controls do. It's as big as what it
-// says. Returns its area, which scripts and tests see as "Play/Card".
+// vehicle, how it's going, and what the controls do, as a table of the
+// gamepad's and the keyboard's. It's as big as what it says. Returns its
+// area, which scripts and tests see as "Play/Card".
 pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
     let theme = ui.theme().clone();
     let vehicle = game.current_vehicle();
@@ -568,21 +577,24 @@ pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
     let problem = game.last_shape().problems.first().cloned();
     let scene = &game.current_scene().name;
     let scenes = format!("Scene {} of {}", game.scene + 1, game.document.scenes.len());
-    let or_width = ui.measure("or", CAPTION).width + SPACE_S * 2.0;
 
     // As wide as its widest line.
-    let title_width = ui.measure(scene, BODY_STRONG).width + SPACE_M + ui.measure(&scenes, BODY).width;
+    let title_width = ui.measure(scene, BODY_STRONG).width + SPACE_S + ui.measure(&scenes, CAPTION).width;
     let rows_width = rows
         .iter()
         .map(|(_, value)| LABEL_WIDTH + ui.measure(value, BODY).width)
         .fold(0.0, f32::max);
-    let controls_width = CONTROLS
+    let (gamepad_header, keyboard_header) = (ui.measure("Gamepad", CAPTION).width, ui.measure("Keyboard", CAPTION).width);
+    let gamepad_width = CONTROLS
         .iter()
-        .map(|(_, gamepad, keyboard)| {
-            let gamepad = keycaps(ui, 0.0, None, gamepad);
-            LABEL_WIDTH + gamepad + or_width + keycaps(ui, 0.0, None, keyboard)
-        })
-        .fold(0.0, f32::max);
+        .map(|(_, gamepad, _)| keycaps(ui, None, gamepad))
+        .fold(gamepad_header, f32::max)
+        .ceil();
+    let keyboard_width = CONTROLS
+        .iter()
+        .map(|(_, _, keyboard)| keycaps(ui, None, keyboard))
+        .fold(keyboard_header, f32::max);
+    let controls_width = LABEL_WIDTH + gamepad_width + COLUMN_GAP + keyboard_width;
     let content_width = title_width
         .max(rows_width)
         .max(controls_width)
@@ -593,13 +605,13 @@ pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
         .map(|problem| InfoBar::new(Severity::Warning, "The track has a problem", problem));
     let problem_height = problem_bar.map_or(0.0, |bar| SPACE_M + ui.info_bar_height(content_width, &bar));
     let rows_height = BODY.line_height * rows.len() as f32 + LINE_GAP * (rows.len() - 1) as f32;
-    let controls_height = SPACE_M + 1.0 + SPACE_M + BODY_STRONG.line_height + SPACE_S + KEYCAP_ROW * CONTROLS.len() as f32;
+    let heading_height = BODY_STRONG.line_height + SPACE_XS + 1.0;
+    let controls_height = SPACE_L + heading_height + SPACE_S + KEYCAP_ROW * CONTROLS.len() as f32;
     let content_height = rows_height + problem_height + controls_height;
-    let height = CARD_PADDING * 2.0 + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + content_height;
+    let card = Card::new(scene).subtitle(&scenes).floating().named("Play/Card");
+    let height = card.height_around(content_height);
     let area = Rect::new(page.x, page.bottom() - height, content_width + CARD_PADDING * 2.0, height);
-    let card = ui.floating_card(area, scene);
-    ui.register("Play/Card", area, Sense::NONE, "Card");
-    ui.text(card.header, &scenes, BODY, theme.text_secondary);
+    let card = ui.card(area, card);
 
     let mut content = card.content;
     for (index, (label, value)) in rows.iter().enumerate() {
@@ -609,19 +621,24 @@ pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
     if let Some(bar) = problem_bar {
         content.cut_top(SPACE_M, 0.0);
         let height = ui.info_bar_height(content.width, &bar);
-        ui.info_bar("Play/Problem", content.cut_top(height, 0.0), bar);
+        ui.add("Play/Problem", content.cut_top(height, 0.0), bar);
     }
-    content.cut_top(SPACE_M, 0.0);
-    ui.divider(content.cut_top(1.0, SPACE_M));
-    ui.text(content.cut_top(BODY_STRONG.line_height, SPACE_S), "Controls", BODY_STRONG, theme.text_primary);
+    // The table's heading, with its columns' under a divider, as a form's
+    // heading has it.
+    content.cut_top(SPACE_L, 0.0);
+    let heading = content.cut_top(heading_height, SPACE_S);
+    let line = heading.top_strip(BODY_STRONG.line_height);
+    let keyboard_x = line.x + LABEL_WIDTH + gamepad_width + COLUMN_GAP;
+    ui.heading(line, "Controls");
+    ui.text(Rect::new(line.x + LABEL_WIDTH, line.y, gamepad_width, line.height), "Gamepad", CAPTION, theme.text_secondary);
+    ui.text(Rect::new(keyboard_x, line.y, line.right() - keyboard_x, line.height), "Keyboard", CAPTION, theme.text_secondary);
+    ui.divider(heading.bottom_strip(1.0));
     for (does, gamepad, keyboard) in CONTROLS {
         let row = content.cut_top(KEYCAP_ROW, 0.0);
         let top = (row.center().y - KEYCAP_HEIGHT / 2.0).round();
         ui.text(row.left_strip(LABEL_WIDTH - SPACE_S), does, BODY, theme.text_secondary);
-        let x = keycaps(ui, row.x + LABEL_WIDTH, Some(top), gamepad);
-        let or = Rect::new(x, row.y, or_width, row.height);
-        ui.text_aligned(or, "or", CAPTION, theme.text_secondary, Align::Center);
-        keycaps(ui, x + or_width, Some(top), keyboard);
+        keycaps(ui, Some(Point::new(row.x + LABEL_WIDTH, top)), gamepad);
+        keycaps(ui, Some(Point::new(keyboard_x, top)), keyboard);
     }
     area
 }
