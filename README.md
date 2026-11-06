@@ -65,6 +65,7 @@ you.
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`           |
 | [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it              |
 | [FrameTimes](Program/FrameTimes/README.md)             | Measures another process's frame times, like a game's while a build runs |
+| [Benchmarks](Program/Benchmarks/README.md)             | Times the hot paths: frames on the CPU and GPU, text, meshes, and more   |
 
 ## Library
 
@@ -87,7 +88,9 @@ you.
 ## Documentation
 
 `Documentation` holds design notes for what isn't code yet, like
-[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game.
+[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and
+[Performance](Documentation/Performance.md), the analysis of where the programs' time goes, made
+with [Benchmarks](Program/Benchmarks/README.md).
 
 ## Test
 
