@@ -37,6 +37,7 @@ members = [
     "Test/Math",
     "Test/MeshModeler",
     "Test/Meshes",
+    "Test/PaintSettings",
     "Test/MinimalSceneTest",
     "Test/PolygonMesh",
     "Test/PresentTiming",

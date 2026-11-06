@@ -187,6 +187,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "paint_settings_tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "paint_settings",
+ "simple_paint",
+]
+
+[[package]]
 name = "polygon_mesh"
 version = "0.1.0"
 dependencies = [

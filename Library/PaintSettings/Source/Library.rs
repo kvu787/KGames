@@ -84,21 +84,18 @@ pub fn to_value(parameters: &Parameters) -> Value {
     ])
 }
 
-// The material as a JSON object, over several lines, with the lines after
-// the first indented by `indent` spaces, for nesting in a settings file.
-// Numbers are written so that they read back exactly.
+// The material as JSON text, as `to_value` writes it, over several lines,
+// with the lines after the first indented by `indent` more spaces, for
+// nesting in a settings file.
 pub fn format(parameters: &Parameters, indent: usize) -> String {
     let outer = " ".repeat(indent);
-    let inner = " ".repeat(indent + 4);
-    let [red, green, blue] = parameters.base_color_srgb;
-    let members = [
-        format!("\"BaseColor\": [{red:?}, {green:?}, {blue:?}]"),
-        format!("\"Brightness\": {:?}", parameters.brightness),
-        format!("\"Shift\": {:?}", parameters.shift),
-        format!("\"RotationDegrees\": {:?}", parameters.rotation_degrees),
-        format!("\"DarkPoint\": {:?}", parameters.dark_point),
-        format!("\"LightPoint\": {:?}", parameters.light_point),
-    ];
-    let members: Vec<String> = members.iter().map(|member| format!("{inner}{member}")).collect();
-    format!("{{\n{}\n{outer}}}", members.join(",\n"))
+    let mut text = String::new();
+    for (index, line) in to_value(parameters).to_json().lines().enumerate() {
+        if index > 0 {
+            text += "\n";
+            text += &outer;
+        }
+        text += line;
+    }
+    text
 }
