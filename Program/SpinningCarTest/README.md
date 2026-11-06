@@ -43,9 +43,10 @@ goes over it.
 | `F11` | Switches between maximized and borderless fullscreen    |
 | `S`   | Keeps the car in the middle, facing +X, or lets it move |
 
-The card says the frame rate, the GPU, the display, whether the car moves, whether the window
-has focus, the keys, and what's wrong with `Settings.json`, if anything. It's at the bottom
-left, which the car never crosses.
+The card floats over the scene at the bottom left, which the car never crosses, and is as tall as
+what it says: the test's name and what the scene shows, the frame rate, the GPU, the display,
+whether the car moves, whether the window has focus, with an info bar's status icon, the keys on
+keycaps, and what's wrong with `Settings.json`, if anything, as warning info bars.
 
 ```powershell
 cargo run --release
@@ -90,7 +91,8 @@ checks that the car mesh is what SimplePaint accepts. The scripts in
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes, and check where
 the car is frame by frame, and what S, F1, F11 and the window's focus do. The state that scripts
 save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`, and the interface's,
-whose targets have the card as `InfoCard`.
+whose targets have the card as `InfoCard`, of kind `Card`, and what's wrong with `Settings.json`
+as `Notice/0`, `Notice/1` and so on.
 
 ## Layout
 

@@ -234,7 +234,7 @@ dependencies = [
  "paint_settings",
  "shader_compiler",
  "simple_paint",
- "user_interface_old",
+ "user_interface",
  "windows-core",
  "windows_api",
 ]
@@ -245,7 +245,7 @@ version = "0.1.0"
 dependencies = [
  "simple_paint",
  "spinning_car_test",
- "user_interface_old",
+ "user_interface",
 ]
 
 [[package]]

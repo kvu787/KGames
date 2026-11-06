@@ -84,7 +84,8 @@ fn the_card_says_what_is_wrong_with_the_settings() {
     let startup = Startup::for_tests(r#"{ "Sphere": { "UResolution": 1000 } }"#, &folder);
     let app = Headless::start(startup, |startup| Ok(SpinningCar::start(startup)));
     assert_eq!(app.program.settings, SceneSettings::default());
-    assert_eq!(app.label("Notice/0").as_deref(), Some("Settings.json"));
+    let label = app.label("Notice/0").unwrap();
+    assert!(label.starts_with("Warning: Settings.json Sphere "), "{label}");
     let card = app.target(spinning_car_test::info_card::NAME);
     assert!(card.contains(app.target("Notice/0").center()));
 }
