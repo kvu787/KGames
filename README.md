@@ -63,6 +63,7 @@ you.
 | [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`           |
 | [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it              |
+| [FrameTimes](Program/FrameTimes/README.md)             | Measures another process's frame times, like a game's while a build runs |
 
 ## Library
 
