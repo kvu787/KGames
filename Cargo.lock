@@ -64,6 +64,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphics_tests"
+version = "0.1.0"
+dependencies = [
+ "graphics",
+]
+
+[[package]]
 name = "identify_displays"
 version = "0.1.0"
 dependencies = [

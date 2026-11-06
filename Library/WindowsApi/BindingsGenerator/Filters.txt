@@ -350,6 +350,13 @@ SWP_NOMOVE
 SWP_NOSIZE
 WS_EX_NOACTIVATE
 
+// Library/Graphics: the process's GPU scheduling priority, which coding
+// agents' runs lower, so that a game the user is playing keeps its frames
+D3DKMTGetProcessSchedulingPriorityClass
+D3DKMTSetProcessSchedulingPriorityClass
+D3DKMT_SCHEDULINGPRIORITYCLASS
+E_INVALIDARG
+
 // Library/PresentTiming: a real-time ETW session that reads Windows' events
 // about presents, and TDH, which finds the fields in the events' payloads
 CloseTrace

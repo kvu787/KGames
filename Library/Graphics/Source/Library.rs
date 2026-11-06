@@ -17,7 +17,7 @@ mod presenter;
 #[path = "Resources.rs"]
 mod resources;
 
-pub use device::{AdapterChoice, Gpu};
+pub use device::{AdapterChoice, Gpu, GpuPriority, gpu_priority, set_gpu_priority};
 pub use frame::{Frame, Image, Offscreen, Readback};
 pub use png::write_png;
 pub use presenter::Presenter;

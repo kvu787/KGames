@@ -11,6 +11,7 @@ widgets go on top.
 | `Gpu`                                                       | The adapter, device, command queue and fence, and `run`, which records,    |
 |                                                             | runs and waits for setup work, like copying meshes into GPU memory         |
 | `AdapterChoice`                                             | The GPU that a monitor is an output of, the fastest one, or WARP           |
+| `GpuPriority`, `set_gpu_priority`, `gpu_priority`           | Where the GPU's scheduler puts the process's work among other processes'   |
 | `Presenter`                                                 | A window's swap chain, with `poll_ready`, `begin` and `present`            |
 | `Frame`                                                     | What a frame draws into: its command list, its target, and two views of it |
 | `Offscreen`                                                 | A texture to draw frames into without a window                             |
@@ -38,6 +39,17 @@ if `allow_tearing` and the system allow it. Alt+Enter's exclusive fullscreen is 
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.
+
+## GPU priority
+
+Windows' job objects can't limit the GPU, so a process that must stay out of a game's way lowers
+its own GPU scheduling priority. `Gpu::new` reads `KGAMES_GPU_PRIORITY`, which
+[RunLightly](../../Program/RunLightly/README.md) sets to `Idle` for coding agents' tests and test
+runs, and sets the process's priority before it creates the device, so the GPU's scheduler puts
+the process's frames after other processes', like a game's. The other values are `BelowNormal`,
+`Normal`, which is the default, `AboveNormal` and `High`; raising it above `Normal` needs a
+privilege that only administrators have. A frame that's on the GPU runs to its end either way, so
+test runs also draw small frames, at most 100 a second.
 
 ## The debug layer
 

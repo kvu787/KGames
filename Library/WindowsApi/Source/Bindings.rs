@@ -263,6 +263,22 @@ where
     unsafe { D3D12GetDebugInterface(&T::IID, result__ as *mut _ as *mut _).ok() }
 }
 #[inline]
+pub unsafe fn D3DKMTGetProcessSchedulingPriorityClass(
+    param0: HANDLE,
+    param1: *mut D3DKMT_SCHEDULINGPRIORITYCLASS,
+) -> windows_core::NTSTATUS {
+    windows_core::link!("gdi32.dll" "system" fn D3DKMTGetProcessSchedulingPriorityClass(param0 : HANDLE, param1 : *mut D3DKMT_SCHEDULINGPRIORITYCLASS) -> windows_core::NTSTATUS);
+    unsafe { D3DKMTGetProcessSchedulingPriorityClass(param0, param1 as _) }
+}
+#[inline]
+pub unsafe fn D3DKMTSetProcessSchedulingPriorityClass(
+    param0: HANDLE,
+    param1: D3DKMT_SCHEDULINGPRIORITYCLASS,
+) -> windows_core::NTSTATUS {
+    windows_core::link!("gdi32.dll" "system" fn D3DKMTSetProcessSchedulingPriorityClass(param0 : HANDLE, param1 : D3DKMT_SCHEDULINGPRIORITYCLASS) -> windows_core::NTSTATUS);
+    unsafe { D3DKMTSetProcessSchedulingPriorityClass(param0, param1) }
+}
+#[inline]
 pub unsafe fn DWriteCreateFactory<T>(factorytype: DWRITE_FACTORY_TYPE) -> windows_core::Result<T>
 where
     T: windows_core::Interface,
@@ -2228,6 +2244,13 @@ pub struct D3D12_VIEWPORT {
     pub MinDepth: f32,
     pub MaxDepth: f32,
 }
+pub type D3DKMT_SCHEDULINGPRIORITYCLASS = i32;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_ABOVE_NORMAL: D3DKMT_SCHEDULINGPRIORITYCLASS = 3;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_BELOW_NORMAL: D3DKMT_SCHEDULINGPRIORITYCLASS = 1;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_HIGH: D3DKMT_SCHEDULINGPRIORITYCLASS = 4;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_IDLE: D3DKMT_SCHEDULINGPRIORITYCLASS = 0;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_NORMAL: D3DKMT_SCHEDULINGPRIORITYCLASS = 2;
+pub const D3DKMT_SCHEDULINGPRIORITYCLASS_REALTIME: D3DKMT_SCHEDULINGPRIORITYCLASS = 5;
 pub type D3D_FEATURE_LEVEL = i32;
 pub const D3D_FEATURE_LEVEL_10_0: D3D_FEATURE_LEVEL = 40960;
 pub const D3D_FEATURE_LEVEL_10_1: D3D_FEATURE_LEVEL = 41216;
