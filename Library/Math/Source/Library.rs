@@ -41,8 +41,11 @@ pub fn length(v: Vector3) -> f32 {
     dot(v, v).sqrt()
 }
 
+// v at length 1, or zero if it has no length, as XMVector3Normalize gives,
+// or none that a float can divide by.
 pub fn normalize(v: Vector3) -> Vector3 {
-    scale(v, 1.0 / length(v))
+    let length = length(v);
+    if length > 1.0e-30 && length.is_finite() { scale(v, 1.0 / length) } else { [0.0; 3] }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

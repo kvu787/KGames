@@ -34,6 +34,8 @@ fn says_where_a_mistake_is() {
         ("\"\\udc00\"", 1, 4, "unpaired UTF-16 surrogate"),
         ("{} x", 1, 4, "expected the end of the file"),
         ("[1 2]", 1, 4, "expected ',' or ']'"),
+        ("[1e400]", 1, 2, "the number is too large"),
+        ("-1e400", 1, 1, "the number is too large"),
     ] {
         let error = parse(text).unwrap_err();
         assert_eq!(

@@ -173,3 +173,57 @@ fn reads_the_cone_s_parts_where_their_nodes_put_them() {
         .all(|(position, _)| position[2] > 1.0);
     assert!(front);
 }
+
+// A file can say anything about its accessors and nodes, and the reader
+// says what's wrong instead of allocating, reading past the chunk, or
+// overflowing the stack.
+#[test]
+fn says_what_is_wrong_with_a_file_s_sizes_and_nodes() {
+    let accessors = |accessors: &str| {
+        let json = format!(
+            r#"{{
+                "asset": {{ "version": "2.0" }},
+                "scenes": [{{ "nodes": [0] }}],
+                "nodes": [{{ "mesh": 0 }}],
+                "materials": {MATERIALS},
+                "meshes": [{{ "primitives": [{PRIMITIVE}] }}],
+                "buffers": [{{ "byteLength": 8 }}],
+                "bufferViews": [{{ "buffer": 0, "byteOffset": 0, "byteLength": 8 }}],
+                "accessors": {accessors}
+            }}"#
+        );
+        glb(&json, &[0; 8])
+    };
+    let three = |first: &str| format!(r#"[{first}, {first}, {{ "bufferView": 0, "componentType": 5123, "count": 3, "type": "SCALAR" }}]"#);
+    for (accessor, problem) in [
+        (r#"{ "componentType": 5126, "count": 4294967295, "type": "VEC3" }"#, "has accessor 0 with 4294967295 elements, more than 16777216"),
+        (r#"{ "componentType": 5126, "count": 1e18, "type": "VEC3" }"#, "has accessor 0 without a count"),
+        (r#"{ "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3" }"#, "has accessor 0 past the end of the binary chunk"),
+        (r#"{ "bufferView": 0, "byteOffset": 4294967295, "componentType": 5126, "count": 1, "type": "VEC3" }"#, "has accessor 0 past the end of the binary chunk"),
+    ] {
+        assert_eq!(parse(&accessors(&three(accessor))).unwrap_err(), problem);
+    }
+    let strided = r#"[{ "buffer": 0, "byteOffset": 0, "byteLength": 8, "byteStride": 4294967295 }]"#;
+    let json = accessors(&three(r#"{ "bufferView": 0, "componentType": 5126, "count": 2, "type": "VEC3" }"#));
+    let json = String::from_utf8(json).unwrap().replace(r#"[{ "buffer": 0, "byteOffset": 0, "byteLength": 8 }]"#, strided);
+    assert_eq!(parse(&glb(&json[20..json.len() - 16], &[0; 8])).unwrap_err(), "has accessor 0 past the end of the binary chunk");
+
+    // A chain of nodes as long as a stack would be deep.
+    let count = 100_000;
+    let mut nodes = String::from("[");
+    for node in 0..count {
+        if node > 0 {
+            nodes.push(',');
+        }
+        if node + 1 < count {
+            nodes.push_str(&format!(r#"{{ "children": [{}] }}"#, node + 1));
+        } else {
+            nodes.push_str(r#"{ "mesh": 0 }"#);
+        }
+    }
+    nodes.push(']');
+    let model = parse(&triangle(&nodes, MATERIALS, PRIMITIVE)).unwrap();
+    assert_eq!(model.indices.len(), 3);
+    let looped = r#"[{ "children": [1] }, { "children": [0], "mesh": 0 }]"#;
+    assert_eq!(parse(&triangle(looped, MATERIALS, PRIMITIVE)).unwrap_err(), "has node 0 in more than one place, or in a loop");
+}

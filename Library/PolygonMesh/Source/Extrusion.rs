@@ -2,9 +2,8 @@
 // vertices start where the ones that they come from are, so a modeler moves
 // the selection that these return, as Blender does after E.
 
-use crate::mesh::normalize_or_zero;
 use crate::{Edge, Face, Mesh, Selection};
-use math::{Vector3, add, cross, dot, scale, subtract};
+use math::{Vector3, add, cross, dot, normalize, scale, subtract};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 impl Mesh {
@@ -148,10 +147,10 @@ impl Mesh {
                     let [previous, next] = sides(corner);
                     let normal = normals[&corner.0];
                     if uses[&Edge::new(previous, vertex)] == 1 {
-                        inward.push(normalize_or_zero(cross(normal, subtract(position, self.position(previous)))));
+                        inward.push(normalize(cross(normal, subtract(position, self.position(previous)))));
                     }
                     if uses[&Edge::new(vertex, next)] == 1 {
-                        inward.push(normalize_or_zero(cross(normal, subtract(self.position(next), position))));
+                        inward.push(normalize(cross(normal, subtract(self.position(next), position))));
                     }
                 }
                 if inward.is_empty() {
@@ -206,8 +205,8 @@ impl Mesh {
                         [vertices[(place + count - 1) % count], vertices[place], vertices[(place + 1) % count]]
                             .map(|vertex| self.position(vertex));
                     let inward = [
-                        normalize_or_zero(cross(normal, subtract(vertex, previous))),
-                        normalize_or_zero(cross(normal, subtract(next, vertex))),
+                        normalize(cross(normal, subtract(vertex, previous))),
+                        normalize(cross(normal, subtract(next, vertex))),
                     ];
                     self.add_vertex(add(vertex, inset_offset(&inward, thickness)))
                 })
@@ -240,7 +239,7 @@ fn edge_uses(mesh: &Mesh, faces: &BTreeSet<usize>) -> BTreeMap<Edge, usize> {
 // as far, for a nearly folded-back corner.
 fn inset_offset(inward: &[Vector3], thickness: f32) -> Vector3 {
     let sum = inward.iter().fold([0.0; 3], |sum, &direction| add(sum, direction));
-    let direction = normalize_or_zero(sum);
+    let direction = normalize(sum);
     if direction == [0.0; 3] {
         return scale(inward[0], thickness);
     }

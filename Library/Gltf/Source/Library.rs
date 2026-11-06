@@ -108,9 +108,15 @@ fn list<'a>(value: &'a Value, name: &str) -> &'a [Value] {
     }
 }
 
+// The most elements an accessor may have: more than any model here, and
+// few enough to allocate without a thought.
+const MAX_ELEMENTS: usize = 1 << 24;
+
+// A whole number that's 0 or more, at most u32::MAX, as glTF's indices and
+// sizes are.
 fn index(value: &Value, name: &str) -> Option<usize> {
     match value.get(name) {
-        Some(Value::Number(number)) if *number >= 0.0 && number.fract() == 0.0 => Some(*number as usize),
+        Some(Value::Number(number)) if *number >= 0.0 && *number <= u32::MAX as f64 && number.fract() == 0.0 => Some(*number as usize),
         _ => None,
     }
 }
@@ -206,6 +212,9 @@ fn accessor<const N: usize>(document: &Value, binary: &[u8], which: usize) -> Re
         5125 | 5126 => 4,
         other => return Err(format!("has accessor {which} of component type {other}")),
     };
+    if count > MAX_ELEMENTS {
+        return Err(format!("has accessor {which} with {count} elements, more than {MAX_ELEMENTS}"));
+    }
     let Some(view_index) = index(accessor, "bufferView") else {
         // Without a buffer view, every element is zero.
         return Ok(vec![[0.0; N]; count]);
@@ -216,16 +225,33 @@ fn accessor<const N: usize>(document: &Value, binary: &[u8], which: usize) -> Re
     if index(view, "buffer") != Some(0) {
         return Err(format!("has buffer view {view_index} outside the file's binary chunk"));
     }
-    let start = index(view, "byteOffset").unwrap_or(0) + index(accessor, "byteOffset").unwrap_or(0);
+    let past_the_end = || format!("has accessor {which} past the end of the binary chunk");
+    let start = index(view, "byteOffset")
+        .unwrap_or(0)
+        .checked_add(index(accessor, "byteOffset").unwrap_or(0))
+        .ok_or_else(past_the_end)?;
     let stride = index(view, "byteStride").unwrap_or(size * N);
+    if stride < size * N {
+        return Err(format!("has buffer view {view_index} with a stride of {stride}, less than its elements"));
+    }
+    // Where the last element ends, which must be in the chunk, so that the
+    // reads below can't be past it.
+    if count > 0 {
+        let end = (count - 1)
+            .checked_mul(stride)
+            .and_then(|last| last.checked_add(size * N))
+            .and_then(|length| start.checked_add(length))
+            .ok_or_else(past_the_end)?;
+        if end > binary.len() {
+            return Err(past_the_end());
+        }
+    }
     let mut elements = Vec::with_capacity(count);
     for element in 0..count {
         let mut values = [0.0; N];
         for (component, value) in values.iter_mut().enumerate() {
             let at = start + element * stride + component * size;
-            let bytes = binary
-                .get(at..at + size)
-                .ok_or_else(|| format!("has accessor {which} past the end of the binary chunk"))?;
+            let bytes = &binary[at..at + size];
             *value = match component_type {
                 5120 => {
                     let raw = bytes[0] as i8 as f64;
@@ -293,42 +319,38 @@ fn read(document: &Value, binary: &[u8]) -> Result<Model, String> {
             (0..nodes.len()).filter(|node| !children.contains(node)).collect()
         }
     };
-    let mut visited = Vec::new();
-    for root in roots {
-        add_node(document, binary, root, &IDENTITY, &mut model, &mut visited)?;
-    }
+    add_nodes(document, binary, roots, &mut model)?;
     if model.indices.is_empty() {
         return Err("has no triangles".to_string());
     }
     Ok(model)
 }
 
-fn add_node(
-    document: &Value,
-    binary: &[u8],
-    index_in_file: usize,
-    parent: &Matrix,
-    model: &mut Model,
-    visited: &mut Vec<usize>,
-) -> Result<(), String> {
-    if visited.contains(&index_in_file) {
-        return Err(format!("has node {index_in_file} in more than one place, or in a loop"));
-    }
-    visited.push(index_in_file);
-    let node = list(document, "nodes")
-        .get(index_in_file)
-        .ok_or_else(|| format!("has no node {index_in_file}"))?;
-    let transform = multiply(parent, &local_transform(node).map_err(|problem| format!("node {index_in_file} {problem}"))?);
-    if let Some(mesh) = index(node, "mesh") {
-        let mesh = list(document, "meshes").get(mesh).ok_or_else(|| format!("has no mesh {mesh}"))?;
-        for primitive in list(mesh, "primitives") {
-            add_primitive(document, binary, primitive, &transform, model)?;
+// Adds the roots' trees of nodes, each node's children after it, with a
+// stack of its own, so that a long chain of nodes can't overflow the
+// thread's.
+fn add_nodes(document: &Value, binary: &[u8], roots: Vec<usize>, model: &mut Model) -> Result<(), String> {
+    let nodes = list(document, "nodes");
+    let mut visited = vec![false; nodes.len()];
+    let mut pending: Vec<(usize, Matrix)> = roots.into_iter().rev().map(|root| (root, IDENTITY)).collect();
+    while let Some((index_in_file, parent)) = pending.pop() {
+        let node = nodes.get(index_in_file).ok_or_else(|| format!("has no node {index_in_file}"))?;
+        if visited[index_in_file] {
+            return Err(format!("has node {index_in_file} in more than one place, or in a loop"));
         }
-    }
-    for child in list(node, "children") {
-        if let Value::Number(child) = child {
-            add_node(document, binary, *child as usize, &transform, model, visited)?;
+        visited[index_in_file] = true;
+        let transform = multiply(&parent, &local_transform(node).map_err(|problem| format!("node {index_in_file} {problem}"))?);
+        if let Some(mesh) = index(node, "mesh") {
+            let mesh = list(document, "meshes").get(mesh).ok_or_else(|| format!("has no mesh {mesh}"))?;
+            for primitive in list(mesh, "primitives") {
+                add_primitive(document, binary, primitive, &transform, model)?;
+            }
         }
+        let children = list(node, "children").iter().rev().filter_map(|child| match child {
+            Value::Number(child) => Some((*child as usize, transform)),
+            _ => None,
+        });
+        pending.extend(children);
     }
     Ok(())
 }

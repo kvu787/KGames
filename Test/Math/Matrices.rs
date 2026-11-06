@@ -1,6 +1,6 @@
 // Checks Library/Math against values that DirectXMath agrees on.
 
-use math::{Matrix, Vector3, cross, dot, length};
+use math::{Matrix, Vector3, cross, dot, length, normalize};
 
 fn near(actual: f32, expected: f32) -> bool {
     (actual - expected).abs() <= 1.0e-5 * expected.abs().max(1.0)
@@ -61,4 +61,12 @@ fn orthographic_projection_maps_near_and_far_to_depths_0_and_1() {
     let projection = Matrix::orthographic_rh(8.0, 4.0, 1.0, 20.0);
     assert_near(&projection.transform([4.0, -2.0, -1.0, 1.0]), &[1.0, -1.0, 0.0, 1.0]);
     assert_near(&projection.transform([-4.0, 2.0, -20.0, 1.0]), &[-1.0, 1.0, 1.0, 1.0]);
+}
+
+#[test]
+fn normalizing_gives_length_1_or_zero_for_nothing() {
+    assert_near(&normalize([3.0, 0.0, 4.0]), &[0.6, 0.0, 0.8]);
+    // XMVector3Normalize gives zero for a vector without length, not NaN.
+    assert_eq!(normalize([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
+    assert_eq!(normalize([f32::INFINITY, 0.0, 0.0]), [0.0, 0.0, 0.0]);
 }

@@ -2,7 +2,7 @@
 // and the sharpness of creased edges.
 
 use crate::Topology;
-use math::{Vector3, add, cross, length, scale, subtract};
+use math::{Vector3, add, cross, length, normalize, scale, subtract};
 use std::collections::{BTreeMap, BTreeSet};
 
 // Any sharpness of at least this is infinitely sharp, as in OpenSubdiv, where
@@ -162,7 +162,7 @@ impl Mesh {
     // The unit normal that the face's winding points to, or zero for a face
     // without area.
     pub fn face_normal(&self, face: usize) -> Vector3 {
-        normalize_or_zero(self.face_area_vector(face))
+        normalize(self.face_area_vector(face))
     }
 
     pub fn face_area(&self, face: usize) -> f32 {
@@ -228,13 +228,6 @@ impl Mesh {
         let existing = self.edges();
         edges.into_iter().filter(|edge| existing.contains(edge)).collect()
     }
-}
-
-// v at length 1, or zero if it has no length, or none that a float can
-// divide by.
-pub(crate) fn normalize_or_zero(v: Vector3) -> Vector3 {
-    let length = length(v);
-    if length > 1.0e-30 && length.is_finite() { scale(v, 1.0 / length) } else { [0.0; 3] }
 }
 
 // The average of the positions, or None if there are none.
