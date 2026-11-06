@@ -264,7 +264,7 @@ the input latency over the last 2 seconds. It changes what it says 4 times a sec
 | `Tearing`         | Whether they tear                                                                               |
 | `VSync`           | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
 
-The PerfBar is set in Cascadia Mono at 20 pixels, `PERF_BAR_TEXT`, black on white, centered above
+The PerfBar is set in Cascadia Mono at 15 pixels, `PERF_BAR_TEXT`, black on white, centered above
 its divider, in fields whose widths never change, so that every label and value stays in the same
 place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
 latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
