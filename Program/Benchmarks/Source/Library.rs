@@ -6,15 +6,28 @@
 // - interface: the programs' frames on the CPU and the GPU, text, input and
 //   the PerfBar.
 // - libraries: meshes, models, JSON, math and the present tracker.
+// - memory: counts the heap, and reads the GPU's and the process's memory.
+// - footprints: what the programs and the libraries hold and churn.
 
+#[path = "Footprints.rs"]
+pub mod footprints;
 #[path = "Harness.rs"]
 pub mod harness;
 #[path = "Interface.rs"]
 pub mod interface;
 #[path = "Libraries.rs"]
 pub mod libraries;
+#[path = "Memory.rs"]
+pub mod memory;
 
 pub use harness::{Budget, Measurement, measure, measure_timed, percentile, table};
+pub use memory::{ProcessMemory, Report, Usage, Video, process_memory};
+
+// The heap counts of every benchmark that asks for them, from one allocator
+// for the whole program. It counts nothing until a memory benchmark turns it
+// on, so the timing benchmarks pay only a relaxed load an allocation.
+#[global_allocator]
+static ALLOCATOR: memory::Counting = memory::Counting;
 
 pub const USAGE: &str = "Benchmarks [--filter <text>] [--quick] [--json <path>] [--list]";
 
@@ -39,6 +52,23 @@ pub const GROUPS: [Group; 10] = [
     Group { name: "json", gpu: false, run: libraries::json },
     Group { name: "math", gpu: false, run: libraries::math },
     Group { name: "present-timing", gpu: false, run: libraries::present_timing },
+];
+
+// A group of memory benchmarks, which count what's held and churned
+// instead of timing it.
+#[derive(Clone, Copy)]
+pub struct MemoryGroup {
+    pub name: &'static str,
+    // Whether its benchmarks need a GPU.
+    pub gpu: bool,
+    pub run: fn(Budget) -> Report,
+}
+
+pub const MEMORY_GROUPS: [MemoryGroup; 4] = [
+    MemoryGroup { name: "memory/frames", gpu: false, run: footprints::frames },
+    MemoryGroup { name: "memory/caches", gpu: false, run: footprints::caches },
+    MemoryGroup { name: "memory/libraries", gpu: false, run: footprints::libraries },
+    MemoryGroup { name: "memory/gpu", gpu: true, run: footprints::video },
 ];
 
 // What the command line asks for.
@@ -78,6 +108,11 @@ pub fn selected(filter: Option<&str>) -> Vec<Group> {
     GROUPS.iter().copied().filter(|group| filter.is_none_or(|text| group.name.contains(text))).collect()
 }
 
+// The memory groups that the filter keeps.
+pub fn selected_memory(filter: Option<&str>) -> Vec<MemoryGroup> {
+    MEMORY_GROUPS.iter().copied().filter(|group| filter.is_none_or(|text| group.name.contains(text))).collect()
+}
+
 // What the measurements were taken on, for the report's header.
 pub fn environment() -> json::Value {
     let gpu = graphics::Gpu::new(graphics::AdapterChoice::HighPerformance).map(|gpu| gpu.name.clone()).unwrap_or_else(|error| format!("none: {error}"));
@@ -89,10 +124,13 @@ pub fn environment() -> json::Value {
     ])
 }
 
-// The measurements and the environment as one JSON object.
-pub fn report(environment: &json::Value, measurements: &[Measurement]) -> json::Value {
+// The measurements, the memory, and the environment as one JSON object.
+pub fn report(environment: &json::Value, measurements: &[Measurement], memory: &Report, process: ProcessMemory) -> json::Value {
     json::object([
         ("Environment", environment.clone()),
         ("Measurements", json::Value::Array(measurements.iter().map(Measurement::to_json).collect())),
+        ("Memory", json::Value::Array(memory.heap.iter().map(Usage::to_json).collect())),
+        ("VideoMemory", json::Value::Array(memory.video.iter().map(Video::to_json).collect())),
+        ("Process", process.to_json()),
     ])
 }

@@ -22,7 +22,7 @@ mod resources;
 mod timer;
 
 pub use depth::DepthBuffer;
-pub use device::{AdapterChoice, Gpu, GpuPriority, gpu_priority, set_gpu_priority};
+pub use device::{AdapterChoice, Gpu, GpuPriority, VideoMemory, gpu_priority, set_gpu_priority};
 pub use frame::{Frame, Image, Offscreen, Readback};
 pub use png::write_png;
 pub use presenter::Presenter;

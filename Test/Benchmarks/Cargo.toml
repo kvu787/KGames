@@ -12,6 +12,10 @@ path = "Harness.rs"
 name = "Groups"
 path = "Groups.rs"
 
+[[test]]
+name = "Memory"
+path = "Memory.rs"
+
 [dependencies]
 benchmarks = { path = "../../Program/Benchmarks" }
 json = { path = "../../Library/Json" }

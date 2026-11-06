@@ -404,3 +404,11 @@ Process32FirstW
 Process32NextW
 PROCESSENTRY32W
 TH32CS_SNAPPROCESS
+
+// Memory usage: how much GPU memory the process has reserved, for
+// Library/Graphics, and its working set and private commit, for
+// Program/Benchmarks
+IDXGIAdapter3::QueryVideoMemoryInfo
+DXGI_MEMORY_SEGMENT_GROUP
+GetProcessMemoryInfo
+PROCESS_MEMORY_COUNTERS_EX

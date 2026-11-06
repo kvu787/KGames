@@ -489,6 +489,15 @@ where
     unsafe { GetProcAddress(hmodule, lpprocname.param().abi()) }
 }
 #[inline]
+pub unsafe fn GetProcessMemoryInfo(
+    process: HANDLE,
+    ppsmemcounters: *mut PROCESS_MEMORY_COUNTERS,
+    cb: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" "K32GetProcessMemoryInfo" fn GetProcessMemoryInfo(process : HANDLE, ppsmemcounters : *mut PROCESS_MEMORY_COUNTERS, cb : u32) -> windows_core::BOOL);
+    unsafe { GetProcessMemoryInfo(process, ppsmemcounters as _, cb) }
+}
+#[inline]
 pub unsafe fn GetSystemDirectoryW(lpbuffer: Option<windows_core::PWSTR>, usize: u32) -> u32 {
     windows_core::link!("kernel32.dll" "system" fn GetSystemDirectoryW(lpbuffer : windows_core::PWSTR, usize : u32) -> u32);
     unsafe { GetSystemDirectoryW(lpbuffer.unwrap_or(core::mem::zeroed()) as _, usize) }
@@ -3115,6 +3124,9 @@ pub type DXGI_GPU_PREFERENCE = i32;
 pub const DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE: DXGI_GPU_PREFERENCE = 2;
 pub const DXGI_GPU_PREFERENCE_MINIMUM_POWER: DXGI_GPU_PREFERENCE = 1;
 pub const DXGI_GPU_PREFERENCE_UNSPECIFIED: DXGI_GPU_PREFERENCE = 0;
+pub type DXGI_MEMORY_SEGMENT_GROUP = i32;
+pub const DXGI_MEMORY_SEGMENT_GROUP_LOCAL: DXGI_MEMORY_SEGMENT_GROUP = 0;
+pub const DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL: DXGI_MEMORY_SEGMENT_GROUP = 1;
 pub type DXGI_MODE_ROTATION = i32;
 pub type DXGI_MODE_SCALING = i32;
 pub type DXGI_MODE_SCANLINE_ORDER = i32;
@@ -3134,6 +3146,14 @@ impl Default for DXGI_OUTPUT_DESC {
     }
 }
 pub const DXGI_PRESENT_ALLOW_TEARING: u32 = 512;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DXGI_QUERY_VIDEO_MEMORY_INFO {
+    pub Budget: u64,
+    pub CurrentUsage: u64,
+    pub AvailableForReservation: u64,
+    pub CurrentReservation: u64,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DXGI_RATIONAL {
@@ -7735,6 +7755,82 @@ pub struct IDXGIAdapter1_Vtbl {
 }
 impl windows_core::RuntimeName for IDXGIAdapter1 {}
 windows_core::imp::define_interface!(
+    IDXGIAdapter2,
+    IDXGIAdapter2_Vtbl,
+    0x0aa1ae0a_fa0e_4b84_8644_e05ff8e5acb5
+);
+impl core::ops::Deref for IDXGIAdapter2 {
+    type Target = IDXGIAdapter1;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIAdapter2,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIAdapter,
+    IDXGIAdapter1
+);
+#[repr(C)]
+pub struct IDXGIAdapter2_Vtbl {
+    pub base__: IDXGIAdapter1_Vtbl,
+    GetDesc2: usize,
+}
+impl windows_core::RuntimeName for IDXGIAdapter2 {}
+windows_core::imp::define_interface!(
+    IDXGIAdapter3,
+    IDXGIAdapter3_Vtbl,
+    0x645967a4_1392_4310_a798_8053ce3e93fd
+);
+impl core::ops::Deref for IDXGIAdapter3 {
+    type Target = IDXGIAdapter2;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDXGIAdapter3,
+    windows_core::IUnknown,
+    IDXGIObject,
+    IDXGIAdapter,
+    IDXGIAdapter1,
+    IDXGIAdapter2
+);
+impl IDXGIAdapter3 {
+    pub unsafe fn QueryVideoMemoryInfo(
+        &self,
+        nodeindex: u32,
+        memorysegmentgroup: DXGI_MEMORY_SEGMENT_GROUP,
+        pvideomemoryinfo: *mut DXGI_QUERY_VIDEO_MEMORY_INFO,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            (windows_core::Interface::vtable(self).QueryVideoMemoryInfo)(
+                windows_core::Interface::as_raw(self),
+                nodeindex,
+                memorysegmentgroup,
+                pvideomemoryinfo as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDXGIAdapter3_Vtbl {
+    pub base__: IDXGIAdapter2_Vtbl,
+    RegisterHardwareContentProtectionTeardownStatusEvent: usize,
+    UnregisterHardwareContentProtectionTeardownStatus: usize,
+    pub QueryVideoMemoryInfo: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        u32,
+        DXGI_MEMORY_SEGMENT_GROUP,
+        *mut DXGI_QUERY_VIDEO_MEMORY_INFO,
+    ) -> windows_core::HRESULT,
+    SetVideoMemoryReservation: usize,
+    RegisterVideoMemoryBudgetChangeNotificationEvent: usize,
+    UnregisterVideoMemoryBudgetChangeNotification: usize,
+}
+impl windows_core::RuntimeName for IDXGIAdapter3 {}
+windows_core::imp::define_interface!(
     IDXGIDeviceSubObject,
     IDXGIDeviceSubObject_Vtbl,
     0x3d3e0379_f9de_4d58_bb6c_18d62992f1a6
@@ -8777,6 +8873,35 @@ impl Default for PROCESSENTRY32W {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct PROCESSTRACE_HANDLE(pub u64);
 pub type PROCESS_INFORMATION_CLASS = i32;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PROCESS_MEMORY_COUNTERS {
+    pub cb: u32,
+    pub PageFaultCount: u32,
+    pub PeakWorkingSetSize: usize,
+    pub WorkingSetSize: usize,
+    pub QuotaPeakPagedPoolUsage: usize,
+    pub QuotaPagedPoolUsage: usize,
+    pub QuotaPeakNonPagedPoolUsage: usize,
+    pub QuotaNonPagedPoolUsage: usize,
+    pub PagefileUsage: usize,
+    pub PeakPagefileUsage: usize,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PROCESS_MEMORY_COUNTERS_EX {
+    pub cb: u32,
+    pub PageFaultCount: u32,
+    pub PeakWorkingSetSize: usize,
+    pub WorkingSetSize: usize,
+    pub QuotaPeakPagedPoolUsage: usize,
+    pub QuotaPagedPoolUsage: usize,
+    pub QuotaPeakNonPagedPoolUsage: usize,
+    pub QuotaNonPagedPoolUsage: usize,
+    pub PagefileUsage: usize,
+    pub PeakPagefileUsage: usize,
+    pub PrivateUsage: usize,
+}
 pub const PROCESS_POWER_THROTTLING_CURRENT_VERSION: i32 = 1;
 pub const PROCESS_POWER_THROTTLING_EXECUTION_SPEED: i32 = 1;
 #[repr(C)]

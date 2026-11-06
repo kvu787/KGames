@@ -24,19 +24,19 @@ pub trait Subject {
     fn make(&self) -> Headless<Self::P>;
 }
 
-struct Showcase;
-struct SimplePaint;
-struct Modeler {
-    levels: u32,
+pub struct Showcase;
+pub struct SimplePaint;
+pub struct Modeler {
+    pub levels: u32,
 }
-struct GameInput;
-struct Racing;
-struct Sphere;
-struct Car;
+pub struct GameInput;
+pub struct Racing;
+pub struct Sphere;
+pub struct Car;
 
 // Where programs that would save files would save them, which none of these
 // benchmarks make them do.
-fn scratch(name: &str) -> PathBuf {
+pub fn scratch(name: &str) -> PathBuf {
     std::env::temp_dir().join("KGamesBenchmarks").join(name)
 }
 
