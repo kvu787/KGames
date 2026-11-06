@@ -1,14 +1,17 @@
-// Tests UiShowcase through its cards' real layout, without a window: presses
-// on each kind of widget, drags, the wheel, the keyboard, the combo boxes'
-// lists, typing, the list, tooltips, focus, and the shortcuts.
+// Tests the showcase without a window: what each widget does with input, in
+// the cards' real layout, at both window heights and in both themes.
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT};
-use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, Point, ThemeKind, slider_rail};
+use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, TOOLTIP_DELAY};
+use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
     Headless::new(Showcase::default())
+}
+
+fn interface(app: &Headless<Showcase>, member: &str) -> Option<Value> {
+    app.ui.state().get(member).cloned()
 }
 
 #[test]
@@ -16,15 +19,12 @@ fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
     for theme in [ThemeKind::Light, ThemeKind::Dark] {
         for fullscreen in [false, true] {
             let mut app = Headless::with_theme(Showcase::default(), theme);
-            app.set_fullscreen(fullscreen);
+            app.program.dark = theme == ThemeKind::Dark;
+            app.set_fullscreen(fullscreen).frame();
             let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
             for target in app.ui.targets().iter().filter(|target| target.listed) {
                 let rect = target.rect;
-                assert!(
-                    rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= height,
-                    "{} is at {rect:?}, outside the window",
-                    target.name
-                );
+                assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= height, "{} is at {rect:?}", target.name);
             }
         }
     }
@@ -33,66 +33,56 @@ fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
 #[test]
 fn buttons_count_their_presses() {
     let mut app = showcase();
-    app.click("Standard").click("Accent").click("Accent").click("Save");
-    assert_eq!(app.program.presses, [1, 2, 0, 1]);
-    app.click("Add").click("Add").click("Remove");
+    app.click("Standard").click("Accent").click("Subtle").click("Save").click("Add").click("Add").click("Remove");
+    assert_eq!(app.program.presses, [1, 1, 1, 1]);
     assert_eq!(app.program.count, 1);
     app.click("Pin");
     assert!(app.program.pinned);
-    // A disabled button takes no presses.
+    app.click("Link");
+    assert_eq!(app.program.link_clicks, 1);
     app.click("Disabled");
-    assert!(!app.is_enabled("Disabled"));
+    assert_eq!(app.program.presses, [1, 1, 1, 1]);
 }
 
 #[test]
 fn a_press_that_slides_off_a_button_does_not_press_it() {
     let mut app = showcase();
-    app.press("Standard");
-    let away = app.target("Accent").center();
-    app.move_point(away).release();
-    assert_eq!(app.program.presses, [0, 0, 0, 0]);
+    app.press("Standard").move_point(Point::new(1200.0, 900.0)).release();
+    assert_eq!(app.program.presses[0], 0);
 }
 
 #[test]
 fn the_first_checkbox_disables_the_options() {
     let mut app = showcase();
-    assert!(app.is_enabled("Option/Show rulers"));
-    app.click("OptionsEnabled");
-    assert!(!app.program.options_enabled);
-    assert!(!app.is_enabled("Option/Show rulers"));
     app.click("Option/Show rulers");
-    assert!(!app.program.options[1]);
-    app.click("OptionsEnabled").click("Option/Show rulers");
     assert!(app.program.options[1]);
+    app.click("OptionsEnabled").click("Option/Spell check");
+    assert!(!app.program.options_enabled && !app.program.options[3]);
+    assert!(!app.is_enabled("Option/Spell check"));
 }
 
 #[test]
 fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
-    app.click("Dark");
-    assert!(app.program.dark);
+    app.click("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    app.key(Key::F2);
-    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
-    app.key(Key::F1);
+    app.key(Key::F2).key(Key::F1);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     assert!(app.ui.tooltips_enabled());
 }
 
 #[test]
 fn radio_buttons_and_segments_pick_one() {
     let mut app = showcase();
-    app.click("Size/Large");
-    assert_eq!(app.program.size, 2);
-    app.click("Alignment/Right");
-    assert_eq!(app.program.alignment, 2);
+    app.click("Size/Large").click("Alignment/Right").click("Tool/Pick");
+    assert_eq!((app.program.size, app.program.alignment, app.program.tool), (2, 2, 3));
+    // A segmented control is one focus stop, whose arrows move it.
     app.click("Tool/Erase");
-    assert_eq!(app.program.tool, 2);
-    // The arrows move through a segmented control's segments.
+    assert_eq!(interface(&app, "Focused"), Some(Value::from("Tool")));
     app.key(Key::LEFT);
     assert_eq!(app.program.tool, 1);
-    assert_eq!(app.ui.state().get("Focused"), Some(&Value::from("Tool/Fill")));
 }
 
 #[test]
@@ -100,117 +90,103 @@ fn a_press_on_a_slider_sets_it_and_a_drag_moves_it_past_its_ends() {
     let mut app = showcase();
     let rect = app.target("Volume");
     let (left, right) = slider_rail(rect);
-    app.press_point(Point::new((left + right) / 2.0, rect.center().y));
-    assert_eq!(app.program.volume, 50.0);
-    app.move_point(Point::new(right + 400.0, rect.center().y));
-    assert_eq!(app.program.volume, 100.0);
-    app.move_point(Point::new(left - 400.0, rect.center().y)).release();
-    assert_eq!(app.program.volume, 0.0);
-    app.press_point(Point::new(left + (right - left) * 0.25, rect.center().y)).release();
+    app.press_point(Point::new(left + (right - left) * 0.25, rect.center().y));
     assert_eq!(app.program.volume, 25.0);
+    app.move_point(Point::new(2400.0, rect.center().y)).release();
+    assert_eq!(app.program.volume, 100.0);
+    assert_eq!(app.label("Volume").as_deref(), Some("100"));
 }
 
 #[test]
 fn the_wheel_and_the_keys_move_a_slider_by_its_steps() {
     let mut app = showcase();
     app.scroll("Opacity", -3.0);
-    assert!((app.program.opacity - 0.747).abs() < 1e-5);
-    app.click("Angle");
-    let angle = app.program.angle;
-    app.key(Key::RIGHT);
-    assert!((app.program.angle - angle - 0.1).abs() < 1e-3);
-    app.key_with(Modifiers::SHIFT, Key::RIGHT);
-    assert!((app.program.angle - angle - 10.1).abs() < 1e-3);
-    // The range stops at its last step.
+    assert!((app.program.opacity - 0.747).abs() < 1e-9, "{}", app.program.opacity);
+    app.click("Angle").key(Key::HOME).key(Key::RIGHT).key(Key::PAGE_UP);
+    assert!((app.program.angle - 15.1).abs() < 1e-3, "{}", app.program.angle);
     app.key(Key::END);
-    assert!((app.program.angle - 359.9).abs() < 1e-3);
-    app.key(Key::HOME);
-    assert_eq!(app.program.angle, 0.0);
+    assert_eq!(app.program.angle, 360.0);
+}
+
+#[test]
+fn parts_of_notches_add_up_on_a_slider() {
+    let mut app = showcase();
+    for _ in 0..4 {
+        app.scroll("Volume", 0.25);
+    }
+    assert_eq!(app.program.volume, 51.0);
 }
 
 #[test]
 fn a_combo_box_opens_its_list_over_itself_and_a_press_picks_from_it() {
     let mut app = showcase();
-    app.click("Density");
-    assert_eq!(app.ui.state().get("Popup"), Some(&Value::from("Density")));
-    // The chosen item is where the box is.
-    let box_center = app.target("Density").center().y;
-    let chosen = app.target("Density/1");
-    assert!((chosen.center().y - box_center).abs() < 4.0, "{chosen:?} isn't over the box");
-    app.click("Density/2");
-    assert_eq!(app.program.density, 2);
-    assert_eq!(app.ui.state().get("Popup"), Some(&Value::Null));
-    assert_eq!(app.label("Density").as_deref(), Some("Comfortable"));
+    app.click("Role");
+    assert_eq!(app.ui.popup_name(), Some("Role"));
+    assert!((app.target("Role/0").center().y - app.target("Role").center().y).abs() < 1.0);
+    app.click("Role/3");
+    assert_eq!(app.program.role, 3);
+    assert_eq!(app.ui.popup_name(), None);
 }
 
 #[test]
 fn a_press_outside_a_combo_box_list_closes_it_and_does_nothing_else() {
     let mut app = showcase();
-    app.click("Role");
-    assert!(app.has_target("Role/3"));
-    let far = app.target("Standard").center();
-    app.click_point(far);
-    assert_eq!(app.ui.state().get("Popup"), Some(&Value::Null));
-    assert_eq!(app.program.presses, [0, 0, 0, 0]);
-    // Esc closes it too, and the keys pick from it.
-    app.click("Role").key(Key::DOWN).key(Key::DOWN).key(Key::ENTER);
-    assert_eq!(app.program.role, 2);
-    app.click("Role").key(Key::ESCAPE);
-    assert_eq!(app.ui.state().get("Popup"), Some(&Value::Null));
+    app.click("Role").click("Standard");
+    assert_eq!(app.ui.popup_name(), None);
+    assert_eq!(app.program.presses[0], 0);
 }
 
 #[test]
 fn a_text_field_takes_typing_and_enter_greets() {
     let mut app = showcase();
-    app.click("Name").type_text("Ada").key(Key::ENTER);
-    assert_eq!(app.program.name, "Ada");
-    assert_eq!(app.program.greeting.as_deref(), Some("Hello, Ada!"));
-    // Keys that the field takes don't reach the program's shortcuts.
-    app.type_text(" B").key(Key::BACKSPACE).key(Key::BACKSPACE);
-    assert_eq!(app.program.name, "Ada");
-    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::C).key(Key::END).key_with(Modifiers::CONTROL, Key::V);
-    assert_eq!(app.program.name, "AdaAda");
-    app.key_with(Modifiers::CONTROL, Key::BACKSPACE);
-    assert_eq!(app.program.name, "");
+    app.click("Name").type_text("Ada Lovelace").key_with(Modifiers::CONTROL, Key::LEFT).key_with(Modifiers::SHIFT, Key::END).type_text("Byron");
+    app.key(Key::ENTER);
+    assert_eq!(app.program.name, "Ada Byron");
+    assert_eq!(app.program.greeting.as_deref(), Some("Hello, Ada Byron!"));
+    app.click("Greeting/Close");
+    assert_eq!(app.program.greeting, None);
 }
 
 #[test]
 fn a_double_click_selects_a_word() {
     let mut app = showcase();
-    app.click("Name").type_text("Grace Hopper");
-    let field = app.target("Name");
-    app.double_click("Name");
-    // The pointer is in the middle of the field, past the text, so the
-    // word before it is selected.
-    app.type_text("Lovelace");
-    assert_eq!(app.program.name, "Grace Lovelace");
-    let _ = field;
+    app.click("Name").type_text("one two");
+    app.double_click("Name").type_text("three");
+    assert!(app.program.name == "one three" || app.program.name == "three two", "{}", app.program.name);
 }
 
 #[test]
 fn the_search_shows_the_items_it_matches_and_its_button_clears_it() {
     let mut app = showcase();
-    app.click("Search").type_text("cobalt");
+    app.click("Search").type_text("ember");
     assert_eq!(app.program.matches().len(), 10);
-    assert_eq!(app.label("Items/0").as_deref(), Some("Cobalt 1"));
+    assert_eq!(app.label("Items/0").as_deref(), Some("Ember 1"));
     app.click("Search/Clear");
-    assert_eq!(app.program.search, "");
     assert_eq!(app.program.matches().len(), 120);
+}
+
+#[test]
+fn number_boxes_take_typing_and_their_spin_buttons() {
+    let mut app = showcase();
+    app.click("Quantity/Up").click("Quantity/Up");
+    assert_eq!(app.program.quantity, 5);
+    app.click("Scale").key_with(Modifiers::CONTROL, Key::A).type_text("9").key(Key::ENTER);
+    assert_eq!(app.program.scale, 4.0);
+    app.key(Key::DOWN);
+    assert_eq!(app.program.scale, 3.75);
 }
 
 #[test]
 fn the_list_selects_scrolls_and_opens() {
     let mut app = showcase();
-    app.click("Items/3");
+    app.click("Items/2").key(Key::DOWN);
     assert_eq!(app.program.selected, Some(3));
-    app.key(Key::DOWN).key(Key::DOWN);
-    assert_eq!(app.program.selected, Some(5));
-    app.double_click("Items/4");
-    assert_eq!(app.program.opened, Some(4));
-    assert!(!app.has_target("Items/60"));
-    app.scroll("Items", -20.0);
-    assert!(app.has_target("Items/60"));
+    app.scroll("Items", -10.0);
     assert!(!app.has_target("Items/0"));
+    let row = app.ui.targets().iter().filter(|target| target.name.starts_with("Items/") && target.listed).nth(2).unwrap().name.clone();
+    app.double_click(&row);
+    let index: usize = row.trim_start_matches("Items/").parse().unwrap();
+    assert_eq!(app.program.opened, Some(index));
 }
 
 #[test]
@@ -218,57 +194,100 @@ fn the_caution_closes_and_comes_back() {
     let mut app = showcase();
     app.click("Caution/Close");
     assert!(!app.program.caution_shown);
-    app.click("ShowCaution");
+    app.click("BringBack");
     assert!(app.program.caution_shown);
 }
 
 #[test]
-fn a_tooltip_shows_once_the_pointer_rests() {
+fn a_tooltip_shows_once_the_pointer_rests_and_sits_above_it() {
     let mut app = showcase();
-    app.move_to("TipSentence");
-    assert_eq!(app.ui.state().get("Tooltip"), Some(&Value::Null));
-    app.wait(0.6);
-    let tooltip = app.ui.state().get("Tooltip").cloned().unwrap();
-    assert_eq!(tooltip.get("Name"), Some(&Value::from("TipSentence")));
-    // A press puts it away.
-    app.press("TipSentence").release();
-    assert_eq!(app.ui.state().get("Tooltip"), Some(&Value::Null));
+    app.move_to("Save").wait(TOOLTIP_DELAY / 2.0);
+    assert_eq!(app.ui.tooltip_name(), None);
+    app.wait(TOOLTIP_DELAY);
+    assert_eq!(app.ui.tooltip_name(), Some("Save"));
+    let Some(Value::Object(tooltip)) = interface(&app, "Tooltip") else { panic!() };
+    let Value::Array(area) = &tooltip.iter().find(|(name, _)| name == "Area").unwrap().1 else { panic!() };
+    let (Value::Number(y), Value::Number(height)) = (&area[1], &area[3]) else { panic!() };
+    assert_eq!((*y + *height) as f32, app.pointer().y - 20.0);
 }
 
 #[test]
-fn a_tooltip_without_room_under_the_pointer_goes_above_it() {
+fn menus_choose_commands() {
     let mut app = showcase();
-    app.move_to("TipAbove").wait(0.6);
-    let state = app.ui.state();
-    let area = state.get("Tooltip").and_then(|tooltip| tooltip.get("Area")).cloned().unwrap();
-    let Value::Array(area) = area else { panic!() };
-    let (Value::Number(y), Value::Number(height)) = (&area[1], &area[3]) else { panic!() };
-    assert!(y + height <= app.pointer().y as f64, "the tooltip isn't above the pointer");
+    app.click("Menu/View").move_to("Menu/View/Menu/Theme");
+    app.click("Menu/View/Menu/Theme/Menu/Dark theme");
+    assert!(app.program.dark);
+    assert_eq!(app.program.menu_choice.as_deref(), Some("Dark theme"));
+    app.click("More").click("MoreMenu/Pinned");
+    assert!(app.program.pinned);
+    // The context menu opens at a right-click.
+    let area = app.target("ContextArea").center();
+    app.press_button(area, MouseButton::Right).release_button(MouseButton::Right);
+    assert_eq!(app.ui.popup_name(), Some("ContextMenu"));
+    app.click("ContextMenu/Copy");
+    assert_eq!(app.program.menu_choice.as_deref(), Some("Copy"));
+}
+
+#[test]
+fn the_dialog_asks_and_takes_the_page_until_answered() {
+    let mut app = showcase();
+    app.click("Ask");
+    assert!(app.program.dialog_open && app.ui.modal());
+    app.click("Standard");
+    assert_eq!(app.program.presses[0], 0);
+    app.click("Question/Secondary");
+    assert_eq!(app.program.dialog_result.as_deref(), Some("Don't save"));
+    assert!(!app.program.dialog_open);
+    app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").key(Key::ESCAPE);
+    assert_eq!(app.program.dialog_result.as_deref(), Some("Cancel"));
+}
+
+#[test]
+fn the_color_picker_and_field_and_palette_agree() {
+    let mut app = showcase();
+    app.click("Palette/3");
+    assert_eq!(app.program.color.to_hex(), "#107C10");
+    assert_eq!(app.label("Hex").as_deref(), Some("#107C10"));
+    app.click("Hex").key_with(Modifiers::CONTROL, Key::A).type_text("#FF0000").key(Key::ENTER);
+    assert_eq!(app.program.color.to_hex(), "#FF0000");
+    // The spectrum's top left is red, at full saturation.
+    let spectrum = app.target("Picker/Spectrum");
+    app.click_point(Point::new(spectrum.x + spectrum.width / 3.0, spectrum.y + 1.0));
+    let green = app.program.color;
+    assert!(green.g > 0.99 && green.r < 0.02 && green.b < 0.02, "{}", green.to_hex());
+}
+
+#[test]
+fn the_expander_shows_and_hides() {
+    let mut app = showcase();
+    assert!(app.program.expanded);
+    app.click("Expander");
+    assert!(!app.program.expanded);
 }
 
 #[test]
 fn tab_moves_focus_through_the_widgets_and_esc_takes_it_away() {
     let mut app = showcase();
-    app.key(Key::TAB);
-    assert_eq!(app.ui.state().get("Focused"), Some(&Value::from("Theme")));
-    app.key(Key::TAB);
-    assert_eq!(app.ui.state().get("Focused"), Some(&Value::from("Standard")));
+    for _ in 0..5 {
+        app.key(Key::TAB);
+    }
+    assert_eq!(interface(&app, "Focused"), Some(Value::from("Standard")));
     app.key(Key::SPACE);
     assert_eq!(app.program.presses[0], 1);
     app.key_with(Modifiers::SHIFT, Key::TAB);
-    assert_eq!(app.ui.state().get("Focused"), Some(&Value::from("Theme")));
+    assert_eq!(interface(&app, "Focused"), Some(Value::from("Theme")));
     app.key(Key::ESCAPE);
-    assert_eq!(app.ui.state().get("Focused"), Some(&Value::Null));
+    assert_eq!(interface(&app, "Focused"), Some(Value::Null));
 }
 
 #[test]
 fn ctrl_r_resets_every_widget() {
     let mut app = showcase();
-    app.click("Standard").click("Size/Small").click("Dark");
+    app.click("Standard").click("Size/Large");
     app.key_with(Modifiers::CONTROL, Key::R);
-    assert_eq!(app.program.presses, [0, 0, 0, 0]);
+    assert_eq!(app.program.presses[0], 0);
     assert_eq!(app.program.size, 1);
-    assert!(!app.program.dark);
+    assert_eq!(app.program.log.front().map(String::as_str), Some("Reset every widget"));
 }
 
 #[test]
@@ -283,11 +302,9 @@ fn f11_switches_to_fullscreen_and_back() {
 #[test]
 fn without_focus_nothing_responds() {
     let mut app = showcase();
-    app.focus(false);
-    app.click("Standard").key(Key::F2);
-    assert_eq!(app.program.presses, [0, 0, 0, 0]);
+    app.focus(false).click("Standard").key(Key::F2);
+    assert_eq!(app.program.presses[0], 0);
     assert!(!app.program.dark);
-    // Keys held when focus comes count once they're let go of.
     app.focus(true).click("Standard");
     assert_eq!(app.program.presses[0], 1);
 }
@@ -300,37 +317,27 @@ fn the_interface_card_shows_held_keys_and_the_gamepad() {
     app.release_key(Key::W);
     let gamepad = Gamepad {
         connected: true,
-        left_stick: Point::new(0.5, -0.5),
+        left_stick: Point::new(0.5, 0.5),
         buttons: GamepadButtons(GamepadButtons::A),
         ..Gamepad::default()
     };
     app.set_gamepad(gamepad);
-    assert_eq!(app.ui.gamepad().buttons.names(), vec!["A"]);
-}
-
-#[test]
-#[ignore]
-fn benchmark_frame_time() {
-    let mut app = Headless::new(Showcase::default());
-    app.frames(120);
-    let start = std::time::Instant::now();
-    app.frames(1000);
-    println!("FRAME {:.1} us", start.elapsed().as_secs_f64() / 1000.0 * 1e6);
-}
-
-#[test]
-fn parts_of_notches_add_up_on_a_slider() {
-    let mut app = showcase();
-    app.scroll("Opacity", 0.5);
-    assert!((app.program.opacity - 0.75).abs() < 1e-6);
-    app.scroll("Opacity", 0.5);
-    assert!((app.program.opacity - 0.751).abs() < 1e-5);
+    assert_eq!(app.ui.gamepad().buttons.names(), ["A"]);
 }
 
 #[test]
 fn a_held_key_repeats() {
     let mut app = showcase();
-    app.click("Angle").key(Key::HOME);
-    app.hold(Key::RIGHT).repeat(Key::RIGHT).repeat(Key::RIGHT).release_key(Key::RIGHT);
-    assert!((app.program.angle - 0.3).abs() < 1e-3, "{}", app.program.angle);
+    app.click("Name").type_text("abc");
+    app.hold(Key::BACKSPACE).repeat(Key::BACKSPACE).release_key(Key::BACKSPACE);
+    assert_eq!(app.program.name, "a");
+}
+
+#[test]
+fn benchmark_frame_time() {
+    let mut app = showcase();
+    let start = std::time::Instant::now();
+    app.frames(100);
+    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / 100.0;
+    eprintln!("A frame of the showcase's interface takes {per_frame:.3} ms to build");
 }

@@ -7,9 +7,6 @@ use ui_showcase::showcase::Showcase;
 use user_interface::Options;
 
 fn main() -> ExitCode {
-    let options = Options {
-        gamepad: true,
-        ..Options::new("UiShowcase", env!("CARGO_MANIFEST_DIR"))
-    };
+    let options = Options::new("UiShowcase", env!("CARGO_MANIFEST_DIR")).gamepad();
     user_interface::run(options, |startup| Ok(Showcase::new(startup)))
 }

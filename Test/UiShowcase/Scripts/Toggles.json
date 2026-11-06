@@ -8,7 +8,7 @@
         { "Frame": 10, "Click": "Alignment/Right" },
         { "Frame": 12, "Click": "Tool/Pick" },
         { "Frame": 14, "Key": "Left" },
-        { "Frame": 16, "Expect": { "Size": "Large", "Alignment": "Right", "Tool": "Erase", "Interface": { "Focused": "Tool/Erase" } } },
+        { "Frame": 16, "Expect": { "Size": "Large", "Alignment": "Right", "Tool": "Erase", "Interface": { "Focused": "Tool" } } },
         { "Frame": 17, "Click": "Filling" },
         { "Frame": 40, "Capture": "Toggles" },
         { "Frame": 40, "Expect": { "Filling": false } }

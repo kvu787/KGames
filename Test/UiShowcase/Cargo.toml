@@ -10,7 +10,7 @@ path = "Showcase.rs"
 
 [dependencies]
 ui_showcase = { path = "../../Program/UiShowcase" }
-user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
+user_interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true

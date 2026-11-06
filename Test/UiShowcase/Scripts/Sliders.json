@@ -10,11 +10,11 @@
         { "Frame": 7, "Expect": { "Opacity": 0.747, "Interface": { "Pressed": null } } },
         { "Frame": 8, "Click": "Angle" },
         { "Frame": 10, "Key": "Home" },
-        { "Frame": 11, "Key": "Shift+Right" },
-        { "Frame": 12, "Key": "Right" },
-        { "Frame": 13, "Expect": { "Angle": 10.1, "Interface": { "Focused": "Angle" } } },
+        { "Frame": 11, "Key": "Right" },
+        { "Frame": 12, "Key": "PageUp" },
+        { "Frame": 13, "Expect": { "Angle": 15.1, "Interface": { "Focused": "Angle" } } },
         { "Frame": 14, "Key": "End" },
-        { "Frame": 16, "Expect": { "Angle": 359.9 } },
+        { "Frame": 16, "Expect": { "Angle": 360 } },
         { "Frame": 16, "Capture": "Sliders" }
     ]
 }

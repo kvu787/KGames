@@ -3,15 +3,17 @@
         { "Frame": 1, "Click": "Role" },
         { "Frame": 20, "Capture": "Open" },
         { "Frame": 20, "Expect": { "Interface": { "Popup": "Role" } } },
-        { "Frame": 21, "Click": "Role/3" },
+        { "Frame": 21, "Click": "Role/1" },
         { "Frame": 23, "Expect": { "Role": "Success", "Interface": { "Popup": null } } },
-        { "Frame": 24, "Click": "Density" },
-        { "Frame": 26, "Key": "Down" },
-        { "Frame": 28, "Key": "Enter" },
-        { "Frame": 30, "Expect": { "Density": "Comfortable" } },
-        { "Frame": 31, "Click": "Density" },
-        { "Frame": 33, "Click": [1200, 1000] },
-        { "Frame": 35, "Expect": { "Density": "Comfortable", "Interface": { "Popup": null } } },
-        { "Frame": 35, "Capture": "Closed" }
+        { "Frame": 24, "Key": "Down" },
+        { "Frame": 26, "Expect": { "Role": "Caution" } },
+        { "Frame": 27, "Key": "Enter" },
+        { "Frame": 29, "Key": "Down" },
+        { "Frame": 31, "Key": "Enter" },
+        { "Frame": 33, "Expect": { "Role": "Critical", "Interface": { "Popup": null } } },
+        { "Frame": 34, "Click": "Role" },
+        { "Frame": 36, "Click": [1200, 1000] },
+        { "Frame": 38, "Expect": { "Role": "Critical", "Interface": { "Popup": null } } },
+        { "Frame": 38, "Capture": "Closed" }
     ]
 }

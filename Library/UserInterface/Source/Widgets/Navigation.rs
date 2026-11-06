@@ -96,6 +96,11 @@ impl Widget for SelectorBar<'_, '_> {
             let item_name = format!("{name}/{}", item.label);
             let item_response = ui.interact(&item_name, item_rect, Sense::CLICK, "SelectorBarItem");
             ui.set_label(&item_name, item.label);
+            // A press on an item gives the control focus, as its one stop.
+            if item_response.pressed {
+                ui.focus(name);
+                ui.set_focus_visible(false);
+            }
             if item_response.clicked && *self.selected != index {
                 *self.selected = index;
                 response.changed = true;
@@ -181,6 +186,11 @@ impl Widget for Segmented<'_, '_> {
             let item_name = format!("{name}/{}", item.label);
             let item_response = ui.interact(&item_name, segment, Sense::CLICK, "SegmentedItem");
             ui.set_label(&item_name, item.label);
+            // A press on an item gives the control focus, as its one stop.
+            if item_response.pressed {
+                ui.focus(name);
+                ui.set_focus_visible(false);
+            }
             if item_response.clicked && *self.selected != index {
                 *self.selected = index;
                 response.changed = true;

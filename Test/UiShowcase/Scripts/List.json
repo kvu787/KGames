@@ -5,10 +5,8 @@
         { "Frame": 5, "Expect": { "Selected": 3, "Interface": { "Focused": "Items" } } },
         { "Frame": 6, "Scroll": { "At": "Items", "Notches": -10 } },
         { "Frame": 8, "Capture": "Scrolled" },
-        { "Frame": 9, "DoubleClick": "Items/40" },
-        { "Frame": 12, "Expect": { "Selected": 40, "Opened": 40 } },
-        { "Frame": 13, "Click": "Density" },
-        { "Frame": 15, "Click": "Density/0" },
-        { "Frame": 17, "Capture": "Compact" }
+        { "Frame": 9, "DoubleClick": "Items/33" },
+        { "Frame": 12, "Expect": { "Selected": 33, "Opened": 33 } },
+        { "Frame": 12, "Capture": "Opened" }
     ]
 }

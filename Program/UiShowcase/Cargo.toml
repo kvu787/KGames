@@ -17,7 +17,7 @@ path = "Source/Main.rs"
 test = false
 
 [dependencies]
-user_interface = { package = "user_interface_old", path = "../../Library/UserInterfaceOld" }
+user_interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true
