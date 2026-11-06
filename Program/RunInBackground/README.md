@@ -13,10 +13,11 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\Simple
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The program opens with `--display` and `--no-activate`, which every program built on
+The program opens with `--display`, `--no-activate` and `--vsync`, which every program built on
 [Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
 other windows on that display, but without taking focus, and typing in the window that has
-focus stays there. Without focus, programs ignore all input. A run fails if the program's
+focus stays there, and its frames wait for vertical sync, at the display's refresh rate, instead
+of keeping the GPU busy as they do for the lowest input latency. Without focus, programs ignore all input. A run fails if the program's
 window ever becomes the foreground window, which would mean that it took focus from you.
 Windows reports every change of the foreground window to RunInBackground, so even one that
 lasts a moment counts.
