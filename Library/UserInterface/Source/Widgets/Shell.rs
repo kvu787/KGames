@@ -1,12 +1,15 @@
 // The page that every program's window shows: the PerfBar along the very
 // top, which the library draws; an app bar under it, as tall as WinUI's
 // TitleBar control, with the program's icon, title and its own
-// commands; notices under it; a status bar along the bottom with shortcuts
-// and status; and the page between them, where the cards go.
+// commands; a menu row under that, if the program wants one, for a menu bar
+// whose menus' names line up with the page's left edge; notices under them; a
+// status bar along the bottom with shortcuts and status; and the page between
+// them, where the cards go.
 
 use crate::application::performance::{GAP, Run};
 use crate::application::program::Notice;
 use crate::core::ui::Ui;
+use crate::design::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use crate::design::icons::Icon;
 use crate::design::tokens::{
     APP_BAR_HEIGHT, BODY, CAPTION, ICON, MONO_INK_DROP, PAGE_PADDING, PERF_BAR_HEIGHT, PERF_BAR_TEXT, RADIUS_CONTROL, SPACE_L, SPACE_M,
@@ -72,6 +75,25 @@ impl Ui {
         Rect::new(left, rect.y + SPACE_S, rect.right() - SPACE_L - left, rect.height - SPACE_S * 2.0)
     }
 
+    // A row under the app bar, the window's width and as tall as WinUI's
+    // MenuBar, for a menu bar and the program's commands. The page starts
+    // under it. Call it after the app bar. It returns the area for them: from
+    // where a menu bar's first menu has its name on the page's left edge, in
+    // line with the PerfBar's text, the app bar's icon and the cards, as
+    // Windows 11 lines up a navigation item's icon under the title bar's, with
+    // its backplate out in the padding; to the page's right edge.
+    pub fn menu_row(&mut self) -> Rect {
+        let rect = Rect::new(0.0, self.page_top, self.size().width, MENU_BAR_HEIGHT);
+        self.cover(rect);
+        let mut painter = self.painter();
+        let theme = painter.theme();
+        // Opaque, like the app bar.
+        painter.fill(rect, theme.background);
+        self.page_top = rect.bottom();
+        let left = PAGE_PADDING - MENU_BAR_ITEM_MARGIN.left - MENU_BAR_ITEM_PADDING.left;
+        Rect::new(left, rect.y, rect.right() - PAGE_PADDING - left, rect.height)
+    }
+
     // The status bar along the bottom.
     pub fn status_bar(&mut self, items: &[Status]) {
         let size = self.size();
@@ -110,8 +132,9 @@ impl Ui {
         }
     }
 
-    // The page between the app bar and the status bar, inside its padding,
-    // after the notices, which it shows. Call it after the bars.
+    // The page between the app bar, or the menu row, and the status bar,
+    // inside its padding, after the notices, which it shows. Call it after
+    // the bars.
     pub fn page(&mut self) -> Rect {
         let width = self.size().width;
         let mut page = Rect::new(PAGE_PADDING, self.page_top + PAGE_PADDING, width - PAGE_PADDING * 2.0, self.page_bottom - self.page_top - PAGE_PADDING * 2.0);

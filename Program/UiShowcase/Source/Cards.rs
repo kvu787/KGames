@@ -1,4 +1,5 @@
-// The showcase's page: an app bar with a menu bar, five columns of cards
+// The showcase's page: an app bar with its icon and title, a menu row under
+// it with a menu bar in line with the icon and the cards, five columns of cards
 // that show every widget, and a status bar. The cards at the bottom of their
 // columns take the 71 pixels that borderless fullscreen adds.
 
@@ -55,20 +56,21 @@ const CONTEXT_MENU: &[MenuItem] = &[
 const BUTTONS_HEIGHT: f32 = 260.0;
 const TOGGLES_HEIGHT: f32 = 344.0;
 const SLIDERS_HEIGHT: f32 = 492.0;
-const FIELDS_HEIGHT: f32 = 404.0;
+const CHOICES_HEIGHT: f32 = 320.0;
 const INFO_HEIGHT: f32 = 324.0;
 const COLOR_HEIGHT: f32 = 492.0;
 
 pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     let theme_name = if showcase.dark { "Dark theme" } else { "Light theme" };
     let subtitle = format!("Fluent 2 · WinUI 3 · {theme_name}");
-    let bar = ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
+    ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
+    let row = ui.menu_row();
     let menu = MenuBar::new(MENUS);
     let menu_width = menu.width(ui);
-    if let Some(label) = ui.add("Menu", Rect::new(bar.x, bar.y, menu_width, bar.height), menu) {
+    if let Some(label) = ui.add("Menu", row.left_strip(menu_width), menu) {
         showcase.command(ui, label);
     }
-    let theme_button = Rect::new(bar.right() - 32.0, bar.y, 32.0, bar.height).centered(Size::square(32.0));
+    let theme_button = Rect::new(row.right() - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
     let response = ui.add("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
     ui.tooltip(&response, "Switch the theme (F2)");
     if response.clicked {
@@ -96,11 +98,11 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     let mut column = first;
     buttons(showcase, ui, column.cut_top(BUTTONS_HEIGHT, CARD_GAP));
     toggles(showcase, ui, column.cut_top(TOGGLES_HEIGHT, CARD_GAP));
-    choices(showcase, ui, column);
+    fields(showcase, ui, column);
 
     let mut column = second;
     sliders(showcase, ui, column.cut_top(SLIDERS_HEIGHT, CARD_GAP));
-    fields(showcase, ui, column.cut_top(FIELDS_HEIGHT, CARD_GAP));
+    choices(showcase, ui, column.cut_top(CHOICES_HEIGHT, CARD_GAP));
     menus(showcase, ui, column);
 
     tabs(showcase, ui, third);
