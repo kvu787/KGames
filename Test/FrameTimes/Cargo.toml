@@ -1,0 +1,20 @@
+[package]
+name = "frame_times_tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[test]]
+name = "Statistics"
+path = "Statistics.rs"
+
+[[test]]
+name = "CommandLine"
+path = "CommandLine.rs"
+
+[dependencies]
+frame_times = { path = "../../Program/FrameTimes" }
+present_timing = { path = "../../Library/PresentTiming" }
+
+[lints]
+workspace = true

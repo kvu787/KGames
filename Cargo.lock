@@ -11,6 +11,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame_times"
+version = "0.1.0"
+dependencies = [
+ "present_timing",
+ "windows_api",
+]
+
+[[package]]
+name = "frame_times_tests"
+version = "0.1.0"
+dependencies = [
+ "frame_times",
+ "present_timing",
+]
+
+[[package]]
 name = "game_input"
 version = "0.1.0"
 dependencies = [
