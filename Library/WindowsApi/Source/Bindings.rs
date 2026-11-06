@@ -177,6 +177,26 @@ where
     }
 }
 #[inline]
+pub unsafe fn CreateWaitableTimerExW<P1>(
+    lptimerattributes: Option<*const SECURITY_ATTRIBUTES>,
+    lptimername: P1,
+    dwflags: u32,
+    dwdesiredaccess: u32,
+) -> HANDLE
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn CreateWaitableTimerExW(lptimerattributes : *const SECURITY_ATTRIBUTES, lptimername : windows_core::PCWSTR, dwflags : u32, dwdesiredaccess : u32) -> HANDLE);
+    unsafe {
+        CreateWaitableTimerExW(
+            lptimerattributes.unwrap_or(core::mem::zeroed()) as _,
+            lptimername.param().abi(),
+            dwflags,
+            dwdesiredaccess,
+        )
+    }
+}
+#[inline]
 pub unsafe fn CreateWindowExW<P1, P2>(
     dwexstyle: u32,
     lpclassname: P1,
@@ -708,6 +728,27 @@ pub unsafe fn SetProcessInformation(
         )
     }
 }
+#[inline]
+pub unsafe fn SetWaitableTimer(
+    htimer: HANDLE,
+    lpduetime: *const i64,
+    lperiod: i32,
+    pfncompletionroutine: PTIMERAPCROUTINE,
+    lpargtocompletionroutine: Option<*const core::ffi::c_void>,
+    fresume: bool,
+) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn SetWaitableTimer(htimer : HANDLE, lpduetime : *const i64, lperiod : i32, pfncompletionroutine : PTIMERAPCROUTINE, lpargtocompletionroutine : *const core::ffi::c_void, fresume : windows_core::BOOL) -> windows_core::BOOL);
+    unsafe {
+        SetWaitableTimer(
+            htimer,
+            lpduetime,
+            lperiod,
+            pfncompletionroutine,
+            lpargtocompletionroutine.unwrap_or(core::mem::zeroed()) as _,
+            fresume.into(),
+        )
+    }
+}
 #[cfg(any(
     target_arch = "aarch64",
     target_arch = "arm64ec",
@@ -916,6 +957,7 @@ pub type CONFIGRET = RETURN_TYPE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct CONTROLTRACE_ID(pub u64);
+pub const CREATE_WAITABLE_TIMER_HIGH_RESOLUTION: i32 = 2;
 pub const CR_BUFFER_SMALL: i32 = 26;
 pub const CR_SUCCESS: i32 = 0;
 pub const D3D10_PRIMITIVE_TOPOLOGY_LINELIST: D3D_PRIMITIVE_TOPOLOGY = 2;
@@ -8668,6 +8710,13 @@ pub const PROCESS_TRACE_MODE_EVENT_RECORD: i32 = 268435456;
 pub const PROCESS_TRACE_MODE_RAW_TIMESTAMP: i32 = 4096;
 pub const PROCESS_TRACE_MODE_REAL_TIME: i32 = 256;
 pub type PROPERTY_FLAGS = i32;
+pub type PTIMERAPCROUTINE = Option<
+    unsafe extern "system" fn(
+        lpargtocompletionroutine: *const core::ffi::c_void,
+        dwtimerlowvalue: u32,
+        dwtimerhighvalue: u32,
+    ),
+>;
 pub const ProcessPowerThrottling: PROCESS_INFORMATION_CLASS = 4;
 pub const PropertyHasCustomSchema: PROPERTY_FLAGS = 128;
 pub const PropertyHasTags: PROPERTY_FLAGS = 64;
@@ -8778,6 +8827,7 @@ pub const TDH_INTYPE_UNICODECHAR: _TDH_IN_TYPE = 306;
 pub const TDH_INTYPE_UNICODESTRING: _TDH_IN_TYPE = 1;
 pub const TDH_INTYPE_WBEMSID: _TDH_IN_TYPE = 310;
 pub type TEMPLATE_FLAGS = i32;
+pub const TIMER_ALL_ACCESS: i32 = 2031619;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TIME_ZONE_INFORMATION {

@@ -13,11 +13,15 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\Simple
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
-The program opens with `--display`, `--no-activate` and `--vsync`, which every program built on
+The program opens with `--display`, `--no-activate`, `--no-input`, `--vsync` and
+`--frame-rate-limit 100`, which every program built on
 [Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens on top of the
-other windows on that display, but without taking focus, and typing in the window that has
-focus stays there, and its frames wait for vertical sync, at the display's refresh rate, instead
-of keeping the GPU busy as they do for the lowest input latency. Without focus, programs ignore all input. A run fails if the program's
+other windows on that display, but without taking focus, and typing in the window that has focus
+stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
+keyboards and mice. Its frames wait for vertical sync, at most 100 a second, and it waits between
+them instead of spinning, so it's light on the GPU and the CPU for someone who's using the
+computer, like playing a game, unlike the programs' own runs, which keep both busy for the lowest
+input latency. Without focus, programs ignore all input. A run fails if the program's
 window ever becomes the foreground window, which would mean that it took focus from you.
 Windows reports every change of the foreground window to RunInBackground, so even one that
 lasts a moment counts.

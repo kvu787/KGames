@@ -34,6 +34,67 @@ use crate::ui::{Environment, Request, Ui};
 use crate::widgets::surfaces::Severity;
 use crate::window::Window;
 
+// Keeps frames at least an interval apart, for test runs that share the
+// computer with someone, like one playing a game. It waits on a
+// high-resolution timer, and for messages, instead of spinning.
+struct FrameLimiter {
+    timer: windows_api::HANDLE,
+    interval: i64,
+    next: i64,
+}
+
+impl FrameLimiter {
+    fn new(rate: f64) -> Result<FrameLimiter, String> {
+        use windows_api::*;
+        let timer = unsafe {
+            CreateWaitableTimerExW(
+                None,
+                windows_core::PCWSTR::null(),
+                CREATE_WAITABLE_TIMER_HIGH_RESOLUTION as u32,
+                TIMER_ALL_ACCESS as u32,
+            )
+        };
+        if timer.0.is_null() {
+            return Err(format!("Couldn't make a timer: {}", windows_core::Error::from_thread()));
+        }
+        Ok(FrameLimiter {
+            timer,
+            interval: (clock::frequency() as f64 / rate) as i64,
+            next: 0,
+        })
+    }
+
+    // Whether the next frame may begin. If not, waits until it may, or a
+    // message comes.
+    fn ready(&mut self) -> bool {
+        use windows_api::*;
+        let now = clock::now();
+        if now >= self.next {
+            return true;
+        }
+        // In 100-nanosecond units, and less than 0 for a time from now.
+        let due = -((self.next - now) as i128 * 10_000_000 / clock::frequency() as i128).max(1) as i64;
+        unsafe {
+            let _ = SetWaitableTimer(self.timer, &due, 0, None, None, false);
+            let _ = MsgWaitForMultipleObjects(Some(&[self.timer]), false, 1000, QS_ALLINPUT as u32);
+        }
+        clock::now() >= self.next
+    }
+
+    // A frame began at the time.
+    fn began(&mut self, time: i64) {
+        self.next = time + self.interval;
+    }
+}
+
+impl Drop for FrameLimiter {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = windows_api::CloseHandle(self.timer);
+        }
+    }
+}
+
 // Runs the program that `create` makes, until its window closes, or its
 // script ends. Exits with a failure, after saying why on standard error, if
 // it can't start, or a script's expectation wasn't met.
@@ -82,8 +143,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     startup.arguments = arguments.own.clone();
 
     // All input comes from GameInput, except in a scripted run, which the
-    // user's input never reaches.
-    let devices = if scripted {
+    // user's input never reaches, and with --no-input.
+    let devices = if scripted || arguments.no_input {
         None
     } else {
         match Devices::new() {
@@ -155,6 +216,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     window.show(!arguments.no_activate);
 
     let mut reader = InputReader::new(options.gamepad);
+    let mut limiter = arguments.frame_rate_limit.map(FrameLimiter::new).transpose()?;
     let mut runner = script.map(ScriptRunner::new);
     let start = Instant::now();
     let mut frame = 0u64;
@@ -194,7 +256,17 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if (width, height) != presenter.size() {
             presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
         }
+        if let Some(limiter) = &mut limiter
+            && !limiter.ready()
+        {
+            continue;
+        }
         if !presenter.poll_ready(&gpu) {
+            // A limited frame rate waits for the GPU and DXGI, instead of
+            // spinning.
+            if limiter.is_some() {
+                presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
+            }
             continue;
         }
 
@@ -203,6 +275,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         frame += 1;
         let focus_changes = window.take_focus_changes();
         let read = clock::now();
+        if let Some(limiter) = &mut limiter {
+            limiter.began(read);
+        }
         let mut input_time = None;
         let events;
         let mut script_frame = None;

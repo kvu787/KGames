@@ -148,6 +148,18 @@ impl Presenter {
         self.waitable_signaled && gpu.is_complete(self.last_frame)
     }
 
+    // Waits, without spinning, until a frame can begin, a window message
+    // comes, or the milliseconds pass, for runs that share the computer and
+    // don't need the lowest latency, like tests.
+    pub fn wait_ready(&mut self, gpu: &Gpu, milliseconds: u32) -> Result<()> {
+        gpu.wait_for(self.last_frame)?;
+        if !self.waitable_signaled {
+            let result = unsafe { MsgWaitForMultipleObjects(Some(&[self.waitable]), false, milliseconds, QS_ALLINPUT as u32) };
+            self.waitable_signaled = result == WAIT_OBJECT_0 as u32;
+        }
+        Ok(())
+    }
+
     // Begins a frame in the back buffer, once poll_ready says so. The back
     // buffer is in the render target state.
     pub fn begin(&mut self) -> Result<Frame> {

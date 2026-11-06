@@ -7,8 +7,13 @@
 //     at all.
 //   - It opens with --no-activate, so it opens without taking focus from the
 //     window that has it, and typing there stays there.
-//   - It opens with --vsync, so its frames wait for vertical sync, at the
-//     display's refresh rate, instead of keeping the GPU busy.
+//   - It opens with --vsync and --frame-rate-limit 100, so its frames wait
+//     for vertical sync, at most 100 a second, and it waits between them
+//     instead of spinning, which keeps it light on the GPU and the CPU, for
+//     someone who's using the computer, like playing a game.
+//   - It opens with --no-input, so it doesn't start GameInput, or the helper
+//     process that GameInput starts to read keyboards and mice. Without
+//     focus, it would ignore all input anyway.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //   - It runs in a job that ends it if this program stops partway.
@@ -160,7 +165,7 @@ static void Run(string[] arguments) {
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --vsync", outputLog, errorLog, keepOpen);
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input --vsync --frame-rate-limit 100", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process.Id);
 
@@ -240,7 +245,7 @@ static void RunScripts(string program, string exe, string display, List<string> 
         var outputLog = Path.Combine(folder, "Output.log");
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
-        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --vsync --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input --vsync --frame-rate-limit 100 --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
             var watch = new FocusWatch(process.Id);
             using (watch) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {

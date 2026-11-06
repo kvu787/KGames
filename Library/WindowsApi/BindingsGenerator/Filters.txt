@@ -105,9 +105,14 @@ WM_KILLFOCUS
 QueryPerformanceCounter
 QueryPerformanceFrequency
 
-// Waiting for messages for a while, like overlays between checks of the input
+// Waiting for messages for a while, like overlays between checks of the input,
+// and a high-resolution timer that test runs' frame rate limit waits on
+CreateWaitableTimerExW
 MsgWaitForMultipleObjects
+SetWaitableTimer
+CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 QS_ALLINPUT
+TIMER_ALL_ACCESS
 
 // Key names for the keyboard panel, and scan codes for scripted keys
 GetKeyNameTextW
