@@ -1,30 +1,37 @@
 // Follows presents through the events about them, to when the display took
 // each, by the rules that PresentMon 2.6.1's consumer follows (its
-// PresentMonTraceConsumer.cpp), so that the times are the same as its. Only
-// the paths that DXGI flip-model swap chains take are here: the display
-// taking the buffer itself (independent flip), doing that on an overlay
-// plane, and DWM composing it into its own frame. It follows the process's
-// presents, and DWM's, whose frames show the composed ones.
+// PresentMonTraceConsumer.cpp), so that the times and the modes are the same
+// as its, for every mode that it tells apart: fullscreen exclusive flips and
+// copies, the display taking a flip model swap chain's buffer itself
+// (independent flip), doing that on an overlay plane, DWM composing the
+// buffer into its own frame, and DWM composing a bitblt model swap chain's
+// copy, made on the GPU or on the CPU. It follows the process's presents,
+// and DWM's, whose frames show the composed ones. Like PresentMon, it leaves
+// out DirectComposition's presents to composition swap chains, which it
+// can't follow to DWM's frames.
 //
 // A present is found by different keys as it goes: its thread while its
 // Present call runs, Win32k's token for it, the kernel's present history
-// token, and the submit sequence of its queue packet, which the flips and
-// the display's sync interrupts (DPCs) name.
+// token and that token's data, its window, and the submit sequence of its
+// queue packet, which the flips and the display's sync interrupts (DPCs)
+// name.
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
-use crate::events::{CONFIRMED, DISCARDED, Event, IN_FRAME, Kind};
+use crate::events::{CONFIRMED, DISCARDED, Event, IN_FRAME, Kind, Runtime};
 use crate::{Present, PresentMode};
 
 // How many presents can be followed at once, before the oldest is lost.
 const RING: usize = 2048;
 
-// DXGI's Present flags and results.
+// DXGI's Present flags and results, and Direct3D 9's result for an
+// occluded window.
 const PRESENT_TEST: u32 = 0x1;
 const PRESENT_DO_NOT_SEQUENCE: u32 = 0x2;
 const STATUS_OCCLUDED: u32 = 0x087A_0001;
 const STATUS_NO_DESKTOP_ACCESS: u32 = 0x087A_0005;
 const STATUS_MODE_CHANGE_IN_PROGRESS: u32 = 0x087A_0008;
+const D3D9_PRESENT_OCCLUDED: u32 = 0x0876_0878;
 
 // The kernel's flip statuses, and present models.
 const FLIP_WAIT_VSYNC: u32 = 5;
@@ -35,13 +42,24 @@ const MODEL_REDIRECTED_COMPOSITION: u32 = 7;
 const PACKET_MMIO_FLIP: u32 = 3;
 const PACKET_SOFTWARE: u32 = 7;
 
+// PresentMon's names for the modes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
     Unknown,
     LegacyFlip,
+    LegacyCopyToFrontBuffer,
     IndependentFlip,
     ComposedIndependentFlip,
     ComposedFlip,
+    ComposedCopyGpuGdi,
+    ComposedCopyCpuGdi,
+}
+
+impl Mode {
+    // Whether DWM shows only the newest of a window's presents.
+    fn composed(self) -> bool {
+        matches!(self, Mode::ComposedFlip | Mode::ComposedCopyGpuGdi | Mode::ComposedCopyCpuGdi)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,13 +75,17 @@ struct Tracked {
     thread: u32,
     driver_thread: u32,
     time_in_present: i64,
-    // Whether DXGI's Present_Start made it, or else a kernel event did.
-    dxgi: bool,
+    // The API whose Present_Start made it, or None if a kernel event did,
+    // like for an API without events of its own, like OpenGL or Vulkan.
+    runtime: Option<Runtime>,
     swap_chain: u64,
     flags: u32,
     submit_sequence: u32,
     win32k_key: Option<(u64, u64, u64)>,
     token: u64,
+    // A copy made on the CPU's present history token data, which DWM's
+    // flip chain events name.
+    token_data: u64,
     window: u64,
     ring: usize,
     mode: Mode,
@@ -98,6 +120,7 @@ pub struct Tracker {
     by_submit_sequence: HashMap<u32, Vec<(u64, u64)>>,
     by_win32k_key: HashMap<(u64, u64, u64), u64>,
     by_token: HashMap<u64, u64>,
+    by_token_data: HashMap<u64, u64>,
     last_by_window: HashMap<u64, u64>,
     waiting_for_dwm: Vec<u64>,
     dwm_process: u32,
@@ -126,6 +149,7 @@ impl Tracker {
             by_submit_sequence: HashMap::new(),
             by_win32k_key: HashMap::new(),
             by_token: HashMap::new(),
+            by_token_data: HashMap::new(),
             last_by_window: HashMap::new(),
             waiting_for_dwm: Vec::new(),
             dwm_process: 0,
@@ -158,18 +182,18 @@ impl Tracker {
 
     pub fn handle(&mut self, event: &Event) {
         match &event.kind {
-            Kind::PresentStart { swap_chain, flags, sync_interval: _ } => {
+            Kind::PresentStart { runtime, swap_chain, flags, sync_interval: _ } => {
                 if self.tracked(event.process) && flags & PRESENT_TEST == 0 {
-                    let id = self.create(event, true);
+                    let id = self.create(event, Some(*runtime));
                     let present = self.get_mut(id);
                     present.swap_chain = *swap_chain;
                     present.flags = *flags;
                     self.track(id);
                 }
             }
-            Kind::PresentStop { result } => {
+            Kind::PresentStop { runtime, result } => {
                 if self.tracked(event.process) {
-                    self.present_stop(event, *result);
+                    self.present_stop(event, *runtime, *result);
                 }
             }
             Kind::TokenCompositionSurfaceObject { key } => {
@@ -186,9 +210,9 @@ impl Tracker {
                     break;
                 }
             }
-            Kind::PresentHistoryStart { token, model } => {
+            Kind::PresentHistoryStart { token, model, token_data } => {
                 if *model != MODEL_REDIRECTED_GDI {
-                    self.present_history_start(event, *token, *model);
+                    self.present_history_start(event, *token, *model, *token_data);
                 }
             }
             Kind::PresentHistoryInfo { token } => {
@@ -197,6 +221,13 @@ impl Tracker {
                     if present.mode == Mode::ComposedFlip && !present.seen_win32k && !present.waiting_for_dwm {
                         present.waiting_for_dwm = true;
                         self.waiting_for_dwm.push(id);
+                    }
+                    // A copy made on the GPU goes to DWM, which takes the
+                    // newest of its window's.
+                    let present = self.get(id);
+                    if present.mode == Mode::ComposedCopyGpuGdi {
+                        let window = present.window;
+                        self.last_by_window.insert(window, id);
                     }
                     self.by_token.remove(token);
                 }
@@ -216,12 +247,18 @@ impl Tracker {
                     .get(submit_sequence)
                     .and_then(|entries| entries.iter().find(|(known, _)| known == context))
                     .map(|(_, id)| *id);
-                if let Some(id) = found
-                    && self.get(id).mode == Mode::LegacyFlip
-                    && !self.get(id).wait_for_flip
-                {
-                    self.set_screen_time(id, event.time);
-                    self.complete(id);
+                if let Some(id) = found {
+                    let present = self.get(id);
+                    let copy = present.mode == Mode::LegacyCopyToFrontBuffer;
+                    if copy || (present.mode == Mode::LegacyFlip && !present.wait_for_flip) {
+                        self.set_screen_time(id, event.time);
+                        // A copy whose queue packet is done before its
+                        // Present_Info could still turn out to be a copy for
+                        // DWM, so it waits for that.
+                        if !copy || self.get(id).seen_dxgk_present {
+                            self.complete(id);
+                        }
+                    }
                 }
             }
             Kind::PresentInfo { window } => {
@@ -231,9 +268,34 @@ impl Tracker {
                     if present.window == 0 {
                         present.window = *window;
                     }
-                    if !present.dxgi || present.thread != event.thread {
+                    if present.runtime.is_none() || present.thread != event.thread {
                         self.by_thread.remove(&event.thread);
                     }
+                    let present = self.get(id);
+                    if present.mode == Mode::LegacyCopyToFrontBuffer && present.screen.is_some() {
+                        self.complete(id);
+                    }
+                }
+            }
+            Kind::Blit { window, redirected } => {
+                while let Some(id) = self.find_or_create(event) {
+                    if self.get(id).mode != Mode::Unknown {
+                        self.remove_lost(id);
+                        continue;
+                    }
+                    // A copy to the screen, until a present history token
+                    // says that it's to the window's surface for DWM.
+                    let present = self.get_mut(id);
+                    present.window = *window;
+                    present.mode = if *redirected { Mode::ComposedCopyCpuGdi } else { Mode::LegacyCopyToFrontBuffer };
+                    present.tearing = !*redirected;
+                    break;
+                }
+            }
+            Kind::BlitCancel => {
+                if let Some(id) = self.by_thread.get(&event.thread).copied() {
+                    self.get_mut(id).final_state = Final::Discarded;
+                    self.complete(id);
                 }
             }
             Kind::Flip { interval, mmio } => {
@@ -342,7 +404,27 @@ impl Tracker {
                 self.dwm_process = event.process;
                 self.dwm_thread = event.thread;
             }
-            Kind::DwmGetPresentHistory => self.last_by_window.clear(),
+            Kind::DwmGetPresentHistory => {
+                // The newest copy of each window goes in DWM's next frame.
+                let mut copies: Vec<u64> = self
+                    .last_by_window
+                    .values()
+                    .copied()
+                    .filter(|id| matches!(self.get(*id).mode, Mode::ComposedCopyGpuGdi | Mode::ComposedCopyCpuGdi))
+                    .collect();
+                copies.sort_by_key(|id| self.get(*id).start);
+                for id in copies {
+                    self.get_mut(id).waiting_for_dwm = true;
+                    self.waiting_for_dwm.push(id);
+                }
+                self.last_by_window.clear();
+            }
+            Kind::DwmFlipChain { token_data, window } => {
+                if let Some(id) = self.by_token_data.remove(token_data) {
+                    self.get_mut(id).token_data = 0;
+                    self.last_by_window.insert(*window, id);
+                }
+            }
             Kind::DwmScheduleSurfaceUpdate { key } => {
                 if let Some(id) = self.by_win32k_key.get(key).copied() {
                     let present = self.get_mut(id);
@@ -375,7 +457,7 @@ impl Tracker {
         }
     }
 
-    fn create(&mut self, event: &Event, dxgi: bool) -> u64 {
+    fn create(&mut self, event: &Event, runtime: Option<Runtime>) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
         self.presents.insert(
@@ -386,12 +468,13 @@ impl Tracker {
                 thread: event.thread,
                 driver_thread: 0,
                 time_in_present: 0,
-                dxgi,
+                runtime,
                 swap_chain: 0,
                 flags: 0,
                 submit_sequence: 0,
                 win32k_key: None,
                 token: 0,
+                token_data: 0,
                 window: 0,
                 ring: 0,
                 mode: Mode::Unknown,
@@ -457,7 +540,7 @@ impl Tracker {
             return Some(id);
         }
         if self.tracked(event.process) {
-            let id = self.create(event, false);
+            let id = self.create(event, None);
             self.track(id);
             return Some(id);
         }
@@ -497,12 +580,12 @@ impl Tracker {
         present.screen = Some(time);
     }
 
-    fn present_stop(&mut self, event: &Event, result: u32) {
+    fn present_stop(&mut self, event: &Event, runtime: Runtime, result: u32) {
         let Some(id) = self.by_thread.get(&event.thread).copied() else {
             return;
         };
         let present = self.get_mut(id);
-        present.dxgi = true;
+        present.runtime = Some(runtime);
         present.time_in_present = event.time - present.start;
         if present.waiting_for_present_stop {
             present.waiting_for_present_stop = false;
@@ -515,7 +598,11 @@ impl Tracker {
             self.complete(id);
             return;
         }
-        if matches!(result, STATUS_OCCLUDED | STATUS_MODE_CHANGE_IN_PROGRESS | STATUS_NO_DESKTOP_ACCESS) {
+        let occluded = match runtime {
+            Runtime::Dxgi => matches!(result, STATUS_OCCLUDED | STATUS_MODE_CHANGE_IN_PROGRESS | STATUS_NO_DESKTOP_ACCESS),
+            Runtime::D3d9 => result == D3D9_PRESENT_OCCLUDED,
+        };
+        if occluded {
             present.final_state = Final::Discarded;
             self.complete(id);
             return;
@@ -523,7 +610,7 @@ impl Tracker {
         self.by_thread.remove(&event.thread);
     }
 
-    fn present_history_start(&mut self, event: &Event, token: u64, model: u32) {
+    fn present_history_start(&mut self, event: &Event, token: u64, model: u32, token_data: u64) {
         let id = loop {
             let Some(id) = self.find_or_create(event) else {
                 return;
@@ -547,12 +634,29 @@ impl Tracker {
             self.remove_lost(other);
         }
         self.by_token.insert(token, id);
-        if self.get(id).mode == Mode::Unknown {
-            if model == MODEL_REDIRECTED_COMPOSITION {
-                self.remove_lost(id);
-                return;
+        match self.get(id).mode {
+            // The copy was to the window's surface, for DWM.
+            Mode::LegacyCopyToFrontBuffer => self.get_mut(id).mode = Mode::ComposedCopyGpuGdi,
+            Mode::Unknown => {
+                if model == MODEL_REDIRECTED_COMPOSITION {
+                    self.remove_lost(id);
+                    return;
+                }
+                self.get_mut(id).mode = Mode::ComposedFlip;
             }
-            self.get_mut(id).mode = Mode::ComposedFlip;
+            // DWM takes a copy made on the CPU by its token data, which its
+            // flip chain events name, or else, without that, in its next
+            // frame.
+            Mode::ComposedCopyCpuGdi => {
+                if token_data == 0 {
+                    self.get_mut(id).waiting_for_dwm = true;
+                    self.waiting_for_dwm.push(id);
+                } else {
+                    self.by_token_data.insert(token_data, id);
+                    self.get_mut(id).token_data = token_data;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -562,11 +666,11 @@ impl Tracker {
         let mut usable = None;
         while let Some(id) = self.by_thread.get(&event.thread).copied() {
             let present = self.get(id);
-            if present.seen_dxgk_present || (present.submit_sequence != 0 && present.time_in_present != 0 && present.dxgi) {
+            if present.seen_dxgk_present || (present.submit_sequence != 0 && present.time_in_present != 0 && present.runtime.is_some()) {
                 self.remove_lost(id);
                 continue;
             }
-            if present.dxgi {
+            if present.runtime.is_some() {
                 if present.mode != Mode::Unknown {
                     return None;
                 }
@@ -579,7 +683,7 @@ impl Tracker {
         let id = match usable {
             Some(id) => id,
             None if self.tracked(event.process) => {
-                let id = self.create(event, false);
+                let id = self.create(event, None);
                 self.track(id);
                 id
             }
@@ -699,7 +803,7 @@ impl Tracker {
         }
         let present = self.get_mut(id);
         present.completed = true;
-        if !present.lost && present.dxgi && present.time_in_present == 0 {
+        if !present.lost && present.runtime.is_some() && present.time_in_present == 0 {
             present.waiting_for_present_stop = true;
         }
 
@@ -727,7 +831,7 @@ impl Tracker {
                     if present.completed {
                         continue;
                     }
-                    let composed = present.mode == Mode::ComposedFlip;
+                    let composed = present.mode.composed();
                     if composed && windows.contains(&present.window) {
                         present.final_state = Final::Discarded;
                         present.screen = None;
@@ -792,7 +896,7 @@ impl Tracker {
 
     fn stop_tracking(&mut self, id: u64) {
         let present = self.get(id);
-        let (ring, thread, driver_thread, process, start, key, token, window, waiting_for_stop, waiting_for_dwm) = (
+        let (ring, thread, driver_thread, process, start, key, token, token_data, window, waiting_for_stop, waiting_for_dwm) = (
             present.ring,
             present.thread,
             present.driver_thread,
@@ -800,6 +904,7 @@ impl Tracker {
             present.start,
             present.win32k_key,
             present.token,
+            present.token_data,
             present.window,
             present.waiting_for_present_stop,
             present.waiting_for_dwm,
@@ -825,6 +930,9 @@ impl Tracker {
         if token != 0 && self.by_token.get(&token) == Some(&id) {
             self.by_token.remove(&token);
         }
+        if token_data != 0 && self.by_token_data.get(&token_data) == Some(&id) {
+            self.by_token_data.remove(&token_data);
+        }
         if window != 0 && self.last_by_window.get(&window) == Some(&id) {
             self.last_by_window.remove(&window);
         }
@@ -834,12 +942,13 @@ impl Tracker {
         let present = self.get_mut(id);
         present.win32k_key = None;
         present.token = 0;
+        present.token_data = 0;
         present.window = 0;
         present.waiting_for_dwm = false;
     }
 
     // Hands on the completed presents at the front that no longer wait for
-    // their Present_Stop: the process's own, as Presents.
+    // their Present_Stop: the process's own, of any API, as Presents.
     fn emit_ready(&mut self) {
         while let Some(id) = self.completed.front().copied() {
             if self.get(id).waiting_for_present_stop {
@@ -847,15 +956,19 @@ impl Tracker {
             }
             self.completed.pop_front();
             let present = self.presents.remove(&id).unwrap();
-            if present.process == self.process && present.dxgi && !present.lost && !present.failed {
+            if present.process == self.process && !present.lost && !present.failed {
                 self.output.push(Present {
                     start: present.start,
                     thread: present.thread,
                     mode: match present.mode {
+                        Mode::Unknown => PresentMode::Unknown,
+                        Mode::LegacyFlip => PresentMode::LegacyFlip,
+                        Mode::LegacyCopyToFrontBuffer => PresentMode::LegacyCopy,
                         Mode::IndependentFlip => PresentMode::IndependentFlip,
                         Mode::ComposedIndependentFlip => PresentMode::OverlayPlane,
-                        Mode::ComposedFlip => PresentMode::Composed,
-                        Mode::LegacyFlip | Mode::Unknown => PresentMode::Unknown,
+                        Mode::ComposedFlip => PresentMode::ComposedFlip,
+                        Mode::ComposedCopyGpuGdi => PresentMode::ComposedGpuCopy,
+                        Mode::ComposedCopyCpuGdi => PresentMode::ComposedCpuCopy,
                     },
                     tearing: present.tearing,
                     screen: if present.final_state == Final::Presented { present.screen } else { None },

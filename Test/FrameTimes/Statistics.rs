@@ -87,9 +87,9 @@ fn frame_times_are_the_differences_between_screen_times() {
 #[test]
 fn frame_times_follow_the_screen_times_order() {
     let presents = [
-        shown(20, PresentMode::Composed),
-        shown(0, PresentMode::Composed),
-        shown(10, PresentMode::Composed),
+        shown(20, PresentMode::ComposedFlip),
+        shown(0, PresentMode::ComposedFlip),
+        shown(10, PresentMode::ComposedFlip),
     ];
     assert_all_close(&frame_times(&presents, FREQUENCY), &[10.0, 10.0]);
 }
@@ -97,12 +97,12 @@ fn frame_times_follow_the_screen_times_order() {
 #[test]
 fn presents_that_never_reached_the_screen_dont_count() {
     let presents = [
-        missed(-10, PresentMode::Composed),
+        missed(-10, PresentMode::ComposedFlip),
         shown(0, PresentMode::IndependentFlip),
-        missed(3, PresentMode::Composed),
-        missed(4, PresentMode::Composed),
+        missed(3, PresentMode::ComposedFlip),
+        missed(4, PresentMode::ComposedFlip),
         shown(10, PresentMode::IndependentFlip),
-        missed(13, PresentMode::Composed),
+        missed(13, PresentMode::ComposedFlip),
         shown(20, PresentMode::IndependentFlip),
     ];
     assert_all_close(&frame_times(&presents, FREQUENCY), &[10.0, 10.0]);
@@ -117,15 +117,15 @@ fn presents_that_never_reached_the_screen_dont_count() {
 
 #[test]
 fn fewer_than_two_presents_on_the_screen_have_no_frame_time() {
-    let none = [missed(0, PresentMode::Composed), missed(10, PresentMode::Composed)];
+    let none = [missed(0, PresentMode::ComposedFlip), missed(10, PresentMode::ComposedFlip)];
     assert!(frame_times(&none, FREQUENCY).is_empty());
     assert_eq!(summarize(&none, FREQUENCY), None);
     assert_eq!(most_common_mode(&none), None);
 
-    let one = [missed(0, PresentMode::Composed), shown(10, PresentMode::Composed), missed(20, PresentMode::Composed)];
+    let one = [missed(0, PresentMode::ComposedFlip), shown(10, PresentMode::ComposedFlip), missed(20, PresentMode::ComposedFlip)];
     assert!(frame_times(&one, FREQUENCY).is_empty());
     assert_eq!(summarize(&one, FREQUENCY), None);
-    assert_eq!(most_common_mode(&one), Some(PresentMode::Composed));
+    assert_eq!(most_common_mode(&one), Some(PresentMode::ComposedFlip));
 }
 
 #[test]
@@ -174,18 +174,18 @@ fn stutters_are_frames_over_twice_the_median() {
 #[test]
 fn the_mode_seen_most_wins_and_a_tie_goes_to_the_first() {
     let mostly_flips = [
-        shown(0, PresentMode::Composed),
+        shown(0, PresentMode::ComposedFlip),
         shown(10, PresentMode::IndependentFlip),
         shown(20, PresentMode::IndependentFlip),
-        shown(30, PresentMode::Composed),
+        shown(30, PresentMode::ComposedFlip),
         shown(40, PresentMode::IndependentFlip),
     ];
     assert_eq!(most_common_mode(&mostly_flips), Some(PresentMode::IndependentFlip));
 
     let tie = [
         shown(0, PresentMode::OverlayPlane),
-        shown(10, PresentMode::Composed),
-        shown(20, PresentMode::Composed),
+        shown(10, PresentMode::ComposedFlip),
+        shown(20, PresentMode::ComposedFlip),
         shown(30, PresentMode::OverlayPlane),
     ];
     assert_eq!(most_common_mode(&tie), Some(PresentMode::OverlayPlane));
@@ -195,7 +195,7 @@ fn the_mode_seen_most_wins_and_a_tie_goes_to_the_first() {
 fn frames_on_the_screen_at_once_have_no_rate() {
     // PresentTiming's correction for NVIDIA's flip delay can put a present
     // on the screen with the one before it.
-    let summary = summarize(&[shown(10, PresentMode::Composed), shown(10, PresentMode::Composed)], FREQUENCY).unwrap();
+    let summary = summarize(&[shown(10, PresentMode::ComposedFlip), shown(10, PresentMode::ComposedFlip)], FREQUENCY).unwrap();
     assert_eq!(summary.frames, 1);
     assert_close(summary.mean, 0.0);
     assert_close(summary.frames_per_second, 0.0);
