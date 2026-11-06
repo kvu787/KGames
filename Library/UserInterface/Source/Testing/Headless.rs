@@ -12,7 +12,7 @@
 //     app.click("Save").key(Key::F11);
 //     assert!(app.fullscreen());
 
-use graphics::{Gpu, Image, Offscreen};
+use graphics::{Frame, Gpu, Image, Offscreen};
 
 use crate::application::performance::Performance;
 use crate::application::program::{Program, Startup};
@@ -352,18 +352,27 @@ impl<P: Program> Headless<P> {
     // Draws the last frame offscreen, as the window would, with the
     // program's 3D. The first call prepares the program.
     pub fn render(&mut self, gpu: &mut Gpu) -> windows_core::Result<Image> {
-        if self.renderer.is_none() {
-            self.program.prepare(gpu)?;
-            self.renderer = Some(Renderer::new(gpu)?);
-        }
         let size = self.size();
         let background = self.ui.theme().background;
         let clear = [background.r, background.g, background.b, 1.0];
         let mut target = Offscreen::new(gpu, size.width as u32, size.height as u32, clear)?;
         let frame = target.begin()?;
         unsafe { frame.clear(clear) };
-        self.program.render(gpu, &frame)?;
-        self.renderer.as_mut().unwrap().draw(gpu, &frame, &self.ui.draw, &mut self.ui.fonts)?;
+        self.record(gpu, &frame)?;
         target.finish(gpu, frame)
+    }
+
+    // Records the last frame's drawing into a frame of the caller's, as
+    // the window would draw it over the theme's background: the program's
+    // 3D, then the interface. For drawing a frame into a target that's kept
+    // from frame to frame, like a benchmark's. The first call prepares the
+    // program.
+    pub fn record(&mut self, gpu: &mut Gpu, frame: &Frame) -> windows_core::Result<()> {
+        if self.renderer.is_none() {
+            self.program.prepare(gpu)?;
+            self.renderer = Some(Renderer::new(gpu)?);
+        }
+        self.program.render(gpu, frame)?;
+        self.renderer.as_mut().unwrap().draw(gpu, frame, &self.ui.draw, &mut self.ui.fonts)
     }
 }
