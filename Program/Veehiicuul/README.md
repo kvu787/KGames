@@ -108,8 +108,10 @@ and `Right` for the parts to its sides. It always faces the way it moves.
   or scene. Then the controls don't move it for 0.35 seconds, so that the player can let go
   first. Only where the car is in each frame counts, so a car that's fast enough can carry it
   past an edge.
-- **Time.** Each frame moves the car on by the time since the frame before, by 0.1 seconds at
-  most, for a frame that comes late, like after the window was minimized.
+- **Time.** Each frame moves the car on in steps of 1/240 of a second, as many as the time since
+  the frame before holds, so that the car drives the same at any frame rate; what's left waits
+  for the next frame. A frame counts 0.1 seconds at most, for one that comes late, like after the
+  window was minimized.
 
 ## Files
 

@@ -8,6 +8,7 @@ use user_interface::graphics::{AdapterChoice, Gpu, Image};
 use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATS_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Point, Startup};
 use veehiicuul::camera::{self, to_ground};
+use veehiicuul::controls::Controls;
 use veehiicuul::game::PAUSE;
 use veehiicuul::program::Veehiicuul;
 use veehiicuul::track::Pose;
@@ -340,4 +341,28 @@ fn a_crash_counts_once() {
     app.frames(10);
     assert_eq!(app.program.game.crashes, 1);
     assert!(app.program.game.paused());
+}
+
+// The car drives in fixed steps, so the same push for the same time puts it
+// in the same place at 60 frames a second as at 240.
+#[test]
+fn the_car_drives_the_same_at_any_frame_rate() {
+    let mut slow = start();
+    let mut fast = start();
+    // Up the road, as the keys test drives, for half a second.
+    let controls = Controls {
+        push: [-0.7, 0.7],
+        ..Controls::default()
+    };
+    slow.program.game.update(&controls, 0.0);
+    fast.program.game.update(&controls, 0.0);
+    for frame in 1..=30 {
+        slow.program.game.update(&controls, frame as f64 / 60.0);
+    }
+    for frame in 1..=120 {
+        fast.program.game.update(&controls, frame as f64 / 240.0);
+    }
+    assert_eq!(slow.program.game.car, fast.program.game.car);
+    assert_eq!(slow.program.game.crashes, 0);
+    assert!(slow.program.game.car.speed() > 1.0, "{}", slow.program.game.car.speed());
 }
