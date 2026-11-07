@@ -173,11 +173,14 @@ static void Run(string[] arguments) {
     var errorLog = Path.Combine(output, $"{program}Errors.log");
     using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input{sync}", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
-    using var watch = new FocusWatch(process.Id);
+    using var watch = new FocusWatch(process);
 
     var window = IntPtr.Zero;
     var waiting = Stopwatch.StartNew();
     while (window == IntPtr.Zero) {
+        if (watch.TookFocus) {
+            throw new FailureException($"{program}'s window took focus, so it was stopped");
+        }
         if (process.HasExited) {
             throw new FailureException($"{program} exited with code {process.ExitCode} before opening its window. {ReadLog(errorLog)}");
         }
@@ -191,7 +194,7 @@ static void Run(string[] arguments) {
 
     Thread.Sleep(TimeSpan.FromSeconds(seconds));
     if (watch.TookFocus) {
-        process.Kill();
+        // The watch stopped it already.
         throw new FailureException($"{program}'s window took focus, so it was stopped");
     }
     if (process.HasExited) {
@@ -252,7 +255,7 @@ static void RunScripts(string program, string exe, string display, string sync, 
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
         using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input{sync} --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
-            var watch = new FocusWatch(process.Id);
+            var watch = new FocusWatch(process);
             using (watch) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
                     process.Kill();
@@ -348,6 +351,9 @@ sealed unsafe partial class FocusWatch : IDisposable {
     static FocusWatch? watching;
 
     readonly uint processId;
+    // The program, which the watch stops as soon as it takes focus, so that
+    // it has it for as short a time as can be.
+    readonly Process? program;
     readonly Thread thread;
     readonly ManualResetEventSlim started = new();
     uint threadId;
@@ -357,8 +363,9 @@ sealed unsafe partial class FocusWatch : IDisposable {
     volatile bool tookFocus;
     bool disposed;
 
-    public FocusWatch(int processId) {
-        this.processId = (uint)processId;
+    public FocusWatch(Process program) {
+        this.processId = (uint)program.Id;
+        this.program = program;
         this.thread = new Thread(this.Watch) { IsBackground = true };
         this.thread.Start();
         this.started.Wait();
@@ -410,6 +417,11 @@ sealed unsafe partial class FocusWatch : IDisposable {
     void Check(IntPtr hook, IntPtr window) {
         if (hook == this.ownHook || ProgramWindow.Owner(window) == this.processId) {
             this.tookFocus = true;
+            try {
+                this.program?.Kill();
+            } catch (Exception exception) when (exception is InvalidOperationException or Win32Exception) {
+                // It had exited already.
+            }
         }
     }
 

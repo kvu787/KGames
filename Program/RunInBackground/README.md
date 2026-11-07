@@ -22,7 +22,8 @@ them instead of spinning, so it's light on the GPU and the CPU for someone who's
 computer, like playing a game. Without focus, programs ignore all input. A run fails if the
 program's window ever becomes the foreground window, which would mean that it took focus from you.
 Windows reports every change of the foreground window to RunInBackground, so even one that lasts a
-moment counts.
+moment counts, and RunInBackground stops the program as soon as it does, so that it has focus for
+as short a time as can be.
 
 Every program also starts with vertical sync on by itself, but a run's `--vsync` keeps it on even if
 the program's Settings.json says `"VerticalSync": false`.
