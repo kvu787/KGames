@@ -10,8 +10,7 @@
 
 use user_interface::controls::{LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, LIST_ITEM_RADIUS, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS};
 use user_interface::tokens::{
-    BODY, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, MONO, RADIUS_CONTROL, SPACE_L,
-    SPACE_M, SPACE_S, SPACE_XXL,
+    BODY, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, ICON, MONO, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XXL,
 };
 use user_interface::{Align, AppBar, Border, Button, Card, Color, Icon, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Ui, id};
 
@@ -159,10 +158,9 @@ fn settings(demo: &mut Demo, ui: &mut Ui, rect: Rect) -> bool {
         }
     });
     // The pill that marks the selected row, at its face's left edge, as a
-    // list's does, which slides to it.
+    // list's does.
     if let Some(face) = selected_face {
-        let target = (face.center().y - SELECTION_PILL_LENGTH / 2.0).round();
-        let y = ui.animate(id("Settings/Selection"), 0, target, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+        let y = (face.center().y - SELECTION_PILL_LENGTH / 2.0).round();
         let pill = Rect::new(face.x, y, SELECTION_PILL_THICKNESS, SELECTION_PILL_LENGTH);
         let accent = ui.theme().accent;
         ui.painter().rounded(pill, SELECTION_PILL_THICKNESS / 2.0, accent);
@@ -199,7 +197,6 @@ fn setting(editor: &mut Editor, ui: &mut Ui, index: usize, row: Rect, card: Rect
         (false, false, true) | (true, _, _) => theme.subtle_fill_secondary,
         (false, false, false) => theme.subtle_fill_transparent,
     };
-    let fill = ui.animate_color(row_response.id, 0, fill, DURATION_FASTER);
     ui.painter().rounded(face, LIST_ITEM_RADIUS, fill);
 
     let mut parts = row;

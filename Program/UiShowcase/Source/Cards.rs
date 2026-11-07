@@ -4,14 +4,13 @@
 // columns take the 71 pixels that borderless fullscreen adds.
 
 use user_interface::tokens::{
-    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DISPLAY, DURATION_FAST, ELEVATION_DIALOG,
-    ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
+    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, DISPLAY, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
     SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
     Align, AppBar, Border, Brush, Button, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, DialogResult, Expander,
     Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioGroup, Rect, Segmented, SelectorBar,
-    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Ui, id,
+    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Ui,
 };
 
 use crate::showcase::{ALIGNMENTS, OPTIONS, SIZES, Showcase, TABS, TOOLS};
@@ -203,7 +202,7 @@ fn choices(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     let mut radios = area.cut_top(RadioGroup::height(SIZES.len()), SPACE_M);
     let preview = radios.cut_right(96.0, 0.0);
     ui.add("Size", radios, RadioGroup::new(&mut showcase.size, &SIZES));
-    let side = ui.animate(id("SizePreview"), 0, 24.0 + 16.0 * showcase.size as f32, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+    let side = 24.0 + 16.0 * showcase.size as f32;
     let accent = ui.theme().accent;
     ui.painter().rounded(preview.centered(Size::square(side)), RADIUS_CONTROL, accent);
     ui.add("Alignment", area.cut_top(CONTROL_HEIGHT, SPACE_S), Segmented::new(&mut showcase.alignment, &ALIGNMENTS));
