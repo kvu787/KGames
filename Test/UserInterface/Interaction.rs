@@ -7,8 +7,8 @@ use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox,
-    Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
+    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
+    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -46,6 +46,8 @@ struct Test {
     beneath: Option<usize>,
     // A combo box in the dialog.
     pick: usize,
+    // Presses of D, checked after the dialog is shown.
+    late: u32,
 }
 
 impl Program for Test {
@@ -116,6 +118,10 @@ impl Program for Test {
         {
             self.answer = Some(answer);
             self.dialog = false;
+        }
+        // After the dialog, which gates it from the frame it opens.
+        if ui.key_pressed(Key::D) {
+            self.late += 1;
         }
         self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
         // Last, so that the tab order of the widgets above stays.
@@ -320,6 +326,25 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     assert_eq!(app.program.answer, Some(DialogResult::Primary));
     app.click("Button");
     assert_eq!(app.program.clicks, 1);
+}
+
+#[test]
+fn a_dialog_gates_the_keys_the_frame_it_opens() {
+    let mut app = Headless::new(Test::default());
+    app.key(Key::D);
+    assert_eq!(app.program.late, 1, "without a dialog the check after it sees the key");
+    // The click that opens the dialog and a press of D land in one frame.
+    // The check runs after the dialog is up, so the key is gated that very
+    // frame, not just from the next one on.
+    app.move_to("Ask").frame();
+    app.send(&[Event::ButtonPressed(MouseButton::Left)]);
+    app.send(&[
+        Event::ButtonReleased(MouseButton::Left),
+        Event::KeyPressed { key: Key::D, repeat: false },
+        Event::KeyReleased(Key::D),
+    ]);
+    assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
+    assert_eq!(app.program.late, 1);
 }
 
 #[test]

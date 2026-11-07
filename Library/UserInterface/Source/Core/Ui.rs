@@ -447,14 +447,16 @@ impl Ui {
 
     // Whether the key was pressed this frame, counting a held key's repeats,
     // unless the widget with keyboard focus takes it, as a text field takes
-    // letters, or a dialog is open over the page.
+    // letters, or a dialog is open over the page. A dialog gates the keys
+    // from the moment it's shown, so a check after it loses them the very
+    // frame it opens, not just from the next frame on.
     pub fn key_pressed(&self, key: Key) -> bool {
-        self.input.key_pressed(key) && !self.is_captured(key) && !self.modal
+        self.input.key_pressed(key) && !self.is_captured(key) && !self.modal && !self.modal_now
     }
 
     // Like key_pressed, without repeats.
     pub fn key_pressed_once(&self, key: Key) -> bool {
-        self.input.key_pressed_once(key) && !self.is_captured(key) && !self.modal
+        self.input.key_pressed_once(key) && !self.is_captured(key) && !self.modal && !self.modal_now
     }
 
     // Whether the key was pressed with exactly these modifiers, like Ctrl+S.
@@ -468,7 +470,7 @@ impl Ui {
 
     // Whether the key is held, unless a text field with focus takes it.
     pub fn key_down(&self, key: Key) -> bool {
-        self.input.key_down(key) && !(self.captured == Keys::Text && !key.is_modifier()) && !self.modal
+        self.input.key_down(key) && !(self.captured == Keys::Text && !key.is_modifier()) && !self.modal && !self.modal_now
     }
 
     pub(crate) fn is_captured(&self, key: Key) -> bool {
