@@ -1,14 +1,13 @@
 // Tests the interface's rules for input with a small program: which widget
 // the pointer is on, presses and clicks, keyboard focus and the keys that
-// widgets take, popups, menus, dialogs, tooltips, notices, editing, and
-// motion.
+// widgets take, popups, menus, dialogs, tooltips, notices, and editing.
 
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
-use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
-    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui, id,
+    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -26,8 +25,6 @@ struct Test {
     covered: bool,
     disabled: bool,
     rows: Option<usize>,
-    eased: f32,
-    target: f32,
     checked: bool,
     level: f64,
     number: i32,
@@ -123,7 +120,6 @@ impl Program for Test {
         if ui.key_pressed(Key::D) {
             self.late += 1;
         }
-        self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
         // Last, so that the tab order of the widgets above stays.
         let items: Vec<&str> = self.items.iter().map(String::as_str).collect();
         ui.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.shrink, &items));
@@ -355,18 +351,6 @@ fn a_card_sizes_itself_to_its_content() {
     let state = app.ui.state();
     let kind = state.get("Targets").and_then(|targets| targets.get("Sized")).and_then(|card| card.get("Kind")).cloned();
     assert_eq!(kind, Some(Value::from("Card")));
-}
-
-#[test]
-fn animations_move_to_their_target_over_their_duration() {
-    let mut app = Headless::new(Test::default());
-    app.program.target = 1.0;
-    app.frame();
-    assert!(app.program.eased < 0.1);
-    app.wait(DURATION_NORMAL as f64 / 2.0);
-    assert!(app.program.eased > 0.3 && app.program.eased < 0.8, "{}", app.program.eased);
-    app.wait(DURATION_NORMAL as f64);
-    assert_eq!(app.program.eased, 1.0);
 }
 
 struct Notices;

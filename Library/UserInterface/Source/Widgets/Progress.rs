@@ -1,18 +1,16 @@
 // WinUI's ProgressBar and ProgressRing: how far something has come, or that
 // it's going on for a time no one knows, with their indeterminate
-// animations' timing.
+// animations' timing. Those move because their motion is what says that the
+// work goes on and the program isn't frozen; apart from a text field's
+// blinking caret, nothing else in the library animates. A determinate one
+// shows its value as it is, without easing to it.
 
 use crate::core::ui::Ui;
 use crate::design::controls::{
-    PROGRESS_BAR_HEIGHT, PROGRESS_BAR_RADIUS, PROGRESS_BAR_TRACK_HEIGHT, PROGRESS_BAR_TRACK_RADIUS, PROGRESS_RING_RADIUS, PROGRESS_RING_STROKE,
+    PROGRESS_BAR_CURVE, PROGRESS_BAR_HEIGHT, PROGRESS_BAR_RADIUS, PROGRESS_BAR_TRACK_HEIGHT, PROGRESS_BAR_TRACK_RADIUS, PROGRESS_RING_CURVE,
+    PROGRESS_RING_RADIUS, PROGRESS_RING_STROKE,
 };
-use crate::design::tokens::Curve;
 use crate::drawing::geometry::{Point, Rect};
-
-// KeySpline 0.4,0,0.6,1, of the indeterminate bar's two indicators.
-const BAR_CURVE: Curve = Curve(0.4, 0.0, 0.6, 1.0);
-// The ring's rotation and trim, per half of its 2-second cycle.
-const RING_CURVE: Curve = Curve(0.167, 0.167, 0.833, 0.833);
 
 impl Ui {
     // A progress bar across the rectangle's middle: `Some` fraction from 0
@@ -38,8 +36,8 @@ impl Ui {
                 // wide from -0.9 to 0.996, from 0.75 seconds to 2.
                 let cycle = (time % 2.0) as f32;
                 let width = rect.width;
-                let first = -0.4 + 1.6 * BAR_CURVE.ease((cycle / 1.5).min(1.0));
-                let second = if cycle < 0.75 { -0.9 } else { -0.9 + 1.896 * BAR_CURVE.ease((cycle - 0.75) / 1.25) };
+                let first = -0.4 + 1.6 * PROGRESS_BAR_CURVE.ease((cycle / 1.5).min(1.0));
+                let second = if cycle < 0.75 { -0.9 } else { -0.9 + 1.896 * PROGRESS_BAR_CURVE.ease((cycle - 0.75) / 1.25) };
                 painter.push_clip(Rect::new(rect.x, bar.y, rect.width, bar.height));
                 for (offset, length) in [(first, 0.4), (second, 0.6)] {
                     let indicator = Rect::new(rect.x + width * offset, bar.y, width * length, bar.height);
@@ -70,7 +68,7 @@ impl Ui {
                 // tail catches up.
                 let cycle = (time % 2.0) as f32;
                 let (half, t) = if cycle < 1.0 { (0, cycle) } else { (1, cycle - 1.0) };
-                let eased = RING_CURVE.ease(t);
+                let eased = PROGRESS_RING_CURVE.ease(t);
                 let rotation = (450.0 * (half as f32 + eased)).to_radians();
                 let (start, end) = if half == 0 { (0.0, 0.0001 + 0.4999 * eased) } else { (0.5 * eased, 0.5) };
                 let tau = std::f32::consts::TAU;

@@ -13,7 +13,7 @@ use std::path::Path;
 
 use graphics::{AdapterChoice, Gpu, Offscreen};
 use polygon_mesh::{Mesh, Shading, primitives};
-use user_interface::tokens::{BODY, CURVE_LINEAR, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{BODY, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Event, Font, Fonts, Headless, Point, Program, TextStyle, Ui, Weight, id};
 
 use crate::harness::Budget;
@@ -64,8 +64,8 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Usage {
 }
 
 // Frames in a row, counted only after the program has run for long enough
-// to fill its caches and cross the purges of the text cache and of the
-// animations, 600 frames apart. What's kept here is what a program that has
+// to fill its caches and cross the text cache's purge, every 600 frames.
+// What's kept here is what a program that has
 // been up for a while still grows by a frame: a leak, if it isn't nothing.
 fn long(budget: Budget) -> Usage {
     let (warmup, frames) = if budget.iterations <= 1 { (2, 2) } else { (800, 1500) };
@@ -80,14 +80,11 @@ fn long(budget: Budget) -> Usage {
 
 // A program whose widgets have a new name every frame, as a program's would
 // if it named them after what they show, like a row's text. The interface
-// keeps state and animations by name, so this is what it never lets go of.
+// keeps widgets' state by name, so this is what it never lets go of.
 struct Churner {
     frame: u32,
     // Widgets a frame.
     widgets: u32,
-    // Whether they keep state in Ui::memory, and whether they animate.
-    keeps: bool,
-    animates: bool,
 }
 
 impl Program for Churner {
@@ -99,20 +96,15 @@ impl Program for Churner {
         self.frame += 1;
         for index in 0..self.widgets {
             let widget = id(&format!("Row {} {index}", self.frame));
-            if self.keeps {
-                *ui.memory::<f32>(widget) = index as f32;
-            }
-            if self.animates {
-                ui.animate(widget, 0, index as f32, 0.2, CURVE_LINEAR);
-            }
+            *ui.memory::<f32>(widget) = index as f32;
         }
     }
 }
 
-fn churn(name: &str, keeps: bool, animates: bool, budget: Budget) -> Usage {
+fn churn(name: &str, budget: Budget) -> Usage {
     let frames = if budget.iterations <= 1 { 2 } else { 1500 };
     let widgets = 20;
-    let mut app = Headless::new(Churner { frame: 0, widgets, keeps, animates });
+    let mut app = Headless::new(Churner { frame: 0, widgets });
     app.frames(10);
     memory::start();
     app.frames(frames);
@@ -197,8 +189,7 @@ pub fn caches(budget: Budget) -> Report {
     );
     drop(fonts_cache);
 
-    all.push(churn("memory/ui/memory/new-names", true, false, budget));
-    all.push(churn("memory/ui/animations/new-names", false, true, budget));
+    all.push(churn("memory/ui/memory/new-names", budget));
     Report::of(all)
 }
 

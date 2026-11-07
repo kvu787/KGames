@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use crate::application::program::Notice;
 use crate::core::interaction::{Cursor, Id, Keys, Response, Sense, Target, Wheel, id};
 use crate::design::theme::{Theme, ThemeKind};
-use crate::design::tokens::{Curve, CURVE_LINEAR, TOOLTIP_DELAY};
-use crate::drawing::geometry::{Color, Point, Rect, Size};
+use crate::design::tokens::TOOLTIP_DELAY;
+use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{DrawList, Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
@@ -56,27 +56,6 @@ pub struct FrameStats {
     pub frames_per_second: f32,
     // Milliseconds.
     pub frame_time: f32,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Animation {
-    from: [f32; 4],
-    to: [f32; 4],
-    start: f64,
-    duration: f32,
-    curve: Curve,
-}
-
-impl Animation {
-    fn value(&self, now: f64) -> [f32; 4] {
-        let t = if self.duration <= 0.0 { 1.0 } else { ((now - self.start) as f32 / self.duration).clamp(0.0, 1.0) };
-        let eased = self.curve.ease(t);
-        std::array::from_fn(|index| self.from[index] + (self.to[index] - self.from[index]) * eased)
-    }
-
-    fn done(&self, now: f64) -> bool {
-        (now - self.start) as f32 >= self.duration
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -126,7 +105,6 @@ pub struct Ui {
     pub(crate) shown_tooltip: Option<(String, Rect)>,
     enabled: bool,
     focusable: bool,
-    animations: HashMap<(Id, u8), Animation>,
     memory: HashMap<(Id, TypeId), Box<dyn Any>>,
     pub(crate) clipboard: Clipboard,
     cursor: Cursor,
@@ -169,7 +147,6 @@ impl Ui {
             shown_tooltip: None,
             enabled: true,
             focusable: true,
-            animations: HashMap::new(),
             memory: HashMap::new(),
             clipboard,
             cursor: Cursor::Arrow,
@@ -206,16 +183,6 @@ impl Ui {
             performance.frame_started(time);
             performance.update(time);
         }
-        // Now and then, the animations of widgets that are gone go. A done
-        // animation of a widget that's shown stays, so that its next change
-        // starts from where it is. On a frame of its own, apart from the
-        // fonts' purge of old layouts, so that the two don't make one long
-        // frame.
-        if self.frame % 600 == 300 {
-            let shown: std::collections::HashSet<Id> = self.previous.iter().map(|target| target.id).collect();
-            self.animations.retain(|(id, _), animation| !animation.done(time) || shown.contains(id));
-        }
-
         if self.input.focus_lost {
             self.popups.clear();
         }
@@ -885,41 +852,6 @@ impl Ui {
             && !self.tooltip.dismissed
             && self.input.time - self.tooltip.since >= TOOLTIP_DELAY;
         due.then_some(self.tooltip.anchor)
-    }
-
-    // A value that moves to `target` over `duration` seconds along the curve
-    // whenever the target changes. It starts at its first target.
-    pub fn animate(&mut self, id: Id, slot: u8, target: f32, duration: f32, curve: Curve) -> f32 {
-        self.animate_values(id, slot, [target, 0.0, 0.0, 0.0], duration, curve)[0]
-    }
-
-    pub fn animate_color(&mut self, id: Id, slot: u8, target: Color, duration: f32) -> Color {
-        let [r, g, b, a] = self.animate_values(id, slot, [target.r, target.g, target.b, target.a], duration, CURVE_LINEAR);
-        Color::rgba(r, g, b, a)
-    }
-
-    pub fn animate_rect(&mut self, id: Id, slot: u8, target: Rect, duration: f32, curve: Curve) -> Rect {
-        let [x, y, width, height] = self.animate_values(id, slot, [target.x, target.y, target.width, target.height], duration, curve);
-        Rect::new(x, y, width, height)
-    }
-
-    fn animate_values(&mut self, id: Id, slot: u8, target: [f32; 4], duration: f32, curve: Curve) -> [f32; 4] {
-        let now = self.input.time;
-        let animation = self.animations.entry((id, slot)).or_insert(Animation {
-            from: target,
-            to: target,
-            start: now,
-            duration,
-            curve,
-        });
-        if animation.to != target {
-            animation.from = animation.value(now);
-            animation.to = target;
-            animation.start = now;
-            animation.duration = duration;
-            animation.curve = curve;
-        }
-        animation.value(now)
     }
 
     // State that a widget keeps from frame to frame, like a text field's

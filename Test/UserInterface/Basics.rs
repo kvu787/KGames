@@ -2,9 +2,8 @@
 // the design system's values, keys, how events fold into a frame's input,
 // settings, the command line, and text layout.
 
-use user_interface::tokens::{
-    BODY, CURVE_EASY_EASE, CURVE_FAST_OUT_SLOW_IN, CURVE_LINEAR, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation,
-};
+use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
+use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
 use user_interface::{Arguments, Color, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Theme};
 
 #[test]
@@ -54,13 +53,16 @@ fn colors_parse_and_blend_like_xaml_writes_them() {
 
 #[test]
 fn curves_go_from_0_to_1() {
-    for curve in [CURVE_LINEAR, CURVE_FAST_OUT_SLOW_IN, CURVE_EASY_EASE] {
+    let linear = Curve(0.0, 0.0, 1.0, 1.0);
+    for curve in [linear, PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE] {
         assert!(curve.ease(0.0).abs() < 1e-4);
         assert!((curve.ease(1.0) - 1.0).abs() < 1e-4);
+        // Each is symmetric, so it's half way at half the time.
+        assert!((curve.ease(0.5) - 0.5).abs() < 0.01);
     }
-    // Fast out, slow in covers most of the way early.
-    assert!(CURVE_FAST_OUT_SLOW_IN.ease(0.25) > 0.6);
-    assert!((CURVE_EASY_EASE.ease(0.5) - 0.5).abs() < 0.01);
+    assert!((linear.ease(0.25) - 0.25).abs() < 0.01);
+    // The indeterminate bar's indicators start slowly.
+    assert!(PROGRESS_BAR_CURVE.ease(0.1) < 0.05);
 }
 
 #[test]

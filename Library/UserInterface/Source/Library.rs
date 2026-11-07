@@ -8,7 +8,7 @@
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
-// - core: a frame's interface: targets, presses, focus, popups, motion.
+// - core: a frame's interface: targets, presses, focus, popups, tooltips.
 // - widgets: WinUI's controls, cards, and the page's bars.
 // - testing: scripts, and running a program without a window.
 

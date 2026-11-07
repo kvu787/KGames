@@ -3,9 +3,10 @@
 KGames' user interface library, for Win32, Direct3D 12 and DirectWrite, after Microsoft's
 [Fluent 2](https://fluent2.microsoft.design) design system as WinUI 3 implements it on Windows 11,
 with WinUI 3's own values: its theme resources' colors, its controls' sizes, paddings and parts,
-its elevation borders and shadows, and its motion. Every GUI program is built on it: it owns the
-window, reads the input, runs the main loop, lays out text, draws the widgets on the GPU, and runs
-scripts and headless tests. [UiShowcase](../../Program/UiShowcase/README.md) shows every widget.
+and its elevation borders and shadows, but not its animations. Every GUI program is built on it: it
+owns the window, reads the input, runs the main loop, lays out text, draws the widgets on the GPU,
+and runs scripts and headless tests. [UiShowcase](../../Program/UiShowcase/README.md) shows every
+widget.
 
 It's immediate mode: each frame, a program's `update` lays out its cards in fixed pixels and adds
 each control with `ui.add(name, rect, widget)`, which draws it and returns what the input did to
@@ -77,10 +78,9 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Tokens** (`Design/Tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
   corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
   ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
-  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), motion (83, 167, 250 and 333 ms, and
-  Fluent's easing curves), elevation as WinUI's ThemeShadow makes it from a depth (`elevation(z)`,
-  with tooltips at 16, flyouts at 32, submenus 8 over their menu, and dialogs at 128), and the
-  page's sizes.
+  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), elevation as WinUI's ThemeShadow makes
+  it from a depth (`elevation(z)`, with tooltips at 16, flyouts at 32, submenus 8 over their menu,
+  and dialogs at 128), and the page's sizes.
 - **Controls** (`Design/Controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
   a list item's backplate and selection pill, a menu item's padding, and the focus visual's two
@@ -88,6 +88,11 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Elevation borders**: controls' borders shade from their top to their bottom, as WinUI's
   ControlElevationBorderBrush does, and text fields' bottom edge is strong, and the accent's two
   pixels while they have focus.
+- **Motion**: none between states. A hover, a press, a selection, a switch that's flipped, and a
+  menu, submenu or dialog that opens or closes all show whole on the frame that makes them, without
+  WinUI's fades, slides and eases. Only what has to move to do its job moves: the indeterminate
+  progress bar and ring, whose motion says that the work goes on and the program isn't frozen, and
+  a text field's caret, which blinks. Widgets of a program's own follow the same rule.
 - **Type**: Segoe UI Variable, in its optical sizes: Small for captions, Text for body text, and
   Display for titles, laid out by DirectWrite with kerning and font fallback, each line as tall as
   the type ramp says.
@@ -119,7 +124,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
 | `Swatch`                           |                           | A color to pick, with an accent ring while it's picked          |
 | `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
-| `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one that slides            |
+| `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one                        |
 | `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |
 | `MenuBar`, `ui.flyout_menu`        | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
 | `ui.context_menu`                  | MenuFlyout                | Opens at the pointer on a right-click                           |
@@ -414,7 +419,7 @@ folder, through `startup.data_folder`.
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
 | `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
 | `Source/Core/Interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Response` and their kin  |
-| `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
+| `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips              |
 | `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
 | `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |
 | `Source/Platform/Clock.rs`          | The performance counter, which input and frames are timed on                |
@@ -423,7 +428,7 @@ folder, through `startup.data_folder`.
 | `Source/Input/Events.rs`            | A frame's input, from its events                                            |
 | `Source/Input/Reader.rs`            | Turns a frame's GameInput readings into events                              |
 | `Source/Design/Theme.rs`            | WinUI's theme resources, light and dark                                     |
-| `Source/Design/Tokens.rs`           | Fluent's spacing, radii, type ramp, motion, elevation, and the page's sizes |
+| `Source/Design/Tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes         |
 | `Source/Design/Controls.rs`         | WinUI 3's controls' sizes, paddings and parts                               |
 | `Source/Design/Icons.rs`            | Segoe Fluent Icons                                                          |
 | `Source/Drawing/Geometry.rs`        | Points, sizes, insets, rectangles and colors                                |

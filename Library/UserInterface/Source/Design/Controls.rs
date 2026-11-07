@@ -9,6 +9,7 @@
 // The type ramp's lines are 20; widgets center their text in what WinUI's
 // sizes give them.
 
+use crate::design::tokens::Curve;
 use crate::drawing::geometry::Insets;
 
 // The focus visual: FocusVisualMargin -3 puts it 3 pixels outside a control,
@@ -179,16 +180,20 @@ pub const TOOLTIP_MAX_WIDTH: f32 = 320.0;
 pub const TOOLTIP_OFFSET: f32 = 20.0;
 
 // ProgressBar: ProgressBarTrackHeight, ProgressBarMinHeight, and their
-// corners.
+// corners, and the KeySpline that the indeterminate bar's two indicators
+// cross it along.
 pub const PROGRESS_BAR_TRACK_HEIGHT: f32 = 1.0;
 pub const PROGRESS_BAR_TRACK_RADIUS: f32 = 0.5;
 pub const PROGRESS_BAR_HEIGHT: f32 = 3.0;
 pub const PROGRESS_BAR_RADIUS: f32 = 1.5;
+pub const PROGRESS_BAR_CURVE: Curve = Curve(0.4, 0.0, 0.6, 1.0);
 // ProgressRing: its default size, and its ring's radius and stroke as parts
-// of its size, from its animation's 80-pixel canvas.
+// of its size, from its animation's 80-pixel canvas, and the curve of its
+// rotation and trim over each half of its 2-second cycle.
 pub const PROGRESS_RING_SIZE: f32 = 32.0;
 pub const PROGRESS_RING_RADIUS: f32 = 0.4375;
 pub const PROGRESS_RING_STROKE: f32 = 0.09375;
+pub const PROGRESS_RING_CURVE: Curve = Curve(0.167, 0.167, 0.833, 0.833);
 
 // ScrollBar: ScrollBarSize, its thumb's width when expanded and collapsed,
 // how far a collapsed thumb sits toward the edge, the shortest thumb, its

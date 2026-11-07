@@ -258,8 +258,7 @@ that no one looks for them again:
 - The main loop asks `program.title()` for a new `String` a frame, to see whether it changed.
 - `Ui::state`, which scripts save at a capture, checks each target's name against every one before
   it: quadratic in the targets, only at captures.
-- `Fonts::begin_frame` purges old layouts every 600 frames and `Ui::begin_frame` old animations
-  every 600, on different frames by design, so neither makes a long frame.
+- `Fonts::begin_frame` purges old layouts on every 600th frame.
 
 ## Building and testing
 
