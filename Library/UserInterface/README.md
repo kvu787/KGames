@@ -346,7 +346,8 @@ no input latency.
 
 **Headless.** `Headless` runs a program's frames without a window or a GPU, with input that the test
 makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
-real layout. Each input method runs a frame with the input and a frame after it:
+real layout. Each input method runs a frame with the input and a frame after it. `queue` only
+queues events, for `frame` to run, so that a test can look at the very frame that reads them:
 
 ```rust
 let mut app = Headless::new(Volume { level: 50.0 });

@@ -1,16 +1,16 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
 // a standard button's elevation border, that widgets draw a new state whole
-// on the frame that makes it, whether the PerfBar says that vertical sync is
-// on, the PerfBar's colors in each theme, and the page for an unsupported
-// setup.
+// on the frame that makes it, and a selection that moves leaves its old item
+// on that frame, whether the PerfBar says that vertical sync is on, the
+// PerfBar's colors in each theme, and the page for an unsupported setup.
 
 use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Headless, Key, ListView, MenuBar, MenuItem, Program, RadioGroup, Rect, Segmented, SelectorBar, Slider,
-    Theme, ThemeKind, ToggleSwitch, Ui,
+    Button, Card, CheckBox, ComboBox, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Program, RadioGroup, Rect, Segmented,
+    SelectorBar, Slider, Theme, ThemeKind, ToggleSwitch, Ui,
 };
 
 struct Page;
@@ -222,6 +222,43 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
     let program = &app.program;
     assert!(program.on && program.checked);
     assert_eq!((program.size, program.alignment, program.tab, program.pick, program.row), (2, 2, 2, 1, Some(2)));
+}
+
+#[test]
+fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
+    // A press selects a list's row, and a release a radio button, a segment
+    // or a tab. Each of these reads all its items' input before it draws
+    // any, so even when the selection moves to an item after the old one,
+    // the very frame that reads the input draws the old item without it,
+    // the same as a second later.
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for (old, new) in [("Rows/0", "Rows/2"), ("Size/Small", "Size/Large"), ("Alignment/Left", "Alignment/Right"), ("Tabs/First", "Tabs/Third")] {
+        let list = old.starts_with("Rows");
+        app.click(old).move_to(new);
+        if list {
+            app.queue(&[Event::ButtonPressed(MouseButton::Left)]);
+        } else {
+            app.press(new).queue(&[Event::ButtonReleased(MouseButton::Left)]);
+        }
+        app.frame();
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        if list {
+            app.release();
+        }
+        let area = app.target(old);
+        let mut pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
+        if let Some((x, y)) = pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y)) {
+            save(&now, "SelectionNow");
+            save(&later, "SelectionLater");
+            panic!("{old} still looked selected on the frame that selected {new}, at ({x}, {y})");
+        }
+    }
+    let program = &app.program;
+    assert_eq!((program.row, program.size, program.alignment, program.tab), (Some(2), 2, 2, 2));
 }
 
 #[test]

@@ -332,6 +332,14 @@ impl<P: Program> Headless<P> {
         self.act()
     }
 
+    // Queues the events for the next frame without running it, unlike
+    // send, so that a test can look at the very frame that reads them,
+    // which frame runs.
+    pub fn queue(&mut self, events: &[Event]) -> &mut Self {
+        self.pending.extend_from_slice(events);
+        self
+    }
+
     // Types the text, all in one frame.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
         self.pending.extend(text.chars().map(Event::Text));
