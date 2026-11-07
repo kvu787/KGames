@@ -10,7 +10,7 @@ use user_interface::tokens::{
 };
 use user_interface::{
     Align, AppBar, Border, Brush, Button, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, DialogResult, Expander,
-    Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioButton, Rect, Segmented, SelectorBar,
+    Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioGroup, Rect, Segmented, SelectorBar,
     Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ToggleButton, ToggleSwitch, TooltipLine, Ui, id,
 };
 
@@ -197,11 +197,9 @@ fn toggles(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
 fn choices(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     let card = ui.card(rect, Card::new("Radio buttons and segments"));
     let mut area = card.content;
-    let mut radios = area.cut_top(CONTROL_HEIGHT * 3.0, SPACE_M);
+    let mut radios = area.cut_top(RadioGroup::height(SIZES.len()), SPACE_M);
     let preview = radios.cut_right(96.0, 0.0);
-    for (index, size) in SIZES.iter().enumerate() {
-        ui.add(&format!("Size/{size}"), radios.cut_top(CONTROL_HEIGHT, 0.0), RadioButton::new(&mut showcase.size, index, size));
-    }
+    ui.add("Size", radios, RadioGroup::new(&mut showcase.size, &SIZES));
     let side = ui.animate(id("SizePreview"), 0, 24.0 + 16.0 * showcase.size as f32, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
     let accent = ui.theme().accent;
     ui.painter().rounded(preview.centered(Size::square(side)), RADIUS_CONTROL, accent);

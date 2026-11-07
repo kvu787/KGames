@@ -172,7 +172,7 @@ pub use widgets::shell::{AppBar, Status};
 pub use widgets::slider::{Number, Slider, slider_rail};
 pub use widgets::text::{KEYCAP_HEIGHT, Swatch};
 pub use widgets::text_box::{TextBox, TextBoxResponse};
-pub use widgets::toggles::{CheckBox, RadioButton, ToggleSwitch};
+pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
 pub use widgets::tool_tip::TooltipLine;
 pub use widgets::widget::{Elevation, StateColors, Widget, focus_visual};
 

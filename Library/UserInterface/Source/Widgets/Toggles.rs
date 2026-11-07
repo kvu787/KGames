@@ -2,7 +2,7 @@
 // ToggleSwitch. Each is a target as wide as its rectangle, so its label takes
 // clicks too, and its focus visual goes around the label, as XAML's do.
 
-use crate::core::interaction::{ControlState, Response, Sense};
+use crate::core::interaction::{ControlState, Response, Sense, id};
 use crate::core::ui::Ui;
 use crate::design::controls::{
     CHECK_BOX_GLYPH_SIZE, CHECK_BOX_PADDING, CHECK_BOX_SIZE, FOCUS_VISUAL_MARGIN_WIDE, RADIO_BUTTON_GLYPH, RADIO_BUTTON_GLYPH_DISABLED,
@@ -11,7 +11,7 @@ use crate::design::controls::{
     TOGGLE_SWITCH_KNOB_PRESSED_MARGIN, TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_TRAVEL, TOGGLE_SWITCH_WIDTH,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, DURATION_NORMAL, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, DURATION_NORMAL, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border};
 use crate::widgets::widget::{Elevation, StateColors, Widget};
@@ -145,6 +145,48 @@ impl<T: PartialEq + Copy> Widget for RadioButton<'_, '_, T> {
             painter.text_fit(Rect::new(left, rect.y, rect.right() - left, rect.height), self.label, BODY, text, Align::Start);
         }
         ui.focus_visual_around(response.focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
+        response
+    }
+}
+
+// A column of radio buttons that pick one of a group's items, by index.
+// Each item is a row of CONTROL_HEIGHT named "{name}/{item}", so a group
+// "Size" with "Small" in it has a target "Size/Small".
+pub struct RadioGroup<'a, 'v> {
+    selected: &'v mut usize,
+    items: &'a [&'a str],
+}
+
+impl<'a, 'v> RadioGroup<'a, 'v> {
+    pub fn new(selected: &'v mut usize, items: &'a [&'a str]) -> Self {
+        Self { selected, items }
+    }
+
+    // The group's height: a CONTROL_HEIGHT row an item.
+    pub fn height(items: usize) -> f32 {
+        items as f32 * CONTROL_HEIGHT
+    }
+}
+
+impl Widget for RadioGroup<'_, '_> {
+    type Response = Response;
+
+    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
+        let mut response = Response {
+            id: id(name),
+            rect,
+            enabled: ui.enabled(),
+            ..Response::default()
+        };
+        let mut row = rect;
+        row.height = CONTROL_HEIGHT;
+        for (index, item) in self.items.iter().enumerate() {
+            let one = ui.add(&format!("{name}/{item}"), row, RadioButton::new(self.selected, index, item));
+            response.hovered |= one.hovered;
+            response.clicked |= one.clicked;
+            response.changed |= one.changed;
+            row.y += CONTROL_HEIGHT;
+        }
         response
     }
 }
