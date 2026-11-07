@@ -47,6 +47,12 @@ job's limits until it's stopped.
 The script only runs `RunInBackground.cs`, a .NET file-based app, with `dotnet run`, which
 builds it into its own cache first. It needs the .NET 10 SDK.
 
+A program with a `.csproj` in its folder, like [WinUi3Sample](../WinUi3Sample/README.md), is a
+WinUI 3 app instead, which `dotnet build` builds, into `target\DotNet`. It opens with `--display`
+and `--no-activate` alone, as it has no GameInput or vertical sync to turn off, and doesn't run
+scripts. WinUI 3's menus and flyouts are windows of their own, so its screenshot has the process's
+other windows that show drawn over its own, where they are on the screen.
+
 | Argument              | Value                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
 | `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`, and its |
@@ -56,13 +62,16 @@ builds it into its own cache first. It needs the .NET 10 SDK.
 | `--screenshot <path>` | Where to save the screenshot, as a PNG.                                    |
 |                       | `target\RunInBackground\<program>.png` by default                          |
 | `--keep-open`         | Leaves the program running after the screenshot                            |
-| `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer      |
+| `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer, or  |
+|                       | a WinUI 3 app's Debug configuration                                        |
 | `--no-vsync`          | Runs without vertical sync, drawing frames as fast as it can. Runs are     |
 |                       | vertically synced by default                                               |
 | `--script <path>`     | Runs the program with a script of input instead, and saves what it         |
 |                       | captures in `target\RunInBackground\<program>\<script>`                    |
 | `--all-scripts`       | Runs every script in `Test\<program>\Scripts`, one at a time               |
 | `--timeout <seconds>` | How long a script may run before it fails. 60 by default                   |
+| `--arguments <text>`  | More arguments for the program, after the others, like WinUi3Sample's      |
+|                       | `"--page Settings --theme Dark"`                                           |
 
 The screenshot is of what the program draws in its window, without the title bar. It comes
 from `PrintWindow`, so it doesn't matter if other windows are in front of the program's. What

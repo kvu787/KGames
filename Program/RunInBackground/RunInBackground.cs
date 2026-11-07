@@ -55,7 +55,8 @@ const string Usage = """
                               target\RunInBackground\<program>.png by default
       --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds with Cargo's dev profile, which turns on the
-                              D3D12 debug layer
+                              D3D12 debug layer, or a WinUI 3 app's Debug
+                              configuration
       --no-vsync              Runs without vertical sync, drawing frames as fast
                               as it can. Runs are vertically synced by default
 
@@ -63,6 +64,9 @@ const string Usage = """
                               captures in target\RunInBackground\<program>\<script>
       --all-scripts           Runs every script in Test\<program>\Scripts
       --timeout <seconds>     How long a script may run. 60 by default
+
+      --arguments <text>      More arguments for the program, like a WinUI 3
+                              program's "--page Settings --theme Dark"
     """;
 
 try {
@@ -84,8 +88,12 @@ static void Run(string[] arguments) {
     var scripts = new List<string>();
     var allScripts = false;
     var timeout = 60.0;
+    var extraArguments = "";
     for (var i = 0; i < arguments.Length; i++) {
         switch (arguments[i]) {
+        case "--arguments":
+            extraArguments = " " + Value(arguments, ref i);
+            break;
         case "--display":
             display = Value(arguments, ref i);
             break;
@@ -152,26 +160,47 @@ static void Run(string[] arguments) {
         scripts.AddRange(found.Order(StringComparer.OrdinalIgnoreCase));
     }
 
-    var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
-    if (!debugBuild) {
-        build.Add("--release");
+    // A program with a .csproj, like WinUi3Sample, is a WinUI 3 app, which dotnet builds, and
+    // which isn't built on Library/UserInterface: it has no scripts, GameInput or vertical sync
+    // to turn off, and its window is WinUI's.
+    var project = Path.Combine(repository, "Program", program, $"{program}.csproj");
+    var winUi = File.Exists(project);
+    if (winUi && scripts.Count > 0) {
+        throw new FailureException($"{program} is a WinUI 3 app, which doesn't run scripts");
     }
-    var cargoExit = ProgramProcess.RunInLightJob(build);
-    if (cargoExit != 0) {
-        throw new FailureException($"cargo build failed with exit code {cargoExit}");
+
+    string exe;
+    if (winUi) {
+        var configuration = debugBuild ? "Debug" : "Release";
+        var dotnetExit = ProgramProcess.RunInLightJob(["dotnet", "build", project, "--configuration", configuration, "--nologo", "--verbosity", "minimal"]);
+        if (dotnetExit != 0) {
+            throw new FailureException($"dotnet build failed with exit code {dotnetExit}");
+        }
+        // Where the program's Directory.Build.props puts the build.
+        exe = Path.Combine(target, "DotNet", "bin", program, $"{configuration.ToLowerInvariant()}_win-x64", $"{program}.exe");
+    } else {
+        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
+        if (!debugBuild) {
+            build.Add("--release");
+        }
+        var cargoExit = ProgramProcess.RunInLightJob(build);
+        if (cargoExit != 0) {
+            throw new FailureException($"cargo build failed with exit code {cargoExit}");
+        }
+        exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
     }
-    var exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
     var sync = verticalSync ? " --vsync" : " --no-vsync";
 
     if (scripts.Count > 0) {
-        RunScripts(program, exe, display, sync, scripts, Path.Combine(output, program), timeout);
+        RunScripts(program, exe, display, sync + extraArguments, scripts, Path.Combine(output, program), timeout);
         return;
     }
 
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input{sync}", outputLog, errorLog, keepOpen);
+    var options = winUi ? "" : $" --no-input{sync}";
+    using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate{options}{extraArguments}", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process);
 
@@ -189,7 +218,7 @@ static void Run(string[] arguments) {
             throw new FailureException($"{program} didn't open its window within 30 seconds, so it was stopped");
         }
         Thread.Sleep(100);
-        window = ProgramWindow.Find(process.Id);
+        window = ProgramWindow.Find(process.Id, winUi ? ProgramWindow.WinUiClass : ProgramWindow.LibraryClass);
     }
 
     Thread.Sleep(TimeSpan.FromSeconds(seconds));
@@ -214,6 +243,25 @@ static void Run(string[] arguments) {
         }
         if (!printed) {
             throw new FailureException($"PrintWindow couldn't capture {program}'s window");
+        }
+        // WinUI 3's menus, flyouts and tooltips are windows of their own, over the program's.
+        if (winUi) {
+            using var graphics = Graphics.FromImage(bitmap);
+            var origin = ProgramWindow.ClientOrigin(window);
+            foreach (var popup in ProgramWindow.Popups(process.Id, window)) {
+                var area = ProgramWindow.Area(popup);
+                if (area.Width <= 0 || area.Height <= 0) {
+                    continue;
+                }
+                using var image = new Bitmap(area.Width, area.Height, PixelFormat.Format24bppRgb);
+                using (var popupGraphics = Graphics.FromImage(image)) {
+                    var dc = popupGraphics.GetHdc();
+                    _ = ProgramWindow.PrintWhole(popup, dc);
+                    popupGraphics.ReleaseHdc(dc);
+                }
+                using var layer = WithoutBlackMargin(image);
+                graphics.DrawImageUnscaled(layer, area.Left - origin.X, area.Top - origin.Y);
+            }
         }
         bitmap.Save(screenshot, ImageFormat.Png);
     }
@@ -295,6 +343,66 @@ static string Value(string[] arguments, ref int index) {
         throw new FailureException($"{arguments[index]} needs a value after it");
     }
     return arguments[++index];
+}
+
+// A popup's picture, with the black that PrintWindow gives the transparent
+// margin around it, where its shadow goes, made transparent: the pure black
+// that reaches the picture's edges, which the popup's own black doesn't.
+static Bitmap WithoutBlackMargin(Bitmap image) {
+    var (width, height) = (image.Width, image.Height);
+    var bounds = new Rectangle(0, 0, width, height);
+    var pixels = new int[width * height];
+    // Read as 32 bits a pixel, with an opaque alpha.
+    var source = image.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    for (var y = 0; y < height; y++) {
+        Marshal.Copy(source.Scan0 + y * source.Stride, pixels, y * width, width);
+    }
+    image.UnlockBits(source);
+
+    var margin = new bool[pixels.Length];
+    var queue = new Queue<int>();
+    void Visit(int index) {
+        if (!margin[index] && (pixels[index] & 0xFFFFFF) == 0) {
+            margin[index] = true;
+            queue.Enqueue(index);
+        }
+    }
+    for (var x = 0; x < width; x++) {
+        Visit(x);
+        Visit((height - 1) * width + x);
+    }
+    for (var y = 0; y < height; y++) {
+        Visit(y * width);
+        Visit(y * width + width - 1);
+    }
+    while (queue.TryDequeue(out var index)) {
+        var (x, y) = (index % width, index / width);
+        if (x > 0) {
+            Visit(index - 1);
+        }
+        if (x < width - 1) {
+            Visit(index + 1);
+        }
+        if (y > 0) {
+            Visit(index - width);
+        }
+        if (y < height - 1) {
+            Visit(index + width);
+        }
+    }
+    for (var index = 0; index < pixels.Length; index++) {
+        if (margin[index]) {
+            pixels[index] = 0;
+        }
+    }
+
+    var result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+    var target = result.LockBits(bounds, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+    for (var y = 0; y < height; y++) {
+        Marshal.Copy(pixels, y * width, target.Scan0 + y * target.Stride, width);
+    }
+    result.UnlockBits(target);
+    return result;
 }
 
 // A log the program may still be writing to.
@@ -739,24 +847,81 @@ static partial class ProgramWindow {
     private static partial bool PostMessageW(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetForegroundWindow();
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowRect(IntPtr window, out RECT rect);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ClientToScreen(IntPtr window, ref POINT point);
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmGetWindowAttribute(IntPtr window, uint attribute, out int value, int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct POINT { public int X, Y; }
 
     const uint PW_CLIENTONLY = 1;
     // Asks the desktop compositor for the window's contents, which is the
     // only way to get what Direct3D draws.
     const uint PW_RENDERFULLCONTENT = 2;
     const uint WM_CLOSE = 0x0010;
+    const uint DWMWA_CLOAKED = 14;
+
+    // The class of the windows that Library/UserInterface opens.
+    public const string LibraryClass = "MainWindow";
+    // The class of a WinUI 3 app's windows.
+    public const string WinUiClass = "WinUIDesktopWin32WindowClass";
 
     // The program's window: a visible top-level window of the process, of the
-    // class that Library/Application registers. The process has other windows.
-    public static IntPtr Find(int processId) {
+    // class that its UI library registers. The process has other windows.
+    public static IntPtr Find(int processId, string className) {
         var window = IntPtr.Zero;
-        while ((window = FindWindowExW(IntPtr.Zero, window, "MainWindow", null)) != IntPtr.Zero) {
+        while ((window = FindWindowExW(IntPtr.Zero, window, className, null)) != IntPtr.Zero) {
             _ = GetWindowThreadProcessId(window, out var owner);
             if (owner == processId && IsWindowVisible(window)) {
                 return window;
             }
         }
         return IntPtr.Zero;
+    }
+
+    // The process's other top-level windows that show, from the bottom to the
+    // top, like a WinUI 3 app's open menus.
+    public static List<IntPtr> Popups(int processId, IntPtr window) {
+        var popups = new List<IntPtr>();
+        var other = IntPtr.Zero;
+        // FindWindowExW goes through the top-level windows from the top down.
+        while ((other = FindWindowExW(IntPtr.Zero, other, null, null)) != IntPtr.Zero) {
+            if (other == window || Owner(other) != processId || !IsWindowVisible(other)) {
+                continue;
+            }
+            // A cloaked window is visible to Windows, but the compositor hides it.
+            if (DwmGetWindowAttribute(other, DWMWA_CLOAKED, out var cloaked, sizeof(int)) == 0 && cloaked != 0) {
+                continue;
+            }
+            popups.Add(other);
+        }
+        popups.Reverse();
+        return popups;
+    }
+
+    // Where the window's contents start on the screen.
+    public static (int X, int Y) ClientOrigin(IntPtr window) {
+        var point = new POINT();
+        _ = ClientToScreen(window, ref point);
+        return (point.X, point.Y);
+    }
+
+    // The whole window's area on the screen.
+    public static Rectangle Area(IntPtr window) {
+        if (!GetWindowRect(window, out var rect)) {
+            return Rectangle.Empty;
+        }
+        return Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+    }
+
+    // Draws the whole window, with its frame if it has one, into a device context.
+    public static bool PrintWhole(IntPtr window, IntPtr dc) {
+        return PrintWindow(window, dc, PW_RENDERFULLCONTENT);
     }
 
     // The window that has focus, or none.
