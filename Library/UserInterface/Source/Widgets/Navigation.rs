@@ -62,6 +62,24 @@ fn arrows(ui: &Ui, focused: bool, selected: &mut usize, count: usize) -> bool {
     *selected != before
 }
 
+// An item's input. A press on it gives the control focus, as its one stop,
+// unless widgets can't take focus here, and a click selects it. Returns its
+// response, and whether the click changed the selection.
+fn item_input(ui: &mut Ui, control: &str, label: &str, rect: Rect, kind: &'static str, index: usize, selected: &mut usize) -> (Response, bool) {
+    let name = format!("{control}/{label}");
+    let response = ui.interact(&name, rect, Sense::CLICK, kind);
+    ui.set_label(&name, label);
+    if response.pressed && ui.focusable() {
+        ui.focus(control);
+        ui.set_focus_visible(false);
+    }
+    let changed = response.clicked && *selected != index;
+    if changed {
+        *selected = index;
+    }
+    (response, changed)
+}
+
 pub struct SelectorBar<'a, 'v> {
     selected: &'v mut usize,
     items: Vec<Choice<'a>>,
@@ -97,19 +115,8 @@ impl Widget for SelectorBar<'_, '_> {
             let width = choice_width(ui, item) + SELECTOR_BAR_ITEM_PADDING.horizontal() + 2.0;
             let item_rect = Rect::new(x, items_area.y, width, items_area.height);
             x += width;
-            let item_name = format!("{name}/{}", item.label);
-            let item_response = ui.interact(&item_name, item_rect, Sense::CLICK, "SelectorBarItem");
-            ui.set_label(&item_name, item.label);
-            // A press on an item gives the control focus, as its one stop,
-            // unless widgets can't take focus here.
-            if item_response.pressed && ui.focusable() {
-                ui.focus(name);
-                ui.set_focus_visible(false);
-            }
-            if item_response.clicked && *self.selected != index {
-                *self.selected = index;
-                response.changed = true;
-            }
+            let (item_response, changed) = item_input(ui, name, item.label, item_rect, "SelectorBarItem", index, self.selected);
+            response.changed |= changed;
             items.push((item_rect, item_response));
         }
         for (index, (item, (item_rect, item_response))) in self.items.iter().zip(items).enumerate() {
@@ -175,19 +182,8 @@ impl Widget for Segmented<'_, '_> {
         // raises its segment on the frame it's made.
         let mut responses = Vec::with_capacity(self.items.len());
         for (index, item) in self.items.iter().enumerate() {
-            let item_name = format!("{name}/{}", item.label);
-            let item_response = ui.interact(&item_name, segment_at(index), Sense::CLICK, "SegmentedItem");
-            ui.set_label(&item_name, item.label);
-            // A press on an item gives the control focus, as its one stop,
-            // unless widgets can't take focus here.
-            if item_response.pressed && ui.focusable() {
-                ui.focus(name);
-                ui.set_focus_visible(false);
-            }
-            if item_response.clicked && *self.selected != index {
-                *self.selected = index;
-                response.changed = true;
-            }
+            let (item_response, changed) = item_input(ui, name, item.label, segment_at(index), "SegmentedItem", index, self.selected);
+            response.changed |= changed;
             responses.push(item_response);
         }
         {
