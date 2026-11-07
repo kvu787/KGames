@@ -1,7 +1,7 @@
 // WinUI's ScrollBar, and a region whose content scrolls behind it, like a
 // ScrollViewer. The bar's thumb is a 2-pixel line while the pointer is away,
-// and grows to 6 pixels, over an acrylic track, once the pointer has rested
-// on the bar; the wheel scrolls the region under the pointer.
+// and is 6 pixels, over an acrylic track, once the pointer has rested on the
+// bar; the wheel scrolls the region under the pointer.
 
 use crate::core::interaction::{Id, Response, Sense, id};
 use crate::core::ui::Ui;
@@ -9,7 +9,6 @@ use crate::design::controls::{
     SCROLL_BAR_CONTRACT_DELAY, SCROLL_BAR_EXPAND_DELAY, SCROLL_BAR_MIN_THUMB, SCROLL_BAR_RADIUS, SCROLL_BAR_SIZE, SCROLL_BAR_THUMB_COLLAPSED,
     SCROLL_BAR_THUMB_EXPANDED, SCROLL_BAR_THUMB_OFFSET, SCROLL_VIEWER_BAR_MARGIN,
 };
-use crate::design::tokens::{CURVE_FAST_OUT_SLOW_IN, DURATION_FAST};
 use crate::drawing::geometry::Rect;
 use crate::widgets::widget::Widget;
 
@@ -87,18 +86,21 @@ impl Widget for ScrollBar<'_> {
                 state.expanded = false;
             }
         }
-        let expansion = ui.animate(response.id, 0, if state.expanded { 1.0 } else { 0.0 }, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+        let expanded = state.expanded;
         *ui.memory::<BarState>(response.id) = state;
         if range <= 0.0 {
             return response;
         }
-        let width = SCROLL_BAR_THUMB_COLLAPSED + (SCROLL_BAR_THUMB_EXPANDED - SCROLL_BAR_THUMB_COLLAPSED) * expansion;
         // A collapsed thumb sits toward the outer edge.
-        let center_x = track.center().x + SCROLL_BAR_THUMB_OFFSET * (1.0 - expansion);
+        let (width, center_x) = if expanded {
+            (SCROLL_BAR_THUMB_EXPANDED, track.center().x)
+        } else {
+            (SCROLL_BAR_THUMB_COLLAPSED, track.center().x + SCROLL_BAR_THUMB_OFFSET)
+        };
         let mut painter = ui.painter();
         let theme = painter.theme();
-        if expansion > 0.0 {
-            painter.rounded(track, SCROLL_BAR_RADIUS * 2.0, theme.acrylic.fade(expansion));
+        if expanded {
+            painter.rounded(track, SCROLL_BAR_RADIUS * 2.0, theme.acrylic);
         }
         let thumb = Rect::new(center_x - width / 2.0, thumb_y(*self.offset), width, thumb_length);
         let color = if response.enabled { theme.control_strong_fill } else { theme.control_strong_fill_disabled };

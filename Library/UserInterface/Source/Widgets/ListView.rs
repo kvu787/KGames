@@ -14,7 +14,6 @@ use crate::design::controls::{
     LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_PADDING, LIST_ITEM_RADIUS, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH, SELECTION_PILL_PRESSED_LENGTH,
     SELECTION_PILL_THICKNESS,
 };
-use crate::design::tokens::{CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER};
 use crate::drawing::geometry::Rect;
 use crate::input::devices::Key;
 use crate::widgets::scrolling::ScrollBar;
@@ -174,8 +173,7 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
                 (true, false, false) => theme.subtle_fill_secondary,
             };
             let indicator = if ui.enabled() { theme.accent } else { theme.accent_disabled };
-            let fill = ui.animate_color(row_response.id, 0, fill, DURATION_FASTER);
-            let pill = ui.animate(row_response.id, 1, if pressed { SELECTION_PILL_PRESSED_LENGTH } else { SELECTION_PILL_LENGTH }, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+            let pill = if pressed { SELECTION_PILL_PRESSED_LENGTH } else { SELECTION_PILL_LENGTH };
             let plate = row.pad(LIST_ITEM_BACKPLATE_MARGIN);
             {
                 let mut painter = ui.painter();

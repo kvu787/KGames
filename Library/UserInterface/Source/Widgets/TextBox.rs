@@ -11,7 +11,7 @@ use crate::core::interaction::{ControlState, Cursor, Response, Sense};
 use crate::core::ui::Ui;
 use crate::design::controls::{TEXT_BOX_BUTTON_GLYPH, TEXT_BOX_BUTTON_MARGIN, TEXT_BOX_QUERY_BUTTON_WIDTH, TEXT_BOX_BUTTON_WIDTH, TEXT_BOX_CARET_WIDTH, TEXT_BOX_PADDING};
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, DURATION_FASTER, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, RADIUS_CONTROL};
 use crate::drawing::geometry::{Color, Insets, Point, Rect};
 use crate::drawing::painter::Align;
 use crate::input::devices::{Key, Modifiers};
@@ -375,7 +375,6 @@ impl Widget for TextBox<'_, '_> {
         } else {
             StateColors::new(theme.control_fill, theme.control_fill_secondary, theme.control_fill_secondary, theme.control_fill_disabled).get(state)
         };
-        let fill = ui.animate_color(id, 0, fill, DURATION_FASTER);
         let field_first = ui.draw.layer_len();
         let mut painter = ui.painter();
         let theme = painter.theme();
@@ -449,7 +448,6 @@ pub(crate) fn text_control_button(ui: &mut Ui, name: &str, rect: Rect, icon: Ico
     let theme = ui.theme();
     let background = StateColors::new(Color::TRANSPARENT, theme.subtle_fill_secondary, theme.subtle_fill_tertiary, Color::TRANSPARENT).get(state);
     let foreground = StateColors::new(theme.text_secondary, theme.text_secondary, theme.text_tertiary, theme.text_disabled).get(state);
-    let background = ui.animate_color(response.id, 0, background, DURATION_FASTER);
     let mut painter = ui.painter();
     painter.rounded(rect, RADIUS_CONTROL, background);
     painter.icon(rect.center(), icon, TEXT_BOX_BUTTON_GLYPH, foreground);

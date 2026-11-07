@@ -7,7 +7,7 @@ use crate::core::interaction::{ControlState, Response, Sense};
 use crate::core::ui::Ui;
 use crate::design::controls::{EXPANDER_CHEVRON_BUTTON, EXPANDER_CHEVRON_GLYPH, EXPANDER_CHEVRON_MARGIN, EXPANDER_CONTENT_PADDING, EXPANDER_HEADER_PADDING_LEFT};
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, CAPTION, RADIUS_CONTROL};
 use crate::drawing::geometry::{Insets, Rect};
 use crate::drawing::painter::{Align, Border, Corners};
 use crate::widgets::widget::Widget;
@@ -52,7 +52,6 @@ impl Widget for Expander<'_, '_> {
         };
         let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
         let caption_color = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary };
-        let chevron_fill = ui.animate_color(response.id, 0, chevron_fill, DURATION_FASTER);
         let mut painter = ui.painter();
         let theme = painter.theme();
         let corners = if expanded { Corners::top(RADIUS_CONTROL) } else { Corners::all(RADIUS_CONTROL) };

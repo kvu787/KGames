@@ -10,7 +10,7 @@ use crate::design::controls::{
     BUTTON_ICON_GAP, SELECTOR_BAR_ITEM_PADDING, SELECTOR_BAR_PADDING, SELECTOR_BAR_PILL_HEIGHT, SELECTOR_BAR_PILL_WIDTH,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, ICON, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border};
 use crate::input::devices::Key;
@@ -119,9 +119,6 @@ impl Widget for SelectorBar<'_, '_> {
                 _ => theme.text_primary,
             };
             let pill_color = if state == ControlState::Disabled { theme.accent_disabled } else { theme.accent };
-            // The pill grows from 4 to 16 wide as it appears.
-            let pill_width = ui.animate(item_response.id, 0, if selected { SELECTOR_BAR_PILL_WIDTH } else { SELECTOR_BAR_PILL_WIDTH / 4.0 }, if selected { DURATION_FAST } else { 0.0 }, CURVE_FAST_OUT_SLOW_IN);
-            let pill_opacity = ui.animate(item_response.id, 1, if selected { 1.0 } else { 0.0 }, if selected { DURATION_FAST } else { 0.0 }, CURVE_FAST_OUT_SLOW_IN);
             let content = item_rect.pad(SELECTOR_BAR_ITEM_PADDING);
             let text_line = Rect::new(content.x, content.y, content.width, BODY.line_height);
             let mut painter = ui.painter();
@@ -131,11 +128,9 @@ impl Widget for SelectorBar<'_, '_> {
                 text_x += ICON + BUTTON_ICON_GAP;
             }
             painter.text_in(Rect::new(text_x, text_line.y, content.right() - text_x, text_line.height), item.label, BODY, color, Align::Start);
-            if pill_opacity > 0.0 {
-                let pill = Rect::new(item_rect.center().x - pill_width / 2.0, text_line.bottom() + 3.0, pill_width, SELECTOR_BAR_PILL_HEIGHT);
-                painter.rounded(pill, 1.0, pill_color.fade(pill_opacity));
-            }
             if selected {
+                let pill = Rect::new(item_rect.center().x - SELECTOR_BAR_PILL_WIDTH / 2.0, text_line.bottom() + 3.0, SELECTOR_BAR_PILL_WIDTH, SELECTOR_BAR_PILL_HEIGHT);
+                painter.rounded(pill, 1.0, pill_color);
                 ui.focus_visual_around(response.focused, item_rect, RADIUS_CONTROL, crate::drawing::geometry::Insets::all(2.0));
             }
         }
@@ -174,8 +169,7 @@ impl Widget for Segmented<'_, '_> {
         }
         let inner = rect.inset(2.0);
         let segment_width = inner.width / count as f32;
-        // The raised segment slides to the selected one.
-        let selected_x = ui.animate(response.id, 0, inner.x + segment_width * *self.selected as f32, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+        let selected_x = inner.x + segment_width * *self.selected as f32;
         {
             let raised = Rect::new(selected_x, inner.y, segment_width, inner.height).round();
             let mut painter = ui.painter();
@@ -212,7 +206,6 @@ impl Widget for Segmented<'_, '_> {
                 _ => theme.text_primary,
             };
             let accent = theme.accent;
-            let hover = ui.animate_color(item_response.id, 0, hover, DURATION_FASTER);
             let mut painter = ui.painter();
             painter.rounded(segment.inset(1.0), RADIUS_CONTROL - 1.0, hover);
             let width = item.icon.map_or(0.0, |_| ICON + if item.label.is_empty() { 0.0 } else { BUTTON_ICON_GAP })

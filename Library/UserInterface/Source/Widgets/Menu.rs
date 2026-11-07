@@ -1,7 +1,9 @@
 // WinUI's menus: MenuFlyout, which opens from a button, from a right-click as
 // a context menu, or from a MenuBar's items; its items with their icons,
 // checks and keyboard accelerators; its separators; and its submenus, which
-// open beside their item, each raised 8 more than the menu it's from.
+// open beside their item, each raised 8 more than the menu it's from. A menu
+// shows whole on the frame that opens it, without WinUI's slide, and goes on
+// the frame that closes it.
 //
 // Items are targets named "<menu>/<label>", and what a menu returns is the
 // label of the item chosen from it or its submenus, so labels in a menu are
@@ -16,7 +18,7 @@ use crate::design::controls::{
     MENU_SEPARATOR_HEIGHT,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, ELEVATION_FLYOUT, ELEVATION_SUBMENU, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S, elevation};
+use crate::design::tokens::{BODY, CAPTION, ELEVATION_FLYOUT, ELEVATION_SUBMENU, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S, elevation};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::input::devices::Key;
@@ -323,7 +325,6 @@ impl Ui {
                 ControlState::Pressed => theme.text_tertiary,
                 _ => theme.text_secondary,
             };
-            let background = self.animate_color(response.id, 0, background, DURATION_FASTER);
             let content = rect.pad(MENU_ITEM_PADDING);
             let mut painter = self.painter();
             painter.rounded(rect, RADIUS_CONTROL, background);
@@ -448,7 +449,6 @@ impl<'a> Widget for MenuBar<'a> {
                 _ => theme.subtle_fill_transparent,
             };
             let foreground = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
-            let background = ui.animate_color(response.id, 0, background, DURATION_FASTER);
             let mut painter = ui.painter();
             painter.rounded(item, RADIUS_CONTROL, background);
             painter.text_in(item, title, BODY, foreground, Align::Center);

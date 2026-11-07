@@ -2,16 +2,15 @@
 // text, an icon, or both, and a chevron as a DropDownButton has; ToggleButton,
 // which is the accent's colors while it's on; and HyperlinkButton.
 //
-// Their backgrounds cross-fade between visual states over
-// ControlFasterAnimationDuration, as WinUI's BrushTransition does; their
-// text and borders change at once.
+// Their colors change at once between visual states, without WinUI's
+// BrushTransition.
 
 use crate::core::interaction::{ControlState, Cursor, Response, Sense};
 use crate::core::ui::Ui;
 use crate::design::controls::{BUTTON_ICON_GAP, BUTTON_ICON_ONLY_WIDTH, BUTTON_PADDING, DROP_DOWN_CHEVRON_GAP, DROP_DOWN_CHEVRON_SIZE, HYPERLINK_PADDING};
 use crate::design::icons::Icon;
 use crate::design::theme::Theme;
-use crate::design::tokens::{BODY, DURATION_FASTER, ICON, ICON_SMALL, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, ICON, ICON_SMALL, RADIUS_CONTROL};
 use crate::drawing::geometry::{Color, Point, Rect};
 use crate::drawing::painter::{Align, Border};
 use crate::widgets::widget::{Elevation, StateColors, Widget};
@@ -150,7 +149,7 @@ impl Widget for Button<'_> {
 fn draw_button(ui: &mut Ui, button: &Button, response: &Response, rect: Rect) {
     let state = response.state();
     let colors = colors(ui.theme(), button.style, button.checked);
-    let background = ui.animate_color(response.id, 0, colors.background.get(state), DURATION_FASTER);
+    let background = colors.background.get(state);
     let foreground = colors.foreground.get(state);
     let mut painter = ui.painter();
     let theme = painter.theme();
@@ -253,7 +252,6 @@ impl Widget for HyperlinkButton<'_> {
         let theme = ui.theme();
         let background = StateColors::new(theme.subtle_fill_transparent, theme.subtle_fill_secondary, theme.subtle_fill_tertiary, theme.subtle_fill_disabled).get(state);
         let foreground = StateColors::new(theme.accent_text, theme.accent_text_secondary, theme.accent_text_tertiary, theme.accent_text_disabled).get(state);
-        let background = ui.animate_color(response.id, 0, background, DURATION_FASTER);
         let mut painter = ui.painter();
         painter.shape(rect, RADIUS_CONTROL, background, None);
         painter.text_fit(rect.pad(HYPERLINK_PADDING), self.text, BODY, foreground, Align::Center);

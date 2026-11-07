@@ -40,13 +40,12 @@ pub const CHECK_BOX_PADDING: Insets = Insets::new(8.0, 5.0, 0.0, 0.0);
 
 // RadioButton: the ellipse, RadioButtonCheckGlyphSize, and the glyph's size
 // with the pointer over (RadioButtonCheckGlyphPointerOverSize), pressed, and
-// disabled, which it animates to over these durations.
+// disabled.
 pub const RADIO_BUTTON_SIZE: f32 = 20.0;
 pub const RADIO_BUTTON_GLYPH: f32 = 12.0;
 pub const RADIO_BUTTON_GLYPH_POINTER_OVER: f32 = 14.0;
 pub const RADIO_BUTTON_GLYPH_PRESSED: f32 = 10.0;
 pub const RADIO_BUTTON_GLYPH_DISABLED: f32 = 14.0;
-pub const RADIO_BUTTON_GLYPH_DURATION: f32 = 0.25;
 pub const RADIO_BUTTON_PADDING: Insets = Insets::new(8.0, 6.0, 0.0, 0.0);
 
 // ToggleSwitch: the track, the knob at rest, with the pointer over, and
@@ -66,7 +65,7 @@ pub const TOGGLE_SWITCH_HEADER_GAP: f32 = 4.0;
 // Slider: SliderHorizontalHeight, SliderTrackThemeHeight with its corners,
 // the thumb's layout size, which its disc overhangs by 2 on each side, the
 // disc's corners (SliderThumbCornerRadius), and the inner thumb's size and
-// its scale per state, which it animates to over these durations.
+// its scale per state.
 pub const SLIDER_HEIGHT: f32 = 32.0;
 pub const SLIDER_TRACK_HEIGHT: f32 = 4.0;
 pub const SLIDER_TRACK_RADIUS: f32 = 2.0;
@@ -78,8 +77,6 @@ pub const SLIDER_INNER_THUMB_SCALE: f32 = 0.86;
 pub const SLIDER_INNER_THUMB_SCALE_POINTER_OVER: f32 = 1.167;
 pub const SLIDER_INNER_THUMB_SCALE_PRESSED: f32 = 0.71;
 pub const SLIDER_INNER_THUMB_SCALE_DISABLED: f32 = 1.167;
-pub const SLIDER_INNER_THUMB_DURATION: f32 = 0.167;
-pub const SLIDER_INNER_THUMB_DURATION_POINTER: f32 = 0.25;
 pub const SLIDER_HEADER_GAP: f32 = 4.0;
 // The value's tooltip while the thumb is dragged: its padding, and its text,
 // 15 pixels.
@@ -144,8 +141,8 @@ pub const LIST_ITEM_RADIUS: f32 = 4.0;
 pub const TREE_ITEM_HEIGHT: f32 = 28.0;
 pub const NAVIGATION_ITEM_HEIGHT: f32 = 36.0;
 
-// SelectorBar: SelectorBarPadding, SelectorBarItemPadding, and the pill,
-// which grows from 4 to 16 wide under the selected item.
+// SelectorBar: SelectorBarPadding, SelectorBarItemPadding, and the pill
+// under the selected item.
 pub const SELECTOR_BAR_PADDING: Insets = Insets::new(0.0, 4.0, 0.0, 4.0);
 pub const SELECTOR_BAR_ITEM_PADDING: Insets = Insets::new(12.0, 10.0, 12.0, 7.0);
 pub const SELECTOR_BAR_PILL_WIDTH: f32 = 16.0;
@@ -235,8 +232,7 @@ pub const FLYOUT_MIN_WIDTH: f32 = 96.0;
 pub const FLYOUT_MAX_WIDTH: f32 = 456.0;
 
 // ContentDialog: its narrowest, widest and shortest, ContentDialogPadding,
-// the title's margin under it, ContentDialogButtonSpacing, and how it scales
-// in as it shows, over DURATION_NORMAL.
+// the title's margin under it, and ContentDialogButtonSpacing.
 pub const DIALOG_MIN_WIDTH: f32 = 320.0;
 pub const DIALOG_MAX_WIDTH: f32 = 548.0;
 pub const DIALOG_MIN_HEIGHT: f32 = 184.0;

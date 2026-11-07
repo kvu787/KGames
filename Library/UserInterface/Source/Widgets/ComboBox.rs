@@ -15,7 +15,7 @@ use crate::design::controls::{
     COMBO_BOX_PADDING, COMBO_BOX_POPUP_MAX_ITEMS, COMBO_BOX_POPUP_PADDING, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, DURATION_FASTER, ELEVATION_FLYOUT, RADIUS_CONTROL, RADIUS_OVERLAY};
+use crate::design::tokens::{BODY, ELEVATION_FLYOUT, RADIUS_CONTROL, RADIUS_OVERLAY};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::input::devices::Key;
@@ -127,7 +127,7 @@ fn draw_closed(ui: &mut Ui, response: &Response, rect: Rect, text: &str, placeho
     .get(state);
     let keyboard_focus = response.focused && ui.focus_visible();
     let chevron = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary };
-    let background = ui.animate_color(response.id, 0, background.get(state), DURATION_FASTER);
+    let background = background.get(state);
     let mut painter = ui.painter();
     let theme = painter.theme();
     // A combo box draws its own focus cue instead of the system's: a ring 4
@@ -244,8 +244,6 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
         };
         let pill_length = if state == ControlState::Pressed { SELECTION_PILL_PRESSED_LENGTH } else { SELECTION_PILL_LENGTH };
         let text_color = if state == ControlState::Pressed { theme.text_secondary } else { theme.text_primary };
-        let pill_length = ui.animate(response.id, 1, pill_length, crate::design::tokens::DURATION_FAST, crate::design::tokens::CURVE_FAST_OUT_SLOW_IN);
-        let fill = ui.animate_color(response.id, 0, fill, DURATION_FASTER);
         let mut painter = ui.painter();
         let theme = painter.theme();
         painter.rounded(item, COMBO_BOX_ITEM_RADIUS, fill);

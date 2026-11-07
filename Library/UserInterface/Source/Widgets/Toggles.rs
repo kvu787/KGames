@@ -6,12 +6,12 @@ use crate::core::interaction::{ControlState, Response, Sense, id};
 use crate::core::ui::Ui;
 use crate::design::controls::{
     CHECK_BOX_GLYPH_SIZE, CHECK_BOX_PADDING, CHECK_BOX_SIZE, FOCUS_VISUAL_MARGIN_WIDE, RADIO_BUTTON_GLYPH, RADIO_BUTTON_GLYPH_DISABLED,
-    RADIO_BUTTON_GLYPH_DURATION, RADIO_BUTTON_GLYPH_POINTER_OVER, RADIO_BUTTON_GLYPH_PRESSED, RADIO_BUTTON_PADDING, RADIO_BUTTON_SIZE,
+    RADIO_BUTTON_GLYPH_POINTER_OVER, RADIO_BUTTON_GLYPH_PRESSED, RADIO_BUTTON_PADDING, RADIO_BUTTON_SIZE,
     TOGGLE_SWITCH_CONTENT_GAP, TOGGLE_SWITCH_HEIGHT, TOGGLE_SWITCH_KNOB, TOGGLE_SWITCH_KNOB_POINTER_OVER, TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT,
     TOGGLE_SWITCH_KNOB_PRESSED_MARGIN, TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_TRAVEL, TOGGLE_SWITCH_WIDTH,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, DURATION_NORMAL, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, CONTROL_HEIGHT, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border};
 use crate::widgets::widget::{Elevation, StateColors, Widget};
@@ -61,7 +61,7 @@ impl Widget for CheckBox<'_, '_> {
         };
         let glyph = StateColors::new(theme.text_on_accent, theme.text_on_accent, theme.text_on_accent_secondary, theme.text_on_accent_disabled);
         let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
-        let fill = ui.animate_color(response.id, 0, fill.get(state), DURATION_FASTER);
+        let fill = fill.get(state);
         let box_rect = Rect::new(rect.x, (rect.center().y - CHECK_BOX_SIZE / 2.0).round(), CHECK_BOX_SIZE, CHECK_BOX_SIZE);
         let mut painter = ui.painter();
         // The stroke is inside the box, as a Rectangle's is.
@@ -120,16 +120,15 @@ impl<T: PartialEq + Copy> Widget for RadioButton<'_, '_, T> {
         };
         let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
         let glyph_fill = theme.text_on_accent;
-        // The checked dot grows with the pointer over it and shrinks as it's
-        // pressed, along ControlFastOutSlowIn.
-        let (glyph_size, duration) = match state {
-            ControlState::PointerOver => (RADIO_BUTTON_GLYPH_POINTER_OVER, RADIO_BUTTON_GLYPH_DURATION),
-            ControlState::Pressed => (RADIO_BUTTON_GLYPH_PRESSED, RADIO_BUTTON_GLYPH_DURATION),
-            ControlState::Disabled => (RADIO_BUTTON_GLYPH_DISABLED, DURATION_FAST),
-            ControlState::Normal => (RADIO_BUTTON_GLYPH, 0.0),
+        // The checked dot is bigger with the pointer over it, and smaller
+        // while it's pressed.
+        let glyph_size = match state {
+            ControlState::PointerOver => RADIO_BUTTON_GLYPH_POINTER_OVER,
+            ControlState::Pressed => RADIO_BUTTON_GLYPH_PRESSED,
+            ControlState::Disabled => RADIO_BUTTON_GLYPH_DISABLED,
+            ControlState::Normal => RADIO_BUTTON_GLYPH,
         };
-        let glyph_size = ui.animate(response.id, 1, glyph_size, duration, CURVE_FAST_OUT_SLOW_IN);
-        let fill = ui.animate_color(response.id, 0, fill.get(state), DURATION_FASTER);
+        let fill = fill.get(state);
         let center = Point::new(rect.x + RADIO_BUTTON_SIZE / 2.0, rect.center().y.round());
         let circle = Rect::from_center(center, Size::square(RADIO_BUTTON_SIZE));
         let mut painter = ui.painter();
@@ -191,9 +190,9 @@ impl Widget for RadioGroup<'_, '_> {
     }
 }
 
-// A switch that's on or off, with a label after it. Its knob slides between
-// the track's ends, grows with the pointer over it, and stretches toward the
-// other end as it's pressed.
+// A switch that's on or off, with a label after it. Its knob is at the
+// track's end for its value, bigger with the pointer over it, and stretched
+// toward the other end while it's pressed.
 pub struct ToggleSwitch<'a, 'v> {
     value: &'v mut bool,
     label: &'a str,
@@ -238,30 +237,24 @@ impl Widget for ToggleSwitch<'_, '_> {
             )
         };
         let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
-        let (knob_width, knob_height, duration) = match state {
-            ControlState::PointerOver => (TOGGLE_SWITCH_KNOB_POINTER_OVER, TOGGLE_SWITCH_KNOB_POINTER_OVER, DURATION_FASTER),
-            ControlState::Pressed => (TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT, DURATION_FASTER),
-            ControlState::Disabled => (TOGGLE_SWITCH_KNOB, TOGGLE_SWITCH_KNOB, DURATION_NORMAL),
-            ControlState::Normal => (TOGGLE_SWITCH_KNOB, TOGGLE_SWITCH_KNOB, DURATION_FASTER),
+        let pressed = state == ControlState::Pressed;
+        let (knob_width, knob_height) = match state {
+            ControlState::PointerOver => (TOGGLE_SWITCH_KNOB_POINTER_OVER, TOGGLE_SWITCH_KNOB_POINTER_OVER),
+            ControlState::Pressed => (TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT),
+            ControlState::Disabled | ControlState::Normal => (TOGGLE_SWITCH_KNOB, TOGGLE_SWITCH_KNOB),
         };
-        let knob_width = ui.animate(response.id, 1, knob_width, duration, CURVE_FAST_OUT_SLOW_IN);
-        let knob_height = ui.animate(response.id, 2, knob_height, duration, CURVE_FAST_OUT_SLOW_IN);
-        let travel = ui.animate(response.id, 3, if on { 1.0 } else { 0.0 }, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
-        let fill = ui.animate_color(response.id, 0, fill.get(state), DURATION_FASTER);
+        let fill = fill.get(state);
         let track = Rect::new(rect.x, (rect.center().y - TOGGLE_SWITCH_HEIGHT / 2.0).round(), TOGGLE_SWITCH_WIDTH, TOGGLE_SWITCH_HEIGHT);
         let mut painter = ui.painter();
         painter.shape(track, TOGGLE_SWITCH_HEIGHT / 2.0, fill, stroke.map(|stroke| Border::new(stroke.get(state), 1.0)));
         // The knob is centered in a 20-pixel square at the track's end; a
         // stretched one keeps 3 pixels from that end.
-        let square = track.x + TOGGLE_SWITCH_KNOB_TRAVEL * travel;
-        let stretch = (knob_width - knob_height).max(0.0) / (TOGGLE_SWITCH_KNOB_PRESSED_WIDTH - TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT);
-        let centered = square + TOGGLE_SWITCH_HEIGHT / 2.0;
-        let pressed_center = if on {
-            square + TOGGLE_SWITCH_HEIGHT - TOGGLE_SWITCH_KNOB_PRESSED_MARGIN - knob_width / 2.0
-        } else {
-            square + TOGGLE_SWITCH_KNOB_PRESSED_MARGIN + knob_width / 2.0
+        let square = if on { track.x + TOGGLE_SWITCH_KNOB_TRAVEL } else { track.x };
+        let center_x = match (pressed, on) {
+            (false, _) => square + TOGGLE_SWITCH_HEIGHT / 2.0,
+            (true, true) => square + TOGGLE_SWITCH_HEIGHT - TOGGLE_SWITCH_KNOB_PRESSED_MARGIN - knob_width / 2.0,
+            (true, false) => square + TOGGLE_SWITCH_KNOB_PRESSED_MARGIN + knob_width / 2.0,
         };
-        let center_x = centered + (pressed_center - centered) * stretch.clamp(0.0, 1.0);
         let knob_rect = Rect::from_center(Point::new(center_x, track.center().y), Size::new(knob_width, knob_height));
         painter.rounded(knob_rect, knob_height / 2.0, knob.get(state));
         if !self.label.is_empty() {

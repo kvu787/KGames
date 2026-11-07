@@ -12,12 +12,11 @@
 use crate::core::interaction::{ControlState, Response, Sense};
 use crate::core::ui::Ui;
 use crate::design::controls::{
-    SLIDER_HEADER_GAP, SLIDER_HEIGHT, SLIDER_INNER_THUMB_DURATION, SLIDER_INNER_THUMB_DURATION_POINTER, SLIDER_INNER_THUMB_SCALE,
-    SLIDER_INNER_THUMB_SCALE_DISABLED, SLIDER_INNER_THUMB_SCALE_POINTER_OVER, SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_SIZE,
+    SLIDER_HEADER_GAP, SLIDER_HEIGHT, SLIDER_INNER_THUMB_SCALE, SLIDER_INNER_THUMB_SCALE_DISABLED, SLIDER_INNER_THUMB_SCALE_POINTER_OVER, SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_SIZE,
     SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE, SLIDER_TOOLTIP_FONT_SIZE, SLIDER_TOOLTIP_PADDING, SLIDER_TRACK_HEIGHT,
     SLIDER_TRACK_RADIUS, TOOLTIP_OFFSET,
 };
-use crate::design::tokens::{BODY, CURVE_FAST_OUT_SLOW_IN, ELEVATION_TOOLTIP, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, ELEVATION_TOOLTIP, RADIUS_CONTROL};
 use crate::drawing::text::TextStyle;
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
@@ -268,13 +267,12 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
         let state = response.state();
         let pressed = response.held && response.held_button == Some(crate::input::devices::MouseButton::Left);
         let visual_state = if pressed { ControlState::Pressed } else { state };
-        let (scale, duration) = match visual_state {
-            ControlState::PointerOver => (SLIDER_INNER_THUMB_SCALE_POINTER_OVER, SLIDER_INNER_THUMB_DURATION_POINTER),
-            ControlState::Pressed => (SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_DURATION_POINTER),
-            ControlState::Disabled => (SLIDER_INNER_THUMB_SCALE_DISABLED, SLIDER_INNER_THUMB_DURATION),
-            ControlState::Normal => (SLIDER_INNER_THUMB_SCALE, SLIDER_INNER_THUMB_DURATION),
+        let scale = match visual_state {
+            ControlState::PointerOver => SLIDER_INNER_THUMB_SCALE_POINTER_OVER,
+            ControlState::Pressed => SLIDER_INNER_THUMB_SCALE_PRESSED,
+            ControlState::Disabled => SLIDER_INNER_THUMB_SCALE_DISABLED,
+            ControlState::Normal => SLIDER_INNER_THUMB_SCALE,
         };
-        let scale = ui.animate(response.id, 0, scale, duration, CURVE_FAST_OUT_SLOW_IN);
         let theme = ui.theme();
         let rail = StateColors::new(theme.control_strong_fill, theme.control_strong_fill, theme.control_strong_fill, theme.control_strong_fill_disabled);
         let accent = StateColors::new(theme.accent, theme.accent_secondary, theme.accent_tertiary, theme.accent_disabled);
