@@ -1,12 +1,17 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
-// a standard button's elevation border, whether the PerfBar says that
-// vertical sync is on, the PerfBar's colors in each theme, and the page for an
-// unsupported setup.
+// a standard button's elevation border, that widgets draw a new state whole
+// on the frame that makes it, whether the PerfBar says that vertical sync is
+// on, the PerfBar's colors in each theme, and the page for an unsupported
+// setup.
 
+use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
-use user_interface::{Button, Card, Headless, Key, Program, Rect, Theme, ThemeKind, Ui};
+use user_interface::{
+    Button, Card, CheckBox, ComboBox, Headless, Key, ListView, MenuBar, MenuItem, Program, RadioGroup, Rect, Segmented, SelectorBar, Slider,
+    Theme, ThemeKind, ToggleSwitch, Ui,
+};
 
 struct Page;
 
@@ -73,6 +78,150 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
             ThemeKind::Dark => assert!(brightness(stronger) > brightness(weaker), "{top:?} {bottom:?}"),
         }
     }
+}
+
+// A widget of each kind whose look follows the input, and a menu bar with a
+// submenu.
+#[derive(Default)]
+struct States {
+    on: bool,
+    checked: bool,
+    size: usize,
+    level: f64,
+    alignment: usize,
+    tab: usize,
+    pick: usize,
+    row: Option<usize>,
+}
+
+const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
+const FILE: &[MenuItem] = &[MenuItem::new("Open"), MenuItem::submenu("Recent", RECENT)];
+const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
+const MENUS: &[(&str, &[MenuItem])] = &[("File", FILE)];
+
+impl Program for States {
+    fn title(&self) -> String {
+        "States".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        let top = ui.content_top();
+        ui.add("Menus", Rect::new(40.0, top + 8.0, 200.0, MENU_BAR_HEIGHT), MenuBar::new(MENUS));
+        let card = ui.card(Rect::new(40.0, top + 300.0, 480.0, 800.0), Card::new("States"));
+        let mut area = card.content;
+        ui.add("Button", area.cut_top(32.0, 8.0), Button::new("Button"));
+        ui.add("Switch", area.cut_top(32.0, 8.0), ToggleSwitch::new(&mut self.on, "Switch"));
+        ui.add("Check", area.cut_top(32.0, 8.0), CheckBox::new(&mut self.checked, "Check"));
+        ui.add("Size", area.cut_top(RadioGroup::height(SIZES.len()), 8.0), RadioGroup::new(&mut self.size, &SIZES));
+        ui.add("Level", area.cut_top(32.0, 8.0), Slider::new(&mut self.level, 0.0, 1.0));
+        ui.add("Alignment", area.cut_top(32.0, 8.0), Segmented::new(&mut self.alignment, &["Left", "Center", "Right"]));
+        ui.add("Tabs", area.cut_top(48.0, 8.0), SelectorBar::new(&mut self.tab, &["First", "Second", "Third"]));
+        ui.add("Pick", area.cut_top(32.0, 8.0), ComboBox::new(&mut self.pick, &["One", "Two", "Three"]));
+        // As tall as its rows, so that it has no scroll bar, whose thumb
+        // waits for the pointer to rest on it before it widens.
+        let rows = area.cut_top(120.0, 8.0);
+        ui.add("Rows", rows, ListView::new(3, 40.0, |ui, index, row, _| {
+            ui.label(row, &format!("Row {index}"));
+        }).selection(&mut self.row));
+    }
+}
+
+#[test]
+fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
+    // Each step is input that changes how a widget looks, and after which
+    // nothing changes. The second frame after the input's is drawn, and
+    // then the frame a second later, which must be the same below the
+    // PerfBar, whose numbers do change. A widget that eased, faded or slid
+    // to its new state, even over WinUI's fastest 83 ms, would be less than
+    // half way there in the first. It's the second frame after because the
+    // pointer finds its widget by the last frame's targets: what a popup
+    // that closes uncovers is under the pointer a frame later.
+    type Step = fn(&mut Headless<States>);
+    let steps: [(&str, Step); 19] = [
+        ("the pointer onto a button", |app| {
+            app.move_to("Button");
+        }),
+        ("a press of the button", |app| {
+            app.press("Button");
+        }),
+        ("its release", |app| {
+            app.release();
+        }),
+        ("a press of a toggle switch", |app| {
+            app.press("Switch");
+        }),
+        ("its release, which turns it on", |app| {
+            app.release();
+        }),
+        ("a click of a checkbox", |app| {
+            app.click("Check");
+        }),
+        ("a click of a radio button", |app| {
+            app.click("Size/Large");
+        }),
+        ("a press of a slider", |app| {
+            app.press("Level");
+        }),
+        ("its release", |app| {
+            app.release();
+        }),
+        ("a click of a segment", |app| {
+            app.click("Alignment/Right");
+        }),
+        ("a click of a tab", |app| {
+            app.click("Tabs/Third");
+        }),
+        ("a click of a list's row", |app| {
+            app.click("Rows/2");
+        }),
+        ("a combo box's list opening", |app| {
+            app.click("Pick");
+        }),
+        ("the pointer onto its item", |app| {
+            app.move_to("Pick/1");
+        }),
+        ("choosing the combo box's item", |app| {
+            app.click("Pick/1");
+        }),
+        ("a menu opening", |app| {
+            app.click("Menus/File");
+        }),
+        ("its submenu opening", |app| {
+            app.move_to("Menus/File/Menu/Recent");
+        }),
+        ("the pointer onto the submenu's item", |app| {
+            app.move_to("Menus/File/Menu/Recent/Menu/First");
+        }),
+        ("choosing the submenu's item", |app| {
+            app.click("Menus/File/Menu/Recent/Menu/First");
+        }),
+    ];
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for (index, (step, act)) in steps.into_iter().enumerate() {
+        // The input's frame and the one after it, and one more.
+        act(&mut app);
+        app.frame();
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        let below = (PERF_BAR_HEIGHT as u32 * now.width * 4) as usize;
+        if now.pixels[below..] == later.pixels[below..] {
+            continue;
+        }
+        save(&now, &format!("States{index}Now"));
+        save(&later, &format!("States{index}Later"));
+        let (x, y) = (PERF_BAR_HEIGHT as u32..now.height)
+            .flat_map(|y| (0..now.width).map(move |x| (x, y)))
+            .find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
+            .unwrap();
+        panic!("after {step}, ({x}, {y}) was {:?} and a second later {:?}", now.pixel(x, y), later.pixel(x, y));
+    }
+    // The steps did what they say.
+    let program = &app.program;
+    assert!(program.on && program.checked);
+    assert_eq!((program.size, program.alignment, program.tab, program.pick, program.row), (2, 2, 2, 1, Some(2)));
 }
 
 #[test]
