@@ -14,15 +14,12 @@ impl Program for Page {
         "Page".to_string()
     }
 
-    fn build(&mut self, ui: &mut Ui) {
-        ui.card("Card", Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"), |ui, card| {
-            let [accent, standard] = card.content.top_strip(32.0).columns::<2>(8.0);
-            ui.node("Accent", accent, Button::new("Accent").accent());
-            ui.node("Standard", standard, Button::new("Standard"));
-        });
+    fn update(&mut self, ui: &mut Ui) {
+        let card = ui.card(Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"));
+        let [accent, standard] = card.content.top_strip(32.0).columns::<2>(8.0);
+        ui.add("Accent", accent, Button::new("Accent").accent());
+        ui.add("Standard", standard, Button::new("Standard"));
     }
-
-    fn update(&mut self, _ui: &mut Ui) {}
 }
 
 fn close(a: [u8; 4], b: [u8; 4]) -> bool {
@@ -102,8 +99,6 @@ impl Program for Unsupported {
     fn title(&self) -> String {
         "Unsupported".to_string()
     }
-
-    fn build(&mut self, _ui: &mut Ui) {}
 
     fn update(&mut self, ui: &mut Ui) {
         ui.unsupported_setup(&[

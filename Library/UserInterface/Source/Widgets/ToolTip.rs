@@ -21,44 +21,6 @@ pub enum TooltipLine<'a> {
     Separator,
 }
 
-// A tooltip's line that a node owns, for Ui::set_tooltip_tips.
-#[derive(Clone, Debug)]
-pub enum Tip {
-    Heading(String),
-    Text(String),
-    Pair(String, String),
-    Mono(String),
-    Separator,
-}
-
-impl Tip {
-    pub fn heading(text: &str) -> Self {
-        Tip::Heading(text.to_string())
-    }
-
-    pub fn text(text: &str) -> Self {
-        Tip::Text(text.to_string())
-    }
-
-    pub fn pair(label: &str, value: &str) -> Self {
-        Tip::Pair(label.to_string(), value.to_string())
-    }
-
-    pub fn mono(text: &str) -> Self {
-        Tip::Mono(text.to_string())
-    }
-
-    pub fn line(&self) -> TooltipLine<'_> {
-        match self {
-            Tip::Heading(text) => TooltipLine::Heading(text),
-            Tip::Text(text) => TooltipLine::Text(text),
-            Tip::Pair(label, value) => TooltipLine::Pair(label, value),
-            Tip::Mono(text) => TooltipLine::Mono(text),
-            Tip::Separator => TooltipLine::Separator,
-        }
-    }
-}
-
 impl Ui {
     // Shows the text as the tooltip of the widget whose response it is,
     // once the pointer has rested on it.

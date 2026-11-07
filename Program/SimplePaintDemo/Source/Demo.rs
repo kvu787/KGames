@@ -69,28 +69,8 @@ impl Program for Demo {
         TITLE.to_string()
     }
 
-    fn build(&mut self, ui: &mut Ui) {
-        cards::build(self, ui);
-    }
-
     fn update(&mut self, ui: &mut Ui) {
-        // Each key pressed this frame, in order, with its repeats, unless a
-        // widget with focus takes it, like a button takes Space.
-        let modifiers = ui.input().modifiers();
-        for &(key, repeat) in ui.input().keys_pressed() {
-            if ui.key_pressed(key)
-                && let Some(command) = editor::command(key, repeat, modifiers)
-            {
-                self.editor.apply(command, &self.paint_path);
-            }
-        }
-        if ui.clicked("Reset") {
-            self.editor.reset();
-        }
-        if ui.clicked("Save") {
-            self.editor.save(&self.paint_path);
-        }
-        cards::sync(self, ui);
+        cards::draw(self, ui);
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> Result<()> {

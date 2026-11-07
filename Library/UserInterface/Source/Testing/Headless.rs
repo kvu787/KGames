@@ -75,8 +75,6 @@ impl<P: Program> Headless<P> {
         let program = create(&mut startup).expect("the program couldn't start");
         let mut headless = Self::new(program);
         headless.ui.notices = startup.take_notices();
-        // The notices take room under the app bar, so the page re-lays out.
-        headless.ui.request_rebuild();
         headless.run_frame();
         headless
     }
@@ -87,9 +85,6 @@ impl<P: Program> Headless<P> {
         let mut headless = Self::with_theme(program, theme);
         headless.custom_size = Some(size);
         headless.ui.performance = None;
-        // Without a PerfBar the content starts at the window's top, so the
-        // tree re-lays out.
-        headless.ui.request_rebuild();
         headless.run_frame();
         headless
     }
@@ -133,7 +128,7 @@ impl<P: Program> Headless<P> {
         events.push(Event::Gamepad(self.gamepad));
         let size = self.size();
         self.ui.begin_frame(&events, self.time(), size, self.fullscreen);
-        crate::application::run::run_frame(&mut self.program, &mut self.ui);
+        self.program.update(&mut self.ui);
         self.ui.end_frame();
         for request in std::mem::take(&mut self.ui.requests) {
             match request {

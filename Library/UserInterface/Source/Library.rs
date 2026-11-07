@@ -68,10 +68,6 @@ pub mod drawing {
 }
 
 mod core {
-    #[path = "Control.rs"]
-    pub mod control;
-    #[path = "Tree.rs"]
-    pub mod tree;
     #[path = "Ui.rs"]
     pub mod ui;
 }
@@ -79,8 +75,6 @@ mod core {
 mod widgets {
     #[path = "Buttons.rs"]
     pub mod buttons;
-    #[path = "Canvas.rs"]
-    pub mod canvas;
     #[path = "Card.rs"]
     pub mod card;
     #[path = "ColorPicker.rs"]
@@ -143,7 +137,6 @@ pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{Settings, WindowMode};
-pub use core::control::{AutoTarget, Control, NodeContext, UiEvent, UiEventKind, adopted};
 pub use core::ui::{ControlState, Cursor, Environment, FrameStats, Id, Keys, Response, Sense, Target, Ui, id};
 pub use design::icons::Icon;
 pub use design::theme::{AccentRamp, DataColors, Theme, ThemeKind};
@@ -159,28 +152,26 @@ pub use platform::window::FocusChange;
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};
-pub use widgets::canvas::Canvas;
-pub use widgets::card::{Card, CardArea, CardStyle};
+pub use widgets::card::{Card, CardArea, CardStyle, OpenCard};
 pub use widgets::color_picker::{ColorField, ColorPicker};
 pub use widgets::combo_box::ComboBox;
 pub use widgets::dialog::{Dialog, DialogResult};
-pub use widgets::expander::{EXPANDER_HEADER_HEIGHT, Expander};
-pub use widgets::info_bar::{InfoBar, Severity};
+pub use widgets::expander::Expander;
+pub use widgets::info_bar::{InfoBar, InfoBarResponse, Severity};
 pub use widgets::info_card::InfoCard;
 pub use widgets::layout::{Form, View};
-pub use widgets::list_view::{ListRow, ListView, RowState, WHEEL_ROWS};
+pub use widgets::list_view::{ListResponse, ListView, RowState, WHEEL_ROWS};
 pub use widgets::menu::{MenuBar, MenuItem};
 pub use widgets::navigation::{Choice, Segmented, SelectorBar};
 pub use widgets::number_box::NumberBox;
-pub use widgets::progress::{ProgressBar, ProgressRing};
-pub use widgets::scrolling::ScrollCanvas;
-pub use widgets::shell::{AppBar, Status, StatusBar};
+pub use widgets::scrolling::{ScrollArea, ScrollBar};
+pub use widgets::shell::{AppBar, Status};
 pub use widgets::slider::{Number, Slider, slider_rail};
-pub use widgets::text::{Divider, Field, IconBlock, KEYCAP_HEIGHT, Swatch, Text, TextColor};
-pub use widgets::text_box::TextBox;
-pub use widgets::toggles::{CheckBox, RadioGroup, ToggleSwitch};
-pub use widgets::tool_tip::{Tip, TooltipLine};
-pub use widgets::widget::{Elevation, StateColors, focus_visual};
+pub use widgets::text::{KEYCAP_HEIGHT, Swatch};
+pub use widgets::text_box::{TextBox, TextBoxResponse};
+pub use widgets::toggles::{CheckBox, RadioButton, ToggleSwitch};
+pub use widgets::tool_tip::TooltipLine;
+pub use widgets::widget::{Elevation, StateColors, Widget, focus_visual};
 
 // The crates that programs use with the interface, so that they share them.
 pub use game_input;

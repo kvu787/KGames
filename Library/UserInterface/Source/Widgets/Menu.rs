@@ -3,13 +3,11 @@
 // checks and keyboard accelerators; its separators; and its submenus, which
 // open beside their item, each raised 8 more than the menu it's from.
 //
-// Items are targets named "<menu>/<label>", and what a menu tells of is the
+// Items are targets named "<menu>/<label>", and what a menu returns is the
 // label of the item chosen from it or its submenus, so labels in a menu are
 // its own. The arrows move a highlight, Right opens a submenu and Left closes
-// it, Enter chooses, and Esc closes the top menu. A menu paints on the popup
-// layer, so the engine runs in the dispatch phase.
+// it, Enter chooses, and Esc closes the top menu.
 
-use crate::core::control::{AutoTarget, Control, NodeContext, UiEventKind};
 use crate::core::ui::{ControlState, Id, Response, Sense, Ui, id};
 use crate::design::controls::{
     MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING, MENU_FLYOUT_MIN_WIDTH, MENU_FLYOUT_PADDING, MENU_ITEM_ACCELERATOR_GAP, MENU_ITEM_CHECK_GLYPH,
@@ -21,31 +19,32 @@ use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, ELEVATION_FLYOUT, EL
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::input::devices::Key;
+use crate::widgets::widget::Widget;
 
-#[derive(Clone, Debug)]
-pub enum MenuItem {
+#[derive(Clone, Copy, Debug)]
+pub enum MenuItem<'a> {
     Command {
-        label: String,
+        label: &'a str,
         icon: Option<Icon>,
         // Its keyboard accelerator's text, like "Ctrl+S".
-        accelerator: Option<String>,
+        accelerator: Option<&'a str>,
         enabled: bool,
         // A ToggleMenuFlyoutItem's check.
         checked: Option<bool>,
     },
     Submenu {
-        label: String,
+        label: &'a str,
         icon: Option<Icon>,
-        items: Vec<MenuItem>,
+        items: &'a [MenuItem<'a>],
         enabled: bool,
     },
     Separator,
 }
 
-impl MenuItem {
-    pub fn new(label: &str) -> Self {
+impl<'a> MenuItem<'a> {
+    pub const fn new(label: &'a str) -> Self {
         MenuItem::Command {
-            label: label.to_string(),
+            label,
             icon: None,
             accelerator: None,
             enabled: true,
@@ -53,50 +52,79 @@ impl MenuItem {
         }
     }
 
-    pub fn submenu(label: &str, items: Vec<MenuItem>) -> Self {
+    pub const fn submenu(label: &'a str, items: &'a [MenuItem<'a>]) -> Self {
         MenuItem::Submenu {
-            label: label.to_string(),
+            label,
             icon: None,
             items,
             enabled: true,
         }
     }
 
-    pub fn separator() -> Self {
+    pub const fn separator() -> Self {
         MenuItem::Separator
     }
 
-    pub fn icon(mut self, new_icon: Icon) -> Self {
-        match &mut self {
-            MenuItem::Command { icon, .. } | MenuItem::Submenu { icon, .. } => *icon = Some(new_icon),
-            MenuItem::Separator => {}
+    pub const fn icon(self, new_icon: Icon) -> Self {
+        match self {
+            MenuItem::Command { label, accelerator, enabled, checked, .. } => MenuItem::Command {
+                label,
+                icon: Some(new_icon),
+                accelerator,
+                enabled,
+                checked,
+            },
+            MenuItem::Submenu { label, items, enabled, .. } => MenuItem::Submenu {
+                label,
+                icon: Some(new_icon),
+                items,
+                enabled,
+            },
+            MenuItem::Separator => MenuItem::Separator,
         }
-        self
     }
 
-    pub fn accelerator(mut self, text: &str) -> Self {
-        if let MenuItem::Command { accelerator, .. } = &mut self {
-            *accelerator = Some(text.to_string());
+    pub const fn accelerator(self, text: &'a str) -> Self {
+        match self {
+            MenuItem::Command { label, icon, enabled, checked, .. } => MenuItem::Command {
+                label,
+                icon,
+                accelerator: Some(text),
+                enabled,
+                checked,
+            },
+            other => other,
         }
-        self
     }
 
-    pub fn enabled(mut self, now: bool) -> Self {
-        match &mut self {
-            MenuItem::Command { enabled, .. } | MenuItem::Submenu { enabled, .. } => *enabled = now,
-            MenuItem::Separator => {}
+    pub const fn enabled(self, now: bool) -> Self {
+        match self {
+            MenuItem::Command { label, icon, accelerator, checked, .. } => MenuItem::Command {
+                label,
+                icon,
+                accelerator,
+                enabled: now,
+                checked,
+            },
+            MenuItem::Submenu { label, icon, items, .. } => MenuItem::Submenu { label, icon, items, enabled: now },
+            MenuItem::Separator => MenuItem::Separator,
         }
-        self
     }
 
-    pub fn checked(mut self, now: bool) -> Self {
-        if let MenuItem::Command { checked, .. } = &mut self {
-            *checked = Some(now);
+    pub const fn checked(self, now: bool) -> Self {
+        match self {
+            MenuItem::Command { label, icon, accelerator, enabled, .. } => MenuItem::Command {
+                label,
+                icon,
+                accelerator,
+                enabled,
+                checked: Some(now),
+            },
+            other => other,
         }
-        self
     }
 
-    fn label(&self) -> &str {
+    fn label(&self) -> &'a str {
         match self {
             MenuItem::Command { label, .. } | MenuItem::Submenu { label, .. } => label,
             MenuItem::Separator => "",
@@ -130,7 +158,7 @@ struct MenuState {
 impl Ui {
     // A menu that the button whose response this is opens and closes, below
     // it. Returns the label of the item chosen from it.
-    pub fn flyout_menu(&mut self, name: &str, owner: &Response, items: &[MenuItem]) -> Option<String> {
+    pub fn flyout_menu<'a>(&mut self, name: &str, owner: &Response, items: &'a [MenuItem<'a>]) -> Option<&'a str> {
         if owner.clicked {
             if self.popup_open(owner.id) {
                 self.close_popup(owner.id);
@@ -146,7 +174,7 @@ impl Ui {
 
     // A menu that opens at the pointer when the widget whose response this
     // is is right-clicked: a context menu.
-    pub fn context_menu(&mut self, name: &str, owner: &Response, items: &[MenuItem]) -> Option<String> {
+    pub fn context_menu<'a>(&mut self, name: &str, owner: &Response, items: &'a [MenuItem<'a>]) -> Option<&'a str> {
         let menu_id = id(name);
         if (owner.secondary_clicked || (owner.secondary_pressed && owner.held_button.is_none()))
             && let Some(pointer) = self.pointer()
@@ -175,7 +203,7 @@ impl Ui {
 
     // Shows an open menu, raised for its level of nesting, and returns the
     // label chosen from it or its submenus.
-    fn show_menu(&mut self, name: &str, owner: Id, items: &[MenuItem], level: u32) -> Option<String> {
+    fn show_menu<'a>(&mut self, name: &str, owner: Id, items: &'a [MenuItem<'a>], level: u32) -> Option<&'a str> {
         let menu_id = id(name);
         let has_icons = items.iter().any(|item| matches!(item, MenuItem::Command { icon: Some(_), .. } | MenuItem::Submenu { icon: Some(_), .. }));
         let has_checks = items.iter().any(|item| matches!(item, MenuItem::Command { checked: Some(_), .. }));
@@ -184,7 +212,7 @@ impl Ui {
         for item in items {
             let text = match item {
                 MenuItem::Command { label, accelerator, .. } => {
-                    self.measure(label, BODY).width + accelerator.as_ref().map_or(0.0, |text| MENU_ITEM_ACCELERATOR_GAP + self.measure(text, CAPTION).width)
+                    self.measure(label, BODY).width + accelerator.map_or(0.0, |text| MENU_ITEM_ACCELERATOR_GAP + self.measure(text, CAPTION).width)
                 }
                 MenuItem::Submenu { label, .. } => self.measure(label, BODY).width + MENU_ITEM_ACCELERATOR_GAP + MENU_ITEM_CHEVRON_SIZE,
                 MenuItem::Separator => 0.0,
@@ -218,7 +246,7 @@ impl Ui {
         let mut state = std::mem::take(self.memory::<MenuState>(menu_id));
         let on_top = self.popup_on_top(owner);
         let selectable: Vec<usize> = (0..items.len()).filter(|index| items[*index].is_enabled()).collect();
-        let mut chosen: Option<String> = None;
+        let mut chosen = None;
         let mut open_child: Option<usize> = state.open_submenu;
         if on_top && !selectable.is_empty() {
             let position = state.highlighted.and_then(|highlighted| selectable.iter().position(|index| *index == highlighted));
@@ -236,7 +264,7 @@ impl Ui {
                 let input = self.input();
                 let opens = matches!(items[highlighted], MenuItem::Submenu { .. });
                 if (input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE)) && !opens {
-                    chosen = Some(items[highlighted].label().to_string());
+                    chosen = Some(items[highlighted].label());
                 } else if (input.key_pressed(Key::RIGHT) || input.key_pressed_once(Key::ENTER)) && opens {
                     open_child = Some(highlighted);
                 }
@@ -260,9 +288,9 @@ impl Ui {
             let rect = slot.pad(MENU_ITEM_MARGIN);
             let item_name = format!("{name}/{}", item.label());
             let enabled = self.enabled();
-            self.set_scope_enabled(enabled && item.is_enabled());
+            self.set_enabled(enabled && item.is_enabled());
             let response = self.interact(&item_name, rect, Sense::CLICK, "MenuFlyoutItem");
-            self.set_scope_enabled(enabled);
+            self.set_enabled(enabled);
             self.set_label(&item_name, item.label());
             if response.hovered {
                 state.highlighted = Some(index);
@@ -276,7 +304,7 @@ impl Ui {
             if response.clicked {
                 match item {
                     MenuItem::Submenu { .. } => open_child = Some(index),
-                    _ => chosen = Some(item.label().to_string()),
+                    _ => chosen = Some(item.label()),
                 }
             }
             let state_now = response.state();
@@ -338,7 +366,7 @@ impl Ui {
         // The open submenu, beside its item, and whatever's chosen from it.
         match open_child.zip(child_anchor) {
             Some((index, (_, item_id, item_rect))) => {
-                let MenuItem::Submenu { label, items: children, .. } = &items[index] else {
+                let MenuItem::Submenu { label, items: children, .. } = items[index] else {
                     unreachable!("only submenus open");
                 };
                 let child_name = format!("{name}/{label}/Menu");
@@ -370,64 +398,36 @@ impl Ui {
 }
 
 // WinUI's MenuBar: menus' names along a bar, each opening its menu below it.
-// While one is open, the pointer moving onto another opens that one. It
-// emits Chose with the label of the item chosen from any of its menus.
-pub struct MenuBar {
-    menus: Vec<(String, Vec<MenuItem>)>,
-    responses: Vec<(Response, bool)>,
+// While one is open, the pointer moving onto another opens that one.
+pub struct MenuBar<'a> {
+    menus: &'a [(&'a str, &'a [MenuItem<'a>])],
 }
 
-impl MenuBar {
-    pub fn new(menus: Vec<(&str, Vec<MenuItem>)>) -> Self {
-        Self {
-            menus: menus.into_iter().map(|(title, items)| (title.to_string(), items)).collect(),
-            responses: Vec::new(),
-        }
-    }
-
-    // Swaps a menu's items, like checks that changed.
-    pub fn set_menu(&mut self, title: &str, items: Vec<MenuItem>) {
-        if let Some(menu) = self.menus.iter_mut().find(|(name, _)| name == title) {
-            menu.1 = items;
-        }
+impl<'a> MenuBar<'a> {
+    pub fn new(menus: &'a [(&'a str, &'a [MenuItem<'a>])]) -> Self {
+        Self { menus }
     }
 
     // The width its items take.
     pub fn width(&self, ui: &mut Ui) -> f32 {
         self.menus.iter().map(|(title, _)| ui.measure(title, BODY).width.ceil() + MENU_BAR_ITEM_PADDING.horizontal() + MENU_BAR_ITEM_MARGIN.horizontal()).sum()
     }
-
-    fn slots(&self, ui: &mut Ui, rect: Rect) -> Vec<Rect> {
-        let mut x = rect.x;
-        self.menus
-            .iter()
-            .map(|(title, _)| {
-                let width = ui.measure(title, BODY).width.ceil() + MENU_BAR_ITEM_PADDING.horizontal();
-                let slot = Rect::new(x, rect.y, width + MENU_BAR_ITEM_MARGIN.horizontal(), rect.height);
-                x += slot.width;
-                slot
-            })
-            .collect()
-    }
 }
 
-impl Control for MenuBar {
-    fn kind(&self) -> &'static str {
-        "MenuBar"
-    }
+impl<'a> Widget for MenuBar<'a> {
+    // The label of the item chosen from one of its menus.
+    type Response = Option<&'a str>;
 
-    fn auto_target(&self) -> AutoTarget {
-        AutoTarget::None
-    }
-
-    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let slots = self.slots(ui, ctx.rect);
-        let any_open = self.menus.iter().any(|(title, _)| ui.popup_open(id(&format!("{}/{title}", ctx.name))));
-        self.responses.clear();
+    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Option<&'a str> {
+        let mut x = rect.x;
         let mut chosen = None;
-        for (index, (title, items)) in self.menus.iter().enumerate() {
-            let item = slots[index].pad(MENU_BAR_ITEM_MARGIN);
-            let item_name = format!("{}/{title}", ctx.name);
+        let any_open = self.menus.iter().any(|(title, _)| ui.popup_open(id(&format!("{name}/{title}"))));
+        for (title, items) in self.menus {
+            let width = ui.measure(title, BODY).width.ceil() + MENU_BAR_ITEM_PADDING.horizontal();
+            let slot = Rect::new(x, rect.y, width + MENU_BAR_ITEM_MARGIN.horizontal(), rect.height);
+            x += slot.width;
+            let item = slot.pad(MENU_BAR_ITEM_MARGIN);
+            let item_name = format!("{name}/{title}");
             let mut response = ui.interact(&item_name, item, Sense::BUTTON, "MenuBarItem");
             ui.set_label(&item_name, title);
             let open = ui.popup_open(response.id);
@@ -438,21 +438,6 @@ impl Control for MenuBar {
             if response.focused && ui.input().key_pressed(Key::DOWN) && !open {
                 response.clicked = true;
             }
-            if let Some(label) = ui.flyout_menu(&format!("{item_name}/Menu"), &response, items) {
-                chosen = Some(label);
-            }
-            self.responses.push((response, ui.popup_open(response.id)));
-        }
-        if let Some(label) = chosen {
-            ctx.emit(ui, UiEventKind::Chose(label));
-        }
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let slots = self.slots(ui, ctx.rect);
-        for (index, (title, _)) in self.menus.iter().enumerate() {
-            let item = slots[index].pad(MENU_BAR_ITEM_MARGIN);
-            let (response, open) = self.responses.get(index).cloned().unwrap_or_default();
             let state = response.state();
             let theme = ui.theme();
             let background = match state {
@@ -467,6 +452,10 @@ impl Control for MenuBar {
             painter.rounded(item, RADIUS_CONTROL, background);
             painter.text_in(item, title, BODY, foreground, Align::Center);
             ui.focus_visual_if(response.focused, item, RADIUS_CONTROL);
+            if let Some(label) = ui.flyout_menu(&format!("{item_name}/Menu"), &response, items) {
+                chosen = Some(label);
+            }
         }
+        chosen
     }
 }

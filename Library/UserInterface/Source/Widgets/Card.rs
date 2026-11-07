@@ -4,16 +4,16 @@
 // is opaque acrylic, raised like a flyout, for over a 3D view. A card with a
 // view leaves a hole for a 3D view that the program's render draws.
 //
-// A card is a group: `ui.card(name, rect, Card::new("Buttons"), |ui, area| ...)`
-// makes it and its children, laid out in `area.content`.
+// A card can size itself to its content: begin_card gives the content all
+// the height it may take, the program cuts its controls from the top, and
+// end_card draws the card behind them, as tall as what they used.
 
-use crate::core::control::{AutoTarget, Control, NodeContext};
 use crate::core::ui::{Sense, Ui};
 use crate::design::tokens::{
     BODY_STRONG, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, ELEVATION_FLOATING_CARD, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S,
 };
-use crate::drawing::geometry::{Color, Insets, Rect};
-use crate::drawing::painter::{Align, Border, Corners};
+use crate::drawing::geometry::{Color, Rect};
+use crate::drawing::painter::{Align, Border, Corners, Layer};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CardStyle {
@@ -25,40 +25,33 @@ pub enum CardStyle {
     Subtle,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct Card {
-    title: String,
-    subtitle: Option<String>,
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Card<'a> {
+    title: &'a str,
+    subtitle: Option<&'a str>,
     style: CardStyle,
-    // Whether scripts see it, as a target of kind "Card".
-    listed: bool,
-    label: Option<String>,
+    // The name that scripts know it by, if they should.
+    name: Option<&'a str>,
+    label: Option<&'a str>,
     padding: f32,
-    // The hole for a 3D view that the program's render draws.
-    view: bool,
 }
 
-impl Card {
-    pub fn new(title: &str) -> Self {
+impl<'a> Card<'a> {
+    pub fn new(title: &'a str) -> Self {
         Self {
-            title: title.to_string(),
+            title,
             subtitle: None,
             style: CardStyle::Standard,
-            listed: false,
+            name: None,
             label: None,
             padding: CARD_PADDING,
-            view: false,
         }
     }
 
     // A caption after the title, like a count or what the card is for.
-    pub fn subtitle(mut self, subtitle: &str) -> Self {
-        self.subtitle = Some(subtitle.to_string());
+    pub fn subtitle(mut self, subtitle: &'a str) -> Self {
+        self.subtitle = Some(subtitle);
         self
-    }
-
-    pub fn set_subtitle(&mut self, subtitle: &str) {
-        self.subtitle = Some(subtitle.to_string());
     }
 
     pub fn floating(mut self) -> Self {
@@ -77,30 +70,18 @@ impl Card {
     }
 
     // Makes the card a target that scripts see, of kind "Card".
-    pub fn listed(mut self) -> Self {
-        self.listed = true;
+    pub fn named(mut self, name: &'a str) -> Self {
+        self.name = Some(name);
         self
     }
 
-    pub fn label(mut self, label: &str) -> Self {
-        self.label = Some(label.to_string());
+    pub fn label(mut self, label: &'a str) -> Self {
+        self.label = Some(label);
         self
-    }
-
-    pub fn set_label(&mut self, label: &str) {
-        self.label = Some(label.to_string());
     }
 
     pub fn padding(mut self, padding: f32) -> Self {
         self.padding = padding;
-        self
-    }
-
-    // Leaves a hole in the content for a 3D view, which the program's render
-    // draws. Clear the view to Theme::card_opaque for it to look like the
-    // card.
-    pub fn with_view(mut self) -> Self {
-        self.view = true;
         self
     }
 
@@ -110,29 +91,6 @@ impl Card {
     pub fn height_around(&self, content_height: f32) -> f32 {
         let header = if self.title.is_empty() { 0.0 } else { CARD_HEADER_HEIGHT + CARD_HEADER_GAP };
         self.padding * 2.0 + header + content_height
-    }
-
-    // Where the card's parts are, for laying out its children at build.
-    pub fn area(&self, ui: &mut Ui, rect: Rect) -> CardArea {
-        let inner = rect.inset(self.padding);
-        if self.title.is_empty() {
-            return CardArea {
-                rect,
-                header: Rect::new(inner.x, inner.y, 0.0, 0.0),
-                content: inner,
-            };
-        }
-        let mut title_width = ui.measure(&self.title, BODY_STRONG).width;
-        if let Some(subtitle) = &self.subtitle {
-            title_width += SPACE_S + ui.measure(subtitle, CAPTION).width;
-        }
-        let header_row = inner.top_strip(CARD_HEADER_HEIGHT);
-        let header_left = (header_row.x + title_width + SPACE_S).min(header_row.right());
-        CardArea {
-            rect,
-            header: Rect::new(header_left, header_row.y, header_row.right() - header_left, header_row.height),
-            content: inner.pad(Insets::new(0.0, CARD_HEADER_HEIGHT + CARD_HEADER_GAP, 0.0, 0.0)),
-        }
     }
 }
 
@@ -147,56 +105,106 @@ pub struct CardArea {
     pub content: Rect,
 }
 
-impl Control for Card {
-    fn kind(&self) -> &'static str {
-        "Card"
+// A card whose height its content decides, between begin_card and end_card.
+pub struct OpenCard<'a> {
+    card: Card<'a>,
+    pub area: CardArea,
+    layer: Layer,
+    first_instance: usize,
+    first_target: usize,
+}
+
+impl Ui {
+    // A card in the rectangle.
+    pub fn card(&mut self, rect: Rect, card: Card) -> CardArea {
+        let area = card_area(self, rect, &card);
+        self.card_contents(&card, &area, None);
+        area
     }
 
-    fn sense(&self) -> Sense {
-        Sense::NONE
+    // A card with a hole in its content for a 3D view, which the program's
+    // render draws into: the content's area. Clear the view to
+    // Theme::card_opaque for it to look like the card.
+    pub fn card_with_view(&mut self, rect: Rect, card: Card) -> CardArea {
+        let area = card_area(self, rect, &card);
+        self.card_contents(&card, &area, Some(area.content));
+        area
     }
 
-    fn auto_target(&self) -> AutoTarget {
-        if self.listed { AutoTarget::Listed } else { AutoTarget::Unlisted }
+    // Starts a card at the rectangle's top, which may be as tall as the
+    // rectangle. Lay its content out from the top of `area.content`, and end
+    // it with end_card.
+    pub fn begin_card<'a>(&mut self, rect: Rect, card: Card<'a>) -> OpenCard<'a> {
+        let area = card_area(self, rect, &card);
+        OpenCard {
+            card,
+            area,
+            layer: self.layer(),
+            first_instance: self.draw.layer_len(),
+            first_target: self.target_count(),
+        }
     }
 
-    fn label(&self) -> Option<String> {
-        self.label.clone()
+    // Ends a card whose content ends at `content_bottom`, and draws it
+    // behind its content. Returns where it is.
+    pub fn end_card(&mut self, open: OpenCard, content_bottom: f32) -> Rect {
+        let mut area = open.area;
+        let bottom = (content_bottom + open.card.padding).min(area.rect.bottom());
+        area.rect.height = (bottom - area.rect.y).max(0.0);
+        area.content.height = (content_bottom - area.content.y).max(0.0);
+        debug_assert_eq!(open.layer, self.layer(), "a card ends on the layer it began on");
+        let before = self.draw.layer_len();
+        let targets_before = self.target_count();
+        self.card_contents(&open.card, &area, None);
+        // Behind what's in it: its instances and its targets go first.
+        self.draw.move_to_back(open.first_instance, before);
+        self.move_targets_back(open.first_target, targets_before);
+        area.rect
     }
 
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let area = self.area(ui, ctx.rect);
+    fn card_contents(&mut self, card: &Card, area: &CardArea, view: Option<Rect>) {
         let rect = area.rect;
-        let mut painter = ui.painter();
+        // A floating card covers the view under it; every card is a surface
+        // that the pointer stops at.
+        match card.name {
+            Some(name) => {
+                self.register(name, rect, Sense::NONE, "Card");
+                if let Some(label) = card.label {
+                    self.set_label(name, label);
+                }
+            }
+            None => self.cover(rect),
+        }
+        let mut painter = self.painter();
         let theme = painter.theme();
-        let (fill, stroke) = match self.style {
+        let (fill, stroke) = match card.style {
             CardStyle::Standard => (theme.card_background, theme.card_stroke),
             CardStyle::Floating => (theme.acrylic, theme.surface_stroke_flyout),
             CardStyle::Subtle => (theme.card_background_secondary, theme.card_stroke),
         };
-        if self.style == CardStyle::Floating {
+        if card.style == CardStyle::Floating {
             painter.shadow(rect, RADIUS_OVERLAY, ELEVATION_FLOATING_CARD);
         }
-        if !self.view {
-            painter.shape(rect, RADIUS_OVERLAY, fill, Some(Border::new(stroke, 1.0)));
-        } else {
-            // The fill goes around the view, which the program draws.
-            let view = area.content;
-            let top = Rect::new(rect.x, rect.y, rect.width, view.y - rect.y);
-            let bottom = Rect::new(rect.x, view.bottom(), rect.width, rect.bottom() - view.bottom());
-            let left = Rect::new(rect.x, view.y, view.x - rect.x, view.height);
-            let right = Rect::new(view.right(), view.y, rect.right() - view.right(), view.height);
-            painter.shape(top, Corners::top(RADIUS_OVERLAY), fill, None);
-            painter.shape(bottom, Corners::bottom(RADIUS_OVERLAY), fill, None);
-            painter.fill(left, fill);
-            painter.fill(right, fill);
-            painter.shape(rect, RADIUS_OVERLAY, Color::TRANSPARENT, Some(Border::new(stroke, 1.0)));
-            painter.shape(view.expand(1.0), RADIUS_CONTROL, Color::TRANSPARENT, Some(Border::new(theme.card_stroke, 1.0)));
+        match view {
+            None => painter.shape(rect, RADIUS_OVERLAY, fill, Some(Border::new(stroke, 1.0))),
+            Some(view) => {
+                // The fill goes around the view, which the program draws.
+                let top = Rect::new(rect.x, rect.y, rect.width, view.y - rect.y);
+                let bottom = Rect::new(rect.x, view.bottom(), rect.width, rect.bottom() - view.bottom());
+                let left = Rect::new(rect.x, view.y, view.x - rect.x, view.height);
+                let right = Rect::new(view.right(), view.y, rect.right() - view.right(), view.height);
+                painter.shape(top, Corners::top(RADIUS_OVERLAY), fill, None);
+                painter.shape(bottom, Corners::bottom(RADIUS_OVERLAY), fill, None);
+                painter.fill(left, fill);
+                painter.fill(right, fill);
+                painter.shape(rect, RADIUS_OVERLAY, Color::TRANSPARENT, Some(Border::new(stroke, 1.0)));
+                painter.shape(view.expand(1.0), RADIUS_CONTROL, Color::TRANSPARENT, Some(Border::new(theme.card_stroke, 1.0)));
+            }
         }
-        if !self.title.is_empty() {
-            let header = Rect::new(area.content.x, rect.y + self.padding, area.content.width, CARD_HEADER_HEIGHT);
-            let title = painter.text_in(header, &self.title, BODY_STRONG, theme.text_primary, Align::Start);
-            if let Some(subtitle) = &self.subtitle {
+        if !card.title.is_empty() {
+            let header = Rect::new(area.content.x, rect.y + card.padding, area.content.width, CARD_HEADER_HEIGHT);
+            let title = painter.text_in(header, card.title, BODY_STRONG, theme.text_primary, Align::Start);
+            if let Some(subtitle) = card.subtitle {
                 let after = Rect::new(title.right() + SPACE_S, header.y, header.right() - title.right() - SPACE_S, header.height);
                 painter.text_fit(after, subtitle, CAPTION, theme.text_secondary, Align::Start);
             }
@@ -204,12 +212,24 @@ impl Control for Card {
     }
 }
 
-impl Ui {
-    // A card and its children, laid out in its content area. Only in
-    // Program::build.
-    pub fn card(&mut self, name: &str, rect: Rect, card: Card, children: impl FnOnce(&mut Ui, CardArea)) -> CardArea {
-        let area = card.area(self, rect);
-        self.group(name, rect, card, |ui| children(ui, area));
-        area
+fn card_area(ui: &mut Ui, rect: Rect, card: &Card) -> CardArea {
+    let inner = rect.inset(card.padding);
+    if card.title.is_empty() {
+        return CardArea {
+            rect,
+            header: Rect::new(inner.x, inner.y, 0.0, 0.0),
+            content: inner,
+        };
+    }
+    let mut title_width = ui.measure(card.title, BODY_STRONG).width;
+    if let Some(subtitle) = card.subtitle {
+        title_width += SPACE_S + ui.measure(subtitle, CAPTION).width;
+    }
+    let header_row = inner.top_strip(CARD_HEADER_HEIGHT);
+    let header_left = (header_row.x + title_width + SPACE_S).min(header_row.right());
+    CardArea {
+        rect,
+        header: Rect::new(header_left, header_row.y, header_row.right() - header_left, header_row.height),
+        content: inner.pad(crate::drawing::geometry::Insets::new(0.0, CARD_HEADER_HEIGHT + CARD_HEADER_GAP, 0.0, 0.0)),
     }
 }

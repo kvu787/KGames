@@ -699,12 +699,8 @@ impl Program for Modeler {
         format!("{}{dirty} - {TITLE}", self.document.name)
     }
 
-    fn build(&mut self, ui: &mut Ui) {
-        cards::build(self, ui);
-    }
-
     fn update(&mut self, ui: &mut Ui) {
-        cards::update(self, ui);
+        cards::draw(self, ui);
         self.prepare_scene(ui);
     }
 

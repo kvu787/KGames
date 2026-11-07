@@ -12,11 +12,9 @@ impl Program for Page {
         "Page".to_string()
     }
 
-    fn build(&mut self, ui: &mut Ui) {
-        ui.node("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
+    fn update(&mut self, ui: &mut Ui) {
+        ui.add("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
     }
-
-    fn update(&mut self, _ui: &mut Ui) {}
 }
 
 #[test]

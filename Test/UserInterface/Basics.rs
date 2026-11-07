@@ -202,25 +202,16 @@ mod readme {
             "Volume".to_string()
         }
 
-        fn build(&mut self, ui: &mut Ui) {
-            ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
-            ui.status_bar(vec![Status::shortcut("F11", "Fullscreen")]);
-            let page = ui.page();
-            ui.card("Output", page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |ui, card| {
-                let mut area = card.content;
-                let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
-                ui.node("Level", area.cut_top(Slider::height(true), 8.0), slider);
-                ui.node("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute"));
-            });
-        }
-
         fn update(&mut self, ui: &mut Ui) {
-            if let Some(level) = ui.changed("Level") {
-                self.level = level;
-            }
-            if ui.clicked("Mute") {
+            ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
+            ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
+            let page = ui.page();
+            let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
+            let mut area = card.content;
+            let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
+            ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
+            if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
                 self.level = 0.0;
-                ui.get_mut::<Slider>("Level").set_value(0.0);
             }
         }
     }

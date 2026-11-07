@@ -203,7 +203,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 let (width, height) = presenter.size();
                 let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
                 ui.begin_frame(&input.events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
-                run_frame(&mut program, &mut ui);
+                program.update(&mut ui);
                 ui.end_frame();
                 for request in std::mem::take(&mut ui.requests) {
                     if request == Request::Close {
@@ -260,7 +260,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
         ui.begin_frame(&events, time, Size::new(width as f32, height as f32), fullscreen);
         if problems.is_empty() {
-            run_frame(&mut program, &mut ui);
+            program.update(&mut ui);
         } else {
             ui.unsupported_setup(&problems);
         }
@@ -336,18 +336,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         println!("The script passed, in {frame} frames.");
     }
     Ok(())
-}
-
-// One frame's three phases: build the tree if it's new or asked for, let
-// every control handle its input, let the program act on the events, and
-// draw. So a click's effect shows the same frame.
-pub(crate) fn run_frame<P: Program>(program: &mut P, ui: &mut Ui) {
-    if ui.tree_is_empty() || ui.rebuild_requested() {
-        ui.build_tree(|ui| program.build(ui));
-    }
-    ui.dispatch_tree();
-    program.update(ui);
-    ui.draw_tree();
 }
 
 fn save_capture(folder: &Path, name: &str, image: &graphics::Image, state: &json::Value) -> Result<(), String> {

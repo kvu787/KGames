@@ -13,8 +13,6 @@ impl Program for Shown {
         "Display identifier".to_string()
     }
 
-    fn build(&mut self, _ui: &mut Ui) {}
-
     fn update(&mut self, ui: &mut Ui) {
         self.0.draw(ui);
     }

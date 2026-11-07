@@ -73,11 +73,11 @@ impl Program for Demo {
         self.title.clone()
     }
 
-    fn build(&mut self, ui: &mut Ui) {
-        cards::build(ui, &self.input);
-    }
-
     fn update(&mut self, ui: &mut Ui) {
+        // No widget takes keyboard focus, so that the keys stay the user's,
+        // to try the Keyboard card with. The combo box's list still takes the
+        // arrow keys while it's open.
+        ui.set_focusable(false);
         self.last_time = ui.time();
         self.last_delta = ui.delta() as f64;
         let environment = ui.environment();
@@ -101,7 +101,7 @@ impl Program for Demo {
             }
             input.update(focused);
         }
-        cards::sync(ui, &mut self.input);
+        cards::draw(ui, &mut self.input);
     }
 
     // What the cards show, for scripts to save and check. The main loop adds

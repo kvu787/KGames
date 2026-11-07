@@ -81,7 +81,6 @@ impl LogEntry {
 }
 
 // The most recent reading that changed something, described in full.
-#[derive(Clone)]
 pub struct LatestEvent {
     pub number: u64,
     pub time: f64,

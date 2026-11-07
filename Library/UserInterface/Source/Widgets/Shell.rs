@@ -5,13 +5,9 @@
 // whose menus' names line up with the page's left edge; notices under them; a
 // status bar along the bottom with shortcuts and status; and the page between
 // them, where the cards go.
-//
-// Program::build makes them as nodes with ui.app_bar, ui.menu_row,
-// ui.status_bar and ui.page, in that order, which also lay the page out.
 
 use crate::application::performance::{Run, SEPARATOR};
 use crate::application::program::Notice;
-use crate::core::control::{AutoTarget, Control, NodeContext};
 use crate::core::ui::Ui;
 use crate::design::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use crate::design::icons::Icon;
@@ -24,250 +20,58 @@ use crate::drawing::painter::{Align, Border, Painter};
 use crate::widgets::info_bar::{InfoBar, Severity};
 use crate::widgets::text::KEYCAP_HEIGHT;
 
-// The app bar: the program's icon, title and subtitle along the window's
-// top, opaque, like Mica's solid stand-in, so that it covers a 3D view.
-#[derive(Clone, Debug)]
-pub struct AppBar {
+#[derive(Clone, Copy, Debug)]
+pub struct AppBar<'a> {
     icon: Icon,
-    title: String,
-    subtitle: Option<String>,
+    title: &'a str,
+    subtitle: Option<&'a str>,
 }
 
-impl AppBar {
-    pub fn new(icon: Icon, title: &str) -> Self {
-        Self {
-            icon,
-            title: title.to_string(),
-            subtitle: None,
-        }
+impl<'a> AppBar<'a> {
+    pub fn new(icon: Icon, title: &'a str) -> Self {
+        Self { icon, title, subtitle: None }
     }
 
-    pub fn subtitle(mut self, subtitle: &str) -> Self {
-        self.subtitle = Some(subtitle.to_string());
+    pub fn subtitle(mut self, subtitle: &'a str) -> Self {
+        self.subtitle = Some(subtitle);
         self
-    }
-
-    pub fn set_subtitle(&mut self, subtitle: &str) {
-        self.subtitle = Some(subtitle.to_string());
-    }
-
-    fn title_right(&self, ui: &mut Ui) -> f32 {
-        let mut x = SPACE_L + ICON + SPACE_L + ui.measure(&self.title, CAPTION).width;
-        if let Some(subtitle) = &self.subtitle {
-            x += SPACE_S + ui.measure(subtitle, CAPTION).width;
-        }
-        x
-    }
-}
-
-impl Control for AppBar {
-    fn kind(&self) -> &'static str {
-        "AppBar"
-    }
-
-    fn auto_target(&self) -> AutoTarget {
-        AutoTarget::Unlisted
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let rect = ctx.rect;
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        painter.fill(rect, theme.background);
-        let icon_center = Point::new(SPACE_L + ICON / 2.0, rect.center().y);
-        painter.icon(icon_center, self.icon, ICON, theme.accent);
-        let x = SPACE_L + ICON + SPACE_L;
-        let title = painter.text_in(Rect::new(x, rect.y, rect.width, rect.height), &self.title, CAPTION, theme.text_primary, Align::Start);
-        if let Some(subtitle) = &self.subtitle {
-            painter.text_fit(Rect::new(title.right() + SPACE_S, rect.y, rect.width, rect.height), subtitle, CAPTION, theme.text_secondary, Align::Start);
-        }
-    }
-}
-
-// The menu row's background, under the app bar.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MenuRow;
-
-impl Control for MenuRow {
-    fn kind(&self) -> &'static str {
-        "MenuRow"
-    }
-
-    fn auto_target(&self) -> AutoTarget {
-        AutoTarget::Unlisted
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let background = ui.theme().background;
-        ui.painter().fill(ctx.rect, background);
     }
 }
 
 // What a status bar shows, from its left, then from its right after a
 // spacer.
-#[derive(Clone, Debug)]
-pub enum Status {
+#[derive(Clone, Copy, Debug)]
+pub enum Status<'a> {
     // Keys, like "Ctrl+S", as keycaps, and what they do.
-    Shortcut(String, String),
-    Text(String),
+    Shortcut(&'a str, &'a str),
+    Text(&'a str),
     // A dot in a status's color, and what it says.
-    Indicator(Severity, String),
+    Indicator(Severity, &'a str),
     // What comes after goes along the right.
     Spacer,
 }
 
-impl Status {
-    pub fn shortcut(keys: &str, label: &str) -> Self {
-        Status::Shortcut(keys.to_string(), label.to_string())
-    }
-
-    pub fn text(text: &str) -> Self {
-        Status::Text(text.to_string())
-    }
-
-    pub fn indicator(severity: Severity, text: &str) -> Self {
-        Status::Indicator(severity, text.to_string())
-    }
-}
-
-// The status bar along the window's bottom.
-#[derive(Clone, Debug, Default)]
-pub struct StatusBar {
-    items: Vec<Status>,
-}
-
-impl StatusBar {
-    pub fn new(items: Vec<Status>) -> Self {
-        Self { items }
-    }
-
-    // Swaps what it shows, like the frame rate.
-    pub fn set_items(&mut self, items: Vec<Status>) {
-        self.items = items;
-    }
-}
-
-impl Control for StatusBar {
-    fn kind(&self) -> &'static str {
-        "StatusBar"
-    }
-
-    fn auto_target(&self) -> AutoTarget {
-        AutoTarget::Unlisted
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let rect = ctx.rect;
-        {
-            let mut painter = ui.painter();
-            let theme = painter.theme();
-            painter.fill(rect, theme.background);
-            painter.fill(rect.top_strip(1.0), theme.divider);
-        }
-        let items = self.items.clone();
-        let spacer = items.iter().position(|item| matches!(item, Status::Spacer)).unwrap_or(items.len());
-        let (left, right) = items.split_at(spacer);
-        let right = right.get(1..).unwrap_or(&[]);
-        // The right's items, from the right edge in, so that the left's can
-        // be cut short where they'd meet them. They take at most the bar's
-        // right half, and the one that would go past its middle is cut
-        // short, like a long message.
-        let middle = rect.center().x;
-        let mut right_edge = rect.right() - SPACE_L;
-        for item in right.iter().rev() {
-            let width = status_width(ui, item).min(right_edge - middle);
-            if width <= 0.0 {
-                break;
-            }
-            draw_status(ui, item, Rect::new(right_edge - width, rect.y + 1.0, width, rect.height - 1.0));
-            right_edge -= width + SPACE_L + SPACE_S;
-        }
-        let mut x = rect.x + SPACE_L;
-        for item in left {
-            let width = status_width(ui, item).min((right_edge - x).max(0.0));
-            if width <= 0.0 {
-                break;
-            }
-            draw_status(ui, item, Rect::new(x, rect.y + 1.0, width, rect.height - 1.0));
-            x += width + SPACE_L + SPACE_S;
-        }
-    }
-}
-
-// The notices under the app bar: an info bar for each, closable, which
-// re-lays the page out as they close.
-#[derive(Default)]
-pub(crate) struct Notices {
-    bars: Vec<InfoBar>,
-    heights: Vec<f32>,
-}
-
-fn notice_bar(notice: &Notice) -> InfoBar {
-    InfoBar::new(notice.severity, &notice.title, &notice.message).closable()
-}
-
-// How tall the notices are over a page `width` wide, with the gap under
-// them.
-pub(crate) fn notices_height(ui: &mut Ui, width: f32) -> f32 {
-    let notices = ui.notices().to_vec();
-    if notices.is_empty() {
-        return 0.0;
-    }
-    let mut height = SPACE_S;
-    for notice in &notices {
-        height += notice_bar(notice).height(ui, width) + SPACE_S;
-    }
-    height
-}
-
-impl Control for Notices {
-    fn kind(&self) -> &'static str {
-        "Notices"
-    }
-
-    fn auto_target(&self) -> AutoTarget {
-        AutoTarget::None
-    }
-
-    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let notices = ui.notices().to_vec();
-        self.bars = notices.iter().map(notice_bar).collect();
-        self.heights.clear();
-        let mut area = ctx.rect;
-        let mut closed = None;
-        for (index, bar) in self.bars.iter_mut().enumerate() {
-            let height = bar.height(ui, area.width);
-            self.heights.push(height);
-            let rect = area.cut_top(height, SPACE_S);
-            if bar.input(ui, &format!("Notice/{index}"), rect) {
-                closed = Some(index);
-            }
-        }
-        if let Some(index) = closed {
-            ui.remove_notice(index);
-            ui.request_rebuild();
-        }
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let mut area = ctx.rect;
-        let heights = self.heights.clone();
-        for (bar, height) in self.bars.iter_mut().zip(heights) {
-            let rect = area.cut_top(height, SPACE_S);
-            bar.paint(ui, rect);
-        }
-    }
-}
-
 impl Ui {
-    // The app bar node: the program's icon and title, and the rest of the
-    // bar, which it returns, for the program's own tabs and commands. Only in
-    // Program::build, first of the bars.
+    // The app bar: the program's icon and title, and the rest of the bar,
+    // which it returns, for the program's own tabs and commands.
     pub fn app_bar(&mut self, bar: AppBar) -> Rect {
         let rect = Rect::new(0.0, self.content_top(), self.size().width, APP_BAR_HEIGHT);
-        let left = bar.title_right(self) + SPACE_L;
-        self.node("AppBar", rect, bar);
+        self.cover(rect);
+        let mut painter = self.painter();
+        let theme = painter.theme();
+        // Opaque, like Mica's solid stand-in, so that it covers a 3D view.
+        painter.fill(rect, theme.background);
+        let icon_center = Point::new(SPACE_L + ICON / 2.0, rect.center().y);
+        painter.icon(icon_center, bar.icon, ICON, theme.accent);
+        let mut x = SPACE_L + ICON + SPACE_L;
+        let title = painter.text_in(Rect::new(x, rect.y, rect.width, rect.height), bar.title, CAPTION, theme.text_primary, Align::Start);
+        x = title.right();
+        if let Some(subtitle) = bar.subtitle {
+            let shown = painter.text_in(Rect::new(x + SPACE_S, rect.y, rect.width, rect.height), subtitle, CAPTION, theme.text_secondary, Align::Start);
+            x = shown.right();
+        }
         self.page_top = rect.bottom();
+        let left = x + SPACE_L;
         Rect::new(left, rect.y + SPACE_S, rect.right() - SPACE_L - left, rect.height - SPACE_S * 2.0)
     }
 
@@ -280,34 +84,82 @@ impl Ui {
     // its backplate out in the padding; to the page's right edge.
     pub fn menu_row(&mut self) -> Rect {
         let rect = Rect::new(0.0, self.page_top, self.size().width, MENU_BAR_HEIGHT);
-        self.node("MenuRow", rect, MenuRow);
+        self.cover(rect);
+        let mut painter = self.painter();
+        let theme = painter.theme();
+        // Opaque, like the app bar.
+        painter.fill(rect, theme.background);
         self.page_top = rect.bottom();
         let left = PAGE_PADDING - MENU_BAR_ITEM_MARGIN.left - MENU_BAR_ITEM_PADDING.left;
         Rect::new(left, rect.y, rect.right() - PAGE_PADDING - left, rect.height)
     }
 
-    // The status bar node along the bottom. Update what it shows with
-    // ui.get_mut::<StatusBar>("StatusBar").set_items(...).
-    pub fn status_bar(&mut self, items: Vec<Status>) {
+    // The status bar along the bottom.
+    pub fn status_bar(&mut self, items: &[Status]) {
         let size = self.size();
         let rect = Rect::new(0.0, size.height - STATUS_BAR_HEIGHT, size.width, STATUS_BAR_HEIGHT);
-        self.node("StatusBar", rect, StatusBar::new(items));
         self.page_bottom = rect.y;
+        self.cover(rect);
+        let mut painter = self.painter();
+        let theme = painter.theme();
+        painter.fill(rect, theme.background);
+        painter.fill(rect.top_strip(1.0), theme.divider);
+        let spacer = items.iter().position(|item| matches!(item, Status::Spacer)).unwrap_or(items.len());
+        let (left, right) = items.split_at(spacer);
+        let right = right.get(1..).unwrap_or(&[]);
+        // The right's items, from the right edge in, so that the left's can
+        // be cut short where they'd meet them. They take at most the bar's
+        // right half, and the one that would go past its middle is cut
+        // short, like a long message.
+        let middle = rect.center().x;
+        let mut right_edge = rect.right() - SPACE_L;
+        for item in right.iter().rev() {
+            let width = status_width(self, item).min(right_edge - middle);
+            if width <= 0.0 {
+                break;
+            }
+            draw_status(self, item, Rect::new(right_edge - width, rect.y + 1.0, width, rect.height - 1.0));
+            right_edge -= width + SPACE_L + SPACE_S;
+        }
+        let mut x = rect.x + SPACE_L;
+        for item in left {
+            let width = status_width(self, item).min((right_edge - x).max(0.0));
+            if width <= 0.0 {
+                break;
+            }
+            draw_status(self, item, Rect::new(x, rect.y + 1.0, width, rect.height - 1.0));
+            x += width + SPACE_L + SPACE_S;
+        }
     }
 
     // The page between the app bar, or the menu row, and the status bar,
-    // inside its padding, after the notices, whose node this makes. Call it
-    // after the bars, and lay the cards out in what it returns.
+    // inside its padding, after the notices, which it shows. Call it after
+    // the bars.
     pub fn page(&mut self) -> Rect {
         let width = self.size().width;
         let mut page = Rect::new(PAGE_PADDING, self.page_top + PAGE_PADDING, width - PAGE_PADDING * 2.0, self.page_bottom - self.page_top - PAGE_PADDING * 2.0);
-        let notices = notices_height(self, page.width);
-        if notices > 0.0 {
-            let strip = page.cut_top(notices - SPACE_S, SPACE_S);
-            self.node("Notices", strip, Notices::default());
+        let notices = self.notices.clone();
+        let mut closed = None;
+        for (index, notice) in notices.iter().enumerate() {
+            let bar = notice_bar(notice);
+            let height = self.info_bar_height(page.width, &bar);
+            let rect = page.cut_top(height, SPACE_S);
+            if self.add(&format!("Notice/{index}"), rect, bar).closed {
+                closed = Some(index);
+            }
+        }
+        if !notices.is_empty() {
+            page.cut_top(SPACE_S, 0.0);
+        }
+        if let Some(index) = closed {
+            self.notices.remove(index);
         }
         page
     }
+}
+
+fn notice_bar(notice: &Notice) -> InfoBar<'_> {
+    InfoBar::new(notice.severity, &notice.title, &notice.message).closable()
 }
 
 fn status_width(ui: &mut Ui, item: &Status) -> f32 {

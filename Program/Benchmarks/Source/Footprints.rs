@@ -95,8 +95,6 @@ impl Program for Churner {
         "Churner".to_string()
     }
 
-    fn build(&mut self, _ui: &mut Ui) {}
-
     fn update(&mut self, ui: &mut Ui) {
         self.frame += 1;
         for index in 0..self.widgets {

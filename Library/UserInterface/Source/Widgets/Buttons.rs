@@ -6,7 +6,6 @@
 // ControlFasterAnimationDuration, as WinUI's BrushTransition does; their
 // text and borders change at once.
 
-use crate::core::control::{Control, NodeContext, UiEventKind};
 use crate::core::ui::{ControlState, Cursor, Response, Sense, Ui};
 use crate::design::controls::{BUTTON_ICON_GAP, BUTTON_ICON_ONLY_WIDTH, BUTTON_PADDING, DROP_DOWN_CHEVRON_GAP, DROP_DOWN_CHEVRON_SIZE, HYPERLINK_PADDING};
 use crate::design::icons::Icon;
@@ -14,8 +13,7 @@ use crate::design::theme::Theme;
 use crate::design::tokens::{BODY, DURATION_FASTER, ICON, ICON_SMALL, RADIUS_CONTROL};
 use crate::drawing::geometry::{Color, Point, Rect};
 use crate::drawing::painter::{Align, Border};
-use crate::widgets::menu::MenuItem;
-use crate::widgets::widget::{Elevation, StateColors};
+use crate::widgets::widget::{Elevation, StateColors, Widget};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ButtonStyle {
@@ -27,25 +25,25 @@ pub enum ButtonStyle {
     Subtle,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct Button {
-    text: String,
+#[derive(Clone, Copy, Debug)]
+pub struct Button<'a> {
+    text: &'a str,
     icon: Option<Icon>,
     style: ButtonStyle,
     // Drawn in the accent's colors, like a ToggleButton that's on.
     checked: bool,
     // A chevron after the text, like a DropDownButton's.
     chevron: bool,
-    // A menu that opens below it when it's clicked, like a DropDownButton's,
-    // under its own name, whose Chose events carry the item chosen.
-    menu: Option<(String, Vec<MenuItem>)>,
 }
 
-impl Button {
-    pub fn new(text: &str) -> Self {
+impl<'a> Button<'a> {
+    pub fn new(text: &'a str) -> Self {
         Self {
-            text: text.to_string(),
-            ..Self::default()
+            text,
+            icon: None,
+            style: ButtonStyle::Standard,
+            checked: false,
+            chevron: false,
         }
     }
 
@@ -75,42 +73,14 @@ impl Button {
         self
     }
 
-    pub fn set_style(&mut self, style: ButtonStyle) {
-        self.style = style;
-    }
-
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = checked;
         self
     }
 
-    pub fn set_checked(&mut self, checked: bool) {
-        self.checked = checked;
-    }
-
     pub fn chevron(mut self) -> Self {
         self.chevron = true;
         self
-    }
-
-    // A menu named `name` that the button opens, like a DropDownButton's,
-    // with a chevron to say so.
-    pub fn flyout(mut self, name: &str, items: Vec<MenuItem>) -> Self {
-        self.menu = Some((name.to_string(), items));
-        self.chevron = true;
-        self
-    }
-
-    pub fn set_text(&mut self, text: &str) {
-        self.text = text.to_string();
-    }
-
-    pub fn set_icon(&mut self, icon: Icon) {
-        self.icon = Some(icon);
-    }
-
-    pub fn text(&self) -> &str {
-        &self.text
     }
 
     // The width that fits its content, between its padding.
@@ -125,7 +95,7 @@ impl Button {
                 width += BUTTON_ICON_GAP;
             }
         }
-        width += ui.measure(&self.text, BODY).width.ceil();
+        width += ui.measure(self.text, BODY).width.ceil();
         if self.chevron {
             width += DROP_DOWN_CHEVRON_GAP + ICON_SMALL;
         }
@@ -163,77 +133,20 @@ fn colors(theme: &Theme, style: ButtonStyle, checked: bool) -> ButtonColors {
     }
 }
 
-impl Control for Button {
-    fn kind(&self) -> &'static str {
-        "Button"
-    }
+impl Widget for Button<'_> {
+    type Response = Response;
 
-    fn sense(&self) -> Sense {
-        Sense::BUTTON
-    }
-
-    fn label(&self) -> Option<String> {
-        (!self.text.is_empty()).then(|| self.text.clone())
-    }
-
-    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        if ctx.response.clicked {
-            ctx.emit(ui, UiEventKind::Clicked);
+    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
+        let response = ui.interact(name, rect, Sense::BUTTON, "Button");
+        if !self.text.is_empty() {
+            ui.set_label(name, self.text);
         }
-        if ctx.response.double_clicked {
-            ctx.emit(ui, UiEventKind::DoubleClicked);
-        }
-        if ctx.response.secondary_clicked {
-            ctx.emit(ui, UiEventKind::SecondaryClicked);
-        }
-        if let Some((name, items)) = &self.menu {
-            let name = name.clone();
-            if let Some(chosen) = ui.flyout_menu(&name, &ctx.response, &items.clone()) {
-                ui.emit(&name, UiEventKind::Chose(chosen));
-            }
-        }
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let button = ButtonFace {
-            text: &self.text,
-            icon: self.icon,
-            style: self.style,
-            checked: self.checked,
-            chevron: self.chevron,
-        };
-        draw_button(ui, &button, &ctx.response, ctx.rect);
+        draw_button(ui, &self, &response, rect);
+        response
     }
 }
 
-// A button's look, for drawing one anywhere, like a dialog's buttons.
-pub(crate) struct ButtonFace<'a> {
-    pub text: &'a str,
-    pub icon: Option<Icon>,
-    pub style: ButtonStyle,
-    pub checked: bool,
-    pub chevron: bool,
-}
-
-// An immediate button inside another control, like a dialog's: registers it,
-// draws it, and says what the input did.
-pub(crate) fn inline_button(ui: &mut Ui, name: &str, rect: Rect, text: &str, style: ButtonStyle) -> Response {
-    let response = ui.interact(name, rect, Sense::BUTTON, "Button");
-    if !text.is_empty() {
-        ui.set_label(name, text);
-    }
-    let face = ButtonFace {
-        text,
-        icon: None,
-        style,
-        checked: false,
-        chevron: false,
-    };
-    draw_button(ui, &face, &response, rect);
-    response
-}
-
-pub(crate) fn draw_button(ui: &mut Ui, button: &ButtonFace, response: &Response, rect: Rect) {
+fn draw_button(ui: &mut Ui, button: &Button, response: &Response, rect: Rect) {
     let state = response.state();
     let colors = colors(ui.theme(), button.style, button.checked);
     let background = ui.animate_color(response.id, 0, colors.background.get(state), DURATION_FASTER);
@@ -284,102 +197,54 @@ pub(crate) fn draw_button(ui: &mut Ui, button: &ButtonFace, response: &Response,
 }
 
 // A button that stays on or off, in the accent's colors while it's on.
-#[derive(Clone, Debug)]
-pub struct ToggleButton {
-    on: bool,
-    button: Button,
+pub struct ToggleButton<'a, 'v> {
+    value: &'v mut bool,
+    button: Button<'a>,
 }
 
-impl ToggleButton {
-    pub fn new(on: bool, button: Button) -> Self {
-        Self { on, button }
-    }
-
-    pub fn is_on(&self) -> bool {
-        self.on
-    }
-
-    pub fn set_on(&mut self, on: bool) {
-        self.on = on;
+impl<'a, 'v> ToggleButton<'a, 'v> {
+    pub fn new(value: &'v mut bool, button: Button<'a>) -> Self {
+        Self { value, button }
     }
 }
 
-impl Control for ToggleButton {
-    fn kind(&self) -> &'static str {
-        "ToggleButton"
-    }
+impl Widget for ToggleButton<'_, '_> {
+    type Response = Response;
 
-    fn sense(&self) -> Sense {
-        Sense::BUTTON
-    }
-
-    fn label(&self) -> Option<String> {
-        Some(if self.on { "On".to_string() } else { "Off".to_string() })
-    }
-
-    fn adopt(&mut self, previous: Box<dyn Control>) {
-        if let Some(previous) = crate::core::control::adopted::<ToggleButton>(previous) {
-            self.on = previous.on;
+    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
+        let mut response = ui.interact(name, rect, Sense::BUTTON, "ToggleButton");
+        if response.clicked {
+            *self.value = !*self.value;
+            response.changed = true;
         }
-    }
-
-    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        if ctx.response.clicked {
-            self.on = !self.on;
-            ctx.emit(ui, UiEventKind::Toggled(self.on));
-        }
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let face = ButtonFace {
-            text: &self.button.text,
-            icon: self.button.icon,
-            style: self.button.style,
-            checked: self.on,
-            chevron: self.button.chevron,
-        };
-        draw_button(ui, &face, &ctx.response, ctx.rect);
+        ui.set_label(name, if *self.value { "On" } else { "Off" });
+        draw_button(ui, &self.button.checked(*self.value), &response, rect);
+        response
     }
 }
 
 // A link that's a button: accent-colored text, which takes a subtle fill
 // with the pointer over it.
-#[derive(Clone, Debug)]
-pub struct HyperlinkButton {
-    text: String,
+pub struct HyperlinkButton<'a> {
+    text: &'a str,
 }
 
-impl HyperlinkButton {
-    pub fn new(text: &str) -> Self {
-        Self { text: text.to_string() }
+impl<'a> HyperlinkButton<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self { text }
     }
 
     pub fn width(&self, ui: &mut Ui) -> f32 {
-        HYPERLINK_PADDING.horizontal() + ui.measure(&self.text, BODY).width.ceil()
+        HYPERLINK_PADDING.horizontal() + ui.measure(self.text, BODY).width.ceil()
     }
 }
 
-impl Control for HyperlinkButton {
-    fn kind(&self) -> &'static str {
-        "HyperlinkButton"
-    }
+impl Widget for HyperlinkButton<'_> {
+    type Response = Response;
 
-    fn sense(&self) -> Sense {
-        Sense::BUTTON
-    }
-
-    fn label(&self) -> Option<String> {
-        Some(self.text.clone())
-    }
-
-    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        if ctx.response.clicked {
-            ctx.emit(ui, UiEventKind::Clicked);
-        }
-    }
-
-    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
-        let (rect, response) = (ctx.rect, &ctx.response);
+    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
+        let response = ui.interact(name, rect, Sense::BUTTON, "HyperlinkButton");
+        ui.set_label(name, self.text);
         let state = response.state();
         if state != ControlState::Disabled && response.hovered {
             ui.set_cursor(Cursor::Hand);
@@ -390,8 +255,9 @@ impl Control for HyperlinkButton {
         let background = ui.animate_color(response.id, 0, background, DURATION_FASTER);
         let mut painter = ui.painter();
         painter.shape(rect, RADIUS_CONTROL, background, None);
-        painter.text_fit(rect.pad(HYPERLINK_PADDING), &self.text, BODY, foreground, Align::Center);
+        painter.text_fit(rect.pad(HYPERLINK_PADDING), self.text, BODY, foreground, Align::Center);
         ui.focus_visual_if(response.focused, rect, RADIUS_CONTROL);
+        response
     }
 }
 

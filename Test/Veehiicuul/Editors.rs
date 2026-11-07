@@ -249,8 +249,7 @@ fn the_track_builder_moves_adds_and_deletes_points() {
 fn a_track_with_a_problem_says_so() {
     let mut app = start("Problem");
     app.program.game.document.scenes[0].track.start.position = [1000.0, 1000.0];
-    // One frame to see the problem, and one for the card to re-lay out.
-    app.frame().frame();
+    app.frame();
     let problems = app.program.game.last_shape().problems.clone();
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(app.has_target("Play/Problem"));

@@ -6,11 +6,6 @@
 // widgets, laid out with its Form, with colors from the theme's roles and
 // sizes from its tokens.
 //
-// Each control is a node made at build, whose events the editor reads each
-// frame and whose value sync pushes back; the overlay an editor draws over
-// its view is an OverlayCanvas node of shapes in screen space, swapped each
-// frame.
-//
 // Programs only support two window setups (see Library/UserInterface's
 // README), so the editors' cards have fixed places in pixels: the app bar at
 // the top, with the tabs, a card at the top of the page's left side, as tall
@@ -22,7 +17,7 @@
 use simple_paint::Parameters;
 use user_interface::controls::TEXT_BOX_HEADER_GAP;
 use user_interface::tokens::{APP_BAR_HEIGHT, BODY, CONTROL_HEIGHT, PAGE_PADDING, SPACE_S, STATUS_BAR_HEIGHT};
-use user_interface::{Canvas, Color, ColorField, ComboBox, Cursor, Form, Key, MouseButton, Painter, Point, Rect, Response, Slider, Text, Ui, View};
+use user_interface::{Color, ColorField, ComboBox, Cursor, Form, Key, MouseButton, Painter, Point, Rect, Response, Slider, Ui, View};
 
 use crate::camera::{self, Eye};
 use crate::files::Color as FileColor;
@@ -99,20 +94,15 @@ impl Viewport {
         self.eye.pitch = if game { camera::PITCH } else { std::f64::consts::FRAC_PI_2 };
     }
 
-    // The editor's View node, named like "Terrain/View".
-    pub fn build(&self, ui: &mut Ui, name: &str, area: Rect) {
-        ui.node(name, area, View::new());
-    }
-
-    // What the frame's input did to the view: its presses, which take
-    // keyboard focus from a text field so that the keys after them, like
-    // Space, are the view's, and the pan and zoom.
-    pub fn apply(&mut self, ui: &mut Ui, name: &str) -> ViewInput {
+    // The view as Library/UserInterface's View, named like "Terrain/View",
+    // in `area`: its presses, which take keyboard focus from a text field so
+    // that the keys after them, like Space, are the view's, and the pan and
+    // zoom.
+    pub fn interact(&mut self, ui: &mut Ui, name: &str, area: Rect) -> ViewInput {
         let size = window_size(ui);
         let space = ui.key_down(Key::SPACE);
-        let response = ui.response(name);
-        let cursor = if space || self.grab.is_some() { Some(Cursor::Move) } else { None };
-        ui.get_mut::<View>(name).set_cursor(cursor);
+        let view = if space || self.grab.is_some() { View::new().cursor(Cursor::Move) } else { View::new() };
+        let response = ui.add(name, area, view);
         let held = response.held && response.held_button == Some(MouseButton::Left);
         let cursor = response.pointer.map(|point| [point.x, point.y]);
         if response.wheel.y != 0.0
@@ -167,7 +157,8 @@ pub fn interface_color([red, green, blue]: FileColor) -> Color {
 }
 
 // Where points on the ground are on the screen, in a view that fills the
-// window, for what an editor draws over its view.
+// window, for what an editor draws over its view. It draws before its cards,
+// clipped to the view, so that the cards and the bars go over it.
 #[derive(Clone, Copy)]
 pub struct Projection {
     eye: Eye,
@@ -184,71 +175,13 @@ impl Projection {
         Point::new(x, y)
     }
 
-    // A closed outline through points on the ground, as an overlay shape.
-    pub fn outline(&self, points: &[[f64; 2]], width: f32, role: Role) -> Shape {
+    // A closed outline through points on the ground.
+    pub fn outline(&self, painter: &mut Painter, points: &[[f64; 2]], width: f32, color: Color) {
         let mut screen: Vec<Point> = points.iter().map(|&point| self.point(point)).collect();
         if let Some(&first) = screen.first() {
             screen.push(first);
         }
-        Shape::Polyline(screen, width, role)
-    }
-}
-
-// A theme role that an overlay shape is colored with, resolved as it draws,
-// so that it follows a theme switch.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Role {
-    Accent,
-    Primary,
-    Secondary,
-    Acrylic,
-}
-
-impl Role {
-    fn resolve(self, theme: &user_interface::Theme) -> Color {
-        match self {
-            Role::Accent => theme.accent,
-            Role::Primary => theme.text_primary,
-            Role::Secondary => theme.text_secondary,
-            Role::Acrylic => theme.acrylic,
-        }
-    }
-}
-
-// What an editor draws over its view, in screen space.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Shape {
-    Polyline(Vec<Point>, f32, Role),
-    Circle(Point, f32, Role),
-    Ring(Point, f32, f32, Role),
-    Line(Point, Point, f32, Role),
-}
-
-// The overlay's node: shapes over the view, clipped to it, under the cards.
-pub fn overlay_node(ui: &mut Ui, name: &str, view: Rect) {
-    ui.node(name, view, Canvas::new(Vec::new(), draw_overlay));
-}
-
-pub fn set_overlay(ui: &mut Ui, name: &str, shapes: Vec<Shape>) {
-    ui.get_mut::<Canvas<Vec<Shape>>>(name).data = shapes;
-}
-
-fn draw_overlay(ui: &mut Ui, view: Rect, shapes: &Vec<Shape>) {
-    let theme = ui.theme().clone();
-    let mut painter = ui.painter();
-    painter.push_clip(view);
-    for shape in shapes {
-        draw_shape(&mut painter, &theme, shape);
-    }
-    painter.pop_clip();
-}
-
-fn draw_shape(painter: &mut Painter, theme: &user_interface::Theme, shape: &Shape) {
-    match shape {
-        Shape::Polyline(points, width, role) => painter.polyline(points, *width, role.resolve(theme)),
-        Shape::Circle(center, radius, role) => painter.circle(*center, *radius, role.resolve(theme)),
-        Shape::Ring(center, radius, width, role) => painter.ring(*center, *radius, *width, role.resolve(theme)),
-        Shape::Line(from, to, width, role) => painter.line(*from, *to, *width, role.resolve(theme)),
+        painter.polyline(&screen, width, color);
     }
 }
 
@@ -301,173 +234,99 @@ impl SliderRange {
 
 // How tall a slider is with its header.
 pub fn slider_height() -> f32 {
-    Slider::height(true)
+    Slider::<f64>::height(true)
 }
 
 // A slider of one of the document's numbers, with its label and its value
-// above it, in `rect`, slider_height() tall.
-pub fn slider_node(ui: &mut Ui, name: &str, rect: Rect, label: &str, value: f64, range: SliderRange) {
+// above it, in `rect`, slider_height() tall. Only input moves the value, so
+// that one from a file stays as it is until then. Returns whether it changed
+// the value.
+pub fn slider(ui: &mut Ui, name: &str, rect: Rect, label: &str, value: &mut f64, range: SliderRange) -> bool {
+    let before = *value;
     let slider = Slider::new(value, range.start, range.end)
         .step(1.0 / range.steps)
         .allowed(range.minimum, range.maximum)
         .header(label)
         .show_value(range.decimals)
         .suffix(range.suffix);
-    ui.node(name, rect, slider);
+    if ui.add(name, rect, slider).changed {
+        *value = range.nearest(*value);
+    }
+    *value != before
 }
 
 // A slider of its own row of a form.
-pub fn slider_row(form: &mut Form, ui: &mut Ui, name: &str, label: &str, value: f64, range: SliderRange) {
+pub fn slider_row(form: &mut Form, ui: &mut Ui, name: &str, label: &str, value: &mut f64, range: SliderRange) -> bool {
     let rect = form.take(slider_height());
-    slider_node(ui, name, rect, label, value, range);
-}
-
-// The value the slider moved to this frame, on its steps, if it moved.
-pub fn slider_changed(ui: &Ui, name: &str, range: SliderRange) -> Option<f64> {
-    ui.changed(name).map(|value| range.nearest(value))
-}
-
-// Pushes the document's value back into the slider, unless it's being
-// dragged.
-pub fn sync_slider(ui: &mut Ui, name: &str, value: f64) {
-    if !ui.response(name).held {
-        ui.get_mut::<Slider>(name).set_value(value);
-    }
+    slider(ui, name, rect, label, value, range)
 }
 
 // A control's header above it, in a column of a form's row that's
 // HEADED_HEIGHT tall, as Form::row puts it in a row of its own. Returns the
 // control's rectangle.
-pub fn header(ui: &mut Ui, name: &str, column: Rect, label: &str) -> Rect {
-    ui.node(name, column.top_strip(BODY.line_height), Text::label(label));
+pub fn header(ui: &mut Ui, column: Rect, label: &str) -> Rect {
+    let color = ui.theme().text_primary;
+    ui.text(column.top_strip(BODY.line_height), label, BODY, color);
     column.bottom_strip(CONTROL_HEIGHT)
 }
 
 // A field of one of the document's colors, like "#1CDA61", with a swatch of
 // it, in `rect`. What's typed takes effect with Enter. It takes keyboard
-// focus, unlike the editors' other controls.
-pub fn color_field_node(ui: &mut Ui, name: &str, rect: Rect, color: FileColor) {
-    ui.node(name, rect, ColorField::new(interface_color(color)));
-    ui.set_focusable(name, true);
-}
-
-// The color the field took this frame, if it changed.
-pub fn color_field_changed(ui: &Ui, name: &str, color: FileColor) -> Option<FileColor> {
-    let changed = ui.color_changed(name)?;
-    let [red, green, blue, _] = changed.to_bytes();
-    ([red, green, blue] != color).then_some([red, green, blue])
-}
-
-pub fn sync_color_field(ui: &mut Ui, name: &str, color: FileColor) {
-    let shown = interface_color(color);
-    let field = ui.get_mut::<ColorField>(name);
-    if field.color() != shown {
-        field.set_color(shown);
+// focus, unlike the editors' other controls. Returns whether it changed the
+// color.
+pub fn color_field(ui: &mut Ui, name: &str, rect: Rect, color: &mut FileColor) -> bool {
+    let mut shown = interface_color(*color);
+    ui.set_focusable(true);
+    let response = ui.add(name, rect, ColorField::new(&mut shown));
+    ui.set_focusable(false);
+    let [red, green, blue, _] = shown.to_bytes();
+    if response.changed && [red, green, blue] != *color {
+        *color = [red, green, blue];
+        return true;
     }
+    false
 }
 
 // The controls of a SimplePaint material, for one of a model's slots, which
 // the combo box picks, with a swatch of its base color: the base color's
 // channels and the dark point down the left, and the brightness, the shift,
-// the rotation and the light point down the right.
-pub struct PaintControls;
-
-// The sliders of a paint's parameters, by part name.
-const PAINT_PARTS: [(&str, &str); 8] = [
-    ("Red", "Red"),
-    ("Brightness", "Brightness"),
-    ("Green", "Green"),
-    ("Shift", "Shift"),
-    ("Blue", "Blue"),
-    ("Rotation", "Rotation"),
-    ("DarkPoint", "Dark point"),
-    ("LightPoint", "Light point"),
-];
-
-fn paint_range(part: &str) -> SliderRange {
+// the rotation and the light point down the right. Returns whether the
+// material changed.
+pub fn paint(form: &mut Form, ui: &mut Ui, name: &str, slots: &[String], slot: &mut usize, parameters: &mut Parameters) -> bool {
+    let mut row = form.control(ui, "Slot");
+    let swatch_area = row.cut_right(CONTROL_HEIGHT, SPACE_S);
+    let names: Vec<&str> = slots.iter().map(String::as_str).collect();
+    ui.add(&format!("{name}/Slot"), row, ComboBox::new(slot, &names));
+    let [red, green, blue] = parameters.base_color_srgb.map(|channel| channel as f32);
+    ui.swatch(swatch_area, Color::rgb(red, green, blue));
     let unit = SliderRange::new(0.0, 1.0, 1000.0, 3);
     let (lowest, highest) = (simple_paint::MARGIN, simple_paint::INTERIOR_MAXIMUM);
-    match part {
-        "Red" | "Green" | "Blue" | "Brightness" => unit.between(lowest, highest),
-        "Shift" | "DarkPoint" => unit.between(0.0, highest),
-        "LightPoint" => unit.between(lowest, 1.0),
-        _ => SliderRange::new(0.0, 360.0, 10.0, 1).between(0.0, 359.9).suffix("°"),
-    }
-}
-
-fn paint_value(parameters: &Parameters, part: &str) -> f64 {
-    match part {
-        "Red" => parameters.base_color_srgb[0],
-        "Green" => parameters.base_color_srgb[1],
-        "Blue" => parameters.base_color_srgb[2],
-        "Brightness" => parameters.brightness,
-        "Shift" => parameters.shift,
-        "DarkPoint" => parameters.dark_point,
-        "LightPoint" => parameters.light_point,
-        _ => parameters.rotation_degrees,
-    }
-}
-
-fn set_paint_value(parameters: &mut Parameters, part: &str, value: f64) {
-    match part {
-        "Red" => parameters.base_color_srgb[0] = value,
-        "Green" => parameters.base_color_srgb[1] = value,
-        "Blue" => parameters.base_color_srgb[2] = value,
-        "Brightness" => parameters.brightness = value,
-        "Shift" => parameters.shift = value,
-        "DarkPoint" => parameters.dark_point = value,
-        "LightPoint" => parameters.light_point = value,
-        _ => parameters.rotation_degrees = value,
-    }
-}
-
-fn draw_paint_swatch(ui: &mut Ui, rect: Rect, color: &[f32; 3]) {
-    ui.swatch(rect, Color::rgb(color[0], color[1], color[2]));
-}
-
-impl PaintControls {
-    // The nodes, in the form: the slot's combo box with its swatch, then the
-    // sliders.
-    pub fn build(form: &mut Form, ui: &mut Ui, name: &str, slots: &[String], slot: usize, parameters: &Parameters) {
-        let mut row = form.control(ui, "Slot");
-        let swatch_area = row.cut_right(CONTROL_HEIGHT, SPACE_S);
-        let names: Vec<&str> = slots.iter().map(String::as_str).collect();
-        ui.node(&format!("{name}/Slot"), row, ComboBox::new(&names, slot));
-        let color = parameters.base_color_srgb.map(|channel| channel as f32);
-        ui.node(&format!("{name}/Swatch"), swatch_area, Canvas::new(color, draw_paint_swatch));
-        for pair in PAINT_PARTS.chunks(2) {
-            let columns = form.columns::<2>(slider_height());
-            for ((part, label), column) in pair.iter().zip(columns) {
-                slider_node(ui, &format!("{name}/{part}"), column, label, paint_value(parameters, part), paint_range(part));
-            }
+    let degrees = SliderRange::new(0.0, 360.0, 10.0, 1).between(0.0, 359.9).suffix("°");
+    let [red, green, blue] = &mut parameters.base_color_srgb;
+    let rows = [
+        [
+            ("Red", "Red", red, unit.between(lowest, highest)),
+            ("Brightness", "Brightness", &mut parameters.brightness, unit.between(lowest, highest)),
+        ],
+        [
+            ("Green", "Green", green, unit.between(lowest, highest)),
+            ("Shift", "Shift", &mut parameters.shift, unit.between(0.0, highest)),
+        ],
+        [
+            ("Blue", "Blue", blue, unit.between(lowest, highest)),
+            ("Rotation", "Rotation", &mut parameters.rotation_degrees, degrees),
+        ],
+        [
+            ("DarkPoint", "Dark point", &mut parameters.dark_point, unit.between(0.0, highest)),
+            ("LightPoint", "Light point", &mut parameters.light_point, unit.between(lowest, 1.0)),
+        ],
+    ];
+    let mut changed = false;
+    for sliders in rows {
+        let columns = form.columns::<2>(slider_height());
+        for ((part, label, value, range), column) in sliders.into_iter().zip(columns) {
+            changed |= slider(ui, &format!("{name}/{part}"), column, label, value, range);
         }
     }
-
-    // The slot picked and the parameters as the frame's events left them.
-    // Returns whether the parameters changed.
-    pub fn changed(ui: &Ui, name: &str, slot: &mut usize, parameters: &mut Parameters) -> bool {
-        if let Some(picked) = ui.selected(&format!("{name}/Slot")) {
-            *slot = picked;
-        }
-        let mut changed = false;
-        for (part, _) in PAINT_PARTS {
-            if let Some(value) = slider_changed(ui, &format!("{name}/{part}"), paint_range(part)) {
-                set_paint_value(parameters, part, value);
-                changed = true;
-            }
-        }
-        changed
-    }
-
-    // Pushes the document's paint back into the controls.
-    pub fn sync(ui: &mut Ui, name: &str, slots: &[String], slot: usize, parameters: &Parameters) {
-        let names: Vec<&str> = slots.iter().map(String::as_str).collect();
-        let combo = ui.get_mut::<ComboBox>(&format!("{name}/Slot"));
-        combo.set_items(&names);
-        combo.set_selected(slot);
-        ui.get_mut::<Canvas<[f32; 3]>>(&format!("{name}/Swatch")).data = parameters.base_color_srgb.map(|channel| channel as f32);
-        for (part, _) in PAINT_PARTS {
-            sync_slider(ui, &format!("{name}/{part}"), paint_value(parameters, part));
-        }
-    }
+    changed
 }
