@@ -295,12 +295,13 @@ which tears. With G-SYNC, or another variable refresh rate, the display waits fo
 starts a new refresh for it instead, which doesn't tear, so `Flip` can say `immediate` with VSync
 on too.
 
-The PerfBar is set in Cascadia Mono at 14 pixels, `PERF_BAR_TEXT`, black on white, centered above
-its divider, in fields whose widths never change, so that every label and value stays in the same
-place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
-latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
-Without input latency, the PerfBar says why at its end, after `VSync`, so that the stats before it
-stay in place when it comes and goes.
+The PerfBar is the theme's opposite, in pure black and white: `#FFFFFF` text on `#000000` in the
+light theme, and `#000000` on `#FFFFFF` in the dark one. Its text is set in Cascadia Mono at 14
+pixels, `PERF_BAR_TEXT`, centered in the bar, in fields whose widths never change, so that every
+label and value stays in the same place: numbers are right-aligned in their fields, a number that
+isn't known yet, like the input latency's before the first present, is a dash, and one too wide for
+its field fills it with `#`. Without input latency, the PerfBar says why at its end, after `VSync`,
+so that the stats before it stay in place when it comes and goes.
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:

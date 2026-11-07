@@ -1,7 +1,8 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
 // a standard button's elevation border, whether the PerfBar says that
-// vertical sync is on, and the page for an unsupported setup.
+// vertical sync is on, the PerfBar's colors in each theme, and the page for an
+// unsupported setup.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
@@ -95,6 +96,32 @@ fn the_perf_bar_says_whether_vertical_sync_is_on() {
     };
     assert!(last - first < 30, "{first}..={last}");
     assert!(last < off.width / 2, "{first}..={last}");
+}
+
+#[test]
+fn the_perf_bar_is_pure_black_and_white_the_theme_s_opposite() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    for kind in [ThemeKind::Light, ThemeKind::Dark] {
+        let mut app = Headless::with_theme(Page, kind);
+        let image = app.render(&mut gpu).unwrap();
+        save(&image, &format!("PerfBar{}", kind.name()));
+        let (background, text) = match kind {
+            ThemeKind::Light => ([0, 0, 0], [255, 255, 255]),
+            ThemeKind::Dark => ([255, 255, 255], [0, 0, 0]),
+        };
+        let rgb = |x: u32, y: u32| {
+            let [r, g, b, _] = image.pixel(x, y);
+            [r, g, b]
+        };
+        // Past its text, every row of the bar is its background, down to
+        // its last.
+        for y in 0..PERF_BAR_HEIGHT as u32 {
+            assert_eq!(rgb(image.width - 8, y), background, "{} theme, row {y}", kind.name());
+        }
+        // Its text's strokes reach the text's color.
+        let found = (16..400).any(|x| (0..PERF_BAR_HEIGHT as u32).any(|y| rgb(x, y) == text));
+        assert!(found, "{} theme: no pixel of the text is {text:?}", kind.name());
+    }
 }
 
 struct Unsupported;

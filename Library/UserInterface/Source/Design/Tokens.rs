@@ -64,7 +64,7 @@ pub const MONO_CAPTION: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 
 // The PerfBar along the top of every window: Cascadia Mono at 14 pixels.
 // Its ink, from the top of "/", 1610 of its 2048 units a size above the
 // baseline, to the bottom of "y", 480 below, is 14.29 pixels tall, which the
-// bar centers in the 16 above its divider, in a line as tall as the bar.
+// bar centers in its 17, in a line as tall as the bar.
 pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular, 14.0, 17.0);
 // How far Cascadia Mono's ink is below the middle of its ascent and descent,
 // which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
