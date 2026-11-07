@@ -1,7 +1,7 @@
 {
     "Steps": [
-        { "Frame": 1, "Key": "F2" },
-        { "Frame": 3, "Expect": { "Dark": true, "Interface": { "Theme": "Dark" } } },
+        { "Frame": 1, "Key": "F9" },
+        { "Frame": 3, "Expect": { "Interface": { "Theme": "Dark" } } },
         { "Frame": 3, "Click": "Tabs/Icons" },
         { "Frame": 30, "Capture": "DarkIcons" },
         { "Frame": 31, "Click": "Tabs/Colors" },
@@ -10,6 +10,6 @@
         { "Frame": 90, "Capture": "DarkShapes" },
         { "Frame": 91, "Click": "Theme" },
         { "Frame": 120, "Capture": "LightShapes" },
-        { "Frame": 120, "Expect": { "Dark": false, "Tab": "Shapes" } }
+        { "Frame": 120, "Expect": { "Tab": "Shapes", "Interface": { "Theme": "Light" } } }
     ]
 }

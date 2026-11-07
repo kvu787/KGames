@@ -20,7 +20,6 @@ fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
     for theme in [ThemeKind::Light, ThemeKind::Dark] {
         for fullscreen in [false, true] {
             let mut app = Headless::with_theme(Showcase::default(), theme);
-            app.program.dark = theme == ThemeKind::Dark;
             app.set_fullscreen(fullscreen).frame();
             let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
             for target in app.ui.targets().iter().filter(|target| target.listed) {
@@ -67,11 +66,16 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
     app.click("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"));
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
-    app.key(Key::F2).key(Key::F1);
+    // F9 is the library's, which the theme's switch follows.
+    app.key(Key::F9).key(Key::F1);
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     assert!(app.ui.tooltips_enabled());
+    assert!(app.program.log.iter().any(|line| line == "Light theme"));
+    app.click("Theme");
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
 }
 
 #[test]
@@ -231,7 +235,7 @@ fn menus_choose_commands() {
     let mut app = showcase();
     app.click("Menu/View").move_to("Menu/View/Menu/Theme");
     app.click("Menu/View/Menu/Theme/Menu/Dark theme");
-    assert!(app.program.dark);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
     assert_eq!(app.program.menu_choice.as_deref(), Some("Dark theme"));
     app.click("More").click("MoreMenu/Pinned");
     assert!(app.program.pinned);
@@ -328,9 +332,9 @@ fn f11_switches_to_fullscreen_and_back() {
 #[test]
 fn without_focus_nothing_responds() {
     let mut app = showcase();
-    app.focus(false).click("Standard").key(Key::F2);
+    app.focus(false).click("Standard").key(Key::F9);
     assert_eq!(app.program.presses[0], 0);
-    assert!(!app.program.dark);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     app.focus(true).click("Standard");
     assert_eq!(app.program.presses[0], 1);
 }

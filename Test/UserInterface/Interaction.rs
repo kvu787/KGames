@@ -8,7 +8,7 @@ use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_I
 use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
-    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
+    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui, id,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -510,6 +510,68 @@ fn f10_switches_vertical_sync_even_while_a_text_field_has_focus() {
     assert!(app.vertical_sync());
     assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(true)));
     assert!(app.program.text.is_empty());
+}
+
+#[test]
+fn f9_switches_the_theme_even_while_a_text_field_has_focus() {
+    let mut app = Headless::new(Test::default());
+    // It starts light, as every program does.
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    app.key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    assert_eq!(app.ui.state().get("Theme"), Some(&Value::from("Dark")));
+    // A text field takes what's typed, but not the function keys.
+    app.click("Field").key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    assert_eq!(app.ui.state().get("Theme"), Some(&Value::from("Light")));
+    assert!(app.program.text.is_empty());
+}
+
+// Notes the theme of each frame, at its start and at its end, and switches
+// it with toggle_theme when asked, mid-frame, like a menu item does.
+#[derive(Default)]
+struct Themes {
+    frames: Vec<(ThemeKind, ThemeKind)>,
+    toggle: bool,
+}
+
+impl Program for Themes {
+    fn title(&self) -> String {
+        "Themes".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        let start = ui.theme().kind;
+        if std::mem::take(&mut self.toggle) {
+            ui.toggle_theme();
+        }
+        self.frames.push((start, ui.theme().kind));
+    }
+}
+
+#[test]
+fn no_frame_mixes_the_two_themes() {
+    let mut app = Headless::new(Themes::default());
+    // F9 switches the theme from the frame that it's pressed in, before
+    // the program draws anything.
+    app.send(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    let pressed = app.program.frames.len() - 2;
+    assert_eq!(app.program.frames[pressed - 1], (ThemeKind::Light, ThemeKind::Light));
+    assert_eq!(app.program.frames[pressed], (ThemeKind::Dark, ThemeKind::Dark));
+    app.send(&[Event::KeyReleased(Key::F9)]);
+    // A program's toggle_theme switches it from the next frame on, so the
+    // frame that asked stays in one theme.
+    app.program.toggle = true;
+    let asked = app.program.frames.len();
+    app.frame().frame();
+    assert_eq!(app.program.frames[asked], (ThemeKind::Dark, ThemeKind::Dark));
+    assert_eq!(app.program.frames[asked + 1], (ThemeKind::Light, ThemeKind::Light));
+    // Two toggles before the next frame leave the theme as it was.
+    app.program.toggle = true;
+    app.frame();
+    app.ui.toggle_theme();
+    app.frame();
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
 }
 
 #[test]

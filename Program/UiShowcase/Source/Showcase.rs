@@ -30,7 +30,6 @@ pub struct Showcase {
     pub options_enabled: bool,
     pub options: [bool; 4],
     pub tooltips: bool,
-    pub dark: bool,
     pub filling: bool,
     pub fill_started: f64,
     pub size: usize,
@@ -56,8 +55,10 @@ pub struct Showcase {
     pub dialog_result: Option<String>,
     pub menu_choice: Option<String>,
     pub log: VecDeque<String>,
-    // What the interface was on last frame, to log what changes.
+    // What the interface was on last frame, and its theme, to log what
+    // changes.
     seen: [Option<String>; 3],
+    seen_theme: ThemeKind,
 }
 
 impl Default for Showcase {
@@ -70,7 +71,6 @@ impl Default for Showcase {
             options_enabled: true,
             options: [true, false, true, false],
             tooltips: true,
-            dark: false,
             filling: true,
             fill_started: 0.0,
             size: 1,
@@ -97,6 +97,7 @@ impl Default for Showcase {
             menu_choice: None,
             log: VecDeque::new(),
             seen: [None, None, None],
+            seen_theme: ThemeKind::Light,
         }
     }
 }
@@ -123,6 +124,7 @@ impl Showcase {
         *self = Showcase {
             log,
             seen,
+            seen_theme: self.seen_theme,
             fill_started: time,
             ..Showcase::default()
         };
@@ -134,7 +136,7 @@ impl Showcase {
         self.menu_choice = Some(label.to_string());
         match label {
             "Reset" => self.reset(ui.time()),
-            "Dark theme" => self.dark = !self.dark,
+            "Dark theme" => ui.toggle_theme(),
             "Tooltips" => self.tooltips = !self.tooltips,
             "VSync" => ui.toggle_vertical_sync(),
             "Fullscreen" => ui.toggle_fullscreen(),
@@ -149,24 +151,20 @@ impl Showcase {
             self.tooltips = !self.tooltips;
             self.log(format!("Tooltips {}", if self.tooltips { "on" } else { "off" }));
         }
-        if ui.key_pressed(Key::F2) {
-            self.dark = !self.dark;
-            self.log(format!("{} theme", if self.dark { "Dark" } else { "Light" }));
-        }
         if ui.shortcut(Modifiers::CONTROL, Key::R) {
             self.reset(ui.time());
         }
-        self.apply(ui);
-    }
-
-    // The theme and tooltips that the switches, menus and shortcuts chose.
-    fn apply(&self, ui: &mut Ui) {
         ui.set_tooltips_enabled(self.tooltips);
-        ui.set_theme(if self.dark { ThemeKind::Dark } else { ThemeKind::Light });
     }
 
-    // Logs when what the interface is on changes.
+    // Logs when the theme, which F9 and the theme's switch, button and menu
+    // item switch, and what the interface is on change.
     fn watch(&mut self, ui: &Ui) {
+        let theme = ui.theme().kind;
+        if theme != self.seen_theme {
+            self.seen_theme = theme;
+            self.log(format!("{} theme", theme.name()));
+        }
         let names = [ui.focused_name(), ui.pressed_name(), ui.popup_name()];
         for (index, verb) in ["Focus on", "Press on", "Opened"].iter().enumerate() {
             if names[index] != self.seen[index].as_deref() {
@@ -188,7 +186,7 @@ impl Program for Showcase {
         self.shortcuts(ui);
         cards::draw(self, ui);
         // What the cards' switches changed shows from the next frame on.
-        self.apply(ui);
+        ui.set_tooltips_enabled(self.tooltips);
         self.watch(ui);
     }
 
@@ -207,7 +205,6 @@ impl Program for Showcase {
             ("OptionsEnabled".to_string(), Value::from(self.options_enabled)),
             ("Options".to_string(), Value::from(self.options.to_vec())),
             ("Tooltips".to_string(), Value::from(self.tooltips)),
-            ("Dark".to_string(), Value::from(self.dark)),
             ("Filling".to_string(), Value::from(self.filling)),
             ("Size".to_string(), name_of(&SIZES, self.size)),
             ("Alignment".to_string(), name_of(&ALIGNMENTS, self.alignment)),

@@ -11,7 +11,7 @@ use user_interface::tokens::{
 use user_interface::{
     Align, AppBar, Border, Brush, Button, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, DialogResult, Expander,
     Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioGroup, Rect, Segmented, SelectorBar,
-    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ToggleButton, ToggleSwitch, TooltipLine, Ui, id,
+    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Ui, id,
 };
 
 use crate::showcase::{ALIGNMENTS, OPTIONS, SIZES, Showcase, TABS, TOOLS};
@@ -41,7 +41,7 @@ const VIEW_MENU: &[MenuItem] = &[
     MenuItem::separator(),
     MenuItem::new("Disabled").enabled(false),
 ];
-const THEME_MENU: &[MenuItem] = &[MenuItem::new("Dark theme").accelerator("F2"), MenuItem::new("Tooltips").accelerator("F1")];
+const THEME_MENU: &[MenuItem] = &[MenuItem::new("Dark theme").accelerator("F9"), MenuItem::new("Tooltips").accelerator("F1")];
 const HELP_MENU: &[MenuItem] = &[MenuItem::new("Ask a question").icon(Icon::Help)];
 const MENUS: &[(&str, &[MenuItem])] = &[("File", FILE_MENU), ("View", VIEW_MENU), ("Help", HELP_MENU)];
 const CONTEXT_MENU: &[MenuItem] = &[
@@ -61,8 +61,8 @@ const INFO_HEIGHT: f32 = 324.0;
 const COLOR_HEIGHT: f32 = 492.0;
 
 pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
-    let theme_name = if showcase.dark { "Dark theme" } else { "Light theme" };
-    let subtitle = format!("Fluent 2 · WinUI 3 · {theme_name}");
+    let dark = ui.theme().kind == ThemeKind::Dark;
+    let subtitle = format!("Fluent 2 · WinUI 3 · {} theme", ui.theme().kind.name());
     ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
     let row = ui.menu_row();
     let menu = MenuBar::new(MENUS);
@@ -71,10 +71,10 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
         showcase.command(ui, label);
     }
     let theme_button = Rect::new(row.right() - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
-    let response = ui.add("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
-    ui.tooltip(&response, "Switch the theme (F2)");
+    let response = ui.add("Theme", theme_button, Button::icon_only(if dark { Icon::Light } else { Icon::Moon }).subtle());
+    ui.tooltip(&response, "Switch the theme (F9)");
     if response.clicked {
-        showcase.dark = !showcase.dark;
+        ui.toggle_theme();
     }
     let stats = ui.stats();
     let fps = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
@@ -82,9 +82,9 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     let display = format!("{} {}", environment.display, environment.display_name);
     ui.status_bar(&[
         Status::Shortcut("F1", "Tooltips"),
-        Status::Shortcut("F2", "Theme"),
         Status::Shortcut("Tab", "Next widget"),
         Status::Shortcut("Ctrl+R", "Reset"),
+        Status::Shortcut("F9", "Theme"),
         Status::Shortcut("F10", "VSync"),
         Status::Shortcut("F11", "Fullscreen"),
         Status::Spacer,
@@ -188,7 +188,10 @@ fn toggles(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     });
     area.cut_top(SPACE_S, 0.0);
     ui.add("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.tooltips, "Tooltips (F1)"));
-    ui.add("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.dark, "Dark theme (F2)"));
+    let mut dark = ui.theme().kind == ThemeKind::Dark;
+    if ui.add("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut dark, "Dark theme (F9)")).changed {
+        ui.toggle_theme();
+    }
     if ui.add("Filling", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.filling, "Fill the progress bar")).changed {
         showcase.fill_started = ui.time();
     }
@@ -567,7 +570,7 @@ fn interface(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     ui.badge(Point::new(badges.x + 6.0, badges.center().y), "");
     ui.text(Rect::new(badges.x + 20.0, badges.y, badges.width - 20.0, badges.height), "Keycaps, badges and a dot", CAPTION, primary);
     let response = ui.add("Details", area.cut_top(CONTROL_HEIGHT, SPACE_L).left_strip(200.0), Button::new("Details").icon(Icon::Info));
-    ui.tooltip_lines(&response, &[TooltipLine::Heading("Details"), TooltipLine::Pair("Theme", if showcase.dark { "Dark" } else { "Light" }), TooltipLine::Separator, TooltipLine::Text("Tooltips can have lines, columns and separators.")]);
+    ui.tooltip_lines(&response, &[TooltipLine::Heading("Details"), TooltipLine::Pair("Theme", ui.theme().kind.name()), TooltipLine::Separator, TooltipLine::Text("Tooltips can have lines, columns and separators.")]);
     ui.heading(area.cut_top(BODY_STRONG.line_height, SPACE_S), "Log");
     let lines = ((area.height / 20.0).floor() as usize).min(showcase.log.len());
     for line in showcase.log.iter().take(lines) {

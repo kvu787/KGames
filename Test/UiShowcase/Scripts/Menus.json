@@ -5,7 +5,7 @@
         { "Frame": 20, "Capture": "Submenu" },
         { "Frame": 20, "Expect": { "Interface": { "Popup": "Menu/View/Menu/Theme/Menu" } } },
         { "Frame": 21, "Click": "Menu/View/Menu/Theme/Menu/Dark theme" },
-        { "Frame": 23, "Expect": { "Dark": true, "MenuChoice": "Dark theme", "Interface": { "Popup": null, "Theme": "Dark" } } },
+        { "Frame": 23, "Expect": { "MenuChoice": "Dark theme", "Interface": { "Popup": null, "Theme": "Dark" } } },
         { "Frame": 24, "Press": { "At": "ContextArea", "Button": "Right" } },
         { "Frame": 25, "Release": "Right" },
         { "Frame": 40, "Capture": "ContextMenu" },

@@ -69,9 +69,9 @@ card made with `card_with_view` leaves a hole.
 Color with the theme's roles and size with the tokens and the controls' metrics, instead of values
 of your own, so that every program looks like one family, and like Windows 11.
 
-- **Themes** (`Design/Theme.rs`): light by default, and dark. The roles are WinUI's theme
-  resources, like `text_primary` for TextFillColorPrimary, `control_fill` for
-  ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
+- **Themes** (`Design/Theme.rs`): light by default, and dark, which `F9` switches to and from in
+  every program. The roles are WinUI's theme resources, like `text_primary` for
+  TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
   11's default blue accent and its ramp. Status colors, like `critical`, and colors that tell
   graphs' series apart, `theme.data`, are there too.
 - **Tokens** (`Design/Tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
@@ -183,10 +183,18 @@ the window's focus changes between them. The window's messages bring none of it.
 - Without focus, the window has no input at all, including the gamepad's. The click that gives it
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
+- `F9` switches between the light and dark themes. Every program starts light. The frame that `F9`
+  is pressed in is all in the new theme, title bar too. A program's own command for it calls
+  `ui.toggle_theme()`, which switches it from the next frame on, so that no frame mixes the two,
+  and `ui.theme().kind` says which it is. Every widget, card and color role follows by itself, as
+  long as the program colors with `ui.theme()` each frame.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
-- `F11` switches between maximized and borderless fullscreen.
+- `F11` switches between maximized and borderless fullscreen. A program's own command for it calls
+  `ui.toggle_fullscreen()`.
+- `F9`, `F10` and `F11` are the library's in every program, even while a text field has focus or a
+  dialog is open, so a program mustn't also use them for something else.
 - With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
   frame's readings and device events from `startup.devices`, which the interface reads them with.

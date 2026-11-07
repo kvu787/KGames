@@ -10,7 +10,6 @@ use graphics::{Frame, Gpu};
 
 use crate::application::settings::{Settings, WindowMode};
 use crate::core::ui::Ui;
-use crate::design::theme::ThemeKind;
 use crate::platform::input_devices::Devices;
 use crate::widgets::info_bar::Severity;
 
@@ -52,7 +51,8 @@ pub trait Program {
     }
 }
 
-// How the library runs a program.
+// How the library runs a program. Every program starts in the light theme,
+// which F9 switches.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".
@@ -61,7 +61,6 @@ pub struct Options {
     pub folder: &'static str,
     // The window mode when Settings.json doesn't say.
     pub window_mode: WindowMode,
-    pub theme: ThemeKind,
     // Whether the program reads the gamepad: its newest reading goes to
     // Ui::gamepad, and its readings count as input for input latency.
     pub gamepad: bool,
@@ -75,7 +74,6 @@ impl Options {
             name,
             folder,
             window_mode: WindowMode::Maximized,
-            theme: ThemeKind::Light,
             gamepad: false,
             arguments: &[],
         }
@@ -83,11 +81,6 @@ impl Options {
 
     pub fn gamepad(mut self) -> Self {
         self.gamepad = true;
-        self
-    }
-
-    pub fn theme(mut self, theme: ThemeKind) -> Self {
-        self.theme = theme;
         self
     }
 

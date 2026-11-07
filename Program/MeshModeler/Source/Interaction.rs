@@ -26,9 +26,9 @@ pub fn keys(modeler: &mut Modeler, ui: &mut Ui) {
     let modifiers = ui.input().modifiers();
     let mut pressed = Vec::new();
     for (command, _, shortcuts) in COMMANDS {
-        // The library toggles vertical sync with F10, and fullscreen with
-        // F11, itself.
-        if matches!(command, Command::VerticalSync | Command::Fullscreen) {
+        // The library switches the theme with F9, vertical sync with F10,
+        // and fullscreen with F11, itself.
+        if matches!(command, Command::ToggleTheme | Command::VerticalSync | Command::Fullscreen) {
             continue;
         }
         for text in *shortcuts {

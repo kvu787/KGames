@@ -11,7 +11,7 @@ use json::Value;
 use math::Vector3;
 use polygon_mesh::{Selection, Shading, SubdivisionSurface};
 use simple_paint::orthographic::build_object_transforms;
-use user_interface::{Program, Rect, Severity, Startup, ThemeKind, Ui};
+use user_interface::{Program, Rect, Severity, Startup, Ui};
 use windows_core::Result;
 
 use crate::camera::{Camera, Viewpoint};
@@ -140,7 +140,7 @@ pub const COMMANDS: &[(Command, &str, &[&str])] = &[
     (Command::ToggleSmooth, "Smooth shading", &["Shift+S"]),
     (Command::ToggleXray, "X-ray", &["Alt+Z"]),
     (Command::ToggleGrid, "Grid", &["Shift+G"]),
-    (Command::ToggleTheme, "Dark theme", &["F2"]),
+    (Command::ToggleTheme, "Dark theme", &["F9"]),
     (Command::VerticalSync, "VSync", &["F10"]),
     (Command::Fullscreen, "Fullscreen", &["F11"]),
 ];
@@ -396,10 +396,7 @@ impl Modeler {
             Command::ToggleSmooth => self.smooth = !self.smooth,
             Command::ToggleXray => self.xray = !self.xray,
             Command::ToggleGrid => self.grid = !self.grid,
-            Command::ToggleTheme => {
-                let kind = if ui.theme().kind == ThemeKind::Dark { ThemeKind::Light } else { ThemeKind::Dark };
-                ui.set_theme(kind);
-            }
+            Command::ToggleTheme => ui.toggle_theme(),
             Command::VerticalSync => ui.toggle_vertical_sync(),
             Command::Fullscreen => ui.toggle_fullscreen(),
         }

@@ -62,8 +62,9 @@ borderless fullscreen.
 |                    | away                                                                     |
 | A right-click      | Opens the context menu, on the area for it                               |
 | `F1`               | Shows or hides the tooltips                                              |
-| `F2`               | Switches between the light and dark themes                               |
 | `Ctrl+R`           | Resets every widget                                                      |
+| `F9`               | Switches between the light and dark themes, as the theme's switch, the   |
+|                    | button at the right of the menu bar and the View menu's Dark theme do    |
 | `F10`              | Switches vertical sync on or off, as the View menu's VSync does          |
 | `F11`              | Switches between maximized and borderless fullscreen                     |
 | A gamepad          | Shows in the Interface card                                              |
@@ -94,8 +95,8 @@ widget, a press that slides off a button, drags past a slider's ends, the wheel,
 boxes' lists and what closes them, typing, copying and pasting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
-double-click, the caution info bar, tooltips above the pointer, `Tab`, `Ctrl+R`, `F11`, and a window
-without focus. They also check that every widget fits both window heights, in both themes.
+double-click, the caution info bar, tooltips above the pointer, `Tab`, `Ctrl+R`, `F9`, `F10`, `F11`,
+and a window without focus. They also check that every widget fits both window heights, in both themes.
 
 The scripts in `Test/UiShowcase/Scripts` run the same kinds of input through the real window and
 renderer, pressing widgets by name. The state that scripts save and check has what each widget shows,

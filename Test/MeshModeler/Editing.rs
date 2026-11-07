@@ -11,7 +11,7 @@ use math::Vector3;
 use mesh_modeler::modeler::Modeler;
 use polygon_mesh::Edge;
 use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Key, Modifiers, MouseButton, Point};
+use user_interface::{Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
 
 fn folder(test: &str) -> PathBuf {
     let folder = Path::new(env!("CARGO_TARGET_TMPDIR")).join("MeshModeler").join(test);
@@ -452,6 +452,19 @@ fn f10_and_the_view_menu_switch_vertical_sync_once() {
     app.click("Menu/View");
     app.click("Menu/View/Menu/VSync");
     assert!(app.vertical_sync());
+}
+
+#[test]
+fn f9_and_the_view_menu_switch_the_theme_once() {
+    let mut app = modeler("Theme");
+    // The library switches it on F9, and the modeler's keys leave F9 to it,
+    // so one press switches it once, from the light that it starts as.
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    app.key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    app.click("Menu/View");
+    app.click("Menu/View/Menu/Dark theme");
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
 }
 
 #[test]

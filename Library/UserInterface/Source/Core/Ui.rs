@@ -97,6 +97,8 @@ struct Popup {
 
 pub struct Ui {
     pub(crate) theme: Theme,
+    // The theme that toggle_theme asked for, which the next frame starts in.
+    next_theme: Option<ThemeKind>,
     pub(crate) fonts: Fonts,
     pub(crate) draw: DrawList,
     pub(crate) input: Input,
@@ -144,6 +146,7 @@ impl Ui {
     pub fn new(fonts: Fonts, theme: ThemeKind, clipboard: Clipboard) -> Self {
         Self {
             theme: Theme::new(theme),
+            next_theme: None,
             fonts,
             draw: DrawList::default(),
             input: Input::default(),
@@ -276,6 +279,16 @@ impl Ui {
             self.captured = Keys::Navigate;
         }
 
+        // F9 switches the theme from this very frame, before anything draws,
+        // and toggle_theme from the frame after the one that asked, so that
+        // no frame mixes the two themes.
+        if self.input.key_pressed_once(Key::F9) && !self.is_captured(Key::F9) {
+            self.toggle_theme();
+        }
+        if let Some(kind) = self.next_theme.take() {
+            self.theme = Theme::new(kind);
+        }
+
         // Esc closes the top popup, or else takes keyboard focus away. A
         // dialog hears it with dialog_escape.
         if self.input.key_pressed(Key::ESCAPE) {
@@ -345,10 +358,11 @@ impl Ui {
         &self.theme
     }
 
-    pub fn set_theme(&mut self, kind: ThemeKind) {
-        if self.theme.kind != kind {
-            self.theme = Theme::new(kind);
-        }
+    // Switches between the light and dark themes, as F9 does, from the next
+    // frame on, for a program's own command for it, like a menu item's.
+    pub fn toggle_theme(&mut self) {
+        let kind = self.next_theme.unwrap_or(self.theme.kind);
+        self.next_theme = Some(kind.other());
     }
 
     // The window's client area.
