@@ -1,13 +1,14 @@
 // Tests the interface's rules for input with a small program: which widget
 // the pointer is on, presses and clicks, keyboard focus and the keys that
-// widgets take, popups, menus, dialogs, tooltips, notices, and editing.
+// widgets take, popups, menus, dialogs, tooltips, notices, editing, and
+// palettes.
 
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
-    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui,
+    Button, Card, CheckBox, Color, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
+    NumberBox, Palette, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -351,6 +352,41 @@ fn a_card_sizes_itself_to_its_content() {
     let state = app.ui.state();
     let kind = state.get("Targets").and_then(|targets| targets.get("Sized")).and_then(|card| card.get("Kind")).cloned();
     assert_eq!(kind, Some(Value::from("Card")));
+}
+
+const COLORS: [Color; 5] = [Color::hex(0xD13438), Color::hex(0xCA5010), Color::hex(0xC19C00), Color::hex(0x107C10), Color::hex(0x0078D4)];
+
+#[derive(Default)]
+struct Colors {
+    picked: Option<usize>,
+}
+
+impl Program for Colors {
+    fn title(&self) -> String {
+        "Colors".to_string()
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        let top = ui.content_top();
+        ui.add("Colors", Rect::new(10.0, top + 10.0, 100.0, 200.0), Palette::new(&mut self.picked, &COLORS));
+    }
+}
+
+#[test]
+fn a_palette_lays_its_swatches_out_in_rows_and_picks_the_one_clicked() {
+    let mut app = Headless::new(Colors::default());
+    app.frame();
+    // Swatches a control tall and 8 apart: two fit across 100 pixels, so
+    // five make three rows.
+    let (first, second, third) = (app.target("Colors/0"), app.target("Colors/1"), app.target("Colors/2"));
+    assert_eq!((first.width, first.height), (32.0, 32.0));
+    assert_eq!((second.x - first.x, second.y), (40.0, first.y));
+    assert_eq!((third.x, third.y - first.y), (first.x, 40.0));
+    assert_eq!(Palette::new(&mut None, &COLORS).height(100.0), 3.0 * 32.0 + 2.0 * 8.0);
+    assert_eq!(app.label("Colors/3").as_deref(), Some("#107C10"));
+    assert_eq!(app.program.picked, None);
+    app.click("Colors/3");
+    assert_eq!(app.program.picked, Some(3));
 }
 
 struct Notices;

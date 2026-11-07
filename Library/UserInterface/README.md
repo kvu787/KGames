@@ -122,7 +122,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is        |
 | `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own   |
 | `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
-| `Swatch`                           |                           | A color to pick, with an accent ring while it's picked          |
+| `Palette`                          |                           | Swatches of colors to pick one from, with a ring around it      |
 | `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
 | `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one                        |
 | `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |

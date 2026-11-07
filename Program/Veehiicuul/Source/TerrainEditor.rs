@@ -9,8 +9,8 @@
 // | Pick  | Makes the hexel's color the palette's color                         |
 
 use json::Value;
-use user_interface::tokens::{BODY, CONTROL_HEIGHT, SPACE_S};
-use user_interface::{Button, Card, Form, Icon, Rect, Segmented, Swatch, Ui};
+use user_interface::tokens::{BODY, CONTROL_HEIGHT};
+use user_interface::{Button, Card, Color, Form, Icon, Palette, Rect, Segmented, Ui};
 
 use crate::editing::{self, Projection, SliderRange, Viewport, interface_color};
 use crate::files;
@@ -20,7 +20,6 @@ pub const TOOLS: [&str; 4] = ["Paint", "Erase", "Fill", "Pick"];
 const TOOL_ICONS: [Icon; 4] = [Icon::Brush, Icon::Erase, Icon::Fill, Icon::Eyedropper];
 // How far a fill reaches from the hexel it starts at, in hexels.
 const FILL_REACH: i32 = 60;
-const SWATCH: f32 = CONTROL_HEIGHT;
 // The width of the labels of the lines about the hexels.
 const LABEL_WIDTH: f32 = 160.0;
 
@@ -110,21 +109,13 @@ impl TerrainEditor {
 
         form.heading(ui, "Palette");
         self.color = self.color.min(terrain.palette.len().saturating_sub(1) as u8);
-        let columns = ((form.width() + SPACE_S) / (SWATCH + SPACE_S)) as usize;
-        let rows = terrain.palette.len().div_ceil(columns).max(1);
-        let grid = form.take(rows as f32 * (SWATCH + SPACE_S) - SPACE_S);
-        for (index, &color) in terrain.palette.iter().enumerate() {
-            let (row, column) = (index / columns, index % columns);
-            let area = Rect::new(
-                grid.x + column as f32 * (SWATCH + SPACE_S),
-                grid.y + row as f32 * (SWATCH + SPACE_S),
-                SWATCH,
-                SWATCH,
-            );
-            let swatch = Swatch::new(interface_color(color), index == self.color as usize);
-            if ui.add(&format!("Palette/{index}"), area, swatch).clicked {
-                self.color = index as u8;
-            }
+        let colors: Vec<Color> = terrain.palette.iter().map(|&color| interface_color(color)).collect();
+        let mut picked = Some(self.color as usize);
+        let palette = Palette::new(&mut picked, &colors);
+        let area = form.take(palette.height(form.width()));
+        ui.add("Palette", area, palette);
+        if let Some(index) = picked {
+            self.color = index as u8;
         }
         let [color, add, remove] = form.columns::<3>(CONTROL_HEIGHT);
         if let Some(chosen) = terrain.palette.get_mut(self.color as usize) {

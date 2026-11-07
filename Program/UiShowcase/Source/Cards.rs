@@ -4,13 +4,13 @@
 // columns take the 71 pixels that borderless fullscreen adds.
 
 use user_interface::tokens::{
-    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, DISPLAY, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
-    SUBTITLE, TITLE, TITLE_LARGE,
+    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, DISPLAY, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON,
+    ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
     Align, AppBar, Border, Brush, Button, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, DialogResult, Expander,
-    Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioGroup, Rect, Segmented, SelectorBar,
-    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Ui,
+    Form, HyperlinkButton, Icon, InfoBar, Insets, ListView, MenuBar, MenuItem, NumberBox, Palette, Point, RadioGroup, Rect, Segmented,
+    SelectorBar, Severity, Size, Slider, Span, Status, TextBox, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Ui,
 };
 
 use crate::showcase::{ALIGNMENTS, OPTIONS, SIZES, Showcase, TABS, TOOLS};
@@ -482,12 +482,15 @@ fn colors(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     let mut row = area.cut_top(CONTROL_HEIGHT, SPACE_M);
     let field = row.cut_left(160.0, SPACE_M);
     ui.add("Hex", field, ColorField::new(&mut showcase.color));
-    for (index, color) in PALETTE.iter().enumerate() {
-        let swatch = row.cut_left(CONTROL_HEIGHT - 4.0, SPACE_XS).centered(Size::square(24.0));
-        let color = Color::hex(*color);
-        if ui.add(&format!("Palette/{index}"), swatch, Swatch::new(color, showcase.color == color)).clicked {
-            showcase.color = color;
-        }
+    // Swatches 24 pixels square and 8 apart, in the middle of the row's
+    // height. The one picked is the one that's the color, if one is.
+    let colors = PALETTE.map(Color::hex);
+    let mut picked = colors.iter().position(|color| *color == showcase.color);
+    let swatches = row.pad(Insets::new(2.0, 4.0, 0.0, 4.0));
+    if ui.add("Palette", swatches, Palette::new(&mut picked, &colors).size(24.0).gap(SPACE_S)).changed
+        && let Some(index) = picked
+    {
+        showcase.color = colors[index];
     }
 }
 

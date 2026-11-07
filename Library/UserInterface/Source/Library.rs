@@ -101,6 +101,8 @@ mod widgets {
     pub mod navigation;
     #[path = "NumberBox.rs"]
     pub mod number_box;
+    #[path = "Palette.rs"]
+    pub mod palette;
     #[path = "Progress.rs"]
     pub mod progress;
     #[path = "Scrolling.rs"]
@@ -167,10 +169,11 @@ pub use widgets::list_view::{ListResponse, ListView, RowState, WHEEL_ROWS};
 pub use widgets::menu::{MenuBar, MenuItem};
 pub use widgets::navigation::{Choice, Segmented, SelectorBar};
 pub use widgets::number_box::NumberBox;
+pub use widgets::palette::Palette;
 pub use widgets::scrolling::{ScrollArea, ScrollBar};
 pub use widgets::shell::{AppBar, Status};
 pub use widgets::slider::{Number, Slider, slider_rail};
-pub use widgets::text::{KEYCAP_HEIGHT, Swatch};
+pub use widgets::text::KEYCAP_HEIGHT;
 pub use widgets::text_box::{TextBox, TextBoxResponse};
 pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
 pub use widgets::tool_tip::TooltipLine;

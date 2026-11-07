@@ -3,16 +3,14 @@
 // lines of several styles; keycaps for shortcuts; WinUI's InfoBadge; the
 // status icon of InfoBar; color swatches; and dividers.
 
-use crate::core::interaction::{Response, Sense};
 use crate::core::ui::Ui;
 use crate::design::controls::{INFO_BADGE_DOT, INFO_BADGE_FONT_SIZE, INFO_BADGE_HEIGHT, INFO_BADGE_TEXT_MARGIN};
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, RADIUS_CONTROL, RADIUS_SMALL, SPACE_XS};
+use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, RADIUS_CONTROL, SPACE_XS};
 use crate::drawing::geometry::{Color, Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Span};
 use crate::drawing::text::TextStyle;
 use crate::widgets::info_bar::Severity;
-use crate::widgets::widget::Widget;
 
 // A keycap's height, and the gap between the keycaps of a shortcut.
 pub const KEYCAP_HEIGHT: f32 = 20.0;
@@ -174,38 +172,4 @@ impl Ui {
 fn keys_of(keys: &str) -> Vec<String> {
     let parts: Vec<String> = keys.split('+').map(|key| key.trim().to_string()).collect();
     if parts.len() > 1 && parts.iter().all(|part| !part.is_empty()) { parts } else { vec![keys.to_string()] }
-}
-
-// A color in a rounded square, which shows that it's chosen with an accent
-// ring, like the swatches of a palette.
-pub struct Swatch {
-    color: Color,
-    selected: bool,
-}
-
-impl Swatch {
-    pub fn new(color: Color, selected: bool) -> Self {
-        Self { color, selected }
-    }
-}
-
-impl Widget for Swatch {
-    type Response = Response;
-
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let response = ui.interact(name, rect, Sense::BUTTON, "Swatch");
-        ui.set_label(name, &self.color.to_hex());
-        let hovered = response.hovered;
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        let inner = rect.inset(if self.selected { 3.0 } else { 0.0 });
-        painter.shape(inner, RADIUS_SMALL.max(RADIUS_CONTROL - 1.0), self.color, Some(Border::new(theme.control_stroke_secondary, 1.0)));
-        if self.selected {
-            painter.shape(rect, RADIUS_CONTROL + 1.0, Color::TRANSPARENT, Some(Border::new(theme.accent, 2.0)));
-        } else if hovered {
-            painter.shape(rect, RADIUS_CONTROL, Color::TRANSPARENT, Some(Border::new(theme.control_strong_stroke, 1.0)));
-        }
-        ui.focus_visual_if(response.focused, rect, RADIUS_CONTROL);
-        response
-    }
 }
