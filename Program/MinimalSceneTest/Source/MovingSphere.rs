@@ -4,7 +4,7 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{InfoCard, Program, Startup, Ui};
+use user_interface::{InfoCard, Program, Rect, Startup, Ui};
 
 use crate::scene::{Motion, Scene};
 use crate::settings::SceneSettings;
@@ -41,21 +41,17 @@ impl Program for MovingSphere {
         NAME.to_string()
     }
 
+    fn build(&mut self, ui: &mut Ui) {
+        ui.node(InfoCard::NAME, Rect::default(), InfoCard::new(NAME, DESCRIPTION));
+        ui.set_visible(InfoCard::NAME, self.text_shown);
+    }
+
     fn update(&mut self, ui: &mut Ui) {
         if InfoCard::toggled(ui.input()) {
             self.text_shown = !self.text_shown;
+            ui.set_visible(InfoCard::NAME, self.text_shown);
         }
         self.motion.advance_frame(ui.delta());
-        if self.text_shown {
-            ui.info_card(
-                &InfoCard {
-                    title: NAME,
-                    description: DESCRIPTION,
-                    rows: &[],
-                    keys: &[],
-                },
-            );
-        }
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> windows_core::Result<()> {

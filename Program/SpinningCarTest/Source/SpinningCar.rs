@@ -4,7 +4,7 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{InfoCard, Program, Startup, Ui};
+use user_interface::{InfoCard, Program, Rect, Startup, Ui};
 
 use crate::controls;
 use crate::scene::{Scene, car_placement};
@@ -45,25 +45,23 @@ impl Program for SpinningCar {
         NAME.to_string()
     }
 
+    fn build(&mut self, ui: &mut Ui) {
+        let card = InfoCard::new(NAME, DESCRIPTION).rows(&[("Car", "Moving")]).keys(&[("S", "Stationary car")]);
+        ui.node(InfoCard::NAME, Rect::default(), card);
+        ui.set_visible(InfoCard::NAME, self.text_shown);
+    }
+
     fn update(&mut self, ui: &mut Ui) {
         if InfoCard::toggled(ui.input()) {
             self.text_shown = !self.text_shown;
+            ui.set_visible(InfoCard::NAME, self.text_shown);
         }
         if controls::toggles_stationary(ui.input()) {
             self.stationary = !self.stationary;
         }
         self.placement = car_placement(ui.time(), self.stationary);
-        if self.text_shown {
-            let car = if self.stationary { "Stationary" } else { "Moving" };
-            ui.info_card(
-                &InfoCard {
-                    title: NAME,
-                    description: DESCRIPTION,
-                    rows: &[("Car", car)],
-                    keys: &[("S", "Stationary car")],
-                },
-            );
-        }
+        let car = if self.stationary { "Stationary" } else { "Moving" };
+        ui.get_mut::<InfoCard>(InfoCard::NAME).set_rows(vec![("Car".to_string(), car.to_string())]);
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> windows_core::Result<()> {
