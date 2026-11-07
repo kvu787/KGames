@@ -130,10 +130,10 @@ fn buttons(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
         }
     }
     let [disabled, disabled_accent, link] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
-    ui.set_enabled(false);
-    ui.add("Disabled", disabled, Button::new("Disabled"));
-    ui.add("DisabledAccent", disabled_accent, Button::new("Disabled").accent());
-    ui.set_enabled(true);
+    ui.with_enabled(false, |ui| {
+        ui.add("Disabled", disabled, Button::new("Disabled"));
+        ui.add("DisabledAccent", disabled_accent, Button::new("Disabled").accent());
+    });
     if ui.add("Link", link, HyperlinkButton::new("Learn more")).clicked {
         showcase.link_clicks += 1;
         showcase.log("Followed the link");
@@ -180,12 +180,12 @@ fn toggles(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     if ui.add("OptionsEnabled", area.cut_top(CONTROL_HEIGHT, 0.0), CheckBox::new(&mut showcase.options_enabled, "Enable the options under this")).changed {
         showcase.log(format!("Options {}", if showcase.options_enabled { "enabled" } else { "disabled" }));
     }
-    ui.set_enabled(showcase.options_enabled);
-    for (index, option) in OPTIONS.iter().enumerate() {
-        let row = area.cut_top(CONTROL_HEIGHT, 0.0);
-        ui.add(&format!("Option/{option}"), Rect::new(row.x + 28.0, row.y, row.width - 28.0, row.height), CheckBox::new(&mut showcase.options[index], option));
-    }
-    ui.set_enabled(true);
+    ui.with_enabled(showcase.options_enabled, |ui| {
+        for (index, option) in OPTIONS.iter().enumerate() {
+            let row = area.cut_top(CONTROL_HEIGHT, 0.0);
+            ui.add(&format!("Option/{option}"), Rect::new(row.x + 28.0, row.y, row.width - 28.0, row.height), CheckBox::new(&mut showcase.options[index], option));
+        }
+    });
     area.cut_top(SPACE_S, 0.0);
     ui.add("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.tooltips, "Tooltips (F1)"));
     ui.add("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.dark, "Dark theme (F2)"));
@@ -225,10 +225,8 @@ fn sliders(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
     ui.add("Volume", form.take(height), Slider::new(&mut showcase.volume, 0.0, 100.0).step(1.0).header("Volume").show_value(0));
     ui.add("Opacity", form.take(height), Slider::new(&mut showcase.opacity, 0.0, 1.0).step(0.001).large_step(0.1).header("Opacity").show_value(3));
     ui.add("Angle", form.take(height), Slider::new(&mut showcase.angle, 0.0, 360.0).step(0.1).large_step(15.0).header("Angle").show_value(1).suffix("°"));
-    ui.set_enabled(false);
     let mut disabled = 30.0f32;
-    ui.add("DisabledSlider", form.take(height), Slider::new(&mut disabled, 0.0, 100.0).header("Disabled").show_value(0));
-    ui.set_enabled(true);
+    ui.add_enabled(false, "DisabledSlider", form.take(height), Slider::new(&mut disabled, 0.0, 100.0).header("Disabled").show_value(0));
     let secondary = ui.theme().text_secondary;
     let fill = if showcase.filling { ((ui.time() - showcase.fill_started) % 4.0 / 4.0) as f32 } else { 0.78 };
     for (label, value) in [("At the volume", Some(showcase.volume / 100.0)), ("Fills every 4 seconds", Some(fill)), ("Of unknown length", None)] {

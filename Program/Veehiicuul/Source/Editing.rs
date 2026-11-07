@@ -276,9 +276,7 @@ pub fn header(ui: &mut Ui, column: Rect, label: &str) -> Rect {
 // color.
 pub fn color_field(ui: &mut Ui, name: &str, rect: Rect, color: &mut FileColor) -> bool {
     let mut shown = interface_color(*color);
-    ui.set_focusable(true);
-    let response = ui.add(name, rect, ColorField::new(&mut shown));
-    ui.set_focusable(false);
+    let response = ui.with_focusable(true, |ui| ui.add(name, rect, ColorField::new(&mut shown)));
     let [red, green, blue, _] = shown.to_bytes();
     if response.changed && [red, green, blue] != *color {
         *color = [red, green, blue];

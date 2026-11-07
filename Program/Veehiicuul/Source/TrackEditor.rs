@@ -184,9 +184,7 @@ impl TrackEditor {
         let [add, delete] = form.columns::<2>(CONTROL_HEIGHT);
         let add = ui.add("Track/AddIsland", add, Button::new("Add an island").icon(Icon::Add));
         ui.tooltip(&add, "Adds a circle of 8 points in the middle of the view");
-        ui.set_enabled(self.curve > 0);
-        let delete = ui.add("Track/DeleteIsland", delete, Button::new("Delete the island").icon(Icon::Delete));
-        ui.set_enabled(true);
+        let delete = ui.add_enabled(self.curve > 0, "Track/DeleteIsland", delete, Button::new("Delete the island").icon(Icon::Delete));
         ui.tooltip(&delete, "Deletes the chosen island");
         if add.clicked {
             let middle = editing::visible(view).center();

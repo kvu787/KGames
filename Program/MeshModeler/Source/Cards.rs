@@ -216,10 +216,7 @@ fn command_button(modeler: &mut Modeler, ui: &mut Ui, rect: Rect, command: Comma
     if let Some(icon) = icon {
         button = button.icon(icon);
     }
-    let enabled = ui.enabled();
-    ui.set_enabled(enabled && modeler.can(command));
-    let response = ui.add(command.label(), rect, button);
-    ui.set_enabled(enabled);
+    let response = ui.add_enabled(modeler.can(command), command.label(), rect, button);
     let tip = match command.shortcut() {
         Some(shortcut) => format!("{} ({shortcut})", command.label()),
         None => command.label().to_string(),

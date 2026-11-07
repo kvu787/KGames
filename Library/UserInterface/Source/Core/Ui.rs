@@ -515,7 +515,8 @@ impl Ui {
     }
 
     // Widgets after this are enabled or not, until it's called again. Each
-    // frame starts enabled.
+    // frame starts enabled. For a few widgets, with_enabled or add_enabled
+    // put the scope back by themselves.
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -524,10 +525,33 @@ impl Ui {
         self.enabled
     }
 
+    // Shows what's in `show` enabled or not, and puts the scope back after.
+    // Inside a disabled scope everything stays disabled, whatever `enabled`
+    // says, so a disabled card can't have a working widget.
+    pub fn with_enabled<R>(&mut self, enabled: bool, show: impl FnOnce(&mut Ui) -> R) -> R {
+        let was = self.enabled;
+        self.enabled = was && enabled;
+        let result = show(self);
+        self.enabled = was;
+        result
+    }
+
     // Widgets after this take keyboard focus or don't, until it's called
     // again. Each frame starts with them taking it.
     pub fn set_focusable(&mut self, focusable: bool) {
         self.focusable = focusable;
+    }
+
+    // Shows what's in `show` with widgets taking keyboard focus or not, and
+    // puts the scope back after. Unlike with_enabled it overrides the scope
+    // around it, so a program that keeps focus off everything, like a game,
+    // opts its text fields back in with it.
+    pub fn with_focusable<R>(&mut self, focusable: bool, show: impl FnOnce(&mut Ui) -> R) -> R {
+        let was = self.focusable;
+        self.focusable = focusable;
+        let result = show(self);
+        self.focusable = was;
+        result
     }
 
     pub fn focusable(&self) -> bool {

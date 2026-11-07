@@ -78,11 +78,15 @@ impl Program for Test {
             self.covered = true;
         }
         ui.cover(Rect::new(290.0, top, 200.0, 60.0));
-        ui.set_enabled(!self.disabled);
-        if ui.add("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
+        if ui.add_enabled(!self.disabled, "Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
             self.clicks += 100;
         }
-        ui.set_enabled(true);
+        // A widget can't be enabled inside a disabled scope.
+        ui.with_enabled(false, |ui| {
+            if ui.add_enabled(true, "Trapped", Rect::new(120.0, top + 160.0, 100.0, 32.0), Button::new("Trapped")).clicked {
+                self.clicks += 1000;
+            }
+        });
         ui.add("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
             ui.label(row, &format!("Row {index}"));
         }).selection(&mut self.rows));
@@ -154,6 +158,14 @@ fn a_disabled_widget_takes_no_input() {
     app.click("Maybe");
     assert_eq!(app.program.clicks, 0);
     assert!(!app.is_enabled("Maybe"));
+}
+
+#[test]
+fn a_widget_cannot_be_enabled_inside_a_disabled_scope() {
+    let mut app = Headless::new(Test::default());
+    app.click("Trapped");
+    assert_eq!(app.program.clicks, 0);
+    assert!(!app.is_enabled("Trapped"));
 }
 
 #[test]
@@ -423,9 +435,9 @@ impl Program for Ported {
     fn update(&mut self, ui: &mut Ui) {
         // Under the PerfBar.
         let top = ui.content_top();
-        ui.set_focusable(false);
-        ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
-        ui.set_focusable(true);
+        ui.with_focusable(false, |ui| {
+            ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
+        });
         ui.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
         ui.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
         ui.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));

@@ -252,19 +252,16 @@ impl Veehiicuul {
         if response.clicked {
             self.save();
         }
-        ui.set_enabled(self.can_redo());
-        let response = ui.add("Redo", redo_area, redo);
+        let response = ui.add_enabled(self.can_redo(), "Redo", redo_area, redo);
         ui.tooltip(&response, "Does again what undo undid (Ctrl+Y)");
         if response.clicked {
             self.redo();
         }
-        ui.set_enabled(self.can_undo());
-        let response = ui.add("Undo", undo_area, undo);
+        let response = ui.add_enabled(self.can_undo(), "Undo", undo_area, undo);
         ui.tooltip(&response, "Takes back the last change (Ctrl+Z)");
         if response.clicked {
             self.undo();
         }
-        ui.set_enabled(true);
         ui.divider(divider.pad(Insets::symmetric(0.0, SPACE_XS)));
         let response = ui.add("NewScene", new_scene_area, new_scene);
         ui.tooltip(&response, "Makes an empty scene, and goes to it");

@@ -164,9 +164,7 @@ impl VehicleEditor {
             self.name_text = document.vehicles.list[*vehicle].name.clone();
         }
         let field = header(ui, name_column, "Name");
-        ui.set_focusable(true);
-        ui.add("Vehicles/Name", field, TextBox::new(&mut self.name_text).placeholder("Name").max_length(40));
-        ui.set_focusable(false);
+        ui.with_focusable(true, |ui| ui.add("Vehicles/Name", field, TextBox::new(&mut self.name_text).placeholder("Name").max_length(40)));
         let name = self.name_text.trim().to_string();
         let old = document.vehicles.list[*vehicle].name.clone();
         if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
@@ -242,9 +240,7 @@ impl VehicleEditor {
             set_slot(&mut current.paint, slots, &slot, parameters);
         }
         let painted = current.paint.iter().any(|(slot, _)| *slot == slots[self.slot]);
-        ui.set_enabled(painted);
-        let reset = ui.add("VehiclePaint/Reset", form.take(CONTROL_HEIGHT), Button::new("Use the model's paint").icon(Icon::Refresh));
-        ui.set_enabled(true);
+        let reset = ui.add_enabled(painted, "VehiclePaint/Reset", form.take(CONTROL_HEIGHT), Button::new("Use the model's paint").icon(Icon::Refresh));
         ui.tooltip(&reset, "Paints this slot as the model is painted everywhere");
         if reset.clicked {
             current.paint.retain(|(slot, _)| *slot != slots[self.slot]);

@@ -23,6 +23,12 @@ impl Ui {
     pub fn add<W: Widget>(&mut self, name: &str, rect: Rect, widget: W) -> W::Response {
         widget.show(self, name, rect)
     }
+
+    // Shows a widget enabled or not, leaving the widgets around it alone.
+    // In a disabled scope it stays disabled either way.
+    pub fn add_enabled<W: Widget>(&mut self, enabled: bool, name: &str, rect: Rect, widget: W) -> W::Response {
+        self.with_enabled(enabled, |ui| ui.add(name, rect, widget))
+    }
 }
 
 // A brush for each of WinUI's visual states, like ButtonBackground,

@@ -147,16 +147,16 @@ fn settings(demo: &mut Demo, ui: &mut Ui, rect: Rect) -> bool {
     let mut content = Content::new(card.content);
     let editor = &mut demo.editor;
     editor.dragging = None;
-    ui.set_focusable(false);
     let mut selected_face = None;
-    for index in 0..SETTINGS.len() {
-        let row = content.take(ROW_HEIGHT, 0.0);
-        let face = setting(editor, ui, index, row, card.rect);
-        if index == editor.selected {
-            selected_face = Some(face);
+    ui.with_focusable(false, |ui| {
+        for index in 0..SETTINGS.len() {
+            let row = content.take(ROW_HEIGHT, 0.0);
+            let face = setting(editor, ui, index, row, card.rect);
+            if index == editor.selected {
+                selected_face = Some(face);
+            }
         }
-    }
-    ui.set_focusable(true);
+    });
     // The pill that marks the selected row, at its face's left edge, as a
     // list's does, which slides to it.
     if let Some(face) = selected_face {

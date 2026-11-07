@@ -130,11 +130,8 @@ impl TerrainEditor {
         if let Some(chosen) = terrain.palette.get_mut(self.color as usize) {
             editing::color_field(ui, "Terrain/Color", color, chosen);
         }
-        ui.set_enabled(terrain.palette.len() < PALETTE_SIZE);
-        let add = ui.add("Terrain/AddColor", add, Button::new("Add a color").icon(Icon::Add));
-        ui.set_enabled(terrain.palette.len() > 1);
-        let remove = ui.add("Terrain/RemoveColor", remove, Button::new("Remove it").icon(Icon::Delete));
-        ui.set_enabled(true);
+        let add = ui.add_enabled(terrain.palette.len() < PALETTE_SIZE, "Terrain/AddColor", add, Button::new("Add a color").icon(Icon::Add));
+        let remove = ui.add_enabled(terrain.palette.len() > 1, "Terrain/RemoveColor", remove, Button::new("Remove it").icon(Icon::Delete));
         ui.tooltip(&add, "Adds a copy of the color at the palette's end");
         ui.tooltip(&remove, "Removes the color, and takes it off its hexels");
         if add.clicked {
