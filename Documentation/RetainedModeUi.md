@@ -78,15 +78,22 @@ mode-agnostic and the scripts and tests contract depends on it:
 4. Per-frame text and custom painting go through setters (`set_text`) and
    `Canvas<T>` nodes (`ui.get_mut::<Canvas<T>>("Sticks").data = ...`).
 
+## Same-frame rules
+
+A control that update changes must show the change the same frame, as the
+immediate library did. The tree handles the common cases itself:
+
+- A node made visible during update runs its dispatch half in the draw phase,
+  so a dialog takes the page the frame it opens.
+- A list whose rows, a combo box whose choice, or a scroll region whose
+  height change during update re-register their targets in the draw phase.
+- Everything that changes a tree's shape — which controls exist and where —
+  goes through `ui.request_rebuild()`, and the rebuilt nodes adopt their
+  predecessors' user state by name. Veehiicuul drives this with a
+  fingerprint of its layout-affecting state, compared each frame.
+
 ## Status
 
-- [x] Design
-- [ ] Core: tree, Control trait, events, builder, frame phases
-- [ ] Widgets ported
-- [ ] Application layer: Program::build, run loop, Headless
-- [ ] UiShowcase + tests
-- [ ] SimplePaintDemo, MinimalSceneTest, SpinningCarTest, IdentifyDisplays
-- [ ] FrameTimes, Benchmarks
-- [ ] GameInputDemo, MeshModeler, Veehiicuul
-- [ ] Scripts pass via RunInBackground --all-scripts
-- [ ] Comparison document
+Done: the core, every widget, the application layer, all ten programs, their
+tests and their scripts. [RetainedVersusImmediate.md](RetainedVersusImmediate.md)
+has the comparison and the recommendation.

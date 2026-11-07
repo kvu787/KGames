@@ -7,11 +7,15 @@ its elevation borders and shadows, and its motion. Every GUI program is built on
 window, reads the input, runs the main loop, lays out text, draws the widgets on the GPU, and runs
 scripts and headless tests. [UiShowcase](../../Program/UiShowcase/README.md) shows every widget.
 
-It's immediate mode: each frame, a program's `update` lays out its cards in fixed pixels and adds
-each control with `ui.add(name, rect, widget)`, which draws it and returns what the input did to
-it. State that the program owns, like a slider's value, is the program's, passed to the widget as
-`&mut`. State that only the widget needs, like a text field's caret or a list's scroll, the library
-keeps by the widget's name.
+It's retained mode: a program's `build` makes a tree of named controls once, with fixed-pixel
+rectangles, and each control owns its state: a slider its value, a text box its text. Input lands
+on the controls, which emit events; the program's `update` reads them, each frame, and changes the
+tree through setters and typed access (`ui.get_mut::<Slider>("Level")`). A frame runs in three
+phases — every visible control handles its input, the program's update runs, and every control
+draws — so a change shows the frame it's made.
+[Documentation/RetainedModeUi.md](../../Documentation/RetainedModeUi.md) has the model, and
+[RetainedVersusImmediate.md](../../Documentation/RetainedVersusImmediate.md) compares it with the
+immediate-mode library this replaced.
 
 ## A program
 
@@ -27,16 +31,25 @@ impl Program for Volume {
         "Volume".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn build(&mut self, ui: &mut Ui) {
         ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
-        ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
+        ui.status_bar(vec![Status::shortcut("F11", "Fullscreen")]);
         let page = ui.page();
-        let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
-        let mut area = card.content;
-        let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
-        ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
-        if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
+        ui.card("Output", page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |ui, card| {
+            let mut area = card.content;
+            let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
+            ui.node("Level", area.cut_top(Slider::height(true), 8.0), slider);
+            ui.node("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute"));
+        });
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        if let Some(level) = ui.changed("Level") {
+            self.level = level;
+        }
+        if ui.clicked("Mute") {
             self.level = 0.0;
+            ui.get_mut::<Slider>("Level").set_value(0.0);
         }
     }
 }
@@ -49,15 +62,18 @@ fn main() -> std::process::ExitCode {
 ```
 
 `run` reads `Settings.json` and the command line, opens the window on the chosen display, creates
-the program, and runs the main loop until the window closes. A program can also draw 3D: its
-`prepare` creates GPU resources once, and its `render` records commands into each frame, after
-the frame is cleared to the theme's background and before the interface draws over it, where a
-card made with `card_with_view` leaves a hole.
+the program, and runs the main loop until the window closes. `build` runs before the first frame,
+again when the client area changes (`F11`), and whenever the program calls `ui.request_rebuild()`;
+a rebuilt node keeps what the user put into its predecessor of the same name and type, like a text
+box's text. A program can also draw 3D: its `prepare` creates GPU resources once, and its `render`
+records commands into each frame, after the frame is cleared to the theme's background and before
+the interface draws over it, where a card made `with_view` leaves a hole.
 
 | `Program` method | What it's for                                                              |
 | ---------------- | -------------------------------------------------------------------------- |
 | `title`          | The window's title                                                         |
-| `update`         | Builds the frame's interface with the newest input, and handles that input |
+| `build`          | Makes the tree of controls, before the first frame and on a rebuild        |
+| `update`         | Reads the frame's events, and keeps the tree true to the program's state   |
 | `prepare`        | Creates the program's GPU resources, once                                  |
 | `render`         | Draws the program's 3D views into the frame, under the interface           |
 | `may_close`      | Whether the window may close now, or asks first, like about unsaved work   |
@@ -98,51 +114,60 @@ of your own, so that every program looks like one family, and like Windows 11.
   bottom with shortcuts and status, and cards between them, `PAGE_PADDING` from the window's edges
   and `CARD_GAP` from each other.
 
-## Widgets
+## Controls
 
-A widget is a value that the program builds, like `Button::new("Save").accent()`, and adds with
-`ui.add(name, rect, widget)`, which returns its response. The name is what it's known by from frame
-to frame, and what scripts and tests point at. Each widget is a target, whose area, kind and label
-the interface's state lists. A widget of a program's own implements `Widget`.
+A control is a value that the program builds, like `Button::new("Save").accent()`, and makes a
+node of with `ui.node(name, rect, control)` in `build`; `ui.group` nests children under a node,
+like a card's. The name is unique in the window, and is what events carry, what setters and
+`ui.get::<T>` point at, and what scripts and tests see. Each node is a target, whose area, kind
+and label the interface's state lists. Input arrives as `UiEvent`s, read with `ui.events()` or
+sugar like `ui.clicked`, `ui.changed`, `ui.toggled`, `ui.selected`, `ui.text_changed`, `ui.chose`
+and `ui.dialog_result`; `ui.response(name)` has the raw input on a node, for view-style controls.
+`ui.set_visible`, `ui.set_enabled` and `ui.set_rect` change a node, and a control of a program's
+own implements `Control`, with a `handle` half for input and a `draw` half for painting.
 
-| Widget                             | WinUI's                   | Notes                                                           |
+| Control                            | WinUI's                   | Notes                                                           |
 | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
-| `Button`, `HyperlinkButton`        | Button, HyperlinkButton   | Standard, accent or subtle; text, an icon, or both              |
-| `ToggleButton`                     | ToggleButton              | In the accent color while it's on                               |
-| `CheckBox`, `RadioButton`          | CheckBox, RadioButton     | A radio button is checked while the value is its own            |
+| `Button`, `HyperlinkButton`        | Button, HyperlinkButton   | Standard, accent or subtle; text, an icon, a flyout menu        |
+| `ToggleButton`                     | ToggleButton              | In the accent color while it's on; emits Toggled                |
+| `CheckBox`, `RadioGroup`           | CheckBox, RadioButtons    | A column of radios emits Selected with the index picked         |
 | `ToggleSwitch`                     | ToggleSwitch              |                                                                 |
-| `Slider`                           | Slider                    | Steps, the wheel, the keys, a header, and the value as dragged  |
+| `Slider`                           | Slider                    | Owns its value; steps, the wheel, the keys, a header            |
 | `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons, the arrows or the wheel        |
-| `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is        |
-| `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own   |
+| `ComboBox`                         | ComboBox                  | Its list opens over it; `set_items` swaps the choices           |
+| `TextBox`                          | TextBox                   | Owns its text; selection, clipboard, clear and query buttons    |
 | `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
 | `Swatch`                           |                           | A color to pick, with an accent ring while it's picked          |
-| `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
+| `ListView`, `ListRow`              | ListView                  | Owns its rows as data; virtualized, one selected; own painter   |
 | `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one that slides            |
 | `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |
-| `MenuBar`, `ui.flyout_menu`        | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
-| `ui.context_menu`                  | MenuFlyout                | Opens at the pointer on a right-click                           |
-| `ui.dialog`, `ui.dialog_with`      | ContentDialog             | Over smoke, with up to three buttons and content of your own    |
-| `Expander`                         | Expander                  | A header that shows and hides what's under it                   |
-| `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable              |
-| `ScrollBar`, `ui.begin_scroll`     | ScrollViewer              | Content taller than its area, with the wheel                    |
-| `ui.tooltip`, `tooltip_for_wide`   | ToolTip                   | After the pointer rests half a second, above it; wider if asked |
-| `ui.progress_bar`, `progress_ring` | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
-| `ui.card`, `card_with_view`        | Card                      | A card with a view leaves a hole for the program's 3D           |
-| `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
+| `MenuBar`, `Button::flyout`        | MenuBar, MenuFlyout       | Owned items with icons, accelerators, checks and submenus;      |
+|                                    |                           | choices arrive as Chose events with the item's label            |
+| `ui.set_context_menu`              | MenuFlyout                | A node's menu, at the pointer on a right-click                  |
+| `Dialog`                           | ContentDialog             | A hidden node whose visibility is whether it's open; its        |
+|                                    |                           | children are its content, and its buttons emit Dialog events    |
+| `Expander`                         | Expander                  | A group whose children show while it's expanded                 |
+| `InfoBar`                          | InfoBar                   | Informational, success, warning or error; Closed when closed    |
+| `ScrollCanvas`                     | ScrollViewer              | A painted region taller than its node, with a scroll bar        |
+| `ui.set_tooltip`, `set_tooltip_wide` | ToolTip                 | After the pointer rests half a second, above it; wider if asked |
+| `ProgressBar`, `ProgressRing`      | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
+| `Card`, `ui.card`                  | Card                      | A group of controls; `with_view` leaves a hole for 3D           |
 | `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
 | `ui.menu_row`                      |                           | A row under the app bar, for a menu bar in line with the page   |
-| `View`                             |                           | A 3D view's area, which takes every button but never focus      |
-| `ui.info_card`                     |                           | A test program's floating card: frame rate, GPU, display, keys  |
-| `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
-| `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
+| `View`                             |                           | A 3D view's area, which takes every button but never focus     |
+| `Canvas<T>`                        |                           | A drawing of the program's own over data it swaps each frame    |
+| `InfoCard`                         |                           | A test program's floating card: frame rate, GPU, display, keys  |
+| `Form`                             |                           | Lays a card's content out top to bottom at build, with headers  |
+| `Text`, `Field`, `IconBlock`, `Divider` | TextBlock, and others | Lines, label-and-value rows, icons and dividers                |
+| `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Painter helpers: keycaps, counts on a pill, and lines           |
 
-`ui.set_enabled(false)` disables the widgets after it, and `ui.set_focusable(false)` keeps them
-from taking keyboard focus, until each is set back; each frame starts enabled and focusable.
-`ui.interact(name, rect, sense, kind)` makes a target of a program's own, with the input on it.
-`ui.painter()` draws a program's own graphics, like graphs and previews: rounded rectangles with
-borders and gradients, Fluent's shadows, circles, rings, arcs, lines, polygons, text and icons,
-with clipping.
+`ui.set_enabled(name, false)` disables a node and everything under it, and
+`ui.set_focusable(name, false)` keeps it from taking keyboard focus; `ui.set_build_focusable(false)`
+makes that the default for the rest of the build, for programs whose keys must stay their own.
+`ui.interact(name, rect, sense, kind)` registers a target inside a control of your own, with the
+input on it. `ui.painter()` draws graphics inside a control's `draw` or a `Canvas` painter: rounded
+rectangles with borders and gradients, Fluent's shadows, circles, rings, arcs, lines, polygons,
+text and icons, with clipping.
 
 ## Input
 
@@ -393,7 +418,9 @@ folder, through `startup.data_folder`.
 | `Source/Application/Settings.rs`    | `Settings.json`                                                             |
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
 | `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
-| `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
+| `Source/Core/Control.rs`            | The Control trait, and the events controls emit                             |
+| `Source/Core/Tree.rs`               | The retained tree: nodes, groups, the frame's phases, events and setters    |
+| `Source/Core/Ui.rs`                 | A frame's input machinery: targets, presses, focus, popups, tooltips, motion |
 | `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
 | `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |
 | `Source/Platform/Clock.rs`          | The performance counter, which input and frames are timed on                |
