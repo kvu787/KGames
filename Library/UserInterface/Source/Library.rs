@@ -173,6 +173,7 @@ pub use widgets::menu::{MenuBar, MenuItem};
 pub use widgets::navigation::{Choice, Segmented, SelectorBar};
 pub use widgets::number_box::NumberBox;
 pub use widgets::progress::{ProgressBar, ProgressRing};
+pub use widgets::scrolling::ScrollCanvas;
 pub use widgets::shell::{AppBar, Status, StatusBar};
 pub use widgets::slider::{Number, Slider, slider_rail};
 pub use widgets::text::{Divider, Field, IconBlock, KEYCAP_HEIGHT, Swatch, Text, TextColor};

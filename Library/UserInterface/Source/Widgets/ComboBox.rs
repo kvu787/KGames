@@ -145,6 +145,8 @@ impl Control for ComboBox {
     fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
         let placeholder = self.items.get(self.selected).is_none();
         let text = self.chosen_text().to_string();
+        // The label again, in case update changed the items or the choice.
+        ui.set_label(&ctx.name, &text);
         draw_closed(ui, &ctx.response, ctx.rect, &text, placeholder);
     }
 }

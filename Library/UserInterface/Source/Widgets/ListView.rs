@@ -35,12 +35,17 @@ pub struct RowState {
     pub focused: bool,
 }
 
-// What a row shows: an icon, its text, and a trailing caption, like "#12".
+// What a row shows: an icon, its text, and a trailing caption, like "#12",
+// with emphasis hints for a painter of the program's own.
 #[derive(Clone, Debug, Default)]
 pub struct ListRow {
     pub icon: Option<Icon>,
     pub text: String,
     pub trailing: String,
+    // Emphasized, like the device a card listens to.
+    pub accent: bool,
+    // De-emphasized, like a device that's ignored.
+    pub faint: bool,
 }
 
 impl ListRow {
@@ -60,6 +65,16 @@ impl ListRow {
         self.trailing = trailing.to_string();
         self
     }
+
+    pub fn accent(mut self, accent: bool) -> Self {
+        self.accent = accent;
+        self
+    }
+
+    pub fn faint(mut self, faint: bool) -> Self {
+        self.faint = faint;
+        self
+    }
 }
 
 pub struct ListView {
@@ -75,6 +90,9 @@ pub struct ListView {
     context: Option<usize>,
     shown: Vec<(usize, Response)>,
     bar: Option<Response>,
+    // The rows changed after dispatch, so draw re-registers them, and they
+    // are targets the same frame.
+    stale: bool,
 }
 
 impl ListView {
@@ -90,6 +108,7 @@ impl ListView {
             context: None,
             shown: Vec::new(),
             bar: None,
+            stale: false,
         }
     }
 
@@ -118,6 +137,7 @@ impl ListView {
         }
         let range = (self.rows.len() as f32 * self.row_height).max(0.0);
         self.offset = self.offset.min(range);
+        self.stale = true;
     }
 
     pub fn selected(&self) -> Option<usize> {
@@ -242,6 +262,7 @@ impl Control for ListView {
             let (bar_response, _) = scroll_bar_input(ui, &format!("{}/ScrollBar", ctx.name), bar, &mut self.offset, content, rect.height);
             self.bar = Some(bar_response);
         }
+        self.stale = false;
         if self.selected != before {
             if let Some(selected) = self.selected {
                 ctx.emit(ui, UiEventKind::Selected(selected));
@@ -257,9 +278,34 @@ impl Control for ListView {
         let range = (content - rect.height).max(0.0);
         let bar_width = if range > 0.0 { SCROLL_BAR_SIZE } else { 0.0 };
         let rows_area = Rect::new(rect.x, rect.y, rect.width - bar_width, rect.height);
+        // Rows that update swapped in missed dispatch, so they register here,
+        // and are targets the same frame. No input landed on them yet.
+        if self.stale {
+            self.stale = false;
+            self.offset = self.offset.clamp(0.0, range);
+            ui.remove_targets(&format!("{}/", ctx.name), "ListViewItem");
+            let first = (self.offset / row_height).floor() as usize;
+            let last = (((self.offset + rect.height) / row_height).ceil() as usize).min(count);
+            self.shown.clear();
+            for index in first..last {
+                let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - self.offset, rows_area.width, row_height);
+                let row_name = format!("{}/{index}", ctx.name);
+                let row_response = ui.interact(&row_name, row.intersect(rect), Sense::CLICK, "ListViewItem");
+                ui.set_label(&row_name, &self.rows[index].text);
+                self.shown.push((index, row_response));
+            }
+            if range > 0.0 && self.bar.is_none() {
+                let bar = rect.right_strip(SCROLL_BAR_SIZE);
+                let (bar_response, _) = scroll_bar_input(ui, &format!("{}/ScrollBar", ctx.name), bar, &mut self.offset, content, rect.height);
+                self.bar = Some(bar_response);
+            }
+        }
         ui.draw.push_clip(rect, false);
         for (index, row_response) in self.shown.clone() {
             let index: usize = index;
+            if index >= count {
+                continue;
+            }
             let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - self.offset, rows_area.width, row_height);
             let is_selected = self.selected == Some(index);
             let pressed = row_response.held && row_response.hovered;

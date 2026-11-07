@@ -4,8 +4,10 @@
 // on the bar; the wheel scrolls the region under the pointer.
 //
 // The input and paint halves are split, so controls that hold a bar, like a
-// list, run them in the dispatch and draw phases.
+// list, run them in the dispatch and draw phases. ScrollCanvas is a canvas
+// whose drawing scrolls: a program paints content taller than the node.
 
+use crate::core::control::{AutoTarget, Control, NodeContext};
 use crate::core::ui::{Response, Sense, Ui};
 use crate::design::controls::{
     SCROLL_BAR_CONTRACT_DELAY, SCROLL_BAR_EXPAND_DELAY, SCROLL_BAR_MIN_THUMB, SCROLL_BAR_RADIUS, SCROLL_BAR_THUMB_COLLAPSED,
@@ -13,6 +15,103 @@ use crate::design::controls::{
 };
 use crate::design::tokens::{CURVE_FAST_OUT_SLOW_IN, DURATION_FAST};
 use crate::drawing::geometry::Rect;
+
+// Pixels that a notch of the wheel scrolls: three lines of 48.
+pub const WHEEL_SCROLL: f32 = 144.0;
+
+// A region whose content the program paints and the wheel scrolls, with a
+// scroll bar once the content is taller than the node: `paint` gets the
+// content's area, as tall as the content and moved up by the offset, and
+// clipped to the node. The content's height and data are the program's,
+// swapped with ui.get_mut.
+pub struct ScrollCanvas<T: 'static> {
+    pub data: T,
+    paint: fn(&mut Ui, Rect, &T),
+    content_height: f32,
+    offset: f32,
+    bar: Option<Response>,
+    // The content's height changed after dispatch, so draw registers the
+    // bar, and it's a target the same frame.
+    stale: bool,
+}
+
+impl<T: 'static> ScrollCanvas<T> {
+    pub fn new(data: T, content_height: f32, paint: fn(&mut Ui, Rect, &T)) -> Self {
+        Self {
+            data,
+            paint,
+            content_height,
+            offset: 0.0,
+            bar: None,
+            stale: false,
+        }
+    }
+
+    pub fn set_content_height(&mut self, height: f32) {
+        if self.content_height != height {
+            self.content_height = height;
+            self.stale = true;
+        }
+    }
+
+    fn bar_width(&self, rect: Rect) -> f32 {
+        if self.content_height > rect.height { crate::design::controls::SCROLL_BAR_SIZE } else { 0.0 }
+    }
+
+    // Where the content goes: the node less the bar, as tall as the content,
+    // moved up by the offset.
+    pub fn content(&self, rect: Rect) -> Rect {
+        Rect::new(rect.x, rect.y - self.offset, rect.width - self.bar_width(rect), self.content_height)
+    }
+}
+
+impl<T: 'static> Control for ScrollCanvas<T> {
+    fn kind(&self) -> &'static str {
+        "ScrollViewer"
+    }
+
+    fn auto_target(&self) -> AutoTarget {
+        AutoTarget::Unlisted
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let rect = ctx.rect;
+        let range = (self.content_height - rect.height).max(0.0);
+        if ui.wheel_over(rect) {
+            self.offset -= ui.input().wheel.y * WHEEL_SCROLL;
+        }
+        self.offset = self.offset.clamp(0.0, range);
+        self.bar = None;
+        self.stale = false;
+        if range > 0.0 {
+            let bar = rect.right_strip(crate::design::controls::SCROLL_BAR_SIZE);
+            let (response, _) = scroll_bar_input(ui, &format!("{}/ScrollBar", ctx.name), bar, &mut self.offset, self.content_height, rect.height);
+            self.bar = Some(response);
+        }
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let rect = ctx.rect;
+        self.offset = self.offset.clamp(0.0, (self.content_height - rect.height).max(0.0));
+        // A height that update set missed dispatch, so the bar registers
+        // here, and it's a target the same frame.
+        if self.stale {
+            self.stale = false;
+            if self.bar.is_none() && self.content_height > rect.height {
+                let bar = rect.right_strip(crate::design::controls::SCROLL_BAR_SIZE);
+                let (response, _) = scroll_bar_input(ui, &format!("{}/ScrollBar", ctx.name), bar, &mut self.offset, self.content_height, rect.height);
+                self.bar = Some(response);
+            }
+        }
+        ui.draw.push_clip(rect, false);
+        (self.paint)(ui, self.content(rect), &self.data);
+        ui.draw.pop_clip();
+        if let Some(bar_response) = self.bar {
+            let bar = rect.right_strip(crate::design::controls::SCROLL_BAR_SIZE);
+            scroll_bar_paint(ui, &bar_response, bar, self.offset, self.content_height, rect.height);
+        }
+    }
+}
 
 // When the pointer came onto the bar or left it, for its delays.
 #[derive(Default)]

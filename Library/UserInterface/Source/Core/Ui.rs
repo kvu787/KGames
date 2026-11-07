@@ -786,6 +786,12 @@ impl Ui {
         });
     }
 
+    // Takes back this frame's targets of the kind whose names start with the
+    // prefix, for a list whose rows changed after dispatch.
+    pub(crate) fn remove_targets(&mut self, prefix: &str, kind: &'static str) {
+        self.targets.retain(|target| !(target.kind == kind && target.name.starts_with(prefix)));
+    }
+
     // Gives the target that this frame registered with the name another kind,
     // for a widget built of another, like a number box of a text box.
     pub(crate) fn retarget(&mut self, name: &str, kind: &'static str) {
