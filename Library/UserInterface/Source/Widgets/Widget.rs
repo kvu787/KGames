@@ -2,7 +2,8 @@
 // through, the brushes of WinUI's visual states, its focus visual, and its
 // elevation borders, the gradients that make controls look raised.
 
-use crate::core::ui::{ControlState, Ui};
+use crate::core::interaction::ControlState;
+use crate::core::ui::Ui;
 use crate::design::controls::FOCUS_VISUAL_MARGIN;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::drawing::geometry::{Color, Insets, Point, Rect};

@@ -7,7 +7,8 @@
 // the strong stroke; with focus its fill is ControlFillColorInputActive and
 // its bottom border is 2 pixels of the accent.
 
-use crate::core::ui::{ControlState, Cursor, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Cursor, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{TEXT_BOX_BUTTON_GLYPH, TEXT_BOX_BUTTON_MARGIN, TEXT_BOX_QUERY_BUTTON_WIDTH, TEXT_BOX_BUTTON_WIDTH, TEXT_BOX_CARET_WIDTH, TEXT_BOX_PADDING};
 use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, DURATION_FASTER, RADIUS_CONTROL};

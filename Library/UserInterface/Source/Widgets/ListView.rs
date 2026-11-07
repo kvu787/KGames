@@ -8,7 +8,8 @@
 // focus, the arrows, Home, End, Page Up and Page Down move the selection,
 // and Enter activates the selected row, as a double-click does.
 
-use crate::core::ui::{Response, Sense, Ui};
+use crate::core::interaction::{Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_PADDING, LIST_ITEM_RADIUS, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH, SELECTION_PILL_PRESSED_LENGTH,
     SELECTION_PILL_THICKNESS,

@@ -6,7 +6,8 @@
 // ControlFasterAnimationDuration, as WinUI's BrushTransition does; their
 // text and borders change at once.
 
-use crate::core::ui::{ControlState, Cursor, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Cursor, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{BUTTON_ICON_GAP, BUTTON_ICON_ONLY_WIDTH, BUTTON_PADDING, DROP_DOWN_CHEVRON_GAP, DROP_DOWN_CHEVRON_SIZE, HYPERLINK_PADDING};
 use crate::design::icons::Icon;
 use crate::design::theme::Theme;

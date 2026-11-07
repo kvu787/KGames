@@ -17,7 +17,7 @@ use windows_api::*;
 use windows_core::{BOOL, Error, PCWSTR, Result, w};
 
 use crate::application::settings::WindowMode;
-use crate::core::ui::Cursor;
+use crate::core::interaction::Cursor;
 use crate::drawing::geometry::Point;
 use crate::platform::clock;
 

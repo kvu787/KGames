@@ -3,7 +3,8 @@
 // Body after it on the same line, or under it if they don't fit, and a close
 // button if it's closable.
 
-use crate::core::ui::{Sense, Ui};
+use crate::core::interaction::Sense;
+use crate::core::ui::Ui;
 use crate::design::controls::{
     INFO_BAR_CLOSE_BUTTON_MARGIN, INFO_BAR_CLOSE_BUTTON_SIZE, INFO_BAR_ICON_MARGIN, INFO_BAR_ICON_SIZE, INFO_BAR_MESSAGE_GAP,
     INFO_BAR_MIN_HEIGHT, INFO_BAR_PADDING_LEFT, INFO_BAR_PANEL_MARGIN_RIGHT, INFO_BAR_TEXT_TOP, INFO_BAR_WRAPPED_BOTTOM,

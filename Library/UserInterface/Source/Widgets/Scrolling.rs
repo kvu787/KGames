@@ -3,7 +3,8 @@
 // and grows to 6 pixels, over an acrylic track, once the pointer has rested
 // on the bar; the wheel scrolls the region under the pointer.
 
-use crate::core::ui::{Id, Response, Sense, Ui, id};
+use crate::core::interaction::{Id, Response, Sense, id};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     SCROLL_BAR_CONTRACT_DELAY, SCROLL_BAR_EXPAND_DELAY, SCROLL_BAR_MIN_THUMB, SCROLL_BAR_RADIUS, SCROLL_BAR_SIZE, SCROLL_BAR_THUMB_COLLAPSED,
     SCROLL_BAR_THUMB_EXPANDED, SCROLL_BAR_THUMB_OFFSET, SCROLL_VIEWER_BAR_MARGIN,

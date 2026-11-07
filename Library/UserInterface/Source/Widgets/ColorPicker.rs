@@ -3,7 +3,8 @@
 // ring and a slider's thumb; and a color field, a text field for a color's
 // hex code with a swatch of it.
 
-use crate::core::ui::{Response, Sense, Ui, id};
+use crate::core::interaction::{Response, Sense, id};
+use crate::core::ui::Ui;
 use crate::design::controls::{COLOR_SLIDER_HEIGHT, COLOR_SLIDER_INNER_THUMB, COLOR_SLIDER_RADIUS, COLOR_SPECTRUM_RING, SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE};
 use crate::design::tokens::{RADIUS_CONTROL, SPACE_L};
 use crate::drawing::geometry::{Color, Point, Rect, Size};

@@ -4,7 +4,8 @@
 // always in the window. A press or the wheel puts it away until the pointer
 // moves to another control.
 
-use crate::core::ui::{Response, Ui};
+use crate::core::interaction::Response;
+use crate::core::ui::Ui;
 use crate::design::controls::{TOOLTIP_MAX_WIDTH, TOOLTIP_OFFSET, TOOLTIP_PADDING};
 use crate::design::tokens::{CAPTION, CAPTION_STRONG, ELEVATION_TOOLTIP, MONO, RADIUS_CONTROL, SPACE_S, SPACE_XS};
 use crate::drawing::geometry::{Rect, Size};
@@ -32,7 +33,7 @@ impl Ui {
     // response the program doesn't have.
     pub fn tooltip_for(&mut self, name: &str, lines: &[TooltipLine]) {
         let response = Response {
-            id: crate::core::ui::id(name),
+            id: crate::core::interaction::id(name),
             ..Default::default()
         };
         self.tooltip_lines(&response, lines);
@@ -47,7 +48,7 @@ impl Ui {
     // window's height.
     pub fn tooltip_for_wide(&mut self, name: &str, lines: &[TooltipLine], max_width: f32) {
         let response = Response {
-            id: crate::core::ui::id(name),
+            id: crate::core::interaction::id(name),
             ..Default::default()
         };
         self.tooltip_lines_wide(&response, lines, max_width);
@@ -144,7 +145,7 @@ impl Ui {
     // Text in one line, cut short with an ellipsis if it doesn't fit, with
     // the whole of it as a tooltip when it's cut.
     pub fn text_with_tooltip(&mut self, name: &str, rect: Rect, text: &str, style: crate::drawing::text::TextStyle, color: crate::drawing::geometry::Color) -> Rect {
-        let response = self.interact(name, rect, crate::core::ui::Sense::NONE, "TextBlock");
+        let response = self.interact(name, rect, crate::core::interaction::Sense::NONE, "TextBlock");
         self.set_label(name, text);
         let (shown, cut) = self.painter().text_fit(rect, text, style, color, Align::Start);
         if cut {
@@ -153,3 +154,5 @@ impl Ui {
         shown
     }
 }
+
+

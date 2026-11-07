@@ -3,7 +3,8 @@
 // fill and stroke; the content is the secondary card fill, and the program
 // draws it under the header with expander_content.
 
-use crate::core::ui::{ControlState, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{EXPANDER_CHEVRON_BUTTON, EXPANDER_CHEVRON_GLYPH, EXPANDER_CHEVRON_MARGIN, EXPANDER_CONTENT_PADDING, EXPANDER_HEADER_PADDING_LEFT};
 use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, CAPTION, DURATION_FASTER, RADIUS_CONTROL};

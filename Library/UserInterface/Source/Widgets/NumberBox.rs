@@ -3,7 +3,8 @@
 // its range and on its steps; the spin buttons, the arrows and Page Up and
 // Page Down, and the wheel while it has focus, step it.
 
-use crate::core::ui::{Response, Ui};
+use crate::core::interaction::Response;
+use crate::core::ui::Ui;
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
 use crate::drawing::geometry::Rect;
@@ -86,7 +87,7 @@ impl<T: Number> Widget for NumberBox<'_, '_, T> {
     type Response = Response;
 
     fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let draft_id = crate::core::ui::id(&format!("{name}/Draft"));
+        let draft_id = crate::core::interaction::id(&format!("{name}/Draft"));
         let focused = ui.is_focused(name);
         let mut draft = std::mem::take(ui.memory::<Draft>(draft_id));
         let current = self.value.to_f64();
@@ -164,3 +165,4 @@ impl<T: Number> Widget for NumberBox<'_, '_, T> {
         response
     }
 }
+

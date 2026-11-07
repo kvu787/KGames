@@ -8,7 +8,8 @@
 // the height it may take, the program cuts its controls from the top, and
 // end_card draws the card behind them, as tall as what they used.
 
-use crate::core::ui::{Sense, Ui};
+use crate::core::interaction::Sense;
+use crate::core::ui::Ui;
 use crate::design::tokens::{
     BODY_STRONG, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, ELEVATION_FLOATING_CARD, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S,
 };

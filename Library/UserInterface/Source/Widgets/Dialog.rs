@@ -6,7 +6,8 @@
 // The program shows it each frame while it's open, and closes it when it
 // says which button was chosen.
 
-use crate::core::ui::{Sense, Ui};
+use crate::core::interaction::Sense;
+use crate::core::ui::Ui;
 use crate::design::controls::{DIALOG_BUTTON_GAP, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH, DIALOG_PADDING, DIALOG_TITLE_GAP};
 use crate::design::tokens::{BODY, CONTROL_HEIGHT, ELEVATION_DIALOG, RADIUS_OVERLAY, SUBTITLE};
 use crate::drawing::geometry::{Rect, Size};

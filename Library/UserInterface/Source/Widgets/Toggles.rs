@@ -2,7 +2,8 @@
 // ToggleSwitch. Each is a target as wide as its rectangle, so its label takes
 // clicks too, and its focus visual goes around the label, as XAML's do.
 
-use crate::core::ui::{ControlState, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     CHECK_BOX_GLYPH_SIZE, CHECK_BOX_PADDING, CHECK_BOX_SIZE, FOCUS_VISUAL_MARGIN_WIDE, RADIO_BUTTON_GLYPH, RADIO_BUTTON_GLYPH_DISABLED,
     RADIO_BUTTON_GLYPH_DURATION, RADIO_BUTTON_GLYPH_POINTER_OVER, RADIO_BUTTON_GLYPH_PRESSED, RADIO_BUTTON_PADDING, RADIO_BUTTON_SIZE,

@@ -68,6 +68,8 @@ pub mod drawing {
 }
 
 mod core {
+    #[path = "Interaction.rs"]
+    pub mod interaction;
     #[path = "Ui.rs"]
     pub mod ui;
 }
@@ -137,7 +139,8 @@ pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{Settings, WindowMode};
-pub use core::ui::{ControlState, Cursor, Environment, FrameStats, Id, Keys, Response, Sense, Target, Ui, id};
+pub use core::interaction::{ControlState, Cursor, Id, Keys, Response, Sense, Target, id};
+pub use core::ui::{Environment, FrameStats, Ui};
 pub use design::icons::Icon;
 pub use design::theme::{AccentRamp, DataColors, Theme, ThemeKind};
 pub use drawing::geometry::{Color, Insets, Point, Rect, Size};

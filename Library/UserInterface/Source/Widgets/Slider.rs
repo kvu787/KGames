@@ -9,7 +9,8 @@
 // values allowed, like a rail from 0 to 1 whose values must stay inside it,
 // and the value never goes outside what's allowed.
 
-use crate::core::ui::{ControlState, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     SLIDER_HEADER_GAP, SLIDER_HEIGHT, SLIDER_INNER_THUMB_DURATION, SLIDER_INNER_THUMB_DURATION_POINTER, SLIDER_INNER_THUMB_SCALE,
     SLIDER_INNER_THUMB_SCALE_DISABLED, SLIDER_INNER_THUMB_SCALE_POINTER_OVER, SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_SIZE,

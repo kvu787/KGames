@@ -8,7 +8,8 @@
 // its own. The arrows move a highlight, Right opens a submenu and Left closes
 // it, Enter chooses, and Esc closes the top menu.
 
-use crate::core::ui::{ControlState, Id, Response, Sense, Ui, id};
+use crate::core::interaction::{ControlState, Id, Response, Sense, id};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING, MENU_FLYOUT_MIN_WIDTH, MENU_FLYOUT_PADDING, MENU_ITEM_ACCELERATOR_GAP, MENU_ITEM_CHECK_GLYPH,
     MENU_ITEM_CHEVRON_SIZE, MENU_ITEM_HEIGHT, MENU_ITEM_ICON_SIZE, MENU_ITEM_MARGIN, MENU_ITEM_PADDING, MENU_ITEM_PLACEHOLDER,

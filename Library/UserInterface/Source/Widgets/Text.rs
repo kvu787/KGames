@@ -3,7 +3,8 @@
 // lines of several styles; keycaps for shortcuts; WinUI's InfoBadge; the
 // status icon of InfoBar; color swatches; and dividers.
 
-use crate::core::ui::{Response, Sense, Ui};
+use crate::core::interaction::{Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{INFO_BADGE_DOT, INFO_BADGE_FONT_SIZE, INFO_BADGE_HEIGHT, INFO_BADGE_TEXT_MARGIN};
 use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, RADIUS_CONTROL, RADIUS_SMALL, SPACE_XS};

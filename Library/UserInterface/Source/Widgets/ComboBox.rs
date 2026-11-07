@@ -7,7 +7,8 @@
 // Alt+Down open the list. Open, Up and Down move the highlight, Enter chooses
 // it, and Esc or a press outside closes the list.
 
-use crate::core::ui::{ControlState, Id, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Id, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     COMBO_BOX_CHEVRON_COLUMN, COMBO_BOX_FOCUS_MARGIN, COMBO_BOX_FOCUS_RADIUS, COMBO_BOX_FOCUS_THICKNESS, COMBO_BOX_ITEM_RADIUS,
     COMBO_BOX_MIN_WIDTH, COMBO_BOX_POPUP_MIN_WIDTH, SELECTION_PILL_PRESSED_LENGTH, COMBO_BOX_CHEVRON_MARGIN, COMBO_BOX_CHEVRON_SIZE, COMBO_BOX_ITEM_HEIGHT, COMBO_BOX_ITEM_MARGIN, COMBO_BOX_ITEM_PADDING,

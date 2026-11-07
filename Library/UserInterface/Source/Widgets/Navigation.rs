@@ -4,7 +4,8 @@
 // targets named "<name>/<label>", and the control is one focus stop whose
 // arrows move the selection, as WinUI's are.
 
-use crate::core::ui::{ControlState, Response, Sense, Ui};
+use crate::core::interaction::{ControlState, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::{
     BUTTON_ICON_GAP, SELECTOR_BAR_ITEM_PADDING, SELECTOR_BAR_PADDING, SELECTOR_BAR_PILL_HEIGHT, SELECTOR_BAR_PILL_WIDTH,
 };

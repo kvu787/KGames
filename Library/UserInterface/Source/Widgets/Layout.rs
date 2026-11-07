@@ -6,7 +6,8 @@
 // And a 3D view's area, which takes every mouse button without taking
 // keyboard focus, so that the program's keys keep working while it's used.
 
-use crate::core::ui::{Cursor, Response, Sense, Ui};
+use crate::core::interaction::{Cursor, Response, Sense};
+use crate::core::ui::Ui;
 use crate::design::controls::TEXT_BOX_HEADER_GAP;
 use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CARD_PADDING, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
 use crate::drawing::geometry::Rect;
