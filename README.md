@@ -50,6 +50,7 @@ you.
 | [SimplePaintDemo](Program/SimplePaintDemo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
 | [MeshModeler](Program/MeshModeler/README.md)           | Models polygon meshes, subdivides them, and paints them with SimplePaint |
 | [UiShowcase](Program/UiShowcase/README.md)             | Shows every widget of the UI framework, and what input does to it        |
+| [WinUi3Sample](Program/WinUi3Sample/README.md)         | A real WinUI 3 app, in C# and XAML, to compare the UI framework with     |
 | [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
 | [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
 | [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`           |
