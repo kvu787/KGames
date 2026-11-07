@@ -101,10 +101,8 @@ fn every_label_and_value_stays_in_its_columns() {
     ];
     let first = &summaries[0];
     for summary in &summaries {
-        assert_eq!(columns(&summary.left), columns(&first.left), "{:?}", summary.left);
-        assert_eq!(labels(&summary.left), labels(&first.left));
-        assert_eq!(columns(&summary.right), columns(&first.right), "{:?}", summary.right);
-        assert_eq!(labels(&summary.right), labels(&first.right));
+        assert_eq!(columns(&summary.stats), columns(&first.stats), "{:?}", summary.stats);
+        assert_eq!(labels(&summary.stats), labels(&first.stats));
     }
 }
 
@@ -113,23 +111,24 @@ fn every_present_mode_shows_whole_in_the_same_columns() {
     let first = measuring_in(PresentMode::ALL[0], true, 0.01, 10.0, true);
     for mode in PresentMode::ALL {
         let summary = measuring_in(mode, true, 0.01, 10.0, true);
-        assert_eq!(values(&summary.right)[0].trim_end(), mode.name());
-        assert_eq!(columns(&summary.right), columns(&first.right), "{:?}", summary.right);
+        assert_eq!(values(&summary.stats)[3].trim_end(), mode.name());
+        assert_eq!(columns(&summary.stats), columns(&first.stats), "{:?}", summary.stats);
     }
 }
 
 #[test]
 fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
     let summary = measuring(0.01, 10.0, true);
-    // Frames a second, and the latency's mean.
-    assert_eq!(values(&summary.left), ["  100.00", "  10.00", "1"]);
-    assert_eq!(values(&summary.right), ["Independent flip ", "immediate "]);
+    // Frames a second, the latency's mean, the lookback, the mode and the
+    // flip.
+    assert_eq!(values(&summary.stats), ["  100.00", "  10.00", "1", "Independent flip ", "immediate "]);
     assert!(summary.note.is_empty());
 
     // Without input latency, all of its numbers, and the present mode, are
     // dashes, and the note says why.
     let summary = without_latency("none in a test");
-    for value in values(&summary.left)[..2].iter().copied().chain(values(&summary.right)) {
+    let stats = values(&summary.stats);
+    for value in stats[..2].iter().chain(&stats[3..]) {
         assert_eq!(value.trim(), "-", "{value:?}");
     }
     assert_eq!(summary.note, [
@@ -139,25 +138,27 @@ fn numbers_are_right_aligned_and_unknown_ones_are_dashes() {
 
     // Frames without input have no latency.
     let summary = measuring(0.01, 10.0, false);
-    assert_eq!(values(&summary.left), ["  100.00", "      -", "1"]);
+    assert_eq!(values(&summary.stats)[..3], ["  100.00", "      -", "1"]);
 }
 
 #[test]
 fn sections_are_separated_by_bars() {
     let summary = measuring(0.01, 10.0, true);
     let text = |runs: &[Run]| runs.iter().map(|run| run.text.as_str()).collect::<String>();
-    assert_eq!(text(&summary.left), "FPS =   100.00 | Input latency =   10.00 ms | Lookback = 1 s");
-    assert_eq!(text(&summary.right), "| Mode = Independent flip  | Flip = immediate ");
+    assert_eq!(
+        text(&summary.stats),
+        "FPS =   100.00 | Input latency =   10.00 ms | Lookback = 1 s | Mode = Independent flip  | Flip = immediate "
+    );
 }
 
 #[test]
 fn the_flip_is_immediate_or_at_the_refresh() {
     let summary = measuring_in(PresentMode::IndependentFlip, true, 0.01, 10.0, true);
     assert!(summary.immediate);
-    assert_eq!(values(&summary.right)[1], "immediate ");
+    assert_eq!(values(&summary.stats)[4], "immediate ");
     let summary = measuring_in(PresentMode::ComposedFlip, false, 0.01, 10.0, true);
     assert!(!summary.immediate);
-    assert_eq!(values(&summary.right)[1], "at refresh");
+    assert_eq!(values(&summary.stats)[4], "at refresh");
 }
 
 #[test]
@@ -167,5 +168,5 @@ fn a_number_too_wide_for_its_field_fills_it() {
     performance.frame_started(0.000_001);
     performance.update(0.000_001);
     let summary = performance.summary();
-    assert_eq!(values(&summary.left), ["########", "      -", "1"]);
+    assert_eq!(values(&summary.stats)[..3], ["########", "      -", "1"]);
 }

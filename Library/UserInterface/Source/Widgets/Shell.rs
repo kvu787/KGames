@@ -198,11 +198,12 @@ fn draw_status(ui: &mut Ui, item: &Status, rect: Rect) {
 
 impl Ui {
     // Draws the PerfBar along the top of the window: the frames a second,
-    // the input latency's mean from GameInput's readings to the screen,
-    // and at the right, how frames reach the screen and whether they wait for
-    // vertical sync, in sections that |s separate, set in Cascadia Mono,
-    // black on white, in fields whose widths never change, so that every
-    // label and value stays in the same columns. The main loop draws it every frame; programs don't.
+    // the input latency's mean from GameInput's readings to the screen, how
+    // frames reach the screen and whether they wait for vertical sync, in
+    // sections that |s separate, one after another from the left, set in
+    // Cascadia Mono, black on white, in fields whose widths never change, so
+    // that every label and value stays in the same columns. The main loop
+    // draws it every frame; programs don't.
     pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made 10 times a second, not copied here
@@ -230,15 +231,10 @@ impl Ui {
                 color: Color::hex(0x000000),
             };
             let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;
-            // The right's runs end at the last column, the left's start at
-            // the first, and why there's no input latency goes right after
-            // the left's, which a space at least keeps from the right's.
-            let right = runs(&summary.right).chain([(SEPARATOR, false), ("VSync = ", false), (vertical_sync, true)]);
-            let right_start = columns.saturating_sub(right.clone().map(|(text, _)| text.chars().count()).sum());
-            let end = right_start.saturating_sub(1);
-            let left_end = grid.draw(&mut painter, 0, end, runs(&summary.left));
-            grid.draw(&mut painter, left_end, end, runs(&summary.note));
-            grid.draw(&mut painter, right_start, columns, right);
+            // The stats from the first column, then vertical sync, then why
+            // there's no input latency, if there isn't.
+            let vertical_sync = [(SEPARATOR, false), ("VSync = ", false), (vertical_sync, true)];
+            grid.draw(&mut painter, columns, runs(&summary.stats).chain(vertical_sync).chain(runs(&summary.note)));
         }
         self.performance = Some(performance);
     }
@@ -251,7 +247,7 @@ impl Ui {
 }
 
 // The PerfBar's text, as runs of labels and values.
-fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> + Clone {
+fn runs(runs: &[Run]) -> impl Iterator<Item = (&str, bool)> {
     runs.iter().map(|run| (run.text.as_str(), run.value))
 }
 
@@ -264,9 +260,10 @@ struct PerfBarGrid {
 }
 
 impl PerfBarGrid {
-    // Draws runs from a column, cutting short what would reach another, and
-    // returns the column after them.
-    fn draw<'a>(&self, painter: &mut Painter, mut column: usize, end: usize, runs: impl Iterator<Item = (&'a str, bool)>) -> usize {
+    // Draws runs from the first column, cutting short what would go past the
+    // end column.
+    fn draw<'a>(&self, painter: &mut Painter, end: usize, runs: impl Iterator<Item = (&'a str, bool)>) {
+        let mut column = 0;
         for (text, _) in runs {
             let count = text.chars().count();
             let at = Point::new(PAGE_PADDING + column as f32 * self.advance, self.y);
@@ -278,7 +275,6 @@ impl PerfBarGrid {
             }
             column += count;
         }
-        column
     }
 }
 

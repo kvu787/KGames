@@ -85,12 +85,16 @@ fn the_perf_bar_says_whether_vertical_sync_is_on() {
     let off = app.render(&mut gpu).unwrap();
     save(&on, "VerticalSyncOn");
     save(&off, "VerticalSyncOff");
-    // "VSync = on" turns to "VSync = off" at the bar's right end, and nothing
-    // else along the bar changes.
-    let right = off.width - 200;
-    let changed = |from: u32, to: u32| (from..to).any(|x| (0..PERF_BAR_HEIGHT as u32).any(|y| off.pixel(x, y) != on.pixel(x, y)));
-    assert!(changed(right, off.width));
-    assert!(!changed(0, right));
+    // "VSync = on" turns to "VSync = off" right after the other stats, which
+    // start at the bar's left, so in its left half, and nothing else along
+    // the bar changes: only "n " to "ff", two characters of Cascadia Mono, a
+    // few pixels over 8 each.
+    let changed: Vec<u32> = (0..off.width).filter(|&x| (0..PERF_BAR_HEIGHT as u32).any(|y| off.pixel(x, y) != on.pixel(x, y))).collect();
+    let (Some(&first), Some(&last)) = (changed.first(), changed.last()) else {
+        panic!("the PerfBar didn't change");
+    };
+    assert!(last - first < 30, "{first}..={last}");
+    assert!(last < off.width / 2, "{first}..={last}");
 }
 
 struct Unsupported;

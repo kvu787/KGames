@@ -122,11 +122,11 @@ pub struct Summary {
     pub mode: PresentMode,
     pub immediate: bool,
     // What the PerfBar says, made here when the summary is, 10 times a
-    // second, not every frame: the runs along its left, those along its
-    // right, which the bar ends with whether vertical sync is on, and why
-    // there's no input latency, if there isn't, between them.
-    pub left: Vec<Run>,
-    pub right: Vec<Run>,
+    // second, not every frame: the runs that it starts with, at its left,
+    // which it follows with whether vertical sync is on, and why there's no
+    // input latency, if there isn't, after that, at its end, so that the
+    // stats before it stay in their columns whether it's there or not.
+    pub stats: Vec<Run>,
     pub note: Vec<Run>,
 }
 
@@ -185,27 +185,25 @@ impl Summary {
         let rate = |value: f64, known: bool| number(known.then_some(value), 2, RATE_WIDTH);
         let time = |value: f64, known: bool| number(known.then_some(value), 2, MILLISECONDS_WIDTH);
 
-        let mut left = Runs::default();
-        left.label("FPS = ");
-        left.value(rate(self.frames_per_second, frames));
-        left.label(SEPARATOR);
-        left.label("Input latency = ");
-        left.value(time(self.mean, latency));
-        left.label(" ms");
+        let mut stats = Runs::default();
+        stats.label("FPS = ");
+        stats.value(rate(self.frames_per_second, frames));
+        stats.label(SEPARATOR);
+        stats.label("Input latency = ");
+        stats.value(time(self.mean, latency));
+        stats.label(" ms");
         // How far back the stats look.
-        left.label(SEPARATOR);
-        left.label("Lookback = ");
-        left.value(format!("{WINDOW_SECONDS}"));
-        left.label(" s");
-        self.left = left.0;
-
-        let mut right = Runs::default();
-        right.label("| Mode = ");
-        right.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
-        right.label(SEPARATOR);
-        right.label("Flip = ");
-        right.value(words(measuring.then_some(if self.immediate { IMMEDIATE } else { AT_REFRESH }), FLIP_WIDTH));
-        self.right = right.0;
+        stats.label(SEPARATOR);
+        stats.label("Lookback = ");
+        stats.value(format!("{WINDOW_SECONDS}"));
+        stats.label(" s");
+        stats.label(SEPARATOR);
+        stats.label("Mode = ");
+        stats.value(words(measuring.then_some(self.mode.name()), MODE_WIDTH));
+        stats.label(SEPARATOR);
+        stats.label("Flip = ");
+        stats.value(words(measuring.then_some(if self.immediate { IMMEDIATE } else { AT_REFRESH }), FLIP_WIDTH));
+        self.stats = stats.0;
 
         let mut note = Runs::default();
         let reason = match &self.latency {

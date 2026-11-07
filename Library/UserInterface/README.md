@@ -267,18 +267,18 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 Every program's window shows its performance along its top, in the PerfBar
 (`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second, and
 the input latency over the second before the newest frame known on the screen, since Windows' events
-about presents come late: about 15 ms, as PresentTiming flushes ETW's buffers every 8 ms. A `|`
-separates its sections, and a `=` each label from its value, as in `FPS = 100.00`. It changes what
-it says 10 times a second:
+about presents come late: about 15 ms, as PresentTiming flushes ETW's buffers every 8 ms. Its
+sections go one after another from its left, in this order, a `|` between each two, and a `=`
+between each label and its value, as in `FPS = 100.00`. It changes what it says 10 times a second:
 
-| Stat            | What it is                                                                                      |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `FPS`           | Frames a second that the main loop draws, with two decimals                                     |
-| `Input latency` | The input latency's mean                                                                        |
-| `Lookback`      | How many seconds back the stats look, 1                                                         |
-| `Mode`          | How frames reach the screen, one of PresentTiming's present modes                               |
-| `Flip`          | `immediate` if the display took the newest frame at once, or `at refresh` at its next refresh   |
-| `VSync`         | Whether frames wait for vertical sync, `on` or `off`, at the bar's right end. `F10` switches it |
+| Stat            | What it is                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `FPS`           | Frames a second that the main loop draws, with two decimals                                   |
+| `Input latency` | The input latency's mean                                                                      |
+| `Lookback`      | How many seconds back the stats look, 1                                                       |
+| `Mode`          | How frames reach the screen, one of PresentTiming's present modes                             |
+| `Flip`          | `immediate` if the display took the newest frame at once, or `at refresh` at its next refresh |
+| `VSync`         | Whether frames wait for vertical sync, `on` or `off`. `F10` switches it                       |
 
 `Flip` is what Windows' events say about the flip of the newest frame on the screen, like
 PresentMon's `AllowsTearing`, not whether the program lets frames tear. Without a variable refresh
@@ -291,7 +291,8 @@ The PerfBar is set in Cascadia Mono at 14 pixels, `PERF_BAR_TEXT`, black on whit
 its divider, in fields whose widths never change, so that every label and value stays in the same
 place: numbers are right-aligned in their fields, a number that isn't known yet, like the input
 latency's before the first present, is a dash, and one too wide for its field fills it with `#`.
-Without input latency, the PerfBar says why after its own, before `Mode`.
+Without input latency, the PerfBar says why at its end, after `VSync`, so that the stats before it
+stay in place when it comes and goes.
 
 The input latency runs from when GameInput got the input that a frame took to when the display took
 that frame, all on the performance counter's clock, in three parts:
