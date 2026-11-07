@@ -143,3 +143,37 @@ settings app, not an editor — retained mode's trade-offs flip, and this
 branch shows the library can host that model with the scripts and tests
 intact. Until then, the immediate library is the smaller, faster and less
 error-prone foundation for what KGames actually builds.
+
+## Outcome
+
+The recommendation was taken: the library and the programs returned to
+immediate mode. The retained implementation stays in this branch's history,
+ending at commit `00648f0`; commit `4b3e46f` restores the immediate
+implementation, and the commits after it apply what the experiment taught:
+
+- **The interaction types got a module of their own.** `Sense`, `Target`,
+  `Response` and their kin are the contract that survived both modes
+  unchanged, so they moved out of `Ui.rs` into `Core/Interaction.rs`.
+- **Wheel interest is typed.** `hovered_takes_wheel` matched target kind
+  strings; now a widget declares it in its `Sense` (`takes_wheel()`,
+  `takes_wheel_while_focused()`), which the retained `Control` trait's
+  explicitness suggested.
+- **Enabling is scoped.** The per-name setters read better than the
+  `set_enabled(x) ... set_enabled(true)` pairs; the immediate translation is
+  `ui.add_enabled(enabled, ...)` for one widget and `ui.with_enabled` /
+  `ui.with_focusable` for a run of them, which put the scope back themselves
+  and can't leave a disabled card with a working widget.
+- **`RadioGroup` was kept.** One `add` shows the whole group, with the same
+  per-item targets the scripts already pointed at.
+- **The one-frame modality gap closed.** A dialog now gates
+  `ui.key_pressed`, `ui.key_pressed_once` and `ui.key_down` the frame it
+  opens, for checks after it, not just from the next frame on.
+
+Two of the wins the recommendation listed were deliberately not carried
+over, because they turned out to be retained-mode artifacts. `Canvas<T>`
+earned its keep by making a tree node's reads explicit; an immediate
+program's custom painting already takes its data as plain arguments, so the
+wrapper adds nothing. Owned `MenuItem`s existed because a retained menu
+outlives the frame that builds it; an immediate menu is shown the frame
+it's built, so the borrowed `const` menus cost nothing and keep their
+zero-allocation path.

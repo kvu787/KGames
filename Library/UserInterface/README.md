@@ -110,6 +110,7 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `Button`, `HyperlinkButton`        | Button, HyperlinkButton   | Standard, accent or subtle; text, an icon, or both              |
 | `ToggleButton`                     | ToggleButton              | In the accent color while it's on                               |
 | `CheckBox`, `RadioButton`          | CheckBox, RadioButton     | A radio button is checked while the value is its own            |
+| `RadioGroup`                       | RadioButtons              | A column of radios that picks one of its items, by index        |
 | `ToggleSwitch`                     | ToggleSwitch              |                                                                 |
 | `Slider`                           | Slider                    | Steps, the wheel, the keys, a header, and the value as dragged  |
 | `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons, the arrows or the wheel        |
@@ -137,9 +138,17 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
 | `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
 
-`ui.set_enabled(false)` disables the widgets after it, and `ui.set_focusable(false)` keeps them
-from taking keyboard focus, until each is set back; each frame starts enabled and focusable.
-`ui.interact(name, rect, sense, kind)` makes a target of a program's own, with the input on it.
+`ui.add_enabled(enabled, name, rect, widget)` shows one widget enabled or not, and
+`ui.with_enabled(enabled, |ui| ...)` a run of them; both put the scope back after, and inside a
+disabled scope everything stays disabled, so a disabled card can't have a working widget.
+`ui.with_focusable(focusable, |ui| ...)` scopes which widgets take keyboard focus the same way,
+except that it overrides the scope around it, so a program that keeps focus off everything, like a
+game, opts its text fields back in with it. `ui.set_enabled` and `ui.set_focusable` set each until
+they're set back; each frame starts enabled and focusable.
+`ui.interact(name, rect, sense, kind)` makes a target of a program's own, with the input on it. A
+widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
+`takes_wheel_while_focused()`, like a number box's - so what it's in doesn't scroll under it;
+`Sense::VIEW` takes it already.
 `ui.painter()` draws a program's own graphics, like graphs and previews: rounded rectangles with
 borders and gradients, Fluent's shadows, circles, rings, arcs, lines, polygons, text and icons,
 with clipping.
@@ -168,8 +177,9 @@ the window's focus changes between them. The window's messages bring none of it.
   an open menu or dialog gets no keys.
 - `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
   don't see the keys that the widget with focus takes, like a text field's letters or a slider's
-  arrows, or any while a dialog is open. `ui.input()` has all of the frame's input, for programs
-  that read keys themselves, like for driving.
+  arrows, or any while a dialog is open - from the very frame it opens, for checks after it.
+  `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
+  driving.
 - Without focus, the window has no input at all, including the gamepad's. The click that gives it
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
@@ -393,6 +403,7 @@ folder, through `startup.data_folder`.
 | `Source/Application/Settings.rs`    | `Settings.json`                                                             |
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
 | `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
+| `Source/Core/Interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Response` and their kin  |
 | `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips, motion      |
 | `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
 | `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |

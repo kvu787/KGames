@@ -1,5 +1,11 @@
 # Retained-mode user interface
 
+> **Historical.** This documents the retained-mode experiment, which lives in
+> this branch's history up to commit `00648f0`. The library returned to
+> immediate mode afterward — see the Outcome section of
+> [RetainedVersusImmediate.md](RetainedVersusImmediate.md) — so nothing below
+> describes the current library.
+
 `Library/UserInterface` is a retained-mode UI library: a program builds a tree
 of controls once, each control owns its state, and the program talks to the
 tree through events and setters. This replaced the immediate-mode library,
