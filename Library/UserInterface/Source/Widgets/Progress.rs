@@ -1,13 +1,77 @@
 // WinUI's ProgressBar and ProgressRing: how far something has come, or that
 // it's going on for a time no one knows, with their indeterminate
-// animations' timing.
+// animations' timing. The painter helpers on Ui draw them anywhere; the
+// Progress controls are their retained forms.
 
+use crate::core::control::{AutoTarget, Control, NodeContext};
 use crate::core::ui::Ui;
 use crate::design::controls::{
     PROGRESS_BAR_HEIGHT, PROGRESS_BAR_RADIUS, PROGRESS_BAR_TRACK_HEIGHT, PROGRESS_BAR_TRACK_RADIUS, PROGRESS_RING_RADIUS, PROGRESS_RING_STROKE,
 };
 use crate::design::tokens::Curve;
 use crate::drawing::geometry::{Point, Rect};
+
+// A progress bar across its rectangle's middle: `Some` fraction from 0 to 1,
+// or None while how long is unknown.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ProgressBar {
+    value: Option<f32>,
+}
+
+impl ProgressBar {
+    pub fn new(value: Option<f32>) -> Self {
+        Self { value }
+    }
+
+    pub fn set_value(&mut self, value: Option<f32>) {
+        self.value = value;
+    }
+}
+
+impl Control for ProgressBar {
+    fn kind(&self) -> &'static str {
+        "ProgressBar"
+    }
+
+    fn auto_target(&self) -> AutoTarget {
+        AutoTarget::None
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        ui.progress_bar(ctx.rect, self.value);
+    }
+}
+
+// A progress ring of the diameter, centered in its rectangle.
+#[derive(Clone, Copy, Debug)]
+pub struct ProgressRing {
+    value: Option<f32>,
+    diameter: f32,
+}
+
+impl ProgressRing {
+    pub fn new(value: Option<f32>, diameter: f32) -> Self {
+        Self { value, diameter }
+    }
+
+    pub fn set_value(&mut self, value: Option<f32>) {
+        self.value = value;
+    }
+}
+
+impl Control for ProgressRing {
+    fn kind(&self) -> &'static str {
+        "ProgressRing"
+    }
+
+    fn auto_target(&self) -> AutoTarget {
+        AutoTarget::None
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        ui.progress_ring(ctx.rect.center(), self.diameter, self.value);
+    }
+}
 
 // KeySpline 0.4,0,0.6,1, of the indeterminate bar's two indicators.
 const BAR_CURVE: Curve = Curve(0.4, 0.0, 0.6, 1.0);

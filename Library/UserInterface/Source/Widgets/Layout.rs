@@ -1,19 +1,24 @@
-// Laying a card's content out in fixed pixels, top to bottom: a Form gives
-// rows for controls with their headers above them, as XAML's Header puts
-// them, or labels beside them, and headings, captions and gaps between them.
-// Its `bottom` is where the content ends, for a card that sizes itself.
+// Laying a card's content out in fixed pixels at build time, top to bottom:
+// a Form gives rows for controls with their headers above them, as XAML's
+// Header puts them, or labels beside them, and headings, captions and gaps
+// between them. Its text helpers make Text nodes, named under the form's
+// name. Its `bottom` is where the content ends, for a card that sizes itself.
 //
 // And a 3D view's area, which takes every mouse button without taking
 // keyboard focus, so that the program's keys keep working while it's used.
 
-use crate::core::ui::{Cursor, Response, Sense, Ui};
+use crate::core::control::{Control, NodeContext, UiEventKind};
+use crate::core::ui::{Cursor, Sense, Ui};
 use crate::design::controls::TEXT_BOX_HEADER_GAP;
 use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CARD_PADDING, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
 use crate::drawing::geometry::Rect;
-use crate::widgets::widget::Widget;
+use crate::widgets::text::{Divider, Text};
 
 pub struct Form {
     area: Rect,
+    // The form's name, under which its text nodes are named.
+    name: String,
+    counter: usize,
     // Labels go beside controls, in a column this wide, or above them.
     label_width: Option<f32>,
     gap: f32,
@@ -23,10 +28,13 @@ pub struct Form {
 }
 
 impl Form {
-    // Headers above the controls.
-    pub fn new(area: Rect) -> Self {
+    // Headers above the controls. The name is the form's own, for its text
+    // nodes: "<name>/Text<n>".
+    pub fn new(name: &str, area: Rect) -> Self {
         Self {
             area,
+            name: name.to_string(),
+            counter: 0,
             label_width: None,
             gap: FORM_ROW_GAP,
             used: area.y,
@@ -35,10 +43,10 @@ impl Form {
     }
 
     // Labels beside the controls, in a column `label_width` wide.
-    pub fn beside(area: Rect, label_width: f32) -> Self {
+    pub fn beside(name: &str, area: Rect, label_width: f32) -> Self {
         Self {
             label_width: Some(label_width),
-            ..Self::new(area)
+            ..Self::new(name, area)
         }
     }
 
@@ -46,6 +54,11 @@ impl Form {
     pub fn gap(mut self, gap: f32) -> Self {
         self.gap = gap;
         self
+    }
+
+    fn text_name(&mut self) -> String {
+        self.counter += 1;
+        format!("{}/Text{}", self.name, self.counter)
     }
 
     // A rectangle `height` tall for anything, and the gap after it.
@@ -56,20 +69,22 @@ impl Form {
         rect
     }
 
-    // A control's row with its label, which it draws: above the control, or
-    // beside it. Returns the control's rectangle, `height` tall.
+    // A control's row with its label, which it makes a Text node for: above
+    // the control, or beside it. Returns the control's rectangle, `height`
+    // tall.
     pub fn row(&mut self, ui: &mut Ui, label: &str, height: f32) -> Rect {
-        let color = if ui.enabled() { ui.theme().text_primary } else { ui.theme().text_disabled };
         match self.label_width {
             Some(width) => {
                 let row = self.take(height.max(CONTROL_HEIGHT));
-                ui.text(Rect::new(row.x, row.y, width - SPACE_S, CONTROL_HEIGHT.min(row.height)), label, BODY, color);
+                let name = self.text_name();
+                ui.node(&name, Rect::new(row.x, row.y, width - SPACE_S, CONTROL_HEIGHT.min(row.height)), Text::label(label));
                 Rect::new(row.x + width, row.y, row.width - width, height)
             }
             None => {
                 if !label.is_empty() {
                     let header = self.area.cut_top(BODY.line_height, TEXT_BOX_HEADER_GAP);
-                    ui.text(header, label, BODY, color);
+                    let name = self.text_name();
+                    ui.node(&name, header, Text::label(label));
                 }
                 self.take(height)
             }
@@ -84,8 +99,10 @@ impl Form {
     // A heading in Body Strong, with a divider under it.
     pub fn heading(&mut self, ui: &mut Ui, text: &str) {
         let row = self.area.cut_top(BODY_STRONG.line_height + SPACE_XS + 1.0, self.gap);
-        ui.heading(row.top_strip(BODY_STRONG.line_height), text);
-        ui.divider(row.bottom_strip(1.0));
+        let name = self.text_name();
+        ui.node(&name, row.top_strip(BODY_STRONG.line_height), Text::heading(text));
+        let divider = self.text_name();
+        ui.node(&divider, row.bottom_strip(1.0), Divider);
         self.used = row.bottom();
     }
 
@@ -93,16 +110,16 @@ impl Form {
     pub fn caption(&mut self, ui: &mut Ui, text: &str) {
         let height = ui.paragraph_height(self.area.width, text, CAPTION);
         let rect = self.take(height);
-        let color = ui.theme().text_secondary;
-        ui.paragraph(rect, text, CAPTION, color);
+        let name = self.text_name();
+        ui.node(&name, rect, Text::new(text, CAPTION).secondary().wrapped());
     }
 
     // Body text, wrapped.
     pub fn paragraph(&mut self, ui: &mut Ui, text: &str) {
         let height = ui.paragraph_height(self.area.width, text, BODY);
         let rect = self.take(height);
-        let color = ui.theme().text_primary;
-        ui.paragraph(rect, text, BODY, color);
+        let name = self.text_name();
+        ui.node(&name, rect, Text::new(text, BODY).wrapped());
     }
 
     // N columns of equal width, `height` tall, like a row of buttons.
@@ -114,14 +131,14 @@ impl Form {
     // one, in columns of equal width with a gap of a card's padding between
     // them. Returns the controls' rectangles, `height` tall.
     pub fn headed_columns<const N: usize>(&mut self, ui: &mut Ui, labels: [&str; N], height: f32) -> [Rect; N] {
-        let color = if ui.enabled() { ui.theme().text_primary } else { ui.theme().text_disabled };
         let headed = labels.iter().any(|label| !label.is_empty());
         let header_height = if headed { BODY.line_height + TEXT_BOX_HEADER_GAP } else { 0.0 };
         let area = self.take(header_height + height);
         let columns = area.columns::<N>(CARD_PADDING);
         for (column, label) in columns.iter().zip(labels) {
             if !label.is_empty() {
-                ui.text(Rect::new(column.x, column.y, column.width, BODY.line_height), label, BODY, color);
+                let name = self.text_name();
+                ui.node(&name, Rect::new(column.x, column.y, column.width, BODY.line_height), Text::label(label));
             }
         }
         columns.map(|column| Rect::new(column.x, column.y + header_height, column.width, height))
@@ -153,7 +170,8 @@ impl Form {
 
 // A 3D view's area. It takes presses of every mouse button and the wheel,
 // but never keyboard focus, and a press in it takes focus from whatever had
-// it, so that the program's keys work while it's used.
+// it, so that the program's keys work while it's used. The program reads
+// what the input did with ui.response(name).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct View {
     cursor: Option<Cursor>,
@@ -169,21 +187,35 @@ impl View {
         self.cursor = Some(cursor);
         self
     }
+
+    pub fn set_cursor(&mut self, cursor: Option<Cursor>) {
+        self.cursor = cursor;
+    }
 }
 
-impl Widget for View {
-    type Response = Response;
+impl Control for View {
+    fn kind(&self) -> &'static str {
+        "View"
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let response = ui.interact(name, rect, Sense::VIEW, "View");
+    fn sense(&self) -> Sense {
+        Sense::VIEW
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let response = &ctx.response;
         if response.pressed || response.secondary_pressed || response.middle_pressed {
             ui.clear_focus();
+        }
+        if response.clicked {
+            ctx.emit(ui, UiEventKind::Clicked);
         }
         if let Some(cursor) = self.cursor
             && (response.hovered || response.held)
         {
             ui.set_cursor(cursor);
         }
-        response
     }
+
+    fn draw(&mut self, _ui: &mut Ui, _ctx: &NodeContext) {}
 }

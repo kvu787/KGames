@@ -1,9 +1,10 @@
 // WinUI's InfoBar: a message of one of four severities, in its background
 // color, with its status icon, its title in Body Strong and its message in
 // Body after it on the same line, or under it if they don't fit, and a close
-// button if it's closable.
+// button if it's closable, which emits Closed.
 
-use crate::core::ui::{Sense, Ui};
+use crate::core::control::{Control, NodeContext, UiEventKind};
+use crate::core::ui::{Response, Sense, Ui};
 use crate::design::controls::{
     INFO_BAR_CLOSE_BUTTON_MARGIN, INFO_BAR_CLOSE_BUTTON_SIZE, INFO_BAR_ICON_MARGIN, INFO_BAR_ICON_SIZE, INFO_BAR_MESSAGE_GAP,
     INFO_BAR_MIN_HEIGHT, INFO_BAR_PADDING_LEFT, INFO_BAR_PANEL_MARGIN_RIGHT, INFO_BAR_TEXT_TOP, INFO_BAR_WRAPPED_BOTTOM,
@@ -13,8 +14,7 @@ use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, BODY_STRONG, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border};
-use crate::widgets::buttons::Button;
-use crate::widgets::widget::Widget;
+use crate::widgets::buttons::{ButtonFace, ButtonStyle, draw_button};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Severity {
@@ -36,33 +36,35 @@ impl Severity {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct InfoBar<'a> {
+#[derive(Clone, Debug)]
+pub struct InfoBar {
     severity: Severity,
-    title: &'a str,
-    message: &'a str,
+    title: String,
+    message: String,
     closable: bool,
+    close_response: Option<Response>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct InfoBarResponse {
-    // Its close button was clicked.
-    pub closed: bool,
-}
-
-impl<'a> InfoBar<'a> {
-    pub fn new(severity: Severity, title: &'a str, message: &'a str) -> Self {
+impl InfoBar {
+    pub fn new(severity: Severity, title: &str, message: &str) -> Self {
         Self {
             severity,
-            title,
-            message,
+            title: title.to_string(),
+            message: message.to_string(),
             closable: false,
+            close_response: None,
         }
     }
 
     pub fn closable(mut self) -> Self {
         self.closable = true;
         self
+    }
+
+    pub fn set_message(&mut self, severity: Severity, title: &str, message: &str) {
+        self.severity = severity;
+        self.title = title.to_string();
+        self.message = message.to_string();
     }
 
     fn text_left(&self) -> f32 {
@@ -77,33 +79,47 @@ impl<'a> InfoBar<'a> {
     // message's height, wrapped.
     fn layout(&self, ui: &mut Ui, width: f32) -> (bool, f32) {
         let room = (width - self.text_left() - self.text_right()).max(1.0);
-        let title = ui.measure(self.title, BODY_STRONG).width;
-        let message = ui.measure(self.message, BODY).width;
+        let title = ui.measure(&self.title, BODY_STRONG).width;
+        let message = ui.measure(&self.message, BODY).width;
         if title + INFO_BAR_MESSAGE_GAP + message <= room {
             return (true, BODY.line_height);
         }
-        (false, ui.fonts().measure_wrapped(self.message, BODY, room).height)
+        (false, ui.fonts().measure_wrapped(&self.message, BODY, room).height)
     }
-}
 
-impl Ui {
     // How tall an info bar of the width is.
-    pub fn info_bar_height(&mut self, width: f32, bar: &InfoBar) -> f32 {
-        let (one_line, message) = bar.layout(self, width);
+    pub fn height(&self, ui: &mut Ui, width: f32) -> f32 {
+        let (one_line, message) = self.layout(ui, width);
         if one_line {
             INFO_BAR_MIN_HEIGHT
         } else {
             (INFO_BAR_TEXT_TOP + BODY_STRONG.line_height + INFO_BAR_WRAPPED_MESSAGE_GAP + message + INFO_BAR_WRAPPED_BOTTOM).max(INFO_BAR_MIN_HEIGHT)
         }
     }
-}
 
-impl Widget for InfoBar<'_> {
-    type Response = InfoBarResponse;
+    fn close_rect(rect: Rect) -> Rect {
+        let size = INFO_BAR_CLOSE_BUTTON_SIZE;
+        Rect::new(rect.right() - INFO_BAR_CLOSE_BUTTON_MARGIN - size, rect.y + INFO_BAR_CLOSE_BUTTON_MARGIN, size, size)
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> InfoBarResponse {
+    // The dispatch half, for a bar drawn inside another control, like the
+    // notices under the app bar: handles its close button. Returns whether
+    // it was closed.
+    pub(crate) fn input(&mut self, ui: &mut Ui, name: &str, rect: Rect) -> bool {
         ui.register(name, rect, Sense::NONE, "InfoBar");
         ui.set_label(name, format!("{}: {} {}", self.severity.name(), self.title, self.message).trim_end());
+        self.close_response = None;
+        if self.closable {
+            let close = Self::close_rect(rect);
+            let response = ui.interact(&format!("{name}/Close"), close, Sense::BUTTON, "Button");
+            self.close_response = Some(response);
+            return response.clicked;
+        }
+        false
+    }
+
+    // The draw half, usable from another control too.
+    pub(crate) fn paint(&mut self, ui: &mut Ui, rect: Rect) {
         let (one_line, _) = self.layout(ui, rect.width);
         let mut painter = ui.painter();
         let theme = painter.theme();
@@ -119,24 +135,47 @@ impl Widget for InfoBar<'_> {
         let title_top = rect.y + INFO_BAR_TEXT_TOP;
         if one_line {
             let line = Rect::new(left, title_top, room, BODY.line_height);
-            let (title, _) = painter.text_fit(line, self.title, BODY_STRONG, theme.text_primary, Align::Start);
+            let (title, _) = painter.text_fit(line, &self.title, BODY_STRONG, theme.text_primary, Align::Start);
             let after = if self.title.is_empty() { title.x } else { title.right() + INFO_BAR_MESSAGE_GAP };
-            painter.text_fit(Rect::new(after, line.y, (line.right() - after).max(0.0), line.height), self.message, BODY, theme.text_primary, Align::Start);
+            painter.text_fit(Rect::new(after, line.y, (line.right() - after).max(0.0), line.height), &self.message, BODY, theme.text_primary, Align::Start);
         } else {
             let title = Rect::new(left, title_top, room, BODY_STRONG.line_height);
-            painter.text_fit(title, self.title, BODY_STRONG, theme.text_primary, Align::Start);
+            painter.text_fit(title, &self.title, BODY_STRONG, theme.text_primary, Align::Start);
             let message_top = title.bottom() + INFO_BAR_WRAPPED_MESSAGE_GAP;
-            painter.text_wrapped(Rect::new(left, message_top, room, rect.bottom() - message_top), self.message, BODY, theme.text_primary);
+            painter.text_wrapped(Rect::new(left, message_top, room, rect.bottom() - message_top), &self.message, BODY, theme.text_primary);
         }
         // The icon's top is 16 from the bar's, as is a one-line bar's middle.
         let icon_center = Point::new(rect.x + INFO_BAR_PADDING_LEFT + INFO_BAR_ICON_SIZE / 2.0, rect.y + INFO_BAR_ICON_MARGIN.top + INFO_BAR_ICON_SIZE / 2.0);
         ui.status_icon(icon_center, self.severity, INFO_BAR_ICON_SIZE);
-        let mut closed = false;
-        if self.closable {
-            let size = INFO_BAR_CLOSE_BUTTON_SIZE;
-            let close = Rect::new(rect.right() - INFO_BAR_CLOSE_BUTTON_MARGIN - size, rect.y + INFO_BAR_CLOSE_BUTTON_MARGIN, size, size);
-            closed = ui.add(&format!("{name}/Close"), close, Button::icon_only(Icon::Dismiss).subtle()).clicked;
+        if let Some(response) = self.close_response {
+            let face = ButtonFace {
+                text: "",
+                icon: Some(Icon::Dismiss),
+                style: ButtonStyle::Subtle,
+                checked: false,
+                chevron: false,
+            };
+            draw_button(ui, &face, &response, Self::close_rect(rect));
         }
-        InfoBarResponse { closed }
+    }
+}
+
+impl Control for InfoBar {
+    fn kind(&self) -> &'static str {
+        "InfoBar"
+    }
+
+    fn auto_target(&self) -> crate::core::control::AutoTarget {
+        crate::core::control::AutoTarget::None
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        if self.input(ui, &ctx.name, ctx.rect) {
+            ctx.emit(ui, UiEventKind::Closed);
+        }
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        self.paint(ui, ctx.rect);
     }
 }

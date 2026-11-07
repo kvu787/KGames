@@ -3,36 +3,48 @@
 // its range and on its steps; the spin buttons, the arrows and Page Up and
 // Page Down, and the wheel while it has focus, step it.
 
-use crate::core::ui::{Response, Ui};
+use crate::core::control::{Control, NodeContext, UiEventKind, adopted};
+use crate::core::ui::{Response, Sense, Ui};
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
 use crate::drawing::geometry::Rect;
 use crate::input::devices::Key;
 use crate::widgets::slider::Number;
-use crate::widgets::text_box::{TextBox, text_control_button};
-use crate::widgets::widget::Widget;
+use crate::widgets::text_box::{TextBox, draw_text_control_button};
 
-pub struct NumberBox<'a, 'v, T: Number> {
-    value: &'v mut T,
+pub struct NumberBox {
+    value: f64,
     minimum: f64,
     maximum: f64,
     step: f64,
     large_step: f64,
     decimals: usize,
-    placeholder: &'a str,
+    field: TextBox,
+    editing: bool,
+    spin_up: Option<Response>,
+    spin_down: Option<Response>,
 }
 
-impl<'a, 'v, T: Number> NumberBox<'a, 'v, T> {
-    pub fn new(value: &'v mut T) -> Self {
-        Self {
-            value,
+fn numeric(character: char) -> bool {
+    character.is_ascii_digit() || matches!(character, '.' | '-' | '+' | 'e' | 'E')
+}
+
+impl NumberBox {
+    pub fn new(value: impl Number) -> Self {
+        let mut this = Self {
+            value: value.to_f64(),
             minimum: f64::MIN,
             maximum: f64::MAX,
             step: 1.0,
             large_step: 10.0,
             decimals: 0,
-            placeholder: "",
-        }
+            field: TextBox::new("").accept(numeric).trailing(NUMBER_BOX_SPIN_COLUMN),
+            editing: false,
+            spin_up: None,
+            spin_down: None,
+        };
+        this.field.set_text(&this.format(this.value));
+        this
     }
 
     pub fn range(mut self, minimum: f64, maximum: f64) -> Self {
@@ -57,9 +69,23 @@ impl<'a, 'v, T: Number> NumberBox<'a, 'v, T> {
         self
     }
 
-    pub fn placeholder(mut self, placeholder: &'a str) -> Self {
-        self.placeholder = placeholder;
+    pub fn placeholder(mut self, placeholder: &str) -> Self {
+        self.field = std::mem::replace(&mut self.field, TextBox::new("")).placeholder(placeholder);
         self
+    }
+
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+
+    pub fn value_as<T: Number>(&self) -> T {
+        T::from_f64(self.value)
+    }
+
+    pub fn set_value(&mut self, value: impl Number) {
+        self.value = self.clamp(value.to_f64());
+        self.editing = false;
+        self.field.set_text(&self.format(self.value));
     }
 
     fn format(&self, value: f64) -> String {
@@ -71,57 +97,65 @@ impl<'a, 'v, T: Number> NumberBox<'a, 'v, T> {
     }
 }
 
-// What's typed, while the field has focus.
-#[derive(Default)]
-struct Draft {
-    text: String,
-    editing: bool,
-}
+impl Control for NumberBox {
+    fn kind(&self) -> &'static str {
+        "NumberBox"
+    }
 
-fn numeric(character: char) -> bool {
-    character.is_ascii_digit() || matches!(character, '.' | '-' | '+' | 'e' | 'E')
-}
+    fn sense(&self) -> Sense {
+        Sense::TEXT
+    }
 
-impl<T: Number> Widget for NumberBox<'_, '_, T> {
-    type Response = Response;
+    fn label(&self) -> Option<String> {
+        Some(self.format(self.value))
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let draft_id = crate::core::ui::id(&format!("{name}/Draft"));
-        let focused = ui.is_focused(name);
-        let mut draft = std::mem::take(ui.memory::<Draft>(draft_id));
-        let current = self.value.to_f64();
-        if !focused || !draft.editing {
-            draft.text = self.format(current);
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<NumberBox>(previous) {
+            self.value = self.clamp(previous.value);
+            self.field.set_text(&self.format(self.value));
         }
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let (name, rect, response) = (&ctx.name, ctx.rect, &ctx.response);
+        let current = self.value;
         let mut value = current;
-        let field = TextBox::new(&mut draft.text).placeholder(self.placeholder).accept(numeric).trailing(NUMBER_BOX_SPIN_COLUMN);
-        let result = ui.add(name, rect, field);
-        let mut response = result.response;
+        if !response.focused && !self.editing {
+            let text = self.format(current);
+            self.field.set_text(&text);
+        }
+        let outcome = self.field.input(ui, name, rect, response);
         // It's a NumberBox to scripts, not a TextBox.
         ui.retarget(name, "NumberBox");
-        if result.changed {
-            draft.editing = true;
+        if outcome.changed {
+            self.editing = true;
         }
-        let commit = result.submitted || (draft.editing && !response.focused);
+        let commit = outcome.submitted || (self.editing && !response.focused);
         if commit {
-            if let Ok(typed) = draft.text.trim().parse::<f64>() {
+            if let Ok(typed) = self.field.text().trim().parse::<f64>() {
                 value = self.clamp(typed);
             }
-            draft.editing = false;
-            draft.text = self.format(value);
+            self.editing = false;
+            let text = self.format(value);
+            self.field.set_text(&text);
         }
         // The spin buttons, inside the field's right end.
         let column = Rect::new(rect.right() - NUMBER_BOX_SPIN_COLUMN, rect.y, NUMBER_BOX_SPIN_COLUMN, rect.height);
         let [up, down] = column.columns::<2>(0.0);
         let up = up.pad(crate::drawing::geometry::Insets::new(4.0, 4.0, 0.0, 4.0));
         let down = down.pad(TEXT_BOX_BUTTON_MARGIN);
+        let up_response = ui.interact(&format!("{name}/Up"), up, Sense::CLICK, "Button");
+        let down_response = ui.interact(&format!("{name}/Down"), down, Sense::CLICK, "Button");
         let mut steps = 0.0;
-        if text_control_button(ui, &format!("{name}/Up"), up, Icon::ChevronUp).clicked {
+        if up_response.clicked {
             steps += 1.0;
         }
-        if text_control_button(ui, &format!("{name}/Down"), down, Icon::ChevronDown).clicked {
+        if down_response.clicked {
             steps -= 1.0;
         }
+        self.spin_up = Some(up_response);
+        self.spin_down = Some(down_response);
         if response.focused {
             let input = ui.input();
             if input.key_pressed(Key::UP) {
@@ -142,25 +176,34 @@ impl<T: Number> Widget for NumberBox<'_, '_, T> {
         // what's under the pointer.
         let on_it = ui
             .hovered_name()
-            .and_then(|hovered| hovered.strip_prefix(name))
+            .and_then(|hovered| hovered.strip_prefix(name.as_str()))
             .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'));
         if response.focused && on_it {
             steps += ui.input().wheel.y.round() as f64;
         }
         if steps != 0.0 {
-            if draft.editing && let Ok(typed) = draft.text.trim().parse::<f64>() {
+            if self.editing && let Ok(typed) = self.field.text().trim().parse::<f64>() {
                 value = typed;
             }
             value = self.clamp(value + steps * self.step);
-            draft.editing = false;
-            draft.text = self.format(value);
+            self.editing = false;
+            let text = self.format(value);
+            self.field.set_text(&text);
         }
         if value != current {
-            *self.value = T::from_f64(value);
-            response.changed = true;
+            self.value = value;
+            ctx.emit(ui, UiEventKind::Changed(value));
         }
-        ui.set_label(name, &self.format(self.value.to_f64()));
-        *ui.memory::<Draft>(draft_id) = draft;
-        response
+        ui.set_label(name, &self.format(self.value));
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        self.field.paint(ui, ctx.rect, &ctx.response);
+        if let Some(up) = self.spin_up {
+            draw_text_control_button(ui, &up, Icon::ChevronUp);
+        }
+        if let Some(down) = self.spin_down {
+            draw_text_control_button(ui, &down, Icon::ChevronDown);
+        }
     }
 }

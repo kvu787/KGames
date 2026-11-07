@@ -128,7 +128,7 @@ impl<P: Program> Headless<P> {
         events.push(Event::Gamepad(self.gamepad));
         let size = self.size();
         self.ui.begin_frame(&events, self.time(), size, self.fullscreen);
-        self.program.update(&mut self.ui);
+        crate::application::run::run_frame(&mut self.program, &mut self.ui);
         self.ui.end_frame();
         for request in std::mem::take(&mut self.ui.requests) {
             match request {

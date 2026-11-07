@@ -1,23 +1,27 @@
 // WinUI's ListView: rows that scroll, of which one may be selected. Only the
-// rows in sight are shown, so a list may be long. Each row is a target named
-// "<name>/<index>", which the program draws in, given the row's content
-// area inside ListViewItem's padding, and its state.
+// rows in sight are shown, so a list may be long. The list owns its rows as
+// data: an icon, a line of text, and a trailing caption, or a painter of the
+// program's own over that data. Each row is a target named "<name>/<index>",
+// labeled with its text.
 //
 // A row's backplate is inset from it by 4 and 2, with a subtle fill under the
 // pointer, and the selected row has the accent's pill at its left. With
 // focus, the arrows, Home, End, Page Up and Page Down move the selection,
-// and Enter activates the selected row, as a double-click does.
+// and Enter activates the selected row, as a double-click does. Selecting
+// emits Selected, and opening a row emits Activated.
 
+use crate::core::control::{Control, NodeContext, UiEventKind, adopted};
 use crate::core::ui::{Response, Sense, Ui};
 use crate::design::controls::{
     LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_PADDING, LIST_ITEM_RADIUS, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH, SELECTION_PILL_PRESSED_LENGTH,
     SELECTION_PILL_THICKNESS,
 };
-use crate::design::tokens::{CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER};
+use crate::design::icons::Icon;
+use crate::design::tokens::{BODY, CAPTION, CURVE_FAST_OUT_SLOW_IN, DURATION_FAST, DURATION_FASTER, ICON, SPACE_M};
 use crate::drawing::geometry::Rect;
+use crate::drawing::painter::Align;
 use crate::input::devices::Key;
-use crate::widgets::scrolling::ScrollBar;
-use crate::widgets::widget::Widget;
+use crate::widgets::scrolling::{scroll_bar_input, scroll_bar_paint};
 
 // Rows that a notch of the wheel scrolls.
 pub const WHEEL_ROWS: f32 = 3.0;
@@ -31,72 +35,144 @@ pub struct RowState {
     pub focused: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ListResponse {
-    // The list's own, which has its focus.
-    pub response: Response,
-    // The selection changed.
-    pub changed: bool,
-    // A row was clicked, or double-clicked or activated with Enter.
-    pub clicked: Option<usize>,
-    pub activated: Option<usize>,
-    // The row under the pointer, and the row that was right-clicked.
-    pub hovered: Option<usize>,
-    pub context: Option<usize>,
+// What a row shows: an icon, its text, and a trailing caption, like "#12".
+#[derive(Clone, Debug, Default)]
+pub struct ListRow {
+    pub icon: Option<Icon>,
+    pub text: String,
+    pub trailing: String,
 }
 
-pub struct ListView<'v, F: FnMut(&mut Ui, usize, Rect, RowState)> {
-    count: usize,
-    row_height: f32,
-    selected: Option<&'v mut Option<usize>>,
-    draw: F,
-}
-
-impl<'v, F: FnMut(&mut Ui, usize, Rect, RowState)> ListView<'v, F> {
-    // `count` rows, `row_height` tall, each drawn by `draw` with its index,
-    // its content area and its state.
-    pub fn new(count: usize, row_height: f32, draw: F) -> Self {
+impl ListRow {
+    pub fn new(text: &str) -> Self {
         Self {
-            count,
-            row_height,
-            selected: None,
-            draw,
+            text: text.to_string(),
+            ..Self::default()
         }
     }
 
-    // Rows can be selected, one at a time.
-    pub fn selection(mut self, selected: &'v mut Option<usize>) -> Self {
-        self.selected = Some(selected);
+    pub fn icon(mut self, icon: Icon) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
+    pub fn trailing(mut self, trailing: &str) -> Self {
+        self.trailing = trailing.to_string();
         self
     }
 }
 
-impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
-    type Response = ListResponse;
+pub struct ListView {
+    rows: Vec<ListRow>,
+    row_height: f32,
+    selectable: bool,
+    selected: Option<usize>,
+    offset: f32,
+    // A painter of the program's own for a row's content, over the default.
+    painter: Option<fn(&mut Ui, usize, Rect, RowState, &ListRow)>,
+    // What this frame's dispatch saw, for the program and for draw.
+    hovered: Option<usize>,
+    context: Option<usize>,
+    shown: Vec<(usize, Response)>,
+    bar: Option<Response>,
+}
 
-    fn show(mut self, ui: &mut Ui, name: &str, rect: Rect) -> ListResponse {
-        let selectable = self.selected.is_some();
-        let sense = if selectable { Sense::NAVIGATE } else { Sense::NONE };
-        let response = ui.interact(name, rect, sense, "ListView");
-        let mut result = ListResponse {
-            response,
-            ..Default::default()
-        };
-        let row_height = self.row_height.max(1.0);
-        let content = self.count as f32 * row_height;
+impl ListView {
+    pub fn new(rows: Vec<ListRow>, row_height: f32) -> Self {
+        Self {
+            rows,
+            row_height: row_height.max(1.0),
+            selectable: false,
+            selected: None,
+            offset: 0.0,
+            painter: None,
+            hovered: None,
+            context: None,
+            shown: Vec::new(),
+            bar: None,
+        }
+    }
+
+    // Rows can be selected, one at a time.
+    pub fn selectable(mut self) -> Self {
+        self.selectable = true;
+        self
+    }
+
+    // A painter of the program's own for a row's content, given its index,
+    // its content area inside ListViewItem's padding, its state and its row.
+    pub fn painter(mut self, painter: fn(&mut Ui, usize, Rect, RowState, &ListRow)) -> Self {
+        self.painter = Some(painter);
+        self
+    }
+
+    pub fn rows(&self) -> &[ListRow] {
+        &self.rows
+    }
+
+    // Swaps the rows, keeping the selection if it still fits.
+    pub fn set_rows(&mut self, rows: Vec<ListRow>) {
+        self.rows = rows;
+        if self.selected.is_some_and(|selected| selected >= self.rows.len()) {
+            self.selected = None;
+        }
+        let range = (self.rows.len() as f32 * self.row_height).max(0.0);
+        self.offset = self.offset.min(range);
+    }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.selected
+    }
+
+    pub fn set_selected(&mut self, selected: Option<usize>) {
+        self.selected = selected.filter(|selected| *selected < self.rows.len());
+    }
+
+    // The row under the pointer this frame, and the row that was
+    // right-clicked.
+    pub fn hovered_row(&self) -> Option<usize> {
+        self.hovered
+    }
+
+    pub fn context_row(&self) -> Option<usize> {
+        self.context
+    }
+}
+
+impl Control for ListView {
+    fn kind(&self) -> &'static str {
+        "ListView"
+    }
+
+    fn sense(&self) -> Sense {
+        Sense::NAVIGATE
+    }
+
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<ListView>(previous) {
+            self.selected = previous.selected.filter(|selected| *selected < self.rows.len());
+            self.offset = previous.offset;
+        }
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let (rect, response) = (ctx.rect, &ctx.response);
+        let count = self.rows.len();
+        let row_height = self.row_height;
+        let content = count as f32 * row_height;
         let range = (content - rect.height).max(0.0);
-        let mut offset = *ui.memory::<f32>(response.id);
-        let mut selected = self.selected.as_deref().copied().flatten();
-        let before = selected;
+        let before = self.selected;
+        self.hovered = None;
+        self.context = None;
 
-        if response.focused && selectable && self.count > 0 {
+        if response.focused && self.selectable && count > 0 {
             let page = ((rect.height / row_height).floor() as usize).max(1);
             let input = ui.input();
-            let last = self.count - 1;
-            let current = selected.unwrap_or(0);
+            let last = count - 1;
+            let current = self.selected.unwrap_or(0);
             let mut moved = None;
             if input.key_pressed(Key::DOWN) {
-                moved = Some(if selected.is_none() { 0 } else { (current + 1).min(last) });
+                moved = Some(if self.selected.is_none() { 0 } else { (current + 1).min(last) });
             }
             if input.key_pressed(Key::UP) {
                 moved = Some(current.saturating_sub(1));
@@ -113,54 +189,79 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
             if input.key_pressed(Key::END) {
                 moved = Some(last);
             }
-            if input.key_pressed_once(Key::ENTER) && let Some(row) = selected {
-                result.activated = Some(row);
+            if input.key_pressed_once(Key::ENTER) && let Some(row) = self.selected {
+                ctx.emit(ui, UiEventKind::Activated(row));
             }
             if let Some(row) = moved {
-                selected = Some(row);
+                self.selected = Some(row);
                 // The selected row scrolls into sight.
                 let top = row as f32 * row_height;
-                if top < offset {
-                    offset = top;
-                } else if top + row_height > offset + rect.height {
-                    offset = top + row_height - rect.height;
+                if top < self.offset {
+                    self.offset = top;
+                } else if top + row_height > self.offset + rect.height {
+                    self.offset = top + row_height - rect.height;
                 }
             }
         }
         if ui.wheel_over(rect) {
-            offset -= ui.input().wheel.y * WHEEL_ROWS * row_height;
+            self.offset -= ui.input().wheel.y * WHEEL_ROWS * row_height;
         }
-        offset = offset.clamp(0.0, range);
+        self.offset = self.offset.clamp(0.0, range);
 
         let bar_width = if range > 0.0 { SCROLL_BAR_SIZE } else { 0.0 };
         let rows_area = Rect::new(rect.x, rect.y, rect.width - bar_width, rect.height);
-        ui.draw.push_clip(rect, false);
-        let first = (offset / row_height).floor() as usize;
-        let last = (((offset + rect.height) / row_height).ceil() as usize).min(self.count);
+        let first = (self.offset / row_height).floor() as usize;
+        let last = (((self.offset + rect.height) / row_height).ceil() as usize).min(count);
+        self.shown.clear();
         for index in first..last {
-            let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - offset, rows_area.width, row_height);
-            let row_name = format!("{name}/{index}");
-            let row_response = ui.interact(&row_name, row, Sense::CLICK, "ListViewItem");
+            let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - self.offset, rows_area.width, row_height);
+            let row_name = format!("{}/{index}", ctx.name);
+            let row_response = ui.interact(&row_name, row.intersect(rect), Sense::CLICK, "ListViewItem");
+            ui.set_label(&row_name, &self.rows[index].text);
             if row_response.hovered {
-                result.hovered = Some(index);
+                self.hovered = Some(index);
             }
-            if row_response.pressed && selectable {
-                selected = Some(index);
+            if row_response.pressed && self.selectable {
+                self.selected = Some(index);
                 if ui.focusable() {
-                    ui.focus(name);
+                    ui.focus(&ctx.name);
                     ui.set_focus_visible(false);
                 }
             }
-            if row_response.clicked {
-                result.clicked = Some(index);
-            }
             if row_response.double_clicked {
-                result.activated = Some(index);
+                ctx.emit(ui, UiEventKind::Activated(index));
             }
             if row_response.secondary_pressed {
-                result.context = Some(index);
+                self.context = Some(index);
             }
-            let is_selected = selected == Some(index);
+            self.shown.push((index, row_response));
+        }
+        self.bar = None;
+        if range > 0.0 {
+            let bar = rect.right_strip(SCROLL_BAR_SIZE);
+            let (bar_response, _) = scroll_bar_input(ui, &format!("{}/ScrollBar", ctx.name), bar, &mut self.offset, content, rect.height);
+            self.bar = Some(bar_response);
+        }
+        if self.selected != before {
+            if let Some(selected) = self.selected {
+                ctx.emit(ui, UiEventKind::Selected(selected));
+            }
+        }
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let (rect, response) = (ctx.rect, &ctx.response);
+        let count = self.rows.len();
+        let row_height = self.row_height;
+        let content = count as f32 * row_height;
+        let range = (content - rect.height).max(0.0);
+        let bar_width = if range > 0.0 { SCROLL_BAR_SIZE } else { 0.0 };
+        let rows_area = Rect::new(rect.x, rect.y, rect.width - bar_width, rect.height);
+        ui.draw.push_clip(rect, false);
+        for (index, row_response) in self.shown.clone() {
+            let index: usize = index;
+            let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - self.offset, rows_area.width, row_height);
+            let is_selected = self.selected == Some(index);
             let pressed = row_response.held && row_response.hovered;
             let theme = ui.theme();
             // ListViewItemBackground.
@@ -190,22 +291,36 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
                 selected: is_selected,
                 focused: is_selected && response.focused,
             };
-            (self.draw)(ui, index, row.pad(LIST_ITEM_PADDING), state);
+            let content_rect = row.pad(LIST_ITEM_PADDING);
+            let data = self.rows[index].clone();
+            match self.painter {
+                Some(painter) => painter(ui, index, content_rect, state, &data),
+                None => default_row(ui, content_rect, &data),
+            }
             if state.focused {
                 ui.focus_visual_around(true, plate, LIST_ITEM_RADIUS, crate::drawing::geometry::Insets::all(-1.0));
             }
         }
         ui.draw.pop_clip();
-        if range > 0.0 {
+        if let Some(bar_response) = self.bar {
             let bar = rect.right_strip(SCROLL_BAR_SIZE);
-            ui.add(&format!("{name}/ScrollBar"), bar, ScrollBar::new(&mut offset, content, rect.height));
+            scroll_bar_paint(ui, &bar_response, bar, self.offset, content, rect.height);
         }
-        *ui.memory::<f32>(response.id) = offset;
-        if let Some(target) = self.selected.as_deref_mut() {
-            *target = selected;
-        }
-        result.changed = selected != before;
-        result.response.changed = result.changed;
-        result
+    }
+}
+
+// A row's default look: its icon, its text, and its trailing caption.
+fn default_row(ui: &mut Ui, rect: Rect, row: &ListRow) {
+    let theme = ui.theme();
+    let (primary, tertiary) = (theme.text_primary, theme.text_tertiary);
+    let mut x = rect.x;
+    if let Some(icon) = row.icon {
+        ui.icon(Rect::new(rect.x, rect.y, ICON, rect.height), icon, ICON, primary);
+        x += ICON + SPACE_M;
+    }
+    let trailing_width = if row.trailing.is_empty() { 0.0 } else { ui.measure(&row.trailing, CAPTION).width + SPACE_M };
+    ui.text(Rect::new(x, rect.y, (rect.right() - x - trailing_width).max(0.0), rect.height), &row.text, BODY, primary);
+    if !row.trailing.is_empty() {
+        ui.text_aligned(rect, &row.trailing, CAPTION, tertiary, Align::End);
     }
 }

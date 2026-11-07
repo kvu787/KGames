@@ -18,8 +18,16 @@ pub trait Program {
     // The window's title.
     fn title(&self) -> String;
 
-    // Builds the frame's interface and does what its input says. Called once
-    // a frame, right before the frame is drawn, with the newest input.
+    // Builds the tree of controls: nodes with names and fixed-pixel
+    // rectangles. Called before the first frame, again when the client area
+    // changes, like F11, and whenever the program asks with
+    // Ui::request_rebuild. A rebuilt node keeps what the user put into its
+    // predecessor of the same name and type.
+    fn build(&mut self, ui: &mut Ui);
+
+    // Reads the frame's events and keeps the tree true to the program's
+    // state. Called once a frame, after the controls handled the newest
+    // input and before the frame is drawn.
     fn update(&mut self, ui: &mut Ui);
 
     // Creates what the program draws with on the GPU, once, before the first

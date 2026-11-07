@@ -3,32 +3,23 @@
 // ring and a slider's thumb; and a color field, a text field for a color's
 // hex code with a swatch of it.
 
-use crate::core::ui::{Response, Sense, Ui, id};
+use crate::core::control::{AutoTarget, Control, NodeContext, UiEventKind, adopted};
+use crate::core::ui::{Sense, Ui};
 use crate::design::controls::{COLOR_SLIDER_HEIGHT, COLOR_SLIDER_INNER_THUMB, COLOR_SLIDER_RADIUS, COLOR_SPECTRUM_RING, SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE};
 use crate::design::tokens::{RADIUS_CONTROL, SPACE_L};
 use crate::drawing::geometry::{Color, Point, Rect, Size};
 use crate::drawing::painter::{Border, Brush, Corners};
 use crate::widgets::text_box::TextBox;
-use crate::widgets::widget::{Elevation, Widget};
+use crate::widgets::widget::Elevation;
 
-pub struct ColorPicker<'v> {
-    color: &'v mut Color,
-}
-
-impl<'v> ColorPicker<'v> {
-    pub fn new(color: &'v mut Color) -> Self {
-        Self { color }
-    }
-
-    // How tall it is for a width: a square spectrum, and its value slider.
-    pub fn height(width: f32) -> f32 {
-        width + SPACE_L + SLIDER_THUMB_SIZE + SLIDER_THUMB_OVERHANG * 2.0
-    }
+pub struct ColorPicker {
+    color: Color,
+    hsv: Hsv,
 }
 
 // The color as hue, saturation and value, kept so that a gray keeps the hue
 // it had.
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Hsv {
     hue: f32,
     saturation: f32,
@@ -39,13 +30,55 @@ struct Hsv {
 // The hues around the color wheel, for the spectrum's gradient.
 const HUES: [u32; 7] = [0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFF0000];
 
-impl Widget for ColorPicker<'_> {
-    type Response = Response;
+impl ColorPicker {
+    pub fn new(color: Color) -> Self {
+        Self { color, hsv: Hsv::default() }
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let picker_id = id(name);
-        let mut hsv = std::mem::take(ui.memory::<Hsv>(picker_id));
-        if hsv.last != Some(*self.color) {
+    // How tall it is for a width: a square spectrum, and its value slider.
+    pub fn height(width: f32) -> f32 {
+        width + SPACE_L + SLIDER_THUMB_SIZE + SLIDER_THUMB_OVERHANG * 2.0
+    }
+
+    pub fn color(&self) -> Color {
+        self.color
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    fn spectrum(rect: Rect) -> Rect {
+        let slider_height = SLIDER_THUMB_SIZE + SLIDER_THUMB_OVERHANG * 2.0;
+        Rect::new(rect.x, rect.y, rect.width, (rect.height - SPACE_L - slider_height).max(0.0))
+    }
+
+    fn slider_row(rect: Rect) -> Rect {
+        let slider_height = SLIDER_THUMB_SIZE + SLIDER_THUMB_OVERHANG * 2.0;
+        Rect::new(rect.x, rect.bottom() - slider_height, rect.width, slider_height)
+    }
+}
+
+impl Control for ColorPicker {
+    fn kind(&self) -> &'static str {
+        "ColorPicker"
+    }
+
+    fn auto_target(&self) -> AutoTarget {
+        AutoTarget::None
+    }
+
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<ColorPicker>(previous) {
+            self.color = previous.color;
+            self.hsv = previous.hsv;
+        }
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let rect = ctx.rect;
+        let hsv = &mut self.hsv;
+        if hsv.last != Some(self.color) {
             let [hue, saturation, value] = self.color.to_hsv();
             if saturation > 0.0 && value > 0.0 {
                 hsv.hue = hue;
@@ -55,10 +88,10 @@ impl Widget for ColorPicker<'_> {
             }
             hsv.value = value;
         }
-        let slider_height = SLIDER_THUMB_SIZE + SLIDER_THUMB_OVERHANG * 2.0;
-        let spectrum = Rect::new(rect.x, rect.y, rect.width, (rect.height - SPACE_L - slider_height).max(0.0));
-        let slider_row = Rect::new(rect.x, rect.bottom() - slider_height, rect.width, slider_height);
-        let mut response = ui.interact(&format!("{name}/Spectrum"), spectrum, Sense::CLICK, "ColorSpectrum");
+        let spectrum = Self::spectrum(rect);
+        let slider_row = Self::slider_row(rect);
+        let mut changed = false;
+        let response = ui.interact(&format!("{}/Spectrum", ctx.name), spectrum, Sense::CLICK, "ColorSpectrum");
         if response.held && let Some(pointer) = response.pointer {
             let fraction = spectrum.fraction_of(pointer);
             hsv.hue = fraction.x.clamp(0.0, 1.0) * 360.0;
@@ -66,22 +99,29 @@ impl Widget for ColorPicker<'_> {
             if hsv.value <= 0.0 {
                 hsv.value = 1.0;
             }
-            response.changed = true;
+            changed = true;
         }
-        let value_response = ui.interact(&format!("{name}/Value"), slider_row, Sense::CLICK, "ColorSlider");
+        let value_response = ui.interact(&format!("{}/Value", ctx.name), slider_row, Sense::CLICK, "ColorSlider");
         let (left, right) = (slider_row.x + SLIDER_THUMB_SIZE / 2.0, slider_row.right() - SLIDER_THUMB_SIZE / 2.0);
         if value_response.held && let Some(pointer) = value_response.pointer {
             hsv.value = ((pointer.x - left) / (right - left).max(1.0)).clamp(0.0, 1.0);
-            response.changed = true;
+            changed = true;
         }
-        if response.changed {
-            *self.color = Color::from_hsv(hsv.hue, hsv.saturation, hsv.value).with_alpha(self.color.a);
+        if changed {
+            self.color = Color::from_hsv(hsv.hue, hsv.saturation, hsv.value).with_alpha(self.color.a);
+            ctx.emit(ui, UiEventKind::ColorChanged(self.color));
         }
-        hsv.last = Some(*self.color);
-        let full = Color::from_hsv(hsv.hue, hsv.saturation, 1.0);
-        let (hue, saturation, value) = (hsv.hue, hsv.saturation, hsv.value);
-        *ui.memory::<Hsv>(picker_id) = hsv;
-        ui.set_label(&format!("{name}/Spectrum"), &self.color.to_hex());
+        hsv.last = Some(self.color);
+        ui.set_label(&format!("{}/Spectrum", ctx.name), &self.color.to_hex());
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let rect = ctx.rect;
+        let spectrum = Self::spectrum(rect);
+        let slider_row = Self::slider_row(rect);
+        let (left, right) = (slider_row.x + SLIDER_THUMB_SIZE / 2.0, slider_row.right() - SLIDER_THUMB_SIZE / 2.0);
+        let (hue, saturation, value) = (self.hsv.hue, self.hsv.saturation, self.hsv.value);
+        let full = Color::from_hsv(hue, saturation, 1.0);
 
         let mut painter = ui.painter();
         let theme = painter.theme();
@@ -90,8 +130,8 @@ impl Widget for ColorPicker<'_> {
         let segment = spectrum.width / 6.0;
         for index in 0..6 {
             let x = (spectrum.x + segment * index as f32).round();
-            let right = (spectrum.x + segment * (index + 1) as f32).round();
-            let part = Rect::new(x, spectrum.y, right - x, spectrum.height);
+            let right_edge = (spectrum.x + segment * (index + 1) as f32).round();
+            let part = Rect::new(x, spectrum.y, right_edge - x, spectrum.height);
             let corners = match index {
                 0 => Corners::left(RADIUS_CONTROL),
                 5 => Corners::right(RADIUS_CONTROL),
@@ -112,26 +152,15 @@ impl Widget for ColorPicker<'_> {
         let thumb = Rect::from_center(Point::new(left + (right - left) * value, track.center().y), Size::square(SLIDER_THUMB_SIZE)).expand(SLIDER_THUMB_OVERHANG);
         painter.shape(thumb, SLIDER_THUMB_RADIUS, theme.control_solid_fill, Some(Elevation::Control.border(theme, thumb)));
         painter.circle(thumb.center(), COLOR_SLIDER_INNER_THUMB / 2.0, Color::from_hsv(hue, saturation, value));
-        response
     }
 }
 
 // A text field for a color's hex code, like "#1E90FF", with a swatch of the
 // color in it. What's typed takes effect with Enter or when the field loses
 // focus, if it's a color.
-pub struct ColorField<'v> {
-    color: &'v mut Color,
-}
-
-impl<'v> ColorField<'v> {
-    pub fn new(color: &'v mut Color) -> Self {
-        Self { color }
-    }
-}
-
-#[derive(Default)]
-struct ColorDraft {
-    text: String,
+pub struct ColorField {
+    color: Color,
+    field: TextBox,
     editing: bool,
 }
 
@@ -139,39 +168,81 @@ fn hex_digit(character: char) -> bool {
     character.is_ascii_hexdigit() || character == '#'
 }
 
-impl Widget for ColorField<'_> {
-    type Response = Response;
+const SWATCH_SIZE: f32 = 16.0;
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let draft_id = id(&format!("{name}/Draft"));
-        let mut draft = std::mem::take(ui.memory::<ColorDraft>(draft_id));
+impl ColorField {
+    pub fn new(color: Color) -> Self {
+        let mut field = TextBox::new("").accept(hex_digit).max_length(9).leading(SWATCH_SIZE + 8.0);
+        field.set_text(&color.to_hex());
+        Self {
+            color,
+            field,
+            editing: false,
+        }
+    }
+
+    pub fn color(&self) -> Color {
+        self.color
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+        self.editing = false;
+        self.field.set_text(&color.to_hex());
+    }
+}
+
+impl Control for ColorField {
+    fn kind(&self) -> &'static str {
+        "ColorField"
+    }
+
+    fn sense(&self) -> Sense {
+        Sense::TEXT
+    }
+
+    fn label(&self) -> Option<String> {
+        Some(self.color.to_hex())
+    }
+
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<ColorField>(previous) {
+            self.set_color(previous.color);
+        }
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
         // What's typed stays until it's taken or left, even as the field
         // loses focus, when it's taken.
-        if !draft.editing {
-            draft.text = self.color.to_hex();
+        if !self.editing {
+            let text = self.color.to_hex();
+            self.field.set_text(&text);
         }
-        let swatch_size = 16.0;
-        let result = ui.add(name, rect, TextBox::new(&mut draft.text).accept(hex_digit).max_length(9).leading(swatch_size + 8.0));
-        let mut response = result.response;
-        if result.changed {
-            draft.editing = true;
+        let outcome = self.field.input(ui, &ctx.name, ctx.rect, &ctx.response);
+        if outcome.changed {
+            self.editing = true;
         }
-        if result.submitted || (draft.editing && !response.focused) {
-            if let Some(color) = Color::parse(&draft.text)
-                && color != *self.color {
-                    *self.color = color;
-                    response.changed = true;
-                }
-            draft.editing = false;
-            draft.text = self.color.to_hex();
+        if outcome.submitted || (self.editing && !ctx.response.focused) {
+            if let Some(color) = Color::parse(self.field.text())
+                && color != self.color
+            {
+                self.color = color;
+                ctx.emit(ui, UiEventKind::ColorChanged(color));
+            }
+            self.editing = false;
+            let text = self.color.to_hex();
+            self.field.set_text(&text);
         }
-        ui.retarget(name, "ColorField");
-        ui.set_label(name, &self.color.to_hex());
-        let swatch = Rect::new(rect.x + 8.0, rect.center().y - swatch_size / 2.0, swatch_size, swatch_size).round();
+        ui.retarget(&ctx.name, "ColorField");
+        ui.set_label(&ctx.name, &self.color.to_hex());
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        self.field.paint(ui, ctx.rect, &ctx.response);
+        let rect = ctx.rect;
+        let swatch = Rect::new(rect.x + 8.0, rect.center().y - SWATCH_SIZE / 2.0, SWATCH_SIZE, SWATCH_SIZE).round();
         let mut painter = ui.painter();
         let theme = painter.theme();
-        painter.shape(swatch, RADIUS_CONTROL - 2.0, *self.color, Some(Border::new(theme.control_stroke_secondary, 1.0)));
-        *ui.memory::<ColorDraft>(draft_id) = draft;
-        response
+        painter.shape(swatch, RADIUS_CONTROL - 2.0, self.color, Some(Border::new(theme.control_stroke_secondary, 1.0)));
     }
 }

@@ -1,28 +1,12 @@
-// What every widget shares: the Widget trait, which `Ui::add` shows widgets
-// through, the brushes of WinUI's visual states, its focus visual, and its
-// elevation borders, the gradients that make controls look raised.
+// What every control shares: the brushes of WinUI's visual states, its focus
+// visual, and its elevation borders, the gradients that make controls look
+// raised. The Control trait itself is in Core/Control.rs.
 
 use crate::core::ui::{ControlState, Ui};
 use crate::design::controls::FOCUS_VISUAL_MARGIN;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::drawing::geometry::{Color, Insets, Point, Rect};
 use crate::drawing::painter::{Border, Brush, Painter};
-
-// A control that a frame shows, like a Button or a Slider. It's a value that
-// says what the control is, and borrows what it changes, like a slider's
-// value; `show` registers it under its name, draws it in its rectangle, and
-// says what the input did.
-pub trait Widget {
-    type Response;
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Self::Response;
-}
-
-impl Ui {
-    // Shows a widget under the name, in the rectangle.
-    pub fn add<W: Widget>(&mut self, name: &str, rect: Rect, widget: W) -> W::Response {
-        widget.show(self, name, rect)
-    }
-}
 
 // A brush for each of WinUI's visual states, like ButtonBackground,
 // ButtonBackgroundPointerOver, ButtonBackgroundPressed and

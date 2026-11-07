@@ -15,6 +15,8 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
 use crate::application::program::Notice;
+use crate::core::control::{Control, UiEvent};
+use crate::core::tree::Tree;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::design::tokens::{Curve, CURVE_LINEAR, TOOLTIP_DELAY};
 use crate::drawing::geometry::{Color, Point, Rect, Size};
@@ -298,6 +300,16 @@ pub struct Ui {
     // What the PerfBar along the top of the window shows, which every
     // program's window has, and overlays don't.
     pub(crate) performance: Option<crate::application::performance::Performance>,
+    // The retained tree that Program::build makes, and the frame's events
+    // from its controls.
+    pub(crate) tree: Tree,
+    pub(crate) events: Vec<UiEvent>,
+    pub(crate) rebuild_requested: bool,
+    // The old nodes' controls during a rebuild, for adoption by name.
+    pub(crate) previous_nodes: HashMap<Id, Option<Box<dyn Control>>>,
+    // What's attached to nodes: tooltips and context menus, by node id.
+    pub(crate) tooltips: HashMap<Id, Vec<crate::widgets::tool_tip::Tip>>,
+    pub(crate) context_menus: HashMap<Id, (String, Vec<crate::widgets::menu::MenuItem>)>,
 }
 
 impl Ui {
@@ -337,14 +349,25 @@ impl Ui {
             page_top: 0.0,
             page_bottom: 0.0,
             performance: None,
+            tree: Tree::default(),
+            events: Vec::new(),
+            rebuild_requested: false,
+            previous_nodes: HashMap::new(),
+            tooltips: HashMap::new(),
+            context_menus: HashMap::new(),
         }
     }
 
     // Starts a frame of the size, with the events since the last one.
     pub(crate) fn begin_frame(&mut self, events: &[Event], time: f64, size: Size, fullscreen: bool) {
         self.frame += 1;
+        // A new client area, like F11's, re-lays the tree out.
+        if size != self.size {
+            self.rebuild_requested = true;
+        }
         self.size = size;
         self.fullscreen = fullscreen;
+        self.events.clear();
         self.input.begin(time, events);
         self.fonts.begin_frame();
         self.draw.clear(size);
@@ -674,9 +697,9 @@ impl Ui {
         self.cursor
     }
 
-    // Widgets after this are enabled or not, until it's called again. Each
-    // frame starts enabled.
-    pub fn set_enabled(&mut self, enabled: bool) {
+    // Targets registered after this are enabled or not, until it's called
+    // again, for a control's internal parts. Each frame starts enabled.
+    pub fn set_scope_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
@@ -684,8 +707,8 @@ impl Ui {
         self.enabled
     }
 
-    // Widgets after this take keyboard focus or don't, until it's called
-    // again. Each frame starts with them taking it.
+    // Targets registered after this take keyboard focus or don't, until it's
+    // called again. Each frame starts with them taking it.
     pub fn set_focusable(&mut self, focusable: bool) {
         self.focusable = focusable;
     }
@@ -716,6 +739,10 @@ impl Ui {
 
     // Registers a target: a widget's area, which the pointer can be on.
     pub fn register(&mut self, name: &str, rect: Rect, sense: Sense, kind: &'static str) -> Id {
+        self.register_as(name, rect, sense, kind, self.enabled, true)
+    }
+
+    pub(crate) fn register_as(&mut self, name: &str, rect: Rect, sense: Sense, kind: &'static str, enabled: bool, listed: bool) -> Id {
         let id = id(name);
         self.targets.push(Target {
             id,
@@ -723,17 +750,13 @@ impl Ui {
             label: None,
             rect: rect.intersect(self.draw.clip()),
             layer: self.draw.layer(),
-            enabled: self.enabled,
+            enabled,
             focusable: sense.focusable && self.focusable,
             keys: sense.keys,
             kind,
-            listed: true,
+            listed,
         });
         id
-    }
-
-    pub(crate) fn target_count(&self) -> usize {
-        self.targets.len()
     }
 
     // How many instances the frame drew: each shape, glyph, line, arc,
@@ -741,13 +764,6 @@ impl Ui {
     // benchmarks.
     pub fn instance_count(&self) -> usize {
         self.draw.instance_count()
-    }
-
-    // Moves the targets from `middle` on to before those from `first`, so
-    // that the pointer finds the ones from `first` over them.
-    pub(crate) fn move_targets_back(&mut self, first: usize, middle: usize) {
-        let moved = self.targets.len() - middle;
-        self.targets[first..].rotate_right(moved);
     }
 
     // Covers what's under the area, like a card covers the 3D view under
@@ -788,8 +804,13 @@ impl Ui {
 
     // Registers a widget and says what the input did to it.
     pub fn interact(&mut self, name: &str, rect: Rect, sense: Sense, kind: &'static str) -> Response {
-        let id = self.register(name, rect, sense, kind);
-        let enabled = self.enabled;
+        self.interact_as(name, rect, sense, kind, self.enabled, true)
+    }
+
+    // Like interact, saying whether the widget is enabled and whether scripts
+    // see it, for the tree's nodes.
+    pub(crate) fn interact_as(&mut self, name: &str, rect: Rect, sense: Sense, kind: &'static str, enabled: bool, listed: bool) -> Response {
+        let id = self.register_as(name, rect, sense, kind, enabled, listed);
         let visible = rect.intersect(self.draw.clip());
         // While a popup or a dialog is open, the keys are theirs, as WinUI
         // moves focus into them: a widget under one has focus, but not for
@@ -919,6 +940,18 @@ impl Ui {
     // Whether the widget under the pointer is the one with keyboard focus.
     pub(crate) fn hovered_has_focus(&self) -> bool {
         self.hovered.is_some() && self.hovered == self.focused
+    }
+
+    // Whether the widget under the pointer takes the wheel, so that what
+    // it's in shouldn't scroll.
+    pub(crate) fn hovered_takes_wheel(&self) -> bool {
+        match self.hovered_kind() {
+            Some("Slider" | "View" | "ComboBoxPopup" | "ComboBoxItem") => true,
+            // A number box takes the wheel only while it has focus, as
+            // WinUI's does.
+            Some("NumberBox") => self.hovered_has_focus(),
+            _ => false,
+        }
     }
 
     // The layer of the widget under the pointer.
@@ -1055,6 +1088,13 @@ impl Ui {
 
     pub fn notify(&mut self, notice: Notice) {
         self.notices.push(notice);
+        self.rebuild_requested = true;
+    }
+
+    pub(crate) fn remove_notice(&mut self, index: usize) {
+        if index < self.notices.len() {
+            self.notices.remove(index);
+        }
     }
 
     // The targets of the last frame that's done.

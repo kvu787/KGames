@@ -5,11 +5,12 @@
 // and End move it; and the wheel turns it a step a notch, adding up parts
 // of notches. While it's dragged, its value shows above the thumb.
 //
-// Its value can be any number type. The rail's ends can be wider than the
+// The slider owns its value, as f64. The rail's ends can be wider than the
 // values allowed, like a rail from 0 to 1 whose values must stay inside it,
 // and the value never goes outside what's allowed.
 
-use crate::core::ui::{ControlState, Response, Sense, Ui};
+use crate::core::control::{Control, NodeContext, UiEventKind, adopted};
+use crate::core::ui::{ControlState, Sense, Ui};
 use crate::design::controls::{
     SLIDER_HEADER_GAP, SLIDER_HEIGHT, SLIDER_INNER_THUMB_DURATION, SLIDER_INNER_THUMB_DURATION_POINTER, SLIDER_INNER_THUMB_SCALE,
     SLIDER_INNER_THUMB_SCALE_DISABLED, SLIDER_INNER_THUMB_SCALE_POINTER_OVER, SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_SIZE,
@@ -17,11 +18,11 @@ use crate::design::controls::{
     SLIDER_TRACK_RADIUS, TOOLTIP_OFFSET,
 };
 use crate::design::tokens::{BODY, CURVE_FAST_OUT_SLOW_IN, ELEVATION_TOOLTIP, RADIUS_CONTROL};
-use crate::drawing::text::TextStyle;
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
+use crate::drawing::text::TextStyle;
 use crate::input::devices::Key;
-use crate::widgets::widget::{Elevation, StateColors, Widget};
+use crate::widgets::widget::{Elevation, StateColors};
 
 // A number that a slider or a number box can change.
 pub trait Number: Copy + PartialEq {
@@ -67,8 +68,8 @@ fn tidy(value: f64) -> f64 {
     (value * 1e9).round() / 1e9
 }
 
-pub struct Slider<'a, 'v, T: Number> {
-    value: &'v mut T,
+pub struct Slider {
+    value: f64,
     // The rail's ends.
     minimum: f64,
     maximum: f64,
@@ -76,17 +77,17 @@ pub struct Slider<'a, 'v, T: Number> {
     allowed: (f64, f64),
     step: Option<f64>,
     large_step: Option<f64>,
-    header: Option<&'a str>,
+    header: Option<String>,
     // The value's decimals, which show in the header and its tooltip.
     decimals: usize,
-    suffix: &'a str,
+    suffix: String,
     show_value: bool,
 }
 
-impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
-    pub fn new(value: &'v mut T, minimum: f64, maximum: f64) -> Self {
+impl Slider {
+    pub fn new(value: impl Number, minimum: f64, maximum: f64) -> Self {
         Self {
-            value,
+            value: value.to_f64(),
             minimum,
             maximum,
             allowed: (minimum.min(maximum), minimum.max(maximum)),
@@ -94,7 +95,7 @@ impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
             large_step: None,
             header: None,
             decimals: 0,
-            suffix: "",
+            suffix: String::new(),
             show_value: false,
         }
     }
@@ -119,8 +120,8 @@ impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
     }
 
     // A header above the rail, with the value at its right when show_value.
-    pub fn header(mut self, header: &'a str) -> Self {
-        self.header = Some(header);
+    pub fn header(mut self, header: &str) -> Self {
+        self.header = Some(header.to_string());
         self
     }
 
@@ -136,9 +137,22 @@ impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
         self
     }
 
-    pub fn suffix(mut self, suffix: &'a str) -> Self {
-        self.suffix = suffix;
+    pub fn suffix(mut self, suffix: &str) -> Self {
+        self.suffix = suffix.to_string();
         self
+    }
+
+    // Its value, which only input and set_value move.
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+
+    pub fn value_as<T: Number>(&self) -> T {
+        T::from_f64(self.value)
+    }
+
+    pub fn set_value(&mut self, value: impl Number) {
+        self.value = value.to_f64();
     }
 
     // How tall a slider is, with or without its header.
@@ -162,6 +176,12 @@ impl<'a, 'v, T: Number> Slider<'a, 'v, T> {
         let span = self.maximum - self.minimum;
         if span == 0.0 { 0.0 } else { ((value - self.minimum) / span).clamp(0.0, 1.0) as f32 }
     }
+
+    // The track's row: the rail is along the rectangle's bottom, under the
+    // header if there is one.
+    fn track_row(rect: Rect) -> Rect {
+        rect.bottom_strip(SLIDER_HEIGHT)
+    }
 }
 
 // The ends of a slider's rail in its rectangle, where the thumb's middle
@@ -175,20 +195,41 @@ pub fn slider_rail(rect: Rect) -> (f32, f32) {
 #[derive(Default)]
 struct WheelRemainder(f32);
 
-impl<T: Number> Widget for Slider<'_, '_, T> {
-    type Response = Response;
+impl Control for Slider {
+    fn kind(&self) -> &'static str {
+        "Slider"
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let track_row = rect.bottom_strip(SLIDER_HEIGHT);
-        let mut response = ui.interact(name, track_row, Sense::NAVIGATE, "Slider");
-        let (left, right) = slider_rail(rect);
-        let before = self.value.to_f64();
+    fn sense(&self) -> Sense {
+        Sense::NAVIGATE
+    }
+
+    // The target is the track's row, under the header.
+    fn target_rect(&self, rect: Rect) -> Rect {
+        Slider::track_row(rect)
+    }
+
+    fn label(&self) -> Option<String> {
+        Some(self.format(self.value))
+    }
+
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<Slider>(previous) {
+            self.value = previous.value;
+        }
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let response = &ctx.response;
+        let (left, right) = slider_rail(ctx.rect);
+        let before = self.value;
         let mut value = before;
         let span = self.maximum - self.minimum;
         let step = self.step.unwrap_or(span / 100.0);
         let large_step = self.large_step.unwrap_or(span / 10.0);
 
-        if response.held && response.held_button == Some(crate::input::devices::MouseButton::Left)
+        if response.held
+            && response.held_button == Some(crate::input::devices::MouseButton::Left)
             && let Some(pointer) = response.pointer
         {
             let fraction = ((pointer.x - left) / (right - left).max(1.0)).clamp(0.0, 1.0) as f64;
@@ -255,14 +296,19 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
             }
         }
         // Only input moves the value: one that's outside what's allowed,
-        // like from a file, stays until the user changes it.
+        // like from a file, stays until the user or the program changes it.
         if value != before {
-            *self.value = T::from_f64(value);
-            response.changed = true;
+            self.value = value;
+            ctx.emit(ui, UiEventKind::Changed(value));
         }
-        let value = self.value.to_f64();
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let (rect, response) = (ctx.rect, &ctx.response);
+        let track_row = Slider::track_row(rect);
+        let (left, right) = slider_rail(rect);
+        let value = self.value;
         let text = self.format(value);
-        ui.set_label(name, &text);
 
         let state = response.state();
         let pressed = response.held && response.held_button == Some(crate::input::devices::MouseButton::Left);
@@ -283,7 +329,7 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
         let center_y = track_row.center().y.round();
         let mut painter = ui.painter();
         let theme = painter.theme();
-        if let Some(header) = self.header {
+        if let Some(header) = &self.header {
             let header_row = Rect::new(rect.x, rect.y, rect.width, BODY.line_height);
             painter.text_fit(header_row, header, BODY, header_color, Align::Start);
             if self.show_value {
@@ -322,6 +368,5 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
             painter.text_in(tip_rect.pad(SLIDER_TOOLTIP_PADDING), &text, style, theme.text_primary, Align::Center);
             ui.draw.set_layer(layer);
         }
-        response
     }
 }

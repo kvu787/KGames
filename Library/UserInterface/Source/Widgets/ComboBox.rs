@@ -5,8 +5,11 @@
 //
 // Closed, Up and Down choose the item before or after, and Enter, Space or
 // Alt+Down open the list. Open, Up and Down move the highlight, Enter chooses
-// it, and Esc or a press outside closes the list.
+// it, and Esc or a press outside closes the list. The open list paints on the
+// popup layer, so it runs in the dispatch phase; the closed face paints in
+// the draw phase.
 
+use crate::core::control::{Control, NodeContext, UiEventKind, adopted};
 use crate::core::ui::{ControlState, Id, Response, Sense, Ui};
 use crate::design::controls::{
     COMBO_BOX_CHEVRON_COLUMN, COMBO_BOX_FOCUS_MARGIN, COMBO_BOX_FOCUS_RADIUS, COMBO_BOX_FOCUS_THICKNESS, COMBO_BOX_ITEM_RADIUS,
@@ -18,28 +21,51 @@ use crate::design::tokens::{BODY, DURATION_FASTER, ELEVATION_FLYOUT, RADIUS_CONT
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::input::devices::Key;
-use crate::widgets::widget::{Elevation, StateColors, Widget};
+use crate::widgets::widget::{Elevation, StateColors};
 
-pub struct ComboBox<'a, 'v> {
-    selected: &'v mut usize,
-    items: &'a [&'a str],
-    placeholder: &'a str,
+pub struct ComboBox {
+    items: Vec<String>,
+    selected: usize,
+    placeholder: String,
 }
 
-impl<'a, 'v> ComboBox<'a, 'v> {
-    pub fn new(selected: &'v mut usize, items: &'a [&'a str]) -> Self {
-        Self { selected, items, placeholder: "" }
+impl ComboBox {
+    pub fn new(items: &[&str], selected: usize) -> Self {
+        Self {
+            items: items.iter().map(|item| item.to_string()).collect(),
+            selected,
+            placeholder: String::new(),
+        }
     }
 
-    pub fn placeholder(mut self, placeholder: &'a str) -> Self {
-        self.placeholder = placeholder;
+    pub fn placeholder(mut self, placeholder: &str) -> Self {
+        self.placeholder = placeholder.to_string();
         self
+    }
+
+    pub fn selected(&self) -> usize {
+        self.selected
+    }
+
+    pub fn set_selected(&mut self, selected: usize) {
+        self.selected = selected.min(self.items.len().saturating_sub(1));
+    }
+
+    pub fn set_items(&mut self, items: &[&str]) {
+        self.items = items.iter().map(|item| item.to_string()).collect();
+        if self.selected >= self.items.len() && !self.items.is_empty() {
+            self.selected = self.items.len() - 1;
+        }
     }
 
     // The width that fits its widest item, its padding and its chevron.
     pub fn width(ui: &mut Ui, items: &[&str]) -> f32 {
         let widest = items.iter().map(|item| ui.measure(item, BODY).width).fold(0.0, f32::max);
         (COMBO_BOX_PADDING.left + widest + COMBO_BOX_CHEVRON_COLUMN + 2.0).ceil().max(COMBO_BOX_MIN_WIDTH)
+    }
+
+    fn chosen_text(&self) -> &str {
+        self.items.get(self.selected).map(String::as_str).unwrap_or(&self.placeholder)
     }
 }
 
@@ -51,17 +77,31 @@ struct ComboState {
     first: usize,
 }
 
-impl Widget for ComboBox<'_, '_> {
-    type Response = Response;
+impl Control for ComboBox {
+    fn kind(&self) -> &'static str {
+        "ComboBox"
+    }
 
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let mut response = ui.interact(name, rect, Sense::NAVIGATE, "ComboBox");
-        let count = self.items.len();
-        if *self.selected >= count && count > 0 {
-            *self.selected = count - 1;
+    fn sense(&self) -> Sense {
+        Sense::NAVIGATE
+    }
+
+    fn label(&self) -> Option<String> {
+        Some(self.chosen_text().to_string())
+    }
+
+    fn adopt(&mut self, previous: Box<dyn Control>) {
+        if let Some(previous) = adopted::<ComboBox>(previous) {
+            self.selected = previous.selected.min(self.items.len().saturating_sub(1));
         }
-        let chosen = self.items.get(*self.selected).copied().unwrap_or(self.placeholder);
-        ui.set_label(name, chosen);
+    }
+
+    fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let (rect, response) = (ctx.rect, &ctx.response);
+        let count = self.items.len();
+        if self.selected >= count && count > 0 {
+            self.selected = count - 1;
+        }
         let id = response.id;
         let mut open = ui.popup_open(id);
         // The list can't show nothing, like after its last item went while
@@ -75,7 +115,7 @@ impl Widget for ComboBox<'_, '_> {
                 ui.close_popup(id);
                 open = false;
             } else {
-                open_list(ui, id, name, *self.selected, count);
+                open_list(ui, id, &ctx.name, self.selected, count);
                 open = true;
             }
         }
@@ -83,26 +123,29 @@ impl Widget for ComboBox<'_, '_> {
             let input = ui.input();
             let alt_down = input.modifiers().alt && input.key_pressed(Key::DOWN);
             if alt_down || input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE) {
-                open_list(ui, id, name, *self.selected, count);
+                open_list(ui, id, &ctx.name, self.selected, count);
                 open = true;
-            } else if input.key_pressed(Key::DOWN) && *self.selected + 1 < count {
-                *self.selected += 1;
-                response.changed = true;
-            } else if input.key_pressed(Key::UP) && *self.selected > 0 {
-                *self.selected -= 1;
-                response.changed = true;
+            } else if input.key_pressed(Key::DOWN) && self.selected + 1 < count {
+                self.selected += 1;
+                ctx.emit(ui, UiEventKind::Selected(self.selected));
+            } else if input.key_pressed(Key::UP) && self.selected > 0 {
+                self.selected -= 1;
+                ctx.emit(ui, UiEventKind::Selected(self.selected));
             }
         }
-
-        draw_closed(ui, &response, rect, self.items.get(*self.selected).copied().unwrap_or(self.placeholder), self.items.get(*self.selected).is_none());
-        if open && let Some(chosen) = draw_list(ui, id, name, rect, self.items, *self.selected) {
-            if chosen != *self.selected {
-                *self.selected = chosen;
-                response.changed = true;
+        if open && let Some(chosen) = draw_list(ui, id, &ctx.name, rect, &self.items, self.selected) {
+            if chosen != self.selected {
+                self.selected = chosen;
+                ctx.emit(ui, UiEventKind::Selected(chosen));
             }
             ui.close_popup(id);
         }
-        response
+    }
+
+    fn draw(&mut self, ui: &mut Ui, ctx: &NodeContext) {
+        let placeholder = self.items.get(self.selected).is_none();
+        let text = self.chosen_text().to_string();
+        draw_closed(ui, &ctx.response, ctx.rect, &text, placeholder);
     }
 }
 
@@ -153,7 +196,7 @@ fn draw_closed(ui: &mut Ui, response: &Response, rect: Rect, text: &str, placeho
 }
 
 // Draws the open list, and returns the item chosen from it, if one was.
-fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], selected: usize) -> Option<usize> {
+fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[String], selected: usize) -> Option<usize> {
     let count = items.len();
     let shown = count.min(COMBO_BOX_POPUP_MAX_ITEMS);
     let pitch = COMBO_BOX_ITEM_HEIGHT + COMBO_BOX_ITEM_MARGIN.vertical();
@@ -222,7 +265,7 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
         let item = slot.pad(COMBO_BOX_ITEM_MARGIN);
         let item_name = format!("{name}/{index}");
         let response = ui.interact(&item_name, item, Sense::CLICK, "ComboBoxItem");
-        ui.set_label(&item_name, items[index]);
+        ui.set_label(&item_name, &items[index]);
         // The pointer moves the highlight only as it moves, so that the
         // keys can move it while the pointer rests on the list.
         if response.hovered && ui.input().pointer_delta != Point::ZERO {
@@ -253,7 +296,7 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
             painter.rounded(pill, SELECTION_PILL_THICKNESS / 2.0, theme.accent);
         }
         let text = Rect::new(item.x + COMBO_BOX_ITEM_PADDING.left, item.y, item.width - COMBO_BOX_ITEM_PADDING.horizontal(), item.height);
-        painter.text_fit(text, items[index], BODY, text_color, Align::Start);
+        painter.text_fit(text, &items[index], BODY, text_color, Align::Start);
         if index == highlighted && ui.focus_visible() && !response.hovered {
             ui.focus_visual_if(true, item, COMBO_BOX_ITEM_RADIUS);
         }
