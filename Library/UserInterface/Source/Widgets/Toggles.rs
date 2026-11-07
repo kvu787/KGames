@@ -99,53 +99,63 @@ impl<T: PartialEq + Copy> Widget for RadioButton<'_, '_, T> {
     type Response = Response;
 
     fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
-        let mut response = ui.interact(name, rect, Sense::BUTTON, "RadioButton");
-        if response.clicked && *self.value != self.own {
-            *self.value = self.own;
-            response.changed = true;
-        }
-        let checked = *self.value == self.own;
-        ui.set_label(name, if checked { "Checked" } else { "Unchecked" });
-        let state = response.state();
-        let theme = ui.theme();
-        // RadioButtonOuterEllipse(Checked)Fill and ...Stroke.
-        let (fill, stroke) = if checked {
-            let accent = StateColors::new(theme.accent, theme.accent_secondary, theme.accent_tertiary, theme.accent_disabled);
-            (accent, accent)
-        } else {
-            (
-                StateColors::new(theme.control_alt_fill_secondary, theme.control_alt_fill_tertiary, theme.control_alt_fill_quarternary, theme.control_alt_fill_disabled),
-                StateColors::new(theme.control_strong_stroke, theme.control_strong_stroke, theme.control_strong_stroke_disabled, theme.control_strong_stroke_disabled),
-            )
-        };
-        let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
-        let glyph_fill = theme.text_on_accent;
-        // The checked dot is bigger with the pointer over it, and smaller
-        // while it's pressed.
-        let glyph_size = match state {
-            ControlState::PointerOver => RADIO_BUTTON_GLYPH_POINTER_OVER,
-            ControlState::Pressed => RADIO_BUTTON_GLYPH_PRESSED,
-            ControlState::Disabled => RADIO_BUTTON_GLYPH_DISABLED,
-            ControlState::Normal => RADIO_BUTTON_GLYPH,
-        };
-        let fill = fill.get(state);
-        let center = Point::new(rect.x + RADIO_BUTTON_SIZE / 2.0, rect.center().y.round());
-        let circle = Rect::from_center(center, Size::square(RADIO_BUTTON_SIZE));
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        painter.shape(circle, RADIO_BUTTON_SIZE / 2.0, fill, Some(Border::new(stroke.get(state), 1.0)));
-        if checked {
-            let glyph = Rect::from_center(center, Size::square(glyph_size));
-            let elevation = if state == ControlState::Disabled { Elevation::Control } else { Elevation::Accent };
-            painter.shape(glyph, glyph_size / 2.0, glyph_fill, Some(Border::new(elevation.brush(theme, glyph), 1.0)));
-        }
-        if !self.label.is_empty() {
-            let left = circle.right() + RADIO_BUTTON_PADDING.left;
-            painter.text_fit(Rect::new(left, rect.y, rect.right() - left, rect.height), self.label, BODY, text, Align::Start);
-        }
-        ui.focus_visual_around(response.focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
+        let response = radio_input(ui, name, rect, self.value, self.own);
+        draw_radio(ui, name, rect, &response, *self.value == self.own, self.label);
         response
     }
+}
+
+// A radio button's input: a click checks it.
+fn radio_input<T: PartialEq + Copy>(ui: &mut Ui, name: &str, rect: Rect, value: &mut T, own: T) -> Response {
+    let mut response = ui.interact(name, rect, Sense::BUTTON, "RadioButton");
+    if response.clicked && *value != own {
+        *value = own;
+        response.changed = true;
+    }
+    response
+}
+
+// Draws a radio button whose input is read, checked or not.
+fn draw_radio(ui: &mut Ui, name: &str, rect: Rect, response: &Response, checked: bool, label: &str) {
+    ui.set_label(name, if checked { "Checked" } else { "Unchecked" });
+    let state = response.state();
+    let theme = ui.theme();
+    // RadioButtonOuterEllipse(Checked)Fill and ...Stroke.
+    let (fill, stroke) = if checked {
+        let accent = StateColors::new(theme.accent, theme.accent_secondary, theme.accent_tertiary, theme.accent_disabled);
+        (accent, accent)
+    } else {
+        (
+            StateColors::new(theme.control_alt_fill_secondary, theme.control_alt_fill_tertiary, theme.control_alt_fill_quarternary, theme.control_alt_fill_disabled),
+            StateColors::new(theme.control_strong_stroke, theme.control_strong_stroke, theme.control_strong_stroke_disabled, theme.control_strong_stroke_disabled),
+        )
+    };
+    let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
+    let glyph_fill = theme.text_on_accent;
+    // The checked dot is bigger with the pointer over it, and smaller
+    // while it's pressed.
+    let glyph_size = match state {
+        ControlState::PointerOver => RADIO_BUTTON_GLYPH_POINTER_OVER,
+        ControlState::Pressed => RADIO_BUTTON_GLYPH_PRESSED,
+        ControlState::Disabled => RADIO_BUTTON_GLYPH_DISABLED,
+        ControlState::Normal => RADIO_BUTTON_GLYPH,
+    };
+    let fill = fill.get(state);
+    let center = Point::new(rect.x + RADIO_BUTTON_SIZE / 2.0, rect.center().y.round());
+    let circle = Rect::from_center(center, Size::square(RADIO_BUTTON_SIZE));
+    let mut painter = ui.painter();
+    let theme = painter.theme();
+    painter.shape(circle, RADIO_BUTTON_SIZE / 2.0, fill, Some(Border::new(stroke.get(state), 1.0)));
+    if checked {
+        let glyph = Rect::from_center(center, Size::square(glyph_size));
+        let elevation = if state == ControlState::Disabled { Elevation::Control } else { Elevation::Accent };
+        painter.shape(glyph, glyph_size / 2.0, glyph_fill, Some(Border::new(elevation.brush(theme, glyph), 1.0)));
+    }
+    if !label.is_empty() {
+        let left = circle.right() + RADIO_BUTTON_PADDING.left;
+        painter.text_fit(Rect::new(left, rect.y, rect.right() - left, rect.height), label, BODY, text, Align::Start);
+    }
+    ui.focus_visual_around(response.focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
 }
 
 // A column of radio buttons that pick one of a group's items, by index.
@@ -177,14 +187,20 @@ impl Widget for RadioGroup<'_, '_> {
             enabled: ui.enabled(),
             ..Response::default()
         };
-        let mut row = rect;
-        row.height = CONTROL_HEIGHT;
+        // The buttons' input first, and then their drawing, so that a click
+        // moves the check on the frame it's made, from every button at once.
+        let mut buttons = Vec::with_capacity(self.items.len());
         for (index, item) in self.items.iter().enumerate() {
-            let one = ui.add(&format!("{name}/{item}"), row, RadioButton::new(self.selected, index, item));
+            let item_name = format!("{name}/{item}");
+            let row = Rect::new(rect.x, rect.y + CONTROL_HEIGHT * index as f32, rect.width, CONTROL_HEIGHT);
+            let one = radio_input(ui, &item_name, row, self.selected, index);
             response.hovered |= one.hovered;
             response.clicked |= one.clicked;
             response.changed |= one.changed;
-            row.y += CONTROL_HEIGHT;
+            buttons.push((item_name, row, one));
+        }
+        for (index, (item, (item_name, row, one))) in self.items.iter().zip(buttons).enumerate() {
+            draw_radio(ui, &item_name, row, &one, *self.selected == index, item);
         }
         response
     }
