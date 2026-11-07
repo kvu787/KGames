@@ -1,9 +1,10 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
 // a standard button's elevation border, that widgets draw a new state whole
-// on the frame that makes it, and a selection that moves leaves its old item
-// on that frame, whether the PerfBar says that vertical sync is on, the
-// PerfBar's colors in each theme, and the page for an unsupported setup.
+// on the frame that makes it, that a selection that moves leaves its old
+// item on that frame, and that a release shows on its own frame, whether the
+// PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
+// and the page for an unsupported setup.
 
 use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
@@ -249,9 +250,7 @@ fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
         if list {
             app.release();
         }
-        let area = app.target(old);
-        let mut pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
-        if let Some((x, y)) = pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y)) {
+        if let Some((x, y)) = first_difference(&now, &later, app.target(old)) {
             save(&now, "SelectionNow");
             save(&later, "SelectionLater");
             panic!("{old} still looked selected on the frame that selected {new}, at ({x}, {y})");
@@ -259,6 +258,38 @@ fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
     }
     let program = &app.program;
     assert_eq!((program.row, program.size, program.alignment, program.tab), (Some(2), 2, 2, 2));
+}
+
+#[test]
+fn a_release_shows_on_the_frame_that_reads_it() {
+    // A widget that the left button holds down looks pressed until the
+    // frame that reads the release, which draws it as it looks from then
+    // on, with what the release did, like a switch that's flipped or a menu
+    // that's open, and not pressed for a frame more.
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for name in ["Button", "Switch", "Check", "Size/Medium", "Level", "Alignment/Center", "Tabs/Second", "Rows/1", "Menus/File"] {
+        app.press(name).queue(&[Event::ButtonReleased(MouseButton::Left)]).frame();
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        if let Some((x, y)) = first_difference(&now, &later, app.target(name)) {
+            save(&now, "ReleaseNow");
+            save(&later, "ReleaseLater");
+            panic!("{name} didn't look let go on the frame that let go of it, at ({x}, {y})");
+        }
+    }
+    let program = &app.program;
+    assert!(program.on && program.checked);
+    assert_eq!((program.size, program.alignment, program.tab, program.row), (1, 1, 1, Some(1)));
+    assert_eq!(app.ui.popup_name(), Some("Menus/File/Menu"));
+}
+
+// The first pixel in the area that differs between the two frames.
+fn first_difference(now: &Image, later: &Image, area: Rect) -> Option<(u32, u32)> {
+    let mut pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
+    pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
 }
 
 #[test]
