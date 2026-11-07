@@ -26,7 +26,8 @@ pub struct InfoCard<'a> {
     pub description: &'a str,
     // Fields after the display's, each a label and its value.
     pub rows: &'a [(&'a str, &'a str)],
-    // Keys after F1's, F10's and F11's, each with what it does.
+    // The program's own keys, each with what it does, on a row under the
+    // library's: F1's, F9's, F10's and F11's.
     pub keys: &'a [(&'a str, &'a str)],
 }
 
@@ -60,8 +61,8 @@ impl Ui {
         let display = format!("{} {}", environment.display, environment.display_name);
         let mut rows = vec![("Frame rate", rate.as_str()), ("GPU", environment.gpu.as_str()), ("Display", display.trim())];
         rows.extend_from_slice(contents.rows);
-        let mut keys = vec![("F1", "Hide this"), ("F10", "VSync"), ("F11", "Fullscreen")];
-        keys.extend_from_slice(contents.keys);
+        let library_keys: &[(&str, &str)] = &[("F1", "Hide this"), ("F9", "Theme"), ("F10", "VSync"), ("F11", "Fullscreen")];
+        let key_rows: Vec<&[(&str, &str)]> = [library_keys, contents.keys].into_iter().filter(|keys| !keys.is_empty()).collect();
         let notices = self.notices().to_vec();
         let width = InfoCard::WIDTH;
         let notice_heights: Vec<f32> =
@@ -70,12 +71,13 @@ impl Ui {
         // The card sizes itself to its content, which goes from its top, so
         // its top is as far above the window's bottom as the card is tall:
         // under its header, the description, the fields, the window's focus
-        // and the keys, SPACE_M apart, then each notice, SPACE_M under what's
-        // above it.
+        // and the rows of keys, SPACE_M apart, then each notice, SPACE_M under
+        // what's above it.
         let line = BODY.line_height;
         let fields = rows.len() as f32 * (line + SPACE_XS) - SPACE_XS;
+        let keys_height = key_rows.len() as f32 * (SPACE_M + KEYCAP_HEIGHT);
         let notices_height: f32 = notice_heights.iter().map(|height| SPACE_M + height).sum();
-        let content = line + SPACE_M + fields + SPACE_M + line + SPACE_M + KEYCAP_HEIGHT + notices_height;
+        let content = line + SPACE_M + fields + SPACE_M + line + keys_height + notices_height;
         let height = CARD_PADDING * 2.0 + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + content;
         let rect = Rect::new(PAGE_PADDING, self.size().height - PAGE_PADDING - height, width, height);
         let card = self.begin_card(rect, Card::new(contents.title).floating().named(InfoCard::NAME).label(contents.title));
@@ -89,7 +91,7 @@ impl Ui {
         area.cut_top(SPACE_M - SPACE_XS, 0.0);
 
         // Whether the window has focus, with an info bar's status icon.
-        let focus = area.cut_top(line, SPACE_M);
+        let focus = area.cut_top(line, 0.0);
         let (severity, says) = if self.window_focused() {
             (Severity::Success, "The window has focus")
         } else {
@@ -99,11 +101,14 @@ impl Ui {
         self.label(focus.pad(Insets::new(ICON + SPACE_S, 0.0, 0.0, 0.0)), says);
 
         // Each key on its keycap, and what it does.
-        let row = area.cut_top(KEYCAP_HEIGHT, 0.0);
-        let mut x = row.x;
-        for (key, action) in keys {
-            x += self.keys(Point::new(x, row.y), key) + SPACE_S;
-            x = self.caption(Rect::new(x, row.y, (row.right() - x).max(0.0), row.height), action).right() + SPACE_L;
+        for keys in key_rows {
+            area.cut_top(SPACE_M, 0.0);
+            let row = area.cut_top(KEYCAP_HEIGHT, 0.0);
+            let mut x = row.x;
+            for (key, action) in keys {
+                x += self.keys(Point::new(x, row.y), key) + SPACE_S;
+                x = self.caption(Rect::new(x, row.y, (row.right() - x).max(0.0), row.height), action).right() + SPACE_L;
+            }
         }
 
         for (index, (notice, height)) in notices.iter().zip(notice_heights).enumerate() {
