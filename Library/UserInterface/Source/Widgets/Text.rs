@@ -416,6 +416,10 @@ impl Swatch {
         self.color
     }
 
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }

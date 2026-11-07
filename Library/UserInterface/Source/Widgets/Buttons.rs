@@ -75,6 +75,10 @@ impl Button {
         self
     }
 
+    pub fn set_style(&mut self, style: ButtonStyle) {
+        self.style = style;
+    }
+
     pub fn checked(mut self, checked: bool) -> Self {
         self.checked = checked;
         self

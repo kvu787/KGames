@@ -2,15 +2,18 @@
 // models, and the vehicles parked in it, which a press in the view picks
 // and a drag moves, and sets the scene's background, its fixed camera, and
 // the paint of a decoration's model, which every use of the model shares.
+//
+// Its card's shape follows what's picked, so the program rebuilds the tree
+// when the fingerprint changes.
 
 use json::Value;
 use user_interface::controls::LIST_ITEM_HEIGHT;
-use user_interface::tokens::{BODY, CONTROL_HEIGHT};
-use user_interface::{Button, Card, ComboBox, Form, Icon, ListView, Rect, Ui};
+use user_interface::tokens::CONTROL_HEIGHT;
+use user_interface::{Button, Card, ComboBox, Icon, ListRow, ListView, Rect, Ui, UiEventKind};
 
 use crate::collision::Footprint;
 use crate::document::Document;
-use crate::editing::{self, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, slider_height, window_size};
+use crate::editing::{self, HEADED_HEIGHT, PaintControls, Projection, Role, Shape, SliderRange, Viewport, header, slider_height, window_size};
 use crate::models::{Models, set_slot};
 use crate::scene::{Decoration, LARGEST_SCALE, Parked, SMALLEST_SCALE};
 use crate::track::Pose;
@@ -24,6 +27,10 @@ pub enum Picked {
 
 // The most rows the list shows without scrolling.
 const LIST_ROWS: usize = 6;
+
+const DEGREES: SliderRange = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
+const SCALES: SliderRange = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE, 100.0, 2);
+const HEIGHTS: SliderRange = SliderRange::new(5.0, 200.0, 1.0, 0).suffix(" tall");
 
 #[derive(Default)]
 pub struct SceneEditor {
@@ -73,200 +80,312 @@ fn footprints(document: &Document, models: &Models, scene: usize) -> Vec<(Footpr
 }
 
 impl SceneEditor {
-    // The view, where a press picks what's under it and a drag moves it,
-    // then the card, over it.
-    pub fn update(&mut self, ui: &mut Ui, view: Rect, viewport: &mut Viewport, document: &mut Document, models: &Models, scene: usize) {
-        let input = viewport.interact(ui, "Scene/View", view);
-        let things = footprints(document, models, scene);
-        let current = &mut document.scenes[scene];
-        // A pick that's gone, like after an undo, even one during a drag.
-        self.picked = self.picked.filter(|picked| match *picked {
-            Picked::Decoration(index) => index < current.decorations.len(),
-            Picked::Parked(index) => index < current.parked.len(),
+    // What's picked, as a kind, and whether a model's paint shows: the
+    // card's shape, which a change to re-lays out.
+    pub fn fingerprint(&self, document: &Document, models: &Models, scene: usize) -> String {
+        let current = &document.scenes[scene];
+        let (kind, paint) = match self.picked {
+            Some(Picked::Decoration(index)) => {
+                let model = current.decorations.get(index).and_then(|decoration| models.find(&decoration.model));
+                (format!("decoration {:?}", current.decorations.get(index).map(|decoration| &decoration.model)), model)
+            }
+            Some(Picked::Parked(index)) => (format!("parked {:?}", current.parked.get(index).map(|parked| &parked.vehicle)), None),
+            None => ("none".to_string(), None),
+        };
+        format!("{kind} paint {paint:?} slots {:?}", paint.map(|model| models.list[model].slots.len()))
+    }
+
+    // The view, the overlay over it, and the card.
+    pub fn build(&self, ui: &mut Ui, view: Rect, document: &Document, models: &Models, scene: usize) {
+        let viewport_name = "Scene/View";
+        ui.node(viewport_name, view, user_interface::View::new());
+        editing::overlay_node(ui, "Scene/Overlay", view);
+        let page = ui.page();
+        self.card(ui, page, document, models, scene);
+    }
+
+    fn card(&self, ui: &mut Ui, page: Rect, document: &Document, models: &Models, scene: usize) {
+        let current = &document.scenes[scene];
+        let name = current.name.clone();
+        let card = Card::new("Scene").subtitle(&name).floating();
+        let area = card.area(ui, editing::left_card(page));
+        let mut bottom = area.content.y;
+        ui.group("SceneCard", editing::left_card(page), Card::new("Scene").subtitle(&name).floating(), |ui| {
+            let mut form = user_interface::Form::new("SceneForm", area.content);
+            let model_names = models.names();
+            let vehicle_names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
+            let [background, follow] = form.columns::<2>(HEADED_HEIGHT);
+            let background = header(ui, "Scene/BackgroundLabel", background, "Background");
+            editing::color_field_node(ui, "Scene/Background", background, current.background);
+            // Its header lines up with the field's.
+            let follow = follow.top_strip(slider_height());
+            editing::slider_node(ui, "Scene/FollowHeight", follow, "Following view", current.follow_height, HEIGHTS);
+            ui.node("Scene/Camera", form.take(CONTROL_HEIGHT), Button::new("Make this view the fixed camera's").icon(Icon::Camera));
+            ui.set_tooltip("Scene/Camera", "The fixed camera looks where the middle of the view right of this card is");
+
+            form.heading(ui, "Decorations and parked vehicles");
+            let rows: Vec<ListRow> = current
+                .decorations
+                .iter()
+                .map(|decoration| decoration.model.clone())
+                .chain(current.parked.iter().map(|parked| format!("{}, parked", parked.vehicle)))
+                .map(|text| ListRow::new(&text))
+                .collect();
+            let shown = rows.len().clamp(1, LIST_ROWS) as f32;
+            let mut list = ListView::new(rows, LIST_ITEM_HEIGHT).selectable();
+            list.set_selected(self.picked_row(current));
+            ui.node("Scene/Objects", form.take(shown * LIST_ITEM_HEIGHT), list);
+            let [model, vehicle] = form.columns::<2>(HEADED_HEIGHT);
+            let model = header(ui, "Scene/ModelLabel", model, "Model");
+            let vehicle = header(ui, "Scene/VehicleLabel", vehicle, "Vehicle");
+            ui.node("Scene/Model", model, ComboBox::new(&model_names, self.model));
+            let vehicle_names: Vec<&str> = vehicle_names.iter().map(String::as_str).collect();
+            ui.node("Scene/Vehicle", vehicle, ComboBox::new(&vehicle_names, self.vehicle));
+            let [add, park, delete] = form.columns::<3>(CONTROL_HEIGHT);
+            ui.node("Scene/AddDecoration", add, Button::new("Add the model").icon(Icon::Add));
+            ui.set_tooltip("Scene/AddDecoration", "Puts the model in the middle of the view");
+            ui.node("Scene/Park", park, Button::new("Park the vehicle").icon(Icon::Car));
+            ui.set_tooltip("Scene/Park", "Parks the vehicle in the middle of the view");
+            ui.node("Scene/Delete", delete, Button::new("Delete").icon(Icon::Delete));
+            ui.set_tooltip("Scene/Delete", "Deletes the one that's picked");
+
+            let mut paint_model = None;
+            match self.picked {
+                Some(Picked::Decoration(index)) if index < current.decorations.len() => {
+                    let decoration = &current.decorations[index];
+                    form.heading(ui, &format!("The {}", decoration.model));
+                    let [heading, scale] = form.columns::<2>(slider_height());
+                    editing::slider_node(ui, "Scene/Heading", heading, "Heading", decoration.pose.heading, DEGREES);
+                    editing::slider_node(ui, "Scene/Scale", scale, "Scale", decoration.scale, SCALES);
+                    paint_model = models.find(&decoration.model);
+                }
+                Some(Picked::Parked(index)) if index < current.parked.len() => {
+                    let parked = &current.parked[index];
+                    form.heading(ui, &format!("The parked {}", parked.vehicle));
+                    editing::slider_row(&mut form, ui, "Scene/Heading", "Heading", parked.pose.heading, DEGREES);
+                    form.caption(ui, "The Vehicles tab paints vehicles.");
+                }
+                _ => form.caption(ui, "Press one in the view, or in the list, to pick it."),
+            }
+            if let Some(model) = paint_model {
+                let name = models.list[model].name.clone();
+                let slots = &models.list[model].slots;
+                let slot = self.slot.min(slots.len() - 1);
+                let parameters = document.model_materials(models, model)[slot];
+                form.heading(ui, &format!("The {name}'s paint, everywhere it is"));
+                PaintControls::build(&mut form, ui, "ModelPaint", slots, slot, &parameters);
+            }
+            bottom = form.bottom();
         });
-        if self.picked.is_none() {
-            self.grab = None;
-        }
-        let decorations = current.decorations.len();
-        let row_of = |row: usize| if row < decorations { Picked::Decoration(row) } else { Picked::Parked(row - decorations) };
-        if input.response.pressed
-            && !input.panning
-            && let Some(ground) = input.ground
+        let rect = Rect::new(page.x, page.y, editing::CARD_WIDTH, card.height_around(bottom - area.content.y));
+        ui.set_rect("SceneCard", rect);
+    }
+
+    fn picked_row(&self, current: &crate::scene::Scene) -> Option<usize> {
+        self.picked.map(|picked| match picked {
+            Picked::Decoration(index) => index,
+            Picked::Parked(index) => current.decorations.len() + index,
+        })
+    }
+
+    // The view, where a press picks what's under it and a drag moves it, the
+    // frame's events, and what the card shows.
+    pub fn update(&mut self, ui: &mut Ui, view: Rect, viewport: &mut Viewport, document: &mut Document, models: &Models, scene: usize) {
+        let input = viewport.apply(ui, "Scene/View");
+        let things = footprints(document, models, scene);
         {
-            let row = (0..things.len()).rev().find(|&row| {
-                let (footprint, pose, scale) = things[row];
-                under(footprint, &pose, scale, ground)
+            let current = &mut document.scenes[scene];
+            // A pick that's gone, like after an undo, even one during a drag.
+            self.picked = self.picked.filter(|picked| match *picked {
+                Picked::Decoration(index) => index < current.decorations.len(),
+                Picked::Parked(index) => index < current.parked.len(),
             });
-            self.picked = row.map(row_of);
-            self.grab = row.map(|row| {
-                let position = things[row].1.position;
-                [position[0] - ground[0], position[1] - ground[1]]
-            });
-        }
-        // The drag follows the pointer to where it's let go of.
-        if let (Some(grab), Some(ground), Some(picked)) = (self.grab, input.ground, self.picked) {
-            let position = [ground[0] + grab[0], ground[1] + grab[1]];
-            match picked {
-                Picked::Decoration(index) => current.decorations[index].pose.position = position,
-                Picked::Parked(index) => current.parked[index].pose.position = position,
+            if self.picked.is_none() {
+                self.grab = None;
+            }
+            let decorations = current.decorations.len();
+            let row_of = |row: usize| if row < decorations { Picked::Decoration(row) } else { Picked::Parked(row - decorations) };
+            if input.response.pressed
+                && !input.panning
+                && let Some(ground) = input.ground
+            {
+                let row = (0..things.len()).rev().find(|&row| {
+                    let (footprint, pose, scale) = things[row];
+                    under(footprint, &pose, scale, ground)
+                });
+                self.picked = row.map(row_of);
+                self.grab = row.map(|row| {
+                    let position = things[row].1.position;
+                    [position[0] - ground[0], position[1] - ground[1]]
+                });
+            }
+            // The drag follows the pointer to where it's let go of.
+            if let (Some(grab), Some(ground), Some(picked)) = (self.grab, input.ground, self.picked) {
+                let position = [ground[0] + grab[0], ground[1] + grab[1]];
+                match picked {
+                    Picked::Decoration(index) => current.decorations[index].pose.position = position,
+                    Picked::Parked(index) => current.parked[index].pose.position = position,
+                }
+            }
+            if !input.held {
+                self.grab = None;
             }
         }
-        if !input.held {
-            self.grab = None;
-        }
+
+        self.events(ui, view, viewport, document, models, scene);
 
         // Each thing's place, and the picked one's rectangle.
         let things = footprints(document, models, scene);
+        let current = &document.scenes[scene];
+        let decorations = current.decorations.len();
+        let row_of = |row: usize| if row < decorations { Picked::Decoration(row) } else { Picked::Parked(row - decorations) };
         let projection = Projection::new(ui, viewport.eye);
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        painter.push_clip(view);
+        let mut shapes = Vec::new();
         for (row, (footprint, pose, scale)) in things.iter().enumerate() {
             let picked = self.picked == Some(row_of(row));
             if picked {
-                projection.outline(&mut painter, &corners(*footprint, pose, *scale), 2.0, theme.accent);
+                shapes.push(projection.outline(&corners(*footprint, pose, *scale), 2.0, Role::Accent));
             }
             let center = projection.point(pose.position);
-            painter.circle(center, 5.0, if picked { theme.accent } else { theme.text_primary });
-            painter.circle(center, 2.0, theme.acrylic);
+            shapes.push(Shape::Circle(center, 5.0, if picked { Role::Accent } else { Role::Primary }));
+            shapes.push(Shape::Circle(center, 2.0, Role::Acrylic));
         }
-        painter.pop_clip();
-        let page = ui.page();
-        self.card(ui, page, view, viewport, document, models, scene);
+        editing::set_overlay(ui, "Scene/Overlay", shapes);
+        self.sync(ui, document, models, scene);
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn card(&mut self, ui: &mut Ui, page: Rect, view: Rect, viewport: &Viewport, document: &mut Document, models: &Models, scene: usize) {
-        let name = document.scenes[scene].name.clone();
-        let open = ui.begin_card(editing::left_card(page), Card::new("Scene").subtitle(&name).floating());
-        let mut form = Form::new(open.area.content);
-        let vehicle_names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
-        let vehicle_names: Vec<&str> = vehicle_names.iter().map(String::as_str).collect();
+    fn events(&mut self, ui: &mut Ui, view: Rect, viewport: &Viewport, document: &mut Document, models: &Models, scene: usize) {
+        let middle = editing::visible(view).center();
+        let center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
         let model_names = models.names();
-        let current = &mut document.scenes[scene];
-        let [background, follow] = form.columns::<2>(HEADED_HEIGHT);
-        let background = header(ui, background, "Background");
-        editing::color_field(ui, "Scene/Background", background, &mut current.background);
-        let heights = SliderRange::new(5.0, 200.0, 1.0, 0).suffix(" tall");
-        // Its header lines up with the field's.
-        let follow = follow.top_strip(slider_height());
-        editing::slider(ui, "Scene/FollowHeight", follow, "Following view", &mut current.follow_height, heights);
-        let camera = Button::new("Make this view the fixed camera's").icon(Icon::Camera);
-        let response = ui.add("Scene/Camera", form.take(CONTROL_HEIGHT), camera);
-        ui.tooltip(&response, "The fixed camera looks where the middle of the view right of this card is");
-        if response.clicked {
-            let middle = editing::visible(view).center();
-            current.camera_center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
-            current.camera_height = viewport.eye.height;
+        let events: Vec<user_interface::UiEvent> = ui.events().to_vec();
+        for event in events {
+            let current = &mut document.scenes[scene];
+            match (event.source.as_str(), &event.kind) {
+                ("Scene/Background", UiEventKind::ColorChanged(color)) => {
+                    let [red, green, blue, _] = color.to_bytes();
+                    current.background = [red, green, blue];
+                }
+                ("Scene/FollowHeight", UiEventKind::Changed(value)) => current.follow_height = HEIGHTS.nearest(*value),
+                ("Scene/Camera", UiEventKind::Clicked) => {
+                    current.camera_center = center;
+                    current.camera_height = viewport.eye.height;
+                }
+                ("Scene/Objects", UiEventKind::Selected(row)) => {
+                    self.picked = Some(if *row < current.decorations.len() {
+                        Picked::Decoration(*row)
+                    } else {
+                        Picked::Parked(*row - current.decorations.len())
+                    });
+                }
+                ("Scene/Model", UiEventKind::Selected(index)) => self.model = *index,
+                ("Scene/Vehicle", UiEventKind::Selected(index)) => self.vehicle = *index,
+                ("Scene/AddDecoration", UiEventKind::Clicked) => {
+                    current.decorations.push(Decoration {
+                        model: model_names[self.model.min(model_names.len() - 1)].to_string(),
+                        pose: Pose {
+                            position: center,
+                            heading: 0.0,
+                        },
+                        scale: 1.0,
+                    });
+                    self.picked = Some(Picked::Decoration(current.decorations.len() - 1));
+                }
+                ("Scene/Park", UiEventKind::Clicked) => {
+                    let names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
+                    let current = &mut document.scenes[scene];
+                    current.parked.push(Parked {
+                        vehicle: names[self.vehicle.min(names.len() - 1)].clone(),
+                        pose: Pose {
+                            position: center,
+                            heading: 0.0,
+                        },
+                    });
+                    self.picked = Some(Picked::Parked(current.parked.len() - 1));
+                }
+                ("Scene/Delete", UiEventKind::Clicked) => {
+                    match self.picked {
+                        Some(Picked::Decoration(index)) if index < current.decorations.len() => {
+                            current.decorations.remove(index);
+                        }
+                        Some(Picked::Parked(index)) if index < current.parked.len() => {
+                            current.parked.remove(index);
+                        }
+                        _ => {}
+                    }
+                    self.picked = None;
+                }
+                ("Scene/Heading", UiEventKind::Changed(value)) => match self.picked {
+                    Some(Picked::Decoration(index)) if index < current.decorations.len() => {
+                        current.decorations[index].pose.heading = DEGREES.nearest(*value);
+                    }
+                    Some(Picked::Parked(index)) if index < current.parked.len() => {
+                        current.parked[index].pose.heading = DEGREES.nearest(*value);
+                    }
+                    _ => {}
+                },
+                ("Scene/Scale", UiEventKind::Changed(value)) => {
+                    if let Some(Picked::Decoration(index)) = self.picked
+                        && index < current.decorations.len()
+                    {
+                        current.decorations[index].scale = SCALES.nearest(*value);
+                    }
+                }
+                _ => {}
+            }
         }
+        // The picked decoration's model's paint.
+        if let Some(Picked::Decoration(index)) = self.picked
+            && let Some(model) = document.scenes[scene].decorations.get(index).and_then(|decoration| models.find(&decoration.model))
+        {
+            let name = models.list[model].name.clone();
+            let slots = models.list[model].slots.clone();
+            self.slot = self.slot.min(slots.len() - 1);
+            let mut parameters = document.model_materials(models, model)[self.slot];
+            if PaintControls::changed(ui, "ModelPaint", &mut self.slot, &mut parameters) {
+                let slot = slots[self.slot.min(slots.len() - 1)].clone();
+                set_slot(document.paint_mut(&name), &slots, &slot, parameters);
+            }
+        }
+    }
 
-        form.heading(ui, "Decorations and parked vehicles");
+    // Keeps the card's controls true to the document.
+    fn sync(&mut self, ui: &mut Ui, document: &Document, models: &Models, scene: usize) {
+        let current = &document.scenes[scene];
+        editing::sync_color_field(ui, "Scene/Background", current.background);
+        editing::sync_slider(ui, "Scene/FollowHeight", current.follow_height);
         let rows: Vec<String> = current
             .decorations
             .iter()
             .map(|decoration| decoration.model.clone())
             .chain(current.parked.iter().map(|parked| format!("{}, parked", parked.vehicle)))
             .collect();
-        let picked_row = self.picked.map(|picked| match picked {
-            Picked::Decoration(index) => index,
-            Picked::Parked(index) => current.decorations.len() + index,
-        });
-        let mut selected = picked_row;
-        let shown = rows.len().clamp(1, LIST_ROWS) as f32;
-        let text = ui.theme().text_primary;
-        let list = ListView::new(rows.len(), LIST_ITEM_HEIGHT, |ui, index, rect, _| {
-            ui.text(rect, &rows[index], BODY, text);
-            ui.set_label(&format!("Scene/Objects/{index}"), &rows[index]);
-        });
-        ui.add("Scene/Objects", form.take(shown * LIST_ITEM_HEIGHT), list.selection(&mut selected));
-        if selected != picked_row {
-            self.picked = selected.map(|row| {
-                if row < current.decorations.len() {
-                    Picked::Decoration(row)
-                } else {
-                    Picked::Parked(row - current.decorations.len())
-                }
-            });
+        let list = ui.get_mut::<ListView>("Scene/Objects");
+        let changed = list.rows().len() != rows.len() || list.rows().iter().zip(&rows).any(|(a, b)| a.text != *b);
+        if changed {
+            list.set_rows(rows.iter().map(|text| ListRow::new(text)).collect());
         }
-        let middle = editing::visible(view).center();
-        let center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
-        let [model, vehicle] = form.columns::<2>(HEADED_HEIGHT);
-        let (model, vehicle) = (header(ui, model, "Model"), header(ui, vehicle, "Vehicle"));
-        ui.add("Scene/Model", model, ComboBox::new(&mut self.model, &model_names));
-        ui.add("Scene/Vehicle", vehicle, ComboBox::new(&mut self.vehicle, &vehicle_names));
-        let [add, park, delete] = form.columns::<3>(CONTROL_HEIGHT);
-        let add = ui.add("Scene/AddDecoration", add, Button::new("Add the model").icon(Icon::Add));
-        ui.tooltip(&add, "Puts the model in the middle of the view");
-        let park = ui.add("Scene/Park", park, Button::new("Park the vehicle").icon(Icon::Car));
-        ui.tooltip(&park, "Parks the vehicle in the middle of the view");
-        let delete = ui.add("Scene/Delete", delete, Button::new("Delete").icon(Icon::Delete));
-        ui.tooltip(&delete, "Deletes the one that's picked");
-        if add.clicked {
-            current.decorations.push(Decoration {
-                model: model_names[self.model].to_string(),
-                pose: Pose {
-                    position: center,
-                    heading: 0.0,
-                },
-                scale: 1.0,
-            });
-            self.picked = Some(Picked::Decoration(current.decorations.len() - 1));
-        }
-        if park.clicked {
-            current.parked.push(Parked {
-                vehicle: vehicle_names[self.vehicle].to_string(),
-                pose: Pose {
-                    position: center,
-                    heading: 0.0,
-                },
-            });
-            self.picked = Some(Picked::Parked(current.parked.len() - 1));
-        }
-        if delete.clicked {
-            match self.picked {
-                Some(Picked::Decoration(index)) if index < current.decorations.len() => {
-                    current.decorations.remove(index);
-                }
-                Some(Picked::Parked(index)) if index < current.parked.len() => {
-                    current.parked.remove(index);
-                }
-                _ => {}
-            }
-            self.picked = None;
-        }
-
-        let degrees = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
-        let mut paint_model = None;
+        list.set_selected(self.picked_row(current));
+        // The picked thing's controls, once a rebuild has made them.
         match self.picked {
-            Some(Picked::Decoration(index)) => {
-                let decoration = &mut current.decorations[index];
-                form.heading(ui, &format!("The {}", decoration.model));
-                let [heading, scale] = form.columns::<2>(slider_height());
-                editing::slider(ui, "Scene/Heading", heading, "Heading", &mut decoration.pose.heading, degrees);
-                let scales = SliderRange::new(SMALLEST_SCALE, LARGEST_SCALE, 100.0, 2);
-                editing::slider(ui, "Scene/Scale", scale, "Scale", &mut decoration.scale, scales);
-                paint_model = models.find(&decoration.model);
+            Some(Picked::Decoration(index)) if index < current.decorations.len() && ui.has_node("Scene/Scale") => {
+                let decoration = &current.decorations[index];
+                editing::sync_slider(ui, "Scene/Heading", decoration.pose.heading);
+                editing::sync_slider(ui, "Scene/Scale", decoration.scale);
+                if let Some(model) = models.find(&decoration.model)
+                    && ui.has_node("ModelPaint/Slot")
+                {
+                    let slots = &models.list[model].slots;
+                    let slot = self.slot.min(slots.len() - 1);
+                    let parameters = document.model_materials(models, model)[slot];
+                    PaintControls::sync(ui, "ModelPaint", slots, slot, &parameters);
+                }
             }
-            Some(Picked::Parked(index)) => {
-                let parked = &mut current.parked[index];
-                form.heading(ui, &format!("The parked {}", parked.vehicle));
-                editing::slider_row(&mut form, ui, "Scene/Heading", "Heading", &mut parked.pose.heading, degrees);
-                form.caption(ui, "The Vehicles tab paints vehicles.");
+            Some(Picked::Parked(index)) if index < current.parked.len() && ui.has_node("Scene/Heading") && !ui.has_node("Scene/Scale") => {
+                editing::sync_slider(ui, "Scene/Heading", current.parked[index].pose.heading);
             }
-            None => form.caption(ui, "Press one in the view, or in the list, to pick it."),
+            _ => {}
         }
-        if let Some(model) = paint_model {
-            let name = models.list[model].name.clone();
-            let slots = &models.list[model].slots;
-            self.slot = self.slot.min(slots.len() - 1);
-            let mut parameters = document.model_materials(models, model)[self.slot];
-            form.heading(ui, &format!("The {name}'s paint, everywhere it is"));
-            if editing::paint(&mut form, ui, "ModelPaint", slots, &mut self.slot, &mut parameters) {
-                let slot = slots[self.slot].clone();
-                set_slot(document.paint_mut(&name), slots, &slot, parameters);
-            }
-        }
-        ui.end_card(open, form.bottom());
     }
 
     pub fn state(&self, document: &Document, scene: usize) -> Value {

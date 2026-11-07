@@ -34,7 +34,6 @@ pub(crate) struct Node {
     pub interacted: u64,
 }
 
-#[derive(Default)]
 pub(crate) struct Tree {
     pub nodes: Vec<Node>,
     pub roots: Vec<usize>,
@@ -42,6 +41,22 @@ pub(crate) struct Tree {
     // The group being built into, while building.
     stack: Vec<usize>,
     building: bool,
+    // What new nodes' focusable starts as: false for a program whose keys
+    // must stay its own, which turns it back on for its text fields.
+    focusable_default: bool,
+}
+
+impl Default for Tree {
+    fn default() -> Self {
+        Tree {
+            nodes: Vec::new(),
+            roots: Vec::new(),
+            index: HashMap::new(),
+            stack: Vec::new(),
+            building: false,
+            focusable_default: true,
+        }
+    }
 }
 
 impl Ui {
@@ -51,6 +66,7 @@ impl Ui {
         let old = std::mem::take(&mut self.tree);
         self.previous_nodes = old.nodes.into_iter().map(|node| (node.id, node.control)).collect();
         self.tree.building = true;
+        self.tree.focusable_default = true;
         self.rebuild_requested = false;
         build(self);
         self.tree.building = false;
@@ -106,7 +122,7 @@ impl Ui {
             rect,
             visible: true,
             enabled: true,
-            focusable: true,
+            focusable: self.tree.focusable_default,
             children: Vec::new(),
             response: Response::default(),
             interacted: 0,
@@ -179,6 +195,13 @@ impl Ui {
         self.tree.nodes[index].focusable = focusable;
     }
 
+    // What new nodes' focusable starts as, for the rest of the build: false
+    // for a program whose keys must stay its own, which turns it back on for
+    // its text fields with set_focusable.
+    pub fn set_build_focusable(&mut self, focusable: bool) {
+        self.tree.focusable_default = focusable;
+    }
+
     pub fn is_enabled(&self, name: &str) -> bool {
         self.tree.nodes[self.node_index(name)].enabled
     }
@@ -203,7 +226,7 @@ impl Ui {
     pub(crate) fn dispatch_tree(&mut self) {
         let roots = self.tree.roots.clone();
         for index in roots {
-            self.run_node(index, true, true, true);
+            self.run_node(index, true, true);
         }
     }
 
@@ -211,17 +234,19 @@ impl Ui {
     pub(crate) fn draw_tree(&mut self) {
         let roots = self.tree.roots.clone();
         for index in roots {
-            self.run_node(index, true, true, false);
+            self.run_node(index, true, false);
         }
     }
 
-    fn run_node(&mut self, index: usize, enabled: bool, focusable: bool, dispatch: bool) {
+    fn run_node(&mut self, index: usize, enabled: bool, dispatch: bool) {
         let node = &mut self.tree.nodes[index];
         if !node.visible {
             return;
         }
         let enabled = enabled && node.enabled;
-        let focusable = focusable && node.focusable;
+        // The node's own, not its parents': the build default covers every
+        // node, and a field in an unfocusable card can turn it back on.
+        let focusable = node.focusable;
         let mut control = node.control.take().expect("a control isn't in two phases at once");
         let name = node.name.clone();
         let rect = node.rect;
@@ -285,7 +310,7 @@ impl Ui {
                 self.set_layer(child_layer);
             }
             for child in children {
-                self.run_node(child, enabled, focusable, dispatch);
+                self.run_node(child, enabled, dispatch);
             }
             if child_layer.is_some() {
                 self.set_layer(layer);
