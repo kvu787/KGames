@@ -265,7 +265,7 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
         ui.set_label(name, &text);
 
         let state = response.state();
-        let pressed = response.held && response.held_button == Some(crate::input::devices::MouseButton::Left);
+        let pressed = response.pressing();
         let visual_state = if pressed { ControlState::Pressed } else { state };
         let scale = match visual_state {
             ControlState::PointerOver => SLIDER_INNER_THUMB_SCALE_POINTER_OVER,

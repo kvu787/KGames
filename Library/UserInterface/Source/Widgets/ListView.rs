@@ -166,7 +166,7 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
         }
         for (index, row, row_response) in rows {
             let is_selected = selected == Some(index);
-            let pressed = row_response.held && row_response.hovered;
+            let pressed = row_response.pressing() && row_response.hovered;
             let theme = ui.theme();
             // ListViewItemBackground.
             let fill = match (is_selected, pressed, row_response.hovered) {

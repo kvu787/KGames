@@ -174,12 +174,20 @@ pub struct Response {
 }
 
 impl Response {
+    // Whether the left button holds it down, as its look shows it: from the
+    // frame that reads the press until the frame that reads the release,
+    // which shows it let go. It's still held on that frame, for what the
+    // release does, like a click.
+    pub fn pressing(&self) -> bool {
+        self.held && self.held_button == Some(MouseButton::Left) && !self.released
+    }
+
     pub fn state(&self) -> ControlState {
         if !self.enabled {
             ControlState::Disabled
-        } else if self.held && self.held_button == Some(MouseButton::Left) && self.hovered {
+        } else if self.pressing() && self.hovered {
             ControlState::Pressed
-        } else if self.hovered || (self.held && self.held_button == Some(MouseButton::Left)) {
+        } else if self.hovered || self.pressing() {
             ControlState::PointerOver
         } else {
             ControlState::Normal
