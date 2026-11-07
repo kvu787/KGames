@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="WinUi3Sample.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WinUi3Sample"
+    Title="WinUI 3 Sample">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- The theme is the root's, so F9 can switch it while the app runs. Light by default. -->
+    <Grid x:Name="Root" KeyboardAcceleratorPlacementMode="Hidden" RequestedTheme="Light">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Behind everything when the backdrop is None, instead of Mica or acrylic. -->
+        <Border
+            x:Name="SolidBackground"
+            Grid.RowSpan="4"
+            Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+            Visibility="Collapsed" />
+
+        <!-- The title bar, drawn by the app in place of Windows' own, with a back button, a pane toggle and a search box. -->
+        <TitleBar
+            x:Name="AppTitleBar"
+            Title="WinUI 3 Sample"
+            BackRequested="OnBackRequested"
+            IsBackButtonVisible="True"
+            IsPaneToggleButtonVisible="True"
+            PaneToggleRequested="OnPaneToggleRequested"
+            Subtitle="Preview">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
+            </TitleBar.IconSource>
+            <TitleBar.Content>
+                <AutoSuggestBox
+                    x:Name="SearchBox"
+                    MinWidth="320"
+                    MaxWidth="560"
+                    VerticalAlignment="Center"
+                    PlaceholderText="Search notes"
+                    QueryIcon="Find"
+                    QuerySubmitted="OnSearchQuerySubmitted"
+                    SuggestionChosen="OnSearchSuggestionChosen"
+                    TextChanged="OnSearchTextChanged">
+                    <AutoSuggestBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:Note">
+                            <TextBlock Text="{x:Bind DisplayTitle}" />
+                        </DataTemplate>
+                    </AutoSuggestBox.ItemTemplate>
+                </AutoSuggestBox>
+            </TitleBar.Content>
+            <TitleBar.RightHeader>
+                <PersonPicture
+                    Width="32"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    DisplayName="Sample User"
+                    ToolTipService.ToolTip="Sample User" />
+            </TitleBar.RightHeader>
+        </TitleBar>
+
+        <!-- The menu bar. Its accelerators are the root's, so they work while its menus are closed. -->
+        <MenuBar x:Name="AppMenuBar" Grid.Row="1" Margin="4,0,0,0">
+            <MenuBarItem x:Name="FileMenu" Title="File" AccessKey="F">
+                <MenuFlyoutItem Click="OnNewNote" KeyboardAcceleratorTextOverride="Ctrl+N" Text="New note">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE710;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSubItem Text="New from template">
+                    <MenuFlyoutSubItem.Icon>
+                        <FontIcon Glyph="&#xE8A5;" />
+                    </MenuFlyoutSubItem.Icon>
+                    <MenuFlyoutItem Click="OnNewFromTemplate" Tag="Meeting" Text="Meeting notes" />
+                    <MenuFlyoutItem Click="OnNewFromTemplate" Tag="ToDo" Text="To-do list" />
+                    <MenuFlyoutItem Click="OnNewFromTemplate" Tag="Journal" Text="Journal entry" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutItem Click="OnOpen" KeyboardAcceleratorTextOverride="Ctrl+O" Text="Open...">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8E5;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Click="OnSave" KeyboardAcceleratorTextOverride="Ctrl+S" Text="Save">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE74E;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnSaveAs" KeyboardAcceleratorTextOverride="Ctrl+Shift+S" Text="Save as...">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE792;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem IsEnabled="False" KeyboardAcceleratorTextOverride="Ctrl+P" Text="Print...">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE749;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Click="OnExit" KeyboardAcceleratorTextOverride="Alt+F4" Text="Exit" />
+            </MenuBarItem>
+
+            <MenuBarItem x:Name="EditMenu" Title="Edit" AccessKey="E">
+                <MenuFlyoutItem Click="OnUndo" KeyboardAcceleratorTextOverride="Ctrl+Z" Text="Undo">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE7A7;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnRedo" KeyboardAcceleratorTextOverride="Ctrl+Y" Text="Redo">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE7A6;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Click="OnCut" KeyboardAcceleratorTextOverride="Ctrl+X" Text="Cut">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8C6;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnCopy" KeyboardAcceleratorTextOverride="Ctrl+C" Text="Copy">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8C8;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnPaste" KeyboardAcceleratorTextOverride="Ctrl+V" Text="Paste">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE77F;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnSelectAll" KeyboardAcceleratorTextOverride="Ctrl+A" Text="Select all">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8B3;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Click="OnFind" KeyboardAcceleratorTextOverride="Ctrl+F" Text="Find">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE721;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <ToggleMenuFlyoutItem x:Name="PinMenuItem" Click="OnTogglePin" KeyboardAcceleratorTextOverride="Ctrl+D" Text="Pin note" />
+                <MenuFlyoutItem Click="OnDeleteNote" Text="Delete note">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE74D;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+            </MenuBarItem>
+
+            <MenuBarItem x:Name="ViewMenu" Title="View" AccessKey="V">
+                <MenuFlyoutSubItem Text="Theme">
+                    <MenuFlyoutSubItem.Icon>
+                        <FontIcon Glyph="&#xE790;" />
+                    </MenuFlyoutSubItem.Icon>
+                    <RadioMenuFlyoutItem x:Name="LightThemeItem" Click="OnThemeChosen" GroupName="Theme" Tag="Light" Text="Light" />
+                    <RadioMenuFlyoutItem x:Name="DarkThemeItem" Click="OnThemeChosen" GroupName="Theme" Tag="Dark" Text="Dark" />
+                    <RadioMenuFlyoutItem x:Name="SystemThemeItem" Click="OnThemeChosen" GroupName="Theme" Tag="System" Text="Use system setting" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutItem Click="OnSwitchTheme" KeyboardAcceleratorTextOverride="F9" Text="Switch light and dark">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE706;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <ToggleMenuFlyoutItem x:Name="PaneMenuItem" Click="OnTogglePane" IsChecked="True" Text="Navigation pane" />
+                <ToggleMenuFlyoutItem x:Name="StatusBarMenuItem" Click="OnToggleStatusBar" IsChecked="True" Text="Status bar" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutSubItem Text="Zoom">
+                    <MenuFlyoutSubItem.Icon>
+                        <FontIcon Glyph="&#xE71E;" />
+                    </MenuFlyoutSubItem.Icon>
+                    <MenuFlyoutItem Click="OnZoomIn" KeyboardAcceleratorTextOverride="Ctrl+Plus" Text="Zoom in">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE8A3;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Click="OnZoomOut" KeyboardAcceleratorTextOverride="Ctrl+Minus" Text="Zoom out">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE71F;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Click="OnZoomReset" KeyboardAcceleratorTextOverride="Ctrl+0" Text="Restore default zoom" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutSubItem Text="Go to">
+                    <MenuFlyoutSubItem.Icon>
+                        <FontIcon Glyph="&#xE8AD;" />
+                    </MenuFlyoutSubItem.Icon>
+                    <MenuFlyoutItem Click="OnGoTo" KeyboardAcceleratorTextOverride="Ctrl+1" Tag="Home" Text="Home" />
+                    <MenuFlyoutItem Click="OnGoTo" KeyboardAcceleratorTextOverride="Ctrl+2" Tag="Notes" Text="Notes" />
+                    <MenuFlyoutItem Click="OnGoTo" KeyboardAcceleratorTextOverride="Ctrl+3" Tag="Controls" Text="Controls" />
+                    <MenuFlyoutItem Click="OnGoTo" KeyboardAcceleratorTextOverride="Ctrl+4" Tag="Settings" Text="Settings" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutSeparator />
+                <ToggleMenuFlyoutItem x:Name="FullScreenMenuItem" Click="OnToggleFullScreen" KeyboardAcceleratorTextOverride="F11" Text="Full screen" />
+            </MenuBarItem>
+
+            <MenuBarItem x:Name="HelpMenu" Title="Help" AccessKey="H">
+                <MenuFlyoutItem Click="OnShowShortcuts" KeyboardAcceleratorTextOverride="F1" Text="Keyboard shortcuts">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE765;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Click="OnOpenDocumentation" Text="WinUI 3 documentation">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8A7;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Click="OnAbout" Text="About WinUI 3 Sample">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE946;" />
+                    </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+            </MenuBarItem>
+        </MenuBar>
+
+        <!-- The pages, with a pane to switch between them. Settings is the pane's own item. -->
+        <NavigationView
+            x:Name="Navigation"
+            Grid.Row="2"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="True"
+            PaneClosed="OnPaneOpenedOrClosed"
+            PaneDisplayMode="Left"
+            PaneOpened="OnPaneOpenedOrClosed"
+            SelectionChanged="OnNavigationSelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="HomeItem" Content="Home" Tag="Home">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NotesItem" Content="Notes" Tag="Notes">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE70B;" />
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.InfoBadge>
+                        <InfoBadge x:Name="NotesBadge" />
+                    </NavigationViewItem.InfoBadge>
+                </NavigationViewItem>
+                <NavigationViewItemSeparator />
+                <NavigationViewItemHeader Content="Sample" />
+                <NavigationViewItem x:Name="ControlsItem" Content="Controls" Tag="Controls">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8A9;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <Frame x:Name="ContentFrame" />
+        </NavigationView>
+
+        <!-- The status bar, like Notepad's. -->
+        <Grid
+            x:Name="StatusBar"
+            Grid.Row="3"
+            Height="32"
+            Padding="16,0"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0">
+            <TextBlock
+                x:Name="StatusMessage"
+                VerticalAlignment="Center"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="Ready" />
+            <StackPanel
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="12">
+                <TextBlock x:Name="StatusWords" Style="{StaticResource CaptionTextBlockStyle}" />
+                <AppBarSeparator Height="16" Padding="0" />
+                <TextBlock x:Name="StatusZoom" Style="{StaticResource CaptionTextBlockStyle}" />
+                <AppBarSeparator Height="16" Padding="0" />
+                <TextBlock x:Name="StatusTheme" Style="{StaticResource CaptionTextBlockStyle}" />
+                <AppBarSeparator Height="16" Padding="0" />
+                <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="UTF-8" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

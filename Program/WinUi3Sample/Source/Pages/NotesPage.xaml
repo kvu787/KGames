@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WinUi3Sample.NotesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WinUi3Sample">
+
+    <Grid Padding="36,24,36,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- The page's header, with its commands. -->
+        <Grid>
+            <TextBlock VerticalAlignment="Center" Style="{StaticResource TitleTextBlockStyle}" Text="Notes" />
+            <CommandBar
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                DefaultLabelPosition="Right"
+                IsOpen="False">
+                <AppBarButton Click="OnNewNote" Label="New note">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE710;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarToggleButton
+                    x:Name="PinButton"
+                    Click="OnPinClick"
+                    IsChecked="{x:Bind State.SelectedNote.IsPinned, Mode=OneWay, FallbackValue=False}"
+                    IsEnabled="{x:Bind local:Converters.IsNotNull(State.SelectedNote), Mode=OneWay}"
+                    Label="Pin">
+                    <AppBarToggleButton.Icon>
+                        <FontIcon Glyph="&#xE718;" />
+                    </AppBarToggleButton.Icon>
+                </AppBarToggleButton>
+                <AppBarButton Click="OnDelete" IsEnabled="{x:Bind local:Converters.IsNotNull(State.SelectedNote), Mode=OneWay}" Label="Delete">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE74D;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarSeparator />
+                <AppBarButton Label="Text size">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8E9;" />
+                    </AppBarButton.Icon>
+                    <AppBarButton.Flyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel Width="280" Spacing="8">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Zoom" />
+                                <Slider
+                                    Maximum="300"
+                                    Minimum="50"
+                                    StepFrequency="10"
+                                    TickFrequency="50"
+                                    TickPlacement="Outside"
+                                    Value="{x:Bind State.ZoomValue, Mode=TwoWay}" />
+                                <ToggleSwitch Header="Check spelling" IsOn="{x:Bind State.SpellCheck, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Flyout>
+                    </AppBarButton.Flyout>
+                </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Click="OnDuplicate" Label="Duplicate">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8C8;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Click="OnSortByTitle" Label="Sort by title">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8CB;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Click="OnSortByDate" Label="Sort by date edited">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE787;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar.SecondaryCommands>
+            </CommandBar>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- The list of notes. -->
+            <Border Padding="0" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        x:Name="NoteCount"
+                        Margin="20,16,20,8"
+                        Style="{StaticResource SecondaryCaptionTextStyle}" />
+                    <ListView
+                        x:Name="NoteList"
+                        Grid.Row="1"
+                        Padding="0,0,0,8"
+                        ItemsSource="{x:Bind State.Notes}"
+                        SelectionChanged="OnSelectionChanged"
+                        SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:Note">
+                                <Grid Padding="4,12" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind DisplayTitle, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            MaxLines="2"
+                                            Style="{StaticResource SecondaryCaptionTextStyle}"
+                                            Text="{x:Bind Preview, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            Margin="0,2,0,0"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind ModifiedText, Mode=OneWay}" />
+                                    </StackPanel>
+                                    <FontIcon
+                                        Grid.Column="1"
+                                        Margin="0,2,0,0"
+                                        VerticalAlignment="Top"
+                                        FontSize="14"
+                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                        Glyph="&#xE718;"
+                                        Visibility="{x:Bind IsPinned, Mode=OneWay}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <!-- The editor, without the text boxes' borders, like a document. -->
+            <Border Grid.Column="1" Padding="40,28" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.Resources>
+                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                    </Grid.Resources>
+                    <Grid RowSpacing="4" Visibility="{x:Bind local:Converters.VisibleIfNotNull(State.SelectedNote), Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBox
+                            x:Name="TitleBox"
+                            Padding="0,4"
+                            FontSize="28"
+                            FontWeight="SemiBold"
+                            PlaceholderText="Title"
+                            Text="{x:Bind State.SelectedNote.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Margin="0,0,0,16"
+                            Style="{StaticResource SecondaryCaptionTextStyle}"
+                            Text="{x:Bind State.SelectedNote.Summary, Mode=OneWay, FallbackValue=''}" />
+                        <TextBox
+                            x:Name="BodyBox"
+                            Grid.Row="2"
+                            Padding="0"
+                            VerticalAlignment="Stretch"
+                            AcceptsReturn="True"
+                            FontSize="{x:Bind State.EditorFontSize, Mode=OneWay}"
+                            IsSpellCheckEnabled="{x:Bind State.SpellCheck, Mode=OneWay}"
+                            PlaceholderText="Write something"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            Text="{x:Bind State.SelectedNote.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="12"
+                        Visibility="{x:Bind local:Converters.VisibleIfNull(State.SelectedNote), Mode=OneWay}">
+                        <FontIcon FontSize="48" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Glyph="&#xE70B;" />
+                        <TextBlock HorizontalAlignment="Center" Style="{StaticResource SecondaryTextStyle}" Text="Pick a note, or start a new one." />
+                        <Button HorizontalAlignment="Center" Click="OnNewNote" Content="New note" Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

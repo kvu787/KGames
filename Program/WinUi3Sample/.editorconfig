@@ -1,0 +1,7 @@
+# Adds to the .editorconfig at the root of the repository.
+
+# CA1822: Mark members as static. XAML's generated code hooks event handlers up, and x:Bind reads
+# its paths, through the page or window, like this.OnClick and this.State, so those stay members.
+[{Source/MainWindow.xaml.cs,Source/Pages/*.cs}]
+
+dotnet_diagnostic.CA1822.severity = none

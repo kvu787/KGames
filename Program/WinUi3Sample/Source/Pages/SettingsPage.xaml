@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WinUi3Sample.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WinUi3Sample">
+
+    <Page.Resources>
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+            <Setter Property="Margin" Value="1,28,0,6" />
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer>
+        <!-- Laid out like Windows 11's own settings: cards of 4 pixels apart, under section headers. -->
+        <StackPanel MaxWidth="1064" Padding="36,24,36,36" HorizontalAlignment="Left" Spacing="4">
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Settings" />
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Appearance" />
+            <local:SettingsCard Description="Light by default. F9 switches between light and dark." Glyph="&#xE790;" Header="App theme">
+                <ComboBox MinWidth="200" SelectedIndex="{x:Bind State.ThemeIndex, Mode=TwoWay}">
+                    <x:String>Light</x:String>
+                    <x:String>Dark</x:String>
+                    <x:String>Use system setting</x:String>
+                </ComboBox>
+            </local:SettingsCard>
+            <local:SettingsCard Description="The material behind the window. Mica and acrylic show the desktop through it, tinted." Glyph="&#xE771;" Header="Backdrop">
+                <ComboBox MinWidth="200" SelectedIndex="{x:Bind State.BackdropIndex, Mode=TwoWay}">
+                    <x:String>Mica</x:String>
+                    <x:String>Mica Alt</x:String>
+                    <x:String>Acrylic</x:String>
+                    <x:String>None</x:String>
+                </ComboBox>
+            </local:SettingsCard>
+            <local:SettingsCard Description="Where the pages are: a pane at the left, its icons only, or along the top." Glyph="&#xE700;" Header="Navigation style">
+                <ComboBox MinWidth="200" SelectedIndex="{x:Bind State.NavigationStyleIndex, Mode=TwoWay}">
+                    <x:String>Left</x:String>
+                    <x:String>Left, compact</x:String>
+                    <x:String>Top</x:String>
+                </ComboBox>
+            </local:SettingsCard>
+            <local:SettingsCard Description="The words of the note, the zoom and the theme, along the bottom." Glyph="&#xE90E;" Header="Status bar">
+                <ToggleSwitch IsOn="{x:Bind State.ShowStatusBar, Mode=TwoWay}" />
+            </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Editor" />
+            <local:SettingsCard Description="The size of the notes' text, from 50% to 300%. Ctrl+Plus and Ctrl+Minus change it too." Glyph="&#xE8E9;" Header="Zoom">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Slider
+                        Width="200"
+                        VerticalAlignment="Center"
+                        Maximum="300"
+                        Minimum="50"
+                        StepFrequency="10"
+                        Value="{x:Bind State.ZoomValue, Mode=TwoWay}" />
+                    <TextBlock
+                        Width="40"
+                        VerticalAlignment="Center"
+                        Text="{x:Bind local:SettingsPage.Percent(State.Zoom), Mode=OneWay}" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard Description="Underlines words that may be misspelled, as you type." Glyph="&#xF87B;" Header="Check spelling">
+                <ToggleSwitch IsOn="{x:Bind State.SpellCheck, Mode=TwoWay}" />
+            </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="About" />
+            <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True">
+                <Expander.Header>
+                    <Grid Padding="0,14" ColumnSpacing="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Image
+                            Width="24"
+                            Height="24"
+                            Margin="2,0,0,0"
+                            Source="ms-appx:///Assets/AppIcon.png" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="WinUI 3 Sample" />
+                            <TextBlock Style="{StaticResource SecondaryCaptionTextStyle}" Text="A sample of a WinUI 3 app, for KGames" />
+                        </StackPanel>
+                        <TextBlock
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryTextStyle}"
+                            Text="Version 1.0" />
+                    </Grid>
+                </Expander.Header>
+                <StackPanel Margin="44,0,0,0" Spacing="8">
+                    <TextBlock x:Name="VersionText" Style="{StaticResource SecondaryTextStyle}" />
+                    <HyperlinkButton Padding="0" Content="WinUI 3 documentation" NavigateUri="https://learn.microsoft.com/windows/apps/winui/winui3/" />
+                    <HyperlinkButton Padding="0" Content="Fluent 2 design system" NavigateUri="https://fluent2.microsoft.design/" />
+                    <HyperlinkButton Padding="0" Content="WinUI 3 Gallery, Microsoft's showcase of the controls" NavigateUri="https://apps.microsoft.com/detail/9p3jfpwwdzrc" />
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

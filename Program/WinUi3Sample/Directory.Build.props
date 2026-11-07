@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Builds into the target folder at the root of the repository, like the Cargo workspace, which
+    .gitignore leaves out, instead of into bin and obj folders next to the project.
+  -->
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\..\target\DotNet</ArtifactsPath>
+  </PropertyGroup>
+</Project>
