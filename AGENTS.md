@@ -1,3 +1,8 @@
+# Where to find certain things on this machine
+
+- Blender: C:\Users\K\Program\blender-5.2.3-windows-x64
+- PresentMon: C:\Users\K\Program\PresentMon-2.6.0-x64.exe
+
 # Style
 
 For single and double quotes, only use the ASCII forms: ', "
