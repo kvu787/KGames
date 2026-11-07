@@ -88,8 +88,11 @@ impl Widget for SelectorBar<'_, '_> {
         let mut response = ui.interact(name, rect, Sense::NAVIGATE, "SelectorBar");
         let count = self.items.len();
         response.changed |= arrows(ui, response.focused, self.selected, count);
+        // The items' input first, and then their drawing, so that a click
+        // moves the pill on the frame it's made, on every item at once.
         let items_area = rect.pad(SELECTOR_BAR_PADDING);
         let mut x = items_area.x;
+        let mut items = Vec::with_capacity(count);
         for (index, item) in self.items.iter().enumerate() {
             let width = choice_width(ui, item) + SELECTOR_BAR_ITEM_PADDING.horizontal() + 2.0;
             let item_rect = Rect::new(x, items_area.y, width, items_area.height);
@@ -107,6 +110,9 @@ impl Widget for SelectorBar<'_, '_> {
                 *self.selected = index;
                 response.changed = true;
             }
+            items.push((item_rect, item_response));
+        }
+        for (index, (item, (item_rect, item_response))) in self.items.iter().zip(items).enumerate() {
             let selected = *self.selected == index;
             let state = item_response.state();
             let theme = ui.theme();
@@ -162,25 +168,15 @@ impl Widget for Segmented<'_, '_> {
         let mut response = ui.interact(name, rect, Sense::NAVIGATE, "Segmented");
         let count = self.items.len().max(1);
         response.changed |= arrows(ui, response.focused, self.selected, self.items.len());
-        {
-            let mut painter = ui.painter();
-            let theme = painter.theme();
-            painter.shape(rect, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
-        }
         let inner = rect.inset(2.0);
         let segment_width = inner.width / count as f32;
-        let selected_x = inner.x + segment_width * *self.selected as f32;
-        {
-            let raised = Rect::new(selected_x, inner.y, segment_width, inner.height).round();
-            let mut painter = ui.painter();
-            let theme = painter.theme();
-            let fill = if response.enabled { theme.control_fill } else { theme.control_fill_disabled };
-            painter.shape(raised, RADIUS_CONTROL - 1.0, fill, Some(Elevation::Control.border(theme, raised)));
-        }
+        let segment_at = move |index: usize| Rect::new(inner.x + segment_width * index as f32, inner.y, segment_width, inner.height).round();
+        // The items' input first, and then the drawing, so that a click
+        // raises its segment on the frame it's made.
+        let mut responses = Vec::with_capacity(self.items.len());
         for (index, item) in self.items.iter().enumerate() {
-            let segment = Rect::new(inner.x + segment_width * index as f32, inner.y, segment_width, inner.height).round();
             let item_name = format!("{name}/{}", item.label);
-            let item_response = ui.interact(&item_name, segment, Sense::CLICK, "SegmentedItem");
+            let item_response = ui.interact(&item_name, segment_at(index), Sense::CLICK, "SegmentedItem");
             ui.set_label(&item_name, item.label);
             // A press on an item gives the control focus, as its one stop,
             // unless widgets can't take focus here.
@@ -192,6 +188,18 @@ impl Widget for Segmented<'_, '_> {
                 *self.selected = index;
                 response.changed = true;
             }
+            responses.push(item_response);
+        }
+        {
+            let mut painter = ui.painter();
+            let theme = painter.theme();
+            painter.shape(rect, RADIUS_CONTROL, theme.control_alt_fill_secondary, Some(Border::new(theme.control_stroke, 1.0)));
+            let raised = segment_at(*self.selected);
+            let fill = if response.enabled { theme.control_fill } else { theme.control_fill_disabled };
+            painter.shape(raised, RADIUS_CONTROL - 1.0, fill, Some(Elevation::Control.border(theme, raised)));
+        }
+        for (index, (item, item_response)) in self.items.iter().zip(responses).enumerate() {
+            let segment = segment_at(index);
             let selected = *self.selected == index;
             let state = item_response.state();
             let theme = ui.theme();
