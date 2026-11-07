@@ -169,6 +169,10 @@ implementation, and the commits after it apply what the experiment taught:
   `ui.key_pressed`, `ui.key_pressed_once` and `ui.key_down` the frame it
   opens, for checks after it, not just from the next frame on.
 
+With all of that applied, the showcase's steady frame measures 0.185 ms —
+the same speed as the original immediate implementation's 0.192 ms, within
+noise — and every workspace test and every program's scripts pass.
+
 Two of the wins the recommendation listed were deliberately not carried
 over, because they turned out to be retained-mode artifacts. `Canvas<T>`
 earned its keep by making a tree node's reads explicit; an immediate
