@@ -34,6 +34,20 @@ pub enum Keys {
     Text,
 }
 
+// What a widget does with the wheel turned over it, which decides whether
+// what it's in may scroll instead.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Wheel {
+    // Leaves the wheel to what it's in, like a list or a scroll area.
+    #[default]
+    Ignored,
+    // Takes the wheel, like a slider or a 3D view.
+    Taken,
+    // Takes the wheel only while it has keyboard focus, as WinUI's
+    // NumberBox does.
+    WhileFocused,
+}
+
 // What a widget wants from the pointer and the keyboard.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Sense {
@@ -44,6 +58,7 @@ pub struct Sense {
     // Whether it takes keyboard focus when pressed, and with Tab.
     pub focusable: bool,
     pub keys: Keys,
+    pub wheel: Wheel,
 }
 
 impl Sense {
@@ -56,11 +71,29 @@ impl Sense {
     // Like a slider or a list: focus, and the keys that move.
     pub const NAVIGATE: Sense = Sense::new(true, false, false, true, Keys::Navigate);
     pub const TEXT: Sense = Sense::new(true, false, false, true, Keys::Text);
-    // Every button, without focus, like a 3D view's.
-    pub const VIEW: Sense = Sense::new(true, true, true, false, Keys::None);
+    // Every button and the wheel, without focus, like a 3D view's.
+    pub const VIEW: Sense = Sense::new(true, true, true, false, Keys::None).takes_wheel();
 
     pub const fn new(left: bool, right: bool, middle: bool, focusable: bool, keys: Keys) -> Self {
-        Self { left, right, middle, focusable, keys }
+        Self {
+            left,
+            right,
+            middle,
+            focusable,
+            keys,
+            wheel: Wheel::Ignored,
+        }
+    }
+
+    // The widget takes the wheel, so what it's in won't scroll under it.
+    pub const fn takes_wheel(mut self) -> Self {
+        self.wheel = Wheel::Taken;
+        self
+    }
+
+    pub const fn takes_wheel_while_focused(mut self) -> Self {
+        self.wheel = Wheel::WhileFocused;
+        self
     }
 
     pub(crate) fn takes(&self, button: MouseButton) -> bool {
@@ -85,6 +118,7 @@ pub struct Target {
     pub enabled: bool,
     pub focusable: bool,
     pub keys: Keys,
+    pub wheel: Wheel,
     // Like "Button" or "Slider", as WinUI names its controls.
     pub kind: &'static str,
     // Whether scripts and tests see it. Surfaces that only cover what's

@@ -158,16 +158,4 @@ impl Ui {
         self.add(&format!("{}/ScrollBar", area.name), bar, ScrollBar::new(&mut offset, area.content_height, area.viewport.height));
         *self.memory::<f32>(area.id) = offset;
     }
-
-    // Whether the widget under the pointer takes the wheel, so that what
-    // it's in shouldn't scroll.
-    pub(crate) fn hovered_takes_wheel(&self) -> bool {
-        match self.hovered_kind() {
-            Some("Slider" | "View" | "ComboBoxPopup" | "ComboBoxItem") => true,
-            // A number box takes the wheel only while it has focus, as
-            // WinUI's does.
-            Some("NumberBox") => self.hovered_has_focus(),
-            _ => false,
-        }
-    }
 }

@@ -3,7 +3,7 @@
 // ring and a slider's thumb; and a color field, a text field for a color's
 // hex code with a swatch of it.
 
-use crate::core::interaction::{Response, Sense, id};
+use crate::core::interaction::{Response, Sense, Wheel, id};
 use crate::core::ui::Ui;
 use crate::design::controls::{COLOR_SLIDER_HEIGHT, COLOR_SLIDER_INNER_THUMB, COLOR_SLIDER_RADIUS, COLOR_SPECTRUM_RING, SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE};
 use crate::design::tokens::{RADIUS_CONTROL, SPACE_L};
@@ -166,7 +166,7 @@ impl Widget for ColorField<'_> {
             draft.editing = false;
             draft.text = self.color.to_hex();
         }
-        ui.retarget(name, "ColorField");
+        ui.retarget(name, "ColorField", Wheel::Ignored);
         ui.set_label(name, &self.color.to_hex());
         let swatch = Rect::new(rect.x + 8.0, rect.center().y - swatch_size / 2.0, swatch_size, swatch_size).round();
         let mut painter = ui.painter();

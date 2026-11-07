@@ -15,7 +15,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
 use crate::application::program::Notice;
-use crate::core::interaction::{Cursor, Id, Keys, Response, Sense, Target, id};
+use crate::core::interaction::{Cursor, Id, Keys, Response, Sense, Target, Wheel, id};
 use crate::design::theme::{Theme, ThemeKind};
 use crate::design::tokens::{Curve, CURVE_LINEAR, TOOLTIP_DELAY};
 use crate::drawing::geometry::{Color, Point, Rect, Size};
@@ -566,6 +566,7 @@ impl Ui {
             enabled: self.enabled,
             focusable: sense.focusable && self.focusable,
             keys: sense.keys,
+            wheel: sense.wheel,
             kind,
             listed: true,
         });
@@ -603,17 +604,20 @@ impl Ui {
             enabled: true,
             focusable: false,
             keys: Keys::None,
+            wheel: Wheel::Ignored,
             kind: "Surface",
             listed: false,
         });
     }
 
-    // Gives the target that this frame registered with the name another kind,
-    // for a widget built of another, like a number box of a text box.
-    pub(crate) fn retarget(&mut self, name: &str, kind: &'static str) {
+    // Gives the target that this frame registered with the name another kind
+    // and wheel, for a widget built of another, like a number box of a text
+    // box.
+    pub(crate) fn retarget(&mut self, name: &str, kind: &'static str, wheel: Wheel) {
         let id = id(name);
         if let Some(target) = self.targets.iter_mut().rev().find(|target| target.id == id) {
             target.kind = kind;
+            target.wheel = wheel;
         }
     }
 
@@ -734,10 +738,15 @@ impl Ui {
         self.hovered
     }
 
-    // The kind of the widget under the pointer, like "Slider".
-    pub(crate) fn hovered_kind(&self) -> Option<&'static str> {
-        let hovered = self.hovered?;
-        self.previous.iter().rev().find(|target| target.id == hovered).map(|target| target.kind)
+    // Whether the widget under the pointer takes the wheel itself, so that
+    // what it's in shouldn't scroll.
+    pub(crate) fn hovered_takes_wheel(&self) -> bool {
+        let Some(hovered) = self.hovered else { return false };
+        match self.previous.iter().rev().find(|target| target.id == hovered).map(|target| target.wheel) {
+            Some(Wheel::Taken) => true,
+            Some(Wheel::WhileFocused) => self.hovered_has_focus(),
+            _ => false,
+        }
     }
 
     // Whether the pointer is in the area, whatever covers it.

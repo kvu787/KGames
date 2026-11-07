@@ -3,7 +3,7 @@
 // its range and on its steps; the spin buttons, the arrows and Page Up and
 // Page Down, and the wheel while it has focus, step it.
 
-use crate::core::interaction::Response;
+use crate::core::interaction::{Response, Wheel};
 use crate::core::ui::Ui;
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
@@ -99,7 +99,7 @@ impl<T: Number> Widget for NumberBox<'_, '_, T> {
         let result = ui.add(name, rect, field);
         let mut response = result.response;
         // It's a NumberBox to scripts, not a TextBox.
-        ui.retarget(name, "NumberBox");
+        ui.retarget(name, "NumberBox", Wheel::WhileFocused);
         if result.changed {
             draft.editing = true;
         }

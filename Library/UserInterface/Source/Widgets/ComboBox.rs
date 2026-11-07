@@ -204,7 +204,7 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
     let layer = ui.layer();
     ui.draw.set_layer(Layer::Popup);
     ui.draw.push_clip(bounds, true);
-    ui.register(&format!("{name}/List"), popup, Sense::NONE, "ComboBoxPopup");
+    ui.register(&format!("{name}/List"), popup, Sense::NONE.takes_wheel(), "ComboBoxPopup");
     {
         let mut painter = ui.painter();
         let theme = painter.theme();
@@ -222,7 +222,7 @@ fn draw_list(ui: &mut Ui, id: Id, name: &str, anchor: Rect, items: &[&str], sele
         let slot = Rect::new(popup.x, popup.y + COMBO_BOX_POPUP_PADDING.top + pitch * row as f32, popup.width, pitch);
         let item = slot.pad(COMBO_BOX_ITEM_MARGIN);
         let item_name = format!("{name}/{index}");
-        let response = ui.interact(&item_name, item, Sense::CLICK, "ComboBoxItem");
+        let response = ui.interact(&item_name, item, Sense::CLICK.takes_wheel(), "ComboBoxItem");
         ui.set_label(&item_name, items[index]);
         // The pointer moves the highlight only as it moves, so that the
         // keys can move it while the pointer rests on the list.

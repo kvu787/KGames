@@ -181,7 +181,7 @@ impl<T: Number> Widget for Slider<'_, '_, T> {
 
     fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Response {
         let track_row = rect.bottom_strip(SLIDER_HEIGHT);
-        let mut response = ui.interact(name, track_row, Sense::NAVIGATE, "Slider");
+        let mut response = ui.interact(name, track_row, Sense::NAVIGATE.takes_wheel(), "Slider");
         let (left, right) = slider_rail(rect);
         let before = self.value.to_f64();
         let mut value = before;

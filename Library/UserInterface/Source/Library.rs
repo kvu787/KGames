@@ -139,7 +139,7 @@ pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{Settings, WindowMode};
-pub use core::interaction::{ControlState, Cursor, Id, Keys, Response, Sense, Target, id};
+pub use core::interaction::{ControlState, Cursor, Id, Keys, Response, Sense, Target, Wheel, id};
 pub use core::ui::{Environment, FrameStats, Ui};
 pub use design::icons::Icon;
 pub use design::theme::{AccentRamp, DataColors, Theme, ThemeKind};
