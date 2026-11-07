@@ -12,7 +12,9 @@ use user_interface::controls::{LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, LIS
 use user_interface::tokens::{
     BODY, CARD_GAP, CARD_PADDING, CONTROL_HEIGHT, ICON, MONO, RADIUS_CONTROL, SPACE_L, SPACE_M, SPACE_S, SPACE_XXL,
 };
-use user_interface::{Align, AppBar, Border, Button, Card, Color, Icon, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Ui, id};
+use user_interface::{
+    Align, AppBar, Border, Button, Card, Color, Icon, MouseButton, Painter, Point, Rect, Sense, Severity, Size, Slider, Span, Status, Ui, id,
+};
 
 use crate::demo::{Demo, TITLE};
 use crate::editor::{self, Editor, SETTINGS};
@@ -188,7 +190,10 @@ fn setting(editor: &mut Editor, ui: &mut Ui, index: usize, row: Rect, card: Rect
     let row_response = ui.interact(&row_name, face, Sense::CLICK, "ListViewItem");
     ui.set_label(&row_name, setting.name);
     let hovered = row_response.hovered || ui.hovered_id() == Some(id(setting.name));
-    let pressed = row_response.held || ui.pressed_name() == Some(setting.name);
+    // Its slider's press shows let go on the frame that lets go of it, as a
+    // widget's own does.
+    let slider_pressed = ui.pressed_name() == Some(setting.name) && !ui.input().button_released(MouseButton::Left);
+    let pressed = row_response.pressing() || slider_pressed;
     let selected = index == editor.selected;
     // ListViewItemBackground in each of the row's states.
     let theme = ui.theme();
