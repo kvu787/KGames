@@ -137,10 +137,12 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
         ui.draw.push_clip(rect, false);
         let first = (offset / row_height).floor() as usize;
         let last = (((offset + rect.height) / row_height).ceil() as usize).min(self.count);
+        // The rows' input first, and then their drawing, so that a press
+        // moves the selection on the frame it's made, from every row at once.
+        let mut rows = Vec::with_capacity(last.saturating_sub(first));
         for index in first..last {
             let row = Rect::new(rows_area.x, rect.y + index as f32 * row_height - offset, rows_area.width, row_height);
-            let row_name = format!("{name}/{index}");
-            let row_response = ui.interact(&row_name, row, Sense::CLICK, "ListViewItem");
+            let row_response = ui.interact(&format!("{name}/{index}"), row, Sense::CLICK, "ListViewItem");
             if row_response.hovered {
                 result.hovered = Some(index);
             }
@@ -160,6 +162,9 @@ impl<F: FnMut(&mut Ui, usize, Rect, RowState)> Widget for ListView<'_, F> {
             if row_response.secondary_pressed {
                 result.context = Some(index);
             }
+            rows.push((index, row, row_response));
+        }
+        for (index, row, row_response) in rows {
             let is_selected = selected == Some(index);
             let pressed = row_response.held && row_response.hovered;
             let theme = ui.theme();
