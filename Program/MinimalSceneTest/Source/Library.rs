@@ -9,10 +9,9 @@ pub mod scene;
 #[path = "Settings.rs"]
 pub mod settings;
 
-use user_interface::{Options, WindowMode};
+use user_interface::Options;
 
-// How Library/UserInterface runs the test: unlike most programs, it opens
-// borderless fullscreen unless Settings.json says otherwise.
+// How Library/UserInterface runs the test.
 pub fn options() -> Options {
-    Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR")).window_mode(WindowMode::BorderlessFullscreen)
+    Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR"))
 }

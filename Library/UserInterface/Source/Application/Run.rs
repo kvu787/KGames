@@ -79,7 +79,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut settings = Settings::load(&folder.join("Settings.json"));
     let display_setting = settings.string("Display", "Primary");
     let modes = [WindowMode::Maximized.name(), WindowMode::BorderlessFullscreen.name()];
-    let mode = settings.choice("WindowMode", options.window_mode.name(), &modes);
+    let mode = settings.choice("WindowMode", WindowMode::Maximized.name(), &modes);
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
     let allow_tearing = settings.boolean("AllowTearing", true);
     let vertical_sync_setting = settings.boolean("VerticalSync", true);

@@ -4,15 +4,13 @@
 use std::path::Path;
 
 use minimal_scene_test::moving_sphere::MovingSphere;
-use minimal_scene_test::options;
 use minimal_scene_test::settings::SceneSettings;
 use simple_paint::{Material, Parameters};
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::{Headless, InfoCard, Point, Settings, Startup, Theme, WindowMode};
+use user_interface::{Headless, InfoCard, Point, Settings, Startup, Theme};
 
 #[test]
-fn the_defaults_open_fullscreen_with_a_constant_color_sphere() {
-    assert_eq!(options().window_mode, WindowMode::BorderlessFullscreen);
+fn the_defaults_are_a_constant_color_sphere_and_materials_that_simple_paint_accepts() {
     let scene = SceneSettings::default();
     // Equal Dark and Light Points paint a constant color, which is the base
     // color at tone 1 - Brightness.
@@ -41,7 +39,7 @@ fn the_file_it_writes_reads_back_as_the_defaults() {
 fn the_program_s_settings_file_has_the_defaults() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Program/MinimalSceneTest/Settings.json");
     let mut settings = Settings::load(&path);
-    assert_eq!(settings.choice("WindowMode", "Maximized", &["Maximized", "BorderlessFullscreen"]), "BorderlessFullscreen");
+    assert_eq!(settings.choice("WindowMode", "Maximized", &["Maximized", "BorderlessFullscreen"]), "Maximized");
     assert_eq!(SceneSettings::read(&mut settings), SceneSettings::default());
     assert!(settings.problems().is_empty(), "{:?}", settings.problems());
 }

@@ -227,7 +227,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | `Display`      | `"Primary"`, or the identifier of the display to open on                 |
-| `WindowMode`   | `"Maximized"` or `"BorderlessFullscreen"`                                |
+| `WindowMode`   | `"Maximized"`, by default, or `"BorderlessFullscreen"`                   |
 | `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh    |
 | `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing.  |
 |                | `true` by default                                                        |

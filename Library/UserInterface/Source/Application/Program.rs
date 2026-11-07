@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
-use crate::application::settings::{Settings, WindowMode};
+use crate::application::settings::Settings;
 use crate::core::ui::Ui;
 use crate::platform::input_devices::Devices;
 use crate::widgets::info_bar::Severity;
@@ -52,15 +52,15 @@ pub trait Program {
 }
 
 // How the library runs a program. Every program starts in the light theme,
-// which F9 switches.
+// maximized unless Settings.json says otherwise, and with vertical sync on
+// unless Settings.json or the command line says otherwise, which F9, F11 and
+// F10 switch.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".
     pub name: &'static str,
     // The program's folder, which has its Settings.json: env!("CARGO_MANIFEST_DIR").
     pub folder: &'static str,
-    // The window mode when Settings.json doesn't say.
-    pub window_mode: WindowMode,
     // Whether the program reads the gamepad: its newest reading goes to
     // Ui::gamepad, and its readings count as input for input latency.
     pub gamepad: bool,
@@ -73,7 +73,6 @@ impl Options {
         Self {
             name,
             folder,
-            window_mode: WindowMode::Maximized,
             gamepad: false,
             arguments: &[],
         }
@@ -81,11 +80,6 @@ impl Options {
 
     pub fn gamepad(mut self) -> Self {
         self.gamepad = true;
-        self
-    }
-
-    pub fn window_mode(mut self, mode: WindowMode) -> Self {
-        self.window_mode = mode;
         self
     }
 

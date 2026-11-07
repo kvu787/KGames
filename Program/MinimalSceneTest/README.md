@@ -24,8 +24,8 @@ ignores input without focus, and supports the two
 |            | and the cube's paint their color on faces that face up, and the sphere's    |
 |            | has equal Dark and Light Points, a constant color                           |
 | Background | #4c4c4c                                                                     |
-| Frames     | Borderless fullscreen by default, waiting for vertical sync, unless `F10`   |
-|            | says not to, tearing allowed without it, and without antialiasing           |
+| Frames     | Maximized by default, waiting for vertical sync, unless `F10` says not to,  |
+|            | tearing allowed without it, and without antialiasing                        |
 
 The scene fills the window at either height, with its own depth buffer, and the card goes over
 it. Library/UserInterface's main loop reads the input and the time right before it draws a
@@ -39,7 +39,7 @@ fresh as it can be.
 | `F1`  | Shows or hides the card at the bottom left           |
 | `F9`  | Switches between the light and dark themes           |
 | `F10` | Switches vertical sync on or off                     |
-| `F11` | Switches between borderless fullscreen and maximized |
+| `F11` | Switches between maximized and borderless fullscreen |
 
 The card floats over the scene at the bottom left, which the sphere never crosses, and is as tall
 as what it says: the test's name and what the scene shows, the frame rate, the GPU, the display,
@@ -55,11 +55,10 @@ Or run `HumanRun.cmd`, which opens the test on the primary display. `--display` 
 
 ## Settings
 
-`Settings.json` has the settings every program has, with `"WindowMode": "BorderlessFullscreen"`
-by default, and the SimplePaint material of the `Sphere`, the `Ground` and the `Cube`, in the
-format of [Library/PaintSettings](../../Library/PaintSettings/README.md). A material that's
-wrong, like one that SimplePaint rejects, keeps its default, and the card says what's wrong
-with it. Tune a material in [SimplePaintDemo](../SimplePaintDemo/README.md), save it, and copy
+`Settings.json` has the settings every program has, and the SimplePaint material of the
+`Sphere`, the `Ground` and the `Cube`, in the format of
+[Library/PaintSettings](../../Library/PaintSettings/README.md). A material that's wrong, like one
+that SimplePaint rejects, keeps its default, and the card says what's wrong with it. Tune a material in [SimplePaintDemo](../SimplePaintDemo/README.md), save it, and copy
 it from its `Paint.json`.
 
 ## Testing

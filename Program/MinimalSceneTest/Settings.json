@@ -1,6 +1,6 @@
 {
     "Display": "Primary",
-    "WindowMode": "BorderlessFullscreen",
+    "WindowMode": "Maximized",
     "AllowTearing": true,
     "Sphere": {
         "BaseColor": [0.17000002, 0.47433347, 0.9990234375],

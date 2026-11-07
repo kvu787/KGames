@@ -4,14 +4,12 @@
 use std::path::Path;
 
 use simple_paint::Material;
-use spinning_car_test::options;
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
-use user_interface::{Headless, InfoCard, Settings, Startup, WindowMode};
+use user_interface::{Headless, InfoCard, Settings, Startup};
 
 #[test]
 fn the_defaults_are_materials_that_simple_paint_accepts() {
-    assert_eq!(options().window_mode, WindowMode::Maximized);
     let scene = SceneSettings::default();
     assert_eq!(scene.sphere_resolution, [64, 32]);
     // The body's.
