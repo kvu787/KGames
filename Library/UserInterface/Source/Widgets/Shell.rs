@@ -203,10 +203,9 @@ impl Ui {
     // frames reach the screen and whether they wait for vertical sync, in
     // sections that |s separate, one after another from the left, set in
     // Cascadia Mono, in fields whose widths never change, so that every
-    // label and value stays in the same columns. It's the theme's opposite,
-    // in pure black and white: white on black in the light theme, and black
-    // on white in the dark one. The main loop draws it every frame; programs
-    // don't.
+    // label and value stays in the same columns. It's pure black and white:
+    // black on white in the light theme, and white on black in the dark one.
+    // The main loop draws it every frame; programs don't.
     pub(crate) fn perf_bar(&mut self) {
         // Out of self while the painter borrows it, and back after: the
         // summary's words are made 10 times a second, not copied here
@@ -216,9 +215,10 @@ impl Ui {
         };
         let summary = performance.summary();
         let bar = Rect::new(0.0, 0.0, self.size().width, PERF_BAR_HEIGHT);
+        let divider = self.theme().divider;
         let (background, text) = match self.theme().kind {
-            ThemeKind::Light => (Color::hex(0x000000), Color::hex(0xFFFFFF)),
-            ThemeKind::Dark => (Color::hex(0xFFFFFF), Color::hex(0x000000)),
+            ThemeKind::Light => (Color::hex(0xFFFFFF), Color::hex(0x000000)),
+            ThemeKind::Dark => (Color::hex(0x000000), Color::hex(0xFFFFFF)),
         };
         // Vertical sync from this frame on, as F10 switches it, not as of the
         // summary, as wide whether it's on or off.
@@ -228,10 +228,12 @@ impl Ui {
             let mut painter = self.painter();
             // Opaque, even over a 3D view.
             painter.fill(bar, background);
-            // The text's ink centered in the bar.
+            painter.fill(Rect::new(0.0, bar.bottom() - 1.0, bar.width, 1.0), divider);
+            // The text's ink centered above the divider.
+            let above = bar.height - 1.0;
             let grid = PerfBarGrid {
                 advance: painter.measure("0", PERF_BAR_TEXT).width,
-                y: ((bar.height - PERF_BAR_TEXT.line_height) / 2.0 - MONO_INK_DROP * PERF_BAR_TEXT.size).round(),
+                y: ((above - PERF_BAR_TEXT.line_height) / 2.0 - MONO_INK_DROP * PERF_BAR_TEXT.size).round(),
                 color: text,
             };
             let columns = ((bar.width - PAGE_PADDING * 2.0) / grid.advance).floor() as usize;

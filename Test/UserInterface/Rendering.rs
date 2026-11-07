@@ -99,23 +99,22 @@ fn the_perf_bar_says_whether_vertical_sync_is_on() {
 }
 
 #[test]
-fn the_perf_bar_is_pure_black_and_white_the_theme_s_opposite() {
+fn the_perf_bar_is_black_on_white_in_the_light_theme_and_white_on_black_in_the_dark() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     for kind in [ThemeKind::Light, ThemeKind::Dark] {
         let mut app = Headless::with_theme(Page, kind);
         let image = app.render(&mut gpu).unwrap();
         save(&image, &format!("PerfBar{}", kind.name()));
         let (background, text) = match kind {
-            ThemeKind::Light => ([0, 0, 0], [255, 255, 255]),
-            ThemeKind::Dark => ([255, 255, 255], [0, 0, 0]),
+            ThemeKind::Light => ([255, 255, 255], [0, 0, 0]),
+            ThemeKind::Dark => ([0, 0, 0], [255, 255, 255]),
         };
         let rgb = |x: u32, y: u32| {
             let [r, g, b, _] = image.pixel(x, y);
             [r, g, b]
         };
-        // Past its text, every row of the bar is its background, down to
-        // its last.
-        for y in 0..PERF_BAR_HEIGHT as u32 {
+        // Past its text, every row above its divider is its background.
+        for y in 0..PERF_BAR_HEIGHT as u32 - 1 {
             assert_eq!(rgb(image.width - 8, y), background, "{} theme, row {y}", kind.name());
         }
         // Its text's strokes reach the text's color.
