@@ -306,6 +306,7 @@ impl Veehiicuul {
             items.push(Status::Shortcut("Space", "Pan, with a drag"));
             items.push(Status::Shortcut("Wheel", "Zoom"));
         }
+        items.push(Status::Shortcut("F9", "Theme"));
         items.push(Status::Shortcut("F10", "VSync"));
         items.push(Status::Shortcut("F11", "Fullscreen"));
         items.push(Status::Spacer);

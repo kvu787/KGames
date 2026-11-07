@@ -71,6 +71,7 @@ fn status_bar(ui: &mut Ui) {
         Status::Shortcut("Left/Right", "Change it"),
         Status::Shortcut("Shift+Left/Right", "By 10 steps"),
         Status::Shortcut("Ctrl+S", "Save to Paint.json"),
+        Status::Shortcut("F9", "Theme"),
         Status::Shortcut("F10", "VSync"),
         Status::Shortcut("F11", "Fullscreen"),
         Status::Spacer,

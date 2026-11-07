@@ -40,6 +40,7 @@ goes over it.
 | Key   | Action                                                  |
 | ----- | ------------------------------------------------------- |
 | `F1`  | Shows or hides the card at the bottom left              |
+| `F9`  | Switches between the light and dark themes              |
 | `F10` | Switches vertical sync on or off                        |
 | `F11` | Switches between maximized and borderless fullscreen    |
 | `S`   | Keeps the car in the middle, facing +X, or lets it move |

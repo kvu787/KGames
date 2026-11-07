@@ -37,6 +37,7 @@ fresh as it can be.
 | Key   | Action                                               |
 | ----- | ---------------------------------------------------- |
 | `F1`  | Shows or hides the card at the bottom left           |
+| `F9`  | Switches between the light and dark themes           |
 | `F10` | Switches vertical sync on or off                     |
 | `F11` | Switches between borderless fullscreen and maximized |
 

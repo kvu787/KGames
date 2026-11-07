@@ -59,11 +59,12 @@ Shortcuts, while the demo's window has focus:
 | ----- | ----------------------------------------------------------------------------------------- |
 | `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors                    |
 | `F2`  | Clear the event log                                                                       |
+| `F9`  | Switches between the light and dark themes                                                |
 | `F10` | Switches vertical sync on or off                                                          |
 | `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
 
-The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F10` and `F11` are
-Library/UserInterface's, which reads them from the same readings, as in every KGames program, so
+The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F9`, `F10` and `F11`
+are Library/UserInterface's, which reads them from the same readings, as in every KGames program, so
 the demo doesn't also switch on them, which would switch them back.
 
 ### Rumble test

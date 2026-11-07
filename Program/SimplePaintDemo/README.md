@@ -29,6 +29,7 @@ theme, ignores input without focus, and supports the two
 | `Left`, `Right`        | Moves the selected setting by its smallest step, or 10 with Shift |
 | `Ctrl+S`, **Save**     | Saves the material to `Paint.json` in this folder                 |
 | **Reset**              | Goes back to SimplePaint's default material                       |
+| `F9`                   | Switches between the light and dark themes                        |
 | `F10`                  | Switches vertical sync on or off                                  |
 | `F11`                  | Switches between maximized and borderless fullscreen              |
 

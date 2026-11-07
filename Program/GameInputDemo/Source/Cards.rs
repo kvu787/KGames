@@ -165,6 +165,7 @@ fn status_bar(ui: &mut Ui, input: &Result<Input, String>) {
     let mut items = vec![
         Status::Shortcut("F1", "Rumble test"),
         Status::Shortcut("F2", "Clear the log"),
+        Status::Shortcut("F9", "Theme"),
         Status::Shortcut("F10", "VSync"),
         Status::Shortcut("F11", "Fullscreen"),
         Status::Text(&runtime),
