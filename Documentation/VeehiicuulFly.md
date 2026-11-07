@@ -104,6 +104,10 @@ Another option is taking an existing smooth surface/solid and simply cutting out
 with Blender's knife tool, and then coloring those sections. However, this is still not as good
 as a painting-like workflow.
 
+Currently, the most promising approach would be a new subdivision algorithm that produces a
+smooth-enough surface/solid that is entirely composed of hex pieces. With that, we can apply
+the hexel painting workflow from the 2d hexel grid painter.
+
 ## Shaders
 
 - I'm not sure if the half-sphere, view-dependent properties of SimplePaint will work with this
