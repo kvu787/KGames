@@ -79,6 +79,31 @@ when a game only has movement.
   different terrain patches, because there won't be terrain patches because they'll all be solid
   meshes
 
+Currently, terrain is the main blocker I need to figure out.
+
+I need a way to build terrain that is:
+
+1. Easy to build smooth surfaces and solids out of
+2. Easy to "paint" the resulting meshes in a visually pleasing way
+
+Painting combined with smooth "blending" between vertices/faces is an option that can work with
+existing catmark or loop subdivision or arbitrary topology, but I like keeping the discreteness
+of having each face a solid color.
+
+Catmark subdivision or surfaces that are a mostly square grid aren't ideal to paint because you
+get unpleasant jaggedness along diagonals. Loop subdivision may have the same issue, but I need
+to check.
+
+If the surface is all one color, then existing topologies work. The tricky part is adding the
+ability to paint a surface.
+
+My earlier experiements with stitching catmark subd patches are an option, but they were unpleasant
+to work with. Some kind of painting-like workflow would be much better.
+
+Another option is taking an existing smooth surface/solid and simply cutting out sections of it
+with Blender's knife tool, and then coloring those sections. However, this is still not as good
+as a painting-like workflow.
+
 ## Shaders
 
 - I'm not sure if the half-sphere, view-dependent properties of SimplePaint will work with this
