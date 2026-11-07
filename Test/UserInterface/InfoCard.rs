@@ -2,7 +2,7 @@
 // goes, and F1, which shows and hides it.
 
 use user_interface::tokens::PAGE_PADDING;
-use user_interface::{Headless, InfoCard, Key, Program, Ui};
+use user_interface::{Headless, InfoCard, Key, Program, Rect, Ui};
 
 struct Test {
     shown: bool,
@@ -13,17 +13,16 @@ impl Program for Test {
         "Test".to_string()
     }
 
+    fn build(&mut self, ui: &mut Ui) {
+        let card = InfoCard::new("A test", "What it shows").rows(&[("Row", "Value")]).keys(&[("S", "Something")]);
+        ui.node(InfoCard::NAME, Rect::default(), card);
+        ui.set_visible(InfoCard::NAME, self.shown);
+    }
+
     fn update(&mut self, ui: &mut Ui) {
         if InfoCard::toggled(ui.input()) {
             self.shown = !self.shown;
-        }
-        if self.shown {
-            ui.info_card(&InfoCard {
-                title: "A test",
-                description: "What it shows",
-                rows: &[("Row", "Value")],
-                keys: &[("S", "Something")],
-            });
+            ui.set_visible(InfoCard::NAME, self.shown);
         }
     }
 }

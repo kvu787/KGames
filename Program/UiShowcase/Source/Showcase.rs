@@ -1,10 +1,13 @@
 // What the showcase's widgets show, what its shortcuts and menus do, its
-// log, and its state for scripts.
+// log, and its state for scripts. The showcase mirrors the controls' state
+// in fields of its own, which `state` reports and the frame's events keep
+// true; Cards::sync pushes them back into the controls, so that shortcuts,
+// menus and resets show at once.
 
 use std::collections::VecDeque;
 
 use user_interface::json::Value;
-use user_interface::{Color, Key, Modifiers, Program, Startup, ThemeKind, Ui};
+use user_interface::{Key, Modifiers, Program, Startup, ThemeKind, Ui, UiEventKind};
 
 use crate::cards;
 
@@ -15,6 +18,8 @@ pub const TABS: [&str; 4] = ["Type ramp", "Icons", "Colors", "Shapes"];
 pub const OPTIONS: [&str; 4] = ["Snap to grid", "Show rulers", "Autosave", "Spell check"];
 pub const BUTTONS: [&str; 4] = ["Standard", "Accent", "Subtle", "Save"];
 const LOG_LENGTH: usize = 200;
+
+pub use user_interface::Color;
 
 // The list's 120 items.
 pub fn items() -> Vec<String> {
@@ -117,23 +122,25 @@ impl Showcase {
         (0..self.items.len()).filter(|index| self.items[*index].to_lowercase().contains(&search)).collect()
     }
 
-    pub fn reset(&mut self, time: f64) {
+    pub fn reset(&mut self, ui: &mut Ui) {
         let log = std::mem::take(&mut self.log);
         let seen = std::mem::take(&mut self.seen);
         *self = Showcase {
             log,
             seen,
-            fill_started: time,
+            fill_started: ui.time(),
             ..Showcase::default()
         };
         self.log("Reset every widget");
+        // The info bars and the list change shape, so the page re-lays out.
+        ui.request_rebuild();
     }
 
     // What a menu's command does, by its label.
     pub fn command(&mut self, ui: &mut Ui, label: &str) {
         self.menu_choice = Some(label.to_string());
         match label {
-            "Reset" => self.reset(ui.time()),
+            "Reset" => self.reset(ui),
             "Dark theme" => self.dark = !self.dark,
             "Tooltips" => self.tooltips = !self.tooltips,
             "VSync" => ui.toggle_vertical_sync(),
@@ -154,9 +161,130 @@ impl Showcase {
             self.log(format!("{} theme", if self.dark { "Dark" } else { "Light" }));
         }
         if ui.shortcut(Modifiers::CONTROL, Key::R) {
-            self.reset(ui.time());
+            self.reset(ui);
         }
-        self.apply(ui);
+    }
+
+    // Does what the frame's events say.
+    fn events(&mut self, ui: &mut Ui) {
+        let events: Vec<user_interface::UiEvent> = ui.events().to_vec();
+        for event in events {
+            match (event.source.as_str(), &event.kind) {
+                ("Standard" | "Accent" | "Subtle", UiEventKind::Clicked) => {
+                    let index = BUTTONS.iter().position(|name| *name == event.source).unwrap();
+                    self.presses[index] += 1;
+                    self.log(format!("Pressed {}", event.source));
+                }
+                ("Save", UiEventKind::Clicked) => self.presses[3] += 1,
+                ("Link", UiEventKind::Clicked) => {
+                    self.link_clicks += 1;
+                    self.log("Followed the link");
+                }
+                ("Pin", UiEventKind::Toggled(on)) => {
+                    self.pinned = *on;
+                    self.log(if self.pinned { "Pinned" } else { "Unpinned" });
+                }
+                ("MoreMenu", UiEventKind::Chose(label)) => {
+                    let label = label.clone();
+                    self.command(ui, &label);
+                    if label == "Pinned" {
+                        self.pinned = !self.pinned;
+                    }
+                }
+                ("Remove", UiEventKind::Clicked) => self.count -= 1,
+                ("Add", UiEventKind::Clicked) => self.count += 1,
+                ("Theme", UiEventKind::Clicked) => self.dark = !self.dark,
+                ("Menu", UiEventKind::Chose(label)) => {
+                    let label = label.clone();
+                    self.command(ui, &label);
+                }
+                ("OptionsEnabled", UiEventKind::Toggled(on)) => {
+                    self.options_enabled = *on;
+                    self.log(format!("Options {}", if self.options_enabled { "enabled" } else { "disabled" }));
+                }
+                (source, UiEventKind::Toggled(on)) if source.starts_with("Option/") => {
+                    if let Some(index) = OPTIONS.iter().position(|option| source == format!("Option/{option}")) {
+                        self.options[index] = *on;
+                    }
+                }
+                ("Tooltips", UiEventKind::Toggled(on)) => self.tooltips = *on,
+                ("DarkTheme", UiEventKind::Toggled(on)) => self.dark = *on,
+                ("Filling", UiEventKind::Toggled(on)) => {
+                    self.filling = *on;
+                    self.fill_started = ui.time();
+                }
+                ("Volume", UiEventKind::Changed(value)) => self.volume = *value as f32,
+                ("Opacity", UiEventKind::Changed(value)) => self.opacity = *value,
+                ("Angle", UiEventKind::Changed(value)) => self.angle = *value as f32,
+                ("Size", UiEventKind::Selected(index)) => self.size = *index,
+                ("Alignment", UiEventKind::Selected(index)) => self.alignment = *index,
+                ("Tool", UiEventKind::Selected(index)) => {
+                    self.tool = *index;
+                    self.log(format!("Tool: {}", TOOLS[self.tool]));
+                }
+                ("Role", UiEventKind::Selected(index)) => {
+                    self.role = *index;
+                    self.log(format!("Role: {}", crate::cards::ROLES[self.role]));
+                }
+                ("Name", UiEventKind::TextChanged(text)) => self.name = text.clone(),
+                ("Name", UiEventKind::Submitted(_)) | ("Greet", UiEventKind::Clicked) => {
+                    let name = self.name.trim();
+                    self.greeting = Some(if name.is_empty() { "Hello, whoever you are!".to_string() } else { format!("Hello, {name}!") });
+                }
+                ("Search", UiEventKind::TextChanged(text)) => self.search = text.clone(),
+                ("Quantity", UiEventKind::Changed(value)) => self.quantity = *value as i32,
+                ("Scale", UiEventKind::Changed(value)) => self.scale = *value,
+                ("Greeting", UiEventKind::Closed) => self.greeting = None,
+                ("Ask", UiEventKind::Clicked) => self.dialog_open = true,
+                ("ContextMenu", UiEventKind::Chose(label)) => {
+                    let label = label.clone();
+                    self.command(ui, &label);
+                }
+                ("Question", UiEventKind::Dialog(result)) => {
+                    let answer = match result {
+                        user_interface::DialogResult::Primary => "Save",
+                        user_interface::DialogResult::Secondary => "Don't save",
+                        user_interface::DialogResult::Close => "Cancel",
+                    };
+                    self.dialog_result = Some(answer.to_string());
+                    self.dialog_open = false;
+                    self.log(format!("Answered {answer}"));
+                }
+                ("Expander", UiEventKind::Expanded(open)) => self.expanded = *open,
+                ("Tabs", UiEventKind::Selected(index)) => self.tab = *index,
+                ("Caution", UiEventKind::Closed) => {
+                    self.caution_shown = false;
+                    self.log("Closed the caution");
+                    ui.request_rebuild();
+                }
+                ("BringBack", UiEventKind::Clicked) => {
+                    self.caution_shown = true;
+                    ui.request_rebuild();
+                }
+                ("Picker", UiEventKind::ColorChanged(color)) => {
+                    self.color = *color;
+                    self.log(format!("Color {}", self.color.to_hex()));
+                }
+                ("Hex", UiEventKind::ColorChanged(color)) => self.color = *color,
+                (source, UiEventKind::Clicked) if source.starts_with("Palette/") => {
+                    if let Ok(index) = source["Palette/".len()..].parse::<usize>() {
+                        self.color = cards::palette(index);
+                    }
+                }
+                ("Items", UiEventKind::Selected(row)) => {
+                    let matches = self.matches();
+                    self.selected = matches.get(*row).copied();
+                }
+                ("Items", UiEventKind::Activated(row)) => {
+                    let matches = self.matches();
+                    if let Some(item) = matches.get(*row).copied() {
+                        self.opened = Some(item);
+                        self.log(format!("Opened {}", self.items[item]));
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     // The theme and tooltips that the switches, menus and shortcuts chose.
@@ -184,11 +312,15 @@ impl Program for Showcase {
         "UiShowcase".to_string()
     }
 
+    fn build(&mut self, ui: &mut Ui) {
+        cards::build(self, ui);
+    }
+
     fn update(&mut self, ui: &mut Ui) {
         self.shortcuts(ui);
-        cards::draw(self, ui);
-        // What the cards' switches changed shows from the next frame on.
+        self.events(ui);
         self.apply(ui);
+        cards::sync(self, ui);
         self.watch(ui);
     }
 

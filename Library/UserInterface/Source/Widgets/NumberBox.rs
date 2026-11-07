@@ -88,6 +88,14 @@ impl NumberBox {
         self.field.set_text(&self.format(self.value));
     }
 
+    // Sets the value unless the user is typing in it, for a program's mirror
+    // of a value the box itself changes.
+    pub fn set_value_if_settled(&mut self, value: impl Number) {
+        if !self.editing && self.value != value.to_f64() {
+            self.set_value(value);
+        }
+    }
+
     fn format(&self, value: f64) -> String {
         format!("{value:.*}", self.decimals)
     }

@@ -23,6 +23,9 @@ pub(crate) struct Node {
     pub rect: Rect,
     pub visible: bool,
     pub enabled: bool,
+    // Whether it and its parts may take keyboard focus, like a toolbar's
+    // segments that shouldn't.
+    pub focusable: bool,
     pub children: Vec<usize>,
     // What the input did to it in this frame's dispatch.
     pub response: Response,
@@ -103,6 +106,7 @@ impl Ui {
             rect,
             visible: true,
             enabled: true,
+            focusable: true,
             children: Vec::new(),
             response: Response::default(),
             interacted: 0,
@@ -168,6 +172,13 @@ impl Ui {
         self.tree.nodes[index].enabled = enabled;
     }
 
+    // Whether the node and everything under it may take keyboard focus, for
+    // controls like a toolbar's that shouldn't.
+    pub fn set_focusable(&mut self, name: &str, focusable: bool) {
+        let index = self.node_index(name);
+        self.tree.nodes[index].focusable = focusable;
+    }
+
     pub fn is_enabled(&self, name: &str) -> bool {
         self.tree.nodes[self.node_index(name)].enabled
     }
@@ -192,7 +203,7 @@ impl Ui {
     pub(crate) fn dispatch_tree(&mut self) {
         let roots = self.tree.roots.clone();
         for index in roots {
-            self.run_node(index, true, true);
+            self.run_node(index, true, true, true);
         }
     }
 
@@ -200,16 +211,17 @@ impl Ui {
     pub(crate) fn draw_tree(&mut self) {
         let roots = self.tree.roots.clone();
         for index in roots {
-            self.run_node(index, true, false);
+            self.run_node(index, true, true, false);
         }
     }
 
-    fn run_node(&mut self, index: usize, enabled: bool, dispatch: bool) {
+    fn run_node(&mut self, index: usize, enabled: bool, focusable: bool, dispatch: bool) {
         let node = &mut self.tree.nodes[index];
         if !node.visible {
             return;
         }
         let enabled = enabled && node.enabled;
+        let focusable = focusable && node.focusable;
         let mut control = node.control.take().expect("a control isn't in two phases at once");
         let name = node.name.clone();
         let rect = node.rect;
@@ -245,14 +257,24 @@ impl Ui {
             response: self.tree.nodes[index].response,
         };
         let was_enabled = self.enabled();
+        let was_focusable = self.focusable();
         self.set_scope_enabled(enabled);
+        self.set_scope_focusable(focusable);
         if dispatch {
             control.handle(self, &ctx);
             self.node_extras(&ctx);
         } else {
+            // A node that update showed missed dispatch, so it handles here:
+            // no input landed on it yet, but it registers its parts and
+            // paints what handle paints, like a dialog's smoke, this frame.
+            if needs_target {
+                control.handle(self, &ctx);
+                self.node_extras(&ctx);
+            }
             control.draw(self, &ctx);
         }
         self.set_scope_enabled(was_enabled);
+        self.set_scope_focusable(was_focusable);
         let children_visible = control.children_visible();
         let child_layer = control.child_layer();
         self.tree.nodes[index].control = Some(control);
@@ -263,7 +285,7 @@ impl Ui {
                 self.set_layer(child_layer);
             }
             for child in children {
-                self.run_node(child, enabled, dispatch);
+                self.run_node(child, enabled, focusable, dispatch);
             }
             if child_layer.is_some() {
                 self.set_layer(layer);
@@ -274,9 +296,9 @@ impl Ui {
     // The node's tooltip and context menu, if it has them.
     fn node_extras(&mut self, ctx: &NodeContext) {
         let node_id = id(&ctx.name);
-        if let Some(tips) = self.tooltips.get(&node_id).cloned() {
+        if let Some((tips, width)) = self.tooltips.get(&node_id).cloned() {
             let lines: Vec<crate::widgets::tool_tip::TooltipLine> = tips.iter().map(crate::widgets::tool_tip::Tip::line).collect();
-            self.tooltip_lines(&ctx.response, &lines);
+            self.tooltip_lines_wide(&ctx.response, &lines, width);
         }
         if let Some((menu_name, items)) = self.context_menus.get(&node_id).cloned()
             && let Some(label) = self.context_menu(&menu_name, &ctx.response, &items)
@@ -287,12 +309,18 @@ impl Ui {
 
     // Gives the node a tooltip, which shows once the pointer rests on it.
     pub fn set_tooltip(&mut self, name: &str, text: &str) {
-        self.tooltips.insert(id(name), vec![crate::widgets::tool_tip::Tip::Text(text.to_string())]);
+        self.set_tooltip_tips(name, vec![crate::widgets::tool_tip::Tip::Text(text.to_string())]);
     }
 
     // A tooltip with lines, columns and separators.
     pub fn set_tooltip_tips(&mut self, name: &str, tips: Vec<crate::widgets::tool_tip::Tip>) {
-        self.tooltips.insert(id(name), tips);
+        self.tooltips.insert(id(name), (tips, crate::design::controls::TOOLTIP_MAX_WIDTH));
+    }
+
+    // A tooltip with more in it than WinUI's 320 pixels hold well, up to
+    // `max_width` wide.
+    pub fn set_tooltip_wide(&mut self, name: &str, tips: Vec<crate::widgets::tool_tip::Tip>, max_width: f32) {
+        self.tooltips.insert(id(name), (tips, max_width));
     }
 
     pub fn clear_tooltip(&mut self, name: &str) {

@@ -7,15 +7,24 @@ use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox,
-    Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, Ui, id,
+    Button, Canvas, Card, CheckBox, ComboBox, Dialog, DialogResult, Headless, Key, ListRow, ListView, MenuBar, MenuItem, Modifiers,
+    MouseButton, NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, Text, TextBox, Ui, UiEventKind, id,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
 const PERF_BAR: f32 = user_interface::tokens::PERF_BAR_HEIGHT;
 
-const MENU: &[MenuItem] = &[MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", RECENT)];
-const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
+fn menu() -> Vec<MenuItem> {
+    vec![MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", recent())]
+}
+
+fn recent() -> Vec<MenuItem> {
+    vec![MenuItem::new("First"), MenuItem::new("Second")]
+}
+
+fn rows(count: usize) -> Vec<ListRow> {
+    (0..count).map(|index| ListRow::new(&format!("Row {index}"))).collect()
+}
 
 #[derive(Default)]
 struct Test {
@@ -53,73 +62,95 @@ impl Program for Test {
         "Test".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn build(&mut self, ui: &mut Ui) {
         // Under the PerfBar.
         let top = ui.content_top();
+        ui.node("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button"));
+        ui.set_tooltip("Button", "A tip");
+        ui.node("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&self.text));
+        ui.node("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&["Zero", "One", "Two"], self.choice));
+        // A surface over a button covers it from the pointer.
+        ui.node("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under"));
+        ui.node("Cover", Rect::new(290.0, top, 200.0, 60.0), Canvas::new((), |_, _, _| {}));
+        ui.node("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe"));
+        ui.set_enabled("Maybe", !self.disabled);
+        let mut list = ListView::new(rows(50), 20.0).selectable();
+        list.set_selected(self.rows);
+        ui.node("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), list);
+        ui.node("Check", Rect::new(10.0, top + 210.0, 200.0, 32.0), CheckBox::new(self.checked, "Check"));
+        ui.node("Level", Rect::new(10.0, top + 260.0, 220.0, 32.0), Slider::new(self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8));
+        ui.node("Number", Rect::new(10.0, top + 310.0, 200.0, 32.0), NumberBox::new(self.number).range(0.0, 10.0));
+        ui.node("MenuButton", Rect::new(10.0, top + 360.0, 100.0, 32.0), Button::new("Menu").flyout("Menu", menu()));
+        ui.node("Area", Rect::new(800.0, top + 400.0, 200.0, 200.0), Canvas::new((), |_, _, _| {}).sense(Sense::VIEW).kind("Area"));
+        ui.set_context_menu("Area", "Context", recent());
+        // A card sized to its content: two rows under its header.
+        let sized = Card::new("Sized").listed();
+        let height = sized.height_around(20.0 + 8.0 + 20.0);
+        self.card = Rect::new(1200.0, top + 10.0, 300.0, height);
+        ui.card("Sized", self.card, sized, |ui, card| {
+            let mut content = card.content;
+            ui.node("Sized/One", content.cut_top(20.0, 8.0), Text::label("One"));
+            ui.node("Sized/Two", content.cut_top(20.0, 0.0), Text::label("Two"));
+        });
+        ui.node("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask"));
+        let question = Dialog::new("Sure?", "Really.").primary("Yes").content_height(32.0);
+        let content = question.content_area(ui, 32.0);
+        ui.group("Question", Rect::default(), question, |ui| {
+            ui.node("Pick", content.top_strip(32.0), ComboBox::new(&["Yes", "No"], self.pick));
+        });
+        ui.set_visible("Question", self.dialog);
+        // Last, so that the tab order of the widgets above stays.
+        let items: Vec<&str> = self.items.iter().map(String::as_str).collect();
+        ui.node("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(&items, self.shrink));
+        let mut beneath = ListView::new(rows(50), 20.0).selectable();
+        beneath.set_selected(self.beneath);
+        ui.node("Beneath", Rect::new(1000.0, top + 400.0, 300.0, 100.0), beneath);
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
         if ui.key_pressed(Key::A) {
             self.shortcut += 1;
         }
-        let response = ui.add("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button"));
-        if response.clicked {
-            self.clicks += 1;
+        let events: Vec<user_interface::UiEvent> = ui.events().to_vec();
+        for event in events {
+            match (event.source.as_str(), &event.kind) {
+                ("Button", UiEventKind::Clicked) => self.clicks += 1,
+                ("Under", UiEventKind::Clicked) => self.covered = true,
+                ("Maybe", UiEventKind::Clicked) => self.clicks += 100,
+                ("Field", UiEventKind::TextChanged(text)) => self.text = text.clone(),
+                ("Combo", UiEventKind::Selected(index)) => self.choice = *index,
+                ("Rows", UiEventKind::Selected(row)) => self.rows = Some(*row),
+                ("Check", UiEventKind::Toggled(on)) => self.checked = *on,
+                ("Level", UiEventKind::Changed(value)) => self.level = *value,
+                ("Number", UiEventKind::Changed(value)) => self.number = *value as i32,
+                ("Menu" | "Context", UiEventKind::Chose(label)) => self.chosen.push(label.clone()),
+                ("Ask", UiEventKind::Clicked) => {
+                    self.dialog = true;
+                    ui.set_visible("Question", true);
+                }
+                ("Question", UiEventKind::Dialog(result)) => {
+                    self.answer = Some(*result);
+                    self.dialog = false;
+                    ui.set_visible("Question", false);
+                }
+                ("Pick", UiEventKind::Selected(index)) => self.pick = *index,
+                ("Shrink", UiEventKind::Selected(index)) => self.shrink = *index,
+                ("Beneath", UiEventKind::Selected(row)) => self.beneath = Some(*row),
+                _ => {}
+            }
         }
-        if response.secondary_pressed {
+        // Right presses that aren't clicks yet, for the context menu rule.
+        if ui.response("Button").secondary_pressed {
             self.secondary += 1;
         }
-        ui.tooltip(&response, "A tip");
         if self.replace {
             self.text = "\u{e9}".to_string();
+            ui.get_mut::<TextBox>("Field").set_text(&self.text);
             self.replace = false;
         }
-        ui.add("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&mut self.text));
-        ui.add("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.choice, &["Zero", "One", "Two"]));
-        // A surface over a button covers it from the pointer.
-        if ui.add("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under")).clicked {
-            self.covered = true;
-        }
-        ui.cover(Rect::new(290.0, top, 200.0, 60.0));
-        ui.set_enabled(!self.disabled);
-        if ui.add("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
-            self.clicks += 100;
-        }
-        ui.set_enabled(true);
-        ui.add("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
-            ui.label(row, &format!("Row {index}"));
-        }).selection(&mut self.rows));
-        ui.add("Check", Rect::new(10.0, top + 210.0, 200.0, 32.0), CheckBox::new(&mut self.checked, "Check"));
-        ui.add("Level", Rect::new(10.0, top + 260.0, 220.0, 32.0), Slider::new(&mut self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8));
-        ui.add("Number", Rect::new(10.0, top + 310.0, 200.0, 32.0), NumberBox::new(&mut self.number).range(0.0, 10.0));
-        let menu_button = ui.add("MenuButton", Rect::new(10.0, top + 360.0, 100.0, 32.0), Button::new("Menu").chevron());
-        if let Some(label) = ui.flyout_menu("Menu", &menu_button, MENU) {
-            self.chosen.push(label.to_string());
-        }
-        let area = ui.interact("Area", Rect::new(800.0, top + 400.0, 200.0, 200.0), Sense::VIEW, "Area");
-        if let Some(label) = ui.context_menu("Context", &area, RECENT) {
-            self.chosen.push(label.to_string());
-        }
-        let open = ui.begin_card(Rect::new(1200.0, top + 10.0, 300.0, 1000.0), Card::new("Sized").named("Sized"));
-        let mut content = open.area.content;
-        ui.label(content.cut_top(20.0, 8.0), "One");
-        ui.label(content.cut_top(20.0, 0.0), "Two");
-        self.card = ui.end_card(open, content.y);
-        if ui.add("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask")).clicked {
-            self.dialog = true;
-        }
-        if self.dialog
-            && let Some(answer) = ui.dialog_with("Question", Dialog::new("Sure?", "Really.").primary("Yes"), 32.0, |ui, area| {
-                ui.add("Pick", area.top_strip(32.0), ComboBox::new(&mut self.pick, &["Yes", "No"]));
-            })
-        {
-            self.answer = Some(answer);
-            self.dialog = false;
-        }
-        self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
-        // Last, so that the tab order of the widgets above stays.
         let items: Vec<&str> = self.items.iter().map(String::as_str).collect();
-        ui.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.shrink, &items));
-        ui.add("Beneath", Rect::new(1000.0, top + 400.0, 300.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
-            ui.label(row, &format!("Row {index}"));
-        }).selection(&mut self.beneath));
+        ui.get_mut::<ComboBox>("Shrink").set_items(&items);
+        self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
     }
 }
 
@@ -296,7 +327,7 @@ fn menus_open_choose_and_close() {
 #[test]
 fn a_dialog_takes_the_input_until_it_is_answered() {
     let mut app = Headless::new(Test::default());
-    app.click("Ask");
+    app.click("Ask").frame();
     assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
     app.click_point(Point::new(60.0, PERF_BAR + 26.0));
     assert_eq!(app.program.clicks, 0, "the page is under the smoke");
@@ -304,7 +335,8 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     assert_eq!(app.program.shortcut, 0, "the program's keys wait too");
     app.key(Key::ESCAPE);
     assert_eq!(app.program.answer, Some(DialogResult::Close));
-    app.click("Ask").click("Question/Primary");
+    app.click("Ask").frame();
+    app.click("Question/Primary");
     assert_eq!(app.program.answer, Some(DialogResult::Primary));
     app.click("Button");
     assert_eq!(app.program.clicks, 1);
@@ -339,41 +371,45 @@ impl Program for Notices {
         "Notices".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn build(&mut self, ui: &mut Ui) {
         ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "Notices"));
         ui.page();
     }
+
+    fn update(&mut self, _ui: &mut Ui) {}
 }
 
 // A menu bar in the menu row under the app bar.
 #[derive(Default)]
-struct MenuRow {
+struct MenuRowProgram {
     page: Rect,
     chosen: Option<String>,
 }
 
-const MENUS: &[(&str, &[MenuItem])] = &[("File", MENU)];
-
-impl Program for MenuRow {
+impl Program for MenuRowProgram {
     fn title(&self) -> String {
         "MenuRow".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn build(&mut self, ui: &mut Ui) {
         ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "MenuRow"));
         let row = ui.menu_row();
-        let bar = MenuBar::new(MENUS);
+        let bar = MenuBar::new(vec![("File", menu())]);
         let width = bar.width(ui);
-        if let Some(label) = ui.add("Menus", row.left_strip(width), bar) {
+        ui.node("Menus", row.left_strip(width), bar);
+        self.page = ui.page();
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        if let Some(label) = ui.chose("Menus") {
             self.chosen = Some(label.to_string());
         }
-        self.page = ui.page();
     }
 }
 
 #[test]
 fn the_menu_row_puts_a_menu_bar_in_line_with_the_page_under_the_app_bar() {
-    let mut app = Headless::new(MenuRow::default());
+    let mut app = Headless::new(MenuRowProgram::default());
     app.frame();
     let row_top = PERF_BAR + APP_BAR_HEIGHT;
     let file = app.target("Menus/File");
@@ -394,11 +430,10 @@ fn notices_from_the_start_show_and_close() {
     let mut app = Headless::start(startup, |_| Ok(Notices));
     assert!(app.has_target("Notice/0") && app.has_target("Notice/1"));
     assert!(app.label("Notice/0").unwrap().contains("Volume must be a number"));
-    app.click("Notice/0/Close");
+    app.click("Notice/0/Close").frame();
     assert_eq!(app.ui.notices().len(), 1);
     assert_eq!(app.ui.notices()[0].title, "Paint.json");
 }
-
 
 // What porting the programs found: segments where widgets can't take focus,
 // a color field left while it's typed in, a slider's steps of a thousandth,
@@ -408,7 +443,6 @@ fn notices_from_the_start_show_and_close() {
 struct Ported {
     segment: usize,
     color: user_interface::Color,
-    other: String,
     fine: f64,
     columns: Vec<Rect>,
     keys: f32,
@@ -420,22 +454,33 @@ impl Program for Ported {
         "Ported".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn build(&mut self, ui: &mut Ui) {
         // Under the PerfBar.
         let top = ui.content_top();
-        ui.set_focusable(false);
-        ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
-        ui.set_focusable(true);
-        ui.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
-        ui.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
-        ui.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));
-        let mut form = user_interface::Form::new(Rect::new(400.0, top + 10.0, 400.0, 200.0));
+        ui.node("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&["A", "B", "C"], self.segment));
+        ui.set_focusable("Segments", false);
+        ui.node("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), user_interface::ColorField::new(self.color));
+        ui.node("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(""));
+        ui.node("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::height(false)), Slider::new(self.fine, 0.0, 1.0).step(0.001));
+        let mut form = user_interface::Form::new("Ported", Rect::new(400.0, top + 10.0, 400.0, 200.0));
         self.columns = form.headed_columns(ui, ["Left", "Right"], 32.0).to_vec();
+        ui.node("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide"));
+        let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
+        ui.set_tooltip_wide("Wide", vec![user_interface::Tip::text(long)], 640.0);
         self.keys = ui.keys_width("RB+Left stick");
         self.parts = ui.keycap_width("RB") + ui.keycap_width("Left stick");
-        let wide = ui.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide"));
-        let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
-        ui.tooltip_lines_wide(&wide, &[user_interface::TooltipLine::Text(long)], 640.0);
+    }
+
+    fn update(&mut self, ui: &mut Ui) {
+        if let Some(index) = ui.selected("Segments") {
+            self.segment = index;
+        }
+        if let Some(color) = ui.color_changed("Hex") {
+            self.color = color;
+        }
+        if let Some(value) = ui.changed("Fine") {
+            self.fine = value;
+        }
     }
 }
 
@@ -530,7 +575,8 @@ fn a_right_press_that_closes_a_menu_goes_nowhere_else() {
 #[test]
 fn enter_goes_to_an_open_list_in_a_dialog_not_to_its_default_button() {
     let mut app = Headless::new(Test::default());
-    app.click("Ask").click("Pick");
+    app.click("Ask").frame();
+    app.click("Pick");
     assert!(app.ui.any_popup());
     app.key(Key::DOWN).key(Key::ENTER);
     assert_eq!((app.program.pick, app.program.answer), (1, None));
@@ -548,7 +594,7 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
     app.click("Shrink");
     assert!(app.ui.any_popup());
     app.program.items.clear();
-    app.frame();
+    app.frame().frame();
     assert!(!app.ui.any_popup());
     assert_eq!(app.label("Shrink").as_deref(), Some(""));
 }
@@ -588,4 +634,3 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
     app.scroll("Number", 1.0);
     assert_eq!(app.program.number, 1);
 }
-

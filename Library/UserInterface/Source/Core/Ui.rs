@@ -307,8 +307,9 @@ pub struct Ui {
     pub(crate) rebuild_requested: bool,
     // The old nodes' controls during a rebuild, for adoption by name.
     pub(crate) previous_nodes: HashMap<Id, Option<Box<dyn Control>>>,
-    // What's attached to nodes: tooltips and context menus, by node id.
-    pub(crate) tooltips: HashMap<Id, Vec<crate::widgets::tool_tip::Tip>>,
+    // What's attached to nodes: tooltips with their widths, and context
+    // menus, by node id.
+    pub(crate) tooltips: HashMap<Id, (Vec<crate::widgets::tool_tip::Tip>, f32)>,
     pub(crate) context_menus: HashMap<Id, (String, Vec<crate::widgets::menu::MenuItem>)>,
 }
 
@@ -708,8 +709,9 @@ impl Ui {
     }
 
     // Targets registered after this take keyboard focus or don't, until it's
-    // called again. Each frame starts with them taking it.
-    pub fn set_focusable(&mut self, focusable: bool) {
+    // called again, for a control's internal parts. Each frame starts with
+    // them taking it.
+    pub fn set_scope_focusable(&mut self, focusable: bool) {
         self.focusable = focusable;
     }
 

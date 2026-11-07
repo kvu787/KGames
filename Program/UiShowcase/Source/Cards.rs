@@ -2,16 +2,20 @@
 // it with a menu bar in line with the icon and the cards, five columns of cards
 // that show every widget, and a status bar. The cards at the bottom of their
 // columns take the 71 pixels that borderless fullscreen adds.
+//
+// `build` makes the tree, and `sync` keeps what the controls show true to
+// the showcase's state, every frame.
 
 use user_interface::tokens::{
     BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, CURVE_FAST_OUT_SLOW_IN, DISPLAY, DURATION_FAST, ELEVATION_DIALOG,
-    ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
+    ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS,
     SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
-    Align, AppBar, Border, Brush, Button, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, DialogResult, Expander,
-    Form, HyperlinkButton, Icon, InfoBar, ListView, MenuBar, MenuItem, NumberBox, Point, RadioButton, Rect, Segmented, SelectorBar,
-    Severity, Size, Slider, Span, Status, Swatch, TextBox, TextStyle, ToggleButton, ToggleSwitch, TooltipLine, Ui, id,
+    Align, AppBar, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, Expander, Field,
+    Form, Gamepad, HyperlinkButton, Icon, InfoBar, ListRow, ListView, MenuBar, MenuItem, NumberBox, Point, ProgressBar, RadioGroup, Rect,
+    Segmented, SelectorBar, Severity, Size, Slider, Span, Status, Swatch, Text, TextBox, TextStyle, Tip, ToggleButton, ToggleSwitch,
+    Ui, id,
 };
 
 use crate::showcase::{ALIGNMENTS, OPTIONS, SIZES, Showcase, TABS, TOOLS};
@@ -27,30 +31,43 @@ const ROLE_USES: [&str; 5] = [
 ];
 const PALETTE: [u32; 8] = [0xD13438, 0xCA5010, 0xC19C00, 0x107C10, 0x038387, 0x0078D4, 0x8764B8, 0xE3008C];
 
-const FILE_MENU: &[MenuItem] = &[
-    MenuItem::new("New").icon(Icon::Document).accelerator("Ctrl+N"),
-    MenuItem::new("Open").icon(Icon::OpenFile).accelerator("Ctrl+O"),
-    MenuItem::new("Save").icon(Icon::Save).accelerator("Ctrl+S"),
-    MenuItem::separator(),
-    MenuItem::new("Reset").icon(Icon::Refresh).accelerator("Ctrl+R"),
-];
-const VIEW_MENU: &[MenuItem] = &[
-    MenuItem::new("VSync").accelerator("F10"),
-    MenuItem::new("Fullscreen").icon(Icon::FullScreen).accelerator("F11"),
-    MenuItem::submenu("Theme", THEME_MENU).icon(Icon::Color),
-    MenuItem::separator(),
-    MenuItem::new("Disabled").enabled(false),
-];
-const THEME_MENU: &[MenuItem] = &[MenuItem::new("Dark theme").accelerator("F2"), MenuItem::new("Tooltips").accelerator("F1")];
-const HELP_MENU: &[MenuItem] = &[MenuItem::new("Ask a question").icon(Icon::Help)];
-const MENUS: &[(&str, &[MenuItem])] = &[("File", FILE_MENU), ("View", VIEW_MENU), ("Help", HELP_MENU)];
-const CONTEXT_MENU: &[MenuItem] = &[
-    MenuItem::new("Cut").icon(Icon::Cut).accelerator("Ctrl+X"),
-    MenuItem::new("Copy").icon(Icon::Copy).accelerator("Ctrl+C"),
-    MenuItem::new("Paste").icon(Icon::Paste).accelerator("Ctrl+V"),
-    MenuItem::separator(),
-    MenuItem::new("Pinned"),
-];
+fn file_menu() -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("New").icon(Icon::Document).accelerator("Ctrl+N"),
+        MenuItem::new("Open").icon(Icon::OpenFile).accelerator("Ctrl+O"),
+        MenuItem::new("Save").icon(Icon::Save).accelerator("Ctrl+S"),
+        MenuItem::separator(),
+        MenuItem::new("Reset").icon(Icon::Refresh).accelerator("Ctrl+R"),
+    ]
+}
+
+fn view_menu() -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("VSync").accelerator("F10"),
+        MenuItem::new("Fullscreen").icon(Icon::FullScreen).accelerator("F11"),
+        MenuItem::submenu("Theme", theme_menu()).icon(Icon::Color),
+        MenuItem::separator(),
+        MenuItem::new("Disabled").enabled(false),
+    ]
+}
+
+fn theme_menu() -> Vec<MenuItem> {
+    vec![MenuItem::new("Dark theme").accelerator("F2"), MenuItem::new("Tooltips").accelerator("F1")]
+}
+
+fn help_menu() -> Vec<MenuItem> {
+    vec![MenuItem::new("Ask a question").icon(Icon::Help)]
+}
+
+pub fn context_menu() -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("Cut").icon(Icon::Cut).accelerator("Ctrl+X"),
+        MenuItem::new("Copy").icon(Icon::Copy).accelerator("Ctrl+C"),
+        MenuItem::new("Paste").icon(Icon::Paste).accelerator("Ctrl+V"),
+        MenuItem::separator(),
+        MenuItem::new("Pinned"),
+    ]
+}
 
 // The cards' heights; the bottom card of each column takes the rest.
 const BUTTONS_HEIGHT: f32 = 260.0;
@@ -60,38 +77,16 @@ const CHOICES_HEIGHT: f32 = 320.0;
 const INFO_HEIGHT: f32 = 324.0;
 const COLOR_HEIGHT: f32 = 492.0;
 
-pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
-    let theme_name = if showcase.dark { "Dark theme" } else { "Light theme" };
-    let subtitle = format!("Fluent 2 · WinUI 3 · {theme_name}");
-    ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle));
+pub fn build(showcase: &Showcase, ui: &mut Ui) {
+    ui.app_bar(AppBar::new(Icon::Library, "UiShowcase").subtitle(&subtitle(showcase)));
     let row = ui.menu_row();
-    let menu = MenuBar::new(MENUS);
+    let menu = MenuBar::new(vec![("File", file_menu()), ("View", view_menu()), ("Help", help_menu())]);
     let menu_width = menu.width(ui);
-    if let Some(label) = ui.add("Menu", row.left_strip(menu_width), menu) {
-        showcase.command(ui, label);
-    }
+    ui.node("Menu", row.left_strip(menu_width), menu);
     let theme_button = Rect::new(row.right() - 32.0, row.y, 32.0, row.height).centered(Size::square(32.0));
-    let response = ui.add("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
-    ui.tooltip(&response, "Switch the theme (F2)");
-    if response.clicked {
-        showcase.dark = !showcase.dark;
-    }
-    let stats = ui.stats();
-    let fps = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
-    let environment = ui.environment().clone();
-    let display = format!("{} {}", environment.display, environment.display_name);
-    ui.status_bar(&[
-        Status::Shortcut("F1", "Tooltips"),
-        Status::Shortcut("F2", "Theme"),
-        Status::Shortcut("Tab", "Next widget"),
-        Status::Shortcut("Ctrl+R", "Reset"),
-        Status::Shortcut("F10", "VSync"),
-        Status::Shortcut("F11", "Fullscreen"),
-        Status::Spacer,
-        Status::Indicator(Severity::Success, &fps),
-        Status::Text(&environment.gpu),
-        Status::Text(&display),
-    ]);
+    ui.node("Theme", theme_button, Button::icon_only(if showcase.dark { Icon::Light } else { Icon::Moon }).subtle());
+    ui.set_tooltip("Theme", "Switch the theme (F2)");
+    ui.status_bar(status_items(ui.stats(), ui.environment().clone()));
     let page = ui.page();
     let [first, second, third, fourth, fifth] = page.columns::<5>(CARD_GAP);
 
@@ -116,232 +111,330 @@ pub fn draw(showcase: &mut Showcase, ui: &mut Ui) {
     dialog(showcase, ui);
 }
 
-fn buttons(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Buttons"));
-    let mut area = card.content;
-    let [standard, accent, subtle] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
-    for (index, (rect, button)) in [(standard, Button::new("Standard")), (accent, Button::new("Accent").accent()), (subtle, Button::new("Subtle").subtle())]
-        .into_iter()
-        .enumerate()
-    {
-        if ui.add(crate::showcase::BUTTONS[index], rect, button).clicked {
-            showcase.presses[index] += 1;
-            showcase.log(format!("Pressed {}", crate::showcase::BUTTONS[index]));
-        }
-    }
-    let [disabled, disabled_accent, link] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
-    ui.set_enabled(false);
-    ui.add("Disabled", disabled, Button::new("Disabled"));
-    ui.add("DisabledAccent", disabled_accent, Button::new("Disabled").accent());
-    ui.set_enabled(true);
-    if ui.add("Link", link, HyperlinkButton::new("Learn more")).clicked {
-        showcase.link_clicks += 1;
-        showcase.log("Followed the link");
-    }
-    let [save, pin, more] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
-    let response = ui.add("Save", save, Button::new("Save").icon(Icon::Save));
-    ui.tooltip(&response, "Saves nothing, but counts");
-    if response.clicked {
-        showcase.presses[3] += 1;
-    }
-    if ui.add("Pin", pin, ToggleButton::new(&mut showcase.pinned, Button::new("Pin").icon(Icon::Pin))).changed {
-        showcase.log(if showcase.pinned { "Pinned" } else { "Unpinned" });
-    }
-    let response = ui.add("More", more, Button::new("More").chevron());
-    if let Some(label) = ui.flyout_menu("MoreMenu", &response, CONTEXT_MENU) {
-        showcase.command(ui, label);
-        if label == "Pinned" {
-            showcase.pinned = !showcase.pinned;
-        }
-    }
-    let mut row = area.cut_top(CONTROL_HEIGHT, SPACE_S);
-    let minus = row.cut_left(CONTROL_HEIGHT, SPACE_S);
-    let count = row.cut_left(48.0, SPACE_S);
-    let plus = row.cut_left(CONTROL_HEIGHT, SPACE_S);
-    let response = ui.add("Remove", minus, Button::icon_only(Icon::Remove));
-    ui.tooltip(&response, "One less");
-    if response.clicked {
-        showcase.count -= 1;
-    }
-    let primary = ui.theme().text_primary;
-    ui.text_aligned(count, &showcase.count.to_string(), BODY, primary, Align::Center);
-    let response = ui.add("Add", plus, Button::icon_only(Icon::Add));
-    ui.tooltip(&response, "One more");
-    if response.clicked {
-        showcase.count += 1;
-    }
-    let presses = format!("Pressed: Standard {}, Accent {}, Subtle {}, Save {}", showcase.presses[0], showcase.presses[1], showcase.presses[2], showcase.presses[3]);
-    ui.caption(area.cut_top(CAPTION.line_height, 0.0), &presses);
+fn subtitle(showcase: &Showcase) -> String {
+    let theme_name = if showcase.dark { "Dark theme" } else { "Light theme" };
+    format!("Fluent 2 · WinUI 3 · {theme_name}")
 }
 
-fn toggles(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Checkboxes and switches"));
-    let mut area = card.content;
-    if ui.add("OptionsEnabled", area.cut_top(CONTROL_HEIGHT, 0.0), CheckBox::new(&mut showcase.options_enabled, "Enable the options under this")).changed {
-        showcase.log(format!("Options {}", if showcase.options_enabled { "enabled" } else { "disabled" }));
-    }
-    ui.set_enabled(showcase.options_enabled);
+fn status_items(stats: user_interface::FrameStats, environment: user_interface::Environment) -> Vec<Status> {
+    let fps = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
+    let display = format!("{} {}", environment.display, environment.display_name);
+    vec![
+        Status::shortcut("F1", "Tooltips"),
+        Status::shortcut("F2", "Theme"),
+        Status::shortcut("Tab", "Next widget"),
+        Status::shortcut("Ctrl+R", "Reset"),
+        Status::shortcut("F10", "VSync"),
+        Status::shortcut("F11", "Fullscreen"),
+        Status::Spacer,
+        Status::indicator(Severity::Success, &fps),
+        Status::text(&environment.gpu),
+        Status::text(&display),
+    ]
+}
+
+// Keeps what the controls show true to the showcase's state: the mirrors of
+// values that shortcuts, menus and other controls change too.
+pub fn sync(showcase: &Showcase, ui: &mut Ui) {
+    ui.get_mut::<AppBar>("AppBar").set_subtitle(&subtitle(showcase));
+    ui.get_mut::<Button>("Theme").set_icon(if showcase.dark { Icon::Light } else { Icon::Moon });
+    let (stats, environment) = (ui.stats(), ui.environment().clone());
+    ui.get_mut::<user_interface::StatusBar>("StatusBar").set_items(status_items(stats, environment));
+
+    // Buttons.
+    ui.get_mut::<ToggleButton>("Pin").set_on(showcase.pinned);
+    ui.get_mut::<Text>("Count").set_text(&showcase.count.to_string());
+    let presses = format!(
+        "Pressed: Standard {}, Accent {}, Subtle {}, Save {}",
+        showcase.presses[0], showcase.presses[1], showcase.presses[2], showcase.presses[3]
+    );
+    ui.get_mut::<Text>("Presses").set_text(&presses);
+
+    // Toggles.
+    ui.get_mut::<CheckBox>("OptionsEnabled").set_checked(showcase.options_enabled);
     for (index, option) in OPTIONS.iter().enumerate() {
-        let row = area.cut_top(CONTROL_HEIGHT, 0.0);
-        ui.add(&format!("Option/{option}"), Rect::new(row.x + 28.0, row.y, row.width - 28.0, row.height), CheckBox::new(&mut showcase.options[index], option));
+        let name = format!("Option/{option}");
+        ui.get_mut::<CheckBox>(&name).set_checked(showcase.options[index]);
+        ui.set_enabled(&name, showcase.options_enabled);
     }
-    ui.set_enabled(true);
-    area.cut_top(SPACE_S, 0.0);
-    ui.add("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.tooltips, "Tooltips (F1)"));
-    ui.add("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.dark, "Dark theme (F2)"));
-    if ui.add("Filling", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(&mut showcase.filling, "Fill the progress bar")).changed {
-        showcase.fill_started = ui.time();
-    }
-}
+    ui.get_mut::<ToggleSwitch>("Tooltips").set_on(showcase.tooltips);
+    ui.get_mut::<ToggleSwitch>("DarkTheme").set_on(showcase.dark);
+    ui.get_mut::<ToggleSwitch>("Filling").set_on(showcase.filling);
 
-fn choices(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Radio buttons and segments"));
-    let mut area = card.content;
-    let mut radios = area.cut_top(CONTROL_HEIGHT * 3.0, SPACE_M);
-    let preview = radios.cut_right(96.0, 0.0);
-    for (index, size) in SIZES.iter().enumerate() {
-        ui.add(&format!("Size/{size}"), radios.cut_top(CONTROL_HEIGHT, 0.0), RadioButton::new(&mut showcase.size, index, size));
-    }
-    let side = ui.animate(id("SizePreview"), 0, 24.0 + 16.0 * showcase.size as f32, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
-    let accent = ui.theme().accent;
-    ui.painter().rounded(preview.centered(Size::square(side)), RADIUS_CONTROL, accent);
-    ui.add("Alignment", area.cut_top(CONTROL_HEIGHT, SPACE_S), Segmented::new(&mut showcase.alignment, &ALIGNMENTS));
-    let line = area.cut_top(CONTROL_HEIGHT, SPACE_M);
-    let align = [Align::Start, Align::Center, Align::End][showcase.alignment];
-    let (fill, primary) = (ui.theme().control_alt_fill_secondary, ui.theme().text_primary);
-    ui.painter().rounded(line, RADIUS_CONTROL, fill);
-    ui.text_aligned(line.inset(SPACE_M), "Aligned text", BODY, primary, align);
-    let tools: Vec<(Icon, &str)> = [Icon::Brush, Icon::Fill, Icon::Erase, Icon::Eyedropper].into_iter().zip(TOOLS).collect();
-    if ui.add("Tool", area.cut_top(CONTROL_HEIGHT, SPACE_S), Segmented::new(&mut showcase.tool, &tools)).changed {
-        showcase.log(format!("Tool: {}", TOOLS[showcase.tool]));
-    }
-    ui.caption(area.cut_top(CAPTION.line_height, 0.0), &format!("{}: segments with icons, like a tool's modes", TOOLS[showcase.tool]));
-}
+    // Sliders and progress.
+    ui.get_mut::<Slider>("Volume").set_value(showcase.volume);
+    ui.get_mut::<Slider>("Opacity").set_value(showcase.opacity);
+    ui.get_mut::<Slider>("Angle").set_value(showcase.angle);
+    let time = ui.time();
+    let fill = if showcase.filling { ((time - showcase.fill_started) % 4.0 / 4.0) as f32 } else { 0.78 };
+    ui.get_mut::<Text>("VolumeBarValue").set_text(&format!("{:.0}%", showcase.volume));
+    ui.get_mut::<ProgressBar>("VolumeBar").set_value(Some(showcase.volume / 100.0));
+    ui.get_mut::<Text>("FillBarValue").set_text(&format!("{:.0}%", fill * 100.0));
+    ui.get_mut::<ProgressBar>("FillBar").set_value(Some(fill));
+    ui.get_mut::<Canvas<f32>>("Rings").data = showcase.volume / 100.0;
 
-fn sliders(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Sliders and progress"));
-    let mut form = Form::new(card.content);
-    let height = Slider::<f32>::height(true);
-    ui.add("Volume", form.take(height), Slider::new(&mut showcase.volume, 0.0, 100.0).step(1.0).header("Volume").show_value(0));
-    ui.add("Opacity", form.take(height), Slider::new(&mut showcase.opacity, 0.0, 1.0).step(0.001).large_step(0.1).header("Opacity").show_value(3));
-    ui.add("Angle", form.take(height), Slider::new(&mut showcase.angle, 0.0, 360.0).step(0.1).large_step(15.0).header("Angle").show_value(1).suffix("°"));
-    ui.set_enabled(false);
-    let mut disabled = 30.0f32;
-    ui.add("DisabledSlider", form.take(height), Slider::new(&mut disabled, 0.0, 100.0).header("Disabled").show_value(0));
-    ui.set_enabled(true);
-    let secondary = ui.theme().text_secondary;
-    let fill = if showcase.filling { ((ui.time() - showcase.fill_started) % 4.0 / 4.0) as f32 } else { 0.78 };
-    for (label, value) in [("At the volume", Some(showcase.volume / 100.0)), ("Fills every 4 seconds", Some(fill)), ("Of unknown length", None)] {
-        let row = form.take(BODY.line_height + SPACE_XS + 4.0);
-        ui.text(row.top_strip(BODY.line_height), label, BODY, secondary);
-        if let Some(value) = value {
-            ui.text_aligned(row.top_strip(BODY.line_height), &format!("{:.0}%", value * 100.0), BODY, secondary, Align::End);
+    // Choices.
+    ui.get_mut::<RadioGroup>("Size").set_selected(showcase.size);
+    ui.get_mut::<Canvas<usize>>("SizePreview").data = showcase.size;
+    ui.get_mut::<Segmented>("Alignment").set_selected(showcase.alignment);
+    ui.get_mut::<Canvas<usize>>("AlignedText").data = showcase.alignment;
+    ui.get_mut::<Segmented>("Tool").set_selected(showcase.tool);
+    ui.get_mut::<Text>("ToolCaption").set_text(&format!("{}: segments with icons, like a tool's modes", TOOLS[showcase.tool]));
+
+    // Fields.
+    ui.get_mut::<ComboBox>("Role").set_selected(showcase.role);
+    ui.get_mut::<Canvas<usize>>("RoleSwatch").data = showcase.role;
+    ui.get_mut::<Text>("RoleUse").set_text(ROLE_USES[showcase.role]);
+    if ui.get::<TextBox>("Name").text() != showcase.name {
+        ui.get_mut::<TextBox>("Name").set_text(&showcase.name);
+    }
+    if ui.get::<TextBox>("Search").text() != showcase.search {
+        ui.get_mut::<TextBox>("Search").set_text(&showcase.search);
+    }
+    ui.get_mut::<NumberBox>("Quantity").set_value_if_settled(showcase.quantity);
+    ui.get_mut::<NumberBox>("Scale").set_value_if_settled(showcase.scale);
+    match &showcase.greeting {
+        Some(greeting) => {
+            ui.get_mut::<InfoBar>("Greeting").set_message(Severity::Success, "", greeting);
+            ui.set_visible("Greeting", true);
         }
-        ui.progress_bar(row.bottom_strip(4.0), value);
+        None => ui.set_visible("Greeting", false),
     }
-    let rings = form.take(40.0);
-    ui.progress_ring(Point::new(rings.x + 20.0, rings.center().y), 32.0, Some(showcase.volume / 100.0));
-    ui.progress_ring(Point::new(rings.x + 68.0, rings.center().y), 32.0, None);
-    ui.caption(Rect::new(rings.x + 104.0, rings.y, rings.width - 104.0, rings.height), "Progress rings, at the volume, and spinning");
-}
 
-fn fields(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Combo boxes and fields"));
-    let mut form = Form::new(card.content);
-    let mut row = form.control(ui, "A color of the theme");
-    let swatch = row.cut_right(CONTROL_HEIGHT, SPACE_S);
-    if ui.add("Role", row, ComboBox::new(&mut showcase.role, &ROLES)).changed {
-        showcase.log(format!("Role: {}", ROLES[showcase.role]));
-    }
-    let theme = ui.theme();
-    let color = [theme.accent, theme.success, theme.caution, theme.critical, theme.attention][showcase.role];
-    ui.painter().rounded(swatch, RADIUS_CONTROL, color);
-    form.caption(ui, ROLE_USES[showcase.role]);
-    let mut row = form.control(ui, "Your name");
-    let greet = row.cut_right(96.0, SPACE_S);
-    let response = ui.add("Name", row, TextBox::new(&mut showcase.name).placeholder("Type a name").max_length(40));
-    let greet_clicked = ui.add("Greet", greet, Button::new("Greet").accent()).clicked;
-    if response.submitted || greet_clicked {
-        let name = showcase.name.trim();
-        showcase.greeting = Some(if name.is_empty() { "Hello, whoever you are!".to_string() } else { format!("Hello, {name}!") });
-    }
-    let row = form.control(ui, "Search the list");
-    ui.add("Search", row, TextBox::new(&mut showcase.search).placeholder("Search").button(Icon::Search));
-    let [quantity, scale] = form.take(BODY.line_height + 8.0 + CONTROL_HEIGHT).columns::<2>(SPACE_S);
-    let (primary, _) = (ui.theme().text_primary, ());
-    ui.text(quantity.top_strip(BODY.line_height), "Quantity", BODY, primary);
-    ui.add("Quantity", quantity.bottom_strip(CONTROL_HEIGHT), NumberBox::new(&mut showcase.quantity).range(0.0, 99.0));
-    ui.text(scale.top_strip(BODY.line_height), "Scale", BODY, primary);
-    ui.add("Scale", scale.bottom_strip(CONTROL_HEIGHT), NumberBox::new(&mut showcase.scale).range(0.25, 4.0).step(0.25).decimals(2));
-    if let Some(greeting) = showcase.greeting.clone() {
-        let bar = InfoBar::new(Severity::Success, "", &greeting).closable();
-        if ui.add("Greeting", form.take(48.0), bar).closed {
-            showcase.greeting = None;
-        }
-    }
-}
-
-fn menus(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Menus and dialogs"));
-    let mut form = Form::new(card.content);
-    let [ask, choice] = form.columns::<2>(CONTROL_HEIGHT);
-    if ui.add("Ask", ask, Button::new("Ask a question").icon(Icon::Help)).clicked {
-        showcase.dialog_open = true;
-    }
+    // Menus and dialogs.
     let result = showcase.dialog_result.clone().unwrap_or_else(|| "Not asked yet".to_string());
-    ui.caption(choice, &format!("Answer: {result}"));
-    let area = form.take(64.0);
-    let response = ui.interact("ContextArea", area, user_interface::Sense::new(true, true, false, false, user_interface::Keys::None), "Area");
+    ui.get_mut::<Text>("Answer").set_text(&format!("Answer: {result}"));
+    let chosen = showcase.menu_choice.clone().unwrap_or_else(|| "Nothing yet".to_string());
+    ui.get_mut::<Text>("MenuChosen").set_text(&format!("Chose from a menu: {chosen}"));
+    ui.get_mut::<Expander>("Expander").set_expanded(showcase.expanded);
+    ui.set_visible("Question", showcase.dialog_open);
+
+    // Tabs.
+    ui.get_mut::<SelectorBar>("Tabs").set_selected(showcase.tab);
+    for (index, tab) in TABS.iter().enumerate() {
+        ui.set_visible(&format!("Tab/{tab}"), showcase.tab == index);
+    }
+
+    // Colors.
+    ui.get_mut::<ColorPicker>("Picker").set_color(showcase.color);
+    let field = ui.get_mut::<ColorField>("Hex");
+    if field.color() != showcase.color {
+        field.set_color(showcase.color);
+    }
+    for (index, color) in PALETTE.iter().enumerate() {
+        ui.get_mut::<Swatch>(&format!("Palette/{index}")).set_selected(showcase.color == Color::hex(*color));
+    }
+
+    // The list.
+    let matches = showcase.matches();
+    let rows: Vec<ListRow> = matches
+        .iter()
+        .map(|item| ListRow::new(&showcase.items[*item]).icon(Icon::Document).trailing(&format!("#{}", item + 1)))
+        .collect();
+    let list = ui.get_mut::<ListView>("Items");
+    let rows_changed = list.rows().len() != rows.len() || list.rows().iter().zip(&rows).any(|(a, b)| a.text != b.text);
+    if rows_changed {
+        list.set_rows(rows);
+    }
+    let selected = showcase.selected.and_then(|item| matches.iter().position(|index| *index == item));
+    list.set_selected(selected);
+    let subtitle = format!("{} of {} · Double-click to open", matches.len(), showcase.items.len());
+    ui.get_mut::<Card>("ListCard").set_subtitle(&subtitle);
+
+    // The interface card.
+    interface_sync(showcase, ui);
+}
+
+fn buttons(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("ButtonsCard", rect, Card::new("Buttons"), |ui, card| {
+        let mut area = card.content;
+        let [standard, accent, subtle] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
+        ui.node(crate::showcase::BUTTONS[0], standard, Button::new("Standard"));
+        ui.node(crate::showcase::BUTTONS[1], accent, Button::new("Accent").accent());
+        ui.node(crate::showcase::BUTTONS[2], subtle, Button::new("Subtle").subtle());
+        let [disabled, disabled_accent, link] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
+        ui.node("Disabled", disabled, Button::new("Disabled"));
+        ui.set_enabled("Disabled", false);
+        ui.node("DisabledAccent", disabled_accent, Button::new("Disabled").accent());
+        ui.set_enabled("DisabledAccent", false);
+        ui.node("Link", link, HyperlinkButton::new("Learn more"));
+        let [save, pin, more] = area.cut_top(CONTROL_HEIGHT, SPACE_S).columns::<3>(SPACE_S);
+        ui.node("Save", save, Button::new("Save").icon(Icon::Save));
+        ui.set_tooltip("Save", "Saves nothing, but counts");
+        ui.node("Pin", pin, ToggleButton::new(showcase.pinned, Button::new("Pin").icon(Icon::Pin)));
+        ui.node("More", more, Button::new("More").flyout("MoreMenu", context_menu()));
+        let mut row = area.cut_top(CONTROL_HEIGHT, SPACE_S);
+        let minus = row.cut_left(CONTROL_HEIGHT, SPACE_S);
+        let count = row.cut_left(48.0, SPACE_S);
+        let plus = row.cut_left(CONTROL_HEIGHT, SPACE_S);
+        ui.node("Remove", minus, Button::icon_only(Icon::Remove));
+        ui.set_tooltip("Remove", "One less");
+        ui.node("Count", count, Text::label(&showcase.count.to_string()).align(Align::Center));
+        ui.node("Add", plus, Button::icon_only(Icon::Add));
+        ui.set_tooltip("Add", "One more");
+        ui.node("Presses", area.cut_top(CAPTION.line_height, 0.0), Text::caption(""));
+    });
+}
+
+fn toggles(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("TogglesCard", rect, Card::new("Checkboxes and switches"), |ui, card| {
+        let mut area = card.content;
+        ui.node("OptionsEnabled", area.cut_top(CONTROL_HEIGHT, 0.0), CheckBox::new(showcase.options_enabled, "Enable the options under this"));
+        for (index, option) in OPTIONS.iter().enumerate() {
+            let row = area.cut_top(CONTROL_HEIGHT, 0.0);
+            ui.node(&format!("Option/{option}"), Rect::new(row.x + 28.0, row.y, row.width - 28.0, row.height), CheckBox::new(showcase.options[index], option));
+        }
+        area.cut_top(SPACE_S, 0.0);
+        ui.node("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.tooltips, "Tooltips (F1)"));
+        ui.node("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.dark, "Dark theme (F2)"));
+        ui.node("Filling", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.filling, "Fill the progress bar"));
+    });
+}
+
+fn choices(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("ChoicesCard", rect, Card::new("Radio buttons and segments"), |ui, card| {
+        let mut area = card.content;
+        let mut radios = area.cut_top(CONTROL_HEIGHT * 3.0, SPACE_M);
+        let preview = radios.cut_right(96.0, 0.0);
+        ui.node("Size", radios, RadioGroup::new(&SIZES, showcase.size));
+        ui.node("SizePreview", preview, Canvas::new(showcase.size, draw_size_preview));
+        ui.node("Alignment", area.cut_top(CONTROL_HEIGHT, SPACE_S), Segmented::new(&ALIGNMENTS, showcase.alignment));
+        let line = area.cut_top(CONTROL_HEIGHT, SPACE_M);
+        ui.node("AlignedText", line, Canvas::new(showcase.alignment, draw_aligned_text));
+        let tools: Vec<(Icon, &str)> = [Icon::Brush, Icon::Fill, Icon::Erase, Icon::Eyedropper].into_iter().zip(TOOLS).collect();
+        ui.node("Tool", area.cut_top(CONTROL_HEIGHT, SPACE_S), Segmented::new(&tools, showcase.tool));
+        ui.node("ToolCaption", area.cut_top(CAPTION.line_height, 0.0), Text::caption(""));
+    });
+}
+
+fn draw_size_preview(ui: &mut Ui, rect: Rect, size: &usize) {
+    let side = ui.animate(id("SizePreview"), 0, 24.0 + 16.0 * *size as f32, DURATION_FAST, CURVE_FAST_OUT_SLOW_IN);
+    let accent = ui.theme().accent;
+    ui.painter().rounded(rect.centered(Size::square(side)), RADIUS_CONTROL, accent);
+}
+
+fn draw_aligned_text(ui: &mut Ui, rect: Rect, alignment: &usize) {
+    let align = [Align::Start, Align::Center, Align::End][*alignment];
+    let (fill, primary) = (ui.theme().control_alt_fill_secondary, ui.theme().text_primary);
+    ui.painter().rounded(rect, RADIUS_CONTROL, fill);
+    ui.text_aligned(rect.inset(SPACE_M), "Aligned text", BODY, primary, align);
+}
+
+fn sliders(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("SlidersCard", rect, Card::new("Sliders and progress"), |ui, card| {
+        let mut form = Form::new("Sliders", card.content);
+        let height = Slider::height(true);
+        ui.node("Volume", form.take(height), Slider::new(showcase.volume, 0.0, 100.0).step(1.0).header("Volume").show_value(0));
+        ui.node("Opacity", form.take(height), Slider::new(showcase.opacity, 0.0, 1.0).step(0.001).large_step(0.1).header("Opacity").show_value(3));
+        ui.node("Angle", form.take(height), Slider::new(showcase.angle, 0.0, 360.0).step(0.1).large_step(15.0).header("Angle").show_value(1).suffix("°"));
+        ui.node("DisabledSlider", form.take(height), Slider::new(30.0f32, 0.0, 100.0).header("Disabled").show_value(0));
+        ui.set_enabled("DisabledSlider", false);
+        for (name, label, value_name) in [
+            ("VolumeBar", "At the volume", Some("VolumeBarValue")),
+            ("FillBar", "Fills every 4 seconds", Some("FillBarValue")),
+            ("UnknownBar", "Of unknown length", None),
+        ] {
+            let row = form.take(BODY.line_height + SPACE_XS + 4.0);
+            ui.node(&format!("{name}Label"), row.top_strip(BODY.line_height), Text::new(label, BODY).secondary());
+            if let Some(value_name) = value_name {
+                ui.node(value_name, row.top_strip(BODY.line_height), Text::new("", BODY).secondary().align(Align::End));
+            }
+            let value = if name == "UnknownBar" { None } else { Some(0.0) };
+            ui.node(name, row.bottom_strip(4.0), ProgressBar::new(value));
+        }
+        let rings = form.take(40.0);
+        ui.node("Rings", rings, Canvas::new(showcase.volume / 100.0, draw_rings));
+    });
+}
+
+// The progress rings, at the volume, and spinning, with their caption.
+fn draw_rings(ui: &mut Ui, rect: Rect, volume: &f32) {
+    ui.progress_ring(Point::new(rect.x + 20.0, rect.center().y), 32.0, Some(*volume));
+    ui.progress_ring(Point::new(rect.x + 68.0, rect.center().y), 32.0, None);
+    ui.caption(Rect::new(rect.x + 104.0, rect.y, rect.width - 104.0, rect.height), "Progress rings, at the volume, and spinning");
+}
+
+fn fields(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("FieldsCard", rect, Card::new("Combo boxes and fields"), |ui, card| {
+        let mut form = Form::new("Fields", card.content);
+        let mut row = form.control(ui, "A color of the theme");
+        let swatch = row.cut_right(CONTROL_HEIGHT, SPACE_S);
+        ui.node("Role", row, ComboBox::new(&ROLES, showcase.role));
+        ui.node("RoleSwatch", swatch, Canvas::new(showcase.role, draw_role_swatch));
+        let caption_height = ui.paragraph_height(form.width(), ROLE_USES[0], CAPTION);
+        ui.node("RoleUse", form.take(caption_height), Text::new("", CAPTION).secondary().wrapped());
+        let mut row = form.control(ui, "Your name");
+        let greet = row.cut_right(96.0, SPACE_S);
+        ui.node("Name", row, TextBox::new(&showcase.name).placeholder("Type a name").max_length(40));
+        ui.node("Greet", greet, Button::new("Greet").accent());
+        let row = form.control(ui, "Search the list");
+        ui.node("Search", row, TextBox::new(&showcase.search).placeholder("Search").button(Icon::Search));
+        let [quantity, scale] = form.take(BODY.line_height + 8.0 + CONTROL_HEIGHT).columns::<2>(SPACE_S);
+        ui.node("QuantityLabel", quantity.top_strip(BODY.line_height), Text::label("Quantity"));
+        ui.node("Quantity", quantity.bottom_strip(CONTROL_HEIGHT), NumberBox::new(showcase.quantity).range(0.0, 99.0));
+        ui.node("ScaleLabel", scale.top_strip(BODY.line_height), Text::label("Scale"));
+        ui.node("Scale", scale.bottom_strip(CONTROL_HEIGHT), NumberBox::new(showcase.scale).range(0.25, 4.0).step(0.25).decimals(2));
+        ui.node("Greeting", form.take(48.0), InfoBar::new(Severity::Success, "", "").closable());
+        ui.set_visible("Greeting", showcase.greeting.is_some());
+    });
+}
+
+fn draw_role_swatch(ui: &mut Ui, rect: Rect, role: &usize) {
+    let theme = ui.theme();
+    let color = [theme.accent, theme.success, theme.caution, theme.critical, theme.attention][*role];
+    ui.painter().rounded(rect, RADIUS_CONTROL, color);
+}
+
+fn menus(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("MenusCard", rect, Card::new("Menus and dialogs"), |ui, card| {
+        let mut form = Form::new("Menus", card.content);
+        let [ask, choice] = form.columns::<2>(CONTROL_HEIGHT);
+        ui.node("Ask", ask, Button::new("Ask a question").icon(Icon::Help));
+        ui.node("Answer", choice, Text::caption(""));
+        let area = form.take(64.0);
+        ui.node("ContextArea", area, Canvas::new((), draw_context_area).sense(user_interface::Sense::new(true, true, false, false, user_interface::Keys::None)).kind("Area"));
+        ui.set_context_menu("ContextArea", "ContextMenu", context_menu());
+        ui.node("MenuChosen", form.take(CAPTION.line_height), Text::caption(""));
+        let header = form.take(48.0);
+        let rest = form.rest();
+        let expander_rect = Rect::new(header.x, header.y, header.width, rest.bottom() - header.y);
+        ui.group("Expander", expander_rect, Expander::new(showcase.expanded, "An expander").caption("Shows and hides what's under it"), |ui| {
+            let inner = Expander::content_area(expander_rect, 48.0);
+            ui.node("ExpanderText", inner, Text::new("Expander content sits on the secondary card fill, under its header, as WinUI's does.", BODY).secondary().wrapped());
+        });
+    });
+}
+
+fn draw_context_area(ui: &mut Ui, rect: Rect, _: &()) {
     let theme = ui.theme();
     let (fill, stroke, text) = (theme.control_alt_fill_secondary, theme.control_strong_stroke, theme.text_secondary);
-    ui.painter().shape(area, RADIUS_CONTROL, fill, Some(Border::new(stroke.fade(0.5), 1.0)));
-    ui.text_aligned(area, "Right-click here for a context menu", BODY, text, Align::Center);
-    if let Some(label) = ui.context_menu("ContextMenu", &response, CONTEXT_MENU) {
-        showcase.command(ui, label);
-    }
-    let chosen = showcase.menu_choice.clone().unwrap_or_else(|| "Nothing yet".to_string());
-    ui.caption(form.take(CAPTION.line_height), &format!("Chose from a menu: {chosen}"));
-    let header = form.take(48.0);
-    ui.add("Expander", header, Expander::new(&mut showcase.expanded, "An expander").caption("Shows and hides what's under it"));
-    if showcase.expanded {
-        let rest = form.rest();
-        let content = Rect::new(header.x, header.bottom(), header.width, rest.bottom() - header.bottom());
-        let inner = ui.expander_content(content);
-        let secondary = ui.theme().text_secondary;
-        ui.paragraph(inner, "Expander content sits on the secondary card fill, under its header, as WinUI's does.", BODY, secondary);
-    }
+    ui.painter().shape(rect, RADIUS_CONTROL, fill, Some(Border::new(stroke.fade(0.5), 1.0)));
+    ui.text_aligned(rect, "Right-click here for a context menu", BODY, text, Align::Center);
 }
 
-fn dialog(showcase: &mut Showcase, ui: &mut Ui) {
-    if !showcase.dialog_open {
-        return;
-    }
-    let dialog = Dialog::new("Save your work?", "This is a content dialog: it covers the page with smoke until you choose.").primary("Save").secondary("Don't save").close("Cancel");
-    if let Some(result) = ui.dialog("Question", dialog) {
-        let answer = match result {
-            DialogResult::Primary => "Save",
-            DialogResult::Secondary => "Don't save",
-            DialogResult::Close => "Cancel",
-        };
-        showcase.dialog_result = Some(answer.to_string());
-        showcase.dialog_open = false;
-        showcase.log(format!("Answered {answer}"));
-    }
+fn dialog(showcase: &Showcase, ui: &mut Ui) {
+    let dialog = Dialog::new("Save your work?", "This is a content dialog: it covers the page with smoke until you choose.")
+        .primary("Save")
+        .secondary("Don't save")
+        .close("Cancel");
+    ui.node("Question", Rect::default(), dialog);
+    ui.set_visible("Question", showcase.dialog_open);
 }
 
-fn tabs(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new(""));
-    let mut area = card.content;
-    ui.add("Tabs", area.cut_top(48.0, SPACE_S), SelectorBar::new(&mut showcase.tab, &TABS));
-    match showcase.tab {
-        0 => type_ramp(ui, area),
-        1 => icons(ui, area),
-        2 => theme_colors(ui, area),
-        _ => shapes(ui, area),
-    }
+fn tabs(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("TabsCard", rect, Card::new(""), |ui, card| {
+        let mut area = card.content;
+        ui.node("Tabs", area.cut_top(48.0, SPACE_S), SelectorBar::new(&TABS, showcase.tab));
+        for (index, tab) in TABS.iter().enumerate() {
+            let paint = [draw_type_ramp, draw_icons, draw_theme_colors, draw_shapes][index];
+            ui.node(&format!("Tab/{tab}"), area, Canvas::new((), paint));
+            ui.set_visible(&format!("Tab/{tab}"), showcase.tab == index);
+        }
+    });
 }
 
-fn type_ramp(ui: &mut Ui, mut area: Rect) {
+fn draw_type_ramp(ui: &mut Ui, area: Rect, _: &()) {
+    let mut area = area;
     let styles: [(&str, TextStyle, &str); 11] = [
         ("Caption · 12 on 16", CAPTION, "The quick brown fox jumps"),
         ("Body · 14 on 20", BODY, "The quick brown fox jumps"),
@@ -373,7 +466,7 @@ fn type_ramp(ui: &mut Ui, mut area: Rect) {
     );
 }
 
-fn icons(ui: &mut Ui, area: Rect) {
+fn draw_icons(ui: &mut Ui, area: Rect, _: &()) {
     let columns = 4;
     let cell = Size::new(area.width / columns as f32, 40.0);
     let primary = ui.theme().text_primary;
@@ -389,7 +482,7 @@ fn icons(ui: &mut Ui, area: Rect) {
     }
 }
 
-fn theme_colors(ui: &mut Ui, area: Rect) {
+fn draw_theme_colors(ui: &mut Ui, area: Rect, _: &()) {
     let roles = ui.theme().roles();
     let row_height = 26.0;
     let secondary = ui.theme().text_secondary;
@@ -409,7 +502,7 @@ fn theme_colors(ui: &mut Ui, area: Rect) {
     }
 }
 
-fn shapes(ui: &mut Ui, area: Rect) {
+fn draw_shapes(ui: &mut Ui, area: Rect, _: &()) {
     let [elevations, rest] = area.rows::<2>(SPACE_L);
     let theme = ui.theme().clone();
     let tiles = elevations.top_strip(120.0).inset(SPACE_L).columns::<3>(SPACE_L * 2.0);
@@ -448,101 +541,135 @@ fn shapes(ui: &mut Ui, area: Rect) {
     painter.text_in(bordered, "Elevation border", CAPTION, theme.text_secondary, Align::Center);
 }
 
-fn info_bars(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Info bars"));
-    let mut area = card.content;
-    let bars = [
-        ("Informational", InfoBar::new(Severity::Informational, "Informational", "Something to know.")),
-        ("Success", InfoBar::new(Severity::Success, "Success", "It went well.")),
-        ("Caution", InfoBar::new(Severity::Warning, "Caution", "Close me.").closable()),
-        ("Error", InfoBar::new(Severity::Error, "Error", "It went wrong.")),
-    ];
-    for (name, bar) in bars {
-        if name == "Caution" && !showcase.caution_shown {
-            let row = area.cut_top(CONTROL_HEIGHT, SPACE_S);
-            if ui.add("BringBack", row.left_strip(160.0), Button::new("Bring it back")).clicked {
-                showcase.caution_shown = true;
+fn info_bars(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("InfoBarsCard", rect, Card::new("Info bars"), |ui, card| {
+        let mut area = card.content;
+        let bars = [
+            ("Informational", Severity::Informational, "Informational", "Something to know.", false),
+            ("Success", Severity::Success, "Success", "It went well.", false),
+            ("Caution", Severity::Warning, "Caution", "Close me.", true),
+            ("Error", Severity::Error, "Error", "It went wrong.", false),
+        ];
+        for (name, severity, title, message, closable) in bars {
+            if name == "Caution" && !showcase.caution_shown {
+                let row = area.cut_top(CONTROL_HEIGHT, SPACE_S);
+                ui.node("BringBack", row.left_strip(160.0), Button::new("Bring it back"));
+                continue;
             }
-            continue;
+            let mut bar = InfoBar::new(severity, title, message);
+            if closable {
+                bar = bar.closable();
+            }
+            let height = bar.height(ui, area.width);
+            ui.node(name, area.cut_top(height, SPACE_S), bar);
         }
-        let height = ui.info_bar_height(area.width, &bar);
-        if ui.add(name, area.cut_top(height, SPACE_S), bar).closed {
-            showcase.caution_shown = false;
-            showcase.log("Closed the caution");
-        }
-    }
+    });
 }
 
-fn colors(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Color"));
-    let mut area = card.content;
-    let picker_width = 256.0f32.min(area.width);
-    let picker = area.cut_top(ColorPicker::height(picker_width), SPACE_M).left_strip(picker_width);
-    if ui.add("Picker", picker, ColorPicker::new(&mut showcase.color)).changed {
-        showcase.log(format!("Color {}", showcase.color.to_hex()));
-    }
-    let mut row = area.cut_top(CONTROL_HEIGHT, SPACE_M);
-    let field = row.cut_left(160.0, SPACE_M);
-    ui.add("Hex", field, ColorField::new(&mut showcase.color));
-    for (index, color) in PALETTE.iter().enumerate() {
-        let swatch = row.cut_left(CONTROL_HEIGHT - 4.0, SPACE_XS).centered(Size::square(24.0));
-        let color = Color::hex(*color);
-        if ui.add(&format!("Palette/{index}"), swatch, Swatch::new(color, showcase.color == color)).clicked {
-            showcase.color = color;
+fn colors(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("ColorCard", rect, Card::new("Color"), |ui, card| {
+        let mut area = card.content;
+        let picker_width = 256.0f32.min(area.width);
+        let picker = area.cut_top(ColorPicker::height(picker_width), SPACE_M).left_strip(picker_width);
+        ui.node("Picker", picker, ColorPicker::new(showcase.color));
+        let mut row = area.cut_top(CONTROL_HEIGHT, SPACE_M);
+        let field = row.cut_left(160.0, SPACE_M);
+        ui.node("Hex", field, ColorField::new(showcase.color));
+        for (index, color) in PALETTE.iter().enumerate() {
+            let swatch = row.cut_left(CONTROL_HEIGHT - 4.0, SPACE_XS).centered(Size::square(24.0));
+            let color = Color::hex(*color);
+            ui.node(&format!("Palette/{index}"), swatch, Swatch::new(color, showcase.color == color));
         }
-    }
+    });
 }
 
-fn list(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
+// The palette's color at the swatch's index.
+pub fn palette(index: usize) -> Color {
+    Color::hex(PALETTE[index])
+}
+
+fn list(showcase: &Showcase, ui: &mut Ui, rect: Rect) {
     let matches = showcase.matches();
     let subtitle = format!("{} of {} · Double-click to open", matches.len(), showcase.items.len());
-    let card = ui.card(rect, Card::new("List").subtitle(&subtitle));
-    let items = showcase.items.clone();
-    let mut selected = showcase.selected.and_then(|item| matches.iter().position(|index| *index == item));
-    let response = ui.add(
-        "Items",
-        card.content,
-        ListView::new(matches.len(), 40.0, |ui, row, rect, _| {
-            let item = matches[row];
-            let theme = ui.theme();
-            let (primary, tertiary) = (theme.text_primary, theme.text_tertiary);
-            ui.icon(Rect::new(rect.x, rect.y, ICON, rect.height), Icon::Document, ICON, primary);
-            ui.text(Rect::new(rect.x + ICON + SPACE_M, rect.y, rect.width - 80.0, rect.height), &items[item], BODY, primary);
-            ui.text_aligned(rect, &format!("#{}", item + 1), CAPTION, tertiary, Align::End);
-            ui.set_label(&format!("Items/{row}"), &items[item]);
-        })
-        .selection(&mut selected),
-    );
-    showcase.selected = selected.map(|row| matches[row]);
-    if let Some(row) = response.activated {
-        showcase.opened = Some(matches[row]);
-        showcase.log(format!("Opened {}", items[matches[row]]));
-    }
+    ui.card("ListCard", rect, Card::new("List").subtitle(&subtitle), |ui, card| {
+        let rows: Vec<ListRow> = matches
+            .iter()
+            .map(|item| ListRow::new(&showcase.items[*item]).icon(Icon::Document).trailing(&format!("#{}", item + 1)))
+            .collect();
+        let mut list = ListView::new(rows, 40.0).selectable();
+        list.set_selected(showcase.selected.and_then(|item| matches.iter().position(|index| *index == item)));
+        ui.node("Items", card.content, list);
+    });
 }
 
-fn interface(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
-    let card = ui.card(rect, Card::new("Interface"));
-    let mut area = card.content;
+fn interface(_showcase: &Showcase, ui: &mut Ui, rect: Rect) {
+    ui.card("InterfaceCard", rect, Card::new("Interface"), |ui, card| {
+        let mut area = card.content;
+        for name in ["WindowFocus", "Pointer", "Hovered", "Pressed", "Focus", "Popup", "Tooltip", "Dialog"] {
+            let label = match name {
+                "WindowFocus" => "Window focus",
+                "Pointer" => "Pointer",
+                "Hovered" => "Under the pointer",
+                "Pressed" => "Pressed",
+                "Focus" => "Keyboard focus",
+                "Popup" => "Open popup",
+                "Tooltip" => "Tooltip",
+                _ => "Dialog",
+            };
+            ui.node(&format!("Interface/{name}"), area.cut_top(24.0, 0.0), Field::new(label, 160.0, ""));
+        }
+        ui.node("Interface/Keys", area.cut_top(24.0, SPACE_S), Field::new("Keys held", 160.0, ""));
+        ui.node("GamepadHeading", area.cut_top(BODY_STRONG.line_height, SPACE_S), Text::heading("Gamepad"));
+        let sticks = area.cut_top(96.0, SPACE_S);
+        ui.node("GamepadView", sticks, Canvas::new(Gamepad::default(), draw_gamepad));
+        ui.node("GamepadButtons", area.cut_top(CAPTION.line_height, SPACE_L), Text::caption(""));
+        let badges = area.cut_top(24.0, SPACE_L);
+        ui.node("Badges", badges, Canvas::new((), draw_badges));
+        ui.node("Details", area.cut_top(CONTROL_HEIGHT, SPACE_L).left_strip(200.0), Button::new("Details").icon(Icon::Info));
+        ui.node("LogHeading", area.cut_top(BODY_STRONG.line_height, SPACE_S), Text::heading("Log"));
+        ui.node("Log", area, Canvas::new(Vec::new(), draw_log));
+    });
+}
+
+fn interface_sync(showcase: &Showcase, ui: &mut Ui) {
     let pointer = ui.pointer().map_or("Not in the window".to_string(), |point| format!("{:.0}, {:.0}", point.x, point.y));
-    let rows = [
-        ("Window focus", if ui.window_focused() { "Yes".to_string() } else { "No".to_string() }),
+    let values = [
+        ("WindowFocus", if ui.window_focused() { "Yes".to_string() } else { "No".to_string() }),
         ("Pointer", pointer),
-        ("Under the pointer", ui.hovered_name().unwrap_or("None").to_string()),
+        ("Hovered", ui.hovered_name().unwrap_or("None").to_string()),
         ("Pressed", ui.pressed_name().unwrap_or("None").to_string()),
-        ("Keyboard focus", ui.focused_name().unwrap_or("None").to_string()),
-        ("Open popup", ui.popup_name().unwrap_or("None").to_string()),
+        ("Focus", ui.focused_name().unwrap_or("None").to_string()),
+        ("Popup", ui.popup_name().unwrap_or("None").to_string()),
         ("Tooltip", ui.tooltip_name().unwrap_or("None").to_string()),
         ("Dialog", if ui.modal() { "Open".to_string() } else { "None".to_string() }),
     ];
-    for (label, value) in rows {
-        ui.field(area.cut_top(24.0, 0.0), label, 160.0, &value);
+    for (name, value) in values {
+        ui.get_mut::<Field>(&format!("Interface/{name}")).set_value(&value);
     }
     let held: Vec<String> = ui.input().keys_held().iter().map(|key| key.name()).collect();
-    ui.field(area.cut_top(24.0, SPACE_S), "Keys held", 160.0, &if held.is_empty() { "None".to_string() } else { held.join(", ") });
-    let theme = ui.theme().clone();
-    ui.heading(area.cut_top(BODY_STRONG.line_height, SPACE_S), "Gamepad");
+    let held = if held.is_empty() { "None".to_string() } else { held.join(", ") };
+    ui.get_mut::<Field>("Interface/Keys").set_value(&held);
     let gamepad = *ui.gamepad();
-    let mut sticks = area.cut_top(96.0, SPACE_S);
+    ui.get_mut::<Canvas<Gamepad>>("GamepadView").data = gamepad;
+    let buttons = gamepad.buttons.names();
+    let pressed = if !gamepad.connected { "No gamepad".to_string() } else if buttons.is_empty() { "No buttons held".to_string() } else { buttons.join(", ") };
+    ui.get_mut::<Text>("GamepadButtons").set_text(&pressed);
+    ui.set_tooltip_tips(
+        "Details",
+        vec![
+            Tip::heading("Details"),
+            Tip::pair("Theme", if showcase.dark { "Dark" } else { "Light" }),
+            Tip::Separator,
+            Tip::text("Tooltips can have lines, columns and separators."),
+        ],
+    );
+    let log: Vec<String> = showcase.log.iter().cloned().collect();
+    ui.get_mut::<Canvas<Vec<String>>>("Log").data = log;
+}
+
+fn draw_gamepad(ui: &mut Ui, area: Rect, gamepad: &Gamepad) {
+    let theme = ui.theme().clone();
+    let mut sticks = area;
     for stick in [gamepad.left_stick, gamepad.right_stick] {
         let box_rect = sticks.cut_left(96.0, SPACE_M);
         let center = box_rect.center();
@@ -559,23 +686,25 @@ fn interface(showcase: &mut Showcase, ui: &mut Ui, rect: Rect) {
         let height = bar.height * trigger.clamp(0.0, 1.0);
         painter.rounded(Rect::new(bar.x, bar.bottom() - height, bar.width, height), 6.0, theme.accent);
     }
-    let buttons = gamepad.buttons.names();
-    let pressed = if !gamepad.connected { "No gamepad".to_string() } else if buttons.is_empty() { "No buttons held".to_string() } else { buttons.join(", ") };
-    ui.caption(area.cut_top(CAPTION.line_height, SPACE_L), &pressed);
-    let mut badges = area.cut_top(24.0, SPACE_L);
-    let primary = theme.text_secondary;
+}
+
+fn draw_badges(ui: &mut Ui, area: Rect, _: &()) {
+    let mut badges = area;
+    let primary = ui.theme().text_secondary;
     let width = ui.keys(Point::new(badges.x, badges.center().y - 10.0), "Ctrl+Shift+S");
     badges.cut_left(width + SPACE_M, 0.0);
     let size = ui.badge(Point::new(badges.x + 12.0, badges.center().y), "3");
     badges.cut_left(size.width + SPACE_S + 8.0, 0.0);
     ui.badge(Point::new(badges.x + 6.0, badges.center().y), "");
     ui.text(Rect::new(badges.x + 20.0, badges.y, badges.width - 20.0, badges.height), "Keycaps, badges and a dot", CAPTION, primary);
-    let response = ui.add("Details", area.cut_top(CONTROL_HEIGHT, SPACE_L).left_strip(200.0), Button::new("Details").icon(Icon::Info));
-    ui.tooltip_lines(&response, &[TooltipLine::Heading("Details"), TooltipLine::Pair("Theme", if showcase.dark { "Dark" } else { "Light" }), TooltipLine::Separator, TooltipLine::Text("Tooltips can have lines, columns and separators.")]);
-    ui.heading(area.cut_top(BODY_STRONG.line_height, SPACE_S), "Log");
-    let lines = ((area.height / 20.0).floor() as usize).min(showcase.log.len());
-    for line in showcase.log.iter().take(lines) {
+}
+
+fn draw_log(ui: &mut Ui, area: Rect, log: &Vec<String>) {
+    let mut area = area;
+    let secondary = ui.theme().text_secondary;
+    let lines = ((area.height / 20.0).floor() as usize).min(log.len());
+    for line in log.iter().take(lines) {
         let row = area.cut_top(20.0, 0.0);
-        ui.text(row, line, MONO, theme.text_secondary);
+        ui.text(row, line, MONO, secondary);
     }
 }

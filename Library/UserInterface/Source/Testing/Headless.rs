@@ -75,6 +75,8 @@ impl<P: Program> Headless<P> {
         let program = create(&mut startup).expect("the program couldn't start");
         let mut headless = Self::new(program);
         headless.ui.notices = startup.take_notices();
+        // The notices take room under the app bar, so the page re-lays out.
+        headless.ui.request_rebuild();
         headless.run_frame();
         headless
     }
@@ -85,6 +87,9 @@ impl<P: Program> Headless<P> {
         let mut headless = Self::with_theme(program, theme);
         headless.custom_size = Some(size);
         headless.ui.performance = None;
+        // Without a PerfBar the content starts at the window's top, so the
+        // tree re-lays out.
+        headless.ui.request_rebuild();
         headless.run_frame();
         headless
     }
