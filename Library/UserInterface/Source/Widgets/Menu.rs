@@ -163,16 +163,22 @@ impl Ui {
     // it. Returns the label of the item chosen from it.
     pub fn flyout_menu<'a>(&mut self, name: &str, owner: &Response, items: &'a [MenuItem<'a>]) -> Option<&'a str> {
         if owner.clicked {
-            if self.popup_open(owner.id) {
-                self.close_popup(owner.id);
-            } else {
-                self.open_menu(owner.id, name, Point::new(owner.rect.x, owner.rect.bottom() + 4.0));
-            }
+            self.toggle_flyout_menu(name, owner);
         }
         if !self.popup_open(owner.id) {
             return None;
         }
         self.show_menu(name, owner.id, items, 0)
+    }
+
+    // Opens the menu that the button owns below it, or closes it if it's
+    // open, as a click on the button does.
+    fn toggle_flyout_menu(&mut self, name: &str, owner: &Response) {
+        if self.popup_open(owner.id) {
+            self.close_popup(owner.id);
+        } else {
+            self.open_menu(owner.id, name, Point::new(owner.rect.x, owner.rect.bottom() + 4.0));
+        }
     }
 
     // A menu that opens at the pointer when the widget whose response this
@@ -421,25 +427,32 @@ impl<'a> Widget for MenuBar<'a> {
     type Response = Option<&'a str>;
 
     fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Option<&'a str> {
-        let mut x = rect.x;
-        let mut chosen = None;
+        // The items' input first, which opens and closes their menus, and
+        // then the items and the open menu, so that the bar shows which menu
+        // is open on the frame that opens it, on every item at once.
         let any_open = self.menus.iter().any(|(title, _)| ui.popup_open(id(&format!("{name}/{title}"))));
+        let mut x = rect.x;
+        let mut entries = Vec::with_capacity(self.menus.len());
         for (title, items) in self.menus {
             let width = ui.measure(title, BODY).width.ceil() + MENU_BAR_ITEM_PADDING.horizontal();
             let slot = Rect::new(x, rect.y, width + MENU_BAR_ITEM_MARGIN.horizontal(), rect.height);
             x += slot.width;
             let item = slot.pad(MENU_BAR_ITEM_MARGIN);
             let item_name = format!("{name}/{title}");
-            let mut response = ui.interact(&item_name, item, Sense::BUTTON, "MenuBarItem");
+            let menu_name = format!("{item_name}/Menu");
+            let response = ui.interact(&item_name, item, Sense::BUTTON, "MenuBarItem");
             ui.set_label(&item_name, title);
             let open = ui.popup_open(response.id);
-            if any_open && !open && response.hovered {
-                // Moving across the bar while a menu is open opens this one.
-                response.clicked = true;
+            // Moving across the bar while a menu is open opens this one.
+            let opens = !open && ((any_open && response.hovered) || (response.focused && ui.input().key_pressed(Key::DOWN)));
+            if response.clicked || opens {
+                ui.toggle_flyout_menu(&menu_name, &response);
             }
-            if response.focused && ui.input().key_pressed(Key::DOWN) && !open {
-                response.clicked = true;
-            }
+            entries.push((*title, *items, item, menu_name, response));
+        }
+        let mut chosen = None;
+        for (title, items, item, menu_name, response) in entries {
+            let open = ui.popup_open(response.id);
             let state = response.state();
             let theme = ui.theme();
             let background = match state {
@@ -453,7 +466,7 @@ impl<'a> Widget for MenuBar<'a> {
             painter.rounded(item, RADIUS_CONTROL, background);
             painter.text_in(item, title, BODY, foreground, Align::Center);
             ui.focus_visual_if(response.focused, item, RADIUS_CONTROL);
-            if let Some(label) = ui.flyout_menu(&format!("{item_name}/Menu"), &response, items) {
+            if open && let Some(label) = ui.show_menu(&menu_name, response.id, items, 0) {
                 chosen = Some(label);
             }
         }
