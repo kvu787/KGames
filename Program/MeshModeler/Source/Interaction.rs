@@ -12,7 +12,7 @@
 //   Enter keeps it, or a right-click or Esc takes it back. X, Y and Z limit it
 //   to an axis, N to the selection's normal, and Ctrl snaps it.
 
-use user_interface::{Cursor, Key, MouseButton, Response, Shortcut, Ui, View};
+use user_interface::{Key, MouseButton, Response, Shortcut, Ui};
 
 use crate::editing::{Axis, Drawn, Element, Tool};
 use crate::modeler::{COMMANDS, Command, Modeler};
@@ -142,14 +142,13 @@ fn face_at(modeler: &Modeler, point: user_interface::Point, drawn: Drawn) -> Opt
     drawn.hit(origin, direction).map(|hit| hit.face)
 }
 
-// A modal edit: a target over the whole window takes the pointer from
-// everything else while it's under way.
+// A modal edit: the "Operation" node, a view over the whole window, takes
+// the pointer from everything else while it's under way.
 pub fn operation(modeler: &mut Modeler, ui: &mut Ui) {
     if modeler.editor.operation.is_none() {
         return;
     }
-    let bounds = ui.bounds();
-    let cover = ui.add("Operation", bounds, View::new().cursor(Cursor::Move));
+    let cover = ui.response("Operation");
     for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
         if ui.key_pressed_once(key) {
             modeler.editor.constrain(axis);

@@ -42,6 +42,8 @@ pub struct ListRow {
     pub icon: Option<Icon>,
     pub text: String,
     pub trailing: String,
+    // A color's swatch before the text, like a paint's.
+    pub swatch: Option<crate::drawing::geometry::Color>,
     // Emphasized, like the device a card listens to.
     pub accent: bool,
     // De-emphasized, like a device that's ignored.
@@ -63,6 +65,11 @@ impl ListRow {
 
     pub fn trailing(mut self, trailing: &str) -> Self {
         self.trailing = trailing.to_string();
+        self
+    }
+
+    pub fn swatch(mut self, color: crate::drawing::geometry::Color) -> Self {
+        self.swatch = Some(color);
         self
     }
 

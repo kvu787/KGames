@@ -56,6 +56,10 @@ impl Form {
         self
     }
 
+    pub fn set_gap(&mut self, gap: f32) {
+        self.gap = gap;
+    }
+
     fn text_name(&mut self) -> String {
         self.counter += 1;
         format!("{}/Text{}", self.name, self.counter)
