@@ -10,7 +10,7 @@ use std::path::Path;
 
 use json::Value;
 use simple_paint::{GpuMaterial, Material, Parameters};
-use user_interface::{Key, Modifiers, Slider};
+use user_interface::{Key, Modifiers};
 
 pub struct Setting {
     pub name: &'static str,
@@ -31,16 +31,6 @@ pub struct Setting {
 impl Setting {
     pub fn value(&self, parameters: &Parameters) -> f64 {
         (self.get)(parameters)
-    }
-
-    // The slider that sets `value`, over its rail, a step at a time, inside
-    // the range. Its label, which scripts see, is the value as it's shown.
-    pub fn slider<'v>(&self, value: &'v mut f64) -> Slider<'static, 'v, f64> {
-        Slider::new(value, self.start, self.end)
-            .step(1.0 / self.steps)
-            .allowed(self.minimum, self.maximum)
-            .decimals(self.decimals)
-            .suffix(self.unit)
     }
 
     // The step nearest `value`, inside the range. Dividing whole numbers,

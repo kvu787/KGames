@@ -228,6 +228,10 @@ impl Ui {
         let frame = self.frame_number();
         // The node's target, once a frame: in dispatch, or in draw for a node
         // that update showed.
+        let was_enabled = self.enabled();
+        let was_focusable = self.focusable();
+        self.set_scope_enabled(enabled);
+        self.set_scope_focusable(focusable);
         let needs_target = self.tree.nodes[index].interacted != frame;
         if needs_target {
             let target = control.target_rect(rect);
@@ -256,10 +260,6 @@ impl Ui {
             rect,
             response: self.tree.nodes[index].response,
         };
-        let was_enabled = self.enabled();
-        let was_focusable = self.focusable();
-        self.set_scope_enabled(enabled);
-        self.set_scope_focusable(focusable);
         if dispatch {
             control.handle(self, &ctx);
             self.node_extras(&ctx);

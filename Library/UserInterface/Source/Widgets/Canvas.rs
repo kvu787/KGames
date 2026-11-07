@@ -14,27 +14,35 @@ pub struct Canvas<T: 'static> {
     paint: fn(&mut Ui, Rect, &T),
     sense: Sense,
     cursor: Option<Cursor>,
-    listed: bool,
+    target: AutoTarget,
     kind: &'static str,
 }
 
 impl<T: 'static> Canvas<T> {
+    // A drawing that the pointer goes through, like a chart over a card.
     pub fn new(data: T, paint: fn(&mut Ui, Rect, &T)) -> Self {
         Self {
             data,
             paint,
             sense: Sense::NONE,
             cursor: None,
-            listed: false,
+            target: AutoTarget::None,
             kind: "Canvas",
         }
+    }
+
+    // Covers what's under it from the pointer, like a card does, without
+    // being seen by scripts.
+    pub fn cover(mut self) -> Self {
+        self.target = AutoTarget::Unlisted;
+        self
     }
 
     // Takes the pointer: presses, clicks, drags and the wheel, which the
     // program reads with ui.response(name).
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
-        self.listed = true;
+        self.target = AutoTarget::Listed;
         self
     }
 
@@ -47,7 +55,7 @@ impl<T: 'static> Canvas<T> {
     // What it is to scripts and tests, like "View".
     pub fn kind(mut self, kind: &'static str) -> Self {
         self.kind = kind;
-        self.listed = true;
+        self.target = AutoTarget::Listed;
         self
     }
 }
@@ -62,7 +70,7 @@ impl<T: 'static> Control for Canvas<T> {
     }
 
     fn auto_target(&self) -> AutoTarget {
-        if self.listed { AutoTarget::Listed } else { AutoTarget::Unlisted }
+        self.target
     }
 
     fn handle(&mut self, ui: &mut Ui, ctx: &NodeContext) {

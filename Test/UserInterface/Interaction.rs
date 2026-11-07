@@ -71,7 +71,7 @@ impl Program for Test {
         ui.node("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&["Zero", "One", "Two"], self.choice));
         // A surface over a button covers it from the pointer.
         ui.node("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under"));
-        ui.node("Cover", Rect::new(290.0, top, 200.0, 60.0), Canvas::new((), |_, _, _| {}));
+        ui.node("Cover", Rect::new(290.0, top, 200.0, 60.0), Canvas::new((), |_, _, _| {}).cover());
         ui.node("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe"));
         ui.set_enabled("Maybe", !self.disabled);
         let mut list = ListView::new(rows(50), 20.0).selectable();
