@@ -10,8 +10,8 @@ use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Program, RadioGroup, Rect, Segmented,
-    SelectorBar, Slider, Theme, ThemeKind, ToggleSwitch, Ui,
+    Button, Card, CheckBox, Color, ComboBox, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Palette, Program, RadioGroup,
+    Rect, Segmented, SelectorBar, Slider, Theme, ThemeKind, ToggleSwitch, Ui,
 };
 
 struct Page;
@@ -93,9 +93,11 @@ struct States {
     tab: usize,
     pick: usize,
     row: Option<usize>,
+    color: Option<usize>,
 }
 
 const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
+const COLORS: [Color; 4] = [Color::hex(0xD13438), Color::hex(0x107C10), Color::hex(0x0078D4), Color::hex(0x8764B8)];
 const FILE: &[MenuItem] = &[MenuItem::new("Open"), MenuItem::submenu("Recent", RECENT)];
 const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
 const MENUS: &[(&str, &[MenuItem])] = &[("File", FILE)];
@@ -124,6 +126,7 @@ impl Program for States {
         ui.add("Rows", rows, ListView::new(3, 40.0, |ui, index, row, _| {
             ui.label(row, &format!("Row {index}"));
         }).selection(&mut self.row));
+        ui.add("Colors", area.cut_top(32.0, 8.0), Palette::new(&mut self.color, &COLORS));
     }
 }
 
@@ -227,15 +230,16 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
 
 #[test]
 fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
-    // A press selects a list's row, and a release a radio button, a segment
-    // or a tab. Each of these reads all its items' input before it draws
+    // A press selects a list's row, and a release a radio button, a segment,
+    // a tab or a swatch. Each of these reads all its items' input before it draws
     // any, so even when the selection moves to an item after the old one,
     // the very frame that reads the input draws the old item without it,
     // the same as a second later.
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(States::default());
     app.frame();
-    for (old, new) in [("Rows/0", "Rows/2"), ("Size/Small", "Size/Large"), ("Alignment/Left", "Alignment/Right"), ("Tabs/First", "Tabs/Third")] {
+    let moves = [("Rows/0", "Rows/2"), ("Size/Small", "Size/Large"), ("Alignment/Left", "Alignment/Right"), ("Tabs/First", "Tabs/Third"), ("Colors/0", "Colors/2")];
+    for (old, new) in moves {
         let list = old.starts_with("Rows");
         app.click(old).move_to(new);
         if list {
@@ -257,7 +261,7 @@ fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
         }
     }
     let program = &app.program;
-    assert_eq!((program.row, program.size, program.alignment, program.tab), (Some(2), 2, 2, 2));
+    assert_eq!((program.row, program.size, program.alignment, program.tab, program.color), (Some(2), 2, 2, 2, Some(2)));
 }
 
 #[test]
@@ -269,7 +273,7 @@ fn a_release_shows_on_the_frame_that_reads_it() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(States::default());
     app.frame();
-    for name in ["Button", "Switch", "Check", "Size/Medium", "Level", "Alignment/Center", "Tabs/Second", "Rows/1", "Menus/File"] {
+    for name in ["Button", "Switch", "Check", "Size/Medium", "Level", "Alignment/Center", "Tabs/Second", "Rows/1", "Colors/1", "Menus/File"] {
         app.press(name).queue(&[Event::ButtonReleased(MouseButton::Left)]).frame();
         let now = app.render(&mut gpu).unwrap();
         app.wait(1.0);
@@ -282,7 +286,7 @@ fn a_release_shows_on_the_frame_that_reads_it() {
     }
     let program = &app.program;
     assert!(program.on && program.checked);
-    assert_eq!((program.size, program.alignment, program.tab, program.row), (1, 1, 1, Some(1)));
+    assert_eq!((program.size, program.alignment, program.tab, program.row, program.color), (1, 1, 1, Some(1), Some(1)));
     assert_eq!(app.ui.popup_name(), Some("Menus/File/Menu"));
 }
 
