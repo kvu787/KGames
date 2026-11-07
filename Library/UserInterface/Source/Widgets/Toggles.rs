@@ -237,7 +237,6 @@ impl Widget for ToggleSwitch<'_, '_> {
             )
         };
         let text = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
-        let pressed = state == ControlState::Pressed;
         let (knob_width, knob_height) = match state {
             ControlState::PointerOver => (TOGGLE_SWITCH_KNOB_POINTER_OVER, TOGGLE_SWITCH_KNOB_POINTER_OVER),
             ControlState::Pressed => (TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT),
@@ -250,10 +249,10 @@ impl Widget for ToggleSwitch<'_, '_> {
         // The knob is centered in a 20-pixel square at the track's end; a
         // stretched one keeps 3 pixels from that end.
         let square = if on { track.x + TOGGLE_SWITCH_KNOB_TRAVEL } else { track.x };
-        let center_x = match (pressed, on) {
-            (false, _) => square + TOGGLE_SWITCH_HEIGHT / 2.0,
-            (true, true) => square + TOGGLE_SWITCH_HEIGHT - TOGGLE_SWITCH_KNOB_PRESSED_MARGIN - knob_width / 2.0,
-            (true, false) => square + TOGGLE_SWITCH_KNOB_PRESSED_MARGIN + knob_width / 2.0,
+        let center_x = match (state, on) {
+            (ControlState::Pressed, true) => square + TOGGLE_SWITCH_HEIGHT - TOGGLE_SWITCH_KNOB_PRESSED_MARGIN - knob_width / 2.0,
+            (ControlState::Pressed, false) => square + TOGGLE_SWITCH_KNOB_PRESSED_MARGIN + knob_width / 2.0,
+            _ => square + TOGGLE_SWITCH_HEIGHT / 2.0,
         };
         let knob_rect = Rect::from_center(Point::new(center_x, track.center().y), Size::new(knob_width, knob_height));
         painter.rounded(knob_rect, knob_height / 2.0, knob.get(state));

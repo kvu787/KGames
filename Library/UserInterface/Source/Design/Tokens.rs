@@ -76,11 +76,12 @@ pub const TOOLTIP_DELAY: f64 = 0.5;
 // Motion: nothing moves or fades between states. A hover, a press, a
 // selection, or a menu or dialog that opens shows whole on the frame that
 // makes it. Only what must move to do its job does: the indeterminate
-// progress bar and ring, whose motion says that work goes on, along these
-// curves (see Controls.rs), and a text field's blinking caret.
+// progress bar and ring, whose motion says that work goes on, and a text
+// field's blinking caret.
 //
 // An easing curve, as a cubic Bézier from (0, 0) to (1, 1) through two
-// points, like XAML's KeySpline.
+// points, like XAML's KeySpline: the progress bar's and ring's, in
+// Controls.rs.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Curve(pub f32, pub f32, pub f32, pub f32);
 

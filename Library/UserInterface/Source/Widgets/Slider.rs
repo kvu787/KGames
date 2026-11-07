@@ -1,9 +1,9 @@
 // WinUI's Slider, horizontal: a rail in ControlStrongFill, the part up to the
-// value in the accent, and a round thumb whose accent dot grows with the
-// pointer over it and shrinks as it's pressed. A press anywhere on the rail
-// moves the thumb there and drags it; the arrows, Page Up, Page Down, Home
-// and End move it; and the wheel turns it a step a notch, adding up parts
-// of notches. While it's dragged, its value shows above the thumb.
+// value in the accent, and a round thumb whose accent dot is bigger with the
+// pointer over it and smaller while it's pressed. A press anywhere on the
+// rail moves the thumb there and drags it; the arrows, Page Up, Page Down,
+// Home and End move it; and the wheel turns it a step a notch, adding up
+// parts of notches. While it's dragged, its value shows above the thumb.
 //
 // Its value can be any number type. The rail's ends can be wider than the
 // values allowed, like a rail from 0 to 1 whose values must stay inside it,

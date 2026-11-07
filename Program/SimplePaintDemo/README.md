@@ -86,8 +86,8 @@ Each frame, Library/UserInterface's main loop reads the window's input once the 
 another frame, the demo does what it says and builds its cards, and the frame is drawn: the
 demo's `render` copies the sphere into the preview card's view, and then the interface draws
 over the rest in one draw call. The sliders don't take keyboard focus, as the arrow keys move
-the selected one, which stands out like a list's selected row, with the accent's pill sliding
-to it. The library's slider handles dragging, inside the range that SimplePaint accepts, but the
+the selected one, which stands out like a list's selected row, with the accent's pill at its
+left. The library's slider handles dragging, inside the range that SimplePaint accepts, but the
 demo turns the wheel over a slider itself, by whole steps of the setting, so that a value always
 lands on the decimal that it shows, and a value from `Paint.json` between steps or past the
 range never moves the other way. Parts of a notch add up over the same slider.
