@@ -14,7 +14,7 @@ use std::path::Path;
 use graphics::{AdapterChoice, Gpu, Offscreen};
 use polygon_mesh::{Mesh, Shading, primitives};
 use user_interface::tokens::{BODY, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Event, Font, Fonts, Headless, Point, Program, TextStyle, Ui, Weight, id};
+use user_interface::{Draw, Event, Font, Fonts, Headless, Point, Program, Rect, TextStyle, Tree, Ui, Weight, Widget};
 
 use crate::harness::Budget;
 use crate::interface::{Car, GameInput, Modeler, Racing, Showcase, SimplePaint, Sphere, Subject};
@@ -87,17 +87,44 @@ struct Churner {
     widgets: u32,
 }
 
+// A widget that keeps a number between frames, like a scroll offset.
+struct Remember {
+    value: f32,
+}
+
+impl Widget<()> for Remember {
+    fn kind(&self) -> &'static str {
+        "Remember"
+    }
+
+    fn draw(&self, ctx: &mut Draw) {
+        *ctx.memory::<f32>() = self.value;
+    }
+}
+
 impl Program for Churner {
+    type Message = ();
+
     fn title(&self) -> String {
         "Churner".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn input(&self, _ui: &Ui) -> Vec<()> {
+        // One message a frame, to count the frame.
+        vec![()]
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut user_interface::Context<()>) {
         self.frame += 1;
+    }
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
         for index in 0..self.widgets {
-            let widget = id(&format!("Row {} {index}", self.frame));
-            *ui.memory::<f32>(widget) = index as f32;
+            let name = format!("Row {} {index}", self.frame);
+            tree.add(&name, Rect::new(index as f32, 0.0, 1.0, 1.0), Remember { value: index as f32 });
         }
+        tree
     }
 }
 
