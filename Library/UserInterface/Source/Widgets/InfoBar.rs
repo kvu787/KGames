@@ -131,7 +131,7 @@ impl<M: Clone + 'static> Widget<M> for InfoBar<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.clicked(&Part::Named(CLOSE.to_string()))
+        if interaction.activated(&Part::Named(CLOSE.to_string()))
             && let Some(message) = &self.on_close
         {
             ctx.send(message.clone());

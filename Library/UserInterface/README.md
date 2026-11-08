@@ -160,7 +160,7 @@ it is to the input, `interact` turns what happened to it into messages through `
 | `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one                        |
 | `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |
 | `MenuBar`, `Button::menu`          | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
-| `Element::context_menu`            | MenuFlyout                | Opens at the pointer on a right-click, on any element           |
+| `Element::context_menu`            | MenuFlyout                | Opens at the pointer on a right press, on any element           |
 | `Dialog`                           | ContentDialog             | Over smoke, with up to three buttons and content of your own    |
 | `Expander`                         | Expander                  | A header that shows and hides what's under it                   |
 | `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable              |
@@ -210,8 +210,12 @@ the window's focus changes between them. The window's messages bring none of it.
 - The pointer is on the topmost target under it, in the tree the user saw, so a combo box's
   list, a menu or a dialog takes the pointer from what's under it. A card, and `Cover`, cover
   what's under them, like a 3D view.
-- A click is a press and a release on the same widget. While a button is held, the window captures
-  the mouse, so a drag keeps going past its edges.
+- Widgets act on a press, on the frame that the button goes down, and never wait for its release,
+  which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
+  opens, an item is chosen, and a right press opens a context menu. Sliding off before letting go
+  doesn't take a press back. `Hit::activated` is a left press or Space or Enter, and
+  `ViewInput::pressed` is a click in a 3D view. While a button is held, the window captures the
+  mouse, so a drag keeps going past its edges.
 - Keyboard focus moves with Tab and Shift+Tab, in the order that the frame showed the widgets, and
   with a press on a widget that takes it. Its rings show only after the keyboard moved it, as
   Windows does. Esc closes a menu or a dialog, or else takes focus away. A widget with focus under

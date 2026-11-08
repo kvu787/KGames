@@ -159,10 +159,10 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
             draft.text = self.format(value);
         }
         let mut steps = 0.0;
-        if interaction.clicked(&Part::Named("Up".to_string())) {
+        if interaction.activated(&Part::Named("Up".to_string())) {
             steps += 1.0;
         }
-        if interaction.clicked(&Part::Named("Down".to_string())) {
+        if interaction.activated(&Part::Named("Down".to_string())) {
             steps -= 1.0;
         }
         if focused {

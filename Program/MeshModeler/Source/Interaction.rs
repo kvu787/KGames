@@ -148,7 +148,7 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
             }
         }
         Tool::LoopCut => {
-            if input.clicked
+            if input.pressed
                 && let Some((edge, fraction)) = modeler.editor.loop_preview
             {
                 modeler.editor.loop_cut(&mut modeler.document, edge, fraction);

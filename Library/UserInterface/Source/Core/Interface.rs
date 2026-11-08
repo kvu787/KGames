@@ -399,7 +399,7 @@ impl Interface {
         let mut interactions: HashMap<Id, Interaction> = HashMap::new();
         for target in &shown {
             let hit = self.hit(target);
-            let anything = hit.hovered || hit.pressed || hit.held || hit.released || hit.clicked || hit.secondary_pressed || hit.secondary_clicked || hit.middle_pressed || hit.wheel != Point::ZERO;
+            let anything = hit.hovered || hit.pressed || hit.held || hit.released || hit.activated || hit.secondary_pressed || hit.middle_pressed || hit.wheel != Point::ZERO;
             if !anything {
                 continue;
             }
@@ -523,7 +523,10 @@ impl Interface {
         self.focus_leavers.clear();
     }
 
-    // What the input did to a target this frame.
+    // What the input did to a target this frame. A press acts on the frame
+    // that the button goes down: a left press activates the target, and a
+    // right press asks for its context menu, whatever the pointer does
+    // before the button comes up.
     fn hit(&mut self, target: &Target) -> Hit {
         let id = target.id;
         let sense = target.sense;
@@ -546,6 +549,7 @@ impl Interface {
             match button {
                 MouseButton::Left => {
                     hit.pressed = true;
+                    hit.activated = true;
                     hit.double_clicked = self.input.clicks(MouseButton::Left) >= 2;
                     // A target that doesn't take focus leaves it where it
                     // was, like a text field's clear button leaves it in the
@@ -569,16 +573,8 @@ impl Interface {
         {
             hit.held = true;
             hit.held_button = Some(button);
-            if self.input.button_released(button) || self.input.focus_lost {
-                let on_it = !self.input.focus_lost && self.input.pointer.is_some_and(|pointer| target.rect.contains(pointer));
-                match button {
-                    MouseButton::Left => {
-                        hit.released = true;
-                        hit.clicked = on_it;
-                    }
-                    MouseButton::Right => hit.secondary_clicked = on_it,
-                    MouseButton::Middle => {}
-                }
+            if button == MouseButton::Left && (self.input.button_released(button) || self.input.focus_lost) {
+                hit.released = true;
             }
         }
         if hit.hovered {
@@ -587,7 +583,7 @@ impl Interface {
         if self.focused == Some(id) && sense.keys == Keys::Activate && (self.input.key_pressed_once(Key::SPACE) || self.input.key_pressed_once(Key::ENTER)) {
             let keys_here = (self.popups.is_empty() || target.layer >= Layer::Popup) && (!self.modal_shown || target.layer >= Layer::Dialog);
             if keys_here {
-                hit.clicked = true;
+                hit.activated = true;
             }
         }
         hit

@@ -286,7 +286,8 @@ fn ctrl_r_cuts_the_loop_under_the_pointer() {
     let middle = screen(&app, [1.0, 0.0, 1.0]);
     app.move_point(middle);
     assert_eq!(number(&app, &["LoopPreviewEdges"]), 4.0);
-    app.click_point(middle);
+    // It cuts as the button goes down.
+    app.press_point(middle);
     let mesh = &app.program.document.mesh;
     assert_eq!((mesh.positions.len(), mesh.faces.len()), (12, 10));
     assert!(mesh.validate().is_ok());
@@ -294,6 +295,7 @@ fn ctrl_r_cuts_the_loop_under_the_pointer() {
     assert_eq!(app.program.document.selection.edges.len(), 4);
     assert!(app.program.document.selection.vertices.iter().all(|vertex| mesh.position(*vertex)[1].abs() < 1e-5));
     assert_eq!(text(&app, "Mode").as_deref(), Some("Edge"));
+    app.release();
     // Esc goes back to the Select tool.
     app.key(Key::ESCAPE);
     assert_eq!(text(&app, "Tool").as_deref(), Some("Select"));
