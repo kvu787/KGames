@@ -2,6 +2,8 @@
 name = "bindings_generator"
 version = "0.1.0"
 edition = "2024"
+# A workspace of its own, so it can't take the license from the root Cargo.toml.
+license = "GPL-3.0-or-later"
 publish = false
 
 [[bin]]

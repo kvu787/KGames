@@ -2,6 +2,7 @@
 name = "identify_displays"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 
 # The boxes, which Test/IdentifyDisplays tests without a window.
 [lib]

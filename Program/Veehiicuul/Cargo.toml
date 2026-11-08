@@ -2,6 +2,7 @@
 name = "veehiicuul"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 build = "Build.rs"
 
 # The game's parts, which Test/Veehiicuul tests without a window.

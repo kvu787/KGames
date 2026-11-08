@@ -55,6 +55,10 @@ members = [
     "Test/Veehiicuul",
 ]
 
+# The license of every package, which each takes with license.workspace = true.
+[workspace.package]
+license = "GPL-3.0-or-later"
+
 # Lints for every package, which each takes with [lints] workspace = true.
 [workspace.lints.clippy]
 # Most unsafe functions here are unsafe because they call the Windows API,

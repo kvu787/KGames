@@ -2,6 +2,7 @@
 name = "platformer"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 
 # The game's parts, which Test/Platformer tests without a window.
 [lib]

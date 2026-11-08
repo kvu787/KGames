@@ -82,6 +82,8 @@ you.
 [VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and the analyses made with
 [Benchmarks](Program/Benchmarks/README.md): [Performance](Documentation/Performance.md), where the
 programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
+[BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
+derived from Blender's, as tasks with their status.
 
 ## Test
 
@@ -99,3 +101,8 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 
 The GPU tests need a GPU with Shader Model 6.0, and run on WARP too. Scripts open the program
 on display CVVNY2 unless `--display` names another.
+
+# License
+
+KGames is free software under the GNU General Public License, version 3 or (at your option) any
+later version: GPL-3.0-or-later. [LICENSE.txt](LICENSE.txt) has its text.

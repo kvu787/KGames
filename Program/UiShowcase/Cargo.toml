@@ -2,6 +2,7 @@
 name = "ui_showcase"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 
 # The showcase's parts, which Test/UiShowcase tests without a window.
 [lib]
