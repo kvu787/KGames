@@ -366,8 +366,28 @@ fn a_held_key_repeats() {
 #[test]
 fn benchmark_frame_time() {
     let mut app = showcase();
-    let start = std::time::Instant::now();
     app.frames(100);
-    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / 100.0;
+    let start = std::time::Instant::now();
+    let frames = 1000;
+    let mut phases = user_interface::FramePhases::default();
+    for _ in 0..frames {
+        app.frame();
+        let frame = app.ui.phases();
+        phases.input += frame.input;
+        phases.update += frame.update;
+        phases.view += frame.view;
+        phases.layout += frame.layout;
+        phases.draw += frame.draw;
+    }
+    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / frames as f64;
+    let each = frames as f64;
     eprintln!("A frame of the showcase's interface takes {per_frame:.3} ms to build");
+    eprintln!(
+        "  input {:.3}, update {:.3}, view {:.3}, layout {:.3}, draw {:.3}",
+        phases.input / each,
+        phases.update / each,
+        phases.view / each,
+        phases.layout / each,
+        phases.draw / each
+    );
 }

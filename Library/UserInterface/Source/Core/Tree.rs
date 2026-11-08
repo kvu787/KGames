@@ -425,7 +425,7 @@ impl Look {
 pub struct Parts<'a> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) id: Id,
-    pub(crate) name: String,
+    pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
     pub(crate) focusable: bool,
@@ -443,7 +443,7 @@ impl Parts<'_> {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
     pub fn enabled(&self) -> bool {
@@ -545,7 +545,7 @@ pub struct Dispatch<'a, M> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) messages: &'a mut Vec<M>,
     pub(crate) id: Id,
-    pub(crate) name: String,
+    pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
     pub(crate) focusable: bool,
@@ -565,7 +565,7 @@ impl<M> Dispatch<'_, M> {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
     pub fn enabled(&self) -> bool {
@@ -740,7 +740,7 @@ impl<M> Dispatch<'_, M> {
 pub struct Draw<'a> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) id: Id,
-    pub(crate) name: String,
+    pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) look: Look,
     pub(crate) layer: Layer,
@@ -776,7 +776,7 @@ impl Draw<'_> {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
     pub fn enabled(&self) -> bool {

@@ -63,6 +63,18 @@ pub struct FrameStats {
     pub frame_time: f32,
 }
 
+// What the parts of the last frame cost the CPU, in milliseconds: the input
+// on the tree the user saw, the messages, the view, its layout, and its
+// drawing. For benchmarks.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FramePhases {
+    pub input: f64,
+    pub update: f64,
+    pub view: f64,
+    pub layout: f64,
+    pub draw: f64,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 struct TooltipState {
     candidate: Option<Id>,
@@ -83,6 +95,55 @@ pub(crate) struct Popup {
 // turn, before it gives up on a chain that never ends.
 const MOST_MESSAGES: usize = 10_000;
 
+// The targets that decide how elements look this frame: the one the pointer
+// is on, the one with a press, and the one with focus, each as its owner and
+// which part of the owner it is.
+struct LookSources {
+    hovered: Option<(Id, Part)>,
+    active: Option<(Id, Part, MouseButton)>,
+    // Whether the keys reach the focused target: no popup or dialog over it
+    // takes them.
+    focused: Option<(Id, Part, bool)>,
+}
+
+impl LookSources {
+    // How an element looks this frame, from what the pointer and the
+    // keyboard are doing to its targets.
+    fn look(&self, element: Id, enabled: bool, focus_visible: bool) -> Look {
+        let mut look = Look {
+            enabled,
+            ..Look::default()
+        };
+        if let Some((owner, part)) = &self.hovered
+            && *owner == element
+            && enabled
+        {
+            look.hovered_part = Some(part.clone());
+            if *part == Part::Whole {
+                look.hit.hovered = true;
+            }
+        }
+        if let Some((owner, part, button)) = &self.active
+            && *owner == element
+        {
+            look.held_part = Some(part.clone());
+            look.held_button = Some(*button);
+            if *part == Part::Whole {
+                look.hit.held = true;
+                look.hit.held_button = Some(*button);
+            }
+        }
+        if let Some((owner, part, keys_here)) = &self.focused
+            && *owner == element
+        {
+            look.focused = *keys_here;
+            look.focused_part = Some(part.clone());
+            look.focus_visible = focus_visible;
+        }
+        look
+    }
+}
+
 pub struct Interface {
     pub(crate) theme: Theme,
     // The theme that toggle_theme asked for this frame, which the frame's
@@ -93,10 +154,10 @@ pub struct Interface {
     pub(crate) input: Input,
     size: Size,
     fullscreen: bool,
-    // The targets of the frame that's laid out, and of the frame the user
-    // saw, which the input is on.
+    // The targets of the frame that's laid out, which are the frame the
+    // user saw, that the next frame's input is on, until that frame's
+    // layout.
     pub(crate) targets: Vec<Target>,
-    shown: Vec<Target>,
     pub(crate) hovered: Option<Id>,
     // The target with a press, and the button.
     active: Option<(Id, MouseButton)>,
@@ -130,6 +191,7 @@ pub struct Interface {
     // How many messages the last frame applied, and whether it hit the cap.
     pub(crate) messages_applied: usize,
     pub(crate) messages_capped: bool,
+    phases: FramePhases,
 }
 
 impl Interface {
@@ -143,7 +205,6 @@ impl Interface {
             size: Size::default(),
             fullscreen: false,
             targets: Vec::new(),
-            shown: Vec::new(),
             hovered: None,
             active: None,
             focused: None,
@@ -167,6 +228,7 @@ impl Interface {
             performance: None,
             messages_applied: 0,
             messages_capped: false,
+            phases: FramePhases::default(),
         }
     }
 
@@ -187,6 +249,7 @@ impl Interface {
         }
 
         // The input, on the frame the user saw.
+        let started = std::time::Instant::now();
         self.begin_input();
         let mut messages = sent;
         if let Some(tree) = shown.as_ref() {
@@ -197,6 +260,14 @@ impl Interface {
             let ui = Ui { inner: self };
             messages.extend(program.input(&ui));
         }
+        let mut phases = FramePhases::default();
+        let mut mark = started;
+        let mut lap = |phase: &mut f64| {
+            let now = std::time::Instant::now();
+            *phase = (now - mark).as_secs_f64() * 1000.0;
+            mark = now;
+        };
+        lap(&mut phases.input);
 
         // The messages, and those they send, until none are left.
         let mut queue: VecDeque<P::Message> = messages.into_iter().collect();
@@ -213,6 +284,7 @@ impl Interface {
             program.update(message, &mut context);
         }
         self.messages_applied = applied;
+        lap(&mut phases.update);
 
         // The frame's tree, laid out and drawn.
         if let Some(theme) = self.next_theme.take() {
@@ -223,9 +295,18 @@ impl Interface {
             program.view(&mut ui)
         };
         self.tooltips_enabled = tree.tooltips;
+        lap(&mut phases.view);
         self.layout(&tree);
+        lap(&mut phases.layout);
         self.draw_tree(&tree);
+        lap(&mut phases.draw);
+        self.phases = phases;
         *shown = Some(tree);
+    }
+
+    // What the parts of the last frame cost the CPU.
+    pub fn phases(&self) -> FramePhases {
+        self.phases
     }
 
     // Runs a frame of a tree that isn't a program's, like an overlay's or
@@ -259,7 +340,7 @@ impl Interface {
         // The pointer is on the topmost target under it, or only on the
         // target with a press while there is one. A dialog leaves nothing
         // under it to be on.
-        let topmost = self.topmost(&self.shown, self.modal_shown);
+        let topmost = self.topmost(&self.targets, self.modal_shown);
         self.hovered = self.under_pointer(topmost);
 
         // A press outside the open popups closes them, and does nothing else.
@@ -270,8 +351,8 @@ impl Interface {
                 }
                 let inside = topmost.is_some_and(|hit| {
                     self.popups.iter().any(|popup| popup.owner == hit)
-                        || self.shown.iter().any(|target| target.id == hit && target.layer == Layer::Popup)
-                        || self.shown.iter().any(|target| target.id == hit && self.popups.iter().any(|popup| popup.owner == target.owner) && target.layer == Layer::Popup)
+                        || self.targets.iter().any(|target| target.id == hit && target.layer == Layer::Popup)
+                        || self.targets.iter().any(|target| target.id == hit && self.popups.iter().any(|popup| popup.owner == target.owner) && target.layer == Layer::Popup)
                 });
                 if !inside {
                     self.popups.clear();
@@ -287,7 +368,7 @@ impl Interface {
         }
 
         self.captured = match self.focused {
-            Some(focused) => self.shown.iter().find(|target| target.id == focused).map(|target| target.sense.keys).unwrap_or_default(),
+            Some(focused) => self.targets.iter().find(|target| target.id == focused).map(|target| target.sense.keys).unwrap_or_default(),
             None => Keys::None,
         };
         if !self.popups.is_empty() && self.captured != Keys::Text {
@@ -316,7 +397,7 @@ impl Interface {
     // messages.
     fn dispatch<M: Clone + 'static>(&mut self, tree: &Tree<M>, messages: &mut Vec<M>) {
         let focused_before = self.focused;
-        let shown = std::mem::take(&mut self.shown);
+        let shown = std::mem::take(&mut self.targets);
         let mut interactions: HashMap<Id, Interaction> = HashMap::new();
         for target in &shown {
             let hit = self.hit(target);
@@ -331,7 +412,7 @@ impl Interface {
         // take it, for what scrolls.
         let wheel_free = self.input.wheel != Point::ZERO && !self.hovered_takes_wheel(&shown);
         let hovered_layer = self.hovered.and_then(|hovered| shown.iter().rev().find(|target| target.id == hovered).map(|target| target.layer));
-        self.shown = shown;
+        self.targets = shown;
         self.move_focus();
 
         // The widget with keyboard focus hears the keys, if no popup or
@@ -339,7 +420,7 @@ impl Interface {
         // frame hears that, like a number box that takes what was typed.
         let owner_of = |focused: Option<Id>| {
             focused.and_then(|focused| {
-                self.shown.iter().find(|target| target.id == focused).map(|target| {
+                self.targets.iter().find(|target| target.id == focused).map(|target| {
                     let keys_here = (self.popups.is_empty() || target.layer >= Layer::Popup) && (!self.modal_shown || target.layer >= Layer::Dialog);
                     (target.owner, target.part.clone(), keys_here)
                 })
@@ -378,7 +459,7 @@ impl Interface {
                 ui: self,
                 messages,
                 id: element_id,
-                name: element.name.clone().unwrap_or_default(),
+                name: element.name.as_deref().unwrap_or(""),
                 rect: element.rect,
                 enabled,
                 focusable,
@@ -469,7 +550,7 @@ impl Interface {
         if self.input.key_pressed(Key::TAB) && self.popups.is_empty() && !self.input.modifiers().control {
             let layer = if self.modal_shown { Layer::Dialog } else { Layer::Base };
             let order: Vec<Id> = self
-                .shown
+                .targets
                 .iter()
                 .filter(|target| target.focusable && target.sense.focusable && target.enabled && target.layer == layer)
                 .map(|target| target.id)
@@ -539,7 +620,6 @@ impl Interface {
         // under it.
         let topmost = self.topmost(&self.targets, self.modal);
         self.hovered = self.under_pointer(topmost);
-        self.shown = self.targets.clone();
         self.modal_shown = self.modal;
 
         // Tooltips show once the pointer rests on a widget.
@@ -587,7 +667,7 @@ impl Interface {
             let mut parts = Parts {
                 ui: self,
                 id: element_id,
-                name: element.name.clone().unwrap_or_default(),
+                name: element.name.as_deref().unwrap_or(""),
                 rect: element.rect,
                 enabled,
                 focusable,
@@ -612,7 +692,8 @@ impl Interface {
         // The tooltip due, if one is: the widget it's of, and which part.
         let due = self.tooltip_due().and_then(|anchor| self.targets.iter().find(|target| Some(target.id) == self.hovered).map(|target| (target.owner, target.part.clone(), target.name.clone(), anchor)));
         let mut tooltip: Option<(Tooltip, String, Point)> = None;
-        self.draw_elements(&tree.elements, true, Layer::Base, bounds, &due, &mut tooltip);
+        let sources = self.look_sources();
+        self.draw_elements(&tree.elements, true, Layer::Base, bounds, &sources, &due, &mut tooltip);
         if let Some((tooltip, name, anchor)) = tooltip {
             crate::widgets::tool_tip::draw_tooltip(self, &name, &tooltip, anchor);
         }
@@ -622,19 +703,19 @@ impl Interface {
     }
 
     #[allow(clippy::type_complexity)]
-    fn draw_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect, due: &Option<(Id, Part, String, Point)>, tooltip: &mut Option<(Tooltip, String, Point)>) {
+    fn draw_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect, sources: &LookSources, due: &Option<(Id, Part, String, Point)>, tooltip: &mut Option<(Tooltip, String, Point)>) {
         for element in elements {
             let enabled = enabled && element.enabled;
             let layer = layer.max(element.widget.layer());
             let clip = if element.widget.layer() > Layer::Base { self.bounds() } else { clip };
             let element_id = element.id.unwrap_or_else(|| cover_id(element.rect));
-            let look = self.look(element_id, enabled);
+            let look = sources.look(element_id, enabled, self.focus_visible);
             self.draw.set_layer(layer);
             self.draw.push_clip(clip, true);
             let mut draw = Draw {
                 ui: self,
                 id: element_id,
-                name: element.name.clone().unwrap_or_default(),
+                name: element.name.as_deref().unwrap_or(""),
                 rect: element.rect,
                 look,
                 layer,
@@ -646,7 +727,7 @@ impl Interface {
                 let mut draw = Draw {
                     ui: self,
                     id: element_id,
-                    name: element.name.clone().unwrap_or_default(),
+                    name: element.name.as_deref().unwrap_or(""),
                     rect: element.rect,
                     look: Look::default(),
                     layer,
@@ -670,7 +751,7 @@ impl Interface {
                 let mut parts = Parts {
                     ui: self,
                     id: element_id,
-                    name: element.name.clone().unwrap_or_default(),
+                    name: element.name.as_deref().unwrap_or(""),
                     rect: element.rect,
                     enabled,
                     focusable: true,
@@ -679,48 +760,20 @@ impl Interface {
                 };
                 element.widget.children_clip(&mut parts).map_or(clip, |own| own.intersect(clip))
             };
-            self.draw_elements(&element.children, enabled, layer, children_clip, due, tooltip);
+            self.draw_elements(&element.children, enabled, layer, children_clip, sources, due, tooltip);
         }
     }
 
-    // How an element looks this frame, from what the pointer and the
-    // keyboard are doing to its targets.
-    fn look(&self, element: Id, enabled: bool) -> Look {
-        let mut look = Look {
-            enabled,
-            ..Look::default()
-        };
-        let hovered = self.hovered.and_then(|hovered| self.targets.iter().find(|target| target.id == hovered));
-        if let Some(target) = hovered
-            && target.owner == element
-            && enabled
-        {
-            look.hovered_part = Some(target.part.clone());
-            if target.part == Part::Whole {
-                look.hit.hovered = true;
-            }
+    // What every element's look this frame comes from: the targets that the
+    // pointer is on, that have a press, and that have focus, found once.
+    fn look_sources(&self) -> LookSources {
+        let find = |id: Option<Id>| id.and_then(|id| self.targets.iter().find(|target| target.id == id));
+        let keys_here = |target: &Target| (self.popups.is_empty() || target.layer >= Layer::Popup) && (!self.modal || target.layer >= Layer::Dialog);
+        LookSources {
+            hovered: find(self.hovered).map(|target| (target.owner, target.part.clone())),
+            active: self.active.and_then(|(active, button)| find(Some(active)).map(|target| (target.owner, target.part.clone(), button))),
+            focused: find(self.focused).map(|target| (target.owner, target.part.clone(), keys_here(target))),
         }
-        if let Some((active, button)) = self.active
-            && let Some(target) = self.targets.iter().find(|target| target.id == active)
-            && target.owner == element
-        {
-            look.held_part = Some(target.part.clone());
-            look.held_button = Some(button);
-            if target.part == Part::Whole {
-                look.hit.held = true;
-                look.hit.held_button = Some(button);
-            }
-        }
-        if let Some(focused) = self.focused
-            && let Some(target) = self.targets.iter().find(|target| target.id == focused)
-            && target.owner == element
-        {
-            let keys_here = (self.popups.is_empty() || target.layer >= Layer::Popup) && (!self.modal || target.layer >= Layer::Dialog);
-            look.focused = keys_here;
-            look.focused_part = Some(target.part.clone());
-            look.focus_visible = self.focus_visible;
-        }
-        look
     }
 
     // The topmost of the targets under the pointer, of the dialog's layer or
@@ -933,7 +986,7 @@ impl Interface {
     // list. A popup whose owner is in an open popup opens over it, like a
     // submenu; any other closes the open ones first.
     pub(crate) fn open_popup(&mut self, owner: Id, name: &str) {
-        let in_popup = self.targets.iter().chain(&self.shown).any(|target| target.id == owner && target.layer == Layer::Popup);
+        let in_popup = self.targets.iter().any(|target| target.id == owner && target.layer == Layer::Popup);
         if !in_popup {
             self.popups.clear();
         } else if let Some(index) = self.popups.iter().position(|popup| popup.owner == owner) {
@@ -1011,7 +1064,7 @@ impl Interface {
 
     fn listed_name(&self, id: Option<Id>) -> Option<&str> {
         let id = id?;
-        self.targets.iter().chain(&self.shown).find(|target| target.id == id && target.listed).map(|target| target.name.as_str())
+        self.targets.iter().find(|target| target.id == id && target.listed).map(|target| target.name.as_str())
     }
 
     // The names of the widgets that the input is on, as the interface's

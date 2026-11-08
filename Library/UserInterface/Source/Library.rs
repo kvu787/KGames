@@ -148,7 +148,7 @@ pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{Settings, WindowMode};
 pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
-pub use core::interface::{Context, Environment, FrameStats, Interface, Ui};
+pub use core::interface::{Context, Environment, FramePhases, FrameStats, Interface, Ui};
 pub use core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, TooltipLine, Tree, Widget};
 pub use design::icons::Icon;
 pub use design::theme::{AccentRamp, DataColors, Theme, ThemeKind};
