@@ -623,6 +623,12 @@ impl<M> Dispatch<'_, M> {
         self.ui.input.key_pressed_once(key) && !(key == Key::ESCAPE && self.ui.escape_consumed)
     }
 
+    // Whether the key is down, unless the widget with keyboard focus takes
+    // it, as a text field takes letters, or a dialog is open.
+    pub fn key_down(&self, key: Key) -> bool {
+        self.ui.key_down(key)
+    }
+
     // Opens the widget's popup, named `name`, like a combo box's list. A
     // popup whose owner is in an open popup opens over it, like a submenu;
     // any other closes the open ones first.

@@ -432,7 +432,7 @@ impl Interface {
         let pointer = self.input.pointer;
         let pointer_delta = self.input.pointer_delta;
         let mut elements: Vec<(&Element<M>, bool, bool, Layer)> = Vec::new();
-        collect(&tree.elements, true, true, Layer::Base, &mut elements);
+        collect(&tree.elements, true, Layer::Base, &mut elements);
         for (element, enabled, focusable, layer) in elements {
             let Some(element_id) = element.id else {
                 continue;
@@ -599,7 +599,7 @@ impl Interface {
         if self.performance.is_some() {
             self.cover_on(Layer::Base, Rect::new(0.0, 0.0, self.size.width, self.content_top()), id("PerfBar"));
         }
-        self.layout_elements(&tree.elements, true, true, Layer::Base, bounds);
+        self.layout_elements(&tree.elements, true, Layer::Base, bounds);
 
         // A target that's gone or disabled can't keep focus, a press, or a
         // popup.
@@ -635,10 +635,12 @@ impl Interface {
         }
     }
 
-    fn layout_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, focusable: bool, layer: Layer, clip: Rect) {
+    fn layout_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect) {
         for element in elements {
             let enabled = enabled && element.enabled;
-            let focusable = focusable && element.focusable;
+            // Each element's own flag, not the ancestors', so that a text
+            // field opts back in inside a card that keeps focus off.
+            let focusable = element.focusable;
             let layer = layer.max(element.widget.layer());
             if layer == Layer::Dialog {
                 self.modal = true;
@@ -681,7 +683,7 @@ impl Interface {
                 crate::widgets::menu::parts_context_menu(&mut parts, items);
             }
             let children_clip = element.widget.children_clip(&mut parts).map_or(clip, |own| own.intersect(clip));
-            self.layout_elements(&element.children, enabled, focusable, layer, children_clip);
+            self.layout_elements(&element.children, enabled, layer, children_clip);
         }
     }
 
@@ -1148,13 +1150,14 @@ fn cover_id(rect: Rect) -> Id {
 
 // Every element with its enabling, whether it takes focus, and its layer,
 // in drawing order.
-fn collect<'a, M: 'static>(elements: &'a [Element<M>], enabled: bool, focusable: bool, layer: Layer, out: &mut Vec<(&'a Element<M>, bool, bool, Layer)>) {
+fn collect<'a, M: 'static>(elements: &'a [Element<M>], enabled: bool, layer: Layer, out: &mut Vec<(&'a Element<M>, bool, bool, Layer)>) {
     for element in elements {
         let enabled = enabled && element.enabled;
-        let focusable = focusable && element.focusable;
+        // The element's own flag, as layout takes it.
+        let focusable = element.focusable;
         let layer = layer.max(element.widget.layer());
         out.push((element, enabled, focusable, layer));
-        collect(&element.children, enabled, focusable, layer, out);
+        collect(&element.children, enabled, layer, out);
     }
 }
 
