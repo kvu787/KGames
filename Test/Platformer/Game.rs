@@ -36,6 +36,28 @@ fn a_jump_press_rises_on_its_own_frame() {
     assert_eq!(state(&app, "Grounded"), Value::Bool(false));
 }
 
+// ESDF: S and F run, E jumps, each on its own frame, and A, D and W do
+// nothing.
+#[test]
+fn esdf_runs_and_jumps() {
+    let mut app = start("Esdf");
+    for key in [Key::A, Key::D, Key::W] {
+        app.hold(key);
+        assert_eq!(app.program.game.player.velocity[0], 0.0, "{key:?} doesn't run");
+        assert!(app.program.game.player.grounded, "{key:?} doesn't jump");
+        app.release_key(key);
+    }
+    app.hold(Key::S);
+    assert!(app.program.game.player.velocity[0] < 0.0, "S runs left on its frame");
+    app.release_key(Key::S).frames(60);
+    app.hold(Key::F);
+    assert!(app.program.game.player.velocity[0] > 0.0, "F runs right on its frame");
+    app.release_key(Key::F).frames(60);
+    assert!(app.program.game.player.grounded);
+    app.hold(Key::E);
+    assert!(!app.program.game.player.grounded, "E jumps on its frame");
+}
+
 #[test]
 fn the_frame_that_collects_a_coin_already_counts_it() {
     let mut app = start("Coin");

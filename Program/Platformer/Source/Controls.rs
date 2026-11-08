@@ -3,8 +3,8 @@
 //
 // | Gamepad               | Keyboard              | Does                        |
 // | --------------------- | --------------------- | --------------------------- |
-// | Left stick, D-pad     | A and D, or arrows    | Runs left and right         |
-// | A                     | Space, W, or up       | Jumps; held jumps higher    |
+// | Left stick, D-pad     | S and F, or arrows    | Runs left and right         |
+// | A                     | Space, E, or up       | Jumps; held jumps higher    |
 // | X                     | R                     | Starts the run over         |
 // | LB and RB             | PageDown and PageUp   | The previous and next level |
 // | View                  | F1                    | Shows or hides the cards    |
@@ -37,7 +37,7 @@ impl Controls {
         // A key's press, not its repeats.
         let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
-        let keys = held(&[Key::RIGHT, Key::D]) as i32 - held(&[Key::LEFT, Key::A]) as i32;
+        let keys = held(&[Key::RIGHT, Key::F]) as i32 - held(&[Key::LEFT, Key::S]) as i32;
         let push = if keys != 0 {
             f64::from(keys)
         } else {
@@ -45,7 +45,7 @@ impl Controls {
             let dpad = gamepad.buttons.contains(GamepadButtons::DPAD_RIGHT) as i32 - gamepad.buttons.contains(GamepadButtons::DPAD_LEFT) as i32;
             if dpad != 0 { f64::from(dpad) } else if stick.abs() > 0.25 { stick.clamp(-1.0, 1.0) } else { 0.0 }
         };
-        let jump_keys = [Key::SPACE, Key::W, Key::UP];
+        let jump_keys = [Key::SPACE, Key::E, Key::UP];
         let jump_pressed = jump_keys.into_iter().any(key) || input.gamepad_pressed(GamepadButtons::A);
         let jump_held = held(&jump_keys) || gamepad.buttons.contains(GamepadButtons::A);
         let step = |previous: bool, next: bool| next as i32 - previous as i32;

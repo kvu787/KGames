@@ -8,8 +8,8 @@ Events card shows the log as it happens, newest first, on the game's clock.
 
 ## The game
 
-Run with the arrows (or A/D, the left stick or the d-pad), jump with Space
-(or W, up, or the gamepad's A) - held jumps higher, a press just before a
+Run with the arrows (or S/F, the left stick or the d-pad), jump with Space
+(or E, up, or the gamepad's A) - held jumps higher, a press just before a
 landing jumps on the landing, and a press just after a ledge still jumps.
 Collect every coin to open the door, and reach the flag behind it. Springs
 bounce, spikes and falling out kill, checkpoints move the respawn, and a run
