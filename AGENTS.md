@@ -64,6 +64,20 @@ kind that holds, because a later session never read the conversation that invent
   with an adversarial review of the new code and the findings pinned by tests, as
   `Documentation/LogicReview.md` records for the last one.
 
+# License
+
+KGames is licensed under GPL-3.0-or-later, the GNU General Public License, version 3 or any later
+version. `LICENSE.txt` has its text, and it covers everything in the repository.
+
+- Code or assets taken from elsewhere must be under a license that GPL-3.0 can take in, like MIT,
+  BSD, Apache-2.0, zlib, ISC, Boost, LGPL, GPL-2.0-or-later or GPL-3.0, and keep their copyright
+  and license notices. GPL-2.0-only, CDDL, EPL-1.0, licenses that forbid commercial use, and code
+  with no license can't come in. The FSF's
+  [license list](https://www.gnu.org/licenses/license-list.html) says which licenses are
+  compatible.
+- Closed-source SDKs and runtimes, like the GameInput runtime that `Library/GameInput/Build.rs`
+  downloads, stay out of the repository.
+
 # Git
 
 When implementing stuff, avoid difficult-to-review "mega-commits".
