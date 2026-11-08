@@ -14,8 +14,6 @@
 // - testing: scripts, and running a program without a window.
 
 mod application {
-    #[path = "Callbacks.rs"]
-    pub mod callbacks;
     #[path = "Overlays.rs"]
     pub mod overlays;
     #[path = "Performance.rs"]
@@ -142,7 +140,6 @@ pub use design::{controls, tokens};
 pub use application::performance;
 pub use platform::clock;
 
-pub use application::callbacks::{Action, CallbackProgram, act, on, on_with};
 pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};

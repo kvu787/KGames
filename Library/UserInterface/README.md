@@ -93,15 +93,6 @@ A message sent from `update`, with `Context::send`, joins the same frame's queue
 message from `input`, queued last, is the place for what runs after everything else, like
 committing an edit once the button is up, or rebuilding what a 3D view shows.
 
-**Callback view** (`Source/Application/Callbacks.rs`) is the same frame with closures for messages:
-a `CallbackProgram`'s message type is `Action<Self>`, a shared closure over the program, so what a
-widget does is written beside it, as in immediate mode, with `act`, `on` and `on_with`:
-
-```rust
-card.add("Mute", rect, Button::new("Mute").on_press(act(|volume, _| volume.level = 0.0)));
-card.add("Level", rect, slider.on_change(on(|volume, level| volume.level = level)));
-```
-
 ## The design system
 
 Color with the theme's roles and size with the tokens and the controls' metrics, instead of values
@@ -463,7 +454,6 @@ folder, through `startup.data_folder`.
 | ----------------------------------- | --------------------------------------------------------------------------- |
 | `Source/Library.rs`                 | The library's modules and what it exports                                   |
 | `Source/Application/Program.rs`     | `Program`, `Options`, `Startup`, and the command line                       |
-| `Source/Application/Callbacks.rs`   | Callback view: `Action`, and `CallbackProgram`, whose messages are closures |
 | `Source/Application/Run.rs`         | The main loop                                                               |
 | `Source/Application/Settings.rs`    | `Settings.json`                                                             |
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |

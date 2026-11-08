@@ -188,3 +188,14 @@ now the one-frame rule.
 Both message branches are complete and green; the library is byte-identical across them, so the
 decision is only about how programs read and test, and it can be made per the repository's taste by
 merging one branch and keeping the other in history, as the retained experiment is kept.
+
+## Outcome
+
+MVU was chosen. Branch `claude/mvu-ui` carries it forward: the deciding weight was messages as
+data - one exhaustive, printable, testable list of every way a program's state can change, and the
+natural shape for the game-event queues that gameplay logic needs, where one occurrence fans out to
+several consumers and an opaque closure cannot. The callback-view implementation stays complete in
+branch `claude/callback-view-ui`'s history, as the retained experiment does at 00648f0, and
+`Application/Callbacks.rs` was removed from the living branch rather than kept as a second,
+unused way to write a program. The stale-snapshot discipline that MVU demands is documented in the
+library README and pinned by the theme-toggle cancellation test.
