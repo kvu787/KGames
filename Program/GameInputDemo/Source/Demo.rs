@@ -1,5 +1,5 @@
 // The demo, as a Program that Library/UserInterface's main loop runs: what
-// it does each frame, before Cards.rs draws what it read.
+// it does each frame, before Cards.rs describes what it read.
 //
 // The demo reads its input from the devices that Library/UserInterface reads
 // with GameInput, or from a script's Program steps in a scripted run, its
@@ -9,15 +9,24 @@
 
 use json::Value;
 use user_interface::testing::script::DEFAULT_FRAME_TIME;
-use user_interface::{Program, Startup, Ui};
+use user_interface::{Context, Program, Startup, Tree, Ui};
 
 use crate::NAME;
 use crate::cards;
 use crate::devices::InputSource;
 use crate::game_input_source::GameInputSource;
-use crate::input::Input;
+use crate::input::{Input, Listen};
 use crate::scripted_source::ScriptedSource;
 use crate::settings::DemoSettings;
+
+// What a frame means to the demo.
+#[derive(Clone, Debug)]
+pub enum Message {
+    // Once a frame: the title, and the frame's readings.
+    Tick,
+    // The combo box picked which gamepad to listen to.
+    Listen(Listen),
+}
 
 pub struct Demo {
     // The input, or why GameInput isn't available.
@@ -69,39 +78,53 @@ impl Demo {
 }
 
 impl Program for Demo {
+    type Message = Message;
+
     fn title(&self) -> String {
         self.title.clone()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        // No widget takes keyboard focus, so that the keys stay the user's,
-        // to try the Keyboard card with. The combo box's list still takes the
-        // arrow keys while it's open.
-        ui.set_focusable(false);
-        self.last_time = ui.time();
-        self.last_delta = ui.delta() as f64;
-        let environment = ui.environment();
-        if !environment.gpu.is_empty() && self.title_tearing != Some(environment.tearing) {
-            self.title_tearing = Some(environment.tearing);
-            let tearing = if environment.tearing { "frames may tear" } else { "frames don't tear" };
-            self.title = format!("{NAME} - {} - {tearing}", environment.gpu);
-        }
+    fn input(&self, _ui: &Ui) -> Vec<Message> {
+        vec![Message::Tick]
+    }
 
-        if let Ok(input) = &mut self.input {
-            if let Some(scripted) = input.scripted() {
-                scripted.now = scripted.now.max(microseconds(ui.time()));
+    fn update(&mut self, message: Message, ui: &mut Context<Message>) {
+        match message {
+            Message::Listen(listen) => {
+                if let Ok(input) = &mut self.input {
+                    input.pick_listen(listen);
+                }
             }
-            let focused = ui.window_focused();
-            // A frame can both lose focus and get it back, like when focus
-            // goes to another window and back between two frames. Losing
-            // focus first drops what came meanwhile, stops the motors, and
-            // makes getting it back count as getting focus.
-            if focused && ui.input().focus_lost {
-                input.update(false);
+            Message::Tick => {
+                self.last_time = ui.time();
+                self.last_delta = ui.delta() as f64;
+                let environment = ui.environment();
+                if !environment.gpu.is_empty() && self.title_tearing != Some(environment.tearing) {
+                    self.title_tearing = Some(environment.tearing);
+                    let tearing = if environment.tearing { "frames may tear" } else { "frames don't tear" };
+                    self.title = format!("{NAME} - {} - {tearing}", environment.gpu);
+                }
+                if let Ok(input) = &mut self.input {
+                    if let Some(scripted) = input.scripted() {
+                        scripted.now = scripted.now.max(microseconds(ui.time()));
+                    }
+                    let focused = ui.window_focused();
+                    // A frame can both lose focus and get it back, like when
+                    // focus goes to another window and back between two
+                    // frames. Losing focus first drops what came meanwhile,
+                    // stops the motors, and makes getting it back count as
+                    // getting focus.
+                    if focused && ui.input().focus_lost {
+                        input.update(false);
+                    }
+                    input.update(focused);
+                }
             }
-            input.update(focused);
         }
-        cards::draw(ui, &mut self.input);
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        cards::view(ui, &self.input)
     }
 
     // What the cards show, for scripts to save and check. The main loop adds
