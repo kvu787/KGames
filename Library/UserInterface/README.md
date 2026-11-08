@@ -8,37 +8,55 @@ owns the window, reads the input, runs the main loop, lays out text, draws the w
 and runs scripts and headless tests. [UiShowcase](../../Program/UiShowcase/README.md) shows every
 widget.
 
-It's immediate mode: each frame, a program's `update` lays out its cards in fixed pixels and adds
-each control with `ui.add(name, rect, widget)`, which draws it and returns what the input did to
-it. State that the program owns, like a slider's value, is the program's, passed to the widget as
-`&mut`. State that only the widget needs, like a text field's caret or a list's scroll, the library
-keeps by the widget's name.
+A program is its state, what each frame's input means to it, and a description of its interface
+from that state. Each frame, the main loop reads the newest input and hit-tests it against the tree
+the user saw; the widgets it landed on turn it into the program's messages, and the program's
+`input` adds its own, like shortcuts; `update` applies each message to the state, in order, each
+seeing what the one before left; and one read-only `view` builds the frame's tree of widgets from
+the state, which is laid out, drawn and presented. So everything a frame's input causes shows on
+that same frame, and nothing is retained between frames but the program's state and what only a
+widget needs, like a text field's caret or a list's scroll, which the library keeps by the widget's
+name.
 
 ## A program
 
 ```rust
-use user_interface::{AppBar, Button, Card, Icon, Options, Program, Slider, Startup, Status, Ui};
+use user_interface::{AppBar, Button, Card, Context, Icon, Options, Program, Slider, Startup, Status, Tree, Ui};
 
 struct Volume {
     level: f64,
 }
 
+#[derive(Clone)]
+enum Message {
+    Set(f64),
+    Mute,
+}
+
 impl Program for Volume {
+    type Message = Message;
+
     fn title(&self) -> String {
         "Volume".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
-        ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
-        let page = ui.page();
-        let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
-        let mut area = card.content;
-        let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
-        ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
-        if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
-            self.level = 0.0;
+    fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+        match message {
+            Message::Set(level) => self.level = level,
+            Message::Mute => self.level = 0.0,
         }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        let mut tree = Tree::new();
+        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+        tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
+            let mut area = area.content;
+            let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Set);
+            card.add("Level", area.cut_top(Slider::<Message>::height(true), 8.0), slider);
+            card.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute").on_press(Message::Mute));
+        });
+        tree
     }
 }
 
@@ -55,15 +73,34 @@ the program, and runs the main loop until the window closes. A program can also 
 the frame is cleared to the theme's background and before the interface draws over it, where a
 card made with `card_with_view` leaves a hole.
 
-| `Program` method | What it's for                                                              |
-| ---------------- | -------------------------------------------------------------------------- |
-| `title`          | The window's title                                                         |
-| `update`         | Builds the frame's interface with the newest input, and handles that input |
-| `prepare`        | Creates the program's GPU resources, once                                  |
-| `render`         | Draws the program's 3D views into the frame, under the interface           |
-| `may_close`      | Whether the window may close now, or asks first, like about unsaved work   |
-| `state`          | What scripts save and check, as a JSON object                              |
-| `script`         | Does a script's `Program` step, like connecting a made-up device           |
+| `Program` item | What it's for                                                                 |
+| -------------- | ----------------------------------------------------------------------------- |
+| `Message`      | What a frame's input means to the program; `Clone`, and usually an enum       |
+| `title`        | The window's title                                                            |
+| `input`        | The program's own messages from the frame's input, like shortcuts or a tick,  |
+|                | queued after the widgets'                                                     |
+| `update`       | Applies one message to the program's state, with the `Context` to send more,  |
+|                | ask the time, or close the window                                             |
+| `view`         | Describes the frame's interface from the state, read-only, as a `Tree` of     |
+|                | widgets                                                                       |
+| `prepare`      | Creates the program's GPU resources, once                                     |
+| `render`       | Draws the program's 3D views into the frame, under the interface              |
+| `may_close`    | Whether the window may close now, or asks first, like about unsaved work      |
+| `state`        | What scripts save and check, as a JSON object                                 |
+| `script`       | Does a script's `Program` step, like connecting a made-up device              |
+
+A message sent from `update`, with `Context::send`, joins the same frame's queue. A per-frame
+message from `input`, queued last, is the place for what runs after everything else, like
+committing an edit once the button is up, or rebuilding what a 3D view shows.
+
+**Callback view** (`Source/Application/Callbacks.rs`) is the same frame with closures for messages:
+a `CallbackProgram`'s message type is `Action<Self>`, a shared closure over the program, so what a
+widget does is written beside it, as in immediate mode, with `act`, `on` and `on_with`:
+
+```rust
+card.add("Mute", rect, Button::new("Mute").on_press(act(|volume, _| volume.level = 0.0)));
+card.add("Level", rect, slider.on_change(on(|volume, level| volume.level = level)));
+```
 
 ## The design system
 
@@ -105,10 +142,15 @@ of your own, so that every program looks like one family, and like Windows 11.
 
 ## Widgets
 
-A widget is a value that the program builds, like `Button::new("Save").accent()`, and adds with
-`ui.add(name, rect, widget)`, which returns its response. The name is what it's known by from frame
-to frame, and what scripts and tests point at. Each widget is a target, whose area, kind and label
-the interface's state lists. A widget of a program's own implements `Widget`.
+A widget is a value that `view` builds, like `Button::new("Save").accent()`, and adds to the
+frame's tree with `tree.add(name, rect, widget)`, or `tree.draw(rect, widget)` for what's only
+looked at, like text. What it does is a reaction given where it's built: a message, like
+`on_press(Message::Save)`, or a function of the widget's value that makes one, like
+`on_change(Message::Set)`. The name is what it's known by from frame to frame, and what scripts and
+tests point at. Each named widget is a target, whose area, kind and label the interface's state
+lists. A widget of a program's own implements `Widget<M>`: its `kind`, `sense` and `parts` say what
+it is to the input, `interact` turns what happened to it into messages through `Dispatch`, and
+`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus.
 
 | Widget                             | WinUI's                   | Notes                                                           |
 | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
@@ -126,37 +168,40 @@ the interface's state lists. A widget of a program's own implements `Widget`.
 | `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
 | `SelectorBar`                      | SelectorBar               | Tabs, with a pill under the selected one                        |
 | `Segmented`                        | Toolkit's Segmented       | Segments of equal width, with text, icons, or both              |
-| `MenuBar`, `ui.flyout_menu`        | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
-| `ui.context_menu`                  | MenuFlyout                | Opens at the pointer on a right-click                           |
-| `ui.dialog`, `ui.dialog_with`      | ContentDialog             | Over smoke, with up to three buttons and content of your own    |
+| `MenuBar`, `Button::menu`          | MenuBar, MenuFlyout       | Icons, accelerators, checks, separators and submenus            |
+| `Element::context_menu`            | MenuFlyout                | Opens at the pointer on a right-click, on any element           |
+| `Dialog`                           | ContentDialog             | Over smoke, with up to three buttons and content of your own    |
 | `Expander`                         | Expander                  | A header that shows and hides what's under it                   |
 | `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable              |
-| `ScrollBar`, `ui.begin_scroll`     | ScrollViewer              | Content taller than its area, with the wheel                    |
-| `ui.tooltip`, `tooltip_for_wide`   | ToolTip                   | After the pointer rests half a second, above it; wider if asked |
-| `ui.progress_bar`, `progress_ring` | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
-| `ui.card`, `card_with_view`        | Card                      | A card with a view leaves a hole for the program's 3D           |
-| `ui.begin_card`, `end_card`        | Card                      | A card as tall as its content                                   |
-| `ui.app_bar`, `status_bar`         |                           | The page's frame, with `ui.page` between them                   |
-| `ui.menu_row`                      |                           | A row under the app bar, for a menu bar in line with the page   |
-| `View`                             |                           | A 3D view's area, which takes every button but never focus      |
-| `ui.info_card`                     |                           | A test program's floating card: frame rate, GPU, display, keys  |
+| `ScrollArea`, `ScrollBar`          | ScrollViewer              | Content taller than its area, with the wheel                    |
+| `Element::tooltip`, `tooltip_wide` | ToolTip                   | After the pointer rests half a second, above it; wider if asked |
+| `ProgressBar`, `ProgressRing`      | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
+| `Tree::card`                       | Card                      | A card with children; `with_view` leaves a hole for 3D          |
+| `Tree::sized_card`                 | Card                      | A card as tall as its content                                   |
+| `Tree::shell`                      |                           | The page's bars and notices, with its `page` between them       |
+| `View`                             |                           | A 3D view's area, which takes every button but never focus,     |
+|                                    |                           | and sends what the pointer does in it                           |
+| `Canvas`                           |                           | Draws a program's own graphics, with the frame's `Painter`      |
+| `Cover`, `Group`                   |                           | A surface that stops the pointer, and a bare grouping           |
+| `Tree::info_card`                  |                           | A test program's floating card: frame rate, GPU, display, keys  |
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
-| `ui.keys`, `badge`, `divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
+| `Keycaps`, `Badge`, `Divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
+| `Text`, `Field`, `Swatch`, `Spans` |                           | Labels, captions, label-value rows, color squares, mixed runs   |
 
-`ui.add_enabled(enabled, name, rect, widget)` shows one widget enabled or not, and
-`ui.with_enabled(enabled, |ui| ...)` a run of them; both put the scope back after, and inside a
-disabled scope everything stays disabled, so a disabled card can't have a working widget.
-`ui.with_focusable(focusable, |ui| ...)` scopes which widgets take keyboard focus the same way,
-except that it overrides the scope around it, so a program that keeps focus off everything, like a
-game, opts its text fields back in with it. `ui.set_enabled` and `ui.set_focusable` set each until
-they're set back; each frame starts enabled and focusable.
-`ui.interact(name, rect, sense, kind)` makes a target of a program's own, with the input on it. A
-widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
+`tree.add(...)` returns the element, whose `set_enabled`, `set_tooltip`, `set_label`,
+`set_context_menu` and `set_focusable` say more about it. A container's children, like a card's,
+inherit its enabling, so a disabled card can't have a working widget. `Tree::set_focusable` sets
+what every widget added after it takes from the keyboard, and an element's own `set_focusable`
+stands on its own, so a program that keeps focus off everything, like a game, calls
+`tree.set_focusable(false)` first and opts its text fields back in one by one.
+A widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
 `takes_wheel_while_focused()`, like a number box's - so what it's in doesn't scroll under it;
 `Sense::VIEW` takes it already.
-`ui.painter()` draws a program's own graphics, like graphs and previews: rounded rectangles with
-borders and gradients, Fluent's shadows, circles, rings, arcs, lines, polygons, text and icons,
-with clipping.
+`Canvas::new(|painter, rect| ...)` draws a program's own graphics, like graphs and previews:
+rounded rectangles with borders and gradients, Fluent's shadows, circles, rings, arcs, lines,
+polygons, text and icons, with clipping. State that a widget of a program's own keeps between
+frames, like a scroll offset, lives in the interface's memory, `ctx.memory::<T>()` in its contexts,
+by the widget's id; `Ui::memory` reads it in `view`, like for laying out a scrolled list.
 
 ## Input
 
@@ -171,9 +216,9 @@ the window's focus changes between them. The window's messages bring none of it.
 - The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
   moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
   window's.
-- The pointer is on the topmost target under it, by the last frame's targets, so a combo box's
-  list, a menu or a dialog takes the pointer from what's under it. `ui.cover` makes a surface, like
-  a card over a 3D view, cover what's under it.
+- The pointer is on the topmost target under it, in the tree the user saw, so a combo box's
+  list, a menu or a dialog takes the pointer from what's under it. A card, and `Cover`, cover
+  what's under them, like a 3D view.
 - A click is a press and a release on the same widget. While a button is held, the window captures
   the mouse, so a drag keeps going past its edges.
 - Keyboard focus moves with Tab and Shift+Tab, in the order that the frame showed the widgets, and
@@ -190,9 +235,10 @@ the window's focus changes between them. The window's messages bring none of it.
   go of.
 - `F9` switches between the light and dark themes. Every program starts light. The frame that `F9`
   is pressed in is all in the new theme, title bar too. A program's own command for it calls
-  `ui.toggle_theme()`, which switches it from the next frame on, so that no frame mixes the two,
-  and `ui.theme().kind` says which it is. Every widget, card and color role follows by itself, as
-  long as the program colors with `ui.theme()` each frame.
+  `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
+  frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
+  card and color role follows by itself, as long as the program colors with `ui.theme()` each
+  frame.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
@@ -346,8 +392,10 @@ no input latency.
 
 **Headless.** `Headless` runs a program's frames without a window or a GPU, with input that the test
 makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
-real layout. Each input method runs a frame with the input and a frame after it. `queue` only
-queues events, for `frame` to run, so that a test can look at the very frame that reads them:
+real layout. Each input method runs one frame with the input, whose output came from it, so a test
+asserts on exactly what that input made. `queue` only queues events, for `frame` to run, and
+`send_message` and `queue_message` feed the program messages directly, for testing `update` on the
+real pipeline:
 
 ```rust
 let mut app = Headless::new(Volume { level: 50.0 });
@@ -415,12 +463,15 @@ folder, through `startup.data_folder`.
 | ----------------------------------- | --------------------------------------------------------------------------- |
 | `Source/Library.rs`                 | The library's modules and what it exports                                   |
 | `Source/Application/Program.rs`     | `Program`, `Options`, `Startup`, and the command line                       |
+| `Source/Application/Callbacks.rs`   | Callback view: `Action`, and `CallbackProgram`, whose messages are closures |
 | `Source/Application/Run.rs`         | The main loop                                                               |
 | `Source/Application/Settings.rs`    | `Settings.json`                                                             |
 | `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
 | `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
-| `Source/Core/Interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Response` and their kin  |
-| `Source/Core/Ui.rs`                 | A frame's interface: targets, presses, focus, popups, tooltips              |
+| `Source/Core/Interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`   |
+| `Source/Core/Tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts                |
+| `Source/Core/Interface.rs`          | The interface: input against the shown tree, messages, layout, focus,       |
+|                                     | popups, tooltips, widget memory, and the frame's phases                     |
 | `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
 | `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |
 | `Source/Platform/Clock.rs`          | The performance counter, which input and frames are timed on                |
