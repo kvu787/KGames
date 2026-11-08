@@ -78,6 +78,26 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
 }
 
+// F9 and the program's own theme command in one frame are two toggles, which
+// cancel: the theme is the same at the frame's end, so it doesn't change.
+#[test]
+fn two_theme_toggles_in_one_frame_cancel() {
+    use user_interface::Event;
+    let mut app = showcase();
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    // The button fires on its click, so its release frame also presses F9.
+    app.press("Theme");
+    app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.release();
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    // Either alone still switches.
+    app.queue(&[Event::KeyReleased(Key::F9)]).frame();
+    app.key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    app.click("Theme");
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+}
+
 #[test]
 fn radio_buttons_and_segments_pick_one() {
     let mut app = showcase();

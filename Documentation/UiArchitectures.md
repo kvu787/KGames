@@ -131,9 +131,11 @@ ceremony (`let scene = game.game.scene;` before touching two fields at once).
   learns Rust's disjoint-borrow rules; it compiles, but the ceremony is real, and a closure can't
   be printed, logged or compared. MVU's weakness is the opposite: carrying data in messages invites
   carrying *stale* data. One real bug during the port: a theme toggle computed "the other theme"
-  when the message was *made*, not when it was *applied*, so two toggles in one frame canceled out.
-  The fix - send the intent, read the state in `update` - is a discipline MVU needs and callback
-  view gets for free, since closures read the program when they run.
+  when the message was *made*, not when it was *applied*. Two toggles in one frame should cancel -
+  the theme ends where it began - but both snapshots computed the same value, so they collapsed
+  into one change. The fix - send the intent, read the state in `update` - is a discipline MVU
+  needs and callback view gets for free, since closures read the program when they run. A test now
+  pins the cancellation: F9 and the theme button pressed in one frame leave the theme as it was.
 - **Names still fail at run time** in all four architectures: targets are strings, and a typo makes
   a dead widget, found by a script. The retained experiment's conclusion stands - the named-target
   contract is independent of the program API - and so does its evidence: the scripts passed
