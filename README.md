@@ -82,6 +82,8 @@ you.
 [VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and the analyses made with
 [Benchmarks](Program/Benchmarks/README.md): [Performance](Documentation/Performance.md), where the
 programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
+[BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
+derived from Blender's, as tasks with their status.
 
 ## Test
 
