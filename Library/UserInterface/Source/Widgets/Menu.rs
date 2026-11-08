@@ -207,7 +207,7 @@ pub(crate) fn parts_menu<M: Clone + 'static>(ctx: &mut Parts, name: &str, owner:
 }
 
 // Does what the input on an open menu means: the keys move its highlight
-// and choose, the pointer opens submenus, and a click chooses, which sends
+// and choose, the pointer opens submenus, and a press chooses, which sends
 // the item's message and closes every menu.
 pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: &mut Dispatch<M>, name: &str, owner: Id, items: &[MenuItem<M>], level: u32) {
     if !ctx.popup_open_of(owner) {
@@ -264,7 +264,7 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
                 open_child = None;
             }
         }
-        if hit.clicked && item.is_enabled() {
+        if hit.activated && item.is_enabled() {
             match item.submenu {
                 Some(_) => open_child = Some(index),
                 None => {
@@ -394,7 +394,7 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
 }
 
 // A context menu on an element: named "<element>/ContextMenu", opened at
-// the pointer by a right-click.
+// the pointer by a right press, on the frame the button goes down.
 fn context_menu_name(element: &str) -> String {
     format!("{element}/ContextMenu")
 }
@@ -409,7 +409,7 @@ pub(crate) fn interact_context_menu<M: Clone + 'static>(interaction: &Interactio
     let name = context_menu_name(ctx.name());
     let owner = ctx.id();
     let hit = interaction.whole();
-    if (hit.secondary_clicked || (hit.secondary_pressed && hit.held_button.is_none()))
+    if hit.secondary_pressed
         && let Some(pointer) = ctx.pointer()
     {
         open_menu(ctx, owner, &name, pointer);
@@ -493,15 +493,15 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
             let part = Part::Named(item_name.clone());
             let hit = interaction.hit(&part).cloned().unwrap_or_default();
             let open = ctx.popup_open_of(item_id);
-            let mut clicked = hit.clicked;
+            let mut activated = hit.activated;
             if any_open && !open && hit.hovered {
                 // Moving across the bar while a menu is open opens this one.
-                clicked = true;
+                activated = true;
             }
             if interaction.focused_part.as_ref() == Some(&part) && interaction.focused && ctx.input().key_pressed(Key::DOWN) && !open {
-                clicked = true;
+                activated = true;
             }
-            if clicked {
+            if activated {
                 if open {
                     ctx.close_popup_of(item_id);
                 } else {

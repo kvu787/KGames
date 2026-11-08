@@ -184,20 +184,20 @@ pub struct ViewInput {
     // holds it.
     pub hovered: bool,
     pub pointer: Option<Point>,
-    // Each button's press on the view this frame.
+    // Each button's press on the view this frame, which is what a click in
+    // it acts on, and whether the left one was the second of a
+    // double-click.
     pub pressed: bool,
     pub secondary_pressed: bool,
     pub middle_pressed: bool,
+    pub double_clicked: bool,
     // The view is held, by which button, and how far the pointer moved
     // while it was.
     pub held: bool,
     pub held_button: Option<MouseButton>,
     pub drag_delta: Point,
-    // The left press ended, and ended on the view.
+    // The left press ended this frame, which ends a drag.
     pub released: bool,
-    pub clicked: bool,
-    pub double_clicked: bool,
-    pub secondary_clicked: bool,
     // Notches of the wheel turned over it.
     pub wheel: Point,
     pub modifiers: Modifiers,
@@ -306,13 +306,11 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
                 pressed: hit.pressed,
                 secondary_pressed: hit.secondary_pressed,
                 middle_pressed: hit.middle_pressed,
+                double_clicked: hit.double_clicked,
                 held: hit.held,
                 held_button: hit.held_button,
                 drag_delta: interaction.drag_delta,
                 released: hit.released,
-                clicked: hit.clicked,
-                double_clicked: hit.double_clicked,
-                secondary_clicked: hit.secondary_clicked,
                 wheel: hit.wheel,
                 modifiers: ctx.modifiers(),
             };

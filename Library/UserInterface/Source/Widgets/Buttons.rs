@@ -214,13 +214,13 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
         let hit = interaction.whole();
         match &self.menu {
             None => {
-                if hit.clicked && let Some(message) = &self.on_press {
+                if hit.activated && let Some(message) = &self.on_press {
                     ctx.send(message.clone());
                 }
             }
             Some(items) => {
                 let name = Self::menu_name(ctx.name());
-                if hit.clicked {
+                if hit.activated {
                     if ctx.popup_open() {
                         ctx.close_popup();
                     } else {
@@ -284,7 +284,7 @@ impl<M: Clone + 'static> Widget<M> for ToggleButton<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().clicked
+        if interaction.whole().activated
             && let Some(reaction) = &self.on_toggle
         {
             ctx.send(reaction(!self.on));
@@ -336,7 +336,7 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
         if hit.hovered && interaction.enabled {
             ctx.set_cursor(Cursor::Hand);
         }
-        if hit.clicked && let Some(message) = &self.on_press {
+        if hit.activated && let Some(message) = &self.on_press {
             ctx.send(message.clone());
         }
     }

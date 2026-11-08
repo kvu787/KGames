@@ -58,7 +58,7 @@ impl<M: Clone + 'static> Widget<M> for Expander<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().clicked
+        if interaction.whole().activated
             && let Some(reaction) = &self.on_toggle
         {
             ctx.send(reaction(!self.expanded));

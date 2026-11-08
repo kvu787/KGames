@@ -1,7 +1,7 @@
 // Tests the interface's rules for input with a small program: which widget
-// the pointer is on, presses and clicks, keyboard focus and the keys that
-// widgets take, popups, menus, dialogs, tooltips, notices, editing, and
-// palettes.
+// the pointer is on, presses, which act as the button goes down, keyboard
+// focus and the keys that widgets take, popups, menus, dialogs, tooltips,
+// notices, editing, and palettes.
 
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
@@ -202,14 +202,49 @@ fn focused(app: &Headless<Test>) -> Option<Value> {
 }
 
 #[test]
-fn a_click_is_a_press_and_a_release_on_the_widget() {
+fn a_press_acts_on_the_frame_that_the_button_goes_down() {
     let mut app = Headless::new(Test::default());
-    app.click("Button");
-    assert_eq!(app.program.clicks, 1);
-    // A press that's let go of somewhere else isn't a click.
+    app.press("Button");
+    assert_eq!(app.program.clicks, 1, "the press, before its release");
+    // Sliding off and letting go elsewhere neither takes it back nor
+    // presses again.
     let away = Point::new(5.0, 900.0);
-    app.press("Button").move_point(away).release();
+    app.move_point(away).release();
     assert_eq!(app.program.clicks, 1);
+    // Nor does letting go on the button.
+    app.press("Button").release();
+    assert_eq!(app.program.clicks, 2);
+    // A press and its release in one frame are one press.
+    app.move_to("Button").send(&[Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
+    assert_eq!(app.program.clicks, 3);
+}
+
+#[test]
+fn a_press_that_opens_a_popup_or_a_dialog_does_nothing_more_as_it_is_let_go_of() {
+    let mut app = Headless::new(Test::default());
+    // The combo box's list opens over it, with the chosen item under the
+    // pointer, which the release doesn't choose.
+    app.press("Combo");
+    assert_eq!(app.ui.popup_name(), Some("Combo"));
+    app.release();
+    assert_eq!((app.ui.popup_name(), app.program.choice), (Some("Combo"), 0));
+    // A press on an item chooses it, and closes the list, as it goes down.
+    app.press("Combo/2");
+    assert_eq!((app.ui.popup_name(), app.program.choice), (None, 2));
+    app.release();
+    // A menu, likewise.
+    app.press("MenuButton");
+    assert_eq!(app.ui.popup_name(), Some("MenuButton/Menu"));
+    app.release();
+    assert_eq!(app.ui.popup_name(), Some("MenuButton/Menu"));
+    app.press("MenuButton/Menu/Open");
+    assert_eq!((app.ui.popup_name(), app.program.chosen.as_slice()), (None, ["Open".to_string()].as_slice()));
+    app.release();
+    // A dialog that a press opens isn't answered by the release over it.
+    app.press("Ask");
+    assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
+    app.move_to("Question/Primary").release();
+    assert_eq!((app.program.dialog, app.program.answer), (true, None));
 }
 
 #[test]
@@ -362,9 +397,12 @@ fn menus_open_choose_and_close() {
     app.click("MenuButton/Menu/Recent/Menu/Second");
     assert_eq!(app.program.chosen, ["Open", "Second"]);
     assert!(!app.ui.any_popup());
-    // A right-click opens a context menu where it is.
+    // A right press opens a context menu where it is, which stays open as
+    // the button comes up.
     let at = Point::new(850.0, 450.0);
-    app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
+    app.press_button(at, MouseButton::Right);
+    assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
+    app.release_button(MouseButton::Right);
     assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
     let menu = app.target("Area/ContextMenu");
     assert!((menu.x - at.x).abs() < 1.0 && (menu.y - at.y).abs() < 1.0);
@@ -397,13 +435,12 @@ fn a_dialog_gates_the_keys_the_frame_it_opens() {
     let mut app = Headless::new(Test::default());
     app.key(Key::D);
     assert_eq!(app.program.late, 1, "without a dialog the key counts");
-    // The click that opens the dialog and a press of D land in one frame.
+    // The press that opens the dialog and a press of D land in one frame.
     // The widgets' messages come before the program's own, so the dialog
     // is open when the key's message is applied, that very frame.
     app.move_to("Ask").frame();
-    app.send(&[Event::ButtonPressed(MouseButton::Left)]);
     app.send(&[
-        Event::ButtonReleased(MouseButton::Left),
+        Event::ButtonPressed(MouseButton::Left),
         Event::KeyPressed { key: Key::D, repeat: false },
         Event::KeyReleased(Key::D),
     ]);
