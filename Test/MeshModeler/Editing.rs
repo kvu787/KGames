@@ -431,7 +431,7 @@ fn the_middle_button_orbits_and_the_wheel_zooms() {
 fn menus_run_commands() {
     let mut app = modeler("Menus");
     app.click("Menu/Mesh");
-    app.move_to("Menu/Mesh/Menu/Add").frames(30);
+    app.move_to("Menu/Mesh/Menu/Add");
     app.click("Menu/Mesh/Menu/Add/Menu/Torus");
     assert_eq!(app.program.document.mesh.faces.len(), 6 + 24 * 12);
     assert_eq!(app.program.document.selection.faces.len(), 24 * 12);

@@ -215,6 +215,8 @@ impl Document {
     }
 
     pub fn save(&mut self, folder: &Path) -> Result<PathBuf, String> {
+        // A file that from_json would reject must not be written.
+        self.mesh.validate().map_err(|error| format!("The model can't be saved: {error}"))?;
         std::fs::create_dir_all(folder).map_err(|error| format!("Couldn't make the folder {}: {error}.", folder.display()))?;
         let path = file_path(folder, &self.name);
         std::fs::write(&path, self.to_json()).map_err(|error| format!("Couldn't write {}: {error}.", path.display()))?;

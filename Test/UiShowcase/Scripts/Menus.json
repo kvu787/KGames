@@ -9,7 +9,7 @@
         { "Frame": 24, "Press": { "At": "ContextArea", "Button": "Right" } },
         { "Frame": 25, "Release": "Right" },
         { "Frame": 40, "Capture": "ContextMenu" },
-        { "Frame": 40, "Expect": { "Interface": { "Popup": "ContextMenu" } } },
+        { "Frame": 40, "Expect": { "Interface": { "Popup": "ContextArea/ContextMenu" } } },
         { "Frame": 41, "Key": "Down" },
         { "Frame": 43, "Key": "Down" },
         { "Frame": 45, "Key": "Enter" },

@@ -87,13 +87,13 @@ fn the_car_starts_on_the_start_line_at_rest() {
 fn the_stick_drives_the_car_and_the_trigger_stops_it() {
     let mut app = start();
     let heading = app.program.game.car.heading;
-    // 30 frames, half a second, of pushing.
+    // 30 frames, half a second, of pushing: set_gamepad's own frame, then 29.
     let push = ahead_on_the_screen(&app);
     app.set_gamepad(gamepad(Gamepad {
         right_stick: push,
         ..Gamepad::default()
     }));
-    app.frames(28);
+    app.frames(29);
     assert!((speed(&app) - 70.0).abs() < 1e-6, "{}", speed(&app));
     assert!((app.program.game.car.heading - heading).abs() < 1e-9);
     app.set_gamepad(gamepad(Gamepad {
@@ -190,13 +190,14 @@ fn the_camera_follows_the_car_and_zooms() {
     assert!((app.program.game.camera.height - 36.0).abs() < 1e-9);
     app.key(Key::HOME);
     assert_eq!(app.program.game.camera.height, 45.0);
-    // RB and the left stick up zoom in at ZOOM_SPEED units a second.
+    // RB and the left stick up zoom in at ZOOM_SPEED units a second, for
+    // half a second: set_gamepad's own frame, then 29.
     app.set_gamepad(gamepad(Gamepad {
         left_stick: Point::new(0.0, 1.0),
         buttons: GamepadButtons(GamepadButtons::RIGHT_SHOULDER),
         ..Gamepad::default()
     }));
-    app.frames(28);
+    app.frames(29);
     assert!((app.program.game.camera.height - (45.0 - camera::ZOOM_SPEED * 0.5)).abs() < 1e-9);
     app.frames(60);
     assert_eq!(app.program.game.camera.height, camera::LOWEST);
@@ -341,6 +342,32 @@ fn a_crash_counts_once() {
     app.frames(10);
     assert_eq!(app.program.game.crashes, 1);
     assert!(app.program.game.paused());
+}
+
+// A crash too is in fixed steps: the step that touches the edge crashes,
+// and the pause runs on the drive's clock, so a run through a crash and out
+// of its pause is the same at 60 frames a second as at 240.
+#[test]
+fn a_crash_and_its_pause_are_the_same_at_any_frame_rate() {
+    let run = |rate: u32| {
+        let mut app = start();
+        // Pushing right reaches an edge in under two seconds; four seconds
+        // crosses the crash, the pause, and the drive after it.
+        let controls = Controls {
+            push: [1.0, 0.0],
+            ..Controls::default()
+        };
+        app.program.game.update(&controls, 0.0);
+        for frame in 1..=(4 * rate) {
+            app.program.game.update(&controls, f64::from(frame) / f64::from(rate));
+        }
+        (app.program.game.car, app.program.game.crashes)
+    };
+    let slow = run(60);
+    let fast = run(240);
+    assert!(slow.1 >= 1, "the run crashed, {} times", slow.1);
+    assert_eq!(slow.1, fast.1, "the same crashes");
+    assert_eq!(slow.0, fast.0, "the same car after them");
 }
 
 // The car drives in fixed steps, so the same push for the same time puts it

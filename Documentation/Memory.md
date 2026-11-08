@@ -277,8 +277,6 @@ present, which are the two things in a window that produce new data forever. Bot
 - The **present tracker** follows presents in a ring of 2,048, and drops the oldest when it wraps.
   The PerfBar's own deques are trimmed by time, to a one-second window and a few seconds of
   slack, and the presents it has asked about but not heard back on are dropped after they're late.
-- The **animations** of widgets that are gone are purged every 600 frames, on a different frame
-  from the text cache's purge so that neither makes a long frame.
 
 The one thing that isn't bounded is `Ui::memory`, where widgets keep state between frames by id:
 a text field's caret, a scroll offset, a menu's state. Nothing ever removes an entry. Today's
@@ -290,13 +288,10 @@ program that gives 20 widgets new names every frame:
 | Benchmark               | Allocations a frame | Bytes a frame | Peak KiB | Kept KiB |
 | ----------------------- | ------------------: | ------------: | -------: | -------: |
 | `Ui::memory`, new names |                49.4 |       4,197.0 |  4,037.0 |  2,730.9 |
-| Animations, new names   |                29.4 |       2,290.2 |  1,924.3 |  1,275.7 |
 
 That's 93 bytes a name that never goes, so 20 new names a frame is 1.8 KiB a frame, 110 KiB a
-second at 60 frames a second, and 400 MB in an hour. The animations in the same test are a
-saw-tooth instead, up to 1.9 MiB and back, because the purge takes the ones whose widgets are
-gone. `Ui::memory` should be purged the same way, on its own frame, keeping what the last frame's
-targets used.
+second at 60 frames a second, and 400 MB in an hour. `Ui::memory` should be purged now and then,
+like the text cache, on a frame of its own, keeping what the last frame's targets used.
 
 ## Text
 
@@ -404,8 +399,8 @@ and it grows with the model, in system memory that the GPU reads every frame it 
 
 ## What to do, in order
 
-1. **Purge `Ui::memory` like the animations are purged**, keeping what the last frame's targets
-   used. A dozen lines in `Ui::begin_frame`, and it closes the only unbounded thing in the
+1. **Purge `Ui::memory` every 600 frames, like the text cache**, keeping what the last frame's
+   targets used. A dozen lines in `Ui::begin_frame`, and it closes the only unbounded thing in the
    interface before a program runs into it.
 2. **Flatten `Face` and `Topology` into index arrays with offsets.** Two thirds of a mesh's
    memory, most of a topology's, and about 150,000 allocations an edit in MeshModeler, which is

@@ -2,29 +2,38 @@
 // goes, and F1, which shows and hides it.
 
 use user_interface::tokens::PAGE_PADDING;
-use user_interface::{Headless, InfoCard, Key, Program, Ui};
+use user_interface::{Context, Headless, InfoCard, Key, Program, Tree, Ui};
 
 struct Test {
     shown: bool,
 }
 
 impl Program for Test {
+    type Message = ();
+
     fn title(&self) -> String {
         "Test".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        if InfoCard::toggled(ui.input()) {
-            self.shown = !self.shown;
-        }
+    fn input(&self, ui: &Ui) -> Vec<()> {
+        if InfoCard::toggled(ui.input()) { vec![()] } else { Vec::new() }
+    }
+
+    fn update(&mut self, _toggle: (), _ui: &mut Context<()>) {
+        self.shown = !self.shown;
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
         if self.shown {
-            ui.info_card(&InfoCard {
+            tree.info_card(ui, &InfoCard {
                 title: "A test",
                 description: "What it shows",
                 rows: &[("Row", "Value")],
                 keys: &[("S", "Something")],
             });
         }
+        tree
     }
 }
 

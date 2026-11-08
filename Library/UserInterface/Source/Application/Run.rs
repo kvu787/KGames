@@ -28,7 +28,8 @@ use graphics::{AdapterChoice, Gpu, Presenter, Readback, write_png};
 use crate::application::performance::{Frame, Performance};
 use crate::application::program::{Arguments, Options, Program, Startup};
 use crate::application::settings::{Settings, WindowMode};
-use crate::core::ui::{Environment, Request, Ui};
+use crate::core::interface::{Environment, Interface, Request};
+use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
@@ -40,6 +41,7 @@ use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptRunner};
 use crate::widgets::info_bar::Severity;
+use crate::widgets::shell::unsupported_setup;
 
 // Runs the program that `create` makes until its window closes or its script
 // ends. If it can't start, or a script's expectation isn't met, it says why
@@ -55,7 +57,7 @@ pub fn run<P: Program>(options: Options, create: impl FnOnce(&mut Startup) -> Re
 }
 
 // The program's state with the interface's, as scripts save and check it.
-pub fn state<P: Program>(program: &P, ui: &Ui) -> json::Value {
+pub fn state<P: Program>(program: &P, ui: &Interface) -> json::Value {
     let mut members = match program.state() {
         json::Value::Object(members) => members,
         json::Value::Null => Vec::new(),
@@ -128,7 +130,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
 
     let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
     let clipboard = if scripted { Clipboard::Own(String::new()) } else { Clipboard::Windows };
-    let mut ui = Ui::new(fonts, ThemeKind::Light, clipboard);
+    let mut ui = Interface::new(fonts, ThemeKind::Light, clipboard);
+    // The tree the last frame showed, which the next frame's input is on.
+    let mut shown: Option<Tree<P::Message>> = None;
     // The PerfBar along the top of the window, with the input
     // latency to the screen, which a scripted run has no input for, nor a
     // run without input, which then also doesn't start the ETW session that
@@ -202,9 +206,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             if !focus_changes.is_empty() && problems.is_empty() && runner.is_none() {
                 let (width, height) = presenter.size();
                 let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
-                ui.begin_frame(&input.events, start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
-                program.update(&mut ui);
-                ui.end_frame();
+                ui.frame(&mut program, &mut shown, &input.events, Vec::new(), start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), fullscreen);
                 for request in std::mem::take(&mut ui.requests) {
                     if request == Request::Close {
                         break 'frames;
@@ -258,13 +260,14 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             }
         };
         let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
-        ui.begin_frame(&events, time, Size::new(width as f32, height as f32), fullscreen);
+        let size = Size::new(width as f32, height as f32);
         if problems.is_empty() {
-            program.update(&mut ui);
+            ui.frame(&mut program, &mut shown, &events, Vec::new(), time, size, fullscreen);
         } else {
-            ui.unsupported_setup(&problems);
+            // The error instead of the program, until the setup is right.
+            shown = None;
+            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &events, time, size, fullscreen);
         }
-        ui.end_frame();
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleFullscreen => window.set_mode(window.mode().other()),

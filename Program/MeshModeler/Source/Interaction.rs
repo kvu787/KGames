@@ -11,71 +11,92 @@
 // - A modal edit, like moving, follows the pointer anywhere until a click or
 //   Enter keeps it, or a right-click or Esc takes it back. X, Y and Z limit it
 //   to an axis, N to the selection's normal, and Ctrl snaps it.
+//
+// `messages` turns the frame's keys into messages; `view` and `operation`
+// apply the pointer's input, as update runs them.
 
-use user_interface::{Cursor, Key, MouseButton, Response, Shortcut, Ui, View};
+use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
 
 use crate::editing::{Axis, Drawn, Element, Tool};
-use crate::modeler::{COMMANDS, Command, Modeler};
+use crate::modeler::{COMMANDS, Command, Message, Modeler};
 
-// Runs the commands whose shortcuts were pressed this frame, without
-// repeats, unless something else has the keys.
-pub fn keys(modeler: &mut Modeler, ui: &mut Ui) {
-    if modeler.editor.operation.is_some() || modeler.prompt.is_some() || ui.any_popup() || ui.modal() {
-        return;
+// The frame's messages from the keys: the modal edit's, or the commands
+// whose shortcuts were pressed, without repeats, unless something else has
+// the keys. Prepare goes last, after everything the frame does.
+pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
+    let mut messages = Vec::new();
+    // A paint's edit ends once the pointer lets go and its name has no focus.
+    if modeler.paint_edit.is_some() && !ui.input().any_button_down() && !ui.is_focused("Paint/Name") {
+        messages.push(Message::EndPaintEdit);
     }
-    let modifiers = ui.input().modifiers();
-    let mut pressed = Vec::new();
-    for (command, _, shortcuts) in COMMANDS {
-        // The library switches the theme with F9, vertical sync with F10,
-        // and fullscreen with F11, itself.
-        if matches!(command, Command::ToggleTheme | Command::VerticalSync | Command::Fullscreen) {
-            continue;
-        }
-        for text in *shortcuts {
-            if let Some(shortcut) = Shortcut::parse(text)
-                && shortcut.modifiers == modifiers
-                && ui.key_pressed_once(shortcut.key)
-            {
-                pressed.push(*command);
+    if modeler.editor.operation.is_some() {
+        for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
+            if ui.key_pressed_once(key) {
+                messages.push(Message::Constrain(axis));
             }
         }
-    }
-    for command in pressed {
-        modeler.run(ui, command);
-    }
-    // Esc goes back to the Select tool.
-    if ui.key_pressed_once(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
-        modeler.editor.tool = Tool::Select;
-    }
-}
-
-// What the pointer does in the view, whose response this is.
-pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
-    let view = modeler.view;
-    let modifiers = ui.input().modifiers();
-    let pointer = ui.pointer();
-
-    // The camera.
-    if response.held_button == Some(MouseButton::Middle) {
-        if modifiers.shift {
-            modeler.camera.pan(response.drag_delta, view);
-        } else {
-            modeler.camera.orbit(response.drag_delta);
+        if ui.key_pressed_once(Key::ENTER) {
+            messages.push(Message::ConfirmOperation);
+        }
+        if ui.key_pressed_once(Key::ESCAPE) {
+            messages.push(Message::CancelOperation);
+        }
+    } else if modeler.prompt.is_none() && !ui.any_popup() && !ui.modal() {
+        let modifiers = ui.input().modifiers();
+        for (command, _, shortcuts) in COMMANDS {
+            // The library switches the theme with F9, vertical sync with F10,
+            // and fullscreen with F11, itself.
+            if matches!(command, Command::ToggleTheme | Command::VerticalSync | Command::Fullscreen) {
+                continue;
+            }
+            for text in *shortcuts {
+                if let Some(shortcut) = Shortcut::parse(text)
+                    && shortcut.modifiers == modifiers
+                    && ui.key_pressed_once(shortcut.key)
+                {
+                    messages.push(Message::Command(*command));
+                }
+            }
+        }
+        // Esc goes back to the Select tool.
+        if ui.key_pressed_once(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
+            messages.push(Message::Command(Command::SelectTool));
         }
     }
-    if response.wheel.y != 0.0
-        && let Some(at) = response.pointer
+    messages.push(Message::Prepare);
+    messages
+}
+
+// What the pointer did in the view this frame.
+pub fn view(modeler: &mut Modeler, input: ViewInput) {
+    let view = modeler.view;
+    let modifiers = input.modifiers;
+    let pointer = input.pointer;
+
+    // The camera.
+    if input.holding(MouseButton::Middle) {
+        if modifiers.shift {
+            modeler.camera.pan(input.drag_delta, view);
+        } else {
+            modeler.camera.orbit(input.drag_delta);
+        }
+    }
+    if input.wheel.y != 0.0
+        && let Some(at) = pointer
     {
-        modeler.camera.zoom(response.wheel.y, at, view);
+        modeler.camera.zoom(input.wheel.y, at, view);
     }
     if modeler.editor.operation.is_some() {
         return;
     }
 
     // What's under the pointer, for the tool.
-    let inside = pointer.filter(|point| view.contains(*point) && (response.hovered || response.held));
+    let inside = pointer.filter(|point| view.contains(*point) && (input.hovered || input.held));
     let see_through = modeler.xray;
-    let drawn = Drawn { surface: modeler.surface.as_ref(), triangles: &modeler.scene.triangles };
+    let drawn = Drawn {
+        surface: modeler.surface.as_ref(),
+        triangles: &modeler.scene.triangles,
+    };
     modeler.editor.hover = None;
     modeler.editor.loop_preview = None;
     if let Some(point) = inside {
@@ -92,17 +113,17 @@ pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
 
     match modeler.editor.tool {
         Tool::Select => {
-            if response.pressed
+            if input.pressed
                 && let Some(point) = pointer
             {
                 modeler.editor.press(point);
             }
-            if response.held_button == Some(MouseButton::Left)
+            if input.holding(MouseButton::Left)
                 && let Some(point) = pointer
             {
                 modeler.editor.drag(point);
             }
-            if response.released && modeler.editor.pressing() {
+            if input.released && modeler.editor.pressing() {
                 let hover = modeler.editor.hover;
                 match modeler.editor.release() {
                     Some(corners) => modeler.editor.select_box(&mut modeler.document, &modeler.camera, view, corners, modifiers.shift, modifiers.control),
@@ -118,16 +139,16 @@ pub fn view(modeler: &mut Modeler, ui: &mut Ui, response: &Response) {
             }
         }
         Tool::Paint => {
-            if response.held_button == Some(MouseButton::Left) {
+            if input.holding(MouseButton::Left) {
                 let face = inside.and_then(|point| face_at(modeler, point, drawn));
                 modeler.editor.paint_at(&mut modeler.document, face);
             }
-            if response.released {
+            if input.released {
                 modeler.editor.end_paint(&mut modeler.document);
             }
         }
         Tool::LoopCut => {
-            if response.clicked
+            if input.clicked
                 && let Some((edge, fraction)) = modeler.editor.loop_preview
             {
                 modeler.editor.loop_cut(&mut modeler.document, edge, fraction);
@@ -142,26 +163,19 @@ fn face_at(modeler: &Modeler, point: user_interface::Point, drawn: Drawn) -> Opt
     drawn.hit(origin, direction).map(|hit| hit.face)
 }
 
-// A modal edit: a target over the whole window takes the pointer from
-// everything else while it's under way.
-pub fn operation(modeler: &mut Modeler, ui: &mut Ui) {
+// A modal edit: what the pointer does on the cover over the whole window,
+// which takes it from everything else while the edit is under way.
+pub fn operation(modeler: &mut Modeler, input: ViewInput) {
     if modeler.editor.operation.is_none() {
         return;
     }
-    let bounds = ui.bounds();
-    let cover = ui.add("Operation", bounds, View::new().cursor(Cursor::Move));
-    for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
-        if ui.key_pressed_once(key) {
-            modeler.editor.constrain(axis);
-        }
-    }
-    if let Some(pointer) = ui.pointer() {
-        let snap = ui.input().modifiers().control;
+    if let Some(pointer) = input.pointer {
+        let snap = input.modifiers.control;
         modeler.editor.update(&mut modeler.document, pointer, snap, &modeler.camera, modeler.view);
     }
-    if cover.pressed || ui.key_pressed_once(Key::ENTER) {
+    if input.pressed {
         modeler.editor.confirm(&mut modeler.document);
-    } else if cover.secondary_pressed || ui.key_pressed_once(Key::ESCAPE) {
+    } else if input.secondary_pressed {
         modeler.editor.cancel(&mut modeler.document);
     }
 }

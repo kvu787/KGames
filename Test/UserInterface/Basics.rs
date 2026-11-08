@@ -2,9 +2,8 @@
 // the design system's values, keys, how events fold into a frame's input,
 // settings, the command line, and text layout.
 
-use user_interface::tokens::{
-    BODY, CURVE_EASY_EASE, CURVE_FAST_OUT_SLOW_IN, CURVE_LINEAR, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation,
-};
+use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
+use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
 use user_interface::{Arguments, Color, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Theme};
 
 #[test]
@@ -54,13 +53,16 @@ fn colors_parse_and_blend_like_xaml_writes_them() {
 
 #[test]
 fn curves_go_from_0_to_1() {
-    for curve in [CURVE_LINEAR, CURVE_FAST_OUT_SLOW_IN, CURVE_EASY_EASE] {
+    let linear = Curve(0.0, 0.0, 1.0, 1.0);
+    for curve in [linear, PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE] {
         assert!(curve.ease(0.0).abs() < 1e-4);
         assert!((curve.ease(1.0) - 1.0).abs() < 1e-4);
+        // Each is symmetric, so it's half way at half the time.
+        assert!((curve.ease(0.5) - 0.5).abs() < 0.01);
     }
-    // Fast out, slow in covers most of the way early.
-    assert!(CURVE_FAST_OUT_SLOW_IN.ease(0.25) > 0.6);
-    assert!((CURVE_EASY_EASE.ease(0.5) - 0.5).abs() < 0.01);
+    assert!((linear.ease(0.25) - 0.25).abs() < 0.01);
+    // The indeterminate bar's indicators start slowly.
+    assert!(PROGRESS_BAR_CURVE.ease(0.1) < 0.05);
 }
 
 #[test]
@@ -191,28 +193,42 @@ fn text_lays_out_with_directwrite() {
 
 // The README's example program, which must keep working as it says.
 mod readme {
-    use user_interface::{AppBar, Button, Card, Headless, Icon, Key, Program, Slider, Status, Ui};
+    use user_interface::{AppBar, Button, Card, Context, Headless, Icon, Key, Program, Slider, Status, Tree, Ui};
+
+    #[derive(Clone)]
+    enum Message {
+        Level(f64),
+        Mute,
+    }
 
     struct Volume {
         level: f64,
     }
 
     impl Program for Volume {
+        type Message = Message;
+
         fn title(&self) -> String {
             "Volume".to_string()
         }
 
-        fn update(&mut self, ui: &mut Ui) {
-            ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
-            ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
-            let page = ui.page();
-            let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
-            let mut area = card.content;
-            let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
-            ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
-            if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
-                self.level = 0.0;
+        fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+            match message {
+                Message::Level(level) => self.level = level,
+                Message::Mute => self.level = 0.0,
             }
+        }
+
+        fn view(&self, ui: &mut Ui) -> Tree<Message> {
+            let mut tree = Tree::new();
+            let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+            tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
+                let mut area = area.content;
+                let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Level);
+                card.add("Level", area.cut_top(Slider::<Message>::height(true), 8.0), slider);
+                card.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute").on_press(Message::Mute));
+            });
+            tree
         }
     }
 

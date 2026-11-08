@@ -66,6 +66,20 @@ fn names_are_checked_for_what_windows_forbids() {
     }
 }
 
+// A mesh that from_json would reject must not be written: save says what's
+// wrong instead of losing the model to a file that can't be opened.
+#[test]
+fn a_broken_mesh_refuses_to_save() {
+    let folder = folder("Broken");
+    let mut app = Headless::new(Modeler::new(folder.clone()));
+    app.frames(2);
+    app.program.document.mesh.positions[0][0] = f32::INFINITY;
+    app.program.name_draft = "Broken".to_string();
+    let problem = app.program.document.save(&folder).unwrap_err();
+    assert!(problem.contains("can't be saved"), "{problem}");
+    assert!(std::fs::read_dir(&folder).unwrap().next().is_none(), "nothing was written");
+}
+
 #[test]
 fn save_as_open_and_new_go_through_their_dialogs() {
     let folder = folder("Dialogs");

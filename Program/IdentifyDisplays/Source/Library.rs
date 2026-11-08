@@ -4,7 +4,7 @@
 
 use displays::Display;
 use user_interface::tokens::{BODY, BODY_LARGE, SPACE_XXXL, TITLE};
-use user_interface::{Align, Border, Color, Corners, Font, Fonts, Rect, TextStyle, Ui, Weight};
+use user_interface::{Align, Border, Color, Corners, Draw, Font, Fonts, Rect, TextStyle, Weight, Widget};
 
 // The identifier is in Cascadia Mono, whose 0 has a slash through it.
 const IDENTIFIER: TextStyle = TextStyle::new(Font::Mono, Weight::Semibold, 112.0, 132.0);
@@ -12,6 +12,7 @@ const ACCENT_BAR: f32 = 4.0;
 const MINIMUM_WIDTH: f32 = 360.0;
 
 // A line of a box, at 100% scale.
+#[derive(Clone)]
 struct Line {
     text: String,
     style: TextStyle,
@@ -28,7 +29,8 @@ enum Kind {
 }
 
 // One box: for one monitor, which shows one display, or more if monitors
-// clone each other.
+// clone each other. It's a widget, drawn over its overlay's whole window.
+#[derive(Clone)]
 pub struct Identity {
     lines: Vec<Line>,
     // Displays at other scales get a box as big as it would look at 100%.
@@ -103,10 +105,17 @@ impl Identity {
         (width + padding * 2.0, height + padding * 2.0 + ACCENT_BAR * self.scale)
     }
 
-    pub fn draw(&self, ui: &mut Ui) {
-        let theme = ui.theme().clone();
-        let bounds = ui.bounds();
-        let mut painter = ui.painter();
+}
+
+impl<M: 'static> Widget<M> for Identity {
+    fn kind(&self) -> &'static str {
+        "Identity"
+    }
+
+    fn draw(&self, ctx: &mut Draw) {
+        let bounds = ctx.rect();
+        let mut painter = ctx.painter();
+        let theme = painter.theme().clone();
         painter.fill(bounds, theme.acrylic);
         painter.fill(bounds.top_strip((ACCENT_BAR * self.scale).round()), theme.accent);
         painter.shape(bounds, Corners::ZERO, Color::TRANSPARENT, Some(Border::new(theme.surface_stroke_flyout, 1.0)));

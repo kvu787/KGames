@@ -223,17 +223,24 @@ impl Game {
         } else {
             let push = camera::to_ground(controls.push);
             let acceleration = self.current_vehicle().acceleration;
+            let footprint = self.footprint();
+            self.shape();
             self.pending += step;
             while self.pending >= DRIVE_STEP {
                 drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, DRIVE_STEP);
                 self.pending -= DRIVE_STEP;
+                // The very step that touches an edge crashes, and the pause
+                // starts at that step's own moment on the drive's clock, so
+                // where the car stops, and when it may move again, don't
+                // depend on the frame rate.
+                let car = self.car;
+                if self.last_shape().edges.touch(&footprint, car.position, car.heading) {
+                    self.crashes += 1;
+                    self.put_at_start(seconds - self.pending);
+                    self.pending = 0.0;
+                    break;
+                }
             }
-        }
-        let car = self.car;
-        let footprint = self.footprint();
-        if !self.paused() && self.shape().edges.touch(&footprint, car.position, car.heading) {
-            self.crashes += 1;
-            self.put_at_start(seconds);
         }
     }
 

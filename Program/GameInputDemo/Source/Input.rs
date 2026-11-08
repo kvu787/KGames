@@ -533,6 +533,12 @@ impl Input {
         }
     }
 
+    // Brings the log's clock up to a moment, in seconds, for an entry made
+    // before the frame's readings, like the combo box's pick.
+    pub fn align_clock(&mut self, seconds: f64) {
+        self.now = self.now.max(seconds);
+    }
+
     fn set_listen(&mut self, listen: Listen) {
         if listen == self.listen {
             return;

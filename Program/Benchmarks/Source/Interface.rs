@@ -186,20 +186,20 @@ fn draw<S: Subject>(subject: &S, gpu: &mut Gpu, budget: Budget) -> Vec<Measureme
 
 // Every program's CPU frame benchmarks.
 pub fn frames(budget: Budget) -> Vec<Measurement> {
-    let mut all = Vec::new();
-    all.push(steady(&Showcase, budget));
-    all.push(moving(&Showcase, budget));
-    all.push(first(&Showcase, budget));
-    all.push(steady(&SimplePaint, budget));
-    all.push(steady(&Modeler { levels: 0 }, budget));
-    all.push(steady(&Modeler { levels: 4 }, budget));
-    all.push(moving(&Modeler { levels: 4 }, budget));
-    all.push(steady(&GameInput, budget));
-    all.push(steady(&Racing, budget));
-    all.push(first(&Racing, budget));
-    all.push(steady(&Sphere, budget));
-    all.push(steady(&Car, budget));
-    all
+    vec![
+        steady(&Showcase, budget),
+        moving(&Showcase, budget),
+        first(&Showcase, budget),
+        steady(&SimplePaint, budget),
+        steady(&Modeler { levels: 0 }, budget),
+        steady(&Modeler { levels: 4 }, budget),
+        moving(&Modeler { levels: 4 }, budget),
+        steady(&GameInput, budget),
+        steady(&Racing, budget),
+        first(&Racing, budget),
+        steady(&Sphere, budget),
+        steady(&Car, budget),
+    ]
 }
 
 // Every program's GPU draw benchmarks, on the fastest GPU.

@@ -17,6 +17,12 @@
 // redo, and save, which writes the files that changed. The status bar says
 // whether there are changes to save. Drawing.rs draws the 3D view under all
 // of it, over the whole window.
+//
+// A frame's input becomes messages: the view's pointer and the cards'
+// controls from the widgets, then the shortcuts and, in Play, a Tick with
+// the frame's controls, and last Prepare, which commits a change when the
+// button is up and rebuilds what the 3D view shows. The frame then draws
+// from the state they made, so nothing shows a frame late.
 
 use std::path::{Path, PathBuf};
 
@@ -26,23 +32,23 @@ use user_interface::tokens::{
     APP_BAR_HEIGHT, BODY, BODY_STRONG, CAPTION, CARD_PADDING, SPACE_L, SPACE_M, SPACE_S, SPACE_XL, SPACE_XS, SPACE_XXL,
 };
 use user_interface::{
-    AppBar, Button, Card, CheckBox, ComboBox, Icon, InfoBar, Insets, KEYCAP_HEIGHT, Key, Modifiers, MouseButton, Point, Program,
-    Rect, SelectorBar, Severity, Startup, Status, Ui, View,
+    AppBar, Button, Card, CheckBox, ComboBox, Context, Divider, Field, Icon, InfoBar, Insets, KEYCAP_HEIGHT, Key, Keycaps, Modifiers,
+    MouseButton, Point, Program, Rect, SelectorBar, Severity, Startup, Status, Text, Tree, Ui, View, ViewInput,
 };
 
 use crate::camera::Eye;
 use crate::controls::Controls;
 use crate::document::Document;
 use crate::drawing::{Drawing, Ground, Instance, View as Scene3d};
-use crate::editing::{self, Viewport};
+use crate::editing::{self, GroundView, Viewport};
 use crate::files::{self, srgb};
 use crate::game::Game;
 use crate::scene::Scene;
-use crate::scene_editor::SceneEditor;
+use crate::scene_editor::{SceneEditor, SceneMsg};
 use crate::settings::GameSettings;
-use crate::terrain_editor::TerrainEditor;
-use crate::track_editor::TrackEditor;
-use crate::vehicle_editor::{SHOWN_HEADING, VehicleEditor};
+use crate::terrain_editor::{TerrainEditor, TerrainMsg};
+use crate::track_editor::{TrackEditor, TrackMsg};
+use crate::vehicle_editor::{SHOWN_HEADING, VehicleEditor, VehicleMsg};
 use crate::{FOLDER, NAME};
 
 pub const MODES: [&str; 5] = ["Play", "Scene", "Terrain", "Track", "Vehicles"];
@@ -55,6 +61,33 @@ pub const VEHICLES: usize = 4;
 const HISTORY: usize = 200;
 // How wide the app bar's combo box of scenes is.
 const SCENE_WIDTH: f32 = 200.0;
+
+// What a frame's input means to the game.
+#[derive(Clone, Debug)]
+pub enum Message {
+    // The app bar: a tab, and the commands at its right.
+    Mode(usize),
+    Save,
+    Undo,
+    Redo,
+    NewScene,
+    GoScene(usize),
+    GameAngle(bool),
+    // The pointer in the view, with whether Space pans, which the mode
+    // routes: the game's zoom, or an editor's viewport and tool.
+    View { input: ViewInput, space: bool },
+    // The editors' cards.
+    Scene(SceneMsg),
+    Terrain(TerrainMsg),
+    Track(TrackMsg),
+    Vehicle(VehicleMsg),
+    // Once a frame in Play: the controls drive the car.
+    Tick(Controls),
+    // Once a frame, after everything else: keeps the game in the document,
+    // commits a change once the button is up, shapes the track, and rebuilds
+    // what the 3D view shows.
+    Prepare,
+}
 
 pub struct Veehiicuul {
     pub game: Game,
@@ -72,9 +105,11 @@ pub struct Veehiicuul {
     committed: Document,
     // The document as of the last save, or as it was loaded.
     pub saved: Document,
-    // Whether the document differed from `saved` as the frame began, for
-    // the bars, which ask twice a frame.
+    // Whether the document differed from `saved` as the frame's messages
+    // ended, for the bars.
     unsaved_now: bool,
+    // The wheel's notches over Play's view this frame, for its Tick.
+    pending_notches: f64,
     // Where Save writes: the game's folder, or a script's output folder.
     save_folder: PathBuf,
     // What the last save, or anything else, said.
@@ -105,6 +140,7 @@ impl Veehiicuul {
             vehicle_editor: VehicleEditor::default(),
             undo: Vec::new(),
             redo: Vec::new(),
+            pending_notches: 0.0,
             save_folder,
             status: String::new(),
             drawing: None,
@@ -167,10 +203,12 @@ impl Veehiicuul {
         }
     }
 
-    // Writes the files that changed since the last save.
+    // Writes the files that changed since the last save, and deletes the
+    // files of scenes the document no longer has, like an undone new scene.
     pub fn save(&mut self) {
         let changed = self.game.document.changed_files(&self.saved);
-        if changed.is_empty() {
+        let removed = self.game.document.removed_files(&self.saved);
+        if changed.is_empty() && removed.is_empty() {
             self.status = "Nothing to save".to_string();
             return;
         }
@@ -180,8 +218,22 @@ impl Veehiicuul {
                 return;
             }
         }
+        for path in &removed {
+            match std::fs::remove_file(self.save_folder.join(path)) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    self.status = format!("Couldn't remove {path}: {error}");
+                    return;
+                }
+            }
+        }
         let names: Vec<&str> = changed.iter().map(|(path, _)| path.as_str()).collect();
-        self.status = format!("Saved {}", names.join(", "));
+        self.status = match (names.is_empty(), removed.is_empty()) {
+            (false, true) => format!("Saved {}", names.join(", ")),
+            (false, false) => format!("Saved {} and removed {}", names.join(", "), removed.join(", ")),
+            (true, _) => format!("Removed {}", removed.join(", ")),
+        };
         self.saved = self.game.document.clone();
     }
 
@@ -206,39 +258,48 @@ impl Veehiicuul {
         }
     }
 
-    fn shortcuts(&mut self, ui: &mut Ui) {
-        if ui.shortcut(Modifiers::CONTROL, Key::S) {
-            self.save();
-        }
-        if ui.shortcut(Modifiers::CONTROL, Key::Z) {
-            self.undo();
-        }
-        if ui.shortcut(Modifiers::CONTROL, Key::Y) {
-            self.redo();
+    // The pointer in the view: in Play, the wheel zooms, through the frame's
+    // Tick, and in the editors, the viewport pans and zooms and the tool
+    // edits.
+    fn view_input(&mut self, input: ViewInput, space: bool, ctx: &Context<Message>) {
+        let size = [ctx.size().width, ctx.size().height];
+        let scene = self.game.scene;
+        match self.mode {
+            PLAY => self.pending_notches += f64::from(input.wheel.y),
+            SCENE => {
+                let ground = self.viewport.apply(&input, space, size);
+                self.scene_editor.view_input(ground, &mut self.game.document, &self.game.models, scene);
+            }
+            TERRAIN => {
+                let ground = self.viewport.apply(&input, space, size);
+                self.terrain_editor.view_input(ground, &mut self.game.document.scenes[scene].terrain);
+            }
+            TRACK => {
+                let ground = self.viewport.apply(&input, space, size);
+                self.track_editor.view_input(ground, &mut self.game.document.scenes[scene].track, self.viewport.eye, size);
+            }
+            _ => {
+                let ground = self.vehicle_editor.viewport.apply(&input, space, size);
+                self.vehicle_editor.view_input(ground, &mut self.game.document, self.game.vehicle, size);
+            }
         }
     }
 
-    // The app bar: the title and the tabs, in the editors whether their view
-    // is at the game's angle, and at its right end, the scene and the
-    // commands.
-    fn app_bar(&mut self, ui: &mut Ui) {
-        let mut bar = ui.app_bar(AppBar::new(Icon::Car, NAME));
-        let seconds = ui.time();
+    // The app bar's commands: the tabs, in the editors whether their view is
+    // at the game's angle, and at its right end, the scene and the commands.
+    fn commands(&self, ui: &mut Ui, tree: &mut Tree<Message>, mut bar: Rect) {
         // The tabs take the bar's whole height, so that their text is in
         // its middle, with their pills under it.
-        let tabs = bar.cut_left(SelectorBar::width(ui, &MODES), SPACE_XXL);
-        let mut mode = self.mode;
-        ui.add("Mode", Rect::new(tabs.x, ui.content_top(), tabs.width, APP_BAR_HEIGHT), SelectorBar::new(&mut mode, &MODES));
-        if mode != self.mode {
-            self.go_to(mode, seconds);
-        }
+        let tabs = bar.cut_left(SelectorBar::<Message>::width(ui, &MODES), SPACE_XXL);
+        let tabs = Rect::new(tabs.x, ui.content_top(), tabs.width, APP_BAR_HEIGHT);
+        tree.add("Mode", tabs, SelectorBar::new(self.mode, &MODES).on_select(Message::Mode));
 
         // From the right end: save, redo and undo, then the scene.
-        let save = Button::new("Save").icon(Icon::Save);
+        let save = Button::new("Save").icon(Icon::Save).on_press(Message::Save);
         let save = if self.unsaved_now { save.accent() } else { save };
-        let undo = Button::new("Undo").icon(Icon::Undo);
-        let redo = Button::new("Redo").icon(Icon::Redo);
-        let new_scene = Button::new("New scene").icon(Icon::Add);
+        let undo = Button::new("Undo").icon(Icon::Undo).on_press(Message::Undo);
+        let redo = Button::new("Redo").icon(Icon::Redo).on_press(Message::Redo);
+        let new_scene = Button::new("New scene").icon(Icon::Add).on_press(Message::NewScene);
         let save_area = bar.cut_right(save.width(ui), SPACE_S);
         let redo_area = bar.cut_right(redo.width(ui), SPACE_S);
         let undo_area = bar.cut_right(undo.width(ui), SPACE_L);
@@ -247,89 +308,55 @@ impl Veehiicuul {
         let scene_area = bar.cut_right(SCENE_WIDTH, SPACE_S);
         let label_area = bar.cut_right(ui.measure("Scene", BODY).width.ceil(), SPACE_L);
 
-        let response = ui.add("Save", save_area, save);
-        ui.tooltip(&response, "Writes the files that changed (Ctrl+S)");
-        if response.clicked {
-            self.save();
-        }
-        let response = ui.add_enabled(self.can_redo(), "Redo", redo_area, redo);
-        ui.tooltip(&response, "Does again what undo undid (Ctrl+Y)");
-        if response.clicked {
-            self.redo();
-        }
-        let response = ui.add_enabled(self.can_undo(), "Undo", undo_area, undo);
-        ui.tooltip(&response, "Takes back the last change (Ctrl+Z)");
-        if response.clicked {
-            self.undo();
-        }
-        ui.divider(divider.pad(Insets::symmetric(0.0, SPACE_XS)));
-        let response = ui.add("NewScene", new_scene_area, new_scene);
-        ui.tooltip(&response, "Makes an empty scene, and goes to it");
-        if response.clicked {
-            self.new_scene(seconds);
-        }
+        tree.add("Save", save_area, save).set_tooltip("Writes the files that changed (Ctrl+S)");
+        tree.add("Redo", redo_area, redo)
+            .set_enabled(self.can_redo())
+            .set_tooltip("Does again what undo undid (Ctrl+Y)");
+        tree.add("Undo", undo_area, undo)
+            .set_enabled(self.can_undo())
+            .set_tooltip("Takes back the last change (Ctrl+Z)");
+        tree.draw(divider.pad(Insets::symmetric(0.0, SPACE_XS)), Divider);
+        tree.add("NewScene", new_scene_area, new_scene).set_tooltip("Makes an empty scene, and goes to it");
         let names: Vec<&str> = self.game.document.scenes.iter().map(|scene| scene.name.as_str()).collect();
-        let mut scene = self.game.scene;
-        ui.add("Scene", scene_area, ComboBox::new(&mut scene, &names));
-        if scene != self.game.scene {
-            self.game.go_to_scene(scene, seconds);
-            let current = self.game.current_scene();
-            self.viewport = Viewport::new(current.camera_center, current.camera_height);
-        }
-        let color = ui.theme().text_secondary;
-        ui.text(label_area, "Scene", BODY, color);
+        tree.add("Scene", scene_area, ComboBox::new(self.game.scene, &names).on_select(Message::GoScene));
+        tree.draw(label_area, Text::label("Scene").secondary());
 
         if self.mode != PLAY {
             let label = "The game's angle";
-            let area = bar.left_strip(CheckBox::width(ui, label));
-            let viewport = if self.mode == VEHICLES { &mut self.vehicle_editor.viewport } else { &mut self.viewport };
-            let mut game_angle = viewport.game_angle();
-            let response = ui.add("GameAngle", area, CheckBox::new(&mut game_angle, label));
-            ui.tooltip(&response, "Shows the view as the game does, instead of straight down");
-            if response.changed {
-                viewport.set_game_angle(game_angle);
-            }
+            let area = bar.left_strip(CheckBox::<Message>::width(ui, label));
+            let viewport = if self.mode == VEHICLES { &self.vehicle_editor.viewport } else { &self.viewport };
+            tree.add("GameAngle", area, CheckBox::new(viewport.game_angle(), label).on_change(Message::GameAngle))
+                .set_tooltip("Shows the view as the game does, instead of straight down");
         }
     }
 
     // The status bar: the shortcuts, what the last save said, and whether
     // there are changes to save.
-    fn status_bar(&self, ui: &mut Ui) {
+    fn status_items(&self) -> Vec<Status> {
         let mut items = vec![
-            Status::Shortcut("Ctrl+S", "Save"),
-            Status::Shortcut("Ctrl+Z", "Undo"),
-            Status::Shortcut("Ctrl+Y", "Redo"),
+            Status::shortcut("Ctrl+S", "Save"),
+            Status::shortcut("Ctrl+Z", "Undo"),
+            Status::shortcut("Ctrl+Y", "Redo"),
         ];
         if self.mode == PLAY {
-            items.push(Status::Shortcut("F1", if self.game.show_card { "Hide the card" } else { "Show the card" }));
+            items.push(Status::shortcut("F1", if self.game.show_card { "Hide the card" } else { "Show the card" }));
         } else {
-            items.push(Status::Shortcut("Space", "Pan, with a drag"));
-            items.push(Status::Shortcut("Wheel", "Zoom"));
+            items.push(Status::shortcut("Space", "Pan, with a drag"));
+            items.push(Status::shortcut("Wheel", "Zoom"));
         }
-        items.push(Status::Shortcut("F9", "Theme"));
-        items.push(Status::Shortcut("F10", "VSync"));
-        items.push(Status::Shortcut("F11", "Fullscreen"));
+        items.push(Status::shortcut("F9", "Theme"));
+        items.push(Status::shortcut("F10", "VSync"));
+        items.push(Status::shortcut("F11", "Fullscreen"));
         items.push(Status::Spacer);
         if !self.status.is_empty() {
-            items.push(Status::Text(&self.status));
+            items.push(Status::text(&self.status));
         }
         items.push(if self.unsaved_now {
-            Status::Indicator(Severity::Warning, "Unsaved changes")
+            Status::indicator(Severity::Warning, "Unsaved changes")
         } else {
-            Status::Indicator(Severity::Success, "No unsaved changes")
+            Status::indicator(Severity::Success, "No unsaved changes")
         });
-        ui.status_bar(&items);
-    }
-
-    // Play: the controls drive the car, and the wheel over the view zooms.
-    fn play(&mut self, ui: &mut Ui, view: Rect) {
-        let response = ui.add("Play/View", view, View::new());
-        let controls = Controls::read(ui, f64::from(response.wheel.y));
-        self.game.update(&controls, ui.time());
-        let page = ui.page();
-        if self.game.show_card {
-            play_card(&self.game, ui, page);
-        }
+        items
     }
 
     // What the 3D view shows: the scene's decorations and parked vehicles,
@@ -403,47 +430,138 @@ impl Veehiicuul {
 }
 
 impl Program for Veehiicuul {
+    type Message = Message;
+
     fn title(&self) -> String {
         NAME.to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages = Vec::new();
+        if ui.shortcut(Modifiers::CONTROL, Key::S) {
+            messages.push(Message::Save);
+        }
+        if ui.shortcut(Modifiers::CONTROL, Key::Z) {
+            messages.push(Message::Undo);
+        }
+        if ui.shortcut(Modifiers::CONTROL, Key::Y) {
+            messages.push(Message::Redo);
+        }
+        if self.mode == PLAY {
+            messages.push(Message::Tick(Controls::read(ui, 0.0)));
+        }
+        messages.push(Message::Prepare);
+        messages
+    }
+
+    fn update(&mut self, message: Message, ctx: &mut Context<Message>) {
+        match message {
+            Message::Mode(mode) => {
+                if mode != self.mode {
+                    self.go_to(mode, ctx.time());
+                }
+            }
+            Message::Save => self.save(),
+            Message::Undo => self.undo(),
+            Message::Redo => self.redo(),
+            Message::NewScene => self.new_scene(ctx.time()),
+            Message::GoScene(scene) => {
+                if scene != self.game.scene {
+                    self.game.go_to_scene(scene, ctx.time());
+                    let current = self.game.current_scene();
+                    self.viewport = Viewport::new(current.camera_center, current.camera_height);
+                }
+            }
+            Message::GameAngle(game_angle) => {
+                let viewport = if self.mode == VEHICLES { &mut self.vehicle_editor.viewport } else { &mut self.viewport };
+                viewport.set_game_angle(game_angle);
+            }
+            Message::View { input, space } => self.view_input(input, space, ctx),
+            Message::Scene(message) => self.scene_editor.apply(message, &mut self.game.document, &self.game.models, self.game.scene),
+            Message::Terrain(message) => {
+                let scene = self.game.scene;
+                self.terrain_editor.apply(message, &mut self.game.document.scenes[scene].terrain);
+            }
+            Message::Track(message) => {
+                let scene = self.game.scene;
+                self.track_editor.apply(message, &mut self.game.document.scenes[scene].track);
+            }
+            Message::Vehicle(message) => self.vehicle_editor.apply(message, &mut self.game.document, &self.game.models, &mut self.game.vehicle),
+            Message::Tick(mut controls) => {
+                if self.mode == PLAY {
+                    controls.notches = std::mem::take(&mut self.pending_notches);
+                    self.game.update(&controls, ctx.time());
+                }
+            }
+            Message::Prepare => {
+                self.pending_notches = 0.0;
+                self.game.keep_in_document();
+                // A pick that's gone, like after an undo, even during a drag,
+                // and the track's and the terrain's choices the same way.
+                self.scene_editor.keep_picked(&self.game.document, self.game.scene);
+                let current = &self.game.document.scenes[self.game.scene];
+                self.track_editor.curve = self.track_editor.curve.min(current.track.islands.len());
+                self.terrain_editor.color = self.terrain_editor.color.min(current.terrain.palette.len().saturating_sub(1) as u8);
+                if !ctx.is_focused("Vehicles/Name") {
+                    self.vehicle_editor.sync_name(&self.game.document, self.game.vehicle);
+                }
+                // A drag is one change, as of when it's let go of.
+                if !ctx.input().button_down(MouseButton::Left) {
+                    self.commit();
+                }
+                self.game.shape();
+                self.unsaved_now = self.unsaved();
+                self.build_view();
+            }
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        let mut tree = Tree::new();
         // Only text fields take keyboard focus, so that Space, the arrows
         // and the other keys that drive and pan never go to a control.
-        ui.set_focusable(false);
-        self.unsaved_now = self.unsaved();
-        self.shortcuts(ui);
-        self.app_bar(ui);
-        self.status_bar(ui);
+        tree.set_focusable(false);
+        // The view first, under everything: the bars, the notices and the
+        // cards cover it.
         let view = editing::view_area(ui);
+        match self.mode {
+            PLAY => {
+                tree.add("Play/View", view, View::new().on_input(|input| Message::View { input, space: false }));
+            }
+            mode => {
+                let name = ["", "Scene/View", "Terrain/View", "Track/View", "Vehicles/View"][mode];
+                let viewport = if mode == VEHICLES { &self.vehicle_editor.viewport } else { &self.viewport };
+                tree.add(name, view, GroundView { panning: viewport.panning() });
+            }
+        }
+        let shell = tree.shell(ui, AppBar::new(Icon::Car, NAME), false, Some(self.status_items()));
+        self.commands(ui, &mut tree, shell.commands);
         let scene = self.game.scene;
         match self.mode {
-            PLAY => self.play(ui, view),
+            PLAY => {
+                if self.game.show_card {
+                    play_card(&self.game, ui, &mut tree, shell.page);
+                }
+            }
             SCENE => {
-                let models = &self.game.models;
-                self.scene_editor.update(ui, view, &mut self.viewport, &mut self.game.document, models, scene);
+                self.scene_editor
+                    .view(ui, &mut tree, shell.page, view, &self.viewport, &self.game.document, &self.game.models, scene);
             }
             TERRAIN => {
-                let terrain = &mut self.game.document.scenes[scene].terrain;
-                self.terrain_editor.update(ui, view, &mut self.viewport, terrain);
+                self.terrain_editor
+                    .view(ui, &mut tree, shell.page, view, &self.viewport, &self.game.document.scenes[scene].terrain);
             }
             TRACK => {
-                let problems = self.game.shape().problems.clone();
-                let track = &mut self.game.document.scenes[scene].track;
-                self.track_editor.update(ui, view, &mut self.viewport, track, &problems);
+                let problems = &self.game.last_shape().problems;
+                self.track_editor
+                    .view(ui, &mut tree, shell.page, view, &self.viewport, &self.game.document.scenes[scene].track, problems);
             }
             _ => {
-                let models = &self.game.models;
-                self.vehicle_editor.update(ui, view, &mut self.game.document, models, &mut self.game.vehicle);
+                self.vehicle_editor
+                    .view(ui, &mut tree, shell.page, view, &self.game.document, &self.game.models, self.game.vehicle);
             }
         }
-        self.game.keep_in_document();
-        // A drag is one change, as of when it's let go of.
-        if !ui.input().button_down(MouseButton::Left) {
-            self.commit();
-        }
-        self.game.shape();
-        self.build_view();
+        tree
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> windows_core::Result<()> {
@@ -516,29 +634,39 @@ const COLUMN_GAP: f32 = SPACE_XL;
 const KEYCAP_ROW: f32 = 28.0;
 // The gap between the card's lines of what's going on.
 const LINE_GAP: f32 = SPACE_XS;
-// Draws the keycaps of the ways to do something from `origin`, or only
-// measures them without it, and returns their width. Each way is a key, or
-// keys that go together, like "RB+Left stick", which Ui::keys joins.
-fn keycaps(ui: &mut Ui, origin: Option<Point>, ways: &[&str]) -> f32 {
+
+// How wide the keycaps of the ways to do something are, a small space apart.
+// Each way is a key, or keys that go together, like "RB+Left stick", which
+// Keycaps joins.
+fn ways_width(ui: &mut Ui, ways: &[&str]) -> f32 {
     let mut width = 0.0;
     for (index, way) in ways.iter().enumerate() {
         if index > 0 {
             width += SPACE_S;
         }
-        width += match origin {
-            Some(origin) => ui.keys(Point::new(origin.x + width, origin.y), way),
-            None => ui.keys_width(way),
-        };
+        width += Keycaps::width(ui.fonts(), way);
     }
     width
+}
+
+// Draws the keycaps of the ways from `origin`.
+fn draw_ways(ui: &mut Ui, tree: &mut Tree<Message>, origin: Point, ways: &[&str]) {
+    let mut x = origin.x;
+    for (index, way) in ways.iter().enumerate() {
+        if index > 0 {
+            x += SPACE_S;
+        }
+        let width = Keycaps::width(ui.fonts(), way);
+        tree.draw(Rect::new(x, origin.y, width, KEYCAP_HEIGHT), Keycaps::new(*way));
+        x += width;
+    }
 }
 
 // The card over the bottom left corner of the page in Play: the scene, the
 // vehicle, how it's going, and what the controls do, as a table of the
 // gamepad's and the keyboard's. It's as big as what it says. Returns its
 // area, which scripts and tests see as "Play/Card".
-pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
-    let theme = ui.theme().clone();
+pub fn play_card(game: &Game, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect) -> Rect {
     let vehicle = game.current_vehicle();
     let rates = vehicle.acceleration;
     let camera = if game.camera.follow { "Following the car" } else { "Fixed" };
@@ -567,12 +695,12 @@ pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
     let (gamepad_header, keyboard_header) = (ui.measure("Gamepad", CAPTION).width, ui.measure("Keyboard", CAPTION).width);
     let gamepad_width = CONTROLS
         .iter()
-        .map(|(_, gamepad, _)| keycaps(ui, None, gamepad))
+        .map(|(_, gamepad, _)| ways_width(ui, gamepad))
         .fold(gamepad_header, f32::max)
         .ceil();
     let keyboard_width = CONTROLS
         .iter()
-        .map(|(_, _, keyboard)| keycaps(ui, None, keyboard))
+        .map(|(_, _, keyboard)| ways_width(ui, keyboard))
         .fold(keyboard_header, f32::max);
     let controls_width = LABEL_WIDTH + gamepad_width + COLUMN_GAP + keyboard_width;
     let content_width = title_width
@@ -582,43 +710,44 @@ pub fn play_card(game: &Game, ui: &mut Ui, page: Rect) -> Rect {
         .ceil();
     let problem_bar = problem
         .as_deref()
-        .map(|problem| InfoBar::new(Severity::Warning, "The track has a problem", problem));
-    let problem_height = problem_bar.map_or(0.0, |bar| SPACE_M + ui.info_bar_height(content_width, &bar));
+        .map(|problem| InfoBar::<Message>::new(Severity::Warning, "The track has a problem", problem));
+    let problem_height = problem_bar.as_ref().map_or(0.0, |bar| SPACE_M + bar.height(ui, content_width));
     let rows_height = BODY.line_height * rows.len() as f32 + LINE_GAP * (rows.len() - 1) as f32;
     let heading_height = BODY_STRONG.line_height + SPACE_XS + 1.0;
     let controls_height = SPACE_L + heading_height + SPACE_S + KEYCAP_ROW * CONTROLS.len() as f32;
     let content_height = rows_height + problem_height + controls_height;
-    let card = Card::new(scene).subtitle(&scenes).floating().named("Play/Card");
+    let card = Card::new(scene).subtitle(&scenes).floating();
     let height = card.height_around(content_height);
     let area = Rect::new(page.x, page.bottom() - height, content_width + CARD_PADDING * 2.0, height);
-    let card = ui.card(area, card);
 
-    let mut content = card.content;
-    for (index, (label, value)) in rows.iter().enumerate() {
-        let gap = if index + 1 < rows.len() { LINE_GAP } else { 0.0 };
-        ui.field(content.cut_top(BODY.line_height, gap), label, LABEL_WIDTH, value);
-    }
-    if let Some(bar) = problem_bar {
-        content.cut_top(SPACE_M, 0.0);
-        let height = ui.info_bar_height(content.width, &bar);
-        ui.add("Play/Problem", content.cut_top(height, 0.0), bar);
-    }
-    // The table's heading, with its columns' under a divider, as a form's
-    // heading has it.
-    content.cut_top(SPACE_L, 0.0);
-    let heading = content.cut_top(heading_height, SPACE_S);
-    let line = heading.top_strip(BODY_STRONG.line_height);
-    let keyboard_x = line.x + LABEL_WIDTH + gamepad_width + COLUMN_GAP;
-    ui.heading(line, "Controls");
-    ui.text(Rect::new(line.x + LABEL_WIDTH, line.y, gamepad_width, line.height), "Gamepad", CAPTION, theme.text_secondary);
-    ui.text(Rect::new(keyboard_x, line.y, line.right() - keyboard_x, line.height), "Keyboard", CAPTION, theme.text_secondary);
-    ui.divider(heading.bottom_strip(1.0));
-    for (does, gamepad, keyboard) in CONTROLS {
-        let row = content.cut_top(KEYCAP_ROW, 0.0);
-        let top = (row.center().y - KEYCAP_HEIGHT / 2.0).round();
-        ui.text(row.left_strip(LABEL_WIDTH - SPACE_S), does, BODY, theme.text_secondary);
-        keycaps(ui, Some(Point::new(row.x + LABEL_WIDTH, top)), gamepad);
-        keycaps(ui, Some(Point::new(keyboard_x, top)), keyboard);
-    }
+    tree.card(ui, Some("Play/Card"), area, card, |ui, card, areas| {
+        let mut content = areas.content;
+        for (index, (label, value)) in rows.iter().enumerate() {
+            let gap = if index + 1 < rows.len() { LINE_GAP } else { 0.0 };
+            card.draw(content.cut_top(BODY.line_height, gap), Field::new(*label, LABEL_WIDTH, value.clone()));
+        }
+        if let Some(bar) = problem_bar {
+            content.cut_top(SPACE_M, 0.0);
+            let height = bar.height(ui, content.width);
+            card.add("Play/Problem", content.cut_top(height, 0.0), bar);
+        }
+        // The table's heading, with its columns' under a divider, as a
+        // form's heading has it.
+        content.cut_top(SPACE_L, 0.0);
+        let heading = content.cut_top(heading_height, SPACE_S);
+        let line = heading.top_strip(BODY_STRONG.line_height);
+        let keyboard_x = line.x + LABEL_WIDTH + gamepad_width + COLUMN_GAP;
+        card.draw(line, Text::heading("Controls"));
+        card.draw(Rect::new(line.x + LABEL_WIDTH, line.y, gamepad_width, line.height), Text::caption("Gamepad"));
+        card.draw(Rect::new(keyboard_x, line.y, line.right() - keyboard_x, line.height), Text::caption("Keyboard"));
+        card.draw(heading.bottom_strip(1.0), Divider);
+        for (does, gamepad, keyboard) in CONTROLS {
+            let row = content.cut_top(KEYCAP_ROW, 0.0);
+            let top = (row.center().y - KEYCAP_HEIGHT / 2.0).round();
+            card.draw(row.left_strip(LABEL_WIDTH - SPACE_S), Text::label(does).secondary());
+            draw_ways(ui, card, Point::new(row.x + LABEL_WIDTH, top), gamepad);
+            draw_ways(ui, card, Point::new(keyboard_x, top), keyboard);
+        }
+    });
     area
 }

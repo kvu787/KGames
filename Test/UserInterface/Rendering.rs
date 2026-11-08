@@ -1,25 +1,38 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
-// a standard button's elevation border, whether the PerfBar says that
-// vertical sync is on, the PerfBar's colors in each theme, and the page for an
-// unsupported setup.
+// a standard button's elevation border, that widgets draw a new state whole
+// on the frame that makes it, that a selection that moves leaves its old
+// item on that frame, and that a release shows on its own frame, whether the
+// PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
+// and the page for an unsupported setup.
 
+use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
-use user_interface::{Button, Card, Headless, Key, Program, Rect, Theme, ThemeKind, Ui};
+use user_interface::{
+    Button, Card, CheckBox, Color, ComboBox, Context, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Palette, Program, RadioGroup,
+    Rect, Segmented, SelectorBar, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, unsupported_setup,
+};
 
 struct Page;
 
 impl Program for Page {
+    type Message = ();
+
     fn title(&self) -> String {
         "Page".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        let card = ui.card(Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"));
-        let [accent, standard] = card.content.top_strip(32.0).columns::<2>(8.0);
-        ui.add("Accent", accent, Button::new("Accent").accent());
-        ui.add("Standard", standard, Button::new("Standard"));
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        tree.card(ui, None, Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"), |_, card, area| {
+            let [accent, standard] = area.content.top_strip(32.0).columns::<2>(8.0);
+            card.add("Accent", accent, Button::new("Accent").accent());
+            card.add("Standard", standard, Button::new("Standard"));
+        });
+        tree
     }
 }
 
@@ -75,6 +88,255 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
     }
 }
 
+// A widget of each kind whose look follows the input, and a menu bar with a
+// submenu.
+#[derive(Default)]
+struct States {
+    on: bool,
+    checked: bool,
+    size: usize,
+    level: f64,
+    alignment: usize,
+    tab: usize,
+    pick: usize,
+    row: Option<usize>,
+    color: Option<usize>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum Msg {
+    On(bool),
+    Checked(bool),
+    Size(usize),
+    Level(f64),
+    Alignment(usize),
+    Tab(usize),
+    Pick(usize),
+    Row(usize),
+    Color(usize),
+}
+
+const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
+const COLORS: [Color; 4] = [Color::hex(0xD13438), Color::hex(0x107C10), Color::hex(0x0078D4), Color::hex(0x8764B8)];
+
+fn menus() -> Vec<(&'static str, Vec<MenuItem<Msg>>)> {
+    let recent = vec![MenuItem::new("First"), MenuItem::new("Second")];
+    vec![("File", vec![MenuItem::new("Open"), MenuItem::submenu("Recent", recent)])]
+}
+
+impl Program for States {
+    type Message = Msg;
+
+    fn title(&self) -> String {
+        "States".to_string()
+    }
+
+    fn update(&mut self, message: Msg, _ui: &mut Context<Msg>) {
+        match message {
+            Msg::On(on) => self.on = on,
+            Msg::Checked(checked) => self.checked = checked,
+            Msg::Size(size) => self.size = size,
+            Msg::Level(level) => self.level = level,
+            Msg::Alignment(alignment) => self.alignment = alignment,
+            Msg::Tab(tab) => self.tab = tab,
+            Msg::Pick(pick) => self.pick = pick,
+            Msg::Row(row) => self.row = Some(row),
+            Msg::Color(color) => self.color = Some(color),
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Msg> {
+        let mut tree = Tree::new();
+        let top = ui.content_top();
+        tree.add("Menus", Rect::new(40.0, top + 8.0, 200.0, MENU_BAR_HEIGHT), MenuBar::new(menus()));
+        tree.card(ui, None, Rect::new(40.0, top + 300.0, 480.0, 800.0), Card::new("States"), |ui, card, area| {
+            let mut area = area.content;
+            card.add("Button", area.cut_top(32.0, 8.0), Button::new("Button"));
+            card.add("Switch", area.cut_top(32.0, 8.0), ToggleSwitch::new(self.on, "Switch").on_change(Msg::On));
+            card.add("Check", area.cut_top(32.0, 8.0), CheckBox::new(self.checked, "Check").on_change(Msg::Checked));
+            card.add("Size", area.cut_top(RadioGroup::<Msg>::height(SIZES.len()), 8.0), RadioGroup::new(self.size, &SIZES).on_select(Msg::Size));
+            card.add("Level", area.cut_top(32.0, 8.0), Slider::new(self.level, 0.0, 1.0).on_change(Msg::Level));
+            card.add("Alignment", area.cut_top(32.0, 8.0), Segmented::new(self.alignment, &["Left", "Center", "Right"]).on_select(Msg::Alignment));
+            card.add("Tabs", area.cut_top(48.0, 8.0), SelectorBar::new(self.tab, &["First", "Second", "Third"]).on_select(Msg::Tab));
+            card.add("Pick", area.cut_top(32.0, 8.0), ComboBox::new(self.pick, &["One", "Two", "Three"]).on_select(Msg::Pick));
+            // As tall as its rows, so that it has no scroll bar, whose thumb
+            // waits for the pointer to rest on it before it widens.
+            let rows = area.cut_top(120.0, 8.0);
+            let list = ListView::new(3, 40.0).selection(self.row).on_select(Msg::Row);
+            let shown = list.rows(ui, "Rows", rows);
+            card.container(Some("Rows"), rows, list, |list| {
+                for index in shown.indices() {
+                    list.draw(shown.content(index), Text::label(format!("Row {index}")));
+                }
+            });
+            card.add("Colors", area.cut_top(32.0, 8.0), Palette::new(self.color, &COLORS).on_pick(Msg::Color));
+        });
+        tree
+    }
+}
+
+#[test]
+fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
+    // Each step is input that changes how a widget looks, and after which
+    // nothing changes. The frame that reads the input is drawn, and then
+    // the frame a second later, which must be the same below the PerfBar,
+    // whose numbers do change. A widget that eased, faded or slid to its
+    // new state, even over WinUI's fastest 83 ms, would be less than half
+    // way there in the first.
+    type Step = fn(&mut Headless<States>);
+    let steps: [(&str, Step); 19] = [
+        ("the pointer onto a button", |app| {
+            app.move_to("Button");
+        }),
+        ("a press of the button", |app| {
+            app.press("Button");
+        }),
+        ("its release", |app| {
+            app.release();
+        }),
+        ("a press of a toggle switch", |app| {
+            app.press("Switch");
+        }),
+        ("its release, which turns it on", |app| {
+            app.release();
+        }),
+        ("a click of a checkbox", |app| {
+            app.click("Check");
+        }),
+        ("a click of a radio button", |app| {
+            app.click("Size/Large");
+        }),
+        ("a press of a slider", |app| {
+            app.press("Level");
+        }),
+        ("its release", |app| {
+            app.release();
+        }),
+        ("a click of a segment", |app| {
+            app.click("Alignment/Right");
+        }),
+        ("a click of a tab", |app| {
+            app.click("Tabs/Third");
+        }),
+        ("a click of a list's row", |app| {
+            app.click("Rows/2");
+        }),
+        ("a combo box's list opening", |app| {
+            app.click("Pick");
+        }),
+        ("the pointer onto its item", |app| {
+            app.move_to("Pick/1");
+        }),
+        ("choosing the combo box's item", |app| {
+            app.click("Pick/1");
+        }),
+        ("a menu opening", |app| {
+            app.click("Menus/File");
+        }),
+        ("its submenu opening", |app| {
+            app.move_to("Menus/File/Menu/Recent");
+        }),
+        ("the pointer onto the submenu's item", |app| {
+            app.move_to("Menus/File/Menu/Recent/Menu/First");
+        }),
+        ("choosing the submenu's item", |app| {
+            app.click("Menus/File/Menu/Recent/Menu/First");
+        }),
+    ];
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for (index, (step, act)) in steps.into_iter().enumerate() {
+        act(&mut app);
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        let below = (PERF_BAR_HEIGHT as u32 * now.width * 4) as usize;
+        if now.pixels[below..] == later.pixels[below..] {
+            continue;
+        }
+        save(&now, &format!("States{index}Now"));
+        save(&later, &format!("States{index}Later"));
+        let (x, y) = (PERF_BAR_HEIGHT as u32..now.height)
+            .flat_map(|y| (0..now.width).map(move |x| (x, y)))
+            .find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
+            .unwrap();
+        panic!("after {step}, ({x}, {y}) was {:?} and a second later {:?}", now.pixel(x, y), later.pixel(x, y));
+    }
+    // The steps did what they say.
+    let program = &app.program;
+    assert!(program.on && program.checked);
+    assert_eq!((program.size, program.alignment, program.tab, program.pick, program.row), (2, 2, 2, 1, Some(2)));
+}
+
+#[test]
+fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
+    // A press selects a list's row, and a release a radio button, a segment,
+    // a tab or a swatch. The frame that reads the input applies its message
+    // and then describes every item from the model, so even when the
+    // selection moves to an item after the old one, that very frame draws
+    // the old item without it, the same as a second later.
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    let moves = [("Rows/0", "Rows/2"), ("Size/Small", "Size/Large"), ("Alignment/Left", "Alignment/Right"), ("Tabs/First", "Tabs/Third"), ("Colors/0", "Colors/2")];
+    for (old, new) in moves {
+        let list = old.starts_with("Rows");
+        app.click(old).move_to(new);
+        if list {
+            app.queue(&[Event::ButtonPressed(MouseButton::Left)]);
+        } else {
+            app.press(new).queue(&[Event::ButtonReleased(MouseButton::Left)]);
+        }
+        app.frame();
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        if list {
+            app.release();
+        }
+        if let Some((x, y)) = first_difference(&now, &later, app.target(old)) {
+            save(&now, "SelectionNow");
+            save(&later, "SelectionLater");
+            panic!("{old} still looked selected on the frame that selected {new}, at ({x}, {y})");
+        }
+    }
+    let program = &app.program;
+    assert_eq!((program.row, program.size, program.alignment, program.tab, program.color), (Some(2), 2, 2, 2, Some(2)));
+}
+
+#[test]
+fn a_release_shows_on_the_frame_that_reads_it() {
+    // A widget that the left button holds down looks pressed until the
+    // frame that reads the release, which draws it as it looks from then
+    // on, with what the release did, like a switch that's flipped or a menu
+    // that's open, and not pressed for a frame more.
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for name in ["Button", "Switch", "Check", "Size/Medium", "Level", "Alignment/Center", "Tabs/Second", "Rows/1", "Colors/1", "Menus/File"] {
+        app.press(name).queue(&[Event::ButtonReleased(MouseButton::Left)]).frame();
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        if let Some((x, y)) = first_difference(&now, &later, app.target(name)) {
+            save(&now, "ReleaseNow");
+            save(&later, "ReleaseLater");
+            panic!("{name} didn't look let go on the frame that let go of it, at ({x}, {y})");
+        }
+    }
+    let program = &app.program;
+    assert!(program.on && program.checked);
+    assert_eq!((program.size, program.alignment, program.tab, program.row, program.color), (1, 1, 1, Some(1), Some(1)));
+    assert_eq!(app.ui.popup_name(), Some("Menus/File/Menu"));
+}
+
+// The first pixel in the area that differs between the two frames.
+fn first_difference(now: &Image, later: &Image, area: Rect) -> Option<(u32, u32)> {
+    let mut pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
+    pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
+}
+
 #[test]
 fn the_perf_bar_says_whether_vertical_sync_is_on() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
@@ -126,15 +388,19 @@ fn the_perf_bar_is_black_on_white_in_the_light_theme_and_white_on_black_in_the_d
 struct Unsupported;
 
 impl Program for Unsupported {
+    type Message = ();
+
     fn title(&self) -> String {
         "Unsupported".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.unsupported_setup(&[
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        unsupported_setup(&[
             "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
             "The window must be maximized, or borderless fullscreen with F11.".to_string(),
-        ]);
+        ])
     }
 }
 

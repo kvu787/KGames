@@ -70,26 +70,20 @@ pub const PERF_BAR_TEXT: TextStyle = TextStyle::new(Font::Mono, Weight::Regular,
 // which a line centers, in sizes: ((1900 - 480) - (1610 - 480)) / 2 / 2048.
 pub const MONO_INK_DROP: f32 = 0.0708;
 
-// Motion: WinUI's ControlFasterAnimationDuration, for colors, Fast, for
-// things that move, and Normal, for surfaces that open.
-pub const DURATION_FASTER: f32 = 0.083;
-pub const DURATION_FAST: f32 = 0.167;
-pub const DURATION_NORMAL: f32 = 0.25;
-pub const DURATION_SLOW: f32 = 0.333;
-
 // How long the pointer rests on a control before its tooltip shows.
 pub const TOOLTIP_DELAY: f64 = 0.5;
 
+// Motion: nothing moves or fades between states. A hover, a press, a
+// selection, or a menu or dialog that opens shows whole on the frame that
+// makes it. Only what must move to do its job does: the indeterminate
+// progress bar and ring, whose motion says that work goes on, and a text
+// field's blinking caret.
+//
 // An easing curve, as a cubic Bézier from (0, 0) to (1, 1) through two
-// points, like XAML's KeySpline.
+// points, like XAML's KeySpline: the progress bar's and ring's, in
+// Controls.rs.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Curve(pub f32, pub f32, pub f32, pub f32);
-
-pub const CURVE_LINEAR: Curve = Curve(0.0, 0.0, 1.0, 1.0);
-// WinUI's ControlFastOutSlowInKeySpline, for what enters or moves into place.
-pub const CURVE_FAST_OUT_SLOW_IN: Curve = Curve(0.0, 0.0, 0.0, 1.0);
-// Fluent's easy ease, for what moves in place.
-pub const CURVE_EASY_EASE: Curve = Curve(0.33, 0.0, 0.67, 1.0);
 
 impl Curve {
     // The curve's progress at time t, both from 0 to 1.

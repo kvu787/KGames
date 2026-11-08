@@ -36,6 +36,34 @@ All PowerShell scripts must:
 - Use `Set-StrictMode -Version Latest`
 - Use `$ErrorActionPreference = 'Stop'`
 
+# Correctness
+
+Development here is heavy and session-based: a rule that only a machine check enforces is the only
+kind that holds, because a later session never read the conversation that invented it.
+
+- The law of the frame: given the state and the frame's input at its start, everything the input
+  causes is in that frame's output - in the interface, and in game logic. An effect delayed any
+  number of frames is a bug. Test a cause by asserting its whole consequence graph on the frame
+  that caused it.
+- Every bug fix lands with a test that pins it, in the same change. A fix without a test is a bug
+  that will come back.
+- A discipline that can't be a type must be a test. For messages and game events: they carry the
+  facts of their moment - which coin, which row's item, the view the user was shown - and their
+  consumers read everything else from the state as it is when they apply, never from a snapshot.
+  The test for an intent-carrying message is two of the same intent in one frame: they cancel, or
+  apply twice, and never collapse into one.
+- Simulations run in fixed steps on their own clock, never the frame's, and a test drives the same
+  inputs at 60 and 240 frames a second and asserts identical results, events included. Event
+  queues drain to quiescence inside the frame; a cascade that doesn't settle stops the program
+  instead of hiding.
+- A comment is a promise: a comment or README that says the code does something the code doesn't
+  do is a bug, and models believe documentation more than people do. Keep them true in the same
+  change that would make them false.
+- A rewrite of a library core, like `Library/UserInterface/Source/Core`, is a rare, deliberate
+  event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
+  with an adversarial review of the new code and the findings pinned by tests, as
+  `Documentation/LogicReview.md` records for the last one.
+
 # Git
 
 When implementing stuff, avoid difficult-to-review "mega-commits".
@@ -60,10 +88,11 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Read all input with GameInput, through `Library/UserInterface`, which reads keyboards, mice and gamepads with it, and not from window messages.
 - Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
-- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
+- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: input on the tree the user saw becomes messages, `update` applies them, and one read-only `view` describes the frame's widgets from the state, so a frame's output always comes from that frame's input, never a frame late. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
 - Use the light theme by default.
 - Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/Source/Design/Tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/Source/Design/Controls.rs`.
+- Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/Rendering.rs` checks it.
 - `F9` toggles between light and dark mode. Default is light mode.
 - `F10` toggles between VSync on and off. Default is VSync on.
 - `F11` toggles between windowed and borderless fullscreen. Default is windowed.

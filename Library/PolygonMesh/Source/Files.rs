@@ -145,12 +145,13 @@ impl Mesh {
             if a == b || !edges.contains(&edge) {
                 return Err(format!("Creases[{index}] is from vertex {a} to {b}, but no face has that edge."));
             }
-            if !(*sharpness > 0.0 && *sharpness <= INFINITELY_SHARP as f64) {
+            let fine = *sharpness as f32;
+            if !(fine > 0.0 && fine <= INFINITELY_SHARP) {
                 return Err(format!(
                     "Creases[{index}]'s sharpness must be more than 0 and at most {INFINITELY_SHARP}, not {sharpness}."
                 ));
             }
-            if mesh.creases.insert(edge, *sharpness as f32).is_some() {
+            if mesh.creases.insert(edge, fine).is_some() {
                 return Err(format!("Creases[{index}] creases the edge from {a} to {b} again."));
             }
         }

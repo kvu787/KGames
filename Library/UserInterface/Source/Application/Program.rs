@@ -1,6 +1,15 @@
-// What a GUI program is to the library: a Program, which builds each frame's
-// interface and handles its input, may draw 3D under it, and tells scripts
-// its state. `run` runs one with the Options that say how.
+// What a GUI program is to the library: a Program with a message type, which
+// says what the input on its widgets means; `view`, which describes a
+// frame's interface from the program's state and changes nothing; `update`,
+// which applies a message; and `input`, which turns the frame's keys, time
+// and devices into messages. It may draw 3D under the interface, and tells
+// scripts its state. `run` runs one with the Options that say how.
+//
+// A frame: the interface finds what the input did to the widgets the user
+// saw, as messages; the program's `input` adds its own; `update` applies
+// them all, and any they send in turn, until none are left; then `view`
+// describes the frame, which is laid out and drawn. So every widget shows
+// what every message did, on the frame of the input.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -9,17 +18,32 @@ use std::rc::Rc;
 use graphics::{Frame, Gpu};
 
 use crate::application::settings::Settings;
-use crate::core::ui::Ui;
+use crate::core::interface::{Context, Ui};
+use crate::core::tree::Tree;
 use crate::platform::input_devices::Devices;
 use crate::widgets::info_bar::Severity;
 
 pub trait Program {
+    // What the input on its widgets means, and what else it does.
+    type Message: Clone + 'static;
+
     // The window's title.
     fn title(&self) -> String;
 
-    // Builds the frame's interface and does what its input says. Called once
-    // a frame, right before the frame is drawn, with the newest input.
-    fn update(&mut self, ui: &mut Ui);
+    // The frame's messages from what isn't a widget: the keys that no widget
+    // took, the time since the last frame, the gamepad, and the devices.
+    // Once a frame, before the messages are applied.
+    fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
+        Vec::new()
+    }
+
+    // Applies a message: changes the program's state, and may send more
+    // messages, or ask the window to close, or switch the theme.
+    fn update(&mut self, message: Self::Message, ui: &mut Context<Self::Message>);
+
+    // Describes the frame's interface from the program's state, which it
+    // doesn't change. Once a frame, after the messages are applied.
+    fn view(&self, ui: &mut Ui) -> Tree<Self::Message>;
 
     // Creates what the program draws with on the GPU, once, before the first
     // frame.
@@ -35,7 +59,7 @@ pub trait Program {
 
     // Whether the window may close now that it's asked to, like by its close
     // button. A program with unsaved work can say no, ask with a dialog, and
-    // close with Ui::close once the user says so.
+    // close with Context::close once the user says so.
     fn may_close(&mut self) -> bool {
         true
     }
@@ -111,8 +135,8 @@ pub struct Startup {
     pub arguments: Vec<String>,
     // The input devices that the interface reads, for programs that show
     // them or run their motors, like GameInputDemo. Each frame's readings are
-    // there when the program's update runs. None in a scripted run, and when
-    // GameInput isn't available.
+    // there when the program's messages are applied. None in a scripted run,
+    // and when GameInput isn't available.
     pub devices: Option<Rc<RefCell<Devices>>>,
     pub(crate) notices: Vec<Notice>,
 }

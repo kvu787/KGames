@@ -34,7 +34,7 @@ This decision was primarily motivated by my experience working with those depend
 
 GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), a user
 interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system,
-with WinUI 3's own colors, sizes and motion: its main loop runs them, its widgets are their
+with WinUI 3's own colors and sizes but none of its animations: its main loop runs them, its widgets are their
 controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
 input without focus, including gamepads, and a click that gives a window focus does only that. The
 library's README has the details, and the two window setups that programs support.

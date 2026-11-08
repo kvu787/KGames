@@ -66,7 +66,7 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
     app.click("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"));
+    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"), "{:?}", app.program.log);
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
     // F9 is the library's, which the theme's switch follows.
@@ -76,6 +76,49 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     assert!(app.program.log.iter().any(|line| line == "Light theme"));
     app.click("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+}
+
+// F9 and the program's own theme command in one frame are two toggles, which
+// cancel: the theme is the same at the frame's end, so it doesn't change.
+#[test]
+fn two_theme_toggles_in_one_frame_cancel() {
+    use user_interface::Event;
+    let mut app = showcase();
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    // The button fires on its click, so its release frame also presses F9.
+    app.press("Theme");
+    let themed = app.program.log.iter().filter(|line| line.ends_with("theme")).count();
+    app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.release();
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    // The button's toggle logged the theme the frame draws in, once; the
+    // watcher re-reads the theme when it applies, so it adds nothing, this
+    // frame or the next.
+    app.frame();
+    let after: Vec<&String> = app.program.log.iter().filter(|line| line.ends_with("theme")).collect();
+    assert_eq!(after.len(), themed + 1, "{after:?}");
+    assert_eq!(after.first().map(|line| line.as_str()), Some("Light theme"));
+    // Either alone still switches.
+    app.queue(&[Event::KeyReleased(Key::F9)]).frame();
+    app.key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    app.click("Theme");
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+}
+
+// A frame can hold both a typed letter, which re-filters the list, and a
+// press on a row. The press means the item the row showed, so it still
+// lands there.
+#[test]
+fn a_press_lands_on_the_item_its_row_showed_even_as_the_search_changes() {
+    use user_interface::Event;
+    let mut app = showcase();
+    app.click("Search");
+    let center = app.target("Items/0").center();
+    app.queue(&[Event::Text('b'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    assert_eq!(app.program.search, "b", "the letter reached the search box");
+    assert_eq!(app.program.selected, Some(0), "the press selected what the row was showing");
+    app.release();
 }
 
 #[test]
@@ -237,13 +280,13 @@ fn menus_choose_commands() {
     app.click("Menu/View/Menu/Theme/Menu/Dark theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
     assert_eq!(app.program.menu_choice.as_deref(), Some("Dark theme"));
-    app.click("More").click("MoreMenu/Pinned");
+    app.click("More").click("More/Menu/Pinned");
     assert!(app.program.pinned);
     // The context menu opens at a right-click.
     let area = app.target("ContextArea").center();
     app.press_button(area, MouseButton::Right).release_button(MouseButton::Right);
-    assert_eq!(app.ui.popup_name(), Some("ContextMenu"));
-    app.click("ContextMenu/Copy");
+    assert_eq!(app.ui.popup_name(), Some("ContextArea/ContextMenu"));
+    app.click("ContextArea/ContextMenu/Copy");
     assert_eq!(app.program.menu_choice.as_deref(), Some("Copy"));
 }
 
@@ -366,8 +409,28 @@ fn a_held_key_repeats() {
 #[test]
 fn benchmark_frame_time() {
     let mut app = showcase();
-    let start = std::time::Instant::now();
     app.frames(100);
-    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / 100.0;
+    let start = std::time::Instant::now();
+    let frames = 1000;
+    let mut phases = user_interface::FramePhases::default();
+    for _ in 0..frames {
+        app.frame();
+        let frame = app.ui.phases();
+        phases.input += frame.input;
+        phases.update += frame.update;
+        phases.view += frame.view;
+        phases.layout += frame.layout;
+        phases.draw += frame.draw;
+    }
+    let per_frame = start.elapsed().as_secs_f64() * 1000.0 / frames as f64;
+    let each = frames as f64;
     eprintln!("A frame of the showcase's interface takes {per_frame:.3} ms to build");
+    eprintln!(
+        "  input {:.3}, update {:.3}, view {:.3}, layout {:.3}, draw {:.3}",
+        phases.input / each,
+        phases.update / each,
+        phases.view / each,
+        phases.layout / each,
+        phases.draw / each
+    );
 }

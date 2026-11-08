@@ -1,21 +1,51 @@
 // Tests the interface's rules for input with a small program: which widget
 // the pointer is on, presses and clicks, keyboard focus and the keys that
 // widgets take, popups, menus, dialogs, tooltips, notices, editing, and
-// motion.
+// palettes.
 
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
-use user_interface::tokens::{APP_BAR_HEIGHT, CURVE_LINEAR, DURATION_NORMAL, PAGE_PADDING, TOOLTIP_DELAY};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    Button, Card, CheckBox, ComboBox, Dialog, DialogResult, Event, Headless, Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton,
-    NumberBox, Point, Program, Rect, Sense, Severity, Slider, Startup, TextBox, ThemeKind, Ui, id,
+    AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
+    Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox, Palette, Point, Program, Rect, Segmented, Sense, Severity, Slider,
+    Startup, Text, TextBox, ThemeKind, TooltipLine, Tree, Ui, View, ViewInput,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
 const PERF_BAR: f32 = user_interface::tokens::PERF_BAR_HEIGHT;
 
-const MENU: &[MenuItem] = &[MenuItem::new("Open").accelerator("Ctrl+O"), MenuItem::separator(), MenuItem::submenu("Recent", RECENT)];
-const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
+#[derive(Clone, Debug, PartialEq)]
+enum Msg {
+    Click,
+    Under,
+    Maybe,
+    Trapped,
+    Shortcut,
+    Late,
+    Text(String),
+    Choice(usize),
+    Rows(usize),
+    Check(bool),
+    Level(f64),
+    Number(f64),
+    Chosen(String),
+    Area(ViewInput),
+    Ask,
+    Answer(DialogResult),
+    Pick(usize),
+    Shrink(usize),
+    Beneath(usize),
+    Replace,
+}
+
+fn recent() -> Vec<MenuItem<Msg>> {
+    vec![MenuItem::new("First").on_choose(Msg::Chosen("First".into())), MenuItem::new("Second").on_choose(Msg::Chosen("Second".into()))]
+}
+
+fn menu() -> Vec<MenuItem<Msg>> {
+    vec![MenuItem::new("Open").accelerator("Ctrl+O").on_choose(Msg::Chosen("Open".into())), MenuItem::separator(), MenuItem::submenu("Recent", recent())]
+}
 
 #[derive(Default)]
 struct Test {
@@ -26,16 +56,13 @@ struct Test {
     covered: bool,
     disabled: bool,
     rows: Option<usize>,
-    eased: f32,
-    target: f32,
     checked: bool,
     level: f64,
     number: i32,
     chosen: Vec<String>,
     dialog: bool,
     answer: Option<DialogResult>,
-    card: Rect,
-    // Right presses on the button.
+    // Right presses on the area.
     secondary: u32,
     // A combo box's items, which a test can take away while its list is open.
     items: Vec<String>,
@@ -46,90 +73,127 @@ struct Test {
     beneath: Option<usize>,
     // A combo box in the dialog.
     pick: usize,
-    // Presses of D, checked after the dialog is shown.
+    // Presses of D, which the dialog gates from the frame it opens.
     late: u32,
 }
 
 impl Program for Test {
+    type Message = Msg;
+
     fn title(&self) -> String {
         "Test".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn input(&self, ui: &Ui) -> Vec<Msg> {
+        let mut messages = Vec::new();
+        if ui.key_pressed(Key::A) {
+            messages.push(Msg::Shortcut);
+        }
+        if ui.key_pressed(Key::D) {
+            messages.push(Msg::Late);
+        }
+        if self.replace {
+            messages.push(Msg::Replace);
+        }
+        messages
+    }
+
+    fn update(&mut self, message: Msg, _ui: &mut Context<Msg>) {
+        match message {
+            Msg::Click => self.clicks += 1,
+            Msg::Under => self.covered = true,
+            Msg::Maybe => self.clicks += 100,
+            Msg::Trapped => self.clicks += 1000,
+            Msg::Shortcut => self.shortcut += 1,
+            // After the dialog's message in the frame's queue, so the frame
+            // that opens the dialog gates it.
+            Msg::Late => {
+                if !self.dialog {
+                    self.late += 1;
+                }
+            }
+            Msg::Text(text) => self.text = text,
+            Msg::Choice(choice) => self.choice = choice,
+            Msg::Rows(row) => self.rows = Some(row),
+            Msg::Check(checked) => self.checked = checked,
+            Msg::Level(level) => self.level = level,
+            Msg::Number(number) => self.number = number as i32,
+            Msg::Chosen(label) => self.chosen.push(label),
+            Msg::Area(input) => {
+                if input.secondary_pressed {
+                    self.secondary += 1;
+                }
+            }
+            Msg::Ask => self.dialog = true,
+            Msg::Answer(answer) => {
+                self.answer = Some(answer);
+                self.dialog = false;
+            }
+            Msg::Pick(pick) => self.pick = pick,
+            Msg::Shrink(shrink) => self.shrink = shrink,
+            Msg::Beneath(row) => self.beneath = Some(row),
+            Msg::Replace => {
+                self.text = "\u{e9}".to_string();
+                self.replace = false;
+            }
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Msg> {
+        let mut tree = Tree::new();
         // Under the PerfBar.
         let top = ui.content_top();
-        if ui.key_pressed(Key::A) {
-            self.shortcut += 1;
-        }
-        let response = ui.add("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button"));
-        if response.clicked {
-            self.clicks += 1;
-        }
-        if response.secondary_pressed {
-            self.secondary += 1;
-        }
-        ui.tooltip(&response, "A tip");
-        if self.replace {
-            self.text = "\u{e9}".to_string();
-            self.replace = false;
-        }
-        ui.add("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&mut self.text));
-        ui.add("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.choice, &["Zero", "One", "Two"]));
+        tree.add("Button", Rect::new(10.0, top + 10.0, 100.0, 32.0), Button::new("Button").on_press(Msg::Click)).set_tooltip("A tip");
+        tree.add("Field", Rect::new(10.0, top + 60.0, 200.0, 32.0), TextBox::new(&self.text).on_change(Msg::Text));
+        tree.add("Combo", Rect::new(10.0, top + 110.0, 200.0, 32.0), ComboBox::new(self.choice, &["Zero", "One", "Two"]).on_select(Msg::Choice));
         // A surface over a button covers it from the pointer.
-        if ui.add("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under")).clicked {
-            self.covered = true;
-        }
-        ui.cover(Rect::new(290.0, top, 200.0, 60.0));
-        if ui.add_enabled(!self.disabled, "Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe")).clicked {
-            self.clicks += 100;
-        }
-        // A widget can't be enabled inside a disabled scope.
-        ui.with_enabled(false, |ui| {
-            if ui.add_enabled(true, "Trapped", Rect::new(120.0, top + 160.0, 100.0, 32.0), Button::new("Trapped")).clicked {
-                self.clicks += 1000;
+        tree.add("Under", Rect::new(300.0, top + 10.0, 100.0, 32.0), Button::new("Under").on_press(Msg::Under));
+        tree.draw(Rect::new(290.0, top, 200.0, 60.0), Cover);
+        tree.add("Maybe", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Maybe").on_press(Msg::Maybe)).set_enabled(!self.disabled);
+        // A widget can't be enabled inside a disabled group.
+        tree.push(Element::unnamed(Rect::new(120.0, top + 160.0, 100.0, 32.0), Group).enabled(false).children({
+            let mut group = Tree::new();
+            group.add("Trapped", Rect::new(120.0, top + 160.0, 100.0, 32.0), Button::new("Trapped").on_press(Msg::Trapped)).set_enabled(true);
+            group
+        }));
+        let rows = Rect::new(500.0, top + 10.0, 200.0, 100.0);
+        let list = ListView::new(50, 20.0).selection(self.rows).on_select(Msg::Rows).labels(|index| format!("Row {index}"));
+        let shown = list.rows(ui, "Rows", rows);
+        tree.container(Some("Rows"), rows, list, |list| {
+            for index in shown.indices() {
+                list.draw(shown.content(index), Text::label(format!("Row {index}")));
             }
         });
-        ui.add("Rows", Rect::new(500.0, top + 10.0, 200.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
-            ui.label(row, &format!("Row {index}"));
-        }).selection(&mut self.rows));
-        ui.add("Check", Rect::new(10.0, top + 210.0, 200.0, 32.0), CheckBox::new(&mut self.checked, "Check"));
-        ui.add("Level", Rect::new(10.0, top + 260.0, 220.0, 32.0), Slider::new(&mut self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8));
-        ui.add("Number", Rect::new(10.0, top + 310.0, 200.0, 32.0), NumberBox::new(&mut self.number).range(0.0, 10.0));
-        let menu_button = ui.add("MenuButton", Rect::new(10.0, top + 360.0, 100.0, 32.0), Button::new("Menu").chevron());
-        if let Some(label) = ui.flyout_menu("Menu", &menu_button, MENU) {
-            self.chosen.push(label.to_string());
+        tree.add("Check", Rect::new(10.0, top + 210.0, 200.0, 32.0), CheckBox::new(self.checked, "Check").on_change(Msg::Check));
+        tree.add("Level", Rect::new(10.0, top + 260.0, 220.0, 32.0), Slider::new(self.level, 0.0, 1.0).step(0.1).allowed(0.2, 0.8).on_change(Msg::Level));
+        tree.add("Number", Rect::new(10.0, top + 310.0, 200.0, 32.0), NumberBox::new(self.number as f64).range(0.0, 10.0).on_change(Msg::Number));
+        tree.add("MenuButton", Rect::new(10.0, top + 360.0, 100.0, 32.0), Button::new("Menu").menu(menu()));
+        tree.add("Area", Rect::new(800.0, top + 400.0, 200.0, 200.0), View::new().on_input(Msg::Area)).set_context_menu(recent());
+        tree.sized_card(ui, Some("Sized"), Rect::new(1200.0, top + 10.0, 300.0, 1000.0), Card::new("Sized"), |_, card, area| {
+            let mut content = area.content;
+            card.draw(content.cut_top(20.0, 8.0), Text::label("One"));
+            card.draw(content.cut_top(20.0, 0.0), Text::label("Two"));
+            content.y
+        });
+        tree.add("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask").on_press(Msg::Ask));
+        if self.dialog {
+            let dialog = Dialog::new("Sure?", "Really.").primary("Yes").content_height(32.0).on_result(Msg::Answer);
+            let area = dialog.area(ui);
+            tree.container(Some("Question"), area.rect, dialog, |dialog| {
+                dialog.add("Pick", area.content.top_strip(32.0), ComboBox::new(self.pick, &["Yes", "No"]).on_select(Msg::Pick));
+            });
         }
-        let area = ui.interact("Area", Rect::new(800.0, top + 400.0, 200.0, 200.0), Sense::VIEW, "Area");
-        if let Some(label) = ui.context_menu("Context", &area, RECENT) {
-            self.chosen.push(label.to_string());
-        }
-        let open = ui.begin_card(Rect::new(1200.0, top + 10.0, 300.0, 1000.0), Card::new("Sized").named("Sized"));
-        let mut content = open.area.content;
-        ui.label(content.cut_top(20.0, 8.0), "One");
-        ui.label(content.cut_top(20.0, 0.0), "Two");
-        self.card = ui.end_card(open, content.y);
-        if ui.add("Ask", Rect::new(10.0, top + 410.0, 100.0, 32.0), Button::new("Ask")).clicked {
-            self.dialog = true;
-        }
-        if self.dialog
-            && let Some(answer) = ui.dialog_with("Question", Dialog::new("Sure?", "Really.").primary("Yes"), 32.0, |ui, area| {
-                ui.add("Pick", area.top_strip(32.0), ComboBox::new(&mut self.pick, &["Yes", "No"]));
-            })
-        {
-            self.answer = Some(answer);
-            self.dialog = false;
-        }
-        // After the dialog, which gates it from the frame it opens.
-        if ui.key_pressed(Key::D) {
-            self.late += 1;
-        }
-        self.eased = ui.animate(id("Eased"), 0, self.target, DURATION_NORMAL, CURVE_LINEAR);
         // Last, so that the tab order of the widgets above stays.
-        let items: Vec<&str> = self.items.iter().map(String::as_str).collect();
-        ui.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(&mut self.shrink, &items));
-        ui.add("Beneath", Rect::new(1000.0, top + 400.0, 300.0, 100.0), ListView::new(50, 20.0, |ui, index, row, _| {
-            ui.label(row, &format!("Row {index}"));
-        }).selection(&mut self.beneath));
+        tree.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(self.shrink, &self.items).on_select(Msg::Shrink));
+        let beneath = Rect::new(1000.0, top + 400.0, 300.0, 100.0);
+        let list = ListView::new(50, 20.0).selection(self.beneath).on_select(Msg::Beneath);
+        let shown = list.rows(ui, "Beneath", beneath);
+        tree.container(Some("Beneath"), beneath, list, |list| {
+            for index in shown.indices() {
+                list.draw(shown.content(index), Text::label(format!("Row {index}")));
+            }
+        });
+        tree
     }
 }
 
@@ -167,7 +231,7 @@ fn a_disabled_widget_takes_no_input() {
 }
 
 #[test]
-fn a_widget_cannot_be_enabled_inside_a_disabled_scope() {
+fn a_widget_cannot_be_enabled_inside_a_disabled_group() {
     let mut app = Headless::new(Test::default());
     app.click("Trapped");
     assert_eq!(app.program.clicks, 0);
@@ -276,7 +340,7 @@ fn toggles_sliders_and_number_boxes_change_their_values() {
     assert!((app.program.level - 0.3).abs() < 1e-9);
     app.scroll("Level", 0.5).scroll("Level", 0.5);
     assert!((app.program.level - 0.4).abs() < 1e-9, "half notches add up: {}", app.program.level);
-    assert_eq!(app.label("Level").as_deref(), Some("0"));
+    assert_eq!(app.label("Level").as_deref(), Some("0.40"));
     // A number box takes what's typed with Enter, inside its range.
     app.click("Number").key_with(Modifiers::CONTROL, Key::A).type_text("42").key(Key::ENTER);
     assert_eq!(app.program.number, 10);
@@ -288,21 +352,21 @@ fn toggles_sliders_and_number_boxes_change_their_values() {
 fn menus_open_choose_and_close() {
     let mut app = Headless::new(Test::default());
     app.click("MenuButton");
-    assert_eq!(app.ui.popup_name(), Some("Menu"));
-    app.click("Menu/Open");
+    assert_eq!(app.ui.popup_name(), Some("MenuButton/Menu"));
+    app.click("MenuButton/Menu/Open");
     assert_eq!(app.program.chosen, ["Open"]);
     assert_eq!(app.ui.popup_name(), None);
     // A submenu opens when the pointer is on its item.
-    app.click("MenuButton").move_to("Menu/Recent");
-    assert!(app.has_target("Menu/Recent/Menu/Second"));
-    app.click("Menu/Recent/Menu/Second");
+    app.click("MenuButton").move_to("MenuButton/Menu/Recent");
+    assert!(app.has_target("MenuButton/Menu/Recent/Menu/Second"));
+    app.click("MenuButton/Menu/Recent/Menu/Second");
     assert_eq!(app.program.chosen, ["Open", "Second"]);
     assert!(!app.ui.any_popup());
     // A right-click opens a context menu where it is.
     let at = Point::new(850.0, 450.0);
     app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
-    assert_eq!(app.ui.popup_name(), Some("Context"));
-    let menu = app.target("Context");
+    assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
+    let menu = app.target("Area/ContextMenu");
     assert!((menu.x - at.x).abs() < 1.0 && (menu.y - at.y).abs() < 1.0);
     app.key(Key::DOWN).key(Key::ENTER);
     assert_eq!(app.program.chosen, ["Open", "Second", "First"]);
@@ -332,10 +396,10 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
 fn a_dialog_gates_the_keys_the_frame_it_opens() {
     let mut app = Headless::new(Test::default());
     app.key(Key::D);
-    assert_eq!(app.program.late, 1, "without a dialog the check after it sees the key");
+    assert_eq!(app.program.late, 1, "without a dialog the key counts");
     // The click that opens the dialog and a press of D land in one frame.
-    // The check runs after the dialog is up, so the key is gated that very
-    // frame, not just from the next one on.
+    // The widgets' messages come before the program's own, so the dialog
+    // is open when the key's message is applied, that very frame.
     app.move_to("Ask").frame();
     app.send(&[Event::ButtonPressed(MouseButton::Left)]);
     app.send(&[
@@ -351,60 +415,100 @@ fn a_dialog_gates_the_keys_the_frame_it_opens() {
 fn a_card_sizes_itself_to_its_content() {
     let app = Headless::new(Test::default());
     // Padding, the header and its gap, two rows, and padding.
-    assert_eq!(app.program.card.height, 16.0 + 32.0 + 8.0 + 20.0 + 8.0 + 20.0 + 16.0);
+    assert_eq!(app.target("Sized").height, 16.0 + 32.0 + 8.0 + 20.0 + 8.0 + 20.0 + 16.0);
     let state = app.ui.state();
     let kind = state.get("Targets").and_then(|targets| targets.get("Sized")).and_then(|card| card.get("Kind")).cloned();
     assert_eq!(kind, Some(Value::from("Card")));
 }
 
+const COLORS: [Color; 5] = [Color::hex(0xD13438), Color::hex(0xCA5010), Color::hex(0xC19C00), Color::hex(0x107C10), Color::hex(0x0078D4)];
+
+#[derive(Default)]
+struct Colors {
+    picked: Option<usize>,
+}
+
+impl Program for Colors {
+    type Message = usize;
+
+    fn title(&self) -> String {
+        "Colors".to_string()
+    }
+
+    fn update(&mut self, picked: usize, _ui: &mut Context<usize>) {
+        self.picked = Some(picked);
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<usize> {
+        let mut tree = Tree::new();
+        let top = ui.content_top();
+        tree.add("Colors", Rect::new(10.0, top + 10.0, 100.0, 200.0), Palette::new(self.picked, &COLORS).on_pick(|index| index));
+        tree
+    }
+}
+
 #[test]
-fn animations_move_to_their_target_over_their_duration() {
-    let mut app = Headless::new(Test::default());
-    app.program.target = 1.0;
+fn a_palette_lays_its_swatches_out_in_rows_and_picks_the_one_clicked() {
+    let mut app = Headless::new(Colors::default());
     app.frame();
-    assert!(app.program.eased < 0.1);
-    app.wait(DURATION_NORMAL as f64 / 2.0);
-    assert!(app.program.eased > 0.3 && app.program.eased < 0.8, "{}", app.program.eased);
-    app.wait(DURATION_NORMAL as f64);
-    assert_eq!(app.program.eased, 1.0);
+    // Swatches a control tall and 8 apart: two fit across 100 pixels, so
+    // five make three rows.
+    let (first, second, third) = (app.target("Colors/0"), app.target("Colors/1"), app.target("Colors/2"));
+    assert_eq!((first.width, first.height), (32.0, 32.0));
+    assert_eq!((second.x - first.x, second.y), (40.0, first.y));
+    assert_eq!((third.x, third.y - first.y), (first.x, 40.0));
+    assert_eq!(Palette::<usize>::new(None, &COLORS).height(100.0), 3.0 * 32.0 + 2.0 * 8.0);
+    assert_eq!(app.label("Colors/3").as_deref(), Some("#107C10"));
+    assert_eq!(app.program.picked, None);
+    app.click("Colors/3");
+    assert_eq!(app.program.picked, Some(3));
 }
 
 struct Notices;
 
 impl Program for Notices {
+    type Message = ();
+
     fn title(&self) -> String {
         "Notices".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "Notices"));
-        ui.page();
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        tree.shell(ui, AppBar::new(Icon::Info, "Notices"), false, None);
+        tree
     }
 }
 
 // A menu bar in the menu row under the app bar.
 #[derive(Default)]
 struct MenuRow {
-    page: Rect,
     chosen: Option<String>,
 }
 
-const MENUS: &[(&str, &[MenuItem])] = &[("File", MENU)];
-
 impl Program for MenuRow {
+    type Message = String;
+
     fn title(&self) -> String {
         "MenuRow".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.app_bar(user_interface::AppBar::new(user_interface::Icon::Info, "MenuRow"));
-        let row = ui.menu_row();
-        let bar = MenuBar::new(MENUS);
+    fn update(&mut self, label: String, _ui: &mut Context<String>) {
+        self.chosen = Some(label);
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<String> {
+        let mut tree = Tree::new();
+        let shell = tree.shell(ui, AppBar::new(Icon::Info, "MenuRow"), true, None);
+        let row = shell.menu_row.unwrap();
+        let bar = MenuBar::new(vec![("File", vec![MenuItem::new("Open").on_choose("Open".to_string()), MenuItem::separator()])]);
         let width = bar.width(ui);
-        if let Some(label) = ui.add("Menus", row.left_strip(width), bar) {
-            self.chosen = Some(label.to_string());
-        }
-        self.page = ui.page();
+        tree.add("Menus", row.left_strip(width), bar);
+        // The page, as a card that a test can find.
+        tree.add("Page", shell.page, Card::new(""));
+        tree
     }
 }
 
@@ -417,7 +521,7 @@ fn the_menu_row_puts_a_menu_bar_in_line_with_the_page_under_the_app_bar() {
     // The first menu's name starts on the page's left edge, and its
     // backplate out in the padding.
     assert_eq!((file.x + MENU_BAR_ITEM_PADDING.left, file.y), (PAGE_PADDING, row_top + MENU_BAR_ITEM_MARGIN.top));
-    assert_eq!(app.program.page.y, row_top + MENU_BAR_HEIGHT + PAGE_PADDING);
+    assert_eq!(app.target("Page").y, row_top + MENU_BAR_HEIGHT + PAGE_PADDING);
     app.click("Menus/File").click("Menus/File/Menu/Open");
     assert_eq!(app.program.chosen.as_deref(), Some("Open"));
 }
@@ -436,43 +540,54 @@ fn notices_from_the_start_show_and_close() {
     assert_eq!(app.ui.notices()[0].title, "Paint.json");
 }
 
-
 // What porting the programs found: segments where widgets can't take focus,
 // a color field left while it's typed in, a slider's steps of a thousandth,
-// controls side by side under their headers, and a gamepad's combination's
-// keycaps.
+// and a wide tooltip.
+#[derive(Clone, Debug, PartialEq)]
+enum PortedMsg {
+    Segment(usize),
+    Color(Color),
+    Other(String),
+    Fine(f64),
+}
+
 #[derive(Default)]
 struct Ported {
     segment: usize,
-    color: user_interface::Color,
+    color: Color,
     other: String,
     fine: f64,
-    columns: Vec<Rect>,
-    keys: f32,
-    parts: f32,
 }
 
 impl Program for Ported {
+    type Message = PortedMsg;
+
     fn title(&self) -> String {
         "Ported".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn update(&mut self, message: PortedMsg, _ui: &mut Context<PortedMsg>) {
+        match message {
+            PortedMsg::Segment(segment) => self.segment = segment,
+            PortedMsg::Color(color) => self.color = color,
+            PortedMsg::Other(other) => self.other = other,
+            PortedMsg::Fine(fine) => self.fine = fine,
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<PortedMsg> {
+        let mut tree = Tree::new();
         // Under the PerfBar.
         let top = ui.content_top();
-        ui.with_focusable(false, |ui| {
-            ui.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), user_interface::Segmented::new(&mut self.segment, &["A", "B", "C"]));
-        });
-        ui.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), user_interface::ColorField::new(&mut self.color));
-        ui.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&mut self.other));
-        ui.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<f64>::height(false)), Slider::new(&mut self.fine, 0.0, 1.0).step(0.001));
-        let mut form = user_interface::Form::new(Rect::new(400.0, top + 10.0, 400.0, 200.0));
-        self.columns = form.headed_columns(ui, ["Left", "Right"], 32.0).to_vec();
-        self.keys = ui.keys_width("RB+Left stick");
-        self.parts = ui.keycap_width("RB") + ui.keycap_width("Left stick");
-        let wide = ui.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide"));
+        tree.set_focusable(false);
+        tree.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), Segmented::new(self.segment, &["A", "B", "C"]).on_select(PortedMsg::Segment));
+        tree.set_focusable(true);
+        tree.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), ColorField::new(self.color).on_change(PortedMsg::Color));
+        tree.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&self.other).on_change(PortedMsg::Other));
+        tree.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<PortedMsg>::height(false)), Slider::new(self.fine, 0.0, 1.0).step(0.001).on_change(PortedMsg::Fine));
         let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
-        ui.tooltip_lines_wide(&wide, &[user_interface::TooltipLine::Text(long)], 640.0);
+        tree.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide")).set_tooltip_wide(vec![TooltipLine::text(long)], 640.0);
+        tree
     }
 }
 
@@ -492,9 +607,69 @@ fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
     app.click("Hex");
     app.key_with(Modifiers::CONTROL, Key::A);
     app.type_text("#FF8000");
-    assert_eq!(app.program.color, user_interface::Color::default());
+    assert_eq!(app.program.color, Color::default());
     app.click("Other");
     assert_eq!(app.program.color.to_hex(), "#FF8000");
+}
+
+// However focus leaves a number box - Esc, or a press on a view that takes
+// focus without being focusable - the typed draft commits on that very
+// frame, and no stale draft revives on the next edit.
+#[test]
+fn a_number_box_commits_its_draft_however_focus_leaves() {
+    let mut app = Headless::new(Test::default());
+    app.frame();
+    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.type_text("7");
+    assert_eq!(app.program.number, 0, "not before it commits");
+    app.queue(&[Event::KeyPressed { key: Key::ESCAPE, repeat: false }]).frame();
+    assert_eq!(app.program.number, 7, "Esc committed the draft on its frame");
+    app.queue(&[Event::KeyReleased(Key::ESCAPE)]).frame();
+    // A fresh edit starts from the value, not a revived draft.
+    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.type_text("3");
+    app.press("Area");
+    assert_eq!(app.program.number, 3, "the view's press committed the draft on its frame");
+    app.release();
+}
+
+// Enter in a dialog goes to the focused widget that takes it, like the
+// combo box, and to the default button only when nothing does.
+#[test]
+fn enter_in_a_dialog_is_the_focused_widgets_before_the_defaults() {
+    let mut app = Headless::new(Test::default());
+    app.click("Ask");
+    assert!(app.has_target("Question"));
+    // Tab goes through the dialog's own buttons first, then its content.
+    app.key(Key::TAB);
+    assert_eq!(focused(&app), Some("Question/Primary".into()));
+    app.key(Key::TAB);
+    app.key(Key::TAB);
+    assert_eq!(focused(&app), Some("Pick".into()));
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, None, "Enter opened the combo, not the default");
+    assert_ne!(app.ui.state().get("Popup"), Some(&Value::Null));
+    app.key(Key::ESCAPE);
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, None, "the combo still has focus and takes Enter");
+    app.key(Key::ESCAPE);
+    app.key(Key::ESCAPE);
+    assert_eq!(app.program.answer, Some(DialogResult::Close));
+    // With nothing focused inside, Enter is the default's, even while a
+    // widget under the dialog kept focus.
+    app.click("Ask");
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, Some(DialogResult::Primary));
+}
+
+// F10's very frame already says the new setting, PerfBar and state alike.
+#[test]
+fn f10_shows_the_new_vertical_sync_on_its_own_frame() {
+    let mut app = Headless::new(Test::default());
+    app.frame();
+    app.queue(&[Event::KeyPressed { key: Key::F10, repeat: false }]).frame();
+    assert!(!app.vertical_sync());
+    assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(false)));
 }
 
 #[test]
@@ -527,50 +702,44 @@ fn f9_switches_the_theme_even_while_a_text_field_has_focus() {
     assert!(app.program.text.is_empty());
 }
 
-// Notes the theme of each frame, at its start and at its end, and switches
-// it with toggle_theme when asked, mid-frame, like a menu item does.
+// Notes the theme that each frame's view is in, and switches it with
+// toggle_theme when asked, as a menu item does.
 #[derive(Default)]
 struct Themes {
-    frames: Vec<(ThemeKind, ThemeKind)>,
-    toggle: bool,
+    frames: std::cell::RefCell<Vec<ThemeKind>>,
 }
 
 impl Program for Themes {
+    type Message = ();
+
     fn title(&self) -> String {
         "Themes".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        let start = ui.theme().kind;
-        if std::mem::take(&mut self.toggle) {
-            ui.toggle_theme();
-        }
-        self.frames.push((start, ui.theme().kind));
+    fn update(&mut self, _toggle: (), ui: &mut Context<()>) {
+        ui.toggle_theme();
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        self.frames.borrow_mut().push(ui.theme().kind);
+        Tree::new()
     }
 }
 
 #[test]
-fn no_frame_mixes_the_two_themes() {
+fn a_frame_is_drawn_whole_in_the_theme_its_messages_leave() {
     let mut app = Headless::new(Themes::default());
-    // F9 switches the theme from the frame that it's pressed in, before
-    // the program draws anything.
+    // F9 switches the theme from the frame that it's pressed in.
     app.send(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
-    let pressed = app.program.frames.len() - 2;
-    assert_eq!(app.program.frames[pressed - 1], (ThemeKind::Light, ThemeKind::Light));
-    assert_eq!(app.program.frames[pressed], (ThemeKind::Dark, ThemeKind::Dark));
+    let frames = app.program.frames.borrow().clone();
+    assert_eq!(frames[frames.len() - 2..], [ThemeKind::Light, ThemeKind::Dark]);
     app.send(&[Event::KeyReleased(Key::F9)]);
-    // A program's toggle_theme switches it from the next frame on, so the
-    // frame that asked stays in one theme.
-    app.program.toggle = true;
-    let asked = app.program.frames.len();
-    app.frame().frame();
-    assert_eq!(app.program.frames[asked], (ThemeKind::Dark, ThemeKind::Dark));
-    assert_eq!(app.program.frames[asked + 1], (ThemeKind::Light, ThemeKind::Light));
-    // Two toggles before the next frame leave the theme as it was.
-    app.program.toggle = true;
-    app.frame();
-    app.ui.toggle_theme();
-    app.frame();
+    // A message's toggle_theme switches it for the frame that applies the
+    // message, which is drawn in the new theme throughout.
+    app.send_message(());
+    assert_eq!(app.program.frames.borrow().last(), Some(&ThemeKind::Light));
+    // Two toggles in one frame leave the theme as it was.
+    app.queue_message(()).queue_message(()).frame();
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
 }
 
@@ -586,9 +755,8 @@ fn a_slider_s_steps_land_on_their_decimals() {
 
 #[test]
 fn headed_columns_sit_side_by_side_under_their_headers() {
-    let mut app = Headless::new(Ported::default());
-    app.frame();
-    let [left, right] = [app.program.columns[0], app.program.columns[1]];
+    let mut form = Form::new(Rect::new(400.0, PERF_BAR + 10.0, 400.0, 200.0));
+    let [left, right] = form.headed_columns(&mut Tree::<()>::new(), ["Left", "Right"], 32.0);
     let header = user_interface::tokens::BODY.line_height + user_interface::controls::TEXT_BOX_HEADER_GAP;
     assert_eq!(left.y, PERF_BAR + 10.0 + header);
     assert_eq!((left.height, right.y), (32.0, left.y));
@@ -599,8 +767,10 @@ fn headed_columns_sit_side_by_side_under_their_headers() {
 #[test]
 fn a_gamepad_s_combination_has_a_keycap_for_each_part() {
     let mut app = Headless::new(Ported::default());
-    app.frame();
-    assert!(app.program.keys > app.program.parts && app.program.keys < app.program.parts + 16.0, "{} {}", app.program.keys, app.program.parts);
+    let fonts = app.ui.fonts();
+    let keys = user_interface::Keycaps::width(fonts, "RB+Left stick");
+    let parts = user_interface::Keycaps::key_width(fonts, "RB") + user_interface::Keycaps::key_width(fonts, "Left stick");
+    assert!(keys > parts && keys < parts + 16.0, "{keys} {parts}");
 }
 
 #[test]
@@ -619,10 +789,10 @@ fn a_right_press_that_closes_a_menu_goes_nowhere_else() {
     let mut app = Headless::new(Test::default());
     app.click("MenuButton");
     assert!(app.ui.any_popup());
-    app.right_click("Button");
+    app.right_click("Area");
     assert!(!app.ui.any_popup());
     assert_eq!(app.program.secondary, 0, "the press that closed the menu");
-    app.right_click("Button");
+    app.right_click("Area");
     assert_eq!(app.program.secondary, 1);
 }
 
@@ -647,7 +817,9 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
     app.click("Shrink");
     assert!(app.ui.any_popup());
     app.program.items.clear();
-    app.frame();
+    // The frame that shows no items, and the one whose input finds the
+    // list empty and closes it.
+    app.frame().frame();
     assert!(!app.ui.any_popup());
     assert_eq!(app.label("Shrink").as_deref(), Some(""));
 }
@@ -667,8 +839,8 @@ fn the_wheel_over_a_menu_leaves_the_list_under_it_alone() {
     let mut app = Headless::new(Test::default());
     let at = Point::new(999.0, PERF_BAR + 450.0);
     app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
-    assert_eq!(app.ui.popup_name(), Some("Context"));
-    let over = app.target("Context/First").center();
+    assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
+    let over = app.target("Area/ContextMenu/First").center();
     assert!(app.target("Beneath").contains(over), "the menu opens over the list");
     app.scroll_point(over, -2.0);
     assert!(app.has_target("Beneath/0"), "the list didn't scroll under the menu");
@@ -688,3 +860,21 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
     assert_eq!(app.program.number, 1);
 }
 
+#[test]
+fn a_message_s_effects_all_show_on_its_frame() {
+    // Every widget shows what the input did, whatever order the tree lists
+    // them in: the field's text, which the view builds from the model, is
+    // the typed text on the very frame that types it.
+    let mut app = Headless::new(Test::default());
+    app.click("Field").type_text("abc");
+    assert_eq!(app.label("Field").as_deref(), Some("abc"));
+    assert_eq!(app.messages_applied(), 1);
+}
+
+#[test]
+fn a_view_that_sends_nothing_applies_no_messages() {
+    let mut app = Headless::new(Test::default());
+    app.frame();
+    assert_eq!(app.messages_applied(), 0);
+    let _ = Sense::NONE;
+}

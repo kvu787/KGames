@@ -1,10 +1,11 @@
 // What the showcase's widgets show, what its shortcuts and menus do, its
-// log, and its state for scripts.
+// log, and its state for scripts: the model, the messages, and `update`,
+// which applies them. `cards::view` describes the page from the model.
 
 use std::collections::VecDeque;
 
 use user_interface::json::Value;
-use user_interface::{Color, Key, Modifiers, Program, Startup, ThemeKind, Ui};
+use user_interface::{Color, Context, DialogResult, Key, Modifiers, Program, Startup, ThemeKind, Tree, Ui};
 
 use crate::cards;
 
@@ -20,6 +21,54 @@ const LOG_LENGTH: usize = 200;
 pub fn items() -> Vec<String> {
     const WORDS: [&str; 12] = ["Aurora", "Basalt", "Cobalt", "Dune", "Ember", "Fjord", "Glacier", "Harbor", "Iris", "Juniper", "Kelp", "Lagoon"];
     (0..120).map(|index| format!("{} {}", WORDS[index % WORDS.len()], index / WORDS.len() + 1)).collect()
+}
+
+// What the input on the showcase's widgets means, and what its keys and
+// menus do.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    // A press of one of BUTTONS, by index.
+    Press(usize),
+    Link,
+    Pin(bool),
+    Add,
+    Remove,
+    // A menu's command, by its label.
+    Command(String),
+    ToggleTheme,
+    ToggleTooltips,
+    Tooltips(bool),
+    OptionsEnabled(bool),
+    Option(usize, bool),
+    Filling(bool),
+    Size(usize),
+    Alignment(usize),
+    Tool(usize),
+    Volume(f64),
+    Opacity(f64),
+    Angle(f64),
+    Role(usize),
+    Name(String),
+    Greet,
+    CloseGreeting,
+    Search(String),
+    Quantity(f64),
+    Scale(f64),
+    Color(Color),
+    Swatch(usize),
+    Tab(usize),
+    // A row of the list, among the items the search matches.
+    Select(usize),
+    Activate(usize),
+    CloseCaution,
+    BringBackCaution,
+    Expand(bool),
+    Ask,
+    Answer(DialogResult),
+    Reset,
+    // What the interface is on changed: the theme, if it did, and the names
+    // of what has focus, what's pressed, and the open popup.
+    Watch([Option<String>; 3]),
 }
 
 pub struct Showcase {
@@ -131,63 +180,170 @@ impl Showcase {
         self.log("Reset every widget");
     }
 
+    fn toggle_theme(&mut self, ui: &mut Context<Message>) {
+        ui.toggle_theme();
+        // Logged here, on the frame that switches it: the theme is the one
+        // the frame draws in, as the toggle leaves it.
+        let kind = ui.theme().kind;
+        self.seen_theme = kind;
+        self.log(format!("{} theme", kind.name()));
+    }
+
+    fn toggle_tooltips(&mut self) {
+        self.tooltips = !self.tooltips;
+        self.log(format!("Tooltips {}", if self.tooltips { "on" } else { "off" }));
+    }
+
     // What a menu's command does, by its label.
-    pub fn command(&mut self, ui: &mut Ui, label: &str) {
-        self.menu_choice = Some(label.to_string());
+    fn command(&mut self, ui: &mut Context<Message>, label: &str) {
         match label {
             "Reset" => self.reset(ui.time()),
-            "Dark theme" => ui.toggle_theme(),
-            "Tooltips" => self.tooltips = !self.tooltips,
+            "Dark theme" => self.toggle_theme(ui),
+            "Tooltips" => self.toggle_tooltips(),
             "VSync" => ui.toggle_vertical_sync(),
             "Fullscreen" => ui.toggle_fullscreen(),
             "Ask a question" => self.dialog_open = true,
+            "Pinned" => self.pinned = !self.pinned,
             _ => {}
         }
+        // After the command, so Reset's fresh state keeps the choice too.
+        self.menu_choice = Some(label.to_string());
         self.log(format!("Chose {label}"));
-    }
-
-    fn shortcuts(&mut self, ui: &mut Ui) {
-        if ui.key_pressed(Key::F1) {
-            self.tooltips = !self.tooltips;
-            self.log(format!("Tooltips {}", if self.tooltips { "on" } else { "off" }));
-        }
-        if ui.shortcut(Modifiers::CONTROL, Key::R) {
-            self.reset(ui.time());
-        }
-        ui.set_tooltips_enabled(self.tooltips);
-    }
-
-    // Logs when the theme, which F9 and the theme's switch, button and menu
-    // item switch, and what the interface is on change.
-    fn watch(&mut self, ui: &Ui) {
-        let theme = ui.theme().kind;
-        if theme != self.seen_theme {
-            self.seen_theme = theme;
-            self.log(format!("{} theme", theme.name()));
-        }
-        let names = [ui.focused_name(), ui.pressed_name(), ui.popup_name()];
-        for (index, verb) in ["Focus on", "Press on", "Opened"].iter().enumerate() {
-            if names[index] != self.seen[index].as_deref() {
-                if let Some(now) = names[index] {
-                    self.log(format!("{verb} {now}"));
-                }
-                self.seen[index] = names[index].map(str::to_string);
-            }
-        }
     }
 }
 
 impl Program for Showcase {
+    type Message = Message;
+
     fn title(&self) -> String {
         "UiShowcase".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        self.shortcuts(ui);
-        cards::draw(self, ui);
-        // What the cards' switches changed shows from the next frame on.
-        ui.set_tooltips_enabled(self.tooltips);
-        self.watch(ui);
+    // The shortcuts, and what the interface is on, which the log tells of
+    // when it changes.
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages = Vec::new();
+        if ui.key_pressed(Key::F1) {
+            messages.push(Message::ToggleTooltips);
+        }
+        if ui.shortcut(Modifiers::CONTROL, Key::R) {
+            messages.push(Message::Reset);
+        }
+        let theme_changed = ui.theme().kind != self.seen_theme;
+        let names = [ui.focused_name(), ui.pressed_name(), ui.popup_name()];
+        if theme_changed || names.iter().zip(&self.seen).any(|(now, seen)| *now != seen.as_deref()) {
+            messages.push(Message::Watch(names.map(|name| name.map(str::to_string))));
+        }
+        messages
+    }
+
+    fn update(&mut self, message: Message, ui: &mut Context<Message>) {
+        match message {
+            Message::Press(index) => {
+                self.presses[index] += 1;
+                if index < 3 {
+                    self.log(format!("Pressed {}", BUTTONS[index]));
+                }
+            }
+            Message::Link => {
+                self.link_clicks += 1;
+                self.log("Followed the link");
+            }
+            Message::Pin(pinned) => {
+                self.pinned = pinned;
+                self.log(if pinned { "Pinned" } else { "Unpinned" });
+            }
+            Message::Add => self.count += 1,
+            Message::Remove => self.count -= 1,
+            Message::Command(label) => self.command(ui, &label),
+            Message::ToggleTheme => self.toggle_theme(ui),
+            Message::ToggleTooltips => self.toggle_tooltips(),
+            Message::Tooltips(on) => self.tooltips = on,
+            Message::OptionsEnabled(enabled) => {
+                self.options_enabled = enabled;
+                self.log(format!("Options {}", if enabled { "enabled" } else { "disabled" }));
+            }
+            Message::Option(index, on) => self.options[index] = on,
+            Message::Filling(filling) => {
+                self.filling = filling;
+                self.fill_started = ui.time();
+            }
+            Message::Size(size) => self.size = size,
+            Message::Alignment(alignment) => self.alignment = alignment,
+            Message::Tool(tool) => {
+                self.tool = tool;
+                self.log(format!("Tool: {}", TOOLS[tool]));
+            }
+            Message::Volume(volume) => self.volume = volume as f32,
+            Message::Opacity(opacity) => self.opacity = opacity,
+            Message::Angle(angle) => self.angle = angle as f32,
+            Message::Role(role) => {
+                self.role = role;
+                self.log(format!("Role: {}", cards::ROLES[role]));
+            }
+            Message::Name(name) => self.name = name,
+            Message::Greet => {
+                let name = self.name.trim();
+                self.greeting = Some(if name.is_empty() { "Hello, whoever you are!".to_string() } else { format!("Hello, {name}!") });
+            }
+            Message::CloseGreeting => self.greeting = None,
+            Message::Search(search) => self.search = search,
+            Message::Quantity(quantity) => self.quantity = quantity as i32,
+            Message::Scale(scale) => self.scale = scale,
+            Message::Color(color) => {
+                self.color = color;
+                self.log(format!("Color {}", color.to_hex()));
+            }
+            Message::Swatch(index) => self.color = Color::hex(cards::PALETTE[index]),
+            Message::Tab(tab) => self.tab = tab,
+            Message::Select(item) => self.selected = (item < self.items.len()).then_some(item),
+            Message::Activate(item) => {
+                if item < self.items.len() {
+                    self.opened = Some(item);
+                    self.log(format!("Opened {}", self.items[item]));
+                }
+            }
+            Message::CloseCaution => {
+                self.caution_shown = false;
+                self.log("Closed the caution");
+            }
+            Message::BringBackCaution => self.caution_shown = true,
+            Message::Expand(expanded) => self.expanded = expanded,
+            Message::Ask => self.dialog_open = true,
+            Message::Answer(result) => {
+                let answer = match result {
+                    DialogResult::Primary => "Save",
+                    DialogResult::Secondary => "Don't save",
+                    DialogResult::Close => "Cancel",
+                };
+                self.dialog_result = Some(answer.to_string());
+                self.dialog_open = false;
+                self.log(format!("Answered {answer}"));
+            }
+            Message::Reset => self.reset(ui.time()),
+            Message::Watch(names) => {
+                // The theme as it stands NOW, not as input() saw it: a
+                // toggle earlier in this frame's queue already logged and
+                // marked itself, so a stale snapshot would double-log.
+                let theme = ui.theme().kind;
+                if theme != self.seen_theme {
+                    self.seen_theme = theme;
+                    self.log(format!("{} theme", theme.name()));
+                }
+                for (index, verb) in ["Focus on", "Press on", "Opened"].iter().enumerate() {
+                    if names[index] != self.seen[index] {
+                        if let Some(now) = &names[index] {
+                            self.log(format!("{verb} {now}"));
+                        }
+                        self.seen[index] = names[index].clone();
+                    }
+                }
+            }
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        cards::view(self, ui)
     }
 
     fn state(&self) -> Value {

@@ -4,7 +4,7 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{InfoCard, Program, Startup, Ui};
+use user_interface::{Context, InfoCard, Program, Startup, Tree, Ui};
 
 use crate::controls;
 use crate::scene::{Scene, car_placement};
@@ -12,6 +12,17 @@ use crate::settings::SceneSettings;
 
 pub const NAME: &str = "Spinning Car Test";
 pub const DESCRIPTION: &str = "A car moving at 8 units and turning at 90 degrees per second";
+
+// What a frame's input means: F1, S, and the frame's time, which places the
+// car. The tick comes after the toggles, so the frame that presses S places
+// the car with the new state.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Message {
+    ToggleText,
+    ToggleStationary,
+    // Seconds since the program started.
+    Tick(f64),
+}
 
 pub struct SpinningCar {
     pub settings: SceneSettings,
@@ -41,21 +52,38 @@ impl SpinningCar {
 }
 
 impl Program for SpinningCar {
+    type Message = Message;
+
     fn title(&self) -> String {
         NAME.to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages = Vec::new();
         if InfoCard::toggled(ui.input()) {
-            self.text_shown = !self.text_shown;
+            messages.push(Message::ToggleText);
         }
         if controls::toggles_stationary(ui.input()) {
-            self.stationary = !self.stationary;
+            messages.push(Message::ToggleStationary);
         }
-        self.placement = car_placement(ui.time(), self.stationary);
+        messages.push(Message::Tick(ui.time()));
+        messages
+    }
+
+    fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+        match message {
+            Message::ToggleText => self.text_shown = !self.text_shown,
+            Message::ToggleStationary => self.stationary = !self.stationary,
+            Message::Tick(seconds) => self.placement = car_placement(seconds, self.stationary),
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        let mut tree = Tree::new();
         if self.text_shown {
             let car = if self.stationary { "Stationary" } else { "Moving" };
-            ui.info_card(
+            tree.info_card(
+                ui,
                 &InfoCard {
                     title: NAME,
                     description: DESCRIPTION,
@@ -64,6 +92,7 @@ impl Program for SpinningCar {
                 },
             );
         }
+        tree
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> windows_core::Result<()> {

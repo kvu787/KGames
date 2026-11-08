@@ -4,13 +4,21 @@
 
 use graphics::{Frame, Gpu};
 use json::Value;
-use user_interface::{InfoCard, Program, Startup, Ui};
+use user_interface::{Context, InfoCard, Program, Startup, Tree, Ui};
 
 use crate::scene::{Motion, Scene};
 use crate::settings::SceneSettings;
 
 pub const NAME: &str = "Minimal Scene Test";
 pub const DESCRIPTION: &str = "A sphere moving at 8 units per second";
+
+// What a frame's input means: F1, and the frame's time passing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Message {
+    ToggleText,
+    // Seconds since the last frame, which move the sphere.
+    Tick(f32),
+}
 
 pub struct MovingSphere {
     pub settings: SceneSettings,
@@ -37,17 +45,33 @@ impl MovingSphere {
 }
 
 impl Program for MovingSphere {
+    type Message = Message;
+
     fn title(&self) -> String {
         NAME.to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages = Vec::new();
         if InfoCard::toggled(ui.input()) {
-            self.text_shown = !self.text_shown;
+            messages.push(Message::ToggleText);
         }
-        self.motion.advance_frame(ui.delta());
+        messages.push(Message::Tick(ui.delta()));
+        messages
+    }
+
+    fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+        match message {
+            Message::ToggleText => self.text_shown = !self.text_shown,
+            Message::Tick(seconds) => self.motion.advance_frame(seconds),
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        let mut tree = Tree::new();
         if self.text_shown {
-            ui.info_card(
+            tree.info_card(
+                ui,
                 &InfoCard {
                     title: NAME,
                     description: DESCRIPTION,
@@ -56,6 +80,7 @@ impl Program for MovingSphere {
                 },
             );
         }
+        tree
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> windows_core::Result<()> {

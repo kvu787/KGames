@@ -3,17 +3,23 @@
 
 use user_interface::json;
 use user_interface::testing::script::compare;
-use user_interface::{Button, Event, Headless, Key, MouseButton, Point, Program, Rect, Script, ScriptRunner, Ui};
+use user_interface::{Button, Context, Event, Headless, Key, MouseButton, Point, Program, Rect, Script, ScriptRunner, Tree, Ui};
 
 struct Page;
 
 impl Program for Page {
+    type Message = ();
+
     fn title(&self) -> String {
         "Page".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.add("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        tree.add("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save"));
+        tree
     }
 }
 
