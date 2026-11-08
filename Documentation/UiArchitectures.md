@@ -199,3 +199,11 @@ branch `claude/callback-view-ui`'s history, as the retained experiment does at 0
 `Application/Callbacks.rs` was removed from the living branch rather than kept as a second,
 unused way to write a program. The stale-snapshot discipline that MVU demands is documented in the
 library README and pinned by the theme-toggle cancellation test.
+
+The same architecture then went below the GUI: the Platformer
+(Program/Platformer) runs its gameplay on events drained to quiescence inside the frame, so the
+deepest consequence graph - the last coin opening the door, the same frame reaching the goal, the
+record saving the file, the save light flashing - resolves before that frame's view; its README
+describes the graph, and Test/Platformer pins the one-frame laws. A full logic review of every
+program followed the port; [LogicReview.md](LogicReview.md) records what it found, fixed, and
+cleared.
