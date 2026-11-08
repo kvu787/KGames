@@ -67,6 +67,8 @@ pub struct Text {
     color: TextColor,
     align: Align,
     flow: Flow,
+    // Whether it's a target the pointer can rest on, for a tooltip.
+    hoverable: bool,
 }
 
 impl Text {
@@ -78,6 +80,7 @@ impl Text {
             color: TextColor::Primary,
             align: Align::Start,
             flow: Flow::Fit,
+            hoverable: false,
         }
     }
 
@@ -136,12 +139,22 @@ impl Text {
         self
     }
 
+    // Makes the text a target the pointer can rest on, for a tooltip.
+    pub fn hoverable(mut self) -> Self {
+        self.hoverable = true;
+        self
+    }
+
     pub fn text(&self) -> &str {
         &self.text
     }
 }
 
 impl<M: 'static> Widget<M> for Text {
+    fn sense(&self) -> Option<crate::core::interaction::Sense> {
+        self.hoverable.then_some(crate::core::interaction::Sense::NONE)
+    }
+
     fn kind(&self) -> &'static str {
         "TextBlock"
     }

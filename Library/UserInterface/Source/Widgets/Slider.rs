@@ -40,6 +40,8 @@ pub struct Slider<M> {
     decimals: usize,
     suffix: String,
     on_change: Option<Reaction<f64, M>>,
+    on_hold: Option<Reaction<bool, M>>,
+    on_wheel: Option<Reaction<f64, M>>,
 }
 
 // The rail's ends in a slider's rectangle: where its thumb's center goes
@@ -72,12 +74,29 @@ impl<M: Clone + 'static> Slider<M> {
             decimals: 2,
             suffix: String::new(),
             on_change: None,
+            on_hold: None,
+            on_wheel: None,
         }
     }
 
     // What moving it sends, with the value.
     pub fn on_change(mut self, reaction: impl Fn(f64) -> M + 'static) -> Self {
         self.on_change = Some(react(reaction));
+        self
+    }
+
+    // What a press taking hold of it and letting go send, with whether it's
+    // held, for a program that shows what's being dragged.
+    pub fn on_hold(mut self, reaction: impl Fn(bool) -> M + 'static) -> Self {
+        self.on_hold = Some(react(reaction));
+        self
+    }
+
+    // What the wheel turning over it sends, with its notches, besides
+    // moving the value: even a turn that can't move it, like a part of a
+    // notch, or at a value past what's allowed.
+    pub fn on_wheel(mut self, reaction: impl Fn(f64) -> M + 'static) -> Self {
+        self.on_wheel = Some(react(reaction));
         self
     }
 
@@ -166,6 +185,9 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let hit = interaction.whole();
+        if hit.pressed && let Some(reaction) = &self.on_hold {
+            ctx.send(reaction(true));
+        }
         let rect = ctx.rect();
         let (left, right) = slider_rail(rect);
         let before = self.value;
@@ -206,6 +228,9 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             }
         }
         if hit.wheel.y != 0.0 {
+            if let Some(reaction) = &self.on_wheel {
+                ctx.send(reaction(hit.wheel.y as f64));
+            }
             // Parts of notches add up, and a value between steps goes to the
             // next step the way the wheel turns, never back.
             let remainder = &mut ctx.memory::<WheelRemainder>().0;
@@ -243,6 +268,9 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(value));
+        }
+        if hit.released && let Some(reaction) = &self.on_hold {
+            ctx.send(reaction(false));
         }
     }
 

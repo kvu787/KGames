@@ -365,7 +365,7 @@ fn the_cards_fit_both_window_heights() {
         }
         // The view fills the preview card, and the sphere's image fills the
         // view: the whole image in fullscreen, and its middle maximized.
-        let view = app.program.view.unwrap();
+        let view = app.program.view.get().unwrap();
         assert_eq!(view.width, IMAGE_WIDTH as f32);
         assert_eq!(view.height, IMAGE_HEIGHT as f32 - if fullscreen { 0.0 } else { FULLSCREEN_HEIGHT - MAXIMIZED_HEIGHT });
         let place = copy_place(view, [WINDOW_WIDTH as u32, height as u32]).unwrap();
@@ -378,7 +378,7 @@ fn the_cards_fit_both_window_heights() {
         let mut app = demo(Parameters::default(), folder("Fit").join("A folder with a long name to save in").join("Paint.json"));
         app.key_with(Modifiers::CONTROL, Key::S).set_fullscreen(fullscreen);
         assert!(app.program.editor.status.as_ref().is_some_and(|(_, failed)| *failed));
-        assert_eq!(app.program.overflow, Vec::<&str>::new(), "cards whose content didn't fit, fullscreen {fullscreen}");
+        assert_eq!(*app.program.overflow.borrow(), Vec::<&str>::new(), "cards whose content didn't fit, fullscreen {fullscreen}");
     }
 }
 

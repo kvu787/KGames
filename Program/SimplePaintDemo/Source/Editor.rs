@@ -12,6 +12,7 @@ use json::Value;
 use simple_paint::{GpuMaterial, Material, Parameters};
 use user_interface::{Key, Modifiers, Slider};
 
+
 pub struct Setting {
     pub name: &'static str,
     // The slider's rail runs from `start` to `end`.
@@ -33,9 +34,10 @@ impl Setting {
         (self.get)(parameters)
     }
 
-    // The slider that sets `value`, over its rail, a step at a time, inside
-    // the range. Its label, which scripts see, is the value as it's shown.
-    pub fn slider<'v>(&self, value: &'v mut f64) -> Slider<'static, 'v, f64> {
+    // The slider that shows `value`, over its rail, a step at a time, inside
+    // the range. Its label, which scripts see, is the value as it's shown,
+    // and its wheel accumulates parts of notches by itself.
+    pub fn slider<M: Clone + 'static>(&self, value: f64) -> Slider<M> {
         Slider::new(value, self.start, self.end)
             .step(1.0 / self.steps)
             .allowed(self.minimum, self.maximum)
@@ -149,9 +151,6 @@ pub struct Editor {
     pub dragging: Option<usize>,
     // What happened at the last save, and whether it failed.
     pub status: Option<(String, bool)>,
-    // The setting that the wheel last turned over, and the part of a notch
-    // left over there, like from a touchpad, which turns it by less.
-    wheel: (Option<usize>, f64),
 }
 
 impl Editor {
@@ -164,7 +163,6 @@ impl Editor {
             selected: 0,
             dragging: None,
             status: None,
-            wheel: (None, 0.0),
         }
     }
 
@@ -185,19 +183,6 @@ impl Editor {
     pub fn nudge(&mut self, setting: usize, steps: f64) {
         let current = SETTINGS[setting].value(&self.parameters);
         self.set(setting, SETTINGS[setting].nudge(current, steps));
-    }
-
-    // Turns the wheel over a setting's slider, by notches, up for more. A
-    // setting moves a step for each whole notch, and parts of a notch add up
-    // while the wheel turns over the same one.
-    pub fn wheel(&mut self, setting: usize, notches: f64) {
-        let (last, part) = self.wheel;
-        let turned = notches + if last == Some(setting) { part } else { 0.0 };
-        let steps = turned.trunc();
-        self.wheel = (Some(setting), turned - steps);
-        if steps != 0.0 {
-            self.nudge(setting, steps);
-        }
     }
 
     pub fn apply(&mut self, command: Command, paint_path: &Path) {

@@ -42,7 +42,7 @@ fn the_sphere_fills_the_preview_card_s_view_at_both_heights() {
     let card = [r, g, b];
 
     let image = app.render(&mut gpu).unwrap();
-    let view = app.program.view.unwrap();
+    let view = app.program.view.get().unwrap();
     let blue = check(&image, view, card);
     // The default material is a blue.
     assert!(blue[2] > blue[0] + 64 && blue[2] > blue[1], "{blue:?}");
@@ -50,7 +50,7 @@ fn the_sphere_fills_the_preview_card_s_view_at_both_heights() {
     // In fullscreen, the view is taller, and the sphere is still in its middle.
     app.set_fullscreen(true).frame();
     let image = app.render(&mut gpu).unwrap();
-    let tall = app.program.view.unwrap();
+    let tall = app.program.view.get().unwrap();
     assert!(tall.height > view.height);
     assert_eq!(check(&image, tall, card), blue);
 

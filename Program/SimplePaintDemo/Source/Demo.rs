@@ -2,19 +2,35 @@
 // cards, and the sphere's preview, which render draws into the preview
 // card's view before the interface draws over the rest of the frame.
 
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 
 use graphics::{Frame, Gpu};
 use json::Value;
 use simple_paint::Parameters;
-use user_interface::{Color, Program, Rect, Severity, Startup, Ui};
+use user_interface::{Color, Context, Program, Rect, Severity, Startup, Tree, Ui};
 use windows_core::Result;
 
 use crate::cards;
-use crate::editor::{self, Editor};
+use crate::editor::{self, Editor, SETTINGS};
 use crate::preview::Preview;
 
 pub const TITLE: &str = "SimplePaint Demo";
+
+// What the input on the cards means.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Message {
+    // A key's command: select, nudge or save.
+    Command(editor::Command),
+    Reset,
+    Save,
+    // A press on a setting's row, by the setting's index.
+    Select(usize),
+    // A setting's slider moved, dragged or by the wheel.
+    Set(usize, f64),
+    // A press took hold of a setting's slider, or let go of it.
+    Drag(usize, bool),
+}
 
 pub struct Demo {
     pub editor: Editor,
@@ -22,12 +38,14 @@ pub struct Demo {
     // script's output folder.
     pub paint_path: PathBuf,
     // The cards whose content didn't fit in them in the last frame, which
-    // the tests check is none of them.
-    pub overflow: Vec<&'static str>,
+    // the tests check is none of them. The view notes it, as the one place
+    // that lays the cards out.
+    pub overflow: RefCell<Vec<&'static str>>,
     // Where the last frame's preview card has its view, which render fills
-    // with the sphere, and the card's color, opaque, around the sphere.
-    pub view: Option<Rect>,
-    pub background: Color,
+    // with the sphere, and the card's color, opaque, around the sphere. The
+    // view notes them, as the one place that knows the layout and the theme.
+    pub view: Cell<Option<Rect>>,
+    pub background: Cell<Color>,
     // Made by prepare.
     preview: Option<Preview>,
 }
@@ -37,9 +55,9 @@ impl Demo {
         Self {
             editor: Editor::new(parameters),
             paint_path,
-            overflow: Vec::new(),
-            view: None,
-            background: Color::WHITE,
+            overflow: RefCell::new(Vec::new()),
+            view: Cell::new(None),
+            background: Cell::new(Color::WHITE),
             preview: None,
         }
     }
@@ -65,12 +83,50 @@ impl Demo {
 }
 
 impl Program for Demo {
+    type Message = Message;
+
     fn title(&self) -> String {
         TITLE.to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        cards::draw(self, ui);
+    // Each key pressed this frame, in order, with its repeats, unless a
+    // widget with focus takes it, like a button takes Space.
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let modifiers = ui.input().modifiers();
+        let mut messages = Vec::new();
+        for &(key, repeat) in ui.input().keys_pressed() {
+            if ui.key_pressed(key)
+                && let Some(command) = editor::command(key, repeat, modifiers)
+            {
+                messages.push(Message::Command(command));
+            }
+        }
+        messages
+    }
+
+    fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+        match message {
+            Message::Command(command) => self.editor.apply(command, &self.paint_path),
+            Message::Reset => self.editor.reset(),
+            Message::Save => self.editor.save(&self.paint_path),
+            Message::Select(index) => self.editor.selected = index,
+            Message::Set(index, value) => {
+                self.editor.selected = index;
+                self.editor.set(index, SETTINGS[index].nearest(value));
+            }
+            Message::Drag(index, held) => {
+                if held {
+                    self.editor.selected = index;
+                    self.editor.dragging = Some(index);
+                } else {
+                    self.editor.dragging = None;
+                }
+            }
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        cards::view(self, ui)
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> Result<()> {
@@ -79,8 +135,8 @@ impl Program for Demo {
     }
 
     fn render(&mut self, gpu: &mut Gpu, frame: &Frame) -> Result<()> {
-        if let (Some(preview), Some(view)) = (&mut self.preview, self.view) {
-            unsafe { preview.render(gpu, frame, &self.editor.material, self.background, view)? };
+        if let (Some(preview), Some(view)) = (&mut self.preview, self.view.get()) {
+            unsafe { preview.render(gpu, frame, &self.editor.material, self.background.get(), view)? };
         }
         Ok(())
     }
