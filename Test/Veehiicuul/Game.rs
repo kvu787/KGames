@@ -344,6 +344,32 @@ fn a_crash_counts_once() {
     assert!(app.program.game.paused());
 }
 
+// A crash too is in fixed steps: the step that touches the edge crashes,
+// and the pause runs on the drive's clock, so a run through a crash and out
+// of its pause is the same at 60 frames a second as at 240.
+#[test]
+fn a_crash_and_its_pause_are_the_same_at_any_frame_rate() {
+    let run = |rate: u32| {
+        let mut app = start();
+        // Pushing right reaches an edge in under two seconds; four seconds
+        // crosses the crash, the pause, and the drive after it.
+        let controls = Controls {
+            push: [1.0, 0.0],
+            ..Controls::default()
+        };
+        app.program.game.update(&controls, 0.0);
+        for frame in 1..=(4 * rate) {
+            app.program.game.update(&controls, f64::from(frame) / f64::from(rate));
+        }
+        (app.program.game.car, app.program.game.crashes)
+    };
+    let slow = run(60);
+    let fast = run(240);
+    assert!(slow.1 >= 1, "the run crashed, {} times", slow.1);
+    assert_eq!(slow.1, fast.1, "the same crashes");
+    assert_eq!(slow.0, fast.0, "the same car after them");
+}
+
 // The car drives in fixed steps, so the same push for the same time puts it
 // in the same place at 60 frames a second as at 240.
 #[test]

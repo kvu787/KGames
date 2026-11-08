@@ -203,10 +203,12 @@ impl Veehiicuul {
         }
     }
 
-    // Writes the files that changed since the last save.
+    // Writes the files that changed since the last save, and deletes the
+    // files of scenes the document no longer has, like an undone new scene.
     pub fn save(&mut self) {
         let changed = self.game.document.changed_files(&self.saved);
-        if changed.is_empty() {
+        let removed = self.game.document.removed_files(&self.saved);
+        if changed.is_empty() && removed.is_empty() {
             self.status = "Nothing to save".to_string();
             return;
         }
@@ -216,8 +218,22 @@ impl Veehiicuul {
                 return;
             }
         }
+        for path in &removed {
+            match std::fs::remove_file(self.save_folder.join(path)) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    self.status = format!("Couldn't remove {path}: {error}");
+                    return;
+                }
+            }
+        }
         let names: Vec<&str> = changed.iter().map(|(path, _)| path.as_str()).collect();
-        self.status = format!("Saved {}", names.join(", "));
+        self.status = match (names.is_empty(), removed.is_empty()) {
+            (false, true) => format!("Saved {}", names.join(", ")),
+            (false, false) => format!("Saved {} and removed {}", names.join(", "), removed.join(", ")),
+            (true, _) => format!("Removed {}", removed.join(", ")),
+        };
         self.saved = self.game.document.clone();
     }
 
@@ -480,8 +496,12 @@ impl Program for Veehiicuul {
             Message::Prepare => {
                 self.pending_notches = 0.0;
                 self.game.keep_in_document();
-                // A pick that's gone, like after an undo, even during a drag.
+                // A pick that's gone, like after an undo, even during a drag,
+                // and the track's and the terrain's choices the same way.
                 self.scene_editor.keep_picked(&self.game.document, self.game.scene);
+                let current = &self.game.document.scenes[self.game.scene];
+                self.track_editor.curve = self.track_editor.curve.min(current.track.islands.len());
+                self.terrain_editor.color = self.terrain_editor.color.min(current.terrain.palette.len().saturating_sub(1) as u8);
                 if !ctx.is_focused("Vehicles/Name") {
                     self.vehicle_editor.sync_name(&self.game.document, self.game.vehicle);
                 }

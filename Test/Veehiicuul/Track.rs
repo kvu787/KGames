@@ -91,6 +91,12 @@ fn says_what_is_wrong_with_a_track_s_shape() {
     track.islands[0] = curve::circle([20.0, 0.0], 30.0, 10);
     let problems = track.shape().problems;
     assert!(problems.contains(&"The road's edge crosses island 1's".to_string()), "{problems:?}");
+    // An island inside an island.
+    track.islands[0] = curve::circle([20.0, 0.0], 6.0, 8);
+    track.islands.push(curve::circle([20.0, 0.0], 2.0, 6));
+    let problems = track.shape().problems;
+    assert!(problems.contains(&"Island 2 is inside island 1".to_string()), "{problems:?}");
+    track.islands.pop();
     // A curve that crosses itself, like a figure eight.
     track.islands[0] = vec![[-5.0, -5.0], [5.0, 5.0], [5.0, -5.0], [-5.0, 5.0]];
     let problems = track.shape().problems;

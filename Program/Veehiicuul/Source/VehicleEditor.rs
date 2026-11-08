@@ -132,7 +132,12 @@ impl VehicleEditor {
             }
             VehicleMsg::Delete => {
                 let name = document.vehicles.list[*vehicle].name.clone();
-                let parked = document.scenes.iter().find(|scene| scene.parked.iter().any(|parked| parked.vehicle == name));
+                // A parked name matches without case, as Vehicles::find
+                // reads it, so a hand-edited scene can't dodge the guard.
+                let parked = document
+                    .scenes
+                    .iter()
+                    .find(|scene| scene.parked.iter().any(|parked| parked.vehicle.eq_ignore_ascii_case(&name)));
                 self.message = if document.vehicles.list.len() == 1 {
                     "The game needs a vehicle, so the last can't go.".to_string()
                 } else if let Some(scene) = parked {
@@ -151,7 +156,7 @@ impl VehicleEditor {
                 if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
                     for scene in &mut document.scenes {
                         for parked in &mut scene.parked {
-                            if parked.vehicle == old {
+                            if parked.vehicle.eq_ignore_ascii_case(&old) {
                                 parked.vehicle = name.clone();
                             }
                         }

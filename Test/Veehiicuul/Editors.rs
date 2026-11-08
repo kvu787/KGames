@@ -347,6 +347,40 @@ fn save_writes_only_what_changed() {
     assert!(vehicles.contains("\"Forward\": 12.0"), "{vehicles}");
 }
 
+// An island added and then undone can't be deleted again: the frame's last
+// message clamps the chosen curve, so the button deletes a real island or
+// nothing.
+#[test]
+fn an_undone_island_cannot_be_deleted_again() {
+    let mut app = start("UndoIsland");
+    app.click("Mode/Track");
+    let islands = app.program.game.current_scene().track.islands.len();
+    app.click("Track/AddIsland");
+    assert_eq!(app.program.track_editor.curve, islands + 1);
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.game.current_scene().track.islands.len(), islands);
+    assert!(app.program.track_editor.curve <= islands, "the choice was clamped with the undo");
+    app.click("Track/DeleteIsland");
+    assert_eq!(app.program.game.current_scene().track.islands.len(), islands.saturating_sub(1), "deleted a real island, not past the end");
+}
+
+// Saving after undoing a new scene removes its file, and the document then
+// counts as saved, instead of "Unsaved changes" forever.
+#[test]
+fn saving_after_undoing_a_new_scene_removes_its_file() {
+    let mut app = start("RemoveScene");
+    app.click("NewScene");
+    app.click("Save");
+    let saves = save_folder("RemoveScene");
+    assert!(saves.join("Scenes/Scene 2.json").is_file());
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert!(app.program.unsaved());
+    app.click("Save");
+    assert_eq!(app.program.status, "Removed Scenes/Scene 2.json");
+    assert!(!saves.join("Scenes/Scene 2.json").exists());
+    assert!(!app.program.unsaved(), "the save reconciled the deletion");
+}
+
 // Undo during a held drag takes the picked decoration away, and the pick
 // goes with it, instead of indexing past the decorations that are left.
 #[test]

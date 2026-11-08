@@ -118,4 +118,15 @@ impl Document {
         }
         files
     }
+
+    // The files that save should delete: scenes in `saved` that the document
+    // no longer has, like after undoing a new scene.
+    pub fn removed_files(&self, saved: &Document) -> Vec<String> {
+        saved
+            .scenes
+            .iter()
+            .filter(|scene| !self.scenes.iter().any(|kept| kept.name == scene.name))
+            .map(|scene| format!("Scenes/{}.json", scene.name))
+            .collect()
+    }
 }

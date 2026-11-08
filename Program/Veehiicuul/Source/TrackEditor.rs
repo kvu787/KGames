@@ -166,7 +166,9 @@ impl TrackEditor {
                 self.curve = track.islands.len();
             }
             TrackMsg::DeleteIsland => {
-                if self.curve > 0 {
+                // Only while the choice is still an island: undo can take
+                // one away between the frame's messages.
+                if self.curve > 0 && self.curve <= track.islands.len() {
                     track.islands.remove(self.curve - 1);
                     self.curve -= 1;
                 }
