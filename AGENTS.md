@@ -36,6 +36,34 @@ All PowerShell scripts must:
 - Use `Set-StrictMode -Version Latest`
 - Use `$ErrorActionPreference = 'Stop'`
 
+# Correctness
+
+Development here is heavy and session-based: a rule that only a machine check enforces is the only
+kind that holds, because a later session never read the conversation that invented it.
+
+- The law of the frame: given the state and the frame's input at its start, everything the input
+  causes is in that frame's output - in the interface, and in game logic. An effect delayed any
+  number of frames is a bug. Test a cause by asserting its whole consequence graph on the frame
+  that caused it.
+- Every bug fix lands with a test that pins it, in the same change. A fix without a test is a bug
+  that will come back.
+- A discipline that can't be a type must be a test. For messages and game events: they carry the
+  facts of their moment - which coin, which row's item, the view the user was shown - and their
+  consumers read everything else from the state as it is when they apply, never from a snapshot.
+  The test for an intent-carrying message is two of the same intent in one frame: they cancel, or
+  apply twice, and never collapse into one.
+- Simulations run in fixed steps on their own clock, never the frame's, and a test drives the same
+  inputs at 60 and 240 frames a second and asserts identical results, events included. Event
+  queues drain to quiescence inside the frame; a cascade that doesn't settle stops the program
+  instead of hiding.
+- A comment is a promise: a comment or README that says the code does something the code doesn't
+  do is a bug, and models believe documentation more than people do. Keep them true in the same
+  change that would make them false.
+- A rewrite of a library core, like `Library/UserInterface/Source/Core`, is a rare, deliberate
+  event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
+  with an adversarial review of the new code and the findings pinned by tests, as
+  `Documentation/LogicReview.md` records for the last one.
+
 # Git
 
 When implementing stuff, avoid difficult-to-review "mega-commits".
