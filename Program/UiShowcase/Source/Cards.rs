@@ -454,10 +454,14 @@ fn list(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) 
     let names: Vec<String> = matches.iter().map(|item| showcase.items[*item].clone()).collect();
     let labels = names.clone();
     let selected = showcase.selected.and_then(|item| matches.iter().position(|index| *index == item));
+    // The messages carry the item each row showed, the gesture's own fact,
+    // not a row number for apply time to re-resolve.
+    let picks = matches.clone();
+    let opens = matches.clone();
     let list = ListView::new(matches.len(), 40.0)
         .selection(selected)
-        .on_select(Message::Select)
-        .on_activate(Message::Activate)
+        .on_select(move |row| Message::Select(picks.get(row).copied().unwrap_or(usize::MAX)))
+        .on_activate(move |row| Message::Activate(opens.get(row).copied().unwrap_or(usize::MAX)))
         .labels(move |row| labels[row].clone());
     tree.card(ui, None, rect, Card::new("List").subtitle(subtitle), |ui, card, area| {
         let rows = list.rows(ui, "Items", area.content);

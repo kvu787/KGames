@@ -87,15 +87,38 @@ fn two_theme_toggles_in_one_frame_cancel() {
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     // The button fires on its click, so its release frame also presses F9.
     app.press("Theme");
+    let themed = app.program.log.iter().filter(|line| line.ends_with("theme")).count();
     app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
     app.release();
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    // The button's toggle logged the theme the frame draws in, once; the
+    // watcher re-reads the theme when it applies, so it adds nothing, this
+    // frame or the next.
+    app.frame();
+    let after: Vec<&String> = app.program.log.iter().filter(|line| line.ends_with("theme")).collect();
+    assert_eq!(after.len(), themed + 1, "{after:?}");
+    assert_eq!(after.first().map(|line| line.as_str()), Some("Light theme"));
     // Either alone still switches.
     app.queue(&[Event::KeyReleased(Key::F9)]).frame();
     app.key(Key::F9);
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
     app.click("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+}
+
+// A frame can hold both a typed letter, which re-filters the list, and a
+// press on a row. The press means the item the row showed, so it still
+// lands there.
+#[test]
+fn a_press_lands_on_the_item_its_row_showed_even_as_the_search_changes() {
+    use user_interface::Event;
+    let mut app = showcase();
+    app.click("Search");
+    let center = app.target("Items/0").center();
+    app.queue(&[Event::Text('b'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    assert_eq!(app.program.search, "b", "the letter reached the search box");
+    assert_eq!(app.program.selected, Some(0), "the press selected what the row was showing");
+    app.release();
 }
 
 #[test]

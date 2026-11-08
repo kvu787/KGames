@@ -68,7 +68,7 @@ pub enum Message {
     Reset,
     // What the interface is on changed: the theme, if it did, and the names
     // of what has focus, what's pressed, and the open popup.
-    Watch(Option<ThemeKind>, [Option<String>; 3]),
+    Watch([Option<String>; 3]),
 }
 
 pub struct Showcase {
@@ -196,7 +196,6 @@ impl Showcase {
 
     // What a menu's command does, by its label.
     fn command(&mut self, ui: &mut Context<Message>, label: &str) {
-        self.menu_choice = Some(label.to_string());
         match label {
             "Reset" => self.reset(ui.time()),
             "Dark theme" => self.toggle_theme(ui),
@@ -207,6 +206,8 @@ impl Showcase {
             "Pinned" => self.pinned = !self.pinned,
             _ => {}
         }
+        // After the command, so Reset's fresh state keeps the choice too.
+        self.menu_choice = Some(label.to_string());
         self.log(format!("Chose {label}"));
     }
 }
@@ -228,10 +229,10 @@ impl Program for Showcase {
         if ui.shortcut(Modifiers::CONTROL, Key::R) {
             messages.push(Message::Reset);
         }
-        let theme = (ui.theme().kind != self.seen_theme).then_some(ui.theme().kind);
+        let theme_changed = ui.theme().kind != self.seen_theme;
         let names = [ui.focused_name(), ui.pressed_name(), ui.popup_name()];
-        if theme.is_some() || names.iter().zip(&self.seen).any(|(now, seen)| *now != seen.as_deref()) {
-            messages.push(Message::Watch(theme, names.map(|name| name.map(str::to_string))));
+        if theme_changed || names.iter().zip(&self.seen).any(|(now, seen)| *now != seen.as_deref()) {
+            messages.push(Message::Watch(names.map(|name| name.map(str::to_string))));
         }
         messages
     }
@@ -295,9 +296,9 @@ impl Program for Showcase {
             }
             Message::Swatch(index) => self.color = Color::hex(cards::PALETTE[index]),
             Message::Tab(tab) => self.tab = tab,
-            Message::Select(row) => self.selected = self.matches().get(row).copied(),
-            Message::Activate(row) => {
-                if let Some(item) = self.matches().get(row).copied() {
+            Message::Select(item) => self.selected = (item < self.items.len()).then_some(item),
+            Message::Activate(item) => {
+                if item < self.items.len() {
                     self.opened = Some(item);
                     self.log(format!("Opened {}", self.items[item]));
                 }
@@ -320,10 +321,12 @@ impl Program for Showcase {
                 self.log(format!("Answered {answer}"));
             }
             Message::Reset => self.reset(ui.time()),
-            Message::Watch(theme, names) => {
-                if let Some(theme) = theme
-                    && theme != self.seen_theme
-                {
+            Message::Watch(names) => {
+                // The theme as it stands NOW, not as input() saw it: a
+                // toggle earlier in this frame's queue already logged and
+                // marked itself, so a stale snapshot would double-log.
+                let theme = ui.theme().kind;
+                if theme != self.seen_theme {
                     self.seen_theme = theme;
                     self.log(format!("{} theme", theme.name()));
                 }

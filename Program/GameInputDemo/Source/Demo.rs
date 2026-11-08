@@ -92,6 +92,10 @@ impl Program for Demo {
         match message {
             Message::Listen(listen) => {
                 if let Ok(input) = &mut self.input {
+                    // The pick applies before the frame's Tick advances the
+                    // clock, so bring the clock to the frame first, and the
+                    // log line carries this frame's time.
+                    input.align_clock(ui.time());
                     input.pick_listen(listen);
                 }
             }
