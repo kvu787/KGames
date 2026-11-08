@@ -223,7 +223,6 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        let name = ctx.name().to_string();
         let mut chosen = None;
         for (_, result, _) in self.buttons(ctx.rect()) {
             if interaction.clicked(&Part::Named(result.part_name().to_string())) {
@@ -234,14 +233,14 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
             chosen = Some(DialogResult::Close);
             ctx.consume_escape();
         }
-        // Enter is the default button's, unless one of the dialog's own
-        // widgets has focus, or a popup is open, like a combo box's list in
-        // the dialog's content, which takes it.
+        // Enter is the default button's, unless something that takes Enter
+        // has focus - a text box submitting, a combo box opening, a focused
+        // button clicking - or a popup is open, which takes it.
         if chosen.is_none()
             && self.default.is_some()
             && !ctx.any_popup()
             && ctx.key_pressed_once(Key::ENTER)
-            && ctx.focused_name().is_none_or(|focused| !focused.starts_with(&name))
+            && !ctx.focused_takes_enter()
         {
             chosen = self.default;
         }

@@ -150,7 +150,10 @@ impl<P: Program> Headless<P> {
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
                 Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
-                Request::ToggleVerticalSync => self.ui.environment.vertical_sync = !self.ui.environment.vertical_sync,
+                // The environment already switched when the request was
+                // made, so the frame that asked says the new setting; a
+                // window would switch its presenter here.
+                Request::ToggleVerticalSync => {}
                 Request::Close => self.closed = true,
             }
         }

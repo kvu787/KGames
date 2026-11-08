@@ -265,6 +265,10 @@ impl<M: 'static> Widget<M> for ScrollArea {
         bar_draw(ctx, state_id, over, rect.right_strip(SCROLL_BAR_SIZE), self.content_height, rect.height, offset);
     }
 
+    fn takes_free_wheel(&self) -> bool {
+        true
+    }
+
     fn children_clip(&self, ctx: &mut Parts) -> Option<Rect> {
         Some(ctx.rect())
     }

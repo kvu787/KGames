@@ -168,7 +168,7 @@ pub struct Interface {
     pub(crate) popups: Vec<Popup>,
     // Whether the frame the user saw had a dialog, which then takes all
     // input, and whether the frame laid out has one.
-    modal_shown: bool,
+    pub(crate) modal_shown: bool,
     modal: bool,
     // Presses that only closed a popup, which no widget may take.
     press_consumed: [bool; 3],
@@ -190,7 +190,9 @@ pub struct Interface {
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, and whether it hit the cap.
     pub(crate) messages_applied: usize,
-    pub(crate) messages_capped: bool,
+    // Widgets that lost keyboard focus and haven't been told, so a number
+    // box commits its draft whoever took the focus, and in the same frame.
+    pub(crate) focus_leavers: Vec<Id>,
     phases: FramePhases,
 }
 
@@ -227,7 +229,7 @@ impl Interface {
             notices: Vec::new(),
             performance: None,
             messages_applied: 0,
-            messages_capped: false,
+            focus_leavers: Vec::new(),
             phases: FramePhases::default(),
         }
     }
@@ -269,16 +271,13 @@ impl Interface {
         };
         lap(&mut phases.input);
 
-        // The messages, and those they send, until none are left.
+        // The messages, and those they send, until none are left. A chain
+        // that doesn't settle is a bug, and stops the program rather than
+        // hiding or dropping what's queued behind it.
         let mut queue: VecDeque<P::Message> = messages.into_iter().collect();
         let mut applied = 0;
-        self.messages_capped = false;
         while let Some(message) = queue.pop_front() {
-            if applied >= MOST_MESSAGES {
-                self.messages_capped = true;
-                eprintln!("The interface stopped after {MOST_MESSAGES} messages in one frame: a message sends messages without end.");
-                break;
-            }
+            assert!(applied < MOST_MESSAGES, "the frame stopped after {MOST_MESSAGES} messages: a message sends messages without end");
             applied += 1;
             let mut context = Context { inner: self, queue: &mut queue };
             program.update(message, &mut context);
@@ -386,7 +385,7 @@ impl Interface {
             if self.popups.pop().is_some() {
                 self.escape_consumed = true;
             } else if self.focused.is_some() && !self.modal_shown {
-                self.focused = None;
+                self.set_focused(None);
                 self.escape_consumed = true;
             }
         }
@@ -396,7 +395,6 @@ impl Interface {
     // widget of the tree what the input did to it, which it turns into
     // messages.
     fn dispatch<M: Clone + 'static>(&mut self, tree: &Tree<M>, messages: &mut Vec<M>) {
-        let focused_before = self.focused;
         let shown = std::mem::take(&mut self.targets);
         let mut interactions: HashMap<Id, Interaction> = HashMap::new();
         for target in &shown {
@@ -416,34 +414,53 @@ impl Interface {
         self.move_focus();
 
         // The widget with keyboard focus hears the keys, if no popup or
-        // dialog over it takes them; and the widget that lost focus this
-        // frame hears that, like a number box that takes what was typed.
-        let owner_of = |focused: Option<Id>| {
-            focused.and_then(|focused| {
-                self.targets.iter().find(|target| target.id == focused).map(|target| {
-                    let keys_here = (self.popups.is_empty() || target.layer >= Layer::Popup) && (!self.modal_shown || target.layer >= Layer::Dialog);
-                    (target.owner, target.part.clone(), keys_here)
-                })
-            })
-        };
-        let focused_owner = owner_of(self.focused);
-        let lost_focus = if self.focused != focused_before { owner_of(focused_before).map(|(owner, _, _)| owner) } else { None };
+        // dialog over it takes them, re-found whenever a widget in the loop
+        // moves the focus; and every widget that lost focus hears that, like
+        // a number box that takes what was typed, however it lost it.
+        let mut known_focus = self.focused;
+        let mut focused_owner = owner_of_focus(&self.targets, &self.popups, self.modal_shown, known_focus);
 
         let pointer = self.input.pointer;
         let pointer_delta = self.input.pointer_delta;
         let mut elements: Vec<(&Element<M>, bool, bool, Layer)> = Vec::new();
         collect(&tree.elements, true, Layer::Base, &mut elements);
-        for (element, enabled, focusable, layer) in elements {
+        // The wheel that nothing under the pointer takes goes to the deepest
+        // widget there that scrolls, and only to it, so one notch never
+        // scrolls a list and what it's in together.
+        let wheel_target: Option<Id> = if wheel_free {
+            elements
+                .iter()
+                .filter(|(element, _, _, layer)| {
+                    element.id.is_some()
+                        && element.widget.takes_free_wheel()
+                        && pointer.is_some_and(|point| element.rect.contains(point))
+                        && hovered_layer.is_none_or(|hovered| hovered <= *layer)
+                })
+                .next_back()
+                .and_then(|(element, _, _, _)| element.id)
+        } else {
+            None
+        };
+        for &(element, enabled, focusable, _layer) in &elements {
             let Some(element_id) = element.id else {
                 continue;
             };
+            if self.focused != known_focus {
+                known_focus = self.focused;
+                focused_owner = owner_of_focus(&self.targets, &self.popups, self.modal_shown, known_focus);
+            }
             let mut interaction = interactions.remove(&element_id).unwrap_or_default();
             let (focused, focused_part) = match &focused_owner {
                 Some((owner, part, keys_here)) if *owner == element_id => (*keys_here, Some(part.clone())),
                 _ => (false, None),
             };
-            let wheel_over = wheel_free && pointer.is_some_and(|point| element.rect.contains(point)) && hovered_layer.is_none_or(|hovered| hovered <= layer);
-            if interaction.hits.is_empty() && !focused && !wheel_over && lost_focus != Some(element_id) && !element.widget.always_interacts() {
+            let wheel_over = wheel_target == Some(element_id);
+            let leaving = self.focus_leavers.contains(&element_id);
+            // A widget with an open popup, like a right-clicked context
+            // menu's, hears the keys that steer it even while the pointer is
+            // elsewhere.
+            let has_popup = self.popups.iter().any(|popup| popup.owner == element_id);
+            if interaction.hits.is_empty() && !focused && !wheel_over && !leaving && !has_popup && !element.widget.always_interacts() {
                 continue;
             }
             interaction.enabled = enabled;
@@ -468,7 +485,42 @@ impl Interface {
             if let Some(items) = &element.context_menu {
                 crate::widgets::menu::interact_context_menu(&interaction, &mut dispatch, items);
             }
+            if leaving {
+                self.focus_leavers.retain(|&id| id != element_id);
+            }
         }
+
+        // A widget whose focus was taken by one later in the loop was passed
+        // before it lost it: tell it now, so its draft still commits this
+        // frame. A told widget may move focus again, so go around, a little.
+        let mut rounds = 0;
+        while !self.focus_leavers.is_empty() && rounds < 4 {
+            rounds += 1;
+            let pending = std::mem::take(&mut self.focus_leavers);
+            for &(element, enabled, focusable, _layer) in &elements {
+                let Some(element_id) = element.id else {
+                    continue;
+                };
+                if !pending.contains(&element_id) {
+                    continue;
+                }
+                let interaction = Interaction {
+                    enabled,
+                    ..Interaction::default()
+                };
+                let mut dispatch = Dispatch {
+                    ui: self,
+                    messages,
+                    id: element_id,
+                    name: element.name.as_deref().unwrap_or(""),
+                    rect: element.rect,
+                    enabled,
+                    focusable,
+                };
+                element.widget.interact(&interaction, &mut dispatch);
+            }
+        }
+        self.focus_leavers.clear();
     }
 
     // What the input did to a target this frame.
@@ -499,7 +551,7 @@ impl Interface {
                     // was, like a text field's clear button leaves it in the
                     // field.
                     if sense.focusable && target.focusable {
-                        self.focused = Some(id);
+                        self.set_focused(Some(id));
                         self.focus_visible = false;
                     }
                 }
@@ -563,13 +615,26 @@ impl Interface {
                     None if backward => order.len() - 1,
                     None => 0,
                 };
-                self.focused = Some(order[next]);
+                self.set_focused(Some(order[next]));
                 self.focus_visible = true;
             }
         }
         // A left press that no widget took takes focus away.
         if self.input.button_pressed(MouseButton::Left) && !self.press_consumed[0] && self.active.is_none() {
-            self.focused = None;
+            self.set_focused(None);
+        }
+    }
+
+    // Moves keyboard focus, remembering who lost it: dispatch tells the
+    // loser, in the same frame, so a draft commits whoever took the focus.
+    pub(crate) fn set_focused(&mut self, to: Option<Id>) {
+        if self.focused != to {
+            if let Some(leaver) = self.focused
+                && !self.focus_leavers.contains(&leaver)
+            {
+                self.focus_leavers.push(leaver);
+            }
+            self.focused = to;
         }
     }
 
@@ -582,6 +647,9 @@ impl Interface {
             self.active = None;
         }
         if self.input.key_pressed_once(Key::F10) && !self.is_captured(Key::F10) {
+            // The frame presents with the new setting, so the PerfBar says
+            // it from this very frame; the loop re-reads the truth after.
+            self.environment.vertical_sync = !self.environment.vertical_sync;
             self.requests.push(Request::ToggleVerticalSync);
         }
         if self.input.key_pressed_once(Key::F11) && !self.is_captured(Key::F11) {
@@ -601,12 +669,12 @@ impl Interface {
         }
         self.layout_elements(&tree.elements, true, Layer::Base, bounds);
 
-        // A target that's gone or disabled can't keep focus, a press, or a
-        // popup.
+        // A target that's gone, disabled, or no longer focusable can't keep
+        // focus, a press, or a popup.
         if let Some(focused) = self.focused
-            && !self.targets.iter().any(|target| target.id == focused && target.enabled)
+            && !self.targets.iter().any(|target| target.id == focused && target.enabled && target.focusable)
         {
-            self.focused = None;
+            self.set_focused(None);
         }
         if let Some((active, _)) = self.active
             && !self.targets.iter().any(|target| target.id == active)
@@ -614,8 +682,22 @@ impl Interface {
             self.active = None;
         }
         if !self.popups.is_empty() {
-            let shown: HashSet<Id> = self.targets.iter().map(|target| target.id).collect();
-            self.popups.retain(|popup| shown.contains(&popup.owner));
+            // A popup stays only while its owner still exists AND still lays
+            // out popup content, so a widget that changes kind under a kept
+            // name can't leave a stale popup capturing the keys. The owner
+            // may be a part, like a menu bar's menu, whose content the
+            // part's element lays out.
+            let popup_owners: HashSet<Id> = self
+                .targets
+                .iter()
+                .filter(|target| target.layer >= Layer::Popup)
+                .map(|target| target.owner)
+                .collect();
+            self.popups.retain(|popup| {
+                self.targets
+                    .iter()
+                    .any(|target| target.id == popup.owner && popup_owners.contains(&target.owner))
+            });
         }
 
         // The pointer, on the frame as it's drawn, for the look of what's
@@ -808,7 +890,8 @@ impl Interface {
     // what it's in shouldn't scroll.
     fn hovered_takes_wheel(&self, targets: &[Target]) -> bool {
         let Some(hovered) = self.hovered else { return false };
-        match targets.iter().rev().find(|target| target.id == hovered).map(|target| target.sense.wheel) {
+        let target = targets.iter().rev().find(|target| target.id == hovered && target.enabled);
+        match target.map(|target| target.sense.wheel) {
             Some(Wheel::Taken) => true,
             Some(Wheel::WhileFocused) => self.hovered == self.focused,
             _ => false,
@@ -1060,10 +1143,11 @@ impl Interface {
         &self.targets
     }
 
-    // The last frame's listed target with the name.
+    // The last frame's listed target with the name: the first of them, as
+    // the state lists it, if the name is used twice.
     pub fn target(&self, name: &str) -> Option<&Target> {
         let id = id(name);
-        self.targets.iter().rev().find(|target| target.id == id && target.listed)
+        self.targets.iter().find(|target| target.id == id && target.listed)
     }
 
     fn listed_name(&self, id: Option<Id>) -> Option<&str> {
@@ -1146,6 +1230,16 @@ fn cover_id(rect: Rect) -> Id {
         hash = hash.wrapping_mul(0x0100_0000_01b3);
     }
     hash
+}
+
+// The focus's owner among the targets, with its part and whether the keys
+// reach it under the open popups and dialogs.
+fn owner_of_focus(targets: &[Target], popups: &[Popup], modal_shown: bool, focused: Option<Id>) -> Option<(Id, Part, bool)> {
+    let focused = focused?;
+    targets.iter().find(|target| target.id == focused).map(|target| {
+        let keys_here = (popups.is_empty() || target.layer >= Layer::Popup) && (!modal_shown || target.layer >= Layer::Dialog);
+        (target.owner, target.part.clone(), keys_here)
+    })
 }
 
 // Every element with its enabling, whether it takes focus, and its layer,
@@ -1353,6 +1447,7 @@ impl<M> Context<'_, M> {
 
     // Switches vertical sync, as F10 does, from the next frame on.
     pub fn toggle_vertical_sync(&mut self) {
+        self.inner.environment.vertical_sync = !self.inner.environment.vertical_sync;
         self.inner.requests.push(Request::ToggleVerticalSync);
     }
 
@@ -1414,11 +1509,11 @@ impl<M> Context<'_, M> {
 
     // Gives keyboard focus to the widget with the name.
     pub fn focus(&mut self, name: &str) {
-        self.inner.focused = Some(id(name));
+        self.inner.set_focused(Some(id(name)));
     }
 
     pub fn clear_focus(&mut self) {
-        self.inner.focused = None;
+        self.inner.set_focused(None);
     }
 
     pub fn is_focused(&self, name: &str) -> bool {

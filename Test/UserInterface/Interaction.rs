@@ -612,6 +612,66 @@ fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
     assert_eq!(app.program.color.to_hex(), "#FF8000");
 }
 
+// However focus leaves a number box - Esc, or a press on a view that takes
+// focus without being focusable - the typed draft commits on that very
+// frame, and no stale draft revives on the next edit.
+#[test]
+fn a_number_box_commits_its_draft_however_focus_leaves() {
+    let mut app = Headless::new(Test::default());
+    app.frame();
+    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.type_text("7");
+    assert_eq!(app.program.number, 0, "not before it commits");
+    app.queue(&[Event::KeyPressed { key: Key::ESCAPE, repeat: false }]).frame();
+    assert_eq!(app.program.number, 7, "Esc committed the draft on its frame");
+    app.queue(&[Event::KeyReleased(Key::ESCAPE)]).frame();
+    // A fresh edit starts from the value, not a revived draft.
+    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.type_text("3");
+    app.press("Area");
+    assert_eq!(app.program.number, 3, "the view's press committed the draft on its frame");
+    app.release();
+}
+
+// Enter in a dialog goes to the focused widget that takes it, like the
+// combo box, and to the default button only when nothing does.
+#[test]
+fn enter_in_a_dialog_is_the_focused_widgets_before_the_defaults() {
+    let mut app = Headless::new(Test::default());
+    app.click("Ask");
+    assert!(app.has_target("Question"));
+    // Tab goes through the dialog's own buttons first, then its content.
+    app.key(Key::TAB);
+    assert_eq!(focused(&app), Some("Question/Primary".into()));
+    app.key(Key::TAB);
+    app.key(Key::TAB);
+    assert_eq!(focused(&app), Some("Pick".into()));
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, None, "Enter opened the combo, not the default");
+    assert_ne!(app.ui.state().get("Popup"), Some(&Value::Null));
+    app.key(Key::ESCAPE);
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, None, "the combo still has focus and takes Enter");
+    app.key(Key::ESCAPE);
+    app.key(Key::ESCAPE);
+    assert_eq!(app.program.answer, Some(DialogResult::Close));
+    // With nothing focused inside, Enter is the default's, even while a
+    // widget under the dialog kept focus.
+    app.click("Ask");
+    app.key(Key::ENTER);
+    assert_eq!(app.program.answer, Some(DialogResult::Primary));
+}
+
+// F10's very frame already says the new setting, PerfBar and state alike.
+#[test]
+fn f10_shows_the_new_vertical_sync_on_its_own_frame() {
+    let mut app = Headless::new(Test::default());
+    app.frame();
+    app.queue(&[Event::KeyPressed { key: Key::F10, repeat: false }]).frame();
+    assert!(!app.vertical_sync());
+    assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(false)));
+}
+
 #[test]
 fn f10_switches_vertical_sync_even_while_a_text_field_has_focus() {
     let mut app = Headless::new(Test::default());

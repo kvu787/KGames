@@ -152,12 +152,16 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
                 open = true;
             }
         }
+        // Whether this very press opened the list, so it doesn't also
+        // choose from it below.
+        let mut opened_now = false;
         if interaction.focused && !open && count > 0 {
             let input = ctx.input();
             let alt_down = input.modifiers().alt && input.key_pressed(Key::DOWN);
             if alt_down || input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE) {
                 open_list(ctx, self.selected, count, &name);
                 open = true;
+                opened_now = true;
             } else if input.key_pressed(Key::DOWN) && self.selected + 1 < count {
                 chosen = Some(self.selected + 1);
             } else if input.key_pressed(Key::UP) && self.selected > 0 {
@@ -185,7 +189,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
                     state.highlighted = count - 1;
                 }
                 let moved = input.key_pressed(Key::DOWN) || input.key_pressed(Key::UP) || input.key_pressed(Key::HOME) || input.key_pressed(Key::END);
-                if input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE) {
+                if !opened_now && (input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE)) {
                     chosen = Some(state.highlighted);
                 }
                 if moved {

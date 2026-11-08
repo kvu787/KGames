@@ -139,7 +139,9 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
         let focused = interaction.focused;
         let mut draft = std::mem::take(ctx.memory::<Draft>());
         let current = self.value;
-        if !focused || !draft.editing {
+        // What's typed stays until it's taken or left, even as the field
+        // loses focus, when it's taken - never thrown away.
+        if !draft.editing {
             draft.text = self.format(current);
         }
         let mut value = current;

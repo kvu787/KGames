@@ -359,6 +359,13 @@ pub trait Widget<M>: 'static {
         false
     }
 
+    // Whether the wheel that nothing under the pointer takes scrolls this
+    // widget, like a scroll area or a list. The deepest such widget under
+    // the pointer gets it.
+    fn takes_free_wheel(&self) -> bool {
+        false
+    }
+
     // Does what the input on it means: sends messages, and changes what it
     // keeps between frames.
     fn interact(&self, _interaction: &Interaction, _ctx: &mut Dispatch<M>) {}
@@ -678,16 +685,31 @@ impl<M> Dispatch<'_, M> {
     // press on one of its parts does.
     pub fn focus(&mut self) {
         let id = self.id;
-        self.ui.focused = Some(id);
+        self.ui.set_focused(Some(id));
         self.ui.focus_visible = false;
     }
 
     pub fn focus_id(&mut self, id: Id) {
-        self.ui.focused = Some(id);
+        self.ui.set_focused(Some(id));
     }
 
     pub fn clear_focus(&mut self) {
-        self.ui.focused = None;
+        self.ui.set_focused(None);
+    }
+
+    // Whether the widget with keyboard focus takes Enter, like a text box,
+    // a list or a button, so a dialog's default button leaves it alone. A
+    // focused widget the keys can't reach, like one under the dialog, takes
+    // nothing.
+    pub fn focused_takes_enter(&self) -> bool {
+        self.ui
+            .focused
+            .and_then(|focused| self.ui.targets.iter().find(|target| target.id == focused))
+            .is_some_and(|target| {
+                let keys_here = (self.ui.popups.is_empty() || target.layer >= Layer::Popup)
+                    && (!self.ui.modal_shown || target.layer >= Layer::Dialog);
+                keys_here && target.enabled && target.sense.keys != crate::core::interaction::Keys::None
+            })
     }
 
     pub fn is_focused(&self) -> bool {
