@@ -66,7 +66,7 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
     app.click("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"));
+    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"), "{:?}", app.program.log);
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
     // F9 is the library's, which the theme's switch follows.
@@ -237,13 +237,13 @@ fn menus_choose_commands() {
     app.click("Menu/View/Menu/Theme/Menu/Dark theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
     assert_eq!(app.program.menu_choice.as_deref(), Some("Dark theme"));
-    app.click("More").click("MoreMenu/Pinned");
+    app.click("More").click("More/Menu/Pinned");
     assert!(app.program.pinned);
     // The context menu opens at a right-click.
     let area = app.target("ContextArea").center();
     app.press_button(area, MouseButton::Right).release_button(MouseButton::Right);
-    assert_eq!(app.ui.popup_name(), Some("ContextMenu"));
-    app.click("ContextMenu/Copy");
+    assert_eq!(app.ui.popup_name(), Some("ContextArea/ContextMenu"));
+    app.click("ContextArea/ContextMenu/Copy");
     assert_eq!(app.program.menu_choice.as_deref(), Some("Copy"));
 }
 
