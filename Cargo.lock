@@ -243,6 +243,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "platformer"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "user_interface",
+]
+
+[[package]]
+name = "platformer_tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "platformer",
+ "user_interface",
+]
+
+[[package]]
 name = "polygon_mesh"
 version = "0.1.0"
 dependencies = [

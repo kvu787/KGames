@@ -1,0 +1,12 @@
+{
+    "Steps": [
+        { "Frame": 1, "Hold": ["Right"] },
+        { "Frame": 50, "Hold": ["Right", "Space"] },
+        { "Frame": 56, "Hold": ["Right"] },
+        { "Frame": 150, "Hold": [] },
+        { "Frame": 150, "Expect": { "Lives": 2, "State": "Running", "Coins": 1 } },
+        { "Frame": 155, "Capture": "Respawned" },
+        { "Frame": 156, "Key": "R" },
+        { "Frame": 156, "Expect": { "Lives": 3, "Coins": 0, "State": "Running" } }
+    ]
+}
