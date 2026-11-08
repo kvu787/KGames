@@ -25,7 +25,7 @@ use std::path::Path;
 
 use json::Value;
 
-use crate::core::ui::Ui;
+use crate::core::interface::Interface;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
 use crate::input::events::Event;
@@ -137,7 +137,7 @@ impl ScriptRunner {
 
     // What frame N does. `ui` has the last frame's targets, which names point
     // at.
-    pub fn frame(&mut self, frame: u64, ui: &Ui) -> Result<ScriptFrame, String> {
+    pub fn frame(&mut self, frame: u64, ui: &Interface) -> Result<ScriptFrame, String> {
         let mut output = ScriptFrame::default();
         if frame == 0 {
             output.events.push(Event::FocusGained(Vec::new()));
@@ -285,7 +285,7 @@ impl ScriptRunner {
 // { "Target": name, "At": [x, y] }, a place in a target as fractions of its
 // size from its top left, like [0.25, 0.5] for a quarter of the way along a
 // slider.
-fn point(value: &Value, ui: &Ui) -> Result<Point, String> {
+fn point(value: &Value, ui: &Interface) -> Result<Point, String> {
     let target = |name: &str| {
         ui.target(name).map(|target| target.rect).ok_or_else(|| {
             let names: Vec<&str> = ui.targets().iter().filter(|target| target.listed).map(|target| target.name.as_str()).collect();

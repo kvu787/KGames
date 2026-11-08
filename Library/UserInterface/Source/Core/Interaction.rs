@@ -1,7 +1,7 @@
-// What a widget is to the input: its identity, what it senses, its target,
-// which the pointer can be on, and the response that says what the input did
-// to it. These are the types between the Ui's frame machinery and the
-// widgets; the machinery itself is in Ui.rs.
+// What a widget is to the input: its identity, what it senses, its targets,
+// which the pointer can be on, and the interaction that says what the input
+// did to it in a frame. These are the types between the interface's frame
+// machinery, in Interface.rs, and the widgets.
 
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::Layer;
@@ -105,7 +105,34 @@ impl Sense {
     }
 }
 
-// A widget's area, which the pointer can be on.
+// A part of a widget that's a target of its own, like a list's row or a
+// text field's clear button. The whole widget is `Whole`. A part's target
+// is named "<widget>/<suffix>", and keeps the part, so that the widget knows
+// which of its targets the input was on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Part {
+    Whole,
+    // By its index, like a row, an item or a swatch.
+    Index(usize),
+    // By a name, like "Clear" or "Up", or a menu item's path.
+    Named(String),
+}
+
+impl Part {
+    pub fn index(&self) -> Option<usize> {
+        match self {
+            Part::Index(index) => Some(*index),
+            _ => None,
+        }
+    }
+
+    pub fn is_named(&self, name: &str) -> bool {
+        matches!(self, Part::Named(own) if own == name)
+    }
+}
+
+// A widget's area, which the pointer can be on: the whole widget, or one
+// of its parts.
 #[derive(Clone, Debug)]
 pub struct Target {
     pub id: Id,
@@ -117,13 +144,15 @@ pub struct Target {
     pub layer: Layer,
     pub enabled: bool,
     pub focusable: bool,
-    pub keys: Keys,
-    pub wheel: Wheel,
+    pub sense: Sense,
     // Like "Button" or "Slider", as WinUI names its controls.
     pub kind: &'static str,
     // Whether scripts and tests see it. Surfaces that only cover what's
     // under them, like cards, aren't listed.
     pub listed: bool,
+    // The widget it belongs to, and which part of it.
+    pub owner: Id,
+    pub part: Part,
 }
 
 // WinUI's visual states of a control, which pick its brushes.
@@ -136,12 +165,9 @@ pub enum ControlState {
     Disabled,
 }
 
-// What the input did to a widget this frame.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Response {
-    pub id: Id,
-    pub rect: Rect,
-    pub enabled: bool,
+// What the input did to a target this frame.
+#[derive(Clone, Debug, Default)]
+pub struct Hit {
     // The pointer is on it, and it's enabled.
     pub hovered: bool,
     // The left button went down on it this frame.
@@ -162,28 +188,19 @@ pub struct Response {
     pub middle_pressed: bool,
     // The button that its press is of, while it's held.
     pub held_button: Option<MouseButton>,
-    pub focused: bool,
-    // Its value changed, for widgets that have one.
-    pub changed: bool,
-    // The pointer, while it's on the widget or the widget is held.
-    pub pointer: Option<Point>,
-    // How far the pointer moved this frame while the widget was held.
-    pub drag_delta: Point,
     // Notches of the wheel turned over it.
     pub wheel: Point,
 }
 
-impl Response {
-    // Whether the left button holds it down, as its look shows it: from the
-    // frame that reads the press until the frame that reads the release,
-    // which shows it let go. It's still held on that frame, for what the
-    // release does, like a click.
+impl Hit {
+    // Whether the left button holds it down.
     pub fn pressing(&self) -> bool {
-        self.held && self.held_button == Some(MouseButton::Left) && !self.released
+        self.held && self.held_button == Some(MouseButton::Left)
     }
 
-    pub fn state(&self) -> ControlState {
-        if !self.enabled {
+    // WinUI's visual state, from what the input did to it.
+    pub fn state(&self, enabled: bool) -> ControlState {
+        if !enabled {
             ControlState::Disabled
         } else if self.pressing() && self.hovered {
             ControlState::Pressed
@@ -192,6 +209,82 @@ impl Response {
         } else {
             ControlState::Normal
         }
+    }
+}
+
+// What the input did to a widget and its parts this frame, which the widget
+// turns into messages and changes of its own state.
+#[derive(Clone, Debug, Default)]
+pub struct Interaction {
+    pub enabled: bool,
+    // What happened to each of its targets that something happened to, by
+    // part. A part that nothing happened to isn't here.
+    pub hits: Vec<(Part, Hit)>,
+    // It has keyboard focus, and the keys reach it: no popup or dialog over
+    // it takes them. The part with focus, if the widget has focus at all,
+    // whether or not the keys reach it.
+    pub focused: bool,
+    pub focused_part: Option<Part>,
+    // The pointer, while it's on the widget or the widget is held.
+    pub pointer: Option<Point>,
+    // How far the pointer moved this frame while the widget was held.
+    pub drag_delta: Point,
+    // Notches of the wheel turned over the widget's area while what's under
+    // the pointer doesn't take the wheel itself, for what scrolls.
+    pub wheel_over: Point,
+}
+
+impl Interaction {
+    pub fn hit(&self, part: &Part) -> Option<&Hit> {
+        self.hits.iter().find(|(at, _)| at == part).map(|(_, hit)| hit)
+    }
+
+    // The whole widget's hit, or nothing's.
+    pub fn whole(&self) -> Hit {
+        self.hit(&Part::Whole).cloned().unwrap_or_default()
+    }
+
+    // The part that the pointer is on.
+    pub fn hovered_part(&self) -> Option<&Part> {
+        self.hits.iter().find(|(_, hit)| hit.hovered).map(|(part, _)| part)
+    }
+
+    // The part with a press.
+    pub fn held_part(&self) -> Option<&Part> {
+        self.hits.iter().find(|(_, hit)| hit.held).map(|(part, _)| part)
+    }
+
+    pub fn pressed_part(&self) -> Option<&Part> {
+        self.hits.iter().find(|(_, hit)| hit.pressed).map(|(part, _)| part)
+    }
+
+    pub fn clicked_part(&self) -> Option<&Part> {
+        self.hits.iter().find(|(_, hit)| hit.clicked).map(|(part, _)| part)
+    }
+
+    pub fn clicked(&self, part: &Part) -> bool {
+        self.hit(part).is_some_and(|hit| hit.clicked)
+    }
+
+    pub fn pressed(&self, part: &Part) -> bool {
+        self.hit(part).is_some_and(|hit| hit.pressed)
+    }
+
+    pub fn held(&self, part: &Part) -> bool {
+        self.hit(part).is_some_and(|hit| hit.held)
+    }
+
+    pub fn hovered(&self, part: &Part) -> bool {
+        self.hit(part).is_some_and(|hit| hit.hovered)
+    }
+
+    pub fn any_held(&self) -> bool {
+        self.hits.iter().any(|(_, hit)| hit.held)
+    }
+
+    // The wheel over any of its targets.
+    pub fn wheel(&self) -> Point {
+        self.hits.iter().map(|(_, hit)| hit.wheel).fold(Point::ZERO, |sum, wheel| sum + wheel)
     }
 }
 

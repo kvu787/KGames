@@ -10,22 +10,29 @@ use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Card, CheckBox, Color, ComboBox, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Palette, Program, RadioGroup,
-    Rect, Segmented, SelectorBar, Slider, Theme, ThemeKind, ToggleSwitch, Ui,
+    Button, Card, CheckBox, Color, ComboBox, Context, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Palette, Program, RadioGroup,
+    Rect, Segmented, SelectorBar, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, unsupported_setup,
 };
 
 struct Page;
 
 impl Program for Page {
+    type Message = ();
+
     fn title(&self) -> String {
         "Page".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        let card = ui.card(Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"));
-        let [accent, standard] = card.content.top_strip(32.0).columns::<2>(8.0);
-        ui.add("Accent", accent, Button::new("Accent").accent());
-        ui.add("Standard", standard, Button::new("Standard"));
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        tree.card(ui, None, Rect::new(40.0, 40.0, 400.0, 200.0), Card::new("A card"), |_, card, area| {
+            let [accent, standard] = area.content.top_strip(32.0).columns::<2>(8.0);
+            card.add("Accent", accent, Button::new("Accent").accent());
+            card.add("Standard", standard, Button::new("Standard"));
+        });
+        tree
     }
 }
 
@@ -96,50 +103,86 @@ struct States {
     color: Option<usize>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum Msg {
+    On(bool),
+    Checked(bool),
+    Size(usize),
+    Level(f64),
+    Alignment(usize),
+    Tab(usize),
+    Pick(usize),
+    Row(usize),
+    Color(usize),
+}
+
 const SIZES: [&str; 3] = ["Small", "Medium", "Large"];
 const COLORS: [Color; 4] = [Color::hex(0xD13438), Color::hex(0x107C10), Color::hex(0x0078D4), Color::hex(0x8764B8)];
-const FILE: &[MenuItem] = &[MenuItem::new("Open"), MenuItem::submenu("Recent", RECENT)];
-const RECENT: &[MenuItem] = &[MenuItem::new("First"), MenuItem::new("Second")];
-const MENUS: &[(&str, &[MenuItem])] = &[("File", FILE)];
+
+fn menus() -> Vec<(&'static str, Vec<MenuItem<Msg>>)> {
+    let recent = vec![MenuItem::new("First"), MenuItem::new("Second")];
+    vec![("File", vec![MenuItem::new("Open"), MenuItem::submenu("Recent", recent)])]
+}
 
 impl Program for States {
+    type Message = Msg;
+
     fn title(&self) -> String {
         "States".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
+    fn update(&mut self, message: Msg, _ui: &mut Context<Msg>) {
+        match message {
+            Msg::On(on) => self.on = on,
+            Msg::Checked(checked) => self.checked = checked,
+            Msg::Size(size) => self.size = size,
+            Msg::Level(level) => self.level = level,
+            Msg::Alignment(alignment) => self.alignment = alignment,
+            Msg::Tab(tab) => self.tab = tab,
+            Msg::Pick(pick) => self.pick = pick,
+            Msg::Row(row) => self.row = Some(row),
+            Msg::Color(color) => self.color = Some(color),
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Msg> {
+        let mut tree = Tree::new();
         let top = ui.content_top();
-        ui.add("Menus", Rect::new(40.0, top + 8.0, 200.0, MENU_BAR_HEIGHT), MenuBar::new(MENUS));
-        let card = ui.card(Rect::new(40.0, top + 300.0, 480.0, 800.0), Card::new("States"));
-        let mut area = card.content;
-        ui.add("Button", area.cut_top(32.0, 8.0), Button::new("Button"));
-        ui.add("Switch", area.cut_top(32.0, 8.0), ToggleSwitch::new(&mut self.on, "Switch"));
-        ui.add("Check", area.cut_top(32.0, 8.0), CheckBox::new(&mut self.checked, "Check"));
-        ui.add("Size", area.cut_top(RadioGroup::height(SIZES.len()), 8.0), RadioGroup::new(&mut self.size, &SIZES));
-        ui.add("Level", area.cut_top(32.0, 8.0), Slider::new(&mut self.level, 0.0, 1.0));
-        ui.add("Alignment", area.cut_top(32.0, 8.0), Segmented::new(&mut self.alignment, &["Left", "Center", "Right"]));
-        ui.add("Tabs", area.cut_top(48.0, 8.0), SelectorBar::new(&mut self.tab, &["First", "Second", "Third"]));
-        ui.add("Pick", area.cut_top(32.0, 8.0), ComboBox::new(&mut self.pick, &["One", "Two", "Three"]));
-        // As tall as its rows, so that it has no scroll bar, whose thumb
-        // waits for the pointer to rest on it before it widens.
-        let rows = area.cut_top(120.0, 8.0);
-        ui.add("Rows", rows, ListView::new(3, 40.0, |ui, index, row, _| {
-            ui.label(row, &format!("Row {index}"));
-        }).selection(&mut self.row));
-        ui.add("Colors", area.cut_top(32.0, 8.0), Palette::new(&mut self.color, &COLORS));
+        tree.add("Menus", Rect::new(40.0, top + 8.0, 200.0, MENU_BAR_HEIGHT), MenuBar::new(menus()));
+        tree.card(ui, None, Rect::new(40.0, top + 300.0, 480.0, 800.0), Card::new("States"), |ui, card, area| {
+            let mut area = area.content;
+            card.add("Button", area.cut_top(32.0, 8.0), Button::new("Button"));
+            card.add("Switch", area.cut_top(32.0, 8.0), ToggleSwitch::new(self.on, "Switch").on_change(Msg::On));
+            card.add("Check", area.cut_top(32.0, 8.0), CheckBox::new(self.checked, "Check").on_change(Msg::Checked));
+            card.add("Size", area.cut_top(RadioGroup::<Msg>::height(SIZES.len()), 8.0), RadioGroup::new(self.size, &SIZES).on_select(Msg::Size));
+            card.add("Level", area.cut_top(32.0, 8.0), Slider::new(self.level, 0.0, 1.0).on_change(Msg::Level));
+            card.add("Alignment", area.cut_top(32.0, 8.0), Segmented::new(self.alignment, &["Left", "Center", "Right"]).on_select(Msg::Alignment));
+            card.add("Tabs", area.cut_top(48.0, 8.0), SelectorBar::new(self.tab, &["First", "Second", "Third"]).on_select(Msg::Tab));
+            card.add("Pick", area.cut_top(32.0, 8.0), ComboBox::new(self.pick, &["One", "Two", "Three"]).on_select(Msg::Pick));
+            // As tall as its rows, so that it has no scroll bar, whose thumb
+            // waits for the pointer to rest on it before it widens.
+            let rows = area.cut_top(120.0, 8.0);
+            let list = ListView::new(3, 40.0).selection(self.row).on_select(Msg::Row);
+            let shown = list.rows(ui, "Rows", rows);
+            card.container(Some("Rows"), rows, list, |list| {
+                for index in shown.indices() {
+                    list.draw(shown.content(index), Text::label(format!("Row {index}")));
+                }
+            });
+            card.add("Colors", area.cut_top(32.0, 8.0), Palette::new(self.color, &COLORS).on_pick(Msg::Color));
+        });
+        tree
     }
 }
 
 #[test]
 fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
     // Each step is input that changes how a widget looks, and after which
-    // nothing changes. The second frame after the input's is drawn, and
-    // then the frame a second later, which must be the same below the
-    // PerfBar, whose numbers do change. A widget that eased, faded or slid
-    // to its new state, even over WinUI's fastest 83 ms, would be less than
-    // half way there in the first. It's the second frame after because the
-    // pointer finds its widget by the last frame's targets: what a popup
-    // that closes uncovers is under the pointer a frame later.
+    // nothing changes. The frame that reads the input is drawn, and then
+    // the frame a second later, which must be the same below the PerfBar,
+    // whose numbers do change. A widget that eased, faded or slid to its
+    // new state, even over WinUI's fastest 83 ms, would be less than half
+    // way there in the first.
     type Step = fn(&mut Headless<States>);
     let steps: [(&str, Step); 19] = [
         ("the pointer onto a button", |app| {
@@ -204,9 +247,7 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
     let mut app = Headless::new(States::default());
     app.frame();
     for (index, (step, act)) in steps.into_iter().enumerate() {
-        // The input's frame and the one after it, and one more.
         act(&mut app);
-        app.frame();
         let now = app.render(&mut gpu).unwrap();
         app.wait(1.0);
         let later = app.render(&mut gpu).unwrap();
@@ -231,10 +272,10 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
 #[test]
 fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
     // A press selects a list's row, and a release a radio button, a segment,
-    // a tab or a swatch. Each of these reads all its items' input before it draws
-    // any, so even when the selection moves to an item after the old one,
-    // the very frame that reads the input draws the old item without it,
-    // the same as a second later.
+    // a tab or a swatch. The frame that reads the input applies its message
+    // and then describes every item from the model, so even when the
+    // selection moves to an item after the old one, that very frame draws
+    // the old item without it, the same as a second later.
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(States::default());
     app.frame();
@@ -347,15 +388,19 @@ fn the_perf_bar_is_black_on_white_in_the_light_theme_and_white_on_black_in_the_d
 struct Unsupported;
 
 impl Program for Unsupported {
+    type Message = ();
+
     fn title(&self) -> String {
         "Unsupported".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        ui.unsupported_setup(&[
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        unsupported_setup(&[
             "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
             "The window must be maximized, or borderless fullscreen with F11.".to_string(),
-        ]);
+        ])
     }
 }
 

@@ -1,35 +1,11 @@
-// What every widget shares: the Widget trait, which `Ui::add` shows widgets
-// through, the brushes of WinUI's visual states, its focus visual, and its
-// elevation borders, the gradients that make controls look raised.
+// What every widget shares: the brushes of WinUI's visual states, its focus
+// visual, and its elevation borders, the gradients that make controls look
+// raised.
 
 use crate::core::interaction::ControlState;
-use crate::core::ui::Ui;
-use crate::design::controls::FOCUS_VISUAL_MARGIN;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::drawing::geometry::{Color, Insets, Point, Rect};
 use crate::drawing::painter::{Border, Brush, Painter};
-
-// A control that a frame shows, like a Button or a Slider. It's a value that
-// says what the control is, and borrows what it changes, like a slider's
-// value; `show` registers it under its name, draws it in its rectangle, and
-// says what the input did.
-pub trait Widget {
-    type Response;
-    fn show(self, ui: &mut Ui, name: &str, rect: Rect) -> Self::Response;
-}
-
-impl Ui {
-    // Shows a widget under the name, in the rectangle.
-    pub fn add<W: Widget>(&mut self, name: &str, rect: Rect, widget: W) -> W::Response {
-        widget.show(self, name, rect)
-    }
-
-    // Shows a widget enabled or not, leaving the widgets around it alone.
-    // In a disabled scope it stays disabled either way.
-    pub fn add_enabled<W: Widget>(&mut self, enabled: bool, name: &str, rect: Rect, widget: W) -> W::Response {
-        self.with_enabled(enabled, |ui| ui.add(name, rect, widget))
-    }
-}
 
 // A brush for each of WinUI's visual states, like ButtonBackground,
 // ButtonBackgroundPointerOver, ButtonBackgroundPressed and
@@ -124,18 +100,9 @@ pub fn focus_visual(painter: &mut Painter, theme: &Theme, rect: Rect, radius: f3
     painter.shape(outer.inset(2.0), (outer_radius - 2.0).max(0.0), Color::TRANSPARENT, Some(Border::new(theme.focus_inner, 1.0)));
 }
 
-impl Ui {
-    // Draws the focus visual 3 pixels around the rectangle, if `focused` and
-    // the keyboard moved focus there.
-    pub fn focus_visual_if(&mut self, focused: bool, rect: Rect, radius: f32) {
-        self.focus_visual_around(focused, rect, radius, FOCUS_VISUAL_MARGIN);
-    }
+// A reaction to a widget's value: the message that the value makes.
+pub type Reaction<V, M> = Box<dyn Fn(V) -> M>;
 
-    pub fn focus_visual_around(&mut self, focused: bool, rect: Rect, radius: f32, margin: Insets) {
-        if focused && self.focus_visible() {
-            let mut painter = self.painter();
-            let theme = painter.theme();
-            focus_visual(&mut painter, theme, rect, radius, margin);
-        }
-    }
+pub(crate) fn react<V, M>(reaction: impl Fn(V) -> M + 'static) -> Reaction<V, M> {
+    Box::new(reaction)
 }

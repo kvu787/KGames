@@ -193,28 +193,42 @@ fn text_lays_out_with_directwrite() {
 
 // The README's example program, which must keep working as it says.
 mod readme {
-    use user_interface::{AppBar, Button, Card, Headless, Icon, Key, Program, Slider, Status, Ui};
+    use user_interface::{AppBar, Button, Card, Context, Headless, Icon, Key, Program, Slider, Status, Tree, Ui};
+
+    #[derive(Clone)]
+    enum Message {
+        Level(f64),
+        Mute,
+    }
 
     struct Volume {
         level: f64,
     }
 
     impl Program for Volume {
+        type Message = Message;
+
         fn title(&self) -> String {
             "Volume".to_string()
         }
 
-        fn update(&mut self, ui: &mut Ui) {
-            ui.app_bar(AppBar::new(Icon::Volume, "Volume"));
-            ui.status_bar(&[Status::Shortcut("F11", "Fullscreen")]);
-            let page = ui.page();
-            let card = ui.card(page.left_strip(400.0).top_strip(200.0), Card::new("Output"));
-            let mut area = card.content;
-            let slider = Slider::new(&mut self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0);
-            ui.add("Level", area.cut_top(Slider::<f64>::height(true), 8.0), slider);
-            if ui.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute")).clicked {
-                self.level = 0.0;
+        fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
+            match message {
+                Message::Level(level) => self.level = level,
+                Message::Mute => self.level = 0.0,
             }
+        }
+
+        fn view(&self, ui: &mut Ui) -> Tree<Message> {
+            let mut tree = Tree::new();
+            let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+            tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
+                let mut area = area.content;
+                let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Level);
+                card.add("Level", area.cut_top(Slider::<Message>::height(true), 8.0), slider);
+                card.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute").on_press(Message::Mute));
+            });
+            tree
         }
     }
 

@@ -9,7 +9,8 @@ use game_input::{GameInputKindKeyboard, GameInputKindMouse, GameInputMouseLeftBu
 use graphics::{AdapterChoice, Gpu, Presenter};
 use windows_api::RECT;
 
-use crate::core::ui::Ui;
+use crate::core::interface::{Interface, Ui};
+use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
@@ -30,7 +31,7 @@ struct Shown {
     window: Window,
     presenter: Presenter,
     renderer: Renderer,
-    ui: Ui,
+    ui: Interface,
     frames: u32,
 }
 
@@ -80,9 +81,9 @@ fn went_down(devices: &mut Vec<(Option<usize>, bool)>, device: Option<usize>, do
     }
 }
 
-// Shows the overlays, with focus, and draws each with `draw`, given its
-// index, until one closes.
-pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut(&mut Ui, usize)) -> Result<(), String> {
+// Shows the overlays, with focus, and draws each with the tree that `view`
+// describes, given its index, until one closes.
+pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut(&mut Ui, usize) -> Tree<()>) -> Result<(), String> {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let mut devices = Devices::new().map_err(|error| format!("Couldn't start GameInput, which reads the click or Esc that closes the overlays: {error}"))?;
     let mut presses = Presses::default();
@@ -97,7 +98,7 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
             window,
             presenter,
             renderer,
-            ui: Ui::new(fonts, theme, Clipboard::Own(String::new())),
+            ui: Interface::new(fonts, theme, Clipboard::Own(String::new())),
             frames: 0,
         });
     }
@@ -126,9 +127,8 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut draw: impl FnMut
                 continue;
             }
             let (width, height) = overlay.presenter.size();
-            overlay.ui.begin_frame(&[], start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), false);
-            draw(&mut overlay.ui, index);
-            overlay.ui.end_frame();
+            let tree = view(&mut Ui { inner: &mut overlay.ui }, index);
+            overlay.ui.frame_of(&tree, &[], start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), false);
             let frame = overlay.presenter.begin().map_err(|error| format!("Couldn't begin a frame: {error}"))?;
             let background = overlay.ui.theme().background;
             unsafe { frame.clear([background.r, background.g, background.b, 1.0]) };

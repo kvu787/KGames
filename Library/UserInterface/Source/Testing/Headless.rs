@@ -4,19 +4,24 @@
 // without a GPU. A test that wants to see a frame draws it offscreen with
 // `render`.
 //
-// Each input method runs a frame with the input, and one after it, as if the
-// user did it at 60 frames a second, and returns the harness, so that a test
-// reads like what it does:
+// Each input method runs one frame with the input, as if the user did it at
+// 60 frames a second, and returns the harness, so that a test reads like
+// what it does:
 //
 //     let mut app = Headless::new(program);
 //     app.click("Save").key(Key::F11);
 //     assert!(app.fullscreen());
+//
+// The frame shows all that the input did: a click's press opens a popup
+// whose items the next input can point at, and a message's every effect is
+// in the frame that applies it.
 
 use graphics::{Frame, Gpu, Image, Offscreen};
 
 use crate::application::performance::Performance;
 use crate::application::program::{Program, Startup};
-use crate::core::ui::{Request, Ui};
+use crate::core::interface::{Interface, Request};
+use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
 use crate::design::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
 use crate::drawing::geometry::{Point, Rect, Size};
@@ -29,10 +34,14 @@ use crate::testing::script::DEFAULT_FRAME_TIME;
 
 pub struct Headless<P: Program> {
     pub program: P,
-    pub ui: Ui,
+    pub ui: Interface,
+    // The tree the last frame showed, which the next frame's input is on.
+    shown: Option<Tree<P::Message>>,
     frame: u64,
     fullscreen: bool,
     pending: Vec<Event>,
+    // Messages a test sends, applied in the next frame before the input's.
+    sent: Vec<P::Message>,
     pointer: Point,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
@@ -51,10 +60,12 @@ impl<P: Program> Headless<P> {
         let fonts = Fonts::new().expect("DirectWrite couldn't start");
         let mut headless = Self {
             program,
-            ui: Ui::new(fonts, theme, Clipboard::Own(String::new())),
+            ui: Interface::new(fonts, theme, Clipboard::Own(String::new())),
+            shown: None,
             frame: 0,
             fullscreen: false,
             pending: vec![Event::FocusGained(Vec::new())],
+            sent: Vec::new(),
             pointer: Point::ZERO,
             gamepad: Gamepad::default(),
             renderer: None,
@@ -109,7 +120,7 @@ impl<P: Program> Headless<P> {
         self.ui.vertical_sync()
     }
 
-    // Whether the program closed its window with Ui::close.
+    // Whether the program closed its window with Context::close.
     pub fn closed(&self) -> bool {
         self.closed
     }
@@ -122,14 +133,20 @@ impl<P: Program> Headless<P> {
         self.frame as f64 * DEFAULT_FRAME_TIME
     }
 
+    // How many messages the last frame applied, counting those that
+    // messages sent in turn.
+    pub fn messages_applied(&self) -> usize {
+        self.ui.messages_applied
+    }
+
     fn run_frame(&mut self) -> &mut Self {
         self.frame += 1;
         let mut events = std::mem::take(&mut self.pending);
         events.push(Event::Gamepad(self.gamepad));
+        let sent = std::mem::take(&mut self.sent);
         let size = self.size();
-        self.ui.begin_frame(&events, self.time(), size, self.fullscreen);
-        self.program.update(&mut self.ui);
-        self.ui.end_frame();
+        let time = self.time();
+        self.ui.frame(&mut self.program, &mut self.shown, &events, sent, time, size, self.fullscreen);
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
                 Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
@@ -145,13 +162,6 @@ impl<P: Program> Headless<P> {
         self.run_frame()
     }
 
-    // A frame with the pending input, and another, so that what the input
-    // made appear, like a popup, is in the targets.
-    fn act(&mut self) -> &mut Self {
-        self.run_frame();
-        self.run_frame()
-    }
-
     pub fn frames(&mut self, count: usize) -> &mut Self {
         for _ in 0..count {
             self.run_frame();
@@ -162,6 +172,20 @@ impl<P: Program> Headless<P> {
     // Runs frames for the seconds.
     pub fn wait(&mut self, seconds: f64) -> &mut Self {
         self.frames((seconds / DEFAULT_FRAME_TIME).ceil() as usize)
+    }
+
+    // Sends a message to the program, as a widget would, and runs the frame
+    // that applies it.
+    pub fn send_message(&mut self, message: P::Message) -> &mut Self {
+        self.sent.push(message);
+        self.run_frame()
+    }
+
+    // Queues a message for the next frame without running it, so that
+    // several go in one frame.
+    pub fn queue_message(&mut self, message: P::Message) -> &mut Self {
+        self.sent.push(message);
+        self
     }
 
     // The area of the widget with the name, in the last frame.
@@ -205,7 +229,7 @@ impl<P: Program> Headless<P> {
     pub fn move_point(&mut self, point: Point) -> &mut Self {
         self.pointer = point;
         self.pending.push(Event::PointerMoved(point));
-        self.act()
+        self.run_frame()
     }
 
     // Presses the left button on the widget, and holds it.
@@ -222,7 +246,7 @@ impl<P: Program> Headless<P> {
         self.pointer = point;
         self.pending.push(Event::PointerMoved(point));
         self.pending.push(Event::ButtonPressed(button));
-        self.act()
+        self.run_frame()
     }
 
     pub fn release(&mut self) -> &mut Self {
@@ -231,7 +255,7 @@ impl<P: Program> Headless<P> {
 
     pub fn release_button(&mut self, button: MouseButton) -> &mut Self {
         self.pending.push(Event::ButtonReleased(button));
-        self.act()
+        self.run_frame()
     }
 
     // A press on the widget, and its release the next frame.
@@ -255,10 +279,10 @@ impl<P: Program> Headless<P> {
         self.pending.push(Event::PointerMoved(point));
         self.pending.push(Event::ButtonPressed(MouseButton::Left));
         self.pending.push(Event::ButtonReleased(MouseButton::Left));
-        self.act();
+        self.run_frame();
         self.pending.push(Event::ButtonPressed(MouseButton::Left));
         self.pending.push(Event::ButtonReleased(MouseButton::Left));
-        self.act()
+        self.run_frame()
     }
 
     // Presses at one point, moves to the other over `steps` frames, and lets
@@ -286,7 +310,7 @@ impl<P: Program> Headless<P> {
         self.pointer = point;
         self.pending.push(Event::PointerMoved(point));
         self.pending.push(Event::Wheel(Point::new(0.0, notches)));
-        self.act()
+        self.run_frame()
     }
 
     // Presses the key, and lets go of it the next frame.
@@ -304,32 +328,32 @@ impl<P: Program> Headless<P> {
         }
         keys.push(key);
         self.pending.extend(keys.iter().map(|key| Event::KeyPressed { key: *key, repeat: false }));
-        self.act();
+        self.run_frame();
         self.pending.extend(keys.iter().rev().map(|key| Event::KeyReleased(*key)));
-        self.act()
+        self.run_frame()
     }
 
     // Presses the key and holds it, until release_key.
     pub fn hold(&mut self, key: Key) -> &mut Self {
         self.pending.push(Event::KeyPressed { key, repeat: false });
-        self.act()
+        self.run_frame()
     }
 
     pub fn release_key(&mut self, key: Key) -> &mut Self {
         self.pending.push(Event::KeyReleased(key));
-        self.act()
+        self.run_frame()
     }
 
     // A held key's repeat, as Windows sends while it stays down.
     pub fn repeat(&mut self, key: Key) -> &mut Self {
         self.pending.push(Event::KeyPressed { key, repeat: true });
-        self.act()
+        self.run_frame()
     }
 
     // Sends the events as they are, all in one frame.
     pub fn send(&mut self, events: &[Event]) -> &mut Self {
         self.pending.extend_from_slice(events);
-        self.act()
+        self.run_frame()
     }
 
     // Queues the events for the next frame without running it, unlike
@@ -343,18 +367,18 @@ impl<P: Program> Headless<P> {
     // Types the text, all in one frame.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
         self.pending.extend(text.chars().map(Event::Text));
-        self.act()
+        self.run_frame()
     }
 
     pub fn set_gamepad(&mut self, gamepad: Gamepad) -> &mut Self {
         self.gamepad = gamepad;
-        self.act()
+        self.run_frame()
     }
 
     // Gives the window focus, or takes it away.
     pub fn focus(&mut self, focused: bool) -> &mut Self {
         self.pending.push(if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost });
-        self.act()
+        self.run_frame()
     }
 
     // Draws the last frame offscreen, as the window would, with the

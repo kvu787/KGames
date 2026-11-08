@@ -8,11 +8,14 @@
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
-// - core: a frame's interface: targets, presses, focus, popups, tooltips.
+// - core: a frame: the view's tree, its widgets' targets, the input on the
+//   tree the user saw, the messages, focus, popups and tooltips.
 // - widgets: WinUI's controls, cards, and the page's bars.
 // - testing: scripts, and running a program without a window.
 
 mod application {
+    #[path = "Callbacks.rs"]
+    pub mod callbacks;
     #[path = "Overlays.rs"]
     pub mod overlays;
     #[path = "Performance.rs"]
@@ -70,8 +73,10 @@ pub mod drawing {
 mod core {
     #[path = "Interaction.rs"]
     pub mod interaction;
-    #[path = "Ui.rs"]
-    pub mod ui;
+    #[path = "Interface.rs"]
+    pub mod interface;
+    #[path = "Tree.rs"]
+    pub mod tree;
 }
 
 mod widgets {
@@ -137,12 +142,14 @@ pub use design::{controls, tokens};
 pub use application::performance;
 pub use platform::clock;
 
+pub use application::callbacks::{Action, CallbackProgram, act, on, on_with};
 pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{Settings, WindowMode};
-pub use core::interaction::{ControlState, Cursor, Id, Keys, Response, Sense, Target, Wheel, id};
-pub use core::ui::{Environment, FrameStats, Ui};
+pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
+pub use core::interface::{Context, Environment, FrameStats, Interface, Ui};
+pub use core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, TooltipLine, Tree, Widget};
 pub use design::icons::Icon;
 pub use design::theme::{AccentRamp, DataColors, Theme, ThemeKind};
 pub use drawing::geometry::{Color, Insets, Point, Rect, Size};
@@ -157,27 +164,27 @@ pub use platform::window::FocusChange;
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};
-pub use widgets::card::{Card, CardArea, CardStyle, OpenCard};
+pub use widgets::card::{Card, CardArea, CardStyle};
 pub use widgets::color_picker::{ColorField, ColorPicker};
 pub use widgets::combo_box::ComboBox;
-pub use widgets::dialog::{Dialog, DialogResult};
-pub use widgets::expander::Expander;
-pub use widgets::info_bar::{InfoBar, InfoBarResponse, Severity};
+pub use widgets::dialog::{Dialog, DialogArea, DialogResult};
+pub use widgets::expander::{Expander, ExpanderContent};
+pub use widgets::info_bar::{InfoBar, Severity};
 pub use widgets::info_card::InfoCard;
-pub use widgets::layout::{Form, View};
-pub use widgets::list_view::{ListResponse, ListView, RowState, WHEEL_ROWS};
+pub use widgets::layout::{Cover, Form, Group, View, ViewInput};
+pub use widgets::list_view::{ListRows, ListView, WHEEL_ROWS};
 pub use widgets::menu::{MenuBar, MenuItem};
 pub use widgets::navigation::{Choice, Segmented, SelectorBar};
 pub use widgets::number_box::NumberBox;
 pub use widgets::palette::Palette;
-pub use widgets::scrolling::{ScrollArea, ScrollBar};
-pub use widgets::shell::{AppBar, Status};
-pub use widgets::slider::{Number, Slider, slider_rail};
-pub use widgets::text::KEYCAP_HEIGHT;
-pub use widgets::text_box::{TextBox, TextBoxResponse};
+pub use widgets::progress::{ProgressBar, ProgressRing};
+pub use widgets::scrolling::{ScrollArea, ScrollBar, Scrolled, WHEEL_SCROLL};
+pub use widgets::shell::{AppBar, MenuRow, Shell, Status, StatusBar, unsupported_setup};
+pub use widgets::slider::{Slider, slider_rail};
+pub use widgets::text::{Badge, Canvas, Divider, Field, IconView, KEYCAP_HEIGHT, Keycaps, Run, Spans, StatusIcon, Swatch, Text, TextColor};
+pub use widgets::text_box::TextBox;
 pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
-pub use widgets::tool_tip::TooltipLine;
-pub use widgets::widget::{Elevation, StateColors, Widget, focus_visual};
+pub use widgets::widget::{Elevation, Reaction, StateColors, focus_visual};
 
 // The crates that programs use with the interface, so that they share them.
 pub use game_input;
