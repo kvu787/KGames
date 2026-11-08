@@ -225,7 +225,7 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let mut chosen = None;
         for (_, result, _) in self.buttons(ctx.rect()) {
-            if interaction.clicked(&Part::Named(result.part_name().to_string())) {
+            if interaction.activated(&Part::Named(result.part_name().to_string())) {
                 chosen = Some(result);
             }
         }

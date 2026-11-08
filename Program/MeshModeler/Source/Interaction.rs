@@ -113,29 +113,32 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
 
     match modeler.editor.tool {
         Tool::Select => {
+            // A click selects as it goes down: with Alt, the loop through the
+            // nearest edge, and otherwise what's under the pointer. A drag
+            // from it takes that back, and selects a box when it's let go of.
             if input.pressed
                 && let Some(point) = pointer
             {
-                modeler.editor.press(point);
+                let stepped = if modifiers.alt {
+                    match modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point) {
+                        Some((edge, _)) => modeler.editor.select_loop(&mut modeler.document, edge, modifiers.shift),
+                        None => false,
+                    }
+                } else {
+                    let hover = modeler.editor.hover;
+                    modeler.editor.click(&mut modeler.document, hover, modifiers.shift)
+                };
+                modeler.editor.press(point, stepped.then_some(modeler.document.version));
             }
             if input.holding(MouseButton::Left)
                 && let Some(point) = pointer
             {
-                modeler.editor.drag(point);
+                modeler.editor.drag(&mut modeler.document, point);
             }
-            if input.released && modeler.editor.pressing() {
-                let hover = modeler.editor.hover;
-                match modeler.editor.release() {
-                    Some(corners) => modeler.editor.select_box(&mut modeler.document, &modeler.camera, view, corners, modifiers.shift, modifiers.control),
-                    None if modifiers.alt => {
-                        if let Some(point) = pointer
-                            && let Some((edge, _)) = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point)
-                        {
-                            modeler.editor.select_loop(&mut modeler.document, edge, modifiers.shift);
-                        }
-                    }
-                    None => modeler.editor.click(&mut modeler.document, hover, modifiers.shift),
-                }
+            if input.released
+                && let Some(corners) = modeler.editor.release()
+            {
+                modeler.editor.select_box(&mut modeler.document, &modeler.camera, view, corners, modifiers.shift, modifiers.control);
             }
         }
         Tool::Paint => {
@@ -148,7 +151,7 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
             }
         }
         Tool::LoopCut => {
-            if input.clicked
+            if input.pressed
                 && let Some((edge, fraction)) = modeler.editor.loop_preview
             {
                 modeler.editor.loop_cut(&mut modeler.document, edge, fraction);

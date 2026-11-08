@@ -418,10 +418,10 @@ pub(crate) fn field_interact<M>(text: &str, settings: &FieldSettings, interactio
     }
 
     // The buttons: delete, and the field's own.
-    if interaction.clicked(&Part::Named("Button".to_string())) {
+    if interaction.activated(&Part::Named("Button".to_string())) {
         edited.button_clicked = true;
     }
-    if interaction.clicked(&Part::Named("Clear".to_string())) {
+    if interaction.activated(&Part::Named("Clear".to_string())) {
         text.clear();
         editing.caret = 0;
         editing.anchor = 0;

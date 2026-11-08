@@ -72,7 +72,7 @@ fn arrows<M>(ctx: &Dispatch<M>, focused: bool, selected: usize, count: usize) ->
 }
 
 // The items' input. A press on one gives the control focus, as its one
-// stop, unless widgets can't take focus here, and a click selects it.
+// stop, unless widgets can't take focus here, and selects it.
 fn items_input<M>(interaction: &Interaction, ctx: &mut Dispatch<M>, items: &[Choice], selected: usize) -> Option<usize> {
     let mut chosen = None;
     for (index, item) in items.iter().enumerate() {
@@ -81,7 +81,7 @@ fn items_input<M>(interaction: &Interaction, ctx: &mut Dispatch<M>, items: &[Cho
         if hit.pressed && ctx.focusable() {
             ctx.focus();
         }
-        if hit.clicked && selected != index {
+        if hit.activated && selected != index {
             chosen = Some(index);
         }
     }

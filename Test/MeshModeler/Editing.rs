@@ -1,8 +1,8 @@
 // What input does to MeshModeler's model, through the cards' and the view's
 // real layout, which user_interface::Headless builds without a window or a
-// GPU: picking and box selection, modal moves and extrusions, loop cuts,
-// painting, creases, subdivision, undo, and where the cards go at both
-// supported window heights.
+// GPU: picking as a press goes down and box selection, modal moves and
+// extrusions, loop cuts, painting, creases, subdivision, undo, and where the
+// cards go at both supported window heights.
 
 use std::path::{Path, PathBuf};
 
@@ -91,6 +91,78 @@ fn a_click_in_the_view_selects_the_face_under_it() {
     let corner = app.program.view.origin() + Point::new(20.0, 20.0);
     app.click_point(corner);
     assert!(app.program.document.selection.is_empty());
+}
+
+#[test]
+fn a_press_in_the_view_selects_as_it_goes_down() {
+    let mut app = modeler("PressFace");
+    app.press_point(app.program.view.center());
+    // The press's own frame has the selection, and the step for Undo.
+    assert_eq!(app.program.document.selection.faces.len(), 1);
+    assert_eq!(app.program.document.undo_name(), Some("Select"));
+    app.release();
+    assert_eq!(app.program.document.selection.faces.len(), 1);
+    assert_eq!(app.program.document.undo_steps(), 1);
+}
+
+#[test]
+fn a_press_that_becomes_a_box_takes_its_selection_back_and_is_one_step_with_it() {
+    let mut app = modeler("PressThenBox");
+    app.key(Key::DIGIT_1);
+    // Everything selected, with a step to redo.
+    app.key(Key::A).key_with(Modifiers::ALT, Key::A).key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.document.selection.vertices.len(), 8);
+    let steps = app.program.document.undo_steps();
+    let a = screen(&app, [1.0, 1.0, 1.0]);
+    app.press_point(a);
+    assert_eq!(app.program.document.selection.vertices.len(), 1);
+    assert_eq!((app.program.document.undo_steps(), app.program.document.redo_name()), (steps + 1, None));
+    // Past the threshold, the drag is a box, and the press's step is gone,
+    // as if it was never made: the selection and Redo are back.
+    app.move_point(a + Point::new(10.0, 10.0));
+    assert!(app.program.editor.selecting_box.is_some());
+    assert_eq!(app.program.document.selection.vertices.len(), 8);
+    assert_eq!((app.program.document.undo_steps(), app.program.document.redo_name()), (steps, Some("Select none")));
+    // The box, which is too small for all eight, selects as it's let go
+    // of, as one step, which Undo takes back to before the press.
+    app.release();
+    assert!(app.program.document.selection.vertices.len() <= 1);
+    assert_eq!((app.program.document.undo_steps(), app.program.document.undo_name()), (steps + 1, Some("Select box")));
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.document.selection.vertices.len(), 8);
+}
+
+#[test]
+fn withdrawing_a_step_puts_back_the_oldest_that_it_pushed_out_of_a_full_history() {
+    use mesh_modeler::document::Document;
+    use polygon_mesh::Selection;
+    fn step(document: &mut Document, index: u32) {
+        let before = document.snapshot();
+        document.selection = Selection::from_vertices(&document.mesh, [index % 8]);
+        assert!(document.commit(&format!("Step {index}"), before));
+    }
+    let mut document = Document::new();
+    // 200 steps fill the history, and the next pushes the first out.
+    for index in 0..200 {
+        step(&mut document, index);
+    }
+    assert_eq!(document.undo_steps(), 200);
+    step(&mut document, 200);
+    assert_eq!(document.undo_steps(), 200);
+    // Withdrawn, it's as if it was never made, the first step included.
+    let version = document.version;
+    assert!(document.withdraw(version));
+    assert_eq!((document.undo_steps(), document.undo_name(), document.redo_name()), (200, Some("Step 199"), None));
+    for _ in 0..200 {
+        assert!(document.undo().is_some());
+    }
+    assert!(document.selection.is_empty());
+    // A step can't be withdrawn once something else changed the document.
+    step(&mut document, 1);
+    document.touch();
+    let version = document.version;
+    assert!(!document.withdraw(version - 1));
+    assert!(!document.withdraw(version), "the touch isn't a step");
 }
 
 #[test]
@@ -286,7 +358,8 @@ fn ctrl_r_cuts_the_loop_under_the_pointer() {
     let middle = screen(&app, [1.0, 0.0, 1.0]);
     app.move_point(middle);
     assert_eq!(number(&app, &["LoopPreviewEdges"]), 4.0);
-    app.click_point(middle);
+    // It cuts as the button goes down.
+    app.press_point(middle);
     let mesh = &app.program.document.mesh;
     assert_eq!((mesh.positions.len(), mesh.faces.len()), (12, 10));
     assert!(mesh.validate().is_ok());
@@ -294,6 +367,7 @@ fn ctrl_r_cuts_the_loop_under_the_pointer() {
     assert_eq!(app.program.document.selection.edges.len(), 4);
     assert!(app.program.document.selection.vertices.iter().all(|vertex| mesh.position(*vertex)[1].abs() < 1e-5));
     assert_eq!(text(&app, "Mode").as_deref(), Some("Edge"));
+    app.release();
     // Esc goes back to the Select tool.
     app.key(Key::ESCAPE);
     assert_eq!(text(&app, "Tool").as_deref(), Some("Select"));

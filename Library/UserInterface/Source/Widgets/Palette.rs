@@ -86,7 +86,7 @@ impl<M: Clone + 'static> Widget<M> for Palette<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(Part::Index(index)) = interaction.clicked_part()
+        if let Some(Part::Index(index)) = interaction.activated_part()
             && self.picked != Some(*index)
             && let Some(reaction) = &self.on_pick
         {

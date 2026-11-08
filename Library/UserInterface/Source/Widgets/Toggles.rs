@@ -59,7 +59,7 @@ impl<M: Clone + 'static> Widget<M> for CheckBox<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().clicked
+        if interaction.whole().activated
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(!self.checked));
@@ -178,7 +178,7 @@ impl<M: Clone + 'static> Widget<M> for RadioButton<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().clicked
+        if interaction.whole().activated
             && !self.checked
             && let Some(message) = &self.on_check
         {
@@ -253,7 +253,7 @@ impl<M: Clone + 'static> Widget<M> for RadioGroup<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(Part::Index(index)) = interaction.clicked_part()
+        if let Some(Part::Index(index)) = interaction.activated_part()
             && *index != self.selected
             && let Some(reaction) = &self.on_select
         {
@@ -318,7 +318,7 @@ impl<M: Clone + 'static> Widget<M> for ToggleSwitch<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().clicked
+        if interaction.whole().activated
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(!self.on));

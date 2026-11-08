@@ -26,6 +26,17 @@ pub struct Snapshot {
     pub selection: Selection,
 }
 
+// What the last step put out of the history, and how the document was
+// marked before it, which withdrawing the step puts back: the oldest step,
+// if the history was full, and the steps to redo. And the version that the
+// step left the document at.
+struct Displaced {
+    oldest: Option<(String, Snapshot)>,
+    redo: Vec<(String, Snapshot)>,
+    dirty: bool,
+    version: u64,
+}
+
 pub struct Document {
     pub mesh: Mesh,
     pub paints: Vec<Paint>,
@@ -36,6 +47,7 @@ pub struct Document {
     pub dirty: bool,
     undo: Vec<(String, Snapshot)>,
     redo: Vec<(String, Snapshot)>,
+    displaced: Option<Displaced>,
     // Counts every change, so that what's drawn from the mesh knows to remake
     // itself.
     pub version: u64,
@@ -60,6 +72,7 @@ impl Document {
             dirty: false,
             undo: Vec::new(),
             redo: Vec::new(),
+            displaced: None,
             version: 1,
             edges: RefCell::new(None),
         }
@@ -91,22 +104,49 @@ impl Document {
         self.mesh = snapshot.mesh;
         self.paints = snapshot.paints;
         self.selection = snapshot.selection;
+        self.displaced = None;
         self.version += 1;
     }
 
     // Records a change: what the document was before it, under the change's
-    // name, for Undo.
-    pub fn commit(&mut self, name: &str, before: Snapshot) {
+    // name, for Undo. Returns whether there was a change, which is a step.
+    pub fn commit(&mut self, name: &str, before: Snapshot) -> bool {
         if before == self.snapshot() {
-            return;
+            return false;
         }
         self.undo.push((name.to_string(), before));
-        if self.undo.len() > HISTORY {
-            self.undo.remove(0);
-        }
-        self.redo.clear();
-        self.dirty = true;
+        let oldest = (self.undo.len() > HISTORY).then(|| self.undo.remove(0));
         self.version += 1;
+        self.displaced = Some(Displaced {
+            oldest,
+            redo: std::mem::take(&mut self.redo),
+            dirty: self.dirty,
+            version: self.version,
+        });
+        self.dirty = true;
+        true
+    }
+
+    // Takes the last step back as if it was never made, if it left the
+    // document at the version and nothing changed the document since, like
+    // a press's selection that a drag turns into a box: unlike Undo, it
+    // leaves nothing to redo, and what the step put out of the history comes
+    // back. Returns whether it did.
+    pub fn withdraw(&mut self, version: u64) -> bool {
+        if self.version != version {
+            return false;
+        }
+        let Some(displaced) = self.displaced.take_if(|displaced| displaced.version == version) else {
+            return false;
+        };
+        let (_, before) = self.undo.pop().expect("the step that displaced them is the last");
+        self.restore(before);
+        if let Some(oldest) = displaced.oldest {
+            self.undo.insert(0, oldest);
+        }
+        self.redo = displaced.redo;
+        self.dirty = displaced.dirty;
+        true
     }
 
     // Changes the document with `change`, as one step of the history.

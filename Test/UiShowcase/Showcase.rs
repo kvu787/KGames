@@ -45,10 +45,12 @@ fn buttons_count_their_presses() {
 }
 
 #[test]
-fn a_press_that_slides_off_a_button_does_not_press_it() {
+fn a_press_presses_a_button_as_it_goes_down_even_if_it_slides_off() {
     let mut app = showcase();
-    app.press("Standard").move_point(Point::new(1200.0, 900.0)).release();
-    assert_eq!(app.program.presses[0], 0);
+    app.press("Standard");
+    assert_eq!(app.program.presses[0], 1);
+    app.move_point(Point::new(1200.0, 900.0)).release();
+    assert_eq!(app.program.presses[0], 1);
 }
 
 #[test]
@@ -64,9 +66,13 @@ fn the_first_checkbox_disables_the_options() {
 #[test]
 fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
-    app.click("DarkTheme");
+    // The press's own frame switches the theme, and logs it with the press
+    // and the focus it gave, newest first.
+    app.press("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    assert_eq!(app.program.log.front().map(String::as_str), Some("Dark theme"), "{:?}", app.program.log);
+    let newest: Vec<&str> = app.program.log.iter().take(3).map(String::as_str).collect();
+    assert_eq!(newest, ["Press on DarkTheme", "Focus on DarkTheme", "Dark theme"]);
+    app.release();
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
     // F9 is the library's, which the theme's switch follows.
@@ -85,16 +91,15 @@ fn two_theme_toggles_in_one_frame_cancel() {
     use user_interface::Event;
     let mut app = showcase();
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
-    // The button fires on its click, so its release frame also presses F9.
-    app.press("Theme");
+    // The button fires on its press, so its press frame also presses F9.
     let themed = app.program.log.iter().filter(|line| line.ends_with("theme")).count();
     app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
-    app.release();
+    app.press("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     // The button's toggle logged the theme the frame draws in, once; the
     // watcher re-reads the theme when it applies, so it adds nothing, this
     // frame or the next.
-    app.frame();
+    app.release();
     let after: Vec<&String> = app.program.log.iter().filter(|line| line.ends_with("theme")).collect();
     assert_eq!(after.len(), themed + 1, "{after:?}");
     assert_eq!(after.first().map(|line| line.as_str()), Some("Light theme"));

@@ -282,6 +282,16 @@ fn problems(road: &[[f64; 2]], islands: &[Vec<[f64; 2]>], start: &Pose, edges: &
             problems.push(format!("{} is outside the road", name(island)));
         }
     }
+    // An island is inside another if its first point is, whichever of the
+    // two comes first in the list. One point only decides it where their
+    // edges don't cross, which is a problem of its own, above.
+    for outer in &outlines[1..] {
+        for inner in &outlines[1..] {
+            if inner.1 != outer.1 && inside(outer.2, inner.2[0]) {
+                problems.push(format!("{} is inside {}", name(inner), name(outer).to_lowercase()));
+            }
+        }
+    }
     let on_road = inside(road, start.position) && islands.iter().all(|island| !inside(island, start.position));
     if !on_road {
         problems.push("The start isn't on the road".to_string());

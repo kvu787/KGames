@@ -69,7 +69,8 @@ that take keyboard focus, so that Space, the arrows and the keys that drive alwa
 |          | chosen curve where it's nearest, Delete points deletes one, and Move track moves  |
 |          | it all. The card adds and deletes islands, and sets the start's heading, the      |
 |          | barriers' width and length, and the colors. It says what's wrong with the track:  |
-|          | edges that cross, islands outside the road, and a start off the road              |
+|          | edges that cross, islands outside the road or inside each other, and a start off  |
+|          | the road                                                                          |
 | Vehicles | Edits the vehicles: their names, models, acceleration, footprints and paint. Each |
 |          | side of the footprint follows a drag from it in the view, and Fit makes it the    |
 |          | model's rectangle. A parked vehicle can't be deleted                              |

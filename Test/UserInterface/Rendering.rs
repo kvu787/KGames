@@ -1,10 +1,11 @@
 // Draws frames offscreen with the GPU, without a window, and checks their
 // pixels: the theme's background, a card, an accent button's fill and label,
 // a standard button's elevation border, that widgets draw a new state whole
-// on the frame that makes it, that a selection that moves leaves its old
-// item on that frame, and that a release shows on its own frame, whether the
-// PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
-// and the page for an unsupported setup.
+// on the frame that makes it, that a press draws all it did on its own frame,
+// that a selection that moves leaves its old item on that frame, that a
+// release shows on its own frame, whether the PerfBar says that vertical sync
+// is on, the PerfBar's colors in each theme, and the page for an unsupported
+// setup.
 
 use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
@@ -194,10 +195,10 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
         ("its release", |app| {
             app.release();
         }),
-        ("a press of a toggle switch", |app| {
+        ("a press of a toggle switch, which turns it on", |app| {
             app.press("Switch");
         }),
-        ("its release, which turns it on", |app| {
+        ("its release", |app| {
             app.release();
         }),
         ("a click of a checkbox", |app| {
@@ -270,31 +271,49 @@ fn widgets_draw_a_new_state_whole_on_the_frame_that_makes_it() {
 }
 
 #[test]
+fn a_press_draws_all_it_did_on_its_own_frame() {
+    // A press acts as the button goes down: the frame that reads it draws
+    // the switch on, the box checked, the item selected or the menu open,
+    // and is the same a second later, with the button still held.
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(States::default());
+    app.frame();
+    for name in ["Switch", "Check", "Size/Medium", "Alignment/Center", "Tabs/Second", "Rows/1", "Colors/1", "Menus/File"] {
+        app.press(name);
+        let now = app.render(&mut gpu).unwrap();
+        app.wait(1.0);
+        let later = app.render(&mut gpu).unwrap();
+        let below = (PERF_BAR_HEIGHT as u32 * now.width * 4) as usize;
+        if now.pixels[below..] != later.pixels[below..] {
+            save(&now, "PressNow");
+            save(&later, "PressLater");
+            panic!("the press of {name} didn't draw all it did on its own frame");
+        }
+        app.release();
+    }
+    let program = &app.program;
+    assert!(program.on && program.checked);
+    assert_eq!((program.size, program.alignment, program.tab, program.row, program.color), (1, 1, 1, Some(1), Some(1)));
+    assert_eq!(app.ui.popup_name(), Some("Menus/File/Menu"));
+}
+
+#[test]
 fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
-    // A press selects a list's row, and a release a radio button, a segment,
-    // a tab or a swatch. The frame that reads the input applies its message
-    // and then describes every item from the model, so even when the
-    // selection moves to an item after the old one, that very frame draws
-    // the old item without it, the same as a second later.
+    // A press selects a list's row, a radio button, a segment, a tab or a
+    // swatch. The frame that reads the input applies its message and then
+    // describes every item from the model, so even when the selection moves
+    // to an item after the old one, that very frame draws the old item
+    // without it, the same as a second later.
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(States::default());
     app.frame();
     let moves = [("Rows/0", "Rows/2"), ("Size/Small", "Size/Large"), ("Alignment/Left", "Alignment/Right"), ("Tabs/First", "Tabs/Third"), ("Colors/0", "Colors/2")];
     for (old, new) in moves {
-        let list = old.starts_with("Rows");
-        app.click(old).move_to(new);
-        if list {
-            app.queue(&[Event::ButtonPressed(MouseButton::Left)]);
-        } else {
-            app.press(new).queue(&[Event::ButtonReleased(MouseButton::Left)]);
-        }
-        app.frame();
+        app.click(old).press(new);
         let now = app.render(&mut gpu).unwrap();
         app.wait(1.0);
         let later = app.render(&mut gpu).unwrap();
-        if list {
-            app.release();
-        }
+        app.release();
         if let Some((x, y)) = first_difference(&now, &later, app.target(old)) {
             save(&now, "SelectionNow");
             save(&later, "SelectionLater");
@@ -309,7 +328,7 @@ fn a_selection_leaves_its_old_item_on_the_frame_that_moves_it() {
 fn a_release_shows_on_the_frame_that_reads_it() {
     // A widget that the left button holds down looks pressed until the
     // frame that reads the release, which draws it as it looks from then
-    // on, with what the release did, like a switch that's flipped or a menu
+    // on, with what its press did, like a switch that's flipped or a menu
     // that's open, and not pressed for a frame more.
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(States::default());

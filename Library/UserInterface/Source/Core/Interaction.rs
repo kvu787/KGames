@@ -165,7 +165,9 @@ pub enum ControlState {
     Disabled,
 }
 
-// What the input did to a target this frame.
+// What the input did to a target this frame. Widgets act on presses, on the
+// frame that the button goes down, and never wait for its release: then a
+// button sends its message, and a menu or a context menu opens.
 #[derive(Clone, Debug, Default)]
 pub struct Hit {
     // The pointer is on it, and it's enabled.
@@ -174,16 +176,16 @@ pub struct Hit {
     pub pressed: bool,
     // It has a press: a button that went down on it is still down.
     pub held: bool,
-    // Its left press ended this frame, wherever the pointer was.
+    // Its left press ended this frame, wherever the pointer was, which ends
+    // a drag, like a slider's.
     pub released: bool,
-    // Its left press ended on it, or Space or Enter pressed it.
-    pub clicked: bool,
+    // The left button went down on it, or Space or Enter went down while it
+    // had focus: what a button acts on.
+    pub activated: bool,
     // Its press was the second of a double-click.
     pub double_clicked: bool,
-    // The right button went down on it, or came up on it after going down
-    // on it, which is when WinUI asks for a context menu.
+    // The right button went down on it, which opens its context menu.
     pub secondary_pressed: bool,
-    pub secondary_clicked: bool,
     // The middle button went down on it.
     pub middle_pressed: bool,
     // The button that its press is of, while it's held.
@@ -258,12 +260,12 @@ impl Interaction {
         self.hits.iter().find(|(_, hit)| hit.pressed).map(|(part, _)| part)
     }
 
-    pub fn clicked_part(&self) -> Option<&Part> {
-        self.hits.iter().find(|(_, hit)| hit.clicked).map(|(part, _)| part)
+    pub fn activated_part(&self) -> Option<&Part> {
+        self.hits.iter().find(|(_, hit)| hit.activated).map(|(part, _)| part)
     }
 
-    pub fn clicked(&self, part: &Part) -> bool {
-        self.hit(part).is_some_and(|hit| hit.clicked)
+    pub fn activated(&self, part: &Part) -> bool {
+        self.hit(part).is_some_and(|hit| hit.activated)
     }
 
     pub fn pressed(&self, part: &Part) -> bool {

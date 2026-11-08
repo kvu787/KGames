@@ -277,7 +277,7 @@ impl<M: Clone + 'static> Widget<M> for NoticeBar<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.clicked(&Part::Named("Close".to_string())) {
+        if interaction.activated(&Part::Named("Close".to_string())) {
             let notices = ctx.notices_mut();
             if self.index < notices.len() {
                 notices.remove(self.index);

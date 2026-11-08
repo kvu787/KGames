@@ -143,7 +143,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             open = false;
         }
         let mut chosen: Option<usize> = None;
-        if hit.clicked && count > 0 {
+        if hit.activated && count > 0 {
             if open {
                 ctx.close_popup();
                 open = false;
@@ -214,7 +214,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
                 if item_hit.hovered && ctx.input().pointer_delta != Point::ZERO {
                     state.highlighted = *index;
                 }
-                if item_hit.clicked {
+                if item_hit.activated {
                     chosen = Some(*index);
                 }
             }
