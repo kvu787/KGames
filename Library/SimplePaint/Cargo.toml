@@ -2,6 +2,7 @@
 name = "simple_paint"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 build = "Build.rs"
 # Nothing is linked. This only lets Build.rs tell the build scripts of
 # packages that depend on this one where the shaders are, as
