@@ -3,3 +3,6 @@ target/
 
 # What MeshModeler saves when people use it.
 Program/MeshModeler/Models/
+
+.claude/settings.local.json
+.claude/worktrees/
