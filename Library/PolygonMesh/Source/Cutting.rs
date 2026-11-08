@@ -72,6 +72,9 @@ impl Mesh {
         if ring.faces.iter().collect::<BTreeSet<_>>().len() != ring.faces.len() {
             return Err("This edge's ring crosses a quad twice, so it can't be cut.".to_string());
         }
+        if ring.edges.iter().any(|&index| topology.edge_faces(index).len() > 2) {
+            return Err("The loop runs through an edge with more than two faces, so it can't be cut.".to_string());
+        }
         let fraction = if fraction.is_nan() { 0.5 } else { fraction.clamp(0.0, 1.0) };
         // Each edge of the ring from its end beside the start of the one
         // before, from `edge` both ways.

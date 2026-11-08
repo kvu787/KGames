@@ -694,7 +694,7 @@ impl Editor {
             self.painting = Some(document.snapshot());
         }
         if let Some(face) = face
-            && document.mesh.faces[face].material != self.active_paint as u32
+            && document.mesh.faces.get(face).is_some_and(|painted| painted.material != self.active_paint as u32)
         {
             document.mesh.assign_material([face], self.active_paint as u32);
             document.touch();

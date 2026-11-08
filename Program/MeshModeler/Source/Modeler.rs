@@ -334,6 +334,9 @@ impl Modeler {
         if self.editor.operation.is_some() {
             self.editor.cancel(&mut self.document);
         }
+        // A held paint stroke commits as its own step before any command,
+        // Undo and Redo included, so the history never interleaves.
+        self.editor.end_paint(&mut self.document);
         self.end_paint_edit();
         let pointer = ui.input().pointer.unwrap_or(self.view.center());
         match command {
