@@ -4,17 +4,23 @@
 
 use identify_displays::Identity;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::{Fonts, Headless, Program, Size, Theme, ThemeKind, Ui};
+use user_interface::{Context, Fonts, Headless, Program, Size, Theme, ThemeKind, Tree, Ui};
 
 struct Shown(Identity);
 
 impl Program for Shown {
+    type Message = ();
+
     fn title(&self) -> String {
         "Display identifier".to_string()
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        self.0.draw(ui);
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        tree.draw(ui.bounds(), self.0.clone());
+        tree
     }
 }
 

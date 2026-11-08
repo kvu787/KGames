@@ -12,7 +12,7 @@ use std::process::ExitCode;
 
 use displays::Display;
 use identify_displays::Identity;
-use user_interface::{Fonts, Overlay, ThemeKind, run_overlays};
+use user_interface::{Fonts, Overlay, ThemeKind, Tree, run_overlays};
 use windows_api::RECT;
 
 fn print(displays: &[Display], boxes: bool) {
@@ -80,7 +80,11 @@ fn run() -> Result<(), String> {
         });
         contents.push(content);
     }
-    run_overlays(&overlays, ThemeKind::Light, |ui, index| contents[index].draw(ui))
+    run_overlays(&overlays, ThemeKind::Light, |ui, index| {
+        let mut tree = Tree::new();
+        tree.draw(ui.bounds(), contents[index].clone());
+        tree
+    })
 }
 
 fn main() -> ExitCode {
