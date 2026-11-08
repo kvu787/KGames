@@ -5,8 +5,8 @@ from Blender's UI, with bindings for Python, Rust, JavaScript and Dear ImGui. Th
 list: each takeaway is a [task](#tasks), and each task's status says how far it got.
 
 BUI was read at commit `e8126ca` (2026-11-08), from a clone at `C:\Users\K\RepositoryExternal\BUI`,
-and KGames at commit `b00bee2`. Line numbers come from those commits, and drift as either
-repository changes. A path that starts with `BUI/` is in BUI's repository; the rest are KGames'.
+and KGames at commit `b00bee2`, checked again after merging main at `c4f1d90`. Line numbers come
+from those commits, and drift as either repository changes. A path that starts with `BUI/` is in BUI's repository; the rest are KGames'.
 
 ## Keeping this document true
 
@@ -152,13 +152,16 @@ Status: Proposed, as a session card.
 
 Status: Proposed, as a session card.
 
-- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks single pixels, and
-  UiShowcase's `Scripts/Themes.json` checks only state.
+- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks single pixels, and since
+  `375d713` compares a press's frame with the frame a second later, below the PerfBar
+  ([Rendering.rs:274-298](../Test/UserInterface/Rendering.rs#L274)). Nothing compares the frames
+  before and after a round trip, and UiShowcase's `Scripts/Themes.json` checks only state.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
 - **Do:** with `Headless` on UiShowcase, press F9 twice, open and close a menu, lose and regain
   focus, and press F11 twice if `Headless` supports it, and compare whole frames, leaving out the
-  PerfBar. A frame that doesn't come back identical is a bug, fixed with the test pinning it.
+  PerfBar, the way `a_press_draws_all_it_did_on_its_own_frame` does. A frame that doesn't come
+  back identical is a bug, fixed with the test pinning it.
 - **Done when:** the tests pass, with any fixes they force.
 
 ### 5. Turn the IME off for KGames' windows
@@ -295,8 +298,9 @@ Status: Not started.
 
 Status: Not started.
 
-- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks a few pixels, on the
-  high-performance adapter only, and nothing is a reference for the interface's shader.
+- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks pixels and compares frames
+  with later frames, on the high-performance adapter only, and nothing is a reference for the
+  interface's shader.
   [Gpu.rs](../Test/SimplePaint/Gpu.rs) and [Reference.rs](../Test/SimplePaint/Reference.rs) already
   compare hardware and WARP against a binary64 reference, but only for SimplePaint's shader.
 - **BUI:** `BUI/gpu/tests/test_gpu_parity.c:87-169`, `:191-230` draws one scene of every primitive at
