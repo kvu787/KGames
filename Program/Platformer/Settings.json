@@ -1,0 +1,6 @@
+{
+    "Display": "Primary",
+    "WindowMode": "Maximized",
+    "AllowTearing": true,
+    "VerticalSync": true
+}
