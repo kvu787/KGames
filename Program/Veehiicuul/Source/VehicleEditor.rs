@@ -6,14 +6,16 @@
 // own, down the right side, and the vehicle is between the two.
 
 use json::Value;
+use simple_paint::Parameters;
 use user_interface::controls::LIST_ITEM_HEIGHT;
-use user_interface::tokens::{BODY, CONTROL_HEIGHT};
-use user_interface::{Button, Card, ComboBox, Form, Icon, InfoBar, ListView, Point, Rect, Severity, TextBox, Ui};
+use user_interface::tokens::CONTROL_HEIGHT;
+use user_interface::{Button, Canvas, Card, ComboBox, Form, Icon, InfoBar, ListView, Point, Rect, Severity, Text, TextBox, Tree, Ui};
 
 use crate::collision::Footprint;
 use crate::document::Document;
-use crate::editing::{self, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, slider_height, window_size};
+use crate::editing::{self, GroundInput, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, slider_height, window_size};
 use crate::models::{Models, set_slot};
+use crate::program::Message;
 
 // The vehicle faces up the screen, which is this way on the ground.
 pub const SHOWN_HEADING: f64 = -135.0;
@@ -23,11 +25,36 @@ pub const SIDES: [&str; 4] = ["Left", "Right", "Front", "Back"];
 // The most rows the list shows without scrolling.
 const LIST_ROWS: usize = 6;
 
+// What the cards' controls do.
+#[derive(Clone, Debug)]
+pub enum VehicleMsg {
+    Select(usize),
+    Add,
+    Delete,
+    // What the name's field holds, which renames the vehicle while the name
+    // is free.
+    Name(String),
+    Model(usize),
+    // One of the acceleration's rates, as `RATES` has them.
+    Rate(usize, f64),
+    // How far the footprint goes to one side, as SIDES has them.
+    Side(usize, f64),
+    Fit,
+    Slot(usize),
+    Paint(Parameters),
+    ResetPaint,
+}
+
+// The acceleration's rates, as Rate's index has them.
+pub const RATES: [&str; 4] = ["Forward", "Reverse", "Left", "Right"];
+
 pub struct VehicleEditor {
     pub viewport: Viewport,
     pub slot: usize,
     // The side of the footprint being dragged, as an index of SIDES.
     drag: Option<usize>,
+    // The side under the pointer, for the handles the overlay draws.
+    under: Option<usize>,
     name_text: String,
     pub message: String,
 }
@@ -38,6 +65,7 @@ impl Default for VehicleEditor {
             viewport: Viewport::new([0.0, 0.0], 12.0),
             slot: 0,
             drag: None,
+            under: None,
             name_text: String::new(),
             message: String::new(),
         }
@@ -55,24 +83,28 @@ fn side_corners(corners: [[f64; 2]; 4]) -> [[[f64; 2]; 2]; 4] {
 }
 
 impl VehicleEditor {
-    // The view, where a drag moves a side of the footprint, then the cards,
-    // over it.
-    pub fn update(&mut self, ui: &mut Ui, view: Rect, document: &mut Document, models: &Models, vehicle: &mut usize) {
-        let input = self.viewport.interact(ui, "Vehicles/View", view);
-        let size = window_size(ui);
+    // Keeps the name's field on the vehicle's name while it isn't being
+    // edited, so that editing starts from it.
+    pub fn sync_name(&mut self, document: &Document, vehicle: usize) {
+        self.name_text = document.vehicles.list[vehicle].name.clone();
+    }
+
+    // What the pointer in the view does: a drag moves a side of the
+    // footprint.
+    pub fn view_input(&mut self, input: GroundInput, document: &mut Document, vehicle: usize, size: [f32; 2]) {
         let eye = self.viewport.eye;
         let heading = SHOWN_HEADING.to_radians();
-        let current = &mut document.vehicles.list[*vehicle];
+        let current = &mut document.vehicles.list[vehicle];
         let mut values = sides(&current.footprint);
         let corners = current.footprint.corners([0.0, 0.0], heading);
-        let under = input.cursor.filter(|_| !input.panning).and_then(|cursor| {
+        self.under = input.cursor.filter(|_| !input.panning).and_then(|cursor| {
             (0..4).find(|&side| {
                 let [a, b] = side_corners(corners)[side].map(|corner| eye.ground_to_screen(corner, size));
                 distance_to_segment(cursor, a, b) <= REACH
             })
         });
-        if input.response.pressed && !input.panning {
-            self.drag = under;
+        if input.pressed && !input.panning {
+            self.drag = self.under;
         }
         // The drag follows the pointer to where it's let go of.
         if let (Some(side), Some(ground)) = (self.drag, input.ground) {
@@ -85,169 +117,234 @@ impl VehicleEditor {
         if !input.held {
             self.drag = None;
         }
-
-        // The model's rectangle, thin, and the footprint, with a handle on
-        // each side.
-        let model_footprint = models.find(&current.model).map(|model| models.list[model].footprint);
-        let corners = current.footprint.corners([0.0, 0.0], heading);
-        let projection = Projection::new(ui, eye);
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        painter.push_clip(view);
-        if let Some(footprint) = model_footprint {
-            projection.outline(&mut painter, &footprint.corners([0.0, 0.0], heading), 1.0, theme.text_secondary);
-        }
-        projection.outline(&mut painter, &corners, 2.0, theme.accent);
-        for (side, [a, b]) in side_corners(corners).iter().enumerate() {
-            let middle = projection.point([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]);
-            let active = self.drag == Some(side) || (self.drag.is_none() && under == Some(side));
-            painter.circle(middle, if active { 7.0 } else { 5.0 }, theme.accent);
-            painter.circle(middle, if active { 3.0 } else { 2.0 }, theme.acrylic);
-        }
-        painter.pop_clip();
-        let page = ui.page();
-        self.card(ui, page, document, models, vehicle);
-        self.paint_card(ui, page, document, models, *vehicle);
     }
 
-    fn card(&mut self, ui: &mut Ui, page: Rect, document: &mut Document, models: &Models, vehicle: &mut usize) {
-        let open = ui.begin_card(editing::left_card(page), Card::new("Vehicles").subtitle("How each looks and drives").floating());
-        let mut form = Form::new(open.area.content);
-        let names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
-        let shown = names.len().clamp(1, LIST_ROWS) as f32;
-        let mut selected = Some(*vehicle);
-        let text = ui.theme().text_primary;
-        let list = ListView::new(names.len(), LIST_ITEM_HEIGHT, |ui, index, rect, _| {
-            ui.text(rect, &names[index], BODY, text);
-            ui.set_label(&format!("Vehicles/List/{index}"), &names[index]);
-        });
-        ui.add("Vehicles/List", form.take(shown * LIST_ITEM_HEIGHT), list.selection(&mut selected));
-        if let Some(selected) = selected {
-            *vehicle = selected.min(names.len() - 1);
-        }
-        let [add, delete] = form.columns::<2>(CONTROL_HEIGHT);
-        let add = ui.add("Vehicles/Add", add, Button::new("Add a vehicle").icon(Icon::Add));
-        ui.tooltip(&add, "Adds a copy of this vehicle, with a name of its own");
-        let delete = ui.add("Vehicles/Delete", delete, Button::new("Delete it").icon(Icon::Delete));
-        ui.tooltip(&delete, "Deletes this vehicle, unless it's parked in a scene");
-        if add.clicked {
-            let mut copy = document.vehicles.list[*vehicle].clone();
-            copy.name = document.vehicles.new_name();
-            document.vehicles.list.push(copy);
-            *vehicle = document.vehicles.list.len() - 1;
-            self.message.clear();
-        }
-        if delete.clicked {
-            let name = document.vehicles.list[*vehicle].name.clone();
-            let parked = document.scenes.iter().find(|scene| scene.parked.iter().any(|parked| parked.vehicle == name));
-            self.message = if document.vehicles.list.len() == 1 {
-                "The game needs a vehicle, so the last can't go.".to_string()
-            } else if let Some(scene) = parked {
-                format!("{name} is parked in {}, so it can't go.", scene.name)
-            } else {
-                document.vehicles.list.remove(*vehicle);
-                *vehicle = (*vehicle).min(document.vehicles.list.len() - 1);
-                String::new()
-            };
-        }
-        if !self.message.is_empty() {
-            let bar = InfoBar::new(Severity::Warning, "", &self.message);
-            let height = ui.info_bar_height(form.width(), &bar);
-            ui.add("Vehicles/Message", form.take(height), bar);
-        }
-
-        form.heading(ui, "Vehicle");
-        // The name, which a rename also changes where it's parked, and the
-        // model.
-        let [name_column, model_column] = form.columns::<2>(HEADED_HEIGHT);
-        if !ui.is_focused("Vehicles/Name") {
-            self.name_text = document.vehicles.list[*vehicle].name.clone();
-        }
-        let field = header(ui, name_column, "Name");
-        ui.with_focusable(true, |ui| ui.add("Vehicles/Name", field, TextBox::new(&mut self.name_text).placeholder("Name").max_length(40)));
-        let name = self.name_text.trim().to_string();
-        let old = document.vehicles.list[*vehicle].name.clone();
-        if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
-            for scene in &mut document.scenes {
-                for parked in &mut scene.parked {
-                    if parked.vehicle == old {
-                        parked.vehicle = name.clone();
+    // A control on the cards.
+    pub fn apply(&mut self, message: VehicleMsg, document: &mut Document, models: &Models, vehicle: &mut usize) {
+        match message {
+            VehicleMsg::Select(index) => *vehicle = index.min(document.vehicles.list.len() - 1),
+            VehicleMsg::Add => {
+                let mut copy = document.vehicles.list[*vehicle].clone();
+                copy.name = document.vehicles.new_name();
+                document.vehicles.list.push(copy);
+                *vehicle = document.vehicles.list.len() - 1;
+                self.message.clear();
+            }
+            VehicleMsg::Delete => {
+                let name = document.vehicles.list[*vehicle].name.clone();
+                let parked = document.scenes.iter().find(|scene| scene.parked.iter().any(|parked| parked.vehicle == name));
+                self.message = if document.vehicles.list.len() == 1 {
+                    "The game needs a vehicle, so the last can't go.".to_string()
+                } else if let Some(scene) = parked {
+                    format!("{name} is parked in {}, so it can't go.", scene.name)
+                } else {
+                    document.vehicles.list.remove(*vehicle);
+                    *vehicle = (*vehicle).min(document.vehicles.list.len() - 1);
+                    String::new()
+                };
+            }
+            VehicleMsg::Name(text) => {
+                self.name_text = text;
+                // A rename also changes the name where it's parked.
+                let name = self.name_text.trim().to_string();
+                let old = document.vehicles.list[*vehicle].name.clone();
+                if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
+                    for scene in &mut document.scenes {
+                        for parked in &mut scene.parked {
+                            if parked.vehicle == old {
+                                parked.vehicle = name.clone();
+                            }
+                        }
                     }
+                    document.vehicles.list[*vehicle].name = name;
                 }
             }
-            document.vehicles.list[*vehicle].name = name;
-        }
-        let model_names = models.names();
-        let current = &mut document.vehicles.list[*vehicle];
-        let mut model = models.find(&current.model).unwrap_or(0);
-        let model_area = header(ui, model_column, "Model");
-        if ui.add("Vehicles/Model", model_area, ComboBox::new(&mut model, &model_names)).changed {
-            current.model = model_names[model].to_string();
-        }
-        let rates = SliderRange::new(0.0, 2000.0, 1.0, 0);
-        let acceleration = &mut current.acceleration;
-        let rows = [
-            [("Forward", &mut acceleration.forward), ("Reverse", &mut acceleration.reverse)],
-            [("Left", &mut acceleration.left), ("Right", &mut acceleration.right)],
-        ];
-        for sliders in rows {
-            let columns = form.columns::<2>(slider_height());
-            for ((part, value), column) in sliders.into_iter().zip(columns) {
-                editing::slider(ui, &format!("Vehicles/{part}"), column, part, value, rates);
+            VehicleMsg::Model(model) => {
+                let names = models.names();
+                document.vehicles.list[*vehicle].model = names[model.min(names.len() - 1)].to_string();
+            }
+            VehicleMsg::Rate(index, value) => {
+                let acceleration = &mut document.vehicles.list[*vehicle].acceleration;
+                match index {
+                    0 => acceleration.forward = value,
+                    1 => acceleration.reverse = value,
+                    2 => acceleration.left = value,
+                    _ => acceleration.right = value,
+                }
+            }
+            VehicleMsg::Side(side, value) => {
+                let current = &mut document.vehicles.list[*vehicle];
+                let mut values = sides(&current.footprint);
+                values[side] = value;
+                current.footprint = Footprint::from_sides(values[0], values[1], values[2], values[3]);
+            }
+            VehicleMsg::Fit => {
+                let current = &mut document.vehicles.list[*vehicle];
+                let model = models.find(&current.model).unwrap_or(0);
+                current.footprint = models.list[model].footprint;
+            }
+            VehicleMsg::Slot(slot) => self.slot = slot,
+            VehicleMsg::Paint(parameters) => {
+                let current = &mut document.vehicles.list[*vehicle];
+                let model = models.find(&current.model).unwrap_or(0);
+                let slots = &models.list[model].slots;
+                let slot = slots[self.slot.min(slots.len() - 1)].clone();
+                set_slot(&mut current.paint, slots, &slot, parameters);
+            }
+            VehicleMsg::ResetPaint => {
+                let current = &mut document.vehicles.list[*vehicle];
+                let model = models.find(&current.model).unwrap_or(0);
+                let slots = &models.list[model].slots;
+                let slot = slots[self.slot.min(slots.len() - 1)].clone();
+                current.paint.retain(|(painted, _)| *painted != slot);
             }
         }
-        form.caption(ui, "Acceleration each way, in units a second, a second.");
+    }
 
-        form.heading(ui, "Footprint");
-        let mut values = sides(&current.footprint);
-        let range = SliderRange::new(0.05, 10.0, 200.0, 3);
-        let [left, right, front, back] = &mut values;
-        let rows = [[("Left", left), ("Right", right)], [("Front", front), ("Back", back)]];
-        for sliders in rows {
-            let columns = form.columns::<2>(slider_height());
-            for ((side, value), column) in sliders.into_iter().zip(columns) {
-                editing::slider(ui, &format!("Footprint/{side}"), column, side, value, range);
+    // The overlay over the view, then the cards, over both.
+    pub fn view(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, view: Rect, document: &Document, models: &Models, vehicle: usize) {
+        // The model's rectangle, thin, and the footprint, with a handle on
+        // each side.
+        let heading = SHOWN_HEADING.to_radians();
+        let current = &document.vehicles.list[vehicle];
+        let model_corners = models
+            .find(&current.model)
+            .map(|model| models.list[model].footprint.corners([0.0, 0.0], heading));
+        let corners = current.footprint.corners([0.0, 0.0], heading);
+        let (drag, under) = (self.drag, self.under);
+        let projection = Projection::new(self.viewport.eye, window_size(ui));
+        tree.draw(
+            view,
+            Canvas::new(move |painter, rect| {
+                let theme = painter.theme().clone();
+                painter.push_clip(rect);
+                if let Some(model_corners) = model_corners {
+                    projection.outline(painter, &model_corners, 1.0, theme.text_secondary);
+                }
+                projection.outline(painter, &corners, 2.0, theme.accent);
+                for (side, [a, b]) in side_corners(corners).iter().enumerate() {
+                    let middle = projection.point([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0]);
+                    let active = drag == Some(side) || (drag.is_none() && under == Some(side));
+                    painter.circle(middle, if active { 7.0 } else { 5.0 }, theme.accent);
+                    painter.circle(middle, if active { 3.0 } else { 2.0 }, theme.acrylic);
+                }
+                painter.pop_clip();
+            }),
+        );
+        self.card(ui, tree, page, document, models, vehicle);
+        self.paint_card(ui, tree, page, document, models, vehicle);
+    }
+
+    fn card(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, document: &Document, models: &Models, vehicle: usize) {
+        let card = Card::new("Vehicles").subtitle("How each looks and drives").floating();
+        tree.sized_card(ui, None, editing::left_card(page), card, |ui, card, area| {
+            let mut form = Form::new(area.content);
+            let names: Vec<String> = document.vehicles.list.iter().map(|vehicle| vehicle.name.clone()).collect();
+            let shown = names.len().clamp(1, LIST_ROWS) as f32;
+            let labels = names.clone();
+            let list = ListView::new(names.len(), LIST_ITEM_HEIGHT)
+                .selection(Some(vehicle))
+                .on_select(|index| Message::Vehicle(VehicleMsg::Select(index)))
+                .labels(move |row| labels[row].clone());
+            let list_rect = form.take(shown * LIST_ITEM_HEIGHT);
+            let rows = list.rows(ui, "Vehicles/List", list_rect);
+            card.container(Some("Vehicles/List"), list_rect, list, |items| {
+                for row in rows.indices() {
+                    items.draw(rows.content(row), Text::label(&names[row]));
+                }
+            });
+            let [add, delete] = form.columns::<2>(CONTROL_HEIGHT);
+            card.add("Vehicles/Add", add, Button::new("Add a vehicle").icon(Icon::Add).on_press(Message::Vehicle(VehicleMsg::Add)))
+                .set_tooltip("Adds a copy of this vehicle, with a name of its own");
+            card.add("Vehicles/Delete", delete, Button::new("Delete it").icon(Icon::Delete).on_press(Message::Vehicle(VehicleMsg::Delete)))
+                .set_tooltip("Deletes this vehicle, unless it's parked in a scene");
+            if !self.message.is_empty() {
+                let bar = InfoBar::new(Severity::Warning, "", &self.message);
+                let height = bar.height(ui, form.rest().width);
+                card.add("Vehicles/Message", form.take(height), bar);
             }
-        }
-        let fit = ui.add("Footprint/Fit", form.take(CONTROL_HEIGHT), Button::new("Fit it to the model"));
-        ui.tooltip(&fit, "Makes the footprint the rectangle around the model, seen from above");
-        if fit.clicked {
-            values = sides(&models.list[model].footprint);
-        }
-        current.footprint = Footprint::from_sides(values[0], values[1], values[2], values[3]);
-        form.caption(ui, "Drag a side in the view to move it.");
-        ui.end_card(open, form.bottom());
+
+            form.heading(card, "Vehicle");
+            // The name, which a rename also changes where it's parked, and
+            // the model. The field holds what's typed while it has focus,
+            // and the vehicle's name otherwise, which Prepare keeps it on.
+            let current = &document.vehicles.list[vehicle];
+            let shown_name = if ui.is_focused("Vehicles/Name") { self.name_text.clone() } else { current.name.clone() };
+            let [name_column, model_column] = form.columns::<2>(HEADED_HEIGHT);
+            let field = header(card, name_column, "Name");
+            card.add("Vehicles/Name", field, TextBox::new(shown_name).placeholder("Name").max_length(40).on_change(|name| {
+                Message::Vehicle(VehicleMsg::Name(name))
+            }))
+            .set_focusable(true);
+            let model_names = models.names();
+            let model = models.find(&current.model).unwrap_or(0);
+            let model_area = header(card, model_column, "Model");
+            card.add("Vehicles/Model", model_area, ComboBox::new(model, &model_names).on_select(|model| {
+                Message::Vehicle(VehicleMsg::Model(model))
+            }));
+            let rates = SliderRange::new(0.0, 2000.0, 1.0, 0);
+            let acceleration = &current.acceleration;
+            let values = [acceleration.forward, acceleration.reverse, acceleration.left, acceleration.right];
+            for row in [[0, 1], [2, 3]] {
+                let columns = form.columns::<2>(slider_height());
+                for (index, column) in row.into_iter().zip(columns) {
+                    card.add(&format!("Vehicles/{}", RATES[index]), column, editing::slider(RATES[index], values[index], rates, move |value| {
+                        Message::Vehicle(VehicleMsg::Rate(index, value))
+                    }));
+                }
+            }
+            form.caption(ui, card, "Acceleration each way, in units a second, a second.");
+
+            form.heading(card, "Footprint");
+            let values = sides(&current.footprint);
+            let range = SliderRange::new(0.05, 10.0, 200.0, 3);
+            for row in [[0, 1], [2, 3]] {
+                let columns = form.columns::<2>(slider_height());
+                for (side, column) in row.into_iter().zip(columns) {
+                    card.add(&format!("Footprint/{}", SIDES[side]), column, editing::slider(SIDES[side], values[side], range, move |value| {
+                        Message::Vehicle(VehicleMsg::Side(side, value))
+                    }));
+                }
+            }
+            card.add("Footprint/Fit", form.take(CONTROL_HEIGHT), Button::new("Fit it to the model").on_press(Message::Vehicle(VehicleMsg::Fit)))
+                .set_tooltip("Makes the footprint the rectangle around the model, seen from above");
+            form.caption(ui, card, "Drag a side in the view to move it.");
+            form.bottom()
+        });
     }
 
     // The card down the right side, with the vehicle's paint over its
     // model's.
-    fn paint_card(&mut self, ui: &mut Ui, page: Rect, document: &mut Document, models: &Models, vehicle: usize) {
+    fn paint_card(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, document: &Document, models: &Models, vehicle: usize) {
         let card = Card::new("Paint").subtitle("This vehicle's, over its model's").floating();
-        let open = ui.begin_card(editing::right_card(page), card);
-        let mut form = Form::new(open.area.content);
-        let model_paints = document.paints.clone();
-        let current = &mut document.vehicles.list[vehicle];
-        let model = models.find(&current.model).unwrap_or(0);
-        let slots = &models.list[model].slots;
-        self.slot = self.slot.min(slots.len() - 1);
-        let none = Vec::new();
-        let model_name = &models.list[model].name;
-        let model_paint = model_paints.iter().find(|(name, _)| name == model_name).map_or(&none, |(_, paint)| paint);
-        let materials = models.list[model].materials(&[model_paint, &current.paint]);
-        let mut parameters = materials[self.slot];
-        if editing::paint(&mut form, ui, "VehiclePaint", slots, &mut self.slot, &mut parameters) {
-            let slot = slots[self.slot].clone();
-            set_slot(&mut current.paint, slots, &slot, parameters);
-        }
-        let painted = current.paint.iter().any(|(slot, _)| *slot == slots[self.slot]);
-        let reset = ui.add_enabled(painted, "VehiclePaint/Reset", form.take(CONTROL_HEIGHT), Button::new("Use the model's paint").icon(Icon::Refresh));
-        ui.tooltip(&reset, "Paints this slot as the model is painted everywhere");
-        if reset.clicked {
-            current.paint.retain(|(slot, _)| *slot != slots[self.slot]);
-        }
-        let painted = current.paint.iter().any(|(slot, _)| *slot == slots[self.slot]);
-        form.caption(ui, if painted { "This vehicle paints this slot its own way." } else { "This slot has the model's paint." });
-        ui.end_card(open, form.bottom());
+        tree.sized_card(ui, None, editing::right_card(page), card, |ui, card, area| {
+            let mut form = Form::new(area.content);
+            let current = &document.vehicles.list[vehicle];
+            let model = models.find(&current.model).unwrap_or(0);
+            let slots = &models.list[model].slots;
+            let slot = self.slot.min(slots.len() - 1);
+            let none = Vec::new();
+            let model_name = &models.list[model].name;
+            let model_paint = document.paints.iter().find(|(name, _)| name == model_name).map_or(&none, |(_, paint)| paint);
+            let materials = models.list[model].materials(&[model_paint, &current.paint]);
+            editing::paint(
+                &mut form,
+                card,
+                "VehiclePaint",
+                slots,
+                slot,
+                materials[slot],
+                |slot| Message::Vehicle(VehicleMsg::Slot(slot)),
+                |parameters| Message::Vehicle(VehicleMsg::Paint(parameters)),
+            );
+            let painted = current.paint.iter().any(|(painted, _)| *painted == slots[slot]);
+            let reset = Button::new("Use the model's paint").icon(Icon::Refresh).on_press(Message::Vehicle(VehicleMsg::ResetPaint));
+            card.add("VehiclePaint/Reset", form.take(CONTROL_HEIGHT), reset)
+                .set_enabled(painted)
+                .set_tooltip("Paints this slot as the model is painted everywhere");
+            form.caption(ui, card, if painted { "This vehicle paints this slot its own way." } else { "This slot has the model's paint." });
+            form.bottom()
+        });
     }
 
     pub fn state(&self, document: &Document, vehicle: usize) -> Value {

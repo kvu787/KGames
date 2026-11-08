@@ -87,13 +87,13 @@ fn the_car_starts_on_the_start_line_at_rest() {
 fn the_stick_drives_the_car_and_the_trigger_stops_it() {
     let mut app = start();
     let heading = app.program.game.car.heading;
-    // 30 frames, half a second, of pushing.
+    // 30 frames, half a second, of pushing: set_gamepad's own frame, then 29.
     let push = ahead_on_the_screen(&app);
     app.set_gamepad(gamepad(Gamepad {
         right_stick: push,
         ..Gamepad::default()
     }));
-    app.frames(28);
+    app.frames(29);
     assert!((speed(&app) - 70.0).abs() < 1e-6, "{}", speed(&app));
     assert!((app.program.game.car.heading - heading).abs() < 1e-9);
     app.set_gamepad(gamepad(Gamepad {
@@ -190,13 +190,14 @@ fn the_camera_follows_the_car_and_zooms() {
     assert!((app.program.game.camera.height - 36.0).abs() < 1e-9);
     app.key(Key::HOME);
     assert_eq!(app.program.game.camera.height, 45.0);
-    // RB and the left stick up zoom in at ZOOM_SPEED units a second.
+    // RB and the left stick up zoom in at ZOOM_SPEED units a second, for
+    // half a second: set_gamepad's own frame, then 29.
     app.set_gamepad(gamepad(Gamepad {
         left_stick: Point::new(0.0, 1.0),
         buttons: GamepadButtons(GamepadButtons::RIGHT_SHOULDER),
         ..Gamepad::default()
     }));
-    app.frames(28);
+    app.frames(29);
     assert!((app.program.game.camera.height - (45.0 - camera::ZOOM_SPEED * 0.5)).abs() < 1e-9);
     app.frames(60);
     assert_eq!(app.program.game.camera.height, camera::LOWEST);

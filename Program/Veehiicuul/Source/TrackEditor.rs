@@ -12,10 +12,13 @@
 
 use json::Value;
 use user_interface::tokens::CONTROL_HEIGHT;
-use user_interface::{Button, Card, ComboBox, Form, Icon, InfoBar, Rect, Segmented, Severity, Ui};
+use user_interface::{Button, Canvas, Card, ComboBox, Form, Icon, InfoBar, Rect, Segmented, Severity, Tree, Ui};
 
+use crate::camera::Eye;
 use crate::curve::{self, FEWEST};
-use crate::editing::{self, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, nearest, slider_height, window_size};
+use crate::editing::{self, GroundInput, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, nearest, slider_height};
+use crate::files;
+use crate::program::Message;
 use crate::track::Track;
 
 pub const TOOLS: [&str; 4] = ["Move points", "Add points", "Delete points", "Move track"];
@@ -26,6 +29,21 @@ const REACH: f32 = 12.0;
 const HANDLE: f64 = 8.0;
 // The most problems the card lists.
 const MOST_PROBLEMS: usize = 4;
+
+// What the card's controls do.
+#[derive(Clone, Debug)]
+pub enum TrackMsg {
+    Tool(usize),
+    Curve(usize),
+    // An island: a circle of 8 points in the middle of the view, this big.
+    AddIsland { center: [f64; 2], radius: f64 },
+    DeleteIsland,
+    Heading(f64),
+    BarrierWidth(f64),
+    BarrierLength(f64),
+    RoadColor(files::Color),
+    BarrierColor(usize, files::Color),
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Drag {
@@ -43,6 +61,8 @@ pub struct TrackEditor {
     // islands.
     pub curve: usize,
     drag: Option<Drag>,
+    // The control point under the pointer, for the ring the overlay draws.
+    under: Option<[f64; 2]>,
 }
 
 pub fn curve_name(index: usize) -> String {
@@ -56,18 +76,16 @@ fn handle(track: &Track) -> [f64; 2] {
 }
 
 impl TrackEditor {
-    // The view, where the tool edits the curves, then the card, over it.
-    pub fn update(&mut self, ui: &mut Ui, view: Rect, viewport: &mut Viewport, track: &mut Track, problems: &[String]) {
-        let input = viewport.interact(ui, "Track/View", view);
-        let size = window_size(ui);
-        let eye = viewport.eye;
+    // What the pointer in the view does: the tool, on the curves' points,
+    // the start, or the whole track.
+    pub fn view_input(&mut self, input: GroundInput, track: &mut Track, eye: Eye, size: [f32; 2]) {
         let point_under = |track: &Track, cursor: [f32; 2]| {
             track
                 .curves()
                 .enumerate()
                 .find_map(|(curve, points)| nearest(&eye, size, cursor, points, REACH).map(|index| (curve, index)))
         };
-        if input.response.pressed
+        if input.pressed
             && !input.panning
             && let (Some(cursor), Some(ground)) = (input.cursor, input.ground)
         {
@@ -131,109 +149,153 @@ impl TrackEditor {
         if !input.held {
             self.drag = None;
         }
-        let under = input
+        self.under = input
             .cursor
             .filter(|_| !input.panning)
             .and_then(|cursor| point_under(track, cursor))
             .and_then(|(curve, index)| track.curves().nth(curve).map(|points| points[index]));
-        self.overlay(ui, view, viewport, track, under);
-        let page = ui.page();
-        self.card(ui, page, view, viewport, track, problems);
+    }
+
+    // A control on the card.
+    pub fn apply(&mut self, message: TrackMsg, track: &mut Track) {
+        match message {
+            TrackMsg::Tool(tool) => self.tool = tool,
+            TrackMsg::Curve(curve) => self.curve = curve,
+            TrackMsg::AddIsland { center, radius } => {
+                track.islands.push(curve::circle(center, radius, 8));
+                self.curve = track.islands.len();
+            }
+            TrackMsg::DeleteIsland => {
+                if self.curve > 0 {
+                    track.islands.remove(self.curve - 1);
+                    self.curve -= 1;
+                }
+            }
+            TrackMsg::Heading(heading) => track.start.heading = heading,
+            TrackMsg::BarrierWidth(width) => track.barrier_width = width,
+            TrackMsg::BarrierLength(length) => track.barrier_length = length,
+            TrackMsg::RoadColor(color) => track.road_color = color,
+            TrackMsg::BarrierColor(index, color) => track.barrier_colors[index] = color,
+        }
+        self.curve = self.curve.min(track.islands.len());
+    }
+
+    // The overlay over the view, then the card, over both.
+    pub fn view(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, view: Rect, viewport: &Viewport, track: &Track, problems: &[String]) {
+        self.overlay(ui, tree, view, viewport, track);
+        self.card(ui, tree, page, view, viewport, track, problems);
     }
 
     // The curves' control points, and the lines between them, the start's
     // handle, and a ring around the point under the pointer.
-    fn overlay(&self, ui: &mut Ui, view: Rect, viewport: &Viewport, track: &Track, under: Option<[f64; 2]>) {
-        let projection = Projection::new(ui, viewport.eye);
-        let mut painter = ui.painter();
-        let theme = painter.theme();
-        painter.push_clip(view);
-        for (index, points) in track.curves().enumerate() {
-            let selected = index == self.curve;
-            let color = if selected { theme.accent } else { theme.text_primary };
-            projection.outline(&mut painter, points, if selected { 1.5 } else { 1.0 }, color);
-            for &point in points.iter() {
-                let center = projection.point(point);
-                painter.circle(center, if selected { 5.0 } else { 4.0 }, color);
-                painter.circle(center, 2.0, theme.acrylic);
-            }
-        }
-        let (start, end) = (projection.point(track.start.position), projection.point(handle(track)));
-        painter.line(start, end, 2.0, theme.text_primary);
-        painter.circle(end, 7.0, theme.text_primary);
-        painter.circle(end, 4.0, theme.acrylic);
-        if let Some(point) = under {
-            painter.ring(projection.point(point), 9.0, 2.0, theme.accent);
-        }
-        painter.pop_clip();
+    fn overlay(&self, ui: &mut Ui, tree: &mut Tree<Message>, view: Rect, viewport: &Viewport, track: &Track) {
+        let projection = Projection::new(viewport.eye, editing::window_size(ui));
+        let curves: Vec<Vec<[f64; 2]>> = track.curves().cloned().collect();
+        let selected = self.curve;
+        let (start, handle) = (track.start.position, handle(track));
+        let under = self.under;
+        tree.draw(
+            view,
+            Canvas::new(move |painter, rect| {
+                let theme = painter.theme().clone();
+                painter.push_clip(rect);
+                for (index, points) in curves.iter().enumerate() {
+                    let picked = index == selected;
+                    let color = if picked { theme.accent } else { theme.text_primary };
+                    projection.outline(painter, points, if picked { 1.5 } else { 1.0 }, color);
+                    for &point in points.iter() {
+                        let center = projection.point(point);
+                        painter.circle(center, if picked { 5.0 } else { 4.0 }, color);
+                        painter.circle(center, 2.0, theme.acrylic);
+                    }
+                }
+                let (start, end) = (projection.point(start), projection.point(handle));
+                painter.line(start, end, 2.0, theme.text_primary);
+                painter.circle(end, 7.0, theme.text_primary);
+                painter.circle(end, 4.0, theme.acrylic);
+                if let Some(point) = under {
+                    painter.ring(projection.point(point), 9.0, 2.0, theme.accent);
+                }
+                painter.pop_clip();
+            }),
+        );
     }
 
-    fn card(&mut self, ui: &mut Ui, page: Rect, view: Rect, viewport: &Viewport, track: &mut Track, problems: &[String]) {
+    #[allow(clippy::too_many_arguments)]
+    fn card(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, view: Rect, viewport: &Viewport, track: &Track, problems: &[String]) {
         let card = Card::new("Track").subtitle("Curves that make the road and its barriers").floating();
-        let open = ui.begin_card(editing::left_card(page), card);
-        let mut form = Form::new(open.area.content);
-        let tools: Vec<(Icon, &str)> = TOOL_ICONS.into_iter().zip(TOOLS).collect();
-        ui.add("Track/Tool", form.take(CONTROL_HEIGHT), Segmented::new(&mut self.tool, &tools));
+        let middle = editing::visible(view).center();
+        let island_center = viewport.eye.to_ground([middle.x, middle.y], editing::window_size(ui));
+        let island_radius = viewport.eye.height / 12.0;
+        tree.sized_card(ui, None, editing::left_card(page), card, |ui, card, area| {
+            let mut form = Form::new(area.content);
+            let tools: Vec<(Icon, &str)> = TOOL_ICONS.into_iter().zip(TOOLS).collect();
+            card.add("Track/Tool", form.take(CONTROL_HEIGHT), Segmented::new(self.tool, &tools).on_select(|tool| Message::Track(TrackMsg::Tool(tool))));
 
-        form.heading(ui, "Curves");
-        self.curve = self.curve.min(track.islands.len());
-        let names: Vec<String> = (0..=track.islands.len()).map(curve_name).collect();
-        let names: Vec<&str> = names.iter().map(String::as_str).collect();
-        let area = form.control(ui, "Curve");
-        ui.add("Track/Curve", area, ComboBox::new(&mut self.curve, &names));
-        let [add, delete] = form.columns::<2>(CONTROL_HEIGHT);
-        let add = ui.add("Track/AddIsland", add, Button::new("Add an island").icon(Icon::Add));
-        ui.tooltip(&add, "Adds a circle of 8 points in the middle of the view");
-        let delete = ui.add_enabled(self.curve > 0, "Track/DeleteIsland", delete, Button::new("Delete the island").icon(Icon::Delete));
-        ui.tooltip(&delete, "Deletes the chosen island");
-        if add.clicked {
-            let middle = editing::visible(view).center();
-            let center = viewport.eye.to_ground([middle.x, middle.y], window_size(ui));
-            track.islands.push(curve::circle(center, viewport.eye.height / 12.0, 8));
-            self.curve = track.islands.len();
-        }
-        if delete.clicked && self.curve > 0 {
-            track.islands.remove(self.curve - 1);
-            self.curve -= 1;
-        }
-        let count = track.curves().nth(self.curve).map_or(0, Vec::len);
-        form.caption(ui, &format!("{} has {count} control points.", curve_name(self.curve)));
+            form.heading(card, "Curves");
+            let curve = self.curve.min(track.islands.len());
+            let names: Vec<String> = (0..=track.islands.len()).map(curve_name).collect();
+            let names: Vec<&str> = names.iter().map(String::as_str).collect();
+            let area = form.control(card, "Curve");
+            card.add("Track/Curve", area, ComboBox::new(curve, &names).on_select(|curve| Message::Track(TrackMsg::Curve(curve))));
+            let [add, delete] = form.columns::<2>(CONTROL_HEIGHT);
+            let island = TrackMsg::AddIsland {
+                center: island_center,
+                radius: island_radius,
+            };
+            card.add("Track/AddIsland", add, Button::new("Add an island").icon(Icon::Add).on_press(Message::Track(island)))
+                .set_tooltip("Adds a circle of 8 points in the middle of the view");
+            card.add("Track/DeleteIsland", delete, Button::new("Delete the island").icon(Icon::Delete).on_press(Message::Track(TrackMsg::DeleteIsland)))
+                .set_enabled(curve > 0)
+                .set_tooltip("Deletes the chosen island");
+            let count = track.curves().nth(curve).map_or(0, Vec::len);
+            form.caption(ui, card, &format!("{} has {count} control points.", curve_name(curve)));
 
-        form.heading(ui, "Start");
-        let degrees = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
-        editing::slider_row(&mut form, ui, "Track/Heading", "Heading", &mut track.start.heading, degrees);
-        form.caption(ui, "Drag the car, or its handle, to move or turn it.");
+            form.heading(card, "Start");
+            let degrees = SliderRange::new(-180.0, 180.0, 10.0, 1).suffix("°");
+            editing::slider_row(&mut form, card, "Track/Heading", "Heading", track.start.heading, degrees, |value| {
+                Message::Track(TrackMsg::Heading(value))
+            });
+            form.caption(ui, card, "Drag the car, or its handle, to move or turn it.");
 
-        form.heading(ui, "Barriers");
-        let [width, length] = form.columns::<2>(slider_height());
-        let widths = SliderRange::new(0.1, 5.0, 100.0, 2);
-        editing::slider(ui, "Track/BarrierWidth", width, "Width", &mut track.barrier_width, widths);
-        let lengths = SliderRange::new(1.0, 50.0, 10.0, 1);
-        editing::slider(ui, "Track/BarrierLength", length, "Length", &mut track.barrier_length, lengths);
+            form.heading(card, "Barriers");
+            let [width, length] = form.columns::<2>(slider_height());
+            let widths = SliderRange::new(0.1, 5.0, 100.0, 2);
+            card.add("Track/BarrierWidth", width, editing::slider("Width", track.barrier_width, widths, |value| {
+                Message::Track(TrackMsg::BarrierWidth(value))
+            }));
+            let lengths = SliderRange::new(1.0, 50.0, 10.0, 1);
+            card.add("Track/BarrierLength", length, editing::slider("Length", track.barrier_length, lengths, |value| {
+                Message::Track(TrackMsg::BarrierLength(value))
+            }));
 
-        form.heading(ui, "Colors");
-        let [road, first, second] = form.columns::<3>(HEADED_HEIGHT);
-        let (road, first) = (header(ui, road, "Road"), header(ui, first, "Barriers"));
-        editing::color_field(ui, "Track/RoadColor", road, &mut track.road_color);
-        let [first_color, second_color] = &mut track.barrier_colors;
-        editing::color_field(ui, "Track/BarrierColor0", first, first_color);
-        editing::color_field(ui, "Track/BarrierColor1", second.bottom_strip(CONTROL_HEIGHT), second_color);
+            form.heading(card, "Colors");
+            let [road, first, second] = form.columns::<3>(HEADED_HEIGHT);
+            let (road, first) = (header(card, road, "Road"), header(card, first, "Barriers"));
+            editing::color_field(card, "Track/RoadColor", road, track.road_color, |color| Message::Track(TrackMsg::RoadColor(color)));
+            editing::color_field(card, "Track/BarrierColor0", first, track.barrier_colors[0], |color| {
+                Message::Track(TrackMsg::BarrierColor(0, color))
+            });
+            editing::color_field(card, "Track/BarrierColor1", second.bottom_strip(CONTROL_HEIGHT), track.barrier_colors[1], |color| {
+                Message::Track(TrackMsg::BarrierColor(1, color))
+            });
 
-        form.heading(ui, "Problems");
-        if problems.is_empty() {
-            let bar = InfoBar::new(Severity::Success, "", "None. The track can be driven.");
-            let height = ui.info_bar_height(form.width(), &bar);
-            ui.add("Track/Drivable", form.take(height), bar);
-        }
-        for (index, problem) in problems.iter().take(MOST_PROBLEMS).enumerate() {
-            let bar = InfoBar::new(Severity::Warning, "", problem);
-            let height = ui.info_bar_height(form.width(), &bar);
-            ui.add(&format!("Track/Problem/{index}"), form.take(height), bar);
-        }
-        if problems.len() > MOST_PROBLEMS {
-            form.caption(ui, &format!("And {} more.", problems.len() - MOST_PROBLEMS));
-        }
-        ui.end_card(open, form.bottom());
+            form.heading(card, "Problems");
+            if problems.is_empty() {
+                let bar = InfoBar::new(Severity::Success, "", "None. The track can be driven.");
+                let height = bar.height(ui, form.rest().width);
+                card.add("Track/Drivable", form.take(height), bar);
+            }
+            for (index, problem) in problems.iter().take(MOST_PROBLEMS).enumerate() {
+                let bar = InfoBar::new(Severity::Warning, "", problem);
+                let height = bar.height(ui, form.rest().width);
+                card.add(&format!("Track/Problem/{index}"), form.take(height), bar);
+            }
+            if problems.len() > MOST_PROBLEMS {
+                form.caption(ui, card, &format!("And {} more.", problems.len() - MOST_PROBLEMS));
+            }
+            form.bottom()
+        });
     }
 
     pub fn state(&self, track: &Track, problems: &[String]) -> Value {

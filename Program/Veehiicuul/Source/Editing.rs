@@ -17,10 +17,14 @@
 use simple_paint::Parameters;
 use user_interface::controls::TEXT_BOX_HEADER_GAP;
 use user_interface::tokens::{APP_BAR_HEIGHT, BODY, CONTROL_HEIGHT, PAGE_PADDING, SPACE_S, STATUS_BAR_HEIGHT};
-use user_interface::{Color, ColorField, ComboBox, Cursor, Form, Key, MouseButton, Painter, Point, Rect, Response, Slider, Ui, View};
+use user_interface::{
+    Color, ColorField, ComboBox, Cursor, Dispatch, Form, Interaction, Key, MouseButton, Painter, Point, Rect, Sense, Slider, Swatch,
+    Text, Tree, Ui, ViewInput, Widget,
+};
 
 use crate::camera::{self, Eye};
 use crate::files::Color as FileColor;
+use crate::program::Message;
 
 // How wide the editors' cards are.
 pub const CARD_WIDTH: f32 = 520.0;
@@ -56,16 +60,69 @@ pub fn window_size(ui: &Ui) -> [f32; 2] {
     [ui.size().width, ui.size().height]
 }
 
-// What happened in an editor's view in a frame.
-pub struct ViewInput {
-    pub response: Response,
-    // Whether the left button's press on the view is still down, which is
-    // what edits and pans.
+// The editors' and the game's view of the ground: a target that hears the
+// pointer every frame, sends what it did with whether Space is down, and
+// takes keyboard focus from a text field when pressed, so that the keys
+// after it, like Space, are the view's.
+pub struct GroundView {
+    // Whether a pan drag was under way as of the last frame, for the cursor.
+    pub panning: bool,
+}
+
+impl Widget<Message> for GroundView {
+    fn kind(&self) -> &'static str {
+        "View"
+    }
+
+    fn sense(&self) -> Option<Sense> {
+        Some(Sense::VIEW)
+    }
+
+    fn always_interacts(&self) -> bool {
+        true
+    }
+
+    fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<Message>) {
+        let hit = interaction.whole();
+        if hit.pressed || hit.secondary_pressed || hit.middle_pressed {
+            ctx.clear_focus();
+        }
+        let space = ctx.key_down(Key::SPACE);
+        if (space || self.panning) && (hit.hovered || hit.held) {
+            ctx.set_cursor(Cursor::Move);
+        }
+        let input = ViewInput {
+            hovered: hit.hovered,
+            pointer: interaction.pointer,
+            pressed: hit.pressed,
+            secondary_pressed: hit.secondary_pressed,
+            middle_pressed: hit.middle_pressed,
+            held: hit.held,
+            held_button: hit.held_button,
+            drag_delta: interaction.drag_delta,
+            released: hit.released,
+            clicked: hit.clicked,
+            double_clicked: hit.double_clicked,
+            secondary_clicked: hit.secondary_clicked,
+            wheel: hit.wheel,
+            modifiers: ctx.modifiers(),
+        };
+        ctx.send(Message::View { input, space });
+    }
+}
+
+// What happened in an editor's view in a frame, on the ground.
+#[derive(Clone, Copy, Debug)]
+pub struct GroundInput {
+    // The left button's press, and whether it's still down, which is what
+    // edits and pans.
+    pub pressed: bool,
     pub held: bool,
     // The point on the ground under the pointer, if it's on the view.
     pub ground: Option<[f64; 2]>,
     pub cursor: Option<[f32; 2]>,
-    // Whether Space is down, so that a drag pans instead of editing.
+    // Whether Space is down or a pan drag is under way, so that a drag pans
+    // instead of editing.
     pub panning: bool,
 }
 
@@ -94,23 +151,21 @@ impl Viewport {
         self.eye.pitch = if game { camera::PITCH } else { std::f64::consts::FRAC_PI_2 };
     }
 
-    // The view as Library/UserInterface's View, named like "Terrain/View",
-    // in `area`: its presses, which take keyboard focus from a text field so
-    // that the keys after them, like Space, are the view's, and the pan and
-    // zoom.
-    pub fn interact(&mut self, ui: &mut Ui, name: &str, area: Rect) -> ViewInput {
-        let size = window_size(ui);
-        let space = ui.key_down(Key::SPACE);
-        let view = if space || self.grab.is_some() { View::new().cursor(Cursor::Move) } else { View::new() };
-        let response = ui.add(name, area, view);
-        let held = response.held && response.held_button == Some(MouseButton::Left);
-        let cursor = response.pointer.map(|point| [point.x, point.y]);
-        if response.wheel.y != 0.0
+    pub fn panning(&self) -> bool {
+        self.grab.is_some()
+    }
+
+    // What the view's input did to the viewport: the pan and the zoom, and
+    // what's left for the editor's tool, on the ground.
+    pub fn apply(&mut self, input: &ViewInput, space: bool, size: [f32; 2]) -> GroundInput {
+        let held = input.holding(MouseButton::Left);
+        let cursor = input.pointer.map(|point| [point.x, point.y]);
+        if input.wheel.y != 0.0
             && let Some(cursor) = cursor
         {
-            self.eye.zoom_at(camera::NOTCH.powf(-f64::from(response.wheel.y)), cursor, size);
+            self.eye.zoom_at(camera::NOTCH.powf(-f64::from(input.wheel.y)), cursor, size);
         }
-        if response.pressed && space {
+        if input.pressed && space {
             self.grab = cursor.map(|cursor| self.eye.to_ground(cursor, size));
         }
         if !held {
@@ -121,8 +176,8 @@ impl Viewport {
             self.eye.center[0] += grab[0] - under[0];
             self.eye.center[1] += grab[1] - under[1];
         }
-        ViewInput {
-            response,
+        GroundInput {
+            pressed: input.pressed,
             held,
             ground: cursor.map(|cursor| self.eye.to_ground(cursor, size)),
             cursor,
@@ -166,8 +221,8 @@ pub struct Projection {
 }
 
 impl Projection {
-    pub fn new(ui: &Ui, eye: Eye) -> Projection {
-        Projection { eye, size: window_size(ui) }
+    pub fn new(eye: Eye, size: [f32; 2]) -> Projection {
+        Projection { eye, size }
     }
 
     pub fn point(&self, ground: [f64; 2]) -> Point {
@@ -234,97 +289,101 @@ impl SliderRange {
 
 // How tall a slider is with its header.
 pub fn slider_height() -> f32 {
-    Slider::<f64>::height(true)
+    Slider::<Message>::height(true)
 }
 
 // A slider of one of the document's numbers, with its label and its value
-// above it, in `rect`, slider_height() tall. Only input moves the value, so
-// that one from a file stays as it is until then. Returns whether it changed
-// the value.
-pub fn slider(ui: &mut Ui, name: &str, rect: Rect, label: &str, value: &mut f64, range: SliderRange) -> bool {
-    let before = *value;
-    let slider = Slider::new(value, range.start, range.end)
+// above it, slider_height() tall. Only input moves the value, so that one
+// from a file stays as it is until then; what moving it sends carries the
+// nearest step.
+pub fn slider(label: &str, value: f64, range: SliderRange, to: impl Fn(f64) -> Message + 'static) -> Slider<Message> {
+    Slider::new(value, range.start, range.end)
         .step(1.0 / range.steps)
         .allowed(range.minimum, range.maximum)
         .header(label)
         .show_value(range.decimals)
-        .suffix(range.suffix);
-    if ui.add(name, rect, slider).changed {
-        *value = range.nearest(*value);
-    }
-    *value != before
+        .suffix(range.suffix)
+        .on_change(move |value| to(range.nearest(value)))
 }
 
-// A slider of its own row of a form.
-pub fn slider_row(form: &mut Form, ui: &mut Ui, name: &str, label: &str, value: &mut f64, range: SliderRange) -> bool {
+// A slider on its own row of a form.
+pub fn slider_row(form: &mut Form, tree: &mut Tree<Message>, name: &str, label: &str, value: f64, range: SliderRange, to: impl Fn(f64) -> Message + 'static) {
     let rect = form.take(slider_height());
-    slider(ui, name, rect, label, value, range)
+    tree.add(name, rect, slider(label, value, range, to));
 }
 
 // A control's header above it, in a column of a form's row that's
 // HEADED_HEIGHT tall, as Form::row puts it in a row of its own. Returns the
 // control's rectangle.
-pub fn header(ui: &mut Ui, column: Rect, label: &str) -> Rect {
-    let color = ui.theme().text_primary;
-    ui.text(column.top_strip(BODY.line_height), label, BODY, color);
+pub fn header(tree: &mut Tree<Message>, column: Rect, label: &str) -> Rect {
+    tree.draw(column.top_strip(BODY.line_height), Text::label(label));
     column.bottom_strip(CONTROL_HEIGHT)
 }
 
 // A field of one of the document's colors, like "#1CDA61", with a swatch of
-// it, in `rect`. What's typed takes effect with Enter. It takes keyboard
-// focus, unlike the editors' other controls. Returns whether it changed the
-// color.
-pub fn color_field(ui: &mut Ui, name: &str, rect: Rect, color: &mut FileColor) -> bool {
-    let mut shown = interface_color(*color);
-    let response = ui.with_focusable(true, |ui| ui.add(name, rect, ColorField::new(&mut shown)));
-    let [red, green, blue, _] = shown.to_bytes();
-    if response.changed && [red, green, blue] != *color {
-        *color = [red, green, blue];
-        return true;
-    }
-    false
+// it. What's typed takes effect with Enter. It takes keyboard focus, unlike
+// the editors' other controls, and what a change sends carries the color.
+pub fn color_field(tree: &mut Tree<Message>, name: &str, rect: Rect, color: FileColor, to: impl Fn(FileColor) -> Message + 'static) {
+    let field = ColorField::new(interface_color(color)).on_change(move |color| {
+        let [red, green, blue, _] = color.to_bytes();
+        to([red, green, blue])
+    });
+    tree.add(name, rect, field).set_focusable(true);
 }
 
 // The controls of a SimplePaint material, for one of a model's slots, which
 // the combo box picks, with a swatch of its base color: the base color's
 // channels and the dark point down the left, and the brightness, the shift,
-// the rotation and the light point down the right. Returns whether the
-// material changed.
-pub fn paint(form: &mut Form, ui: &mut Ui, name: &str, slots: &[String], slot: &mut usize, parameters: &mut Parameters) -> bool {
-    let mut row = form.control(ui, "Slot");
+// the rotation and the light point down the right. A slider's change sends
+// the whole material, with its field on the nearest step.
+pub fn paint(
+    form: &mut Form,
+    tree: &mut Tree<Message>,
+    name: &str,
+    slots: &[String],
+    slot: usize,
+    parameters: Parameters,
+    to_slot: impl Fn(usize) -> Message + 'static,
+    to_paint: impl Fn(Parameters) -> Message + Clone + 'static,
+) {
+    let mut row = form.control(tree, "Slot");
     let swatch_area = row.cut_right(CONTROL_HEIGHT, SPACE_S);
     let names: Vec<&str> = slots.iter().map(String::as_str).collect();
-    ui.add(&format!("{name}/Slot"), row, ComboBox::new(slot, &names));
+    tree.add(&format!("{name}/Slot"), row, ComboBox::new(slot, &names).on_select(to_slot));
     let [red, green, blue] = parameters.base_color_srgb.map(|channel| channel as f32);
-    ui.swatch(swatch_area, Color::rgb(red, green, blue));
+    tree.draw(swatch_area, Swatch::new(Color::rgb(red, green, blue)));
     let unit = SliderRange::new(0.0, 1.0, 1000.0, 3);
     let (lowest, highest) = (simple_paint::MARGIN, simple_paint::INTERIOR_MAXIMUM);
     let degrees = SliderRange::new(0.0, 360.0, 10.0, 1).between(0.0, 359.9).suffix("°");
-    let [red, green, blue] = &mut parameters.base_color_srgb;
-    let rows = [
+    type Set = fn(&mut Parameters, f64);
+    let rows: [[(&str, &str, f64, SliderRange, Set); 2]; 4] = [
         [
-            ("Red", "Red", red, unit.between(lowest, highest)),
-            ("Brightness", "Brightness", &mut parameters.brightness, unit.between(lowest, highest)),
+            ("Red", "Red", parameters.base_color_srgb[0], unit.between(lowest, highest), |p, v| p.base_color_srgb[0] = v),
+            ("Brightness", "Brightness", parameters.brightness, unit.between(lowest, highest), |p, v| p.brightness = v),
         ],
         [
-            ("Green", "Green", green, unit.between(lowest, highest)),
-            ("Shift", "Shift", &mut parameters.shift, unit.between(0.0, highest)),
+            ("Green", "Green", parameters.base_color_srgb[1], unit.between(lowest, highest), |p, v| p.base_color_srgb[1] = v),
+            ("Shift", "Shift", parameters.shift, unit.between(0.0, highest), |p, v| p.shift = v),
         ],
         [
-            ("Blue", "Blue", blue, unit.between(lowest, highest)),
-            ("Rotation", "Rotation", &mut parameters.rotation_degrees, degrees),
+            ("Blue", "Blue", parameters.base_color_srgb[2], unit.between(lowest, highest), |p, v| p.base_color_srgb[2] = v),
+            ("Rotation", "Rotation", parameters.rotation_degrees, degrees, |p, v| p.rotation_degrees = v),
         ],
         [
-            ("DarkPoint", "Dark point", &mut parameters.dark_point, unit.between(0.0, highest)),
-            ("LightPoint", "Light point", &mut parameters.light_point, unit.between(lowest, 1.0)),
+            ("DarkPoint", "Dark point", parameters.dark_point, unit.between(0.0, highest), |p, v| p.dark_point = v),
+            ("LightPoint", "Light point", parameters.light_point, unit.between(lowest, 1.0), |p, v| p.light_point = v),
         ],
     ];
-    let mut changed = false;
     for sliders in rows {
         let columns = form.columns::<2>(slider_height());
-        for ((part, label, value, range), column) in sliders.into_iter().zip(columns) {
-            changed |= slider(ui, &format!("{name}/{part}"), column, label, value, range);
+        for ((part, label, value, range, set), column) in sliders.into_iter().zip(columns) {
+            let to = to_paint.clone();
+            let widget = slider(label, value, range, move |value| {
+                let mut edited = parameters;
+                set(&mut edited, value);
+                to(edited)
+            });
+            tree.add(&format!("{name}/{part}"), column, widget);
         }
     }
-    changed
 }
