@@ -73,9 +73,14 @@ Moving, rotating, scaling, insetting and the move after an extrusion are modal, 
 | Click, `Enter`     | Keeps it, as one step of the history                        |
 | Right-click, `Esc` | Takes it back, with the extrusion that began it             |
 
+A click acts as the button goes down, like every press in the library's widgets: a click
+selects, a right-click opens the menu, and a click keeps a modal edit, without waiting for the
+button to come up. A drag that starts as a click takes its selection back once it's more than 4
+pixels long, and becomes a box, which selects when it's let go of, from what was selected before.
+
 Each edit is one step of the history, including a modal edit with what began it, a stroke of
-the Paint tool, and a drag of a paint's slider. Errors, like Merge without two vertices, show
-in the status bar.
+the Paint tool, a drag of a paint's slider, and a box with the click that began it. Errors,
+like Merge without two vertices, show in the status bar.
 
 Picking finds the nearest vertex or edge within 12 pixels of the pointer, or the face under it,
 that the mesh doesn't hide, unless X-ray is on. A box selects what's in it, hidden or not.

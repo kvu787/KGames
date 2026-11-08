@@ -167,8 +167,10 @@ pub struct Editor {
     pub tool: Tool,
     pub operation: Option<Operation>,
     pub hover: Option<Element>,
-    // A press on the view that may become a box, and the box's corners.
-    press: Option<Point>,
+    // A press on the view, which selected as it went down, and may become a
+    // box: where it was, and the document's version after the step that its
+    // selection made, if it made one. And the box's corners.
+    press: Option<(Point, Option<u64>)>,
     pub selecting_box: Option<(Point, Point)>,
     // The loop that the loop cut tool would cut: the edge and the fraction.
     pub loop_preview: Option<(Edge, f32)>,
@@ -281,8 +283,9 @@ impl Editor {
     }
 
     // A click on the element, or on nothing: picks it, adds it to the
-    // selection or takes it away with Shift, or selects nothing.
-    pub fn click(&mut self, document: &mut Document, element: Option<Element>, extend: bool) {
+    // selection or takes it away with Shift, or selects nothing. Returns
+    // whether the selection changed, which is a step.
+    pub fn click(&mut self, document: &mut Document, element: Option<Element>, extend: bool) -> bool {
         let before = document.snapshot();
         let mesh = &document.mesh;
         let picked = match element {
@@ -306,7 +309,7 @@ impl Editor {
         } else {
             picked
         };
-        document.commit("Select", before);
+        document.commit("Select", before)
     }
 
     // The selection less an element.
@@ -321,13 +324,13 @@ impl Editor {
     }
 
     // Selects the loop through an edge: an edge loop, or in face mode, the
-    // loop of faces across it.
-    pub fn select_loop(&mut self, document: &mut Document, edge: Edge, extend: bool) {
+    // loop of faces across it. Returns whether the selection changed.
+    pub fn select_loop(&mut self, document: &mut Document, edge: Edge, extend: bool) -> bool {
         let before = document.snapshot();
         let mesh = &document.mesh;
         let picked = if self.mode == Mode::Faces { Selection::face_loop(mesh, edge) } else { Selection::edge_loop(mesh, edge) };
         document.selection = if extend { document.selection.union(&picked, mesh, self.mode.select_mode()) } else { picked };
-        document.commit("Select loop", before);
+        document.commit("Select loop", before)
     }
 
     // The edge nearest the pointer, whatever the mode, for loops.
@@ -376,18 +379,29 @@ impl Editor {
     }
 
     // A press, a drag and a release of the left button on the view with the
-    // Select tool: a click selects, and a drag selects a box.
-    pub fn press(&mut self, point: Point) {
-        self.press = Some(point);
+    // Select tool. A click selects as it goes down, and the press records
+    // the document's version after the step that its selection made, if it
+    // made one. A drag from it past DRAG_THRESHOLD becomes a box, which
+    // takes that step back, so that the box selects from what was selected
+    // before the press, as one step, when it's let go of.
+    pub fn press(&mut self, point: Point, step: Option<u64>) {
+        self.press = Some((point, step));
         self.selecting_box = None;
     }
 
-    pub fn drag(&mut self, point: Point) {
-        if let Some(start) = self.press
-            && (self.selecting_box.is_some() || start.distance(point) > DRAG_THRESHOLD)
-        {
-            self.selecting_box = Some((start, point));
+    pub fn drag(&mut self, document: &mut Document, point: Point) {
+        let Some((start, step)) = &mut self.press else {
+            return;
+        };
+        if self.selecting_box.is_none() {
+            if start.distance(point) <= DRAG_THRESHOLD {
+                return;
+            }
+            if let Some(version) = step.take() {
+                document.withdraw(version);
+            }
         }
+        self.selecting_box = Some((*start, point));
     }
 
     // Ends a press: returns the box, if it became one.
