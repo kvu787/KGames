@@ -221,6 +221,7 @@ pub struct View<M> {
     cursor: Option<Cursor>,
     sense: Sense,
     kind: &'static str,
+    every_frame: bool,
     on_input: Option<Reaction<ViewInput, M>>,
 }
 
@@ -230,6 +231,7 @@ impl<M: Clone + 'static> View<M> {
             cursor: None,
             sense: Sense::VIEW,
             kind: "View",
+            every_frame: false,
             on_input: None,
         }
     }
@@ -244,6 +246,13 @@ impl<M: Clone + 'static> View<M> {
     // What it is to scripts, instead of "View".
     pub fn kind(mut self, kind: &'static str) -> Self {
         self.kind = kind;
+        self
+    }
+
+    // Sends its input every frame, even one where nothing happened to it,
+    // like for clearing what was under the pointer once it leaves.
+    pub fn every_frame(mut self) -> Self {
+        self.every_frame = true;
         self
     }
 
@@ -274,6 +283,10 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
 
     fn sense(&self) -> Option<Sense> {
         Some(self.sense)
+    }
+
+    fn always_interacts(&self) -> bool {
+        self.every_frame
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {

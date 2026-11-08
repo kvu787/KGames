@@ -15,7 +15,7 @@
         { "Frame": 28, "Press": { "At": "View", "Button": "Right" } },
         { "Frame": 29, "Release": "Right" },
         { "Frame": 45, "Capture": "ContextMenu" },
-        { "Frame": 45, "Expect": { "Interface": { "Popup": "ViewMenu" } } },
+        { "Frame": 45, "Expect": { "Interface": { "Popup": "View/ContextMenu" } } },
         { "Frame": 46, "Key": "Esc" },
         { "Frame": 48, "Expect": { "Interface": { "Popup": null } } },
         { "Frame": 49, "Key": "Alt+Z" },

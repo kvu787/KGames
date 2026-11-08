@@ -11,13 +11,14 @@ use json::Value;
 use math::Vector3;
 use polygon_mesh::{Selection, Shading, SubdivisionSurface};
 use simple_paint::orthographic::build_object_transforms;
-use user_interface::{Program, Rect, Severity, Startup, Ui};
+use user_interface::{Color, Context, DialogResult, Program, Rect, Severity, Startup, Theme, Tree, Ui, ViewInput};
 use windows_core::Result;
 
 use crate::camera::{Camera, Viewpoint};
 use crate::cards;
 use crate::document::{self, Document};
-use crate::editing::{Editor, Mode, OperationKind, Primitive, Tool};
+use crate::editing::{Axis, Editor, Mode, OperationKind, Primitive, Tool};
+use crate::interaction;
 use crate::overlay::{self, Look};
 use crate::paint::{MAXIMUM_PAINTS, Paint, next_color};
 use crate::viewport::{Scene, Shader, Viewport};
@@ -189,6 +190,49 @@ impl Prompt {
     }
 }
 
+// What the input on the modeler's interface means.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Message {
+    // A command, from a menu, a button or a key.
+    Command(Command),
+    // The crease slider, and the Add card's primitive.
+    Crease(f64),
+    Primitive(usize),
+    // The pointer in the view, and on the modal edit's cover.
+    View(ViewInput),
+    Operation(ViewInput),
+    // The modal edit's keys.
+    Constrain(Axis),
+    ConfirmOperation,
+    CancelOperation,
+    // The paints: the one picked, an edit to it, and the edit's end, which
+    // commits it as one step of the history.
+    PickPaint(usize),
+    Paint(PaintEdit),
+    EndPaintEdit,
+    // The dialogs: their fields, and their buttons.
+    NameDraft(String),
+    OpenChoice(usize),
+    OpenActivated,
+    Unsaved(DialogResult),
+    SaveAsResult(DialogResult),
+    OpenResult(DialogResult),
+    // Once a frame, after everything else: remakes what the view draws.
+    Prepare,
+}
+
+// An edit to the paint that's picked, from its card.
+#[derive(Clone, Debug, PartialEq)]
+pub enum PaintEdit {
+    Color(Color),
+    Name(String),
+    Brightness(f64),
+    Shift(f64),
+    Rotation(f64),
+    Dark(f64),
+    Light(f64),
+}
+
 pub struct Modeler {
     pub document: Document,
     pub editor: Editor,
@@ -282,7 +326,7 @@ impl Modeler {
     }
 
     // Does a command, from a menu, a button or a key.
-    pub fn run(&mut self, ui: &mut Ui, command: Command) {
+    pub fn run(&mut self, ui: &mut Context<Message>, command: Command) {
         // A command ends a modal edit, keeping it, as a click would.
         if self.editor.operation.is_some() && !matches!(command, Command::Undo | Command::Redo) {
             self.editor.confirm(&mut self.document);
@@ -291,7 +335,7 @@ impl Modeler {
             self.editor.cancel(&mut self.document);
         }
         self.end_paint_edit();
-        let pointer = ui.pointer().unwrap_or(self.view.center());
+        let pointer = ui.input().pointer.unwrap_or(self.view.center());
         match command {
             Command::New => self.ask_first(Pending::New),
             Command::Open => self.ask_first(Pending::Open),
@@ -550,7 +594,7 @@ impl Modeler {
     // Remakes what the view draws for this frame: the triangles, when the
     // mesh or how it's shaded changed, the transforms, the paints, and the
     // overlay.
-    pub fn prepare_scene(&mut self, ui: &Ui) {
+    pub fn prepare_scene(&mut self, theme: &Theme) {
         let view = self.view;
         let key = (self.document.version, self.levels, self.smooth);
         if self.built != Some(key) {
@@ -564,7 +608,6 @@ impl Modeler {
             self.built = Some(key);
         }
         self.update_preview();
-        let theme = ui.theme();
         let background = theme.card_opaque();
         self.scene.view = view;
         self.scene.background = [background.r, background.g, background.b, 1.0];
@@ -690,15 +733,125 @@ fn object(members: Vec<(&str, Value)>) -> Value {
     Value::Object(members.into_iter().map(|(name, value)| (name.to_string(), value)).collect())
 }
 
+impl Modeler {
+    // Does what was pending once the changes are saved or not.
+    fn finish(&mut self, ui: &mut Context<Message>, pending: Pending) {
+        if pending == Pending::Close {
+            self.prompt = None;
+            ui.close();
+        } else {
+            self.proceed(pending);
+        }
+    }
+
+    // A dialog's answer.
+    fn answer(&mut self, ui: &mut Context<Message>, prompt: Prompt, result: DialogResult) {
+        if self.prompt != Some(prompt) {
+            return;
+        }
+        match prompt {
+            Prompt::Unsaved(pending) => match result {
+                DialogResult::Primary => {
+                    if self.document.name == document::UNTITLED {
+                        self.prompt_save_as(Some(pending));
+                    } else if self.save() {
+                        self.finish(ui, pending);
+                    } else {
+                        self.prompt = None;
+                    }
+                }
+                DialogResult::Secondary => self.finish(ui, pending),
+                DialogResult::Close => self.prompt = None,
+            },
+            Prompt::SaveAs => match result {
+                DialogResult::Primary => match self.save_as() {
+                    Ok(pending) => {
+                        self.prompt_error = None;
+                        if let Some(pending) = pending {
+                            self.finish(ui, pending);
+                        }
+                    }
+                    Err(error) => {
+                        self.prompt_error = Some(error);
+                        self.prompt = Some(Prompt::SaveAs);
+                    }
+                },
+                _ => {
+                    self.prompt = None;
+                    self.prompt_error = None;
+                }
+            },
+            Prompt::Open => match result {
+                DialogResult::Primary => self.open_chosen(),
+                _ => self.prompt = None,
+            },
+        }
+    }
+
+    // An edit to the paint that's picked, which begins one step of the
+    // history if none is under way.
+    fn edit_paint(&mut self, edit: PaintEdit) {
+        self.begin_paint_edit();
+        let paint = &mut self.document.paints[self.editor.active_paint];
+        match edit {
+            PaintEdit::Color(color) => paint.set_color(color),
+            PaintEdit::Name(name) => paint.name = name,
+            PaintEdit::Brightness(value) => paint.parameters.brightness = value,
+            PaintEdit::Shift(value) => paint.parameters.shift = value,
+            PaintEdit::Rotation(value) => paint.parameters.rotation_degrees = value,
+            PaintEdit::Dark(value) => paint.parameters.dark_point = value,
+            PaintEdit::Light(value) => paint.parameters.light_point = value,
+        }
+        self.document.touch();
+    }
+}
+
 impl Program for Modeler {
+    type Message = Message;
+
     fn title(&self) -> String {
         let dirty = if self.document.dirty { "*" } else { "" };
         format!("{}{dirty} - {TITLE}", self.document.name)
     }
 
-    fn update(&mut self, ui: &mut Ui) {
-        cards::draw(self, ui);
-        self.prepare_scene(ui);
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        interaction::messages(self, ui)
+    }
+
+    fn update(&mut self, message: Message, ui: &mut Context<Message>) {
+        match message {
+            Message::Command(command) => self.run(ui, command),
+            Message::Crease(value) => self.crease = value as f32,
+            Message::Primitive(index) => self.primitive = index,
+            Message::View(input) => interaction::view(self, input),
+            Message::Operation(input) => interaction::operation(self, input),
+            Message::Constrain(axis) => self.editor.constrain(axis),
+            Message::ConfirmOperation => self.editor.confirm(&mut self.document),
+            Message::CancelOperation => self.editor.cancel(&mut self.document),
+            Message::PickPaint(index) => self.editor.active_paint = index,
+            Message::Paint(edit) => self.edit_paint(edit),
+            Message::EndPaintEdit => self.end_paint_edit(),
+            Message::NameDraft(name) => self.name_draft = name,
+            Message::OpenChoice(index) => self.open_choice = Some(index),
+            Message::OpenActivated => self.open_chosen(),
+            Message::Unsaved(result) => {
+                if let Some(prompt @ Prompt::Unsaved(_)) = self.prompt {
+                    self.answer(ui, prompt, result);
+                }
+            }
+            Message::SaveAsResult(result) => self.answer(ui, Prompt::SaveAs, result),
+            Message::OpenResult(result) => self.answer(ui, Prompt::Open, result),
+            Message::Prepare => {
+                self.editor.active_paint = self.editor.active_paint.min(self.document.paints.len() - 1);
+                self.view = cards::view_content(ui.bounds());
+                let theme = ui.theme().clone();
+                self.prepare_scene(&theme);
+            }
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Message> {
+        cards::view(self, ui)
     }
 
     fn prepare(&mut self, gpu: &mut Gpu) -> Result<()> {
