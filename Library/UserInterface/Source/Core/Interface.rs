@@ -613,8 +613,10 @@ impl Interface {
         {
             self.active = None;
         }
-        let shown: HashSet<Id> = self.targets.iter().map(|target| target.id).collect();
-        self.popups.retain(|popup| shown.contains(&popup.owner));
+        if !self.popups.is_empty() {
+            let shown: HashSet<Id> = self.targets.iter().map(|target| target.id).collect();
+            self.popups.retain(|popup| shown.contains(&popup.owner));
+        }
 
         // The pointer, on the frame as it's drawn, for the look of what's
         // under it.
@@ -1133,9 +1135,15 @@ impl Interface {
     }
 }
 
-// The id of a cover over the area, which is no widget.
+// The id of a cover over the area, which is no widget: a hash of where it
+// is, which no name hashes to.
 fn cover_id(rect: Rect) -> Id {
-    id(&format!("Cover:{}:{}:{}:{}", rect.x, rect.y, rect.width, rect.height))
+    let mut hash: u64 = 0x84222325_cbf29ce4;
+    for value in [rect.x, rect.y, rect.width, rect.height] {
+        hash ^= value.to_bits() as u64;
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    hash
 }
 
 // Every element with its enabling, whether it takes focus, and its layer,
