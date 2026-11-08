@@ -76,6 +76,21 @@ pub fn on_with<P: 'static, V: 'static>(what: impl Fn(&mut P, V, &mut Context<Act
 }
 
 pub trait CallbackProgram: Sized + 'static {
+    // The same as `act`, `on` and `on_with`, with the program's type known
+    // from the path, so that a closure's parameters need no annotation:
+    // `Paint::act(|paint, _| paint.save())`.
+    fn act(what: impl Fn(&mut Self, &mut Context<Action<Self>>) + 'static) -> Action<Self> {
+        act(what)
+    }
+
+    fn on<V: 'static>(what: impl Fn(&mut Self, V) + 'static) -> impl Fn(V) -> Action<Self> {
+        on(what)
+    }
+
+    fn on_with<V: 'static>(what: impl Fn(&mut Self, V, &mut Context<Action<Self>>) + 'static) -> impl Fn(V) -> Action<Self> {
+        on_with(what)
+    }
+
     fn title(&self) -> String;
 
     fn input(&self, _ui: &Ui) -> Vec<Action<Self>> {
