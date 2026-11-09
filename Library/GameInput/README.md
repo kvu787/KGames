@@ -35,9 +35,21 @@ GameInput's service doesn't manage its input focus, as
 [Microsoft's documentation](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-agility-redistributable#limitations)
 says.
 
-KGames takes only the installed one, at
-`C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll`, where `GameInputRedist.msi` puts
-it. `installed_runtime` in `Source/Installation.rs` checks that it's there, and that its version
+The installed runtime is in two places. `GameInputRedist.msi` installs it into
+`C:\Program Files\Microsoft GameInput\x64`, with GameInput's service, `GameInputRedistService.exe`,
+and `GameInputRawInputProxy.exe`, and writes that folder to the registry as `RedistDir`. Then it
+runs the service with `/serviceconfig`, which copies `GameInputRedist.dll` into
+`C:\Windows\System32`, and a 32-bit one into `SysWOW64`. The installer registers System32's copy as
+what COM loads, in a 64-bit process, to carry calls to GameInput's service. Microsoft's loader
+takes System32's too: it looks for `RedistDir`'s only when System32 has no `GameInputRedist.dll`.
+
+KGames takes only the installed one, from System32:
+`C:\Windows\System32\GameInputRedist.dll`. The runtime connects to its service on a thread of its
+own as it starts, and COM loads System32's copy then, so a process that loaded Program Files' copy
+would run two copies of the runtime, each with its own globals. `Test/GameInput/GameInput.rs` pins
+that one runs.
+
+`installed_runtime` in `Source/Installation.rs` checks that the DLL is there, and that its version
 is 4.0.306.0, which it reads from the DLL's own bytes: its version resource's `VS_FIXEDFILEINFO`,
 which starts with the signature `0xFEEF04BD`. That takes only the standard library, so `Build.rs`
 includes the file, and runs the check with no dependencies. Every program runs it again as it
@@ -54,8 +66,8 @@ runtime imports, like `HID.DLL`, which isn't a known DLL, load from System32, an
 the exe, where `LoadLibraryW`, which Microsoft's loader uses, looks first.
 `Test/GameInput/RuntimeImports.rs` pins it.
 
-The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
-each program that reads keyboards and mice.
+The runtime still starts `GameInputRawInputProxy.exe`, from the Program Files folder, for each
+program that reads keyboards and mice.
 
 # Updating GameInput
 

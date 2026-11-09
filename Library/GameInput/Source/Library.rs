@@ -627,13 +627,15 @@ pub struct Runtime {
     pub version: [u16; 4],
 }
 
-// Loads GameInput 4.0.306's runtime from where GameInputRedist.msi installed
-// it, and no other runtime, or says what's wrong, and how to install it.
-// Microsoft's own loader, GameInputInitialize in native/src/GameInput.cpp in
-// the NuGet package, which C++ games get by linking GameInput.lib, takes the
-// newest of Windows' GameInput.dll, an installed GameInputRedist.dll and one
-// beside the exe, and the one beside the exe on a tie. This one takes only
-// the installed one.
+// Loads GameInput 4.0.306's installed runtime, from System32, where its
+// service copies it, and no other runtime, or says what's wrong, and how to
+// install it. Microsoft's own loader, GameInputInitialize in
+// native/src/GameInput.cpp in the NuGet package, which C++ games get by linking
+// GameInput.lib, takes the newest of Windows' GameInput.dll, an installed
+// GameInputRedist.dll and one beside the exe, and the one beside the exe on a
+// tie. This one takes only the installed one, from System32, as Microsoft's
+// does: COM loads that copy too, to carry calls to GameInput's service, so the
+// process runs one copy of the runtime, not two. Test/GameInput pins it.
 //
 // The DLL that loads is the one whose version was checked: installed_runtime
 // holds it open as it checks, so that no one can write, rename or delete it,
