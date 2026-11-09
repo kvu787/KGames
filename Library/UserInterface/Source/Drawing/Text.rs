@@ -541,6 +541,32 @@ fn layout_key(text: &str, style: TextStyle, wrap: Option<f32>) -> u64 {
     hash
 }
 
+// Whether the font's glyphs at this size are fitted to the pixel grid, as the
+// font's own tables say. CreateGlyphRunAnalysis takes the grid-fit mode, which
+// must be one or the other, not DWRITE_GRID_FIT_MODE_DEFAULT, which means
+// this.
+fn grid_fit(face: &IDWriteFontFace, size: f32) -> DWRITE_GRID_FIT_MODE {
+    let mut rendering = DWRITE_RENDERING_MODE_DEFAULT;
+    let mut grid_fit = DWRITE_GRID_FIT_MODE_ENABLED;
+    unsafe {
+        if let Ok(face) = face.cast::<IDWriteFontFace2>() {
+            let _ = face.GetRecommendedRenderingMode(
+                size,
+                USER_DEFAULT_SCREEN_DPI as f32,
+                USER_DEFAULT_SCREEN_DPI as f32,
+                None,
+                false,
+                DWRITE_OUTLINE_THRESHOLD_ANTIALIASED,
+                DWRITE_MEASURING_MODE_NATURAL,
+                None,
+                &mut rendering,
+                &mut grid_fit,
+            );
+        }
+    }
+    if grid_fit == DWRITE_GRID_FIT_MODE_DISABLED { DWRITE_GRID_FIT_MODE_DISABLED } else { DWRITE_GRID_FIT_MODE_ENABLED }
+}
+
 fn rasterize(factory: &IDWriteFactory2, face: &IDWriteFontFace, placed: &PlacedGlyph, offset: u8, atlas: &mut Atlas) -> Option<AtlasGlyph> {
     unsafe {
         let advance = 0.0f32;
@@ -560,7 +586,7 @@ fn rasterize(factory: &IDWriteFactory2, face: &IDWriteFontFace, placed: &PlacedG
                 None,
                 DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC,
                 DWRITE_MEASURING_MODE_NATURAL,
-                DWRITE_GRID_FIT_MODE_DEFAULT,
+                grid_fit(face, placed.size),
                 DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE,
                 offset as f32 / 4.0,
                 0.0,
