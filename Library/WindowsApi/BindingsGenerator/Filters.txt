@@ -151,6 +151,13 @@ GetProcAddress
 LoadLibraryExW
 LOAD_LIBRARY_SEARCH_SYSTEM32
 
+// Finding the DLL that holds an address, like the GameInput runtime that
+// GameInput.lib's loader loaded
+GetModuleFileNameW
+GetModuleHandleExW
+GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT
+
 // Encoding PNGs with the Windows Imaging Component
 CoCreateInstance
 CoInitializeEx

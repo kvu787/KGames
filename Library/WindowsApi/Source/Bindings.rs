@@ -435,6 +435,33 @@ pub unsafe fn GetKeyboardLayout(idthread: u32) -> HKL {
     unsafe { GetKeyboardLayout(idthread) }
 }
 #[inline]
+pub unsafe fn GetModuleFileNameW(
+    hmodule: Option<HMODULE>,
+    lpfilename: windows_core::PWSTR,
+    nsize: u32,
+) -> u32 {
+    windows_core::link!("kernel32.dll" "system" fn GetModuleFileNameW(hmodule : HMODULE, lpfilename : windows_core::PWSTR, nsize : u32) -> u32);
+    unsafe {
+        GetModuleFileNameW(
+            hmodule.unwrap_or(core::mem::zeroed()) as _,
+            lpfilename,
+            nsize,
+        )
+    }
+}
+#[inline]
+pub unsafe fn GetModuleHandleExW<P1>(
+    dwflags: u32,
+    lpmodulename: P1,
+    phmodule: *mut HMODULE,
+) -> windows_core::BOOL
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("kernel32.dll" "system" fn GetModuleHandleExW(dwflags : u32, lpmodulename : windows_core::PCWSTR, phmodule : *mut HMODULE) -> windows_core::BOOL);
+    unsafe { GetModuleHandleExW(dwflags, lpmodulename.param().abi(), phmodule as _) }
+}
+#[inline]
 pub unsafe fn GetModuleHandleW<P0>(lpmodulename: P0) -> HMODULE
 where
     P0: windows_core::Param<windows_core::PCWSTR>,
@@ -3627,6 +3654,8 @@ pub struct FILETIME {
     pub dwHighDateTime: u32,
 }
 pub const GENERIC_WRITE: i32 = 1073741824;
+pub const GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS: i32 = 4;
+pub const GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT: i32 = 2;
 pub const GMEM_MOVEABLE: i32 = 2;
 pub const GUID_ContainerFormatPng: windows_core::GUID =
     windows_core::GUID::from_u128(0x1b7cfaf4_713f_473c_bbcd_6137425faeaf);
