@@ -1,7 +1,9 @@
 // Windows without a frame that float over the others, like IdentifyDisplays'
 // boxes, one on each display. Each has its own interface, drawn with one
 // GPU, and they draw only until their contents show: they don't change, so
-// the loop then only checks the input, a few times a frame of the display. A
+// the loop then only checks the input, every 4 ms or so, or as often as the
+// system clock ticks, which is every 15.6 ms unless a process asked for a
+// finer timer resolution, as waits time out on its ticks. A
 // click on any of them, or Esc while one has focus, closes them all. The
 // input comes from GameInput, like every program's.
 

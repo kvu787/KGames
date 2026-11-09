@@ -233,8 +233,9 @@ devices without focus too, and decides what the window takes by its own focus ch
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
 - `F9` switches between the light and dark themes. Every program starts light. The frame that `F9`
-  is pressed in is all in the new theme, title bar too. A program's own command for it calls
-  `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
+  is pressed in is all in the new theme, and the title bar asks for it too, which DWM draws, as
+  its documentation promises while Windows' own dark mode is on. A program's own command for it
+  calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
   frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
   card and color role follows by itself, as long as the program colors with `ui.theme()` each
   frame.

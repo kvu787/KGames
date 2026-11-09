@@ -6,12 +6,16 @@
 // - It's maximized or borderless fullscreen, the two supported setups, and
 //   switches between them without taking focus.
 // - It says when it gets and loses focus, on the clock that input is timed
-//   on, as input without focus is ignored.
+//   on, as input without focus is ignored. The time is when it handles the
+//   message, which Windows sends it once the focus has moved, so it can be
+//   a little after.
 // - Drags keep going past its edges, as it captures the mouse while a button
 //   is held.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
-// - Its title bar is dark in the dark theme, as Windows 11's apps' are.
+// - It asks for a dark title bar in the dark theme, as Windows 11's apps
+//   have, with DWMWA_USE_IMMERSIVE_DARK_MODE, which Microsoft's documentation
+//   describes as drawing the frame dark while Windows' own dark mode is on.
 
 use windows_api::*;
 use windows_core::{BOOL, Error, PCWSTR, Result, w};
@@ -215,9 +219,14 @@ impl Window {
             let (style, area) = match mode {
                 WindowMode::BorderlessFullscreen => (WS_POPUP | visible, info.rcMonitor),
                 WindowMode::Maximized => {
-                    // Maximized as Windows would, but without activating: the
-                    // work area, with the frame's borders past its edges, which
-                    // leaves the title bar at its top.
+                    // Maximized as Windows would, but without activating, which
+                    // Windows has no documented way to do: ShowWindow's
+                    // SW_SHOWMAXIMIZED activates the window. So the style says
+                    // maximized, though the documentation doesn't list
+                    // WS_MAXIMIZE among the styles that may change after the
+                    // window is made, and the window takes the work area, with
+                    // the frame's borders past its edges, which leaves the
+                    // title bar at its top.
                     let dpi = GetDpiForWindow(self.hwnd).max(USER_DEFAULT_SCREEN_DPI as u32);
                     let mut frame = RECT::default();
                     let _ = AdjustWindowRectExForDpi(&mut frame, WS_OVERLAPPEDWINDOW as u32, false, WS_EX_APPWINDOW as u32, dpi);
@@ -239,7 +248,8 @@ impl Window {
     }
 
     // Dark or light, as the theme is, like the title bars of Windows 11's
-    // apps.
+    // apps. DWM draws the dark one; its documentation promises it while
+    // Windows' own dark mode is on.
     pub fn set_dark_title_bar(&mut self, dark: bool) {
         if self.dark_title_bar == Some(dark) {
             return;
