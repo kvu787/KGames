@@ -20,6 +20,19 @@ Support Windows 11 x64 as the only development platform.
 
 Support Windows 11 x64 as the only target platform.
 
+# GameInput
+
+GameInput 4.0.306 must be installed, once, from an elevated prompt, with:
+
+```powershell
+winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
+```
+
+That's the user's to do. Nothing in the repo may install GameInput, fetch a GameInput runtime of
+its own, or use any other runtime than that one. KGames doesn't build without it, and programs
+don't start without it, which `Library/GameInput` checks. If a build or a program says that it
+isn't installed, stop and tell the user.
+
 # Folder and file naming
 
 This only applies to things that we have the freedom to name as wanted.
@@ -75,8 +88,8 @@ version. `LICENSE.txt` has its text, and it covers everything in the repository.
   with no license can't come in. The FSF's
   [license list](https://www.gnu.org/licenses/license-list.html) says which licenses are
   compatible.
-- Closed-source SDKs and runtimes, like the GameInput runtime that `Library/GameInput/Build.rs`
-  downloads, stay out of the repository.
+- Closed-source SDKs and runtimes, like the GameInput runtime, which the user installs, stay out
+  of the repository.
 - Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`,
   except `Library/WindowsApi/BindingsGenerator`, a workspace of its own, which states it.
 

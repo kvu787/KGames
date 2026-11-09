@@ -114,11 +114,12 @@ pub struct Devices {
 const CALIBRATION_SECONDS: f64 = 10.0;
 
 impl Devices {
-    // Loads the newest GameInput runtime, and starts listening for gamepads,
-    // keyboards and mice. The callback also reports the devices that are
-    // already connected.
+    // Loads the installed GameInput runtime, the only one that KGames uses
+    // (see Library/GameInput), and starts listening for gamepads, keyboards
+    // and mice. The callback also reports the devices that are already
+    // connected.
     pub fn new() -> Result<Devices, String> {
-        let (game_input, runtime) = game_input::create().map_err(|error| format!("{} ({})", error.message(), error.code()))?;
+        let (game_input, runtime) = game_input::create()?;
         let queue = Arc::into_raw(Arc::new(DeviceQueue::default()));
         let callback_token = unsafe {
             game_input.RegisterDeviceCallback(
@@ -132,7 +133,7 @@ impl Devices {
             Ok(token) => token,
             Err(error) => {
                 drop(unsafe { Arc::from_raw(queue) });
-                return Err(format!("{} ({})", error.message(), error.code()));
+                return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
             }
         };
         let mut devices = Devices {

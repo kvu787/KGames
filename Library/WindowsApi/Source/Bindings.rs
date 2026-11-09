@@ -420,39 +420,6 @@ pub unsafe fn GetExitCodeProcess(hprocess: HANDLE, lpexitcode: *mut u32) -> wind
     unsafe { GetExitCodeProcess(hprocess, lpexitcode as _) }
 }
 #[inline]
-pub unsafe fn GetFileVersionInfoSizeW<P0>(lptstrfilename: P0, lpdwhandle: Option<*mut u32>) -> u32
-where
-    P0: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("version.dll" "system" fn GetFileVersionInfoSizeW(lptstrfilename : windows_core::PCWSTR, lpdwhandle : *mut u32) -> u32);
-    unsafe {
-        GetFileVersionInfoSizeW(
-            lptstrfilename.param().abi(),
-            lpdwhandle.unwrap_or(core::mem::zeroed()) as _,
-        )
-    }
-}
-#[inline]
-pub unsafe fn GetFileVersionInfoW<P0>(
-    lptstrfilename: P0,
-    dwhandle: Option<u32>,
-    dwlen: u32,
-    lpdata: *mut core::ffi::c_void,
-) -> windows_core::BOOL
-where
-    P0: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("version.dll" "system" fn GetFileVersionInfoW(lptstrfilename : windows_core::PCWSTR, dwhandle : u32, dwlen : u32, lpdata : *mut core::ffi::c_void) -> windows_core::BOOL);
-    unsafe {
-        GetFileVersionInfoW(
-            lptstrfilename.param().abi(),
-            dwhandle.unwrap_or(core::mem::zeroed()) as _,
-            dwlen,
-            lpdata as _,
-        )
-    }
-}
-#[inline]
 pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsize: i32) -> i32 {
     windows_core::link!("user32.dll" "system" fn GetKeyNameTextW(lparam : i32, lpstring : windows_core::PWSTR, cchsize : i32) -> i32);
     unsafe { GetKeyNameTextW(lparam, lpstring, cchsize) }
@@ -496,11 +463,6 @@ pub unsafe fn GetProcessMemoryInfo(
 ) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" "K32GetProcessMemoryInfo" fn GetProcessMemoryInfo(process : HANDLE, ppsmemcounters : *mut PROCESS_MEMORY_COUNTERS, cb : u32) -> windows_core::BOOL);
     unsafe { GetProcessMemoryInfo(process, ppsmemcounters as _, cb) }
-}
-#[inline]
-pub unsafe fn GetSystemDirectoryW(lpbuffer: Option<windows_core::PWSTR>, usize: u32) -> u32 {
-    windows_core::link!("kernel32.dll" "system" fn GetSystemDirectoryW(lpbuffer : windows_core::PWSTR, usize : u32) -> u32);
-    unsafe { GetSystemDirectoryW(lpbuffer.unwrap_or(core::mem::zeroed()) as _, usize) }
 }
 #[cfg(any(
     target_arch = "aarch64",
@@ -699,33 +661,6 @@ pub unsafe fn QueryPerformanceFrequency(lpfrequency: *mut i64) -> windows_core::
     unsafe { QueryPerformanceFrequency(lpfrequency as _) }
 }
 #[inline]
-pub unsafe fn RegGetValueW<P1, P2>(
-    hkey: HKEY,
-    lpsubkey: P1,
-    lpvalue: P2,
-    dwflags: u32,
-    pdwtype: Option<*mut u32>,
-    pvdata: Option<*mut core::ffi::c_void>,
-    pcbdata: Option<*mut u32>,
-) -> LSTATUS
-where
-    P1: windows_core::Param<windows_core::PCWSTR>,
-    P2: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("advapi32.dll" "system" fn RegGetValueW(hkey : HKEY, lpsubkey : windows_core::PCWSTR, lpvalue : windows_core::PCWSTR, dwflags : u32, pdwtype : *mut u32, pvdata : *mut core::ffi::c_void, pcbdata : *mut u32) -> LSTATUS);
-    unsafe {
-        RegGetValueW(
-            hkey,
-            lpsubkey.param().abi(),
-            lpvalue.param().abi(),
-            dwflags,
-            pdwtype.unwrap_or(core::mem::zeroed()) as _,
-            pvdata.unwrap_or(core::mem::zeroed()) as _,
-            pcbdata.unwrap_or(core::mem::zeroed()) as _,
-        )
-    }
-}
-#[inline]
 pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
     windows_core::link!("user32.dll" "system" fn RegisterClassExW(param0 : *const WNDCLASSEXW) -> ATOM);
     unsafe { RegisterClassExW(param0) }
@@ -900,26 +835,6 @@ pub unsafe fn ValidateRect(hwnd: Option<HWND>, lprect: Option<*const RECT>) -> w
         ValidateRect(
             hwnd.unwrap_or(core::mem::zeroed()) as _,
             lprect.unwrap_or(core::mem::zeroed()) as _,
-        )
-    }
-}
-#[inline]
-pub unsafe fn VerQueryValueW<P1>(
-    pblock: *const core::ffi::c_void,
-    lpsubblock: P1,
-    lplpbuffer: *mut *mut core::ffi::c_void,
-    pulen: *mut u32,
-) -> windows_core::BOOL
-where
-    P1: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("version.dll" "system" fn VerQueryValueW(pblock : *const core::ffi::c_void, lpsubblock : windows_core::PCWSTR, lplpbuffer : *mut *mut core::ffi::c_void, pulen : *mut u32) -> windows_core::BOOL);
-    unsafe {
-        VerQueryValueW(
-            pblock,
-            lpsubblock.param().abi(),
-            lplpbuffer as _,
-            pulen as _,
         )
     }
 }
@@ -3704,10 +3619,6 @@ pub struct HICON(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HINSTANCE(pub *mut core::ffi::c_void);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct HKEY(pub *mut core::ffi::c_void);
-pub const HKEY_LOCAL_MACHINE: HKEY = HKEY(-2147483646 as _);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HKL(pub *mut core::ffi::c_void);
@@ -8775,9 +8686,6 @@ pub struct LPARAM(pub isize);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LRESULT(pub isize);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct LSTATUS(pub i32);
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LUID {
@@ -8946,8 +8854,6 @@ pub struct RECTL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
-pub const RRF_RT_REG_SZ: i32 = 2;
-pub const RRF_SUBKEY_WOW6432KEY: i32 = 131072;
 pub const SC_KEYMENU: i32 = 61696;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -9193,23 +9099,6 @@ pub struct TRACE_LOGFILE_HEADER_1_0 {
     pub CpuSpeedInMHz: u32,
 }
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct VS_FIXEDFILEINFO {
-    pub dwSignature: u32,
-    pub dwStrucVersion: u32,
-    pub dwFileVersionMS: u32,
-    pub dwFileVersionLS: u32,
-    pub dwProductVersionMS: u32,
-    pub dwProductVersionLS: u32,
-    pub dwFileFlagsMask: u32,
-    pub dwFileFlags: u32,
-    pub dwFileOS: u32,
-    pub dwFileType: u32,
-    pub dwFileSubtype: u32,
-    pub dwFileDateMS: u32,
-    pub dwFileDateLS: u32,
-}
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WHEEL_DELTA: i32 = 120;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;

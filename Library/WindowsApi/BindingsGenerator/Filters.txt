@@ -144,18 +144,9 @@ WaitForSingleObject
 INFINITE
 WAIT_OBJECT_0
 
-// Finding and loading the GameInput runtime DLL
-GetFileVersionInfoSizeW
-GetFileVersionInfoW
+// Loading the GameInput runtime that GameInputRedist.msi installed
 GetProcAddress
-GetSystemDirectoryW
 LoadLibraryW
-RegGetValueW
-VerQueryValueW
-HKEY_LOCAL_MACHINE
-RRF_RT_REG_SZ
-RRF_SUBKEY_WOW6432KEY
-VS_FIXEDFILEINFO
 
 // Encoding PNGs with the Windows Imaging Component
 CoCreateInstance

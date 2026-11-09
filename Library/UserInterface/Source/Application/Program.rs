@@ -136,7 +136,7 @@ pub struct Startup {
     // The input devices that the interface reads, for programs that show
     // them or run their motors, like GameInputDemo. Each frame's readings are
     // there when the program's messages are applied. None in a scripted run,
-    // and when GameInput isn't available.
+    // and with --no-input.
     pub devices: Option<Rc<RefCell<Devices>>>,
     pub(crate) notices: Vec<Notice>,
 }

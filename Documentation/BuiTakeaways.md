@@ -44,11 +44,12 @@ claims in KGames' code. Nothing in BUI was built or run.
 - BUI is GPL-3.0-or-later. Its Blender-derived parts are GPL-2.0-or-later, and its Slug shader is
   MIT. KGames is GPL-3.0-or-later since `2aa54db`, so BUI code can be ported with its copyright
   and license notices kept.
-- The GameInput runtime that `Library/GameInput/Build.rs` downloads stays out of the repository.
-  Microsoft's license for it (section 2(c)(ii) of the package's `LICENSE.txt`) only forbids making
-  Microsoft's code itself copyleft. Whether builds that ship `GameInputRedist.dll` beside GPL code
-  fall under the GPL's system-library exception is a gray area, which matters only if builds are
-  handed out. This is not legal advice.
+- The GameInput runtime, which the user installs with `GameInputRedist.msi`, stays out of the
+  repository. Microsoft's license for it (section 2(c)(ii) of the package's `LICENSE.txt`) only
+  forbids making Microsoft's code itself copyleft. Builds don't ship `GameInputRedist.dll` beside
+  GPL code: programs load the installed one. Whether that runtime falls under the GPL's
+  system-library exception is a gray area, which matters only if builds are handed out. This is
+  not legal advice.
 
 ## Tasks
 
@@ -449,12 +450,12 @@ Status: Not started. For when a program needs video.
 Status: Not started. Matters once builds are handed out.
 
 - **KGames:** `Cargo.lock` has four outside crates, `windows-core`, `windows-link`,
-  `windows-result` and `windows-strings`, all MIT OR Apache-2.0, and `Library/GameInput/Build.rs`
-  downloads the GameInput runtime.
+  `windows-result` and `windows-strings`, all MIT OR Apache-2.0, and every program loads the
+  GameInput runtime that the user installs.
 - **BUI:** `BUI/tools/gen_notices.py` builds `THIRD_PARTY_NOTICES.md` from license files and
   `cargo metadata` (`:120-157`), with a `--check` mode (`:209-216`), run only at release.
 - **Do:** with so few dependencies, a short hand-written notices file, and a test that fails when
-  `Cargo.lock` or `GAME_INPUT_VERSION` changes without it.
+  `Cargo.lock` or `VERSION` in `Library/GameInput/Source/Installation.rs` changes without it.
 - **Done when:** the file and the test are in.
 
 ### 22. Decide whether idle frames are skipped

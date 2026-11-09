@@ -1,0 +1,16 @@
+[package]
+name = "game_input_tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[[test]]
+name = "GameInput"
+path = "GameInput.rs"
+
+[dependencies]
+game_input = { path = "../../Library/GameInput" }
+
+[lints]
+workspace = true

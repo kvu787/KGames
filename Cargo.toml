@@ -34,6 +34,7 @@ members = [
     "Program/Veehiicuul",
     "Test/Benchmarks",
     "Test/FrameTimes",
+    "Test/GameInput",
     "Test/GameInputDemo",
     "Test/Gltf",
     "Test/Graphics",

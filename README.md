@@ -58,6 +58,15 @@ library's README has the details, and the two window setups that programs suppor
 [AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
 you.
 
+Programs read all input with GameInput 4.0.306, which you install once, from an elevated prompt:
+
+```powershell
+winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
+```
+
+KGames doesn't build without it, and programs don't start without it.
+[Library/GameInput](Library/GameInput/README.md) says why it's that runtime and no other.
+
 ## Program
 
 | Program                                                | What it is                                                               |
@@ -82,7 +91,7 @@ you.
 | [UserInterface](Library/UserInterface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
 | [Graphics](Library/Graphics/README.md)             | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
 | [SimplePaint](Library/SimplePaint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
-| [GameInput](Library/GameInput/README.md)           | GameInput bindings, and the runtime next to each exe                                                        |
+| [GameInput](Library/GameInput/README.md)           | GameInput bindings, and the loader for the installed GameInput 4.0.306                                      |
 | [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
 | [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
 | [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |

@@ -87,6 +87,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "game_input_tests"
+version = "0.1.0"
+dependencies = [
+ "game_input",
+]
+
+[[package]]
 name = "gltf"
 version = "0.1.0"
 dependencies = [
