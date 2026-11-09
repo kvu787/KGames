@@ -7,6 +7,8 @@
 // Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
 // unused slots are usize placeholders, the way windows-bindgen writes them.
+// The sizes of the structs and vtables are checked against the header's at
+// compile time, below the vtables.
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code)]
 
@@ -255,6 +257,7 @@ pub const GAMEINPUT_E_DEVICE_DISCONNECTED: HRESULT = HRESULT(0x838A0001_u32 as i
 pub const GAMEINPUT_E_DEVICE_NOT_FOUND: HRESULT = HRESULT(0x838A0002_u32 as i32);
 pub const GAMEINPUT_E_READING_NOT_FOUND: HRESULT = HRESULT(0x838A0003_u32 as i32);
 pub const GAMEINPUT_E_REFERENCE_READING_TOO_OLD: HRESULT = HRESULT(0x838A0004_u32 as i32);
+pub const GAMEINPUT_E_OBJECT_NO_LONGER_EXISTS: HRESULT = HRESULT(0x838A0008_u32 as i32);
 
 fn device_abi(device: Option<&IGameInputDevice>) -> *mut c_void {
     device.map_or(core::ptr::null_mut(), |device| device.as_raw())
@@ -620,6 +623,25 @@ pub struct IGameInputDevice_Vtbl {
     GetTouchSurfaceCount: usize,
     GetTouchSurfaceInfo: usize,
 }
+
+// The sizes that the v4 header gives these structs, as MSVC compiles it for
+// x64, and its interfaces' method counts, with IUnknown's three, so that a
+// field or slot missed or added in transcribing fails the build.
+const _: () = {
+    use core::mem::size_of;
+    assert!(size_of::<GameInputKeyState>() == 12);
+    assert!(size_of::<GameInputMouseState>() == 56);
+    assert!(size_of::<GameInputGamepadState>() == 28);
+    assert!(size_of::<GameInputVersion>() == 8);
+    assert!(size_of::<GameInputUsage>() == 4);
+    assert!(size_of::<GameInputKeyboardInfo>() == 28);
+    assert!(size_of::<GameInputMouseInfo>() == 12);
+    assert!(size_of::<GameInputGamepadInfo>() == 116);
+    assert!(size_of::<GameInputRumbleParams>() == 16);
+    assert!(size_of::<IGameInput_Vtbl>() == (3 + 13) * size_of::<usize>());
+    assert!(size_of::<IGameInputReading_Vtbl>() == (3 + 21) * size_of::<usize>());
+    assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
+};
 
 // The GameInput runtime that was loaded, for display.
 pub struct Runtime {

@@ -22,9 +22,10 @@ declares the parts that KGames uses by hand, in the same shape as the generated 
 [Library/WindowsApi](../WindowsApi/README.md). Every vtable slot is listed in header order, so it
 can be checked against the header.
 
-Microsoft's online reference still shows older signatures for some methods. For example,
-its `RegisterDeviceCallback` has the `statusFilter` and `enumerationKind` parameters that
-v4 removed. When they differ, the v4 header is right.
+Microsoft's online reference shows v4's signatures in its current view, but its older views,
+and its pages for earlier versions, show older ones. For example, `RegisterDeviceCallback` has
+the `statusFilter` and `enumerationKind` parameters there, which v4 removed. When they differ, the
+v4 header is right.
 
 **The runtime.** There can be three: the `GameInput.dll` that comes with Windows 11, which only
 supports API version 0; a `GameInputRedist.dll` that `GameInputRedist.msi` installs; and a
