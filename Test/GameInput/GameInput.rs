@@ -3,6 +3,7 @@
 // install it where it isn't installed. KGames doesn't build without it, so
 // these run where it's installed.
 
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
@@ -16,7 +17,7 @@ const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput"
 fn the_runtime_is_4_0_306_where_the_msi_installs_it() {
     assert_eq!(VERSION, [4, 0, 306, 0]);
     assert_eq!(RUNTIME, r"C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll");
-    let path = installation::installed_runtime().unwrap();
+    let path = installation::installed_runtime().unwrap().into_path();
     assert_eq!(path, Path::new(RUNTIME));
 
     let (_game_input, runtime) = game_input::create().unwrap();
@@ -42,6 +43,34 @@ fn the_version_is_read_from_the_dll_itself() {
         0xBD, 0x04, 0xEF, 0xFE, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x04, 0x00, 0x03, 0x00, 0x02, 0x00,
     ]);
     assert_eq!(installation::version_in(&bytes), Some([4, 1, 2, 3]));
+}
+
+// The check holds the DLL open, as create loads it, so that what loads is
+// what was checked: until it lets go, no one can write, rename or delete the
+// DLL, nor rename its folder. And a DLL that's being written isn't checked.
+// Program Files takes an administrator to change at all, so this checks a
+// copy.
+#[test]
+fn a_checked_dll_cant_change_until_its_let_go() {
+    let folder = std::env::current_exe().unwrap().with_file_name(format!("HeldRuntime{}", std::process::id()));
+    std::fs::create_dir_all(&folder).unwrap();
+    let _removed = RemovedOnDrop(folder.clone());
+    let dll = folder.join("GameInputRedist.dll");
+    std::fs::copy(RUNTIME, &dll).unwrap();
+
+    let checked = installation::check(&dll).unwrap();
+    assert!(OpenOptions::new().write(true).open(&dll).is_err());
+    assert!(std::fs::rename(&dll, folder.join("Renamed.dll")).is_err());
+    assert!(std::fs::remove_file(&dll).is_err());
+    assert!(std::fs::rename(&folder, folder.with_extension("Renamed")).is_err());
+
+    // Once it lets go, it can change.
+    assert_eq!(checked.into_path(), dll);
+    let writing = OpenOptions::new().write(true).open(&dll).unwrap();
+    assert!(installation::check(&dll).is_err());
+    drop(writing);
+    std::fs::remove_file(&dll).unwrap();
+    assert!(installation::check(&dll).unwrap_err().contains("isn't installed"));
 }
 
 // Microsoft's loader in GameInput.lib takes a GameInputRedist.dll beside the
@@ -86,17 +115,18 @@ fn threads_can_create_and_release_game_input_at_once() {
 fn without_4_0_306_it_says_how_to_install_it() {
     assert_eq!(INSTALL_COMMAND, USERS_COMMAND);
 
-    let message = installation::not_installed_message();
+    let runtime = Path::new(RUNTIME);
+    let message = installation::not_installed_message(runtime);
     assert!(message.contains("GameInput 4.0.306 isn't installed") && message.contains(USERS_COMMAND), "{message}");
 
     // A newer version, like one that another program's installer put in,
     // which GameInputRedist.msi 4.0.306 doesn't replace.
-    let message = installation::wrong_version_message(Some([4, 1, 0, 0]));
+    let message = installation::wrong_version_message(runtime, Some([4, 1, 0, 0]));
     assert!(message.contains("is GameInput 4.1.0.0") && message.contains("uninstall Microsoft GameInput first"), "{message}");
     assert!(message.contains(USERS_COMMAND), "{message}");
 
     // An older one, which it does replace.
-    let message = installation::wrong_version_message(Some([4, 0, 300, 0]));
+    let message = installation::wrong_version_message(runtime, Some([4, 0, 300, 0]));
     assert!(message.contains("is GameInput 4.0.300.0") && !message.contains("uninstall"), "{message}");
     assert!(message.contains(USERS_COMMAND), "{message}");
 }
@@ -112,10 +142,12 @@ fn the_documentation_gives_the_command() {
     }
 }
 
+// A file or folder that a test made, removed as the test ends.
 struct RemovedOnDrop(PathBuf);
 
 impl Drop for RemovedOnDrop {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }

@@ -62,6 +62,11 @@ includes the file, and runs the check with no dependencies. Every program runs i
 starts, even in a scripted run or with `--no-input`. `game_input::create` runs it too, then loads
 the DLL, and returns its path and version with the API.
 
+The DLL that loads is the one that was checked. `installed_runtime` reads the version through a
+handle that holds the DLL open, sharing it only for reading, and `create` loads the DLL before it
+lets go: until then, no one can write, rename or delete the DLL, nor rename its folder. Once it's
+loaded, Windows keeps it from being written.
+
 The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
 each program that reads keyboards and mice.
 

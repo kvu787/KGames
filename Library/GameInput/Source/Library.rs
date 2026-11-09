@@ -635,19 +635,25 @@ pub struct Runtime {
 // beside the exe, and the one beside the exe on a tie. This one takes only
 // the installed one.
 //
+// The DLL that loads is the one whose version was checked: installed_runtime
+// holds it open as it checks, so that no one can write, rename or delete it,
+// nor rename its folder, until it's loaded, and once it's loaded, Windows
+// keeps it from being written.
+//
 // GameInput 4.0.306's runtime crashes when one thread releases the last
 // IGameInput while another creates one, so the first one that this creates is
 // kept for the life of the process, like the module, and the last one is never
 // released. Test/GameInput pins it.
 pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
     static KEPT: OnceLock<IGameInput> = OnceLock::new();
-    let path = installation::installed_runtime()?;
+    let checked = installation::installed_runtime()?;
     unsafe {
-        let module = LoadLibraryW(PCWSTR(wide(&path).as_ptr()));
+        let module = LoadLibraryW(PCWSTR(wide(&checked.path).as_ptr()));
         if module.0.is_null() {
             let error = Error::from_thread();
-            return Err(format!("Couldn't load {}: {} ({})", path.display(), error.message(), error.code()));
+            return Err(format!("Couldn't load {}: {} ({})", checked.path.display(), error.message(), error.code()));
         }
+        let path = checked.into_path();
         // The module stays loaded for the life of the process.
         let Some(initialize) = GetProcAddress(module, s!("GameInputInitialize")) else {
             return Err(format!("{} has no GameInputInitialize", path.display()));

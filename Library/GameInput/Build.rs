@@ -10,13 +10,14 @@ mod installation;
 fn main() {
     println!("cargo::rerun-if-changed=Build.rs");
     println!("cargo::rerun-if-changed=Source/Installation.rs");
-    // Cargo runs this again when the DLL goes, like when GameInput is
-    // uninstalled, or when its modified time is newer than this script's
-    // last run. GameInputRedist.msi keeps the time that Microsoft built the
-    // DLL, so another version installed after a build may look older, and
-    // pass. Programs check again as they start, which catches it.
-    println!("cargo::rerun-if-changed={}", installation::RUNTIME);
-    if let Err(message) = installation::installed_runtime() {
-        println!("cargo::error={message}");
+    match installation::installed_runtime() {
+        // Cargo runs this again when the DLL goes, like when GameInput is
+        // uninstalled, or when its modified time is newer than this script's
+        // last run. GameInputRedist.msi keeps the time that Microsoft built
+        // the DLL, so another version installed after a build may look older,
+        // and pass. Programs check again as they start, which catches it. A
+        // build that fails runs this again anyway.
+        Ok(checked) => println!("cargo::rerun-if-changed={}", checked.into_path().display()),
+        Err(message) => println!("cargo::error={message}"),
     }
 }
