@@ -475,14 +475,6 @@ pub unsafe fn GetMonitorInfoW(hmonitor: HMONITOR, lpmi: *mut MONITORINFO) -> win
     unsafe { GetMonitorInfoW(hmonitor, lpmi as _) }
 }
 #[inline]
-pub unsafe fn GetProcAddress<P1>(hmodule: HMODULE, lpprocname: P1) -> FARPROC
-where
-    P1: windows_core::Param<windows_core::PCSTR>,
-{
-    windows_core::link!("kernel32.dll" "system" fn GetProcAddress(hmodule : HMODULE, lpprocname : windows_core::PCSTR) -> FARPROC);
-    unsafe { GetProcAddress(hmodule, lpprocname.param().abi()) }
-}
-#[inline]
 pub unsafe fn GetProcessMemoryInfo(
     process: HANDLE,
     ppsmemcounters: *mut PROCESS_MEMORY_COUNTERS,
@@ -553,20 +545,6 @@ where
         LoadCursorW(
             hinstance.unwrap_or(core::mem::zeroed()) as _,
             lpcursorname.param().abi(),
-        )
-    }
-}
-#[inline]
-pub unsafe fn LoadLibraryExW<P0>(lplibfilename: P0, hfile: Option<HANDLE>, dwflags: u32) -> HMODULE
-where
-    P0: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("kernel32.dll" "system" fn LoadLibraryExW(lplibfilename : windows_core::PCWSTR, hfile : HANDLE, dwflags : u32) -> HMODULE);
-    unsafe {
-        LoadLibraryExW(
-            lplibfilename.param().abi(),
-            hfile.unwrap_or(core::mem::zeroed()) as _,
-            dwflags,
         )
     }
 }
@@ -3646,7 +3624,6 @@ impl Default for EVENT_TRACE_PROPERTIES_0 {
 pub const EVENT_TRACE_REAL_TIME_MODE: i32 = 256;
 pub const E_FAIL: windows_core::HRESULT = windows_core::HRESULT(0x80004005_u32 as _);
 pub const E_INVALIDARG: windows_core::HRESULT = windows_core::HRESULT(0x80070057_u32 as _);
-pub type FARPROC = Option<unsafe extern "system" fn() -> isize>;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct FILETIME {
@@ -8861,7 +8838,6 @@ pub struct IWICStream_Vtbl {
     InitializeFromIStreamRegion: usize,
 }
 impl windows_core::RuntimeName for IWICStream {}
-pub const LOAD_LIBRARY_SEARCH_SYSTEM32: i32 = 2048;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LPARAM(pub isize);

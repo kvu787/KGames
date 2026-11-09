@@ -4,7 +4,8 @@
 //
 // And restores the NuGet packages that NuGetPackages.proj declares, with
 // dotnet, as packages.lock.json pins them: Microsoft.GameInput, whose
-// GameInput.lib KGames links (see README.md).
+// GameInput.lib this links, for its loader, GameInputInitialize, which
+// game_input::create starts GameInput with (see README.md).
 
 #[path = "Source/Installation.rs"]
 mod installation;
@@ -28,12 +29,19 @@ fn main() {
         // version installed after a build may look older, and pass. Programs
         // check again as they start, which catches it. A build that fails runs
         // this again anyway.
-        Ok(checked) => println!("cargo::rerun-if-changed={}", checked.into_path().display()),
+        Ok(path) => println!("cargo::rerun-if-changed={}", path.display()),
         Err(message) => println!("cargo::error={message}"),
     }
     match restore() {
-        // Cargo runs this again if the package leaves NuGet's folder.
-        Ok(package) => println!("cargo::rerun-if-changed={}", package.join(LIBRARY).display()),
+        Ok(package) => {
+            // Cargo runs this again if the package leaves NuGet's folder.
+            let library = package.join(LIBRARY);
+            println!("cargo::rerun-if-changed={}", library.display());
+            // A static library, which goes into this crate's rlib, so every
+            // program that uses the crate links it.
+            println!("cargo::rustc-link-search=native={}", library.parent().unwrap().display());
+            println!("cargo::rustc-link-lib=static=GameInput");
+        }
         Err(message) => println!("cargo::error={message}"),
     }
 }

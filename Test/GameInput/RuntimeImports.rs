@@ -1,28 +1,31 @@
-// Library/GameInput: that the DLLs that the GameInput runtime imports load
-// from System32, and never from beside the exe. GameInputRedist.dll imports
-// HID.DLL, which isn't a known DLL, so LoadLibraryW, which Microsoft's loader
-// uses, looks for it beside the exe first.
+// Library/GameInput: that the DLLs that the GameInput runtime imports are
+// looked for beside the exe first. GameInput.lib's loader, which create starts
+// GameInput with, loads the runtime with LoadLibraryW, and GameInputRedist.dll
+// imports HID.DLL, which isn't a known DLL, so Windows takes a hid.dll beside
+// the exe over System32's: here, one that isn't a DLL at all, which fails to
+// load, so GameInput doesn't start.
 //
 // This is a test binary of its own, with this one test, so that nothing loads
 // the runtime, or HID.DLL, before the file beside the exe is there.
 
+// It needs only `named`.
 #[path = "Modules.rs"]
+#[allow(dead_code)]
 mod modules;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[test]
-fn the_runtimes_imports_load_from_system32() {
-    // Not a DLL at all, so the runtime can't load if it's taken.
+fn the_runtimes_imports_are_looked_for_beside_the_exe_first() {
     let beside = std::env::current_exe().unwrap().with_file_name("hid.dll");
     std::fs::write(&beside, b"Not a DLL").unwrap();
     let _removed = RemovedOnDrop(beside);
     assert_eq!(modules::named("hid.dll"), Vec::<PathBuf>::new());
 
-    let (_game_input, _runtime) = game_input::create().unwrap();
-    let loaded = modules::named("hid.dll");
-    assert_eq!(loaded.len(), 1, "{loaded:?}");
-    assert!(modules::same(&loaded[0], Path::new(r"C:\Windows\System32\hid.dll")), "{loaded:?}");
+    // Windows' ERROR_BAD_EXE_FORMAT, as an HRESULT.
+    let error = game_input::create().err().unwrap();
+    assert!(error.contains("0x800700C1"), "{error}");
+    assert_eq!(modules::named("hid.dll"), Vec::<PathBuf>::new());
 }
 
 // A file that a test made, removed as the test ends.

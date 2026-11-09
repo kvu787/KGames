@@ -66,8 +66,8 @@ winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4
 
 KGames doesn't build without it, and programs don't start without it. Building also needs the .NET
 SDK, 10 or later, whose `dotnet` restores GameInput's NuGet package. Visual Studio installs it with
-its .NET desktop development workload. [Library/GameInput](Library/GameInput/README.md) says why
-it's that runtime and no other.
+its .NET desktop development workload. [Library/GameInput](Library/GameInput/README.md) says how
+programs start it.
 
 ## Program
 
@@ -93,7 +93,7 @@ it's that runtime and no other.
 | [UserInterface](Library/UserInterface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
 | [Graphics](Library/Graphics/README.md)             | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
 | [SimplePaint](Library/SimplePaint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
-| [GameInput](Library/GameInput/README.md)           | GameInput bindings, and the loader for the installed GameInput 4.0.306                                      |
+| [GameInput](Library/GameInput/README.md)           | GameInput bindings, started with `GameInput.lib` from GameInput 4.0.306's NuGet package                     |
 | [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
 | [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
 | [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |

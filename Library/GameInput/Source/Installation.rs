@@ -1,21 +1,17 @@
-// Where KGames finds the one GameInput runtime that it uses: version 4.0.306,
-// which the user installs, once, with INSTALL_COMMAND. GameInputRedist.msi
+// The GameInput runtime that KGames needs installed: version 4.0.306, which
+// the user installs, once, with INSTALL_COMMAND. GameInputRedist.msi
 // installs it into C:\Program Files\Microsoft GameInput\x64, then runs its
-// service with /serviceconfig, which copies its DLL into System32. KGames
-// loads that copy, which is also what COM loads to carry calls to the
-// service, so that a process runs one copy of the runtime, not two (see
-// README.md). Nothing in KGames installs it, and nothing uses another runtime:
-// not the GameInput.dll that comes with Windows, nor a GameInputRedist.dll
-// beside the exe, which would be sideloaded, with less than an installed
-// runtime can do.
+// service with /serviceconfig, which copies its DLL into System32, where
+// GameInput.lib's loader finds it (see README.md). Nothing in KGames installs
+// it.
 //
 // installed_runtime checks that the DLL is there, and that its version is
 // VERSION, with the standard library alone, so that Build.rs can include this
 // file and fail the build without it, and every program checks it again as
-// it starts. It holds the DLL open as it checks, and hands it back held, so
-// that game_input::create loads the DLL that it checked.
+// it starts, so that it says how to install it, instead of failing to start
+// GameInput.
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{ErrorKind, Read};
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
@@ -30,35 +26,19 @@ pub const RUNTIME: &str = r"C:\Windows\System32\GameInputRedist.dll";
 // The runtime's version, as its DLL's file version says it.
 pub const VERSION: [u16; 4] = [4, 0, 306, 0];
 
-// Windows' FILE_SHARE_READ: others may read the file, but not write, rename
-// or delete it, nor rename its folder.
+// Windows' FILE_SHARE_READ: others may read the file while it's read, but not
+// write it.
 const SHARE_READ_ONLY: u32 = 0x00000001;
 
-// A DLL whose version was checked, held open, so that it can't change until
-// this is dropped, or into_path lets go of it.
-#[derive(Debug)]
-pub struct Checked {
-    pub path: PathBuf,
-    _file: File,
-}
-
-impl Checked {
-    // Lets go of the DLL, once it's loaded, which keeps it from changing
-    // from then on.
-    pub fn into_path(self) -> PathBuf {
-        self.path
-    }
-}
-
-// The runtime's DLL, held, once it's there and its version is VERSION, or
-// what's wrong, and how to install it.
-pub fn installed_runtime() -> Result<Checked, String> {
+// The runtime's DLL, once it's there and its version is VERSION, or what's
+// wrong, and how to install it.
+pub fn installed_runtime() -> Result<PathBuf, String> {
     check(Path::new(RUNTIME))
 }
 
-// The DLL at `path`, held, once its version is VERSION. The version is read
-// through the handle that holds it, so it's the version of what's held.
-pub fn check(path: &Path) -> Result<Checked, String> {
+// The DLL at `path`, once its version is VERSION. It's read without letting
+// others write it, so a DLL that's being written isn't checked.
+pub fn check(path: &Path) -> Result<PathBuf, String> {
     let mut file = match OpenOptions::new().read(true).share_mode(SHARE_READ_ONLY).open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == ErrorKind::NotFound => return Err(not_installed_message(path)),
@@ -68,7 +48,7 @@ pub fn check(path: &Path) -> Result<Checked, String> {
     file.read_to_end(&mut bytes)
         .map_err(|error| format!("Couldn't read {}: {error}", path.display()))?;
     match version_in(&bytes) {
-        Some(version) if version == VERSION => Ok(Checked { path: path.to_path_buf(), _file: file }),
+        Some(version) if version == VERSION => Ok(path.to_path_buf()),
         version => Err(wrong_version_message(path, version)),
     }
 }

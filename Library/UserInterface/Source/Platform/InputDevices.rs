@@ -115,9 +115,9 @@ pub struct Devices {
 const CALIBRATION_SECONDS: f64 = 10.0;
 
 impl Devices {
-    // Loads the installed GameInput runtime, the only one that KGames uses
-    // (see Library/GameInput), and starts listening for gamepads, keyboards
-    // and mice. The callback also reports the devices that are already
+    // Starts GameInput, with GameInput.lib's loader, which loads the installed
+    // runtime (see Library/GameInput), and starts listening for gamepads,
+    // keyboards and mice. The callback also reports the devices that are already
     // connected.
     pub fn new() -> Result<Devices, String> {
         let (game_input, runtime) = game_input::create()?;

@@ -237,8 +237,9 @@ isn't, the demo writes why to standard error and exits, instead of opening on th
 
 ## How it gets GameInput
 
-The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, and loads
-GameInput 4.0.306's installed runtime, from System32, and no other runtime.
+The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, and starts
+GameInput with `GameInputInitialize` from Microsoft's `GameInput.lib`, which loads GameInput
+4.0.306's installed runtime, from System32, unless a `GameInputRedist.dll` is beside the exe.
 The status bar of the demo's window shows which runtime it loaded. Without it installed, the demo
 doesn't build, and doesn't start. With `--no-input`, it reads no input, and the status bar says
 that GameInput isn't available.

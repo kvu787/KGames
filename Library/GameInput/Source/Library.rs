@@ -1,6 +1,7 @@
 // Hand-written bindings for the GameInput v4 API, transcribed from
-// native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package, of
-// the version that Installation.rs requires. GameInput isn't in the Windows
+// native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package that
+// NuGetPackages.proj declares, and create, which starts GameInput with the
+// package's GameInput.lib. GameInput isn't in the Windows
 // metadata that windows-bindgen reads, so this file copies the shape of its
 // output instead, and keeps GameInput's native names.
 //
@@ -16,11 +17,13 @@
 pub mod installation;
 
 use core::ffi::c_void;
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::ffi::OsString;
+use std::os::windows::ffi::OsStringExt;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use windows_api::*;
-use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s};
+use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, PWSTR, Result};
 
 pub type GameInputKind = i32;
 pub const GameInputKindUnknown: GameInputKind = 0x00000000;
@@ -646,65 +649,78 @@ const _: () = {
     assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
 };
 
-// The GameInput runtime that was loaded, for display.
+// The GameInput runtime that GameInput.lib's loader loaded, for display.
 pub struct Runtime {
     pub path: PathBuf,
     pub version: [u16; 4],
 }
 
-// Loads GameInput 4.0.306's installed runtime, from System32, where its
-// service copies it, and no other runtime, or says what's wrong, and how to
-// install it. Microsoft's own loader, GameInputInitialize in
-// native/src/GameInput.cpp in the NuGet package, which C++ games get by linking
-// GameInput.lib, takes the newest of Windows' GameInput.dll, an installed
-// GameInputRedist.dll and one beside the exe, and the one beside the exe on a
-// tie. This one takes only the installed one, from System32, as Microsoft's
-// does: COM loads that copy too, to carry calls to GameInput's service, so the
-// process runs one copy of the runtime, not two. Test/GameInput pins it.
-//
-// The DLL that loads is the one whose version was checked: installed_runtime
-// holds it open as it checks, so that no one can write, rename or delete it,
-// nor rename its folder, until it's loaded, and once it's loaded, Windows
-// keeps it from being written.
-//
-// The DLLs that the runtime imports load from System32 alone. It imports
-// HID.DLL and bcrypt.dll, which aren't known DLLs, so LoadLibraryW, which
-// Microsoft's loader uses, would look for them beside the exe first.
-// Test/GameInput/RuntimeImports.rs pins it.
-//
-// GameInput 4.0.306's runtime crashes when one thread releases the last
-// IGameInput while another creates one, so the first one that this creates is
-// kept for the life of the process, like the module, and the last one is never
-// released. Test/GameInput pins it.
-pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
-    static KEPT: OnceLock<IGameInput> = OnceLock::new();
-    let checked = installation::installed_runtime()?;
-    unsafe {
-        let module = LoadLibraryExW(PCWSTR(wide(&checked.path).as_ptr()), None, LOAD_LIBRARY_SEARCH_SYSTEM32 as u32);
-        if module.0.is_null() {
-            let error = Error::from_thread();
-            return Err(format!("Couldn't load {}: {} ({})", checked.path.display(), error.message(), error.code()));
-        }
-        let path = checked.into_path();
-        // The module stays loaded for the life of the process.
-        let Some(initialize) = GetProcAddress(module, s!("GameInputInitialize")) else {
-            return Err(format!("{} has no GameInputInitialize", path.display()));
-        };
-        let initialize: unsafe extern "system" fn(*const GUID, *mut *mut c_void) -> HRESULT =
-            core::mem::transmute(initialize);
-
-        let mut result = core::ptr::null_mut();
-        let game_input: IGameInput = initialize(&IGameInput::IID, &mut result)
-            .and_then(|| windows_core::imp::Type::from_abi(result))
-            .map_err(|error| format!("{} couldn't start GameInput: {} ({})", path.display(), error.message(), error.code()))?;
-        KEPT.get_or_init(|| game_input.clone());
-
-        Ok((game_input, Runtime { path, version: installation::VERSION }))
-    }
+// GameInput.lib's loader, from the Microsoft.GameInput NuGet package, whose
+// source is native/src/GameInput.cpp there. Build.rs restores the package and
+// links the library. It's what the header's inline GameInputCreate calls, with
+// the IID of the header's IGameInput.
+unsafe extern "system" {
+    fn GameInputInitialize(riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT;
 }
 
-// A path as a zero-terminated wide string, for Windows' functions.
-fn wide(path: &Path) -> Vec<u16> {
-    use std::os::windows::ffi::OsStrExt;
-    path.as_os_str().encode_wide().chain([0]).collect()
+// Starts GameInput the way Microsoft's v4 header does for C++ games: with
+// GameInputInitialize from GameInput.lib, and the IID of v4's IGameInput. It
+// returns the runtime that the loader loaded, or says what's wrong, and how to
+// install GameInput 4.0.306.
+//
+// The loader takes the runtime with the newest file version of Windows'
+// GameInput.dll, the installed GameInputRedist.dll, from System32, and a
+// GameInputRedist.dll beside the exe, and the one beside the exe on a tie,
+// then the installed one. With 4.0.306 installed and nothing beside the exe,
+// it's System32's, which COM also loads to carry calls to GameInput's service,
+// so the process runs one copy of the runtime. It loads the runtime with
+// LoadLibraryW, so the DLLs that the runtime imports, like HID.DLL, are looked
+// for beside the exe first. Test/GameInput pins all three.
+//
+// It checks that GameInput 4.0.306 is installed first, so that a build or a
+// program without it says how to install it, instead of failing to start
+// GameInput.
+//
+// The loader keeps the runtime it loaded in globals that it doesn't guard, so
+// one thread at a time calls it. GameInput 4.0.306's runtime crashes when one
+// thread releases the last IGameInput while another creates one, so the first
+// one that this creates is kept for the life of the process, like the runtime,
+// and the last one is never released. Test/GameInput pins it.
+pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
+    static KEPT: OnceLock<IGameInput> = OnceLock::new();
+    static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
+    installation::installed_runtime()?;
+    let game_input: IGameInput = {
+        let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut result = core::ptr::null_mut();
+        unsafe { GameInputInitialize(&IGameInput::IID, &mut result) }
+            .and_then(|| unsafe { windows_core::imp::Type::from_abi(result) })
+            .map_err(|error| format!("Couldn't start GameInput: {} ({})", error.message(), error.code()))?
+    };
+    KEPT.get_or_init(|| game_input.clone());
+    let runtime = runtime_of(&game_input)?;
+    Ok((game_input, runtime))
+}
+
+// The runtime whose code an object of GameInput's is: the DLL that holds its
+// vtable, which is the first thing in a COM object, and that DLL's version.
+fn runtime_of(object: &impl Interface) -> core::result::Result<Runtime, String> {
+    let path = unsafe {
+        let vtable = *(object.as_raw() as *const *const c_void);
+        let mut module = HMODULE::default();
+        let flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
+        GetModuleHandleExW(flags as u32, PCWSTR(vtable as *const u16), &mut module)
+            .ok()
+            .map_err(|error| format!("Couldn't find GameInput's runtime: {} ({})", error.message(), error.code()))?;
+        let mut name = vec![0u16; 32768];
+        let length = GetModuleFileNameW(Some(module), PWSTR(name.as_mut_ptr()), name.len() as u32) as usize;
+        if length == 0 || length == name.len() {
+            let error = Error::from_thread();
+            return Err(format!("Couldn't find GameInput's runtime: {} ({})", error.message(), error.code()));
+        }
+        PathBuf::from(OsString::from_wide(&name[..length]))
+    };
+    let bytes = std::fs::read(&path).map_err(|error| format!("Couldn't read {}: {error}", path.display()))?;
+    let version = installation::version_in(&bytes).ok_or_else(|| format!("{} has no version", path.display()))?;
+    Ok(Runtime { path, version })
 }
