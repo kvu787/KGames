@@ -59,7 +59,8 @@ first.
 Reading the presents takes an ETW session, which needs the **Performance Log Users** group, or an
 elevated administrator. Without either, FrameTimes says how to join the group, as
 [Library/PresentTiming](../../Library/PresentTiming/README.md#privileges) does. A FrameTimes that's
-stopped with `Ctrl+C` leaves its session running, until the next FrameTimes stops it.
+stopped with `Ctrl+C` leaves its session running, until the next FrameTimes, or the next program
+that reads its presents, stops it.
 
 ## Testing
 
