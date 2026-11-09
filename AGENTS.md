@@ -2,6 +2,7 @@
 
 - Blender: C:\Users\K\Program\blender-5.2.3-windows-x64
 - PresentMon: C:\Users\K\Program\PresentMon-2.6.0-x64.exe
+- Local copies of some external repositories: C:\Users\K\RepositoryExternal
 
 # Style
 
