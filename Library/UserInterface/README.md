@@ -196,10 +196,12 @@ by the widget's id; `Ui::memory` reads it in `view`, like for laying out a scrol
 
 ## Input
 
-All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads.
-`Platform/InputDevices.rs` reads every device's readings once a frame, right before the frame,
-and `Input/Reader.rs` turns them into the interface's events, in the order they happened, with
-the window's focus changes between them. The window's messages bring none of it.
+All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads. Every
+program needs GameInput 4.0.306 installed, as that README says, and doesn't start without it, not
+even in a scripted run or with `--no-input`, which don't read it. `Platform/InputDevices.rs`
+reads every device's readings once a frame, right before the frame, and `Input/Reader.rs` turns
+them into the interface's events, in the order they happened, with the window's focus changes
+between them. The window's messages bring none of it.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr

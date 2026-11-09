@@ -1,8 +1,8 @@
 // Hand-written bindings for the GameInput v4 API, transcribed from
-// native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package
-// (Build.rs pins the version). GameInput isn't in the Windows metadata that
-// windows-bindgen reads, so this file copies the shape of its output instead,
-// and keeps GameInput's native names.
+// native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package, of
+// the version that Installation.rs requires. GameInput isn't in the Windows
+// metadata that windows-bindgen reads, so this file copies the shape of its
+// output instead, and keeps GameInput's native names.
 //
 // Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
@@ -10,11 +10,14 @@
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code)]
 
+#[path = "Installation.rs"]
+pub mod installation;
+
 use core::ffi::c_void;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use windows_api::*;
-use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s, w};
+use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s};
 
 pub type GameInputKind = i32;
 pub const GameInputKindUnknown: GameInputKind = 0x00000000;
@@ -613,161 +616,39 @@ pub struct IGameInputDevice_Vtbl {
     GetTouchSurfaceInfo: usize,
 }
 
-// The GameInput runtime DLL that was loaded, for display.
+// The GameInput runtime that was loaded, for display.
 pub struct Runtime {
     pub path: PathBuf,
     pub version: [u16; 4],
 }
 
-// A Rust port of GameInputInitialize from native/src/GameInput.cpp in the
-// NuGet package, which C++ games get by linking GameInput.lib. There can be
-// three copies of the runtime, and the newest one wins:
-// - GameInput.dll, built into Windows. Windows 11 ships an old v0-only one.
-// - GameInputRedist.dll, installed by GameInputRedist.msi.
-// - GameInputRedist.dll in the app's own folder, which Build.rs puts there.
-pub fn create() -> Result<(IGameInput, Runtime)> {
-    let system = system_directory()?;
-    let mut candidates = vec![system.join("GameInput.dll")];
-    let redist = system.join("GameInputRedist.dll");
-    if redist.is_file() {
-        candidates.push(redist);
-    } else if let Some(directory) = redist_directory() {
-        candidates.push(directory.join("GameInputRedist.dll"));
-    }
-    // Like in GameInput.cpp, not finding the app's folder only skips it.
-    if let Ok(exe) = std::env::current_exe()
-        && let Some(directory) = exe.parent()
-    {
-        candidates.push(directory.join("GameInputRedist.dll"));
-    }
-
-    // max_by_key picks the last of equal versions, so ties go to the later
-    // candidate, like in GameInput.cpp.
-    let (path, version) = candidates
-        .into_iter()
-        .filter(|path| path.is_file())
-        .map(|path| {
-            let version = file_version(&path).unwrap_or(0);
-            (path, version)
-        })
-        .max_by_key(|(_, version)| *version)
-        .ok_or_else(|| Error::new(HRESULT(0x80070002_u32 as i32), "no GameInput runtime found"))?;
-
+// Loads GameInput 4.0.306's runtime from where GameInputRedist.msi installed
+// it, and no other runtime (see Installation.rs), or says what's wrong, and
+// how to install it. Microsoft's own loader, GameInputInitialize in
+// native/src/GameInput.cpp in the NuGet package, which C++ games get by
+// linking GameInput.lib, takes the newest of Windows' GameInput.dll, an
+// installed GameInputRedist.dll and one beside the exe, and the one beside
+// the exe on a tie. This one takes only the installed one.
+pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
+    let path = installation::runtime_path()?;
     unsafe {
-        let module = LoadLibraryW(PCWSTR(wide(&path).as_ptr()));
+        let module = LoadLibraryW(PCWSTR(installation::wide(&path).as_ptr()));
         if module.0.is_null() {
-            return Err(Error::from_thread());
+            let error = Error::from_thread();
+            return Err(format!("Couldn't load {}: {} ({})", path.display(), error.message(), error.code()));
         }
         // The module stays loaded for the life of the process.
         let Some(initialize) = GetProcAddress(module, s!("GameInputInitialize")) else {
-            // Only runtimes too old for anything but the v0 API lack this export.
-            return Err(Error::new(
-                HRESULT(0x80004002_u32 as i32),
-                format!("{} only supports GameInput v0", path.display()),
-            ));
+            return Err(format!("{} has no GameInputInitialize", path.display()));
         };
         let initialize: unsafe extern "system" fn(*const GUID, *mut *mut c_void) -> HRESULT =
             core::mem::transmute(initialize);
 
         let mut result = core::ptr::null_mut();
         let game_input: IGameInput = initialize(&IGameInput::IID, &mut result)
-            .and_then(|| windows_core::imp::Type::from_abi(result))?;
+            .and_then(|| windows_core::imp::Type::from_abi(result))
+            .map_err(|error| format!("{} couldn't start GameInput: {} ({})", path.display(), error.message(), error.code()))?;
 
-        let runtime = Runtime {
-            path,
-            version: [
-                (version >> 48) as u16,
-                (version >> 32) as u16,
-                (version >> 16) as u16,
-                version as u16,
-            ],
-        };
-        Ok((game_input, runtime))
+        Ok((game_input, Runtime { path, version: installation::VERSION }))
     }
-}
-
-fn system_directory() -> Result<PathBuf> {
-    unsafe {
-        // The size, including the terminating zero.
-        let length = GetSystemDirectoryW(None, 0);
-        if length == 0 {
-            return Err(Error::from_thread());
-        }
-        let mut buffer = vec![0u16; length as usize];
-        let length = GetSystemDirectoryW(Some(windows_core::PWSTR(buffer.as_mut_ptr())), length);
-        if length == 0 {
-            return Err(Error::from_thread());
-        }
-        Ok(PathBuf::from(String::from_utf16_lossy(
-            &buffer[..length as usize],
-        )))
-    }
-}
-
-// Where GameInputRedist.msi installed the runtime, if it did.
-fn redist_directory() -> Option<PathBuf> {
-    let key = w!(r"SOFTWARE\Microsoft\GameInput");
-    let value = w!("RedistDir");
-    let flags = (RRF_RT_REG_SZ | RRF_SUBKEY_WOW6432KEY) as u32;
-    unsafe {
-        let mut size = 0u32;
-        if RegGetValueW(
-            HKEY_LOCAL_MACHINE,
-            key,
-            value,
-            flags,
-            None,
-            None,
-            Some(&raw mut size),
-        )
-        .0 != 0
-        {
-            return None;
-        }
-        let mut buffer = vec![0u16; size as usize / 2];
-        if RegGetValueW(
-            HKEY_LOCAL_MACHINE,
-            key,
-            value,
-            flags,
-            None,
-            Some(buffer.as_mut_ptr().cast()),
-            Some(&raw mut size),
-        )
-        .0 != 0
-        {
-            return None;
-        }
-        let text = String::from_utf16_lossy(&buffer);
-        Some(PathBuf::from(text.trim_end_matches('\0')))
-    }
-}
-
-// The file version from the DLL's version resource, packed as major.minor.build.revision
-// in 16 bits each, so that versions compare as numbers.
-fn file_version(path: &Path) -> Option<u64> {
-    let path = wide(path);
-    let path = PCWSTR(path.as_ptr());
-    unsafe {
-        let size = GetFileVersionInfoSizeW(path, None);
-        if size == 0 {
-            return None;
-        }
-        let mut data = vec![0u8; size as usize];
-        if !GetFileVersionInfoW(path, None, size, data.as_mut_ptr().cast()).as_bool() {
-            return None;
-        }
-        let mut info: *mut c_void = core::ptr::null_mut();
-        let mut length = 0u32;
-        if !VerQueryValueW(data.as_ptr().cast(), w!(r"\"), &mut info, &mut length).as_bool() {
-            return None;
-        }
-        let info = &*(info as *const VS_FIXEDFILEINFO);
-        Some(((info.dwFileVersionMS as u64) << 32) | info.dwFileVersionLS as u64)
-    }
-}
-
-fn wide(path: &Path) -> Vec<u16> {
-    use std::os::windows::ffi::OsStrExt;
-    path.as_os_str().encode_wide().chain([0]).collect()
 }

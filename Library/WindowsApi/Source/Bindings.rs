@@ -497,11 +497,6 @@ pub unsafe fn GetProcessMemoryInfo(
     windows_core::link!("kernel32.dll" "system" "K32GetProcessMemoryInfo" fn GetProcessMemoryInfo(process : HANDLE, ppsmemcounters : *mut PROCESS_MEMORY_COUNTERS, cb : u32) -> windows_core::BOOL);
     unsafe { GetProcessMemoryInfo(process, ppsmemcounters as _, cb) }
 }
-#[inline]
-pub unsafe fn GetSystemDirectoryW(lpbuffer: Option<windows_core::PWSTR>, usize: u32) -> u32 {
-    windows_core::link!("kernel32.dll" "system" fn GetSystemDirectoryW(lpbuffer : windows_core::PWSTR, usize : u32) -> u32);
-    unsafe { GetSystemDirectoryW(lpbuffer.unwrap_or(core::mem::zeroed()) as _, usize) }
-}
 #[cfg(any(
     target_arch = "aarch64",
     target_arch = "arm64ec",
@@ -767,33 +762,6 @@ pub unsafe fn QueryPerformanceCounter(lpperformancecount: *mut i64) -> windows_c
 pub unsafe fn QueryPerformanceFrequency(lpfrequency: *mut i64) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn QueryPerformanceFrequency(lpfrequency : *mut i64) -> windows_core::BOOL);
     unsafe { QueryPerformanceFrequency(lpfrequency as _) }
-}
-#[inline]
-pub unsafe fn RegGetValueW<P1, P2>(
-    hkey: HKEY,
-    lpsubkey: P1,
-    lpvalue: P2,
-    dwflags: u32,
-    pdwtype: Option<*mut u32>,
-    pvdata: Option<*mut core::ffi::c_void>,
-    pcbdata: Option<*mut u32>,
-) -> LSTATUS
-where
-    P1: windows_core::Param<windows_core::PCWSTR>,
-    P2: windows_core::Param<windows_core::PCWSTR>,
-{
-    windows_core::link!("advapi32.dll" "system" fn RegGetValueW(hkey : HKEY, lpsubkey : windows_core::PCWSTR, lpvalue : windows_core::PCWSTR, dwflags : u32, pdwtype : *mut u32, pvdata : *mut core::ffi::c_void, pcbdata : *mut u32) -> LSTATUS);
-    unsafe {
-        RegGetValueW(
-            hkey,
-            lpsubkey.param().abi(),
-            lpvalue.param().abi(),
-            dwflags,
-            pdwtype.unwrap_or(core::mem::zeroed()) as _,
-            pvdata.unwrap_or(core::mem::zeroed()) as _,
-            pcbdata.unwrap_or(core::mem::zeroed()) as _,
-        )
-    }
 }
 #[inline]
 pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
@@ -3774,10 +3742,6 @@ pub struct HICON(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HINSTANCE(pub *mut core::ffi::c_void);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct HKEY(pub *mut core::ffi::c_void);
-pub const HKEY_LOCAL_MACHINE: HKEY = HKEY(-2147483646 as _);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HKL(pub *mut core::ffi::c_void);
@@ -8860,9 +8824,6 @@ pub struct LPARAM(pub isize);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LRESULT(pub isize);
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct LSTATUS(pub i32);
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LUID {
@@ -9031,8 +8992,6 @@ pub struct RECTL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
-pub const RRF_RT_REG_SZ: i32 = 2;
-pub const RRF_SUBKEY_WOW6432KEY: i32 = 131072;
 pub const SC_KEYMENU: i32 = 61696;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

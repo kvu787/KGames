@@ -21,5 +21,15 @@ version = "0.100"
 default-features = false
 features = ["std"]
 
+# Build.rs checks that GameInput is installed with Source/Installation.rs,
+# which needs the same bindings.
+[build-dependencies]
+windows_api = { path = "../WindowsApi" }
+
+[build-dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
 [lints]
 workspace = true

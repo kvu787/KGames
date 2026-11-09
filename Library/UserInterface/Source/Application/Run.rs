@@ -90,17 +90,14 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     startup.arguments = arguments.own.clone();
 
     // All input comes from GameInput, except in a scripted run, which the
-    // user's input never reaches, and with --no-input.
+    // user's input never reaches, and with --no-input. Every program needs
+    // GameInput 4.0.306 installed, though, and doesn't start without it, even
+    // when it doesn't read it (see Library/GameInput).
     let devices = if scripted || arguments.no_input {
+        game_input::installation::runtime_path()?;
         None
     } else {
-        match Devices::new() {
-            Ok(devices) => Some(Rc::new(RefCell::new(devices))),
-            Err(message) => {
-                startup.notify(Severity::Error, "GameInput isn't available", &format!("The program can't read any input: {message}."));
-                None
-            }
-        }
+        Some(Rc::new(RefCell::new(Devices::new()?)))
     };
     startup.devices = devices.clone();
 

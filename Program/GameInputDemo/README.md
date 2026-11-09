@@ -146,8 +146,9 @@ always inside the window.
 
 - Rust with the `x86_64-pc-windows-msvc` toolchain
 - Windows SDK (provides `dxc.exe` under `C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`)
-- Internet access for the first build, which downloads the GameInput runtime (see
-  [Library/GameInput](../../Library/GameInput/README.md))
+- GameInput 4.0.306, installed once, from an elevated prompt, with
+  `winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"`. The
+  demo doesn't build or start without it (see [Library/GameInput](../../Library/GameInput/README.md))
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
 - Optional, for [RunInBackground](../RunInBackground/README.md): the .NET 10 SDK
 
@@ -236,10 +237,11 @@ isn't, the demo writes why to standard error and exits, instead of opening on th
 
 ## How it gets GameInput
 
-The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, finds and loads
-the newest runtime, and puts the runtime from Microsoft's NuGet package next to the demo's exe. The
-status bar of the demo's window shows which runtime it loaded. If GameInput isn't available, the
-window still opens, and a notice under the app bar says why there's no input.
+The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, and loads
+GameInput 4.0.306's runtime from where `GameInputRedist.msi` installed it, and no other runtime.
+The status bar of the demo's window shows which runtime it loaded. Without it installed, the demo
+doesn't build, and doesn't start. With `--no-input`, it reads no input, and the status bar says
+that GameInput isn't available.
 
 ## How it reads input
 
