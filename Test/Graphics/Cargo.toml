@@ -17,8 +17,17 @@ path = "DepthBuffer.rs"
 name = "Timer"
 path = "Timer.rs"
 
+[[test]]
+name = "Presenter"
+path = "Presenter.rs"
+
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
+
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
 
 [lints]
 workspace = true

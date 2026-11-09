@@ -74,9 +74,14 @@ impl Presenter {
                 .factory
                 .CreateSwapChainForHwnd(&gpu.queue, window, &description, None, None)?
                 .cast()?;
-            // Alt+Enter would switch to exclusive fullscreen, which the
-            // programs don't use: F11 switches to borderless fullscreen.
-            gpu.factory.MakeWindowAssociation(window, DXGI_MWA_NO_ALT_ENTER as u32).ok()?;
+            // DXGI would otherwise watch the window's messages, and switch it
+            // to fullscreen with SetFullscreenState on Alt+Enter, which
+            // changes the display's mode, as Direct3D 12 has no exclusive
+            // fullscreen. The programs handle their window themselves: F11
+            // switches to borderless fullscreen.
+            gpu.factory
+                .MakeWindowAssociation(window, (DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER) as u32)
+                .ok()?;
             swap_chain.SetMaximumFrameLatency(1).ok()?;
             let waitable = swap_chain.GetFrameLatencyWaitableObject();
             let views = DescriptorHeap::new(&gpu.device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BUFFER_COUNT * 2, false)?;
@@ -210,7 +215,9 @@ impl Presenter {
     }
 
     // Submits the frame's commands and presents it. Returns the fence value
-    // that the GPU signals once it has drawn the frame.
+    // that the GPU signals once it has drawn the frame, which the presenter
+    // waits for before it lets go of the frame's buffers, even when Present
+    // fails.
     pub fn present(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<u64> {
         unsafe {
             frame.list.ResourceBarrier(&[transition(
@@ -226,13 +233,38 @@ impl Presenter {
                 (false, false) => (0, 0),
             };
             let _ = QueryPerformanceCounter(&mut self.present_time);
-            // DXGI_STATUS_OCCLUDED and the like are successes that say the
-            // frame isn't visible, which changes nothing here.
-            self.swap_chain.Present(interval, flags).ok()?;
+            let swap_chain = &self.swap_chain;
+            // Present's DXGI_STATUS codes are successes, which change nothing
+            // here. A flip model swap chain never returns DXGI_STATUS_OCCLUDED.
+            let present = || swap_chain.Present(interval, flags).ok();
+            present_then_signal(&mut self.last_frame, present, || gpu.signal()).map_err(|error| with_removed_reason(gpu, error))
         }
-        self.last_frame = gpu.signal()?;
-        Ok(self.last_frame)
     }
+}
+
+// Presents, then has the GPU signal the fence after the frame's commands,
+// which are on the GPU already, and keeps the value in `last_frame`, whether
+// the present succeeded or not, so that whatever lets go of the frame's
+// resources waits for the value however the frame ended. Returns the value,
+// or the present's error.
+pub fn present_then_signal(
+    last_frame: &mut u64,
+    present: impl FnOnce() -> Result<()>,
+    signal: impl FnOnce() -> Result<u64>,
+) -> Result<u64> {
+    let presented = present();
+    *last_frame = signal()?;
+    presented.map(|()| *last_frame)
+}
+
+// An error, with why the device was removed, if it was, which
+// DXGI_ERROR_DEVICE_REMOVED and DXGI_ERROR_DEVICE_RESET don't say.
+fn with_removed_reason(gpu: &Gpu, error: windows_core::Error) -> windows_core::Error {
+    let reason = unsafe { gpu.device.GetDeviceRemovedReason() };
+    if reason.is_ok() {
+        return error;
+    }
+    windows_core::Error::new(error.code(), format!("{} The device was removed: {}", error.message(), windows_core::Error::from(reason)))
 }
 
 impl Drop for Presenter {

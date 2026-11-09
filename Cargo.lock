@@ -122,6 +122,7 @@ name = "graphics_tests"
 version = "0.1.0"
 dependencies = [
  "graphics",
+ "windows-core",
 ]
 
 [[package]]

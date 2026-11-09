@@ -40,7 +40,7 @@ input only once a frame can start. With vertical sync, which every program start
 wait for the display's refresh, and never tear. Without it, as with `"VerticalSync": false` in a
 program's Settings.json, or `--no-vsync`, frames present without waiting, and may tear if
 `allow_tearing` and the system allow it. `Presenter::set_vsync` switches between the two from the
-next frame on, as `F10` does in every program. Alt+Enter's exclusive fullscreen is off.
+next frame on, as `F10` does in every program. DXGI's Alt+Enter, which would switch the display's mode, is off.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.
