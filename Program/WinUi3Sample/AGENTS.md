@@ -11,7 +11,8 @@ Follow the non-disruptive workflow, though:
   `dotnet`, lightly, and opens it with `--no-activate`. Pass `--page`, `--theme` and `--open-menu`
   with RunInBackground's `--arguments` to screenshot the rest, as the [README](README.md) shows.
 - With `--no-activate`, a CBT hook keeps every window of the app from activating, including WinUI's
-  menus and flyouts, which are windows of their own and activate when they open. Keep it, and open
+  menus, and the flyouts and popups that can go past the window's edges, which are windows of their
+  own and activate when they open. Keep it, and open
   anything else that makes a window only in a run that has it.
 - Build it with `Program\RunLightly\RunLightly.ps1 dotnet build Program\WinUi3Sample\WinUi3Sample.csproj --configuration Release`.
   Give options like `--verbosity minimal` in their long form: PowerShell splits `-v:minimal` in two.
