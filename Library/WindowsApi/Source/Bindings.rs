@@ -497,6 +497,11 @@ pub unsafe fn GlobalLock(hmem: HGLOBAL) -> *mut core::ffi::c_void {
     unsafe { GlobalLock(hmem) }
 }
 #[inline]
+pub unsafe fn GlobalSize(hmem: HGLOBAL) -> usize {
+    windows_core::link!("kernel32.dll" "system" fn GlobalSize(hmem : HGLOBAL) -> usize);
+    unsafe { GlobalSize(hmem) }
+}
+#[inline]
 pub unsafe fn GlobalUnlock(hmem: HGLOBAL) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn GlobalUnlock(hmem : HGLOBAL) -> windows_core::BOOL);
     unsafe { GlobalUnlock(hmem) }
@@ -727,6 +732,13 @@ pub unsafe fn SetProcessInformation(
             processinformationsize,
         )
     }
+}
+#[inline]
+pub unsafe fn SetThreadDpiAwarenessContext(
+    dpicontext: DPI_AWARENESS_CONTEXT,
+) -> DPI_AWARENESS_CONTEXT {
+    windows_core::link!("user32.dll" "system" fn SetThreadDpiAwarenessContext(dpicontext : DPI_AWARENESS_CONTEXT) -> DPI_AWARENESS_CONTEXT);
+    unsafe { SetThreadDpiAwarenessContext(dpicontext) }
 }
 #[cfg(any(
     target_arch = "aarch64",
@@ -2833,6 +2845,9 @@ pub type DWRITE_MEASURING_MODE = i32;
 pub const DWRITE_MEASURING_MODE_GDI_CLASSIC: DWRITE_MEASURING_MODE = 1;
 pub const DWRITE_MEASURING_MODE_GDI_NATURAL: DWRITE_MEASURING_MODE = 2;
 pub const DWRITE_MEASURING_MODE_NATURAL: DWRITE_MEASURING_MODE = 0;
+pub type DWRITE_OUTLINE_THRESHOLD = i32;
+pub const DWRITE_OUTLINE_THRESHOLD_ALIASED: DWRITE_OUTLINE_THRESHOLD = 1;
+pub const DWRITE_OUTLINE_THRESHOLD_ANTIALIASED: DWRITE_OUTLINE_THRESHOLD = 0;
 pub type DWRITE_PARAGRAPH_ALIGNMENT = i32;
 pub const DWRITE_PARAGRAPH_ALIGNMENT_CENTER: DWRITE_PARAGRAPH_ALIGNMENT = 2;
 pub const DWRITE_PARAGRAPH_ALIGNMENT_FAR: DWRITE_PARAGRAPH_ALIGNMENT = 1;
@@ -3062,6 +3077,7 @@ pub type DXGI_MODE_ROTATION = i32;
 pub type DXGI_MODE_SCALING = i32;
 pub type DXGI_MODE_SCANLINE_ORDER = i32;
 pub const DXGI_MWA_NO_ALT_ENTER: i32 = 2;
+pub const DXGI_MWA_NO_WINDOW_CHANGES: i32 = 1;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DXGI_OUTPUT_DESC {
@@ -3516,6 +3532,7 @@ pub struct EVENT_TRACE_HEADER_3_1 {
     pub ClientContext: u32,
     pub Flags: u32,
 }
+pub const EVENT_TRACE_INDEPENDENT_SESSION_MODE: i32 = 134217728;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct EVENT_TRACE_LOGFILEW {
@@ -6055,9 +6072,9 @@ impl ID3D12InfoQueue {
             )
         }
     }
-    pub unsafe fn GetNumStoredMessages(&self) -> u64 {
+    pub unsafe fn GetNumStoredMessagesAllowedByRetrievalFilter(&self) -> u64 {
         unsafe {
-            (windows_core::Interface::vtable(self).GetNumStoredMessages)(
+            (windows_core::Interface::vtable(self).GetNumStoredMessagesAllowedByRetrievalFilter)(
                 windows_core::Interface::as_raw(self),
             )
         }
@@ -6076,8 +6093,9 @@ pub struct ID3D12InfoQueue_Vtbl {
     ) -> windows_core::HRESULT,
     GetNumMessagesAllowedByStorageFilter: usize,
     GetNumMessagesDeniedByStorageFilter: usize,
-    pub GetNumStoredMessages: unsafe extern "system" fn(*mut core::ffi::c_void) -> u64,
-    GetNumStoredMessagesAllowedByRetrievalFilter: usize,
+    GetNumStoredMessages: usize,
+    pub GetNumStoredMessagesAllowedByRetrievalFilter:
+        unsafe extern "system" fn(*mut core::ffi::c_void) -> u64,
     GetNumMessagesDiscardedByMessageCountLimit: usize,
     GetMessageCountLimit: usize,
     AddStorageFilterEntries: usize,
@@ -6770,6 +6788,108 @@ pub struct IDWriteFontFace_Vtbl {
 }
 impl windows_core::RuntimeName for IDWriteFontFace {}
 windows_core::imp::define_interface!(
+    IDWriteFontFace1,
+    IDWriteFontFace1_Vtbl,
+    0xa71efdb4_9fdb_4838_ad90_cfc3be8c3daf
+);
+impl core::ops::Deref for IDWriteFontFace1 {
+    type Target = IDWriteFontFace;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(IDWriteFontFace1, windows_core::IUnknown, IDWriteFontFace);
+#[repr(C)]
+pub struct IDWriteFontFace1_Vtbl {
+    pub base__: IDWriteFontFace_Vtbl,
+    GetMetrics: usize,
+    GetGdiCompatibleMetrics: usize,
+    GetCaretMetrics: usize,
+    GetUnicodeRanges: usize,
+    IsMonospacedFont: usize,
+    GetDesignGlyphAdvances: usize,
+    GetGdiCompatibleGlyphAdvances: usize,
+    GetKerningPairAdjustments: usize,
+    HasKerningPairs: usize,
+    GetRecommendedRenderingMode: usize,
+    GetVerticalGlyphVariants: usize,
+    HasVerticalGlyphVariants: usize,
+}
+impl windows_core::RuntimeName for IDWriteFontFace1 {}
+windows_core::imp::define_interface!(
+    IDWriteFontFace2,
+    IDWriteFontFace2_Vtbl,
+    0xd8b768ff_64bc_4e66_982b_ec8e87f693f7
+);
+impl core::ops::Deref for IDWriteFontFace2 {
+    type Target = IDWriteFontFace1;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+windows_core::imp::interface_hierarchy!(
+    IDWriteFontFace2,
+    windows_core::IUnknown,
+    IDWriteFontFace,
+    IDWriteFontFace1
+);
+impl IDWriteFontFace2 {
+    pub unsafe fn GetRecommendedRenderingMode<P7>(
+        &self,
+        fontemsize: f32,
+        dpix: f32,
+        dpiy: f32,
+        transform: Option<*const DWRITE_MATRIX>,
+        issideways: bool,
+        outlinethreshold: DWRITE_OUTLINE_THRESHOLD,
+        measuringmode: DWRITE_MEASURING_MODE,
+        renderingparams: P7,
+        renderingmode: *mut DWRITE_RENDERING_MODE,
+        gridfitmode: *mut DWRITE_GRID_FIT_MODE,
+    ) -> windows_core::HRESULT
+    where
+        P7: windows_core::Param<IDWriteRenderingParams>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).GetRecommendedRenderingMode)(
+                windows_core::Interface::as_raw(self),
+                fontemsize,
+                dpix,
+                dpiy,
+                transform.unwrap_or(core::mem::zeroed()) as _,
+                issideways.into(),
+                outlinethreshold,
+                measuringmode,
+                renderingparams.param().abi(),
+                renderingmode as _,
+                gridfitmode as _,
+            )
+        }
+    }
+}
+#[repr(C)]
+pub struct IDWriteFontFace2_Vtbl {
+    pub base__: IDWriteFontFace1_Vtbl,
+    IsColorFont: usize,
+    GetColorPaletteCount: usize,
+    GetPaletteEntryCount: usize,
+    GetPaletteEntries: usize,
+    pub GetRecommendedRenderingMode: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        f32,
+        f32,
+        f32,
+        *const DWRITE_MATRIX,
+        windows_core::BOOL,
+        DWRITE_OUTLINE_THRESHOLD,
+        DWRITE_MEASURING_MODE,
+        *mut core::ffi::c_void,
+        *mut DWRITE_RENDERING_MODE,
+        *mut DWRITE_GRID_FIT_MODE,
+    ) -> windows_core::HRESULT,
+}
+impl windows_core::RuntimeName for IDWriteFontFace2 {}
+windows_core::imp::define_interface!(
     IDWriteFontFamily,
     IDWriteFontFamily_Vtbl,
     0xda20d8ef_812a_4c43_9802_62ec4abd7add
@@ -7063,6 +7183,22 @@ impl IDWritePixelSnapping_Vtbl {
     }
 }
 impl windows_core::RuntimeName for IDWritePixelSnapping {}
+windows_core::imp::define_interface!(
+    IDWriteRenderingParams,
+    IDWriteRenderingParams_Vtbl,
+    0x2f0da53a_2add_47cd_82ee_d9ec34688e75
+);
+windows_core::imp::interface_hierarchy!(IDWriteRenderingParams, windows_core::IUnknown);
+#[repr(C)]
+pub struct IDWriteRenderingParams_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    GetGamma: usize,
+    GetEnhancedContrast: usize,
+    GetClearTypeLevel: usize,
+    GetPixelGeometry: usize,
+    GetRenderingMode: usize,
+}
+impl windows_core::RuntimeName for IDWriteRenderingParams {}
 windows_core::imp::define_interface!(
     IDWriteTextFormat,
     IDWriteTextFormat_Vtbl,

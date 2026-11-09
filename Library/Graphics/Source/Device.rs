@@ -260,7 +260,7 @@ impl Gpu {
         };
         let mut errors = 0;
         unsafe {
-            for index in 0..queue.GetNumStoredMessages() {
+            for index in 0..queue.GetNumStoredMessagesAllowedByRetrievalFilter() {
                 let mut length = 0;
                 if queue.GetMessage(index, None, &mut length).is_err() || length == 0 {
                     continue;
