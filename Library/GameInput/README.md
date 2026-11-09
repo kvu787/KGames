@@ -1,36 +1,18 @@
-# GameInput
+# Description
 
-Microsoft's [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview)
-API for KGames: hand-written bindings for its version 4, and a loader for the one runtime that
-KGames uses, version 4.0.306, installed with Microsoft's `GameInputRedist.msi`.
-[GameInputDemo](../../Program/GameInputDemo/README.md) shows everything it reads, and
-[Library/UserInterface](../UserInterface/README.md) reads all of every program's input with it:
-keyboards, mice and gamepads.
+This is a Rust wrapper for Microsoft GameInput version 4.0.306.
 
-## Installing GameInput
+Microsoft docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 
-KGames needs GameInput 4.0.306, installed once, from an elevated prompt, with:
+# Prerequisites
+
+Before using this crate, you must install GameInput 4.0.306 with this:
 
 ```powershell
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
-winget runs the same `GameInputRedist.msi` that the
-[Microsoft.GameInput](https://www.nuget.org/packages/Microsoft.GameInput) NuGet package has in
-its `redist` folder, so running that MSI installs it too. Installing it is up to you. Nothing in
-KGames installs it, or fetches a runtime of its own.
-
-Without it, or with another version of it, like a newer one that another game's installer or
-`winget upgrade` put in, KGames doesn't build: `Build.rs` fails, and says why. A program doesn't
-start without it either, and says why on standard error. The MSI doesn't replace a newer version,
-so uninstall that one first.
-
-Cargo only runs `Build.rs` again when it changes, when the DLL goes, or when the DLL's modified
-time is newer than its last run. The MSI keeps the time that Microsoft built the DLL, so another
-version installed after a build that passed may not fail the next build. Programs still check as
-they start, so they don't start with it.
-
-## How it works
+# How it works
 
 GameInput has two parts: a header that a game compiles against, and a runtime DLL.
 
@@ -70,7 +52,7 @@ loaded, Windows keeps it from being written.
 The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
 each program that reads keyboards and mice.
 
-## Updating GameInput
+# Updating GameInput
 
 1. Set `VERSION` and `INSTALL_COMMAND` in `Source/Installation.rs`, and the command in
    [AGENTS.md](../../AGENTS.md), the root [README](../../README.md), this file and
@@ -80,12 +62,12 @@ each program that reads keyboards and mice.
    interface IDs and vtables to match, and update this file. To read the header, extract the
    `.nupkg`, which is a zip file, into `Packages`, which Git ignores.
 
-## Using more APIs
+# Using more APIs
 
 Add GameInput APIs to `Source/Library.rs` by hand: replace the method's
 `usize` placeholder in the vtable with its function pointer type, and add a method that calls it.
 
-## Layout
+# Layout
 
 | Path                     | Contents                                                                    |
 | ------------------------ | --------------------------------------------------------------------------- |
