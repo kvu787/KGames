@@ -20,10 +20,11 @@ winget runs the same `GameInputRedist.msi` that the
 its `redist` folder, so running that MSI installs it too. Installing it is up to you. Nothing in
 KGames installs it, or fetches a runtime of its own.
 
-Without it, KGames doesn't build: `Build.rs` fails, and says why. A program built before it was
-uninstalled doesn't start, and says why on standard error. Both say so when another version is
-installed instead, too, like a newer one that another game's installer put in. The MSI doesn't
-replace a newer version, so uninstall that one first.
+Without it, KGames doesn't build: `Build.rs` fails, and says why. A program doesn't start without
+it either, and says why on standard error, nor with another version of it, like a newer one that
+another game's installer or `winget upgrade` put in. The build doesn't check the version, so that
+happens after a build that passed. The MSI doesn't replace a newer version, so uninstall that one
+first.
 
 ## How it works
 
@@ -48,26 +49,25 @@ GameInput's service doesn't manage its input focus, as
 [Microsoft's documentation](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-agility-redistributable#limitations)
 says.
 
-KGames takes only the installed one. `Source/Installation.rs` asks Windows Installer whether
-`GameInputRedist.msi` 4.0.306's product is installed, and where it put the x64
-`GameInputRedist.dll`, in `C:\Program Files\Microsoft GameInput\x64`, and checks that the DLL's
-version is 4.0.306.0. `game_input::create` loads it from there, and returns its path and version
-with the API. `Build.rs` runs the same check, so the build fails where a program wouldn't start.
+KGames takes only the installed one, at
+`C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll`, where `GameInputRedist.msi` puts
+it. `Source/Installation.rs` checks that it's there, with the standard library alone, and
+`Build.rs` includes it, so the build fails without it. `game_input::installed_runtime` also checks
+that the DLL's version is 4.0.306.0, and every program calls it as it starts, even in a scripted
+run or with `--no-input`. `game_input::create` calls it too, then loads the DLL, and returns its
+path and version with the API. The build doesn't check the version, because reading it takes
+Windows' API, which a build script would have to build a second time.
 
 The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
 each program that reads keyboards and mice.
 
 ## Updating GameInput
 
-1. Read the new version's `GameInputRedist.msi`: the `ProductCode` in its `Property` table, and the
-   `ComponentId` of the component whose key path is the x64 `GameInputRedist.dll`, in its
-   `Component` table. Orca, from the Windows SDK, shows them, or PowerShell, with the
-   `WindowsInstaller.Installer` COM object.
-2. Set `VERSION`, `PRODUCT_CODE`, `RUNTIME_COMPONENT` and `INSTALL_COMMAND` in
-   `Source/Installation.rs`, and the command in [AGENTS.md](../../AGENTS.md), the root
-   [README](../../README.md), this file and [GameInputDemo](../../Program/GameInputDemo/README.md)'s.
-   `Test/GameInput` checks that they all give it.
-3. If the package has a new API version, compare its header with `Source/Library.rs`, change the
+1. Set `VERSION` in `Source/Library.rs` and `INSTALL_COMMAND` in `Source/Installation.rs`, and the
+   command in [AGENTS.md](../../AGENTS.md), the root [README](../../README.md), this file and
+   [GameInputDemo](../../Program/GameInputDemo/README.md)'s. `Test/GameInput` checks that they all
+   give it.
+2. If the package has a new API version, compare its header with `Source/Library.rs`, change the
    interface IDs and vtables to match, and update this file. To read the header, extract the
    `.nupkg`, which is a zip file, into `Packages`, which Git ignores.
 
@@ -80,7 +80,7 @@ Add GameInput APIs to `Source/Library.rs` by hand: replace the method's
 
 | Path                     | Contents                                                                    |
 | ------------------------ | --------------------------------------------------------------------------- |
-| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader for the runtime DLL      |
-| `Source/Installation.rs` | Finds GameInput 4.0.306's runtime where `GameInputRedist.msi` installed it  |
-| `Build.rs`               | Fails the build unless GameInput 4.0.306 is installed                       |
+| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader that checks the version  |
+| `Source/Installation.rs` | Where the runtime DLL is installed, and the check that it's there           |
+| `Build.rs`               | Fails the build unless the runtime DLL is installed                         |
 | `Packages`               | A NuGet package you extract to read its headers; not in Git                 |

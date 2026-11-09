@@ -1,20 +1,22 @@
 // Library/GameInput: that KGames uses GameInput 4.0.306's runtime from where
-// GameInputRedist.msi installed it, and no other, and that it says how to
+// GameInputRedist.msi installs it, and no other, and that it says how to
 // install it where it isn't installed. KGames doesn't build without it, so
 // these run where it's installed.
 
 use std::path::{Path, PathBuf};
 
-use game_input::installation::{self, INSTALL_COMMAND, VERSION};
+use game_input::VERSION;
+use game_input::installation::{self, INSTALL_COMMAND, RUNTIME};
 
 // The command that the user installs GameInput with, which is theirs to run.
 const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306""#;
 
 #[test]
-fn the_runtime_is_4_0_306_where_the_msi_installed_it() {
+fn the_runtime_is_4_0_306_where_the_msi_installs_it() {
     assert_eq!(VERSION, [4, 0, 306, 0]);
-    let path = installation::runtime_path().unwrap();
-    assert!(path.ends_with(r"Microsoft GameInput\x64\GameInputRedist.dll"), "{}", path.display());
+    assert_eq!(RUNTIME, r"C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll");
+    let path = game_input::installed_runtime().unwrap();
+    assert_eq!(path, Path::new(RUNTIME));
 
     let (_game_input, runtime) = game_input::create().unwrap();
     assert_eq!(runtime.path, path);
@@ -25,27 +27,31 @@ fn the_runtime_is_4_0_306_where_the_msi_installed_it() {
 // exe over an installed one of the same version. KGames' never does.
 #[test]
 fn a_runtime_beside_the_exe_is_never_loaded() {
-    let installed = installation::runtime_path().unwrap();
     let beside = std::env::current_exe().unwrap().with_file_name("GameInputRedist.dll");
-    std::fs::copy(&installed, &beside).unwrap();
+    std::fs::copy(RUNTIME, &beside).unwrap();
     let _removed = RemovedOnDrop(beside);
 
     let (_game_input, runtime) = game_input::create().unwrap();
-    assert_eq!(runtime.path, installed);
+    assert_eq!(runtime.path, Path::new(RUNTIME));
 }
 
 #[test]
 fn without_4_0_306_it_says_how_to_install_it() {
     assert_eq!(INSTALL_COMMAND, USERS_COMMAND);
 
-    let message = installation::not_installed_message(&[]);
+    let message = installation::not_installed_message();
     assert!(message.contains("GameInput 4.0.306 isn't installed") && message.contains(USERS_COMMAND), "{message}");
 
-    // Another program's installer may have put in a newer version, which
-    // GameInputRedist.msi 4.0.306 doesn't replace.
-    let message = installation::not_installed_message(&["4.1.0.0".to_string()]);
-    assert!(message.contains("GameInput 4.1.0.0 is installed"), "{message}");
-    assert!(message.contains(USERS_COMMAND) && message.contains("uninstall a newer one first"), "{message}");
+    // A newer version, like one that another program's installer put in,
+    // which GameInputRedist.msi 4.0.306 doesn't replace.
+    let message = game_input::wrong_version_message(Some([4, 1, 0, 0]));
+    assert!(message.contains("is GameInput 4.1.0.0") && message.contains("uninstall Microsoft GameInput first"), "{message}");
+    assert!(message.contains(USERS_COMMAND), "{message}");
+
+    // An older one, which it does replace.
+    let message = game_input::wrong_version_message(Some([4, 0, 300, 0]));
+    assert!(message.contains("is GameInput 4.0.300.0") && !message.contains("uninstall"), "{message}");
+    assert!(message.contains(USERS_COMMAND), "{message}");
 }
 
 // The documentation that tells people and agents to install GameInput gives

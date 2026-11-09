@@ -1,6 +1,6 @@
 // Hand-written bindings for the GameInput v4 API, transcribed from
 // native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package, of
-// the version that Installation.rs requires. GameInput isn't in the Windows
+// the version that VERSION, below, requires. GameInput isn't in the Windows
 // metadata that windows-bindgen reads, so this file copies the shape of its
 // output instead, and keeps GameInput's native names.
 //
@@ -14,10 +14,10 @@
 pub mod installation;
 
 use core::ffi::c_void;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use windows_api::*;
-use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s};
+use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s, w};
 
 pub type GameInputKind = i32;
 pub const GameInputKindUnknown: GameInputKind = 0x00000000;
@@ -622,17 +622,57 @@ pub struct Runtime {
     pub version: [u16; 4],
 }
 
-// Loads GameInput 4.0.306's runtime from where GameInputRedist.msi installed
-// it, and no other runtime (see Installation.rs), or says what's wrong, and
-// how to install it. Microsoft's own loader, GameInputInitialize in
-// native/src/GameInput.cpp in the NuGet package, which C++ games get by
-// linking GameInput.lib, takes the newest of Windows' GameInput.dll, an
-// installed GameInputRedist.dll and one beside the exe, and the one beside
-// the exe on a tie. This one takes only the installed one.
-pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
+// The runtime's version, as its DLL's file version says it.
+pub const VERSION: [u16; 4] = [4, 0, 306, 0];
+
+// The installed runtime's DLL (see Installation.rs), once its version is
+// VERSION, or what's wrong, and how to install it. Every program checks this
+// as it starts.
+pub fn installed_runtime() -> core::result::Result<PathBuf, String> {
     let path = installation::runtime_path()?;
+    match file_version(&path) {
+        Some(version) if version == VERSION => Ok(path),
+        version => Err(wrong_version_message(version)),
+    }
+}
+
+// What a program says when the installed DLL's version isn't VERSION, given
+// its version, if it has one.
+pub fn wrong_version_message(version: Option<[u16; 4]>) -> String {
+    let runtime = installation::RUNTIME;
+    let command = installation::INSTALL_COMMAND;
+    let dotted = |version: [u16; 4]| version.map(|part| part.to_string()).join(".");
+    let needed = dotted(VERSION);
+    match version {
+        Some(version) if version > VERSION => format!(
+            "{runtime} is GameInput {}, but KGames needs exactly {needed}. GameInputRedist.msi doesn't \
+             replace a newer version, so uninstall Microsoft GameInput first, then install {needed}, from an \
+             elevated prompt, with: {command}",
+            dotted(version)
+        ),
+        Some(version) => format!(
+            "{runtime} is GameInput {}, but KGames needs exactly {needed}. Install it, from an elevated \
+             prompt, with: {command}",
+            dotted(version)
+        ),
+        None => format!(
+            "{runtime} has no version, but KGames needs GameInput {needed}. Uninstall Microsoft GameInput, \
+             then install it again, from an elevated prompt, with: {command}"
+        ),
+    }
+}
+
+// Loads GameInput 4.0.306's runtime from where GameInputRedist.msi installed
+// it, and no other runtime, or says what's wrong, and how to install it.
+// Microsoft's own loader, GameInputInitialize in native/src/GameInput.cpp in
+// the NuGet package, which C++ games get by linking GameInput.lib, takes the
+// newest of Windows' GameInput.dll, an installed GameInputRedist.dll and one
+// beside the exe, and the one beside the exe on a tie. This one takes only
+// the installed one.
+pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
+    let path = installed_runtime()?;
     unsafe {
-        let module = LoadLibraryW(PCWSTR(installation::wide(&path).as_ptr()));
+        let module = LoadLibraryW(PCWSTR(wide(&path).as_ptr()));
         if module.0.is_null() {
             let error = Error::from_thread();
             return Err(format!("Couldn't load {}: {} ({})", path.display(), error.message(), error.code()));
@@ -649,6 +689,41 @@ pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
             .and_then(|| windows_core::imp::Type::from_abi(result))
             .map_err(|error| format!("{} couldn't start GameInput: {} ({})", path.display(), error.message(), error.code()))?;
 
-        Ok((game_input, Runtime { path, version: installation::VERSION }))
+        Ok((game_input, Runtime { path, version: VERSION }))
     }
+}
+
+// The file version from a DLL's version resource, as major, minor, build and
+// revision.
+fn file_version(path: &Path) -> Option<[u16; 4]> {
+    let path = wide(path);
+    let path = PCWSTR(path.as_ptr());
+    unsafe {
+        let size = GetFileVersionInfoSizeW(path, None);
+        if size == 0 {
+            return None;
+        }
+        let mut data = vec![0u8; size as usize];
+        if !GetFileVersionInfoW(path, None, size, data.as_mut_ptr().cast()).as_bool() {
+            return None;
+        }
+        let mut info: *mut c_void = core::ptr::null_mut();
+        let mut length = 0u32;
+        if !VerQueryValueW(data.as_ptr().cast(), w!(r"\"), &mut info, &mut length).as_bool() {
+            return None;
+        }
+        let info = &*(info as *const VS_FIXEDFILEINFO);
+        Some([
+            (info.dwFileVersionMS >> 16) as u16,
+            info.dwFileVersionMS as u16,
+            (info.dwFileVersionLS >> 16) as u16,
+            info.dwFileVersionLS as u16,
+        ])
+    }
+}
+
+// A path as a zero-terminated wide string, for Windows' functions.
+fn wide(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    path.as_os_str().encode_wide().chain([0]).collect()
 }
