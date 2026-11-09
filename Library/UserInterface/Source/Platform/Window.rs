@@ -13,6 +13,9 @@
 //   or the displays, their scale or the taskbar change.
 // - Its title bar is dark in the dark theme, as Windows 11's apps' are.
 
+use std::cell::Cell;
+use std::ptr::NonNull;
+
 use windows_api::*;
 use windows_core::{BOOL, Error, PCWSTR, Result, w};
 
@@ -52,20 +55,44 @@ pub struct FocusChange {
 }
 
 // What the window procedure shares with the window, by GWLP_USERDATA.
+//
+// The window procedure runs inside the Windows calls that send the window
+// messages, while one of the window's methods is running, like
+// DispatchMessageW in `pump`, SetWindowPos in `apply_mode` and `show`,
+// ShowWindow, SetCapture and ReleaseCapture. It runs inside its own calls
+// too, like ReleaseCapture and DefWindowProcW. So both only ever hold
+// `&Shared`, which may overlap, and change it through its cells. A
+// `&mut Shared` on either side would alias the other's reference, which is
+// undefined behavior even when it works.
 struct Shared {
-    focus_changes: Vec<FocusChange>,
-    focused: bool,
-    minimized: bool,
-    close_requested: bool,
-    setup_changed: bool,
+    focus_changes: Cell<Vec<FocusChange>>,
+    focused: Cell<bool>,
+    minimized: Cell<bool>,
+    close_requested: Cell<bool>,
+    setup_changed: Cell<bool>,
     // Whether the cursor was on the client area when last asked.
-    cursor_inside: bool,
-    cursor: HCURSOR,
+    cursor_inside: Cell<bool>,
+    cursor: Cell<HCURSOR>,
+}
+
+impl Shared {
+    // The window got focus, or lost it, now.
+    fn focus_changed(&self, gained: bool) {
+        let time = clock::now();
+        self.focused.set(gained);
+        let mut changes = self.focus_changes.take();
+        changes.push(FocusChange { time, gained });
+        self.focus_changes.set(changes);
+    }
 }
 
 pub struct Window {
     hwnd: HWND,
-    shared: Box<Shared>,
+    // From Box::into_raw, not a Box, which claims its contents as uniquely as
+    // a `&mut` does: writing through it, or moving the Window, would
+    // invalidate GWLP_USERDATA's copy, which the window procedure goes on
+    // using. Drop frees it, after the window is destroyed.
+    shared: NonNull<Shared>,
     mode: WindowMode,
     cursors: [HCURSOR; CURSORS.len()],
     dark_title_bar: Option<bool>,
@@ -148,16 +175,17 @@ impl Window {
                 IDC_NO,
             ]
             .map(|cursor| LoadCursorW(None, cursor));
-            let mut shared = Box::new(Shared {
-                focus_changes: Vec::new(),
-                focused: false,
-                minimized: false,
-                close_requested: false,
-                setup_changed: true,
-                cursor_inside: false,
-                cursor: cursors[0],
+            let shared = Box::new(Shared {
+                focus_changes: Cell::new(Vec::new()),
+                focused: Cell::new(false),
+                minimized: Cell::new(false),
+                close_requested: Cell::new(false),
+                setup_changed: Cell::new(true),
+                cursor_inside: Cell::new(false),
+                cursor: Cell::new(cursors[0]),
             });
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, &mut *shared as *mut Shared as isize);
+            let shared = NonNull::new_unchecked(Box::into_raw(shared));
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as isize);
             Window {
                 hwnd,
                 shared,
@@ -170,6 +198,11 @@ impl Window {
 
     pub fn hwnd(&self) -> HWND {
         self.hwnd
+    }
+
+    fn shared(&self) -> &Shared {
+        // Freed only by Drop.
+        unsafe { self.shared.as_ref() }
     }
 
     // Shows the window. Without `activate`, it opens beneath the others,
@@ -235,7 +268,7 @@ impl Window {
             SetWindowLongPtrW(self.hwnd, GWL_STYLE, style as isize);
             let _ = SetWindowPos(self.hwnd, None, area.left, area.top, area.right - area.left, area.bottom - area.top, flags);
         }
-        self.shared.setup_changed = true;
+        self.shared().setup_changed.set(true);
     }
 
     // Dark or light, as the theme is, like the title bars of Windows 11's
@@ -270,7 +303,7 @@ impl Window {
                 DispatchMessageW(&message);
             }
         }
-        !self.shared.close_requested
+        !self.shared().close_requested.get()
     }
 
     // Waits for a message, like while the window is minimized.
@@ -289,7 +322,7 @@ impl Window {
 
     // The focus changes since the last call, oldest first.
     pub fn take_focus_changes(&mut self) -> Vec<FocusChange> {
-        std::mem::take(&mut self.shared.focus_changes)
+        self.shared().focus_changes.take()
     }
 
     // Where Windows' cursor is, in the client area's pixels, and whether it's
@@ -302,7 +335,7 @@ impl Window {
             let _ = ScreenToClient(self.hwnd, &mut point);
             let (width, height) = self.client_size();
             let inside = over && point.x >= 0 && point.y >= 0 && (point.x as u32) < width && (point.y as u32) < height;
-            self.shared.cursor_inside = inside;
+            self.shared().cursor_inside.set(inside);
             (Point::new(point.x as f32, point.y as f32), inside)
         }
     }
@@ -326,22 +359,22 @@ impl Window {
     }
 
     pub fn focused(&self) -> bool {
-        self.shared.focused
+        self.shared().focused.get()
     }
 
     pub fn minimized(&self) -> bool {
-        self.shared.minimized
+        self.shared().minimized.get()
     }
 
     // Whether it was asked to close, like by its close button or Alt+F4.
     pub fn close_requested(&self) -> bool {
-        self.shared.close_requested
+        self.shared().close_requested.get()
     }
 
     // Keeps the window open after all, when the program says it may not
     // close yet.
     pub fn cancel_close(&mut self) {
-        self.shared.close_requested = false;
+        self.shared().close_requested.set(false);
     }
 
     pub fn client_size(&self) -> (u32, u32) {
@@ -366,10 +399,11 @@ impl Window {
     pub fn set_cursor(&mut self, cursor: Cursor) {
         let index = CURSORS.iter().position(|known| *known == cursor).unwrap_or(0);
         let cursor = self.cursors[index];
-        if self.shared.cursor != cursor {
-            self.shared.cursor = cursor;
+        let shared = self.shared();
+        if shared.cursor.get() != cursor {
+            shared.cursor.set(cursor);
             // The pointer may be still, so set it now, not at its next move.
-            if self.shared.focused && self.shared.cursor_inside {
+            if shared.focused.get() && shared.cursor_inside.get() {
                 unsafe {
                     SetCursor(Some(cursor));
                 }
@@ -379,7 +413,7 @@ impl Window {
 
     // Whether the setup may have changed since the last call.
     pub fn take_setup_changed(&mut self) -> bool {
-        std::mem::replace(&mut self.shared.setup_changed, false)
+        self.shared().setup_changed.replace(false)
     }
 
     // What's wrong with the setup, if anything. Programs support only a
@@ -436,6 +470,9 @@ impl Drop for Window {
         unsafe {
             SetWindowLongPtrW(self.hwnd, GWLP_USERDATA, 0);
             let _ = DestroyWindow(self.hwnd);
+            // Nothing can read it now: the window procedure finds no pointer,
+            // and the window is gone.
+            drop(Box::from_raw(self.shared.as_ptr()));
         }
     }
 }
@@ -512,27 +549,20 @@ fn low_word(value: isize) -> i32 {
 
 unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
-        let shared = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Shared;
+        let shared = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const Shared;
         if shared.is_null() {
             return DefWindowProcW(hwnd, message, wparam, lparam);
         }
-        let shared = &mut *shared;
+        // Shared, never unique: see Shared.
+        let shared = &*shared;
         let message = message as i32;
         match message {
             WM_SETFOCUS => {
-                shared.focused = true;
-                shared.focus_changes.push(FocusChange {
-                    time: clock::now(),
-                    gained: true,
-                });
+                shared.focus_changed(true);
                 LRESULT(0)
             }
             WM_KILLFOCUS => {
-                shared.focused = false;
-                shared.focus_changes.push(FocusChange {
-                    time: clock::now(),
-                    gained: false,
-                });
+                shared.focus_changed(false);
                 let _ = ReleaseCapture();
                 LRESULT(0)
             }
@@ -546,24 +576,24 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             }
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    SetCursor(Some(shared.cursor));
+                    SetCursor(Some(shared.cursor.get()));
                     LRESULT(1)
                 } else {
                     DefWindowProcW(hwnd, message as u32, wparam, lparam)
                 }
             }
             WM_SIZE => {
-                shared.minimized = wparam.0 as i32 == SIZE_MINIMIZED;
-                shared.setup_changed = true;
+                shared.minimized.set(wparam.0 as i32 == SIZE_MINIMIZED);
+                shared.setup_changed.set(true);
                 LRESULT(0)
             }
             WM_MOVE | WM_DISPLAYCHANGE | WM_SETTINGCHANGE => {
-                shared.setup_changed = true;
+                shared.setup_changed.set(true);
                 DefWindowProcW(hwnd, message as u32, wparam, lparam)
             }
             WM_DPICHANGED => {
                 // It keeps its size: the check says what's wrong instead.
-                shared.setup_changed = true;
+                shared.setup_changed.set(true);
                 LRESULT(0)
             }
             WM_ERASEBKGND => LRESULT(1),
@@ -572,7 +602,7 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 LRESULT(0)
             }
             WM_CLOSE => {
-                shared.close_requested = true;
+                shared.close_requested.set(true);
                 LRESULT(0)
             }
             _ => DefWindowProcW(hwnd, message as u32, wparam, lparam),
