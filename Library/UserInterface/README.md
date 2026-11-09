@@ -201,7 +201,9 @@ program needs GameInput 4.0.306 installed, as that README says, and doesn't star
 even in a scripted run or with `--no-input`, which don't read it. `Platform/InputDevices.rs`
 reads every device's readings once a frame, right before the frame, and `Input/Reader.rs` turns
 them into the interface's events, in the order they happened, with the window's focus changes
-between them. The window's messages bring none of it.
+between them. The window's messages bring none of it. The library turns on GameInput's background
+input, which GameInput otherwise gives a program only while it has focus, so that it follows the
+devices without focus too, and decides what the window takes by its own focus changes.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr

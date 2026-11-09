@@ -137,6 +137,13 @@ impl Devices {
                 return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
             }
         };
+        // By default, GameInput gives a process input only while it has
+        // focus, on GameInput's own timing. The reader follows the devices'
+        // state without focus too, so that keys and buttons already held when
+        // the window gets focus, like the click that gives it focus, count
+        // only once they're let go of, and it drops what came without focus
+        // itself, by the window's own focus changes (Input/Reader.rs).
+        unsafe { game_input.EnableBackgroundInput(true) };
         let mut devices = Devices {
             game_input,
             runtime,

@@ -245,8 +245,8 @@ that GameInput isn't available.
 
 ## How it reads input
 
-GameInput doesn't send input events. It keeps a short history of *readings*, where each reading is a
-timestamped snapshot of one device's whole state. Library/UserInterface reads every program's input
+GameInput's input isn't presses and releases. It keeps a short history of *readings*, where each
+reading is a timestamped snapshot of one device's whole state. Library/UserInterface reads every program's input
 with GameInput, once a frame, right before the frame, and the demo shows the same readings that the
 library makes its events from, from `startup.devices`. Every frame, the library:
 
@@ -273,11 +273,10 @@ its frames take, for the [input latency](../../Library/UserInterface/README.md) 
 measures.
 
 Like every KGames program, the demo only handles input while its window has focus, and the app bar
-says whether it has focus. GameInput gives gamepad input to windows without focus. It's meant to give
-keyboard and mouse input only to the window in focus, but the 4.0.306 runtime that the demo loads
-from its folder gives it to the demo without focus too, even after `EnableBackgroundInput(false)`.
-So the demo drops it all itself: readings that come while the window doesn't have focus, including
-while it's minimized, and from before it got focus. Otherwise it would show and log what's typed into
+says whether it has focus. The library turns on GameInput's background input, so that it follows
+the devices without focus too, and sees what's already held when focus comes. So the demo drops
+what comes without focus itself, by the window's own focus changes: readings that come while the
+window doesn't have focus, including while it's minimized, and from before it got focus. Otherwise it would show and log what's typed into
 other windows, and its shortcuts would run when they're pressed in other apps. When the window loses
 focus, the cards stop showing keys, buttons and sticks as held, and a gamepad that the demo switches
 to then shows at rest. The frame that restores a minimized window counts as the window getting

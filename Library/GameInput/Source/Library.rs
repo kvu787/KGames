@@ -363,6 +363,9 @@ impl IGameInput {
             (Interface::vtable(self).UnregisterCallback)(Interface::as_raw(self), callbacktoken)
         }
     }
+    pub unsafe fn EnableBackgroundInput(&self, enable: bool) {
+        unsafe { (Interface::vtable(self).EnableBackgroundInput)(Interface::as_raw(self), enable) }
+    }
 }
 #[repr(C)]
 pub struct IGameInput_Vtbl {
@@ -401,7 +404,7 @@ pub struct IGameInput_Vtbl {
     CreateDispatcher: usize,
     FindDeviceFromId: usize,
     FindDeviceFromPlatformString: usize,
-    EnableBackgroundInput: usize,
+    pub EnableBackgroundInput: unsafe extern "system" fn(*mut c_void, bool),
     CreateAggregateDevice: usize,
     DisableAggregateDevice: usize,
 }
