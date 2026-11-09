@@ -157,6 +157,14 @@ RRF_RT_REG_SZ
 RRF_SUBKEY_WOW6432KEY
 VS_FIXEDFILEINFO
 
+// Asking Windows Installer whether a product is installed, its version, and
+// where it put a component
+MsiEnumRelatedProductsW
+MsiGetComponentPathW
+MsiGetProductInfoW
+MsiQueryProductStateW
+INSTALLSTATE
+
 // Encoding PNGs with the Windows Imaging Component
 CoCreateInstance
 CoInitializeEx

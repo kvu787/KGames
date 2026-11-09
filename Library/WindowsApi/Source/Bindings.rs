@@ -599,6 +599,76 @@ pub unsafe fn MsgWaitForMultipleObjects(
     }
 }
 #[inline]
+pub unsafe fn MsiEnumRelatedProductsW<P0>(
+    lpupgradecode: P0,
+    dwreserved: Option<u32>,
+    iproductindex: u32,
+    lpproductbuf: windows_core::PWSTR,
+) -> u32
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("msi.dll" "system" fn MsiEnumRelatedProductsW(lpupgradecode : windows_core::PCWSTR, dwreserved : u32, iproductindex : u32, lpproductbuf : windows_core::PWSTR) -> u32);
+    unsafe {
+        MsiEnumRelatedProductsW(
+            lpupgradecode.param().abi(),
+            dwreserved.unwrap_or(core::mem::zeroed()) as _,
+            iproductindex,
+            lpproductbuf,
+        )
+    }
+}
+#[inline]
+pub unsafe fn MsiGetComponentPathW<P0, P1>(
+    szproduct: P0,
+    szcomponent: P1,
+    lppathbuf: Option<windows_core::PWSTR>,
+    pcchbuf: Option<*mut u32>,
+) -> INSTALLSTATE
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("msi.dll" "system" fn MsiGetComponentPathW(szproduct : windows_core::PCWSTR, szcomponent : windows_core::PCWSTR, lppathbuf : windows_core::PWSTR, pcchbuf : *mut u32) -> INSTALLSTATE);
+    unsafe {
+        MsiGetComponentPathW(
+            szproduct.param().abi(),
+            szcomponent.param().abi(),
+            lppathbuf.unwrap_or(core::mem::zeroed()) as _,
+            pcchbuf.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn MsiGetProductInfoW<P0, P1>(
+    szproduct: P0,
+    szattribute: P1,
+    lpvaluebuf: Option<windows_core::PWSTR>,
+    pcchvaluebuf: Option<*mut u32>,
+) -> u32
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+    P1: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("msi.dll" "system" fn MsiGetProductInfoW(szproduct : windows_core::PCWSTR, szattribute : windows_core::PCWSTR, lpvaluebuf : windows_core::PWSTR, pcchvaluebuf : *mut u32) -> u32);
+    unsafe {
+        MsiGetProductInfoW(
+            szproduct.param().abi(),
+            szattribute.param().abi(),
+            lpvaluebuf.unwrap_or(core::mem::zeroed()) as _,
+            pcchvaluebuf.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
+pub unsafe fn MsiQueryProductStateW<P0>(szproduct: P0) -> INSTALLSTATE
+where
+    P0: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("msi.dll" "system" fn MsiQueryProductStateW(szproduct : windows_core::PCWSTR) -> INSTALLSTATE);
+    unsafe { MsiQueryProductStateW(szproduct.param().abi()) }
+}
+#[inline]
 pub unsafe fn OpenClipboard(hwndnewowner: Option<HWND>) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn OpenClipboard(hwndnewowner : HWND) -> windows_core::BOOL);
     unsafe { OpenClipboard(hwndnewowner.unwrap_or(core::mem::zeroed()) as _) }
@@ -8439,6 +8509,21 @@ pub struct IDXGISwapChain3_Vtbl {
 }
 impl windows_core::RuntimeName for IDXGISwapChain3 {}
 pub const INFINITE: u32 = 4294967295;
+pub type INSTALLSTATE = i32;
+pub const INSTALLSTATE_ABSENT: INSTALLSTATE = 2;
+pub const INSTALLSTATE_ADVERTISED: INSTALLSTATE = 1;
+pub const INSTALLSTATE_BADCONFIG: INSTALLSTATE = -6;
+pub const INSTALLSTATE_BROKEN: INSTALLSTATE = 0;
+pub const INSTALLSTATE_DEFAULT: INSTALLSTATE = 5;
+pub const INSTALLSTATE_INCOMPLETE: INSTALLSTATE = -5;
+pub const INSTALLSTATE_INVALIDARG: INSTALLSTATE = -2;
+pub const INSTALLSTATE_LOCAL: INSTALLSTATE = 3;
+pub const INSTALLSTATE_MOREDATA: INSTALLSTATE = -3;
+pub const INSTALLSTATE_NOTUSED: INSTALLSTATE = -7;
+pub const INSTALLSTATE_REMOVED: INSTALLSTATE = 1;
+pub const INSTALLSTATE_SOURCE: INSTALLSTATE = 4;
+pub const INSTALLSTATE_SOURCEABSENT: INSTALLSTATE = -4;
+pub const INSTALLSTATE_UNKNOWN: INSTALLSTATE = -1;
 windows_core::imp::define_interface!(
     IPropertyBag2,
     IPropertyBag2_Vtbl,
