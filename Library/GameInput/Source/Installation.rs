@@ -1,9 +1,13 @@
 // Where KGames finds the one GameInput runtime that it uses: version 4.0.306,
-// which GameInputRedist.msi installs into C:\Program Files\Microsoft
-// GameInput\x64, and which the user installs, once, with INSTALL_COMMAND.
-// Nothing in KGames installs it, and nothing uses another runtime: not the
-// GameInput.dll that comes with Windows, nor a GameInputRedist.dll beside the
-// exe, which would be sideloaded, with less than an installed runtime can do.
+// which the user installs, once, with INSTALL_COMMAND. GameInputRedist.msi
+// installs it into C:\Program Files\Microsoft GameInput\x64, then runs its
+// service with /serviceconfig, which copies its DLL into System32. KGames
+// loads that copy, which is also what COM loads to carry calls to the
+// service, so that a process runs one copy of the runtime, not two (see
+// README.md). Nothing in KGames installs it, and nothing uses another runtime:
+// not the GameInput.dll that comes with Windows, nor a GameInputRedist.dll
+// beside the exe, which would be sideloaded, with less than an installed
+// runtime can do.
 //
 // installed_runtime checks that the DLL is there, and that its version is
 // VERSION, with the standard library alone, so that Build.rs can include this
@@ -19,8 +23,9 @@ use std::path::{Path, PathBuf};
 // What the user runs, from an elevated prompt, to install the runtime.
 pub const INSTALL_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306""#;
 
-// Where GameInputRedist.msi installs the x64 runtime.
-pub const RUNTIME: &str = r"C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll";
+// The installed x64 runtime's DLL, in System32, where GameInput's service
+// copies it.
+pub const RUNTIME: &str = r"C:\Windows\System32\GameInputRedist.dll";
 
 // The runtime's version, as its DLL's file version says it.
 pub const VERSION: [u16; 4] = [4, 0, 306, 0];

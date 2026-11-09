@@ -1,22 +1,30 @@
-// Library/GameInput: that KGames uses GameInput 4.0.306's runtime from where
-// GameInputRedist.msi installs it, and no other, and that it says how to
-// install it where it isn't installed. KGames doesn't build without it, so
-// these run where it's installed.
+// Library/GameInput: that KGames uses GameInput 4.0.306's installed runtime,
+// from System32, and no other, and that it says how to install it where it
+// isn't installed. KGames doesn't build without it, so these run where it's
+// installed.
 
+#[path = "Modules.rs"]
+mod modules;
+
+use core::ffi::c_void;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use game_input::installation::{self, INSTALL_COMMAND, RUNTIME, VERSION};
+use game_input::{
+    GameInputCallbackToken, GameInputDeviceEvent, GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse,
+};
 
 // The command that the user installs GameInput with, which is theirs to run.
 const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306""#;
 
 #[test]
-fn the_runtime_is_4_0_306_where_the_msi_installs_it() {
+fn the_runtime_is_4_0_306_in_system32() {
     assert_eq!(VERSION, [4, 0, 306, 0]);
-    assert_eq!(RUNTIME, r"C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll");
+    assert_eq!(RUNTIME, r"C:\Windows\System32\GameInputRedist.dll");
     let path = installation::installed_runtime().unwrap().into_path();
     assert_eq!(path, Path::new(RUNTIME));
 
@@ -48,8 +56,7 @@ fn the_version_is_read_from_the_dll_itself() {
 // The check holds the DLL open, as create loads it, so that what loads is
 // what was checked: until it lets go, no one can write, rename or delete the
 // DLL, nor rename its folder. And a DLL that's being written isn't checked.
-// Program Files takes an administrator to change at all, so this checks a
-// copy.
+// System32 takes an administrator to change at all, so this checks a copy.
 #[test]
 fn a_checked_dll_cant_change_until_its_let_go() {
     let folder = std::env::current_exe().unwrap().with_file_name(format!("HeldRuntime{}", std::process::id()));
@@ -83,6 +90,34 @@ fn a_runtime_beside_the_exe_is_never_loaded() {
 
     let (_game_input, runtime) = game_input::create().unwrap();
     assert_eq!(runtime.path, Path::new(RUNTIME));
+}
+
+// The runtime's DLL is also what COM loads to carry calls to GameInput's
+// service, from System32, where the installer registers it. The runtime
+// connects to its service on a thread of its own as it starts, which loads
+// that copy, about 5 ms in, and reports devices after that, about 600 ms in,
+// so this waits for the first device. A process that loaded another copy
+// would run two, so KGames loads System32's, and runs one.
+#[test]
+fn one_copy_of_the_runtime_runs() {
+    static REPORTED: AtomicBool = AtomicBool::new(false);
+    unsafe extern "system" fn reported(_: GameInputCallbackToken, _: *mut c_void, _: GameInputDeviceEvent, _: *mut c_void) {
+        REPORTED.store(true, Ordering::Release);
+    }
+
+    let (game_input, _runtime) = game_input::create().unwrap();
+    let kinds = GameInputKindGamepad | GameInputKindKeyboard | GameInputKindMouse;
+    let token = unsafe { game_input.RegisterDeviceCallback(None, kinds, None, Some(reported)).unwrap() };
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !REPORTED.load(Ordering::Acquire) {
+        assert!(Instant::now() < deadline, "GameInput reported no keyboard, mouse or gamepad");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(unsafe { game_input.UnregisterCallback(token) });
+
+    let loaded = modules::named("GameInputRedist.dll");
+    assert_eq!(loaded.len(), 1, "{loaded:?}");
+    assert!(modules::same(&loaded[0], Path::new(RUNTIME)), "{loaded:?}");
 }
 
 // GameInput 4.0.306's runtime crashes the process when one thread releases

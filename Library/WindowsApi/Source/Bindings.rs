@@ -525,17 +525,33 @@ where
     }
 }
 #[inline]
-pub unsafe fn LoadLibraryW<P0>(lplibfilename: P0) -> HMODULE
+pub unsafe fn LoadLibraryExW<P0>(lplibfilename: P0, hfile: Option<HANDLE>, dwflags: u32) -> HMODULE
 where
     P0: windows_core::Param<windows_core::PCWSTR>,
 {
-    windows_core::link!("kernel32.dll" "system" fn LoadLibraryW(lplibfilename : windows_core::PCWSTR) -> HMODULE);
-    unsafe { LoadLibraryW(lplibfilename.param().abi()) }
+    windows_core::link!("kernel32.dll" "system" fn LoadLibraryExW(lplibfilename : windows_core::PCWSTR, hfile : HANDLE, dwflags : u32) -> HMODULE);
+    unsafe {
+        LoadLibraryExW(
+            lplibfilename.param().abi(),
+            hfile.unwrap_or(core::mem::zeroed()) as _,
+            dwflags,
+        )
+    }
 }
 #[inline]
 pub unsafe fn MapVirtualKeyW(ucode: u32, umaptype: u32) -> u32 {
     windows_core::link!("user32.dll" "system" fn MapVirtualKeyW(ucode : u32, umaptype : u32) -> u32);
     unsafe { MapVirtualKeyW(ucode, umaptype) }
+}
+#[inline]
+pub unsafe fn Module32FirstW(hsnapshot: HANDLE, lpme: *mut MODULEENTRY32W) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn Module32FirstW(hsnapshot : HANDLE, lpme : *mut MODULEENTRY32W) -> windows_core::BOOL);
+    unsafe { Module32FirstW(hsnapshot, lpme as _) }
+}
+#[inline]
+pub unsafe fn Module32NextW(hsnapshot: HANDLE, lpme: *mut MODULEENTRY32W) -> windows_core::BOOL {
+    windows_core::link!("kernel32.dll" "system" fn Module32NextW(hsnapshot : HANDLE, lpme : *mut MODULEENTRY32W) -> windows_core::BOOL);
+    unsafe { Module32NextW(hsnapshot, lpme as _) }
 }
 #[inline]
 pub unsafe fn MonitorFromWindow(hwnd: HWND, dwflags: u32) -> HMONITOR {
@@ -8680,6 +8696,7 @@ pub struct IWICStream_Vtbl {
     InitializeFromIStreamRegion: usize,
 }
 impl windows_core::RuntimeName for IWICStream {}
+pub const LOAD_LIBRARY_SEARCH_SYSTEM32: i32 = 2048;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LPARAM(pub isize);
@@ -8698,6 +8715,25 @@ pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
 pub const MDT_RAW_DPI: MONITOR_DPI_TYPE = 2;
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MODULEENTRY32W {
+    pub dwSize: u32,
+    pub th32ModuleID: u32,
+    pub th32ProcessID: u32,
+    pub GlblcntUsage: u32,
+    pub ProccntUsage: u32,
+    pub modBaseAddr: *mut u8,
+    pub modBaseSize: u32,
+    pub hModule: HMODULE,
+    pub szModule: [u16; 256],
+    pub szExePath: [u16; 260],
+}
+impl Default for MODULEENTRY32W {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
 pub type MONITORENUMPROC = Option<
     unsafe extern "system" fn(
         param0: HMONITOR,
@@ -8935,6 +8971,7 @@ pub const TDH_INTYPE_UNICODECHAR: _TDH_IN_TYPE = 306;
 pub const TDH_INTYPE_UNICODESTRING: _TDH_IN_TYPE = 1;
 pub const TDH_INTYPE_WBEMSID: _TDH_IN_TYPE = 310;
 pub type TEMPLATE_FLAGS = i32;
+pub const TH32CS_SNAPMODULE: i32 = 8;
 pub const TH32CS_SNAPPROCESS: i32 = 2;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

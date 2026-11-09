@@ -91,6 +91,7 @@ name = "game_input_tests"
 version = "0.1.0"
 dependencies = [
  "game_input",
+ "windows_api",
 ]
 
 [[package]]

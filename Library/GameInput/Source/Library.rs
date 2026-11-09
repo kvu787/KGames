@@ -627,18 +627,25 @@ pub struct Runtime {
     pub version: [u16; 4],
 }
 
-// Loads GameInput 4.0.306's runtime from where GameInputRedist.msi installed
-// it, and no other runtime, or says what's wrong, and how to install it.
-// Microsoft's own loader, GameInputInitialize in native/src/GameInput.cpp in
-// the NuGet package, which C++ games get by linking GameInput.lib, takes the
-// newest of Windows' GameInput.dll, an installed GameInputRedist.dll and one
-// beside the exe, and the one beside the exe on a tie. This one takes only
-// the installed one.
+// Loads GameInput 4.0.306's installed runtime, from System32, where its
+// service copies it, and no other runtime, or says what's wrong, and how to
+// install it. Microsoft's own loader, GameInputInitialize in
+// native/src/GameInput.cpp in the NuGet package, which C++ games get by linking
+// GameInput.lib, takes the newest of Windows' GameInput.dll, an installed
+// GameInputRedist.dll and one beside the exe, and the one beside the exe on a
+// tie. This one takes only the installed one, from System32, as Microsoft's
+// does: COM loads that copy too, to carry calls to GameInput's service, so the
+// process runs one copy of the runtime, not two. Test/GameInput pins it.
 //
 // The DLL that loads is the one whose version was checked: installed_runtime
 // holds it open as it checks, so that no one can write, rename or delete it,
 // nor rename its folder, until it's loaded, and once it's loaded, Windows
 // keeps it from being written.
+//
+// The DLLs that the runtime imports load from System32 alone. It imports
+// HID.DLL and bcrypt.dll, which aren't known DLLs, so LoadLibraryW, which
+// Microsoft's loader uses, would look for them beside the exe first.
+// Test/GameInput/RuntimeImports.rs pins it.
 //
 // GameInput 4.0.306's runtime crashes when one thread releases the last
 // IGameInput while another creates one, so the first one that this creates is
@@ -648,7 +655,7 @@ pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
     static KEPT: OnceLock<IGameInput> = OnceLock::new();
     let checked = installation::installed_runtime()?;
     unsafe {
-        let module = LoadLibraryW(PCWSTR(wide(&checked.path).as_ptr()));
+        let module = LoadLibraryExW(PCWSTR(wide(&checked.path).as_ptr()), None, LOAD_LIBRARY_SEARCH_SYSTEM32 as u32);
         if module.0.is_null() {
             let error = Error::from_thread();
             return Err(format!("Couldn't load {}: {} ({})", checked.path.display(), error.message(), error.code()));
