@@ -256,3 +256,15 @@ fn keys_and_buttons_held_on_a_device_that_is_unplugged_are_let_go_of() {
     let frame = reader.read(&[keyboard(30, &[A])], &[], &window(None), 30);
     assert!(frame.events.contains(&Event::KeyPressed { key: Key::A, repeat: false }));
 }
+
+// Only "no reading after this one" means that there's nothing new. Any other
+// failure of GetNextReading starts over from the newest reading, so that a
+// failure that keeps coming can't stop a kind of input for good.
+#[test]
+fn only_reading_not_found_means_nothing_newer() {
+    use user_interface::{NextReadingFailure, after_next_reading_failed};
+    assert_eq!(after_next_reading_failed(GAMEINPUT_E_READING_NOT_FOUND), NextReadingFailure::NothingNewer);
+    for code in [GAMEINPUT_E_REFERENCE_READING_TOO_OLD, GAMEINPUT_E_OBJECT_NO_LONGER_EXISTS, GAMEINPUT_E_DEVICE_DISCONNECTED] {
+        assert_eq!(after_next_reading_failed(code), NextReadingFailure::FindFromNewest);
+    }
+}

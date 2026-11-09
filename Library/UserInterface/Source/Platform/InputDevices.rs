@@ -5,10 +5,11 @@
 // themselves, like GameInputDemo, read the same frame's readings and device
 // events from here, through Startup::devices, and run gamepads' motors.
 //
-// GameInput doesn't report events. It keeps a short history of readings,
-// where each reading is a snapshot of one device's whole state, with the
-// time that it came. This walks that history with GetNextReading, so that no
-// reading is missed between frames. Readings' times are GameInput's
+// GameInput's input is readings, not presses and releases: each reading is a
+// snapshot of one device's whole state, with the time that it came, and
+// GameInput keeps half a second of them. This polls that history once a
+// frame and walks it with GetNextReading, so that no reading is missed
+// between frames. Readings' times are GameInput's
 // microseconds, which `qpc` turns into the performance counter's ticks, on
 // the clock that frames and the display's flips are timed on.
 
@@ -301,15 +302,12 @@ impl Devices {
                         readings.push(next.clone());
                         last = next;
                     }
-                    // GameInput keeps readings for only a short time, so after
-                    // a pause in input the last reading handled is no longer in
-                    // its history. Find the ones after it from the newest end.
-                    Err(GAMEINPUT_E_REFERENCE_READING_TOO_OLD) => {
-                        readings.extend(self.readings_after(last.GetTimestamp(), kind));
+                    Err(code) => {
+                        if after_next_reading_failed(code) == NextReadingFailure::FindFromNewest {
+                            readings.extend(self.readings_after(last.GetTimestamp(), kind));
+                        }
                         break;
                     }
-                    // GAMEINPUT_E_READING_NOT_FOUND: nothing newer yet.
-                    Err(_) => break,
                 }
             }
             if let Some(newest) = readings.last() {
@@ -363,6 +361,31 @@ impl Devices {
         }
         readings.reverse();
         readings
+    }
+}
+
+// What GetNextReading's failure says about the readings after the last one
+// handled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NextReadingFailure {
+    // There are none yet.
+    NothingNewer,
+    // The last reading can't be walked on from, so find the ones after it
+    // from the newest end, by their times.
+    FindFromNewest,
+}
+
+// Only GAMEINPUT_E_READING_NOT_FOUND says that there's nothing newer. Any
+// other failure, like GAMEINPUT_E_REFERENCE_READING_TOO_OLD after a pause in
+// input, when the last reading handled has left GameInput's half second of
+// history, starts over from the newest reading, as Microsoft's sample for
+// GetNextReading does. Otherwise a failure that kept coming would stop that
+// kind of input for good.
+pub fn after_next_reading_failed(code: HRESULT) -> NextReadingFailure {
+    if code == GAMEINPUT_E_READING_NOT_FOUND {
+        NextReadingFailure::NothingNewer
+    } else {
+        NextReadingFailure::FindFromNewest
     }
 }
 
