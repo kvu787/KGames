@@ -629,12 +629,10 @@ impl Input {
             None => (None, Masked::default()),
         };
         // KGames programs ignore all input while their window doesn't have
-        // focus. GameInput gives gamepad input to windows without focus. It's
-        // meant to give keyboard and mouse input only to the window in focus,
-        // but GameInput 4.0.306, loaded from the exe's folder, gives that to
-        // the demo without focus too, even with EnableBackgroundInput(false).
-        // So the demo drops it all itself, along with input from before the
-        // window got focus. Otherwise it would show and log what is typed
+        // focus. The library turns on GameInput's background input, so that
+        // it follows the devices without focus too, so the demo drops what
+        // came without focus itself, along with input from before the window
+        // got focus. Otherwise it would show and log what is typed
         // into other windows, and run its shortcuts for them.
         let focused = self.focused && reading.timestamp >= self.focus_timestamp;
         let masked = if focused {

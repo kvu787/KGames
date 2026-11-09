@@ -9,11 +9,14 @@
 //
 //   $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
 //   cargo test -p present_timing_tests --test Gold -- --ignored --nocapture
+//
+// It also tests, without traces, that read_file takes only a trace whose
+// events are timed on the performance counter.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
-use present_timing::{PresentMode, read_file};
+use present_timing::{PresentMode, file_clock, read_file};
 
 const CASES: usize = 6;
 
@@ -118,4 +121,15 @@ fn presents_are_the_same_as_presentmons_on_its_gold_traces() {
         println!("{mismatch}");
     }
     assert!(mismatches.is_empty(), "{} presents differ from PresentMon's", mismatches.len());
+}
+
+// A trace file's header says which clock its events are timed on, in
+// ReservedFlags: 1 for the performance counter, which read_file's times are
+// on, 2 for the system time, and 3 for the CPU's cycles, which it refuses.
+#[test]
+fn only_a_trace_timed_on_the_performance_counter_is_read() {
+    assert_eq!(file_clock(1, 10_000_000), Ok(10_000_000));
+    assert!(file_clock(1, 0).is_err());
+    assert!(file_clock(2, 10_000_000).is_err());
+    assert!(file_clock(3, 10_000_000).is_err());
 }

@@ -6,6 +6,10 @@
     <application>
       <!-- Windows 10 and 11 -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- The newest Windows the app was tested on, which the Windows App SDK asks unpackaged apps
+           to declare, matching TargetPlatformMinVersion. Windows doesn't know of versions newer
+           than itself, so this keeps the app to Windows 11 22H2 and later. -->
+      <maxversiontested Id="10.0.22621.0" />
     </application>
   </compatibility>
 

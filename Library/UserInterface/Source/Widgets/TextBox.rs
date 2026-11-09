@@ -384,8 +384,10 @@ pub(crate) fn field_interact<M>(text: &str, settings: &FieldSettings, interactio
                 Key::C | Key::X if modifiers == Modifiers::CONTROL && editing.has_selection() => {
                     let (start, end) = editing.selection();
                     let copied = text[start..end].to_string();
-                    ctx.clipboard().set_text(&copied);
-                    if key == Key::X {
+                    // A cut takes the text away only once it's on the
+                    // clipboard, so that a clipboard that another program
+                    // holds open doesn't lose it.
+                    if ctx.clipboard().set_text(&copied) && key == Key::X {
                         replace_selection(&mut text, &mut editing, "");
                     }
                     moved = true;

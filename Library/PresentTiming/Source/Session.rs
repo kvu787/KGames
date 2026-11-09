@@ -29,18 +29,29 @@ use crate::events::PROVIDERS;
 // shortest period that Intel's PresentMon service allows, and its overlay's.
 const FLUSH_PERIOD: Duration = Duration::from_millis(8);
 
-// EVENT_TRACE_PROPERTIES, with room for the session's name after it.
+// EVENT_TRACE_PROPERTIES, with room after it for the session's name and its
+// log file's, as long as the ones that QueryAllTraces's sample makes room for.
 #[repr(C)]
 struct Properties {
     properties: EVENT_TRACE_PROPERTIES,
-    name: [u16; 260],
+    name: [u16; 1024],
+    log_file: [u16; 1024],
 }
 
 impl Properties {
+    // For a session without a log file, as a real-time one is.
     fn new() -> Box<Properties> {
         let mut properties: Box<Properties> = Box::new(unsafe { std::mem::zeroed() });
         properties.properties.Wnode.BufferSize = size_of::<Properties>() as u32;
         properties.properties.LoggerNameOffset = std::mem::offset_of!(Properties, name) as u32;
+        properties
+    }
+
+    // For QueryAllTraces, which needs room for each session's log file's name
+    // too.
+    fn for_query() -> Box<Properties> {
+        let mut properties = Properties::new();
+        properties.properties.LogFileNameOffset = std::mem::offset_of!(Properties, log_file) as u32;
         properties
     }
 }
@@ -205,7 +216,13 @@ pub fn read_file(path: &std::path::Path, callback: Callback) -> Result<i64, Stri
         if trace.0 == u64::MAX {
             return Err(format!("OpenTrace failed: {}", windows_core::Error::from_thread()));
         }
-        let frequency = logfile.LogfileHeader.PerfFreq;
+        let frequency = match file_clock(logfile.LogfileHeader.ReservedFlags, logfile.LogfileHeader.PerfFreq) {
+            Ok(frequency) => frequency,
+            Err(message) => {
+                let _ = CloseTrace(trace);
+                return Err(message);
+            }
+        };
         let status = ProcessTrace(&[trace], None, None);
         let _ = CloseTrace(trace);
         if status != 0 {
@@ -215,6 +232,21 @@ pub fn read_file(path: &std::path::Path, callback: Callback) -> Result<i64, Stri
             return Err("reading the events panicked".to_string());
         }
         Ok(frequency)
+    }
+}
+
+// The performance counter's frequency on the computer that saved a trace
+// file, from its header, if its events are timed on the performance counter.
+// The header's ReservedFlags is the session's ClientContext, which says the
+// clock: 1 for the performance counter, 2 for the system time, and 3 for the
+// CPU's cycles, which would give wrong times here.
+pub fn file_clock(reserved_flags: u32, performance_frequency: i64) -> Result<i64, String> {
+    match reserved_flags {
+        1 if performance_frequency > 0 => Ok(performance_frequency),
+        1 => Err("the trace's performance counter frequency is missing".to_string()),
+        2 => Err("the trace's events are timed with the system time, not the performance counter".to_string()),
+        3 => Err("the trace's events are timed with the CPU's cycles, not the performance counter".to_string()),
+        clock => Err(format!("the trace's events are timed with an unknown clock, {clock}")),
     }
 }
 
@@ -263,17 +295,25 @@ unsafe extern "system" fn on_event(record: *mut EVENT_RECORD) {
 // outlived: a process that's killed doesn't stop its own. A session's
 // process is the number at the end of its name.
 unsafe fn stop_leftovers() {
-    // QueryAllTracesW fills what fits, and says how many sessions there are.
-    const MOST: usize = 64;
-    let mut sessions: Vec<Box<Properties>> = (0..MOST).map(|_| Properties::new()).collect();
-    let mut pointers: Vec<*mut EVENT_TRACE_PROPERTIES> =
-        sessions.iter_mut().map(|session| &mut session.properties as *mut EVENT_TRACE_PROPERTIES).collect();
-    let mut count = 0u32;
-    let status = unsafe { QueryAllTracesW(pointers.as_mut_ptr(), MOST as u32, &mut count) };
-    if status != 0 && status != ERROR_MORE_DATA as u32 {
-        return;
-    }
-    for session in sessions.iter().take((count as usize).min(MOST)) {
+    // QueryAllTracesW fills what fits, and says how many sessions there are,
+    // which can be more than 64, so it's asked again with room for them all.
+    let mut room = 64;
+    let (sessions, count) = loop {
+        let mut sessions: Vec<Box<Properties>> = (0..room).map(|_| Properties::for_query()).collect();
+        let mut pointers: Vec<*mut EVENT_TRACE_PROPERTIES> =
+            sessions.iter_mut().map(|session| &mut session.properties as *mut EVENT_TRACE_PROPERTIES).collect();
+        let mut count = 0u32;
+        let status = unsafe { QueryAllTracesW(pointers.as_mut_ptr(), room as u32, &mut count) };
+        if status == ERROR_MORE_DATA as u32 && count as usize > room {
+            room = count as usize;
+            continue;
+        }
+        if status != 0 && status != ERROR_MORE_DATA as u32 {
+            return;
+        }
+        break (sessions, (count as usize).min(room));
+    };
+    for session in sessions.iter().take(count) {
         let end = session.name.iter().position(|&unit| unit == 0).unwrap_or(session.name.len());
         let name = String::from_utf16_lossy(&session.name[..end]);
         let Some(rest) = name.strip_prefix(PREFIX) else {
@@ -311,13 +351,16 @@ unsafe fn process_is_gone(process: u32) -> bool {
 // The session's properties, as PresentMon's: real-time, with times on the
 // performance counter, and buffers that a busy system doesn't fill up. The
 // flush timer hands the buffers to the reader once a second, if the flusher
-// hasn't.
+// hasn't. The session is independent: a session that a killed process left,
+// whose buffers no one reads, fills up, and without this, an event that
+// can't be written to one of the sessions that its provider is enabled for
+// isn't written to any, like PresentMon's.
 fn session_properties() -> Box<Properties> {
     let mut properties = Properties::new();
     let session = &mut properties.properties;
     session.Wnode.ClientContext = 1;
     session.Wnode.Flags = WNODE_FLAG_TRACED_GUID as u32;
-    session.LogFileMode = EVENT_TRACE_REAL_TIME_MODE as u32;
+    session.LogFileMode = (EVENT_TRACE_REAL_TIME_MODE | EVENT_TRACE_INDEPENDENT_SESSION_MODE) as u32;
     session.BufferSize = 64;
     session.MinimumBuffers = 64;
     session.MaximumBuffers = 1024;

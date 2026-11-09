@@ -362,7 +362,9 @@ unsafe fn run(adapter: Adapter, benchmark: bool) -> Result<()> {
         }
         readback.Unmap(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }));
         if let Some(info) = &info {
-            for i in 0..info.GetNumStoredMessages() {
+            // GetMessage's index runs to the count that the retrieval filter
+            // allows.
+            for i in 0..info.GetNumStoredMessagesAllowedByRetrievalFilter() {
                 let mut size = 0usize;
                 info.GetMessage(i, None, &mut size).ok()?;
                 // u64s, so the message is aligned for its pointer fields.

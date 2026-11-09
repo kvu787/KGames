@@ -9,9 +9,9 @@ static unsafe partial class NativeWindow {
     static nint activationHook;
 
     // Keeps every window of this thread from being activated from now on, which would take focus
-    // from the user's window: the app's window, and WinUI's menus and flyouts, which are windows
-    // of their own, and which activate when they open. Windows asks a CBT hook before it activates
-    // a window, and the hook says no.
+    // from the user's window: the app's window, and WinUI's menus, and the flyouts and popups that
+    // can go past the window's edges, which are windows of their own, and which activate when they
+    // open. Windows asks a CBT hook before it activates a window, and the hook says no.
     public static void PreventActivation() {
         if (activationHook == 0) {
             activationHook = SetWindowsHookExW(WH_CBT, &OnCbt, 0, GetCurrentThreadId());

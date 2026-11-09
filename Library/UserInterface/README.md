@@ -201,7 +201,9 @@ program needs GameInput 4.0.306 installed, as that README says, and doesn't star
 even in a scripted run or with `--no-input`, which don't read it. `Platform/InputDevices.rs`
 reads every device's readings once a frame, right before the frame, and `Input/Reader.rs` turns
 them into the interface's events, in the order they happened, with the window's focus changes
-between them. The window's messages bring none of it.
+between them. The window's messages bring none of it. The library turns on GameInput's background
+input, which GameInput otherwise gives a program only while it has focus, so that it follows the
+devices without focus too, and decides what the window takes by its own focus changes.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
@@ -231,8 +233,9 @@ between them. The window's messages bring none of it.
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
 - `F9` switches between the light and dark themes. Every program starts light. The frame that `F9`
-  is pressed in is all in the new theme, title bar too. A program's own command for it calls
-  `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
+  is pressed in is all in the new theme, and the title bar asks for it too, which DWM draws, as
+  its documentation promises while Windows' own dark mode is on. A program's own command for it
+  calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
   frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
   card and color role follows by itself, as long as the program colors with `ui.theme()` each
   frame.

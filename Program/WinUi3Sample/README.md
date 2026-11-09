@@ -77,7 +77,8 @@ Program\WinUi3Sample\HumanRun.cmd
 and opens it on the primary display. It needs the .NET 10 SDK, and downloads the Windows App SDK's
 packages from NuGet the first time. The app is unpackaged and self-contained: it runs from its exe
 in `target\DotNet\bin\WinUi3Sample\release_win-x64`, with the Windows App SDK's runtime beside it,
-without an MSIX package or the runtime installed.
+without an MSIX package or the Windows App SDK's runtime installed. It runs on the .NET 10 runtime
+that comes with the SDK.
 
 Visual Studio isn't needed to build it, but with its WinUI application development workload, it can
 open `WinUi3Sample.csproj` to edit the XAML while the app runs, with XAML Hot Reload.

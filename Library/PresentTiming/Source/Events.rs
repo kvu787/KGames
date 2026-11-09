@@ -25,8 +25,10 @@ pub struct Provider {
     pub events: &'static [u16],
 }
 
-// In the order that PresentMon enables them: the kernel's first, so that no
-// present is under way before its events come.
+// In the order that PresentMon enables them: the kernel's first. EnableTraceEx2
+// with no timeout configures each provider without waiting for it, so the
+// order isn't a promise that the kernel's events come first: the tracker
+// drops the presents that were under way when it started.
 pub const PROVIDERS: [Provider; 6] = [
     Provider {
         guid: DXGKRNL,

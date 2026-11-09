@@ -447,11 +447,14 @@ sealed unsafe partial class FocusWatch : IDisposable {
     private static partial bool PostThreadMessageW(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
     [LibraryImport("kernel32.dll")]
     private static partial uint GetCurrentThreadId();
+    [LibraryImport("user32.dll")]
+    private static partial void PostQuitMessage(int exitCode);
 
     const uint EVENT_SYSTEM_FOREGROUND = 3;
     const uint WINEVENT_OUTOFCONTEXT = 0;
     const uint PM_NOREMOVE = 0;
-    const uint WM_QUIT = 0x0012;
+    // WM_APP, which the watch's thread takes as a request to stop.
+    const uint WM_STOP = 0x8000;
 
     // Windows calls OnForeground on the thread that watches, while it waits
     // for messages.
@@ -509,8 +512,12 @@ sealed unsafe partial class FocusWatch : IDisposable {
         // The window with focus before the first change.
         this.Check(IntPtr.Zero, ProgramWindow.Foreground());
         // Windows calls OnForeground from within GetMessageW, until Dispose
-        // posts WM_QUIT.
-        while (GetMessageW(out _, IntPtr.Zero, 0, 0) > 0) {
+        // asks the thread to stop. Then PostQuitMessage, whose WM_QUIT
+        // GetMessageW returns only once nothing else is waiting.
+        while (GetMessageW(out var message, IntPtr.Zero, 0, 0) > 0) {
+            if (message.message == WM_STOP) {
+                PostQuitMessage(0);
+            }
         }
         this.Check(IntPtr.Zero, ProgramWindow.Foreground());
         _ = UnhookWinEvent(hook);
@@ -535,13 +542,15 @@ sealed unsafe partial class FocusWatch : IDisposable {
 
     // Stops watching, once the watch has handled every change of focus that
     // Windows reported until now. Windows calls OnForeground for those before
-    // GetMessageW returns the WM_QUIT that this posts after them.
+    // GetMessageW returns the message that this posts after them, and the
+    // watch then quits with PostQuitMessage, as WM_QUIT's documentation asks,
+    // instead of being posted WM_QUIT.
     public void Dispose() {
         if (this.disposed) {
             return;
         }
         this.disposed = true;
-        _ = PostThreadMessageW(this.threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+        _ = PostThreadMessageW(this.threadId, WM_STOP, IntPtr.Zero, IntPtr.Zero);
         this.thread.Join();
     }
 }
@@ -646,8 +655,11 @@ static partial class ProgramProcess {
     static readonly Lazy<IntPtr> job = new(CreateJob);
 
     // RunLightly's job, if this program runs in one, with the access to put
-    // processes in it. Its handle closes only when this program exits.
-    static readonly Lazy<IntPtr> lightJob = new(() => {
+    // processes in it, or zero. Its caller closes the handle as soon as it has
+    // made its process: the job ends its processes when its last handle
+    // closes, so one that this program kept would keep them all running past
+    // RunLightly, if RunLightly were stopped.
+    static IntPtr OpenLightJob() {
         if (Environment.GetEnvironmentVariable("KGAMES_LIGHT_JOB") is not { Length: > 0 } name) {
             return IntPtr.Zero;
         }
@@ -656,7 +668,7 @@ static partial class ProgramProcess {
             throw new Win32Exception();
         }
         return job;
-    });
+    }
 
     // Runs a command with this program's console and standard handles, in
     // RunLightly's job if this program is in one, and returns its exit code.
@@ -664,7 +676,8 @@ static partial class ProgramProcess {
     // for any command line.
     public static int RunInLightJob(List<string> words) {
         var commandLine = string.Join(' ', words.Select(Quote));
-        var jobs = lightJob.Value != IntPtr.Zero ? new[] { lightJob.Value } : [];
+        var lightJob = OpenLightJob();
+        var jobs = lightJob != IntPtr.Zero ? new[] { lightJob } : [];
         var size = IntPtr.Zero;
         _ = InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
         var list = Marshal.AllocHGlobal(size);
@@ -688,6 +701,10 @@ static partial class ProgramProcess {
             if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, EXTENDED_STARTUPINFO_PRESENT, IntPtr.Zero, null, ref startupInfo, out var information)) {
                 throw new Win32Exception();
             }
+            if (lightJob != IntPtr.Zero) {
+                _ = CloseHandle(lightJob);
+                lightJob = IntPtr.Zero;
+            }
             _ = CloseHandle(information.hThread);
             _ = WaitForSingleObject(information.hProcess, uint.MaxValue);
             if (!GetExitCodeProcess(information.hProcess, out var exitCode)) {
@@ -696,6 +713,9 @@ static partial class ProgramProcess {
             _ = CloseHandle(information.hProcess);
             return exitCode;
         } finally {
+            if (lightJob != IntPtr.Zero) {
+                _ = CloseHandle(lightJob);
+            }
             if (initialized) {
                 DeleteProcThreadAttributeList(list);
             }
@@ -744,8 +764,9 @@ static partial class ProgramProcess {
         var handles = new List<IntPtr> { output.SafeFileHandle.DangerousGetHandle(), error.SafeFileHandle.DangerousGetHandle() };
         var jobs = new List<IntPtr>();
         var inherited = IntPtr.Zero;
-        if (lightJob.Value != IntPtr.Zero) {
-            jobs.Add(lightJob.Value);
+        var lightJob = OpenLightJob();
+        if (lightJob != IntPtr.Zero) {
+            jobs.Add(lightJob);
             if (keepRunning) {
                 // An inheritable handle of its own, so that the program gets
                 // a copy.
@@ -800,6 +821,9 @@ static partial class ProgramProcess {
             _ = CloseHandle(information.hProcess);
             return process;
         } finally {
+            if (lightJob != IntPtr.Zero) {
+                _ = CloseHandle(lightJob);
+            }
             if (inherited != IntPtr.Zero) {
                 // The program has its own copy.
                 _ = CloseHandle(inherited);
@@ -860,8 +884,11 @@ static partial class ProgramWindow {
     struct POINT { public int X, Y; }
 
     const uint PW_CLIENTONLY = 1;
-    // Asks the desktop compositor for the window's contents, which is the
-    // only way to get what Direct3D draws.
+    // Asks the desktop compositor for the window's contents, so that
+    // PrintWindow gets what Direct3D draws, which it doesn't without it.
+    // WinUser.h defines it, but PrintWindow's documentation doesn't list it.
+    // Windows.Graphics.Capture is the documented way to capture what a window
+    // shows.
     const uint PW_RENDERFULLCONTENT = 2;
     const uint WM_CLOSE = 0x0010;
     const uint DWMWA_CLOAKED = 14;

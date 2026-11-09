@@ -167,11 +167,15 @@ impl Offscreen {
                 Format: crate::TARGET_FORMAT,
                 Anonymous: D3D12_CLEAR_VALUE_0 { Color: clear },
             };
+            // Typeless, so that it can have both of a frame's views, which
+            // read it as UNORM and as sRGB. A swap chain's buffers can always
+            // be viewed in another format of their group, but a fully typed
+            // texture only on GPUs that support casting fully typed formats.
             let texture = create_texture(
                 &gpu.device,
                 width,
                 height,
-                crate::TARGET_FORMAT,
+                DXGI_FORMAT_B8G8R8A8_TYPELESS,
                 D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
                 D3D12_RESOURCE_STATE_RENDER_TARGET,
                 Some(&clear),
