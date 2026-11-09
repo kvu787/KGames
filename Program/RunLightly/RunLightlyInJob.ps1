@@ -32,10 +32,15 @@
 # The command's process is made here, suspended, put in the job, and only then
 # let run: a process that PowerShell starts the usual way doesn't always end
 # up in its job (cargo, cmd and the rest didn't here, though a child
-# PowerShell did), while the processes that a process in the job starts do.
-# For the ones that still slip out, like what a .NET process in the job
-# starts, the thread that sets efficiency mode also puts every process whose
-# parent is in the job into it, within a quarter second.
+# PowerShell did), while the processes that a native process in the job
+# starts do. Microsoft's documentation says that a job's processes start
+# theirs in it unless the job allows breakaway, which this one doesn't, but
+# on this computer, what PowerShell or another .NET process in the job starts
+# is in no job at all, even when it calls CreateProcessW itself with no flags
+# (IsProcessInJob said so on 2026-11-09, inside and outside a coding agent's
+# sandbox). So for the ones that slip out, the thread that sets efficiency
+# mode also puts every process whose parent is in the job into it, within a
+# quarter second.
 #
 # Cargo runs as many jobs as the cap is worth in cores, like 8 of 24 at 33%,
 # instead of one for each efficiency core, so that its work is steady rather
@@ -160,6 +165,9 @@ public static class Lightly {
     static extern IntPtr GetCurrentProcess();
 
     const int JobObjectBasicProcessIdList = 3;
+    const int ERROR_MORE_DATA = 234;
+    // SYSTEM_CPU_SET_INFORMATION's only type.
+    const int CpuSetInformation = 0;
     const int JobObjectExtendedLimitInformation = 9;
     const int JobObjectCpuRateControlInformation = 15;
     const uint JOB_OBJECT_LIMIT_AFFINITY = 0x10;
@@ -205,12 +213,14 @@ public static class Lightly {
             // SYSTEM_CPU_SET_INFORMATION: its size, its type, then the CPU set's
             // fields, with the logical processor at 14 and the efficiency class
             // at 18. Only group 0's 64 processors, as the job's affinity is one
-            // group's.
+            // group's, and only CpuSetInformation, the one type there is, as
+            // its documentation says to skip types it doesn't know.
             var processors = new System.Collections.Generic.List<(int Logical, int Efficiency)>();
             for (int offset = 0; offset < length;) {
                 int size = Marshal.ReadInt32(buffer, offset);
+                int type = Marshal.ReadInt32(buffer, offset + 4);
                 ushort group = (ushort)Marshal.ReadInt16(buffer, offset + 12);
-                if (group == 0) {
+                if (type == CpuSetInformation && group == 0) {
                     processors.Add((Marshal.ReadByte(buffer, offset + 14), Marshal.ReadByte(buffer, offset + 18)));
                 }
                 offset += size;
@@ -310,8 +320,13 @@ public static class Lightly {
         IntPtr buffer = Marshal.AllocHGlobal(length);
         try {
             int returned;
-            QueryInformationJobObject(job, JobObjectBasicProcessIdList, buffer, length, out returned);
-            int count = Marshal.ReadInt32(buffer, 4);
+            // With more processes than fit, it fails with ERROR_MORE_DATA,
+            // and lists the ones that fit.
+            if (!QueryInformationJobObject(job, JobObjectBasicProcessIdList, buffer, length, out returned)
+                && Marshal.GetLastPInvokeError() != ERROR_MORE_DATA) {
+                return members;
+            }
+            int count = Math.Min(Marshal.ReadInt32(buffer, 4), (length - 8) / IntPtr.Size);
             for (int index = 0; index < count; index++) {
                 members.Add((uint)Marshal.ReadIntPtr(buffer, 8 + index * IntPtr.Size).ToInt64());
             }

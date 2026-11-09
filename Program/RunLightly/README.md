@@ -42,7 +42,8 @@ Jobs can't hold the rest, so RunLightly sets it itself:
 |                 | process whose parent is in the job but that Windows left out, like what a .NET    |
 |                 | process starts here, is put in within a quarter second, unless it's in a job of   |
 |                 | its own by then, as rustup's cargo is: so run cargo as the command, not from a    |
-|                 | script                                                                            |
+|                 | script. Microsoft's documentation says that Windows puts them in, as the job      |
+|                 | allows no breakaway, but here it leaves out what PowerShell or .NET starts        |
 | GPU priority    | `KGAMES_GPU_PRIORITY=Idle` in the environment, which                              |
 |                 | [Library/Graphics](../../Library/Graphics/README.md) reads: every process that    |
 |                 | draws, like a test or a test run of a program, puts its GPU work after other      |
@@ -64,8 +65,9 @@ RunInBackground run through it, it just runs the command, which the job holds al
 
 What it can't hold:
 
-- **GPU time.** The GPU's scheduler puts the job's work after other processes', but a frame that's
-  on the GPU runs to its end. The programs' test runs draw small frames, at most one a refresh.
+- **GPU time.** The GPU's scheduler puts the job's work after other processes', and can preempt
+  it, but how finely depends on the GPU and its driver, so a game's frame can still wait a little
+  behind one that's on the GPU. The programs' test runs draw small frames, at most one a refresh.
 - **Windows Defender**, which scans every file that a build writes, in its own process. A Dev
   Drive, or an exclusion for the repository's `target` folder, stops that, and only you can set
   either.
