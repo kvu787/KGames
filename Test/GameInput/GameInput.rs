@@ -4,6 +4,8 @@
 // these run where it's installed.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Barrier};
+use std::time::Duration;
 
 use game_input::VERSION;
 use game_input::installation::{self, INSTALL_COMMAND, RUNTIME};
@@ -33,6 +35,32 @@ fn a_runtime_beside_the_exe_is_never_loaded() {
 
     let (_game_input, runtime) = game_input::create().unwrap();
     assert_eq!(runtime.path, Path::new(RUNTIME));
+}
+
+// GameInput 4.0.306's runtime crashes the process when one thread releases
+// the last IGameInput while another creates one. create keeps the first one
+// that it creates, so threads can create and release them at once.
+#[test]
+fn threads_can_create_and_release_game_input_at_once() {
+    for _ in 0..20 {
+        let barrier = Arc::new(Barrier::new(2));
+        let threads: Vec<_> = (0..2)
+            .map(|index| {
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    // The second thread creates while the first releases.
+                    if index == 1 {
+                        std::thread::sleep(Duration::from_micros(200));
+                    }
+                    drop(game_input::create().unwrap());
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+    }
 }
 
 #[test]

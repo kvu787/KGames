@@ -15,6 +15,7 @@ pub mod installation;
 
 use core::ffi::c_void;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use windows_api::*;
 use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, Result, s, w};
@@ -274,6 +275,10 @@ windows_core::imp::define_interface!(
     0xf2daae4c_4d21_4250_8953_4f791e6279ab
 );
 windows_core::imp::interface_hierarchy!(IGameInput, windows_core::IUnknown);
+// GameInput's objects are free-threaded, like its devices below, so `create`
+// can keep one in a static.
+unsafe impl Send for IGameInput {}
+unsafe impl Sync for IGameInput {}
 impl IGameInput {
     pub unsafe fn GetCurrentTimestamp(&self) -> u64 {
         unsafe { (Interface::vtable(self).GetCurrentTimestamp)(Interface::as_raw(self)) }
@@ -669,7 +674,13 @@ pub fn wrong_version_message(version: Option<[u16; 4]>) -> String {
 // newest of Windows' GameInput.dll, an installed GameInputRedist.dll and one
 // beside the exe, and the one beside the exe on a tie. This one takes only
 // the installed one.
+//
+// GameInput 4.0.306's runtime crashes when one thread releases the last
+// IGameInput while another creates one, so the first one that this creates is
+// kept for the life of the process, like the module, and the last one is never
+// released. Test/GameInput pins it.
 pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
+    static KEPT: OnceLock<IGameInput> = OnceLock::new();
     let path = installed_runtime()?;
     unsafe {
         let module = LoadLibraryW(PCWSTR(wide(&path).as_ptr()));
@@ -688,6 +699,7 @@ pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
         let game_input: IGameInput = initialize(&IGameInput::IID, &mut result)
             .and_then(|| windows_core::imp::Type::from_abi(result))
             .map_err(|error| format!("{} couldn't start GameInput: {} ({})", path.display(), error.message(), error.code()))?;
+        KEPT.get_or_init(|| game_input.clone());
 
         Ok((game_input, Runtime { path, version: VERSION }))
     }
