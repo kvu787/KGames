@@ -20,11 +20,15 @@ winget runs the same `GameInputRedist.msi` that the
 its `redist` folder, so running that MSI installs it too. Installing it is up to you. Nothing in
 KGames installs it, or fetches a runtime of its own.
 
-Without it, KGames doesn't build: `Build.rs` fails, and says why. A program doesn't start without
-it either, and says why on standard error, nor with another version of it, like a newer one that
-another game's installer or `winget upgrade` put in. The build doesn't check the version, so that
-happens after a build that passed. The MSI doesn't replace a newer version, so uninstall that one
-first.
+Without it, or with another version of it, like a newer one that another game's installer or
+`winget upgrade` put in, KGames doesn't build: `Build.rs` fails, and says why. A program doesn't
+start without it either, and says why on standard error. The MSI doesn't replace a newer version,
+so uninstall that one first.
+
+Cargo only runs `Build.rs` again when it changes, when the DLL goes, or when the DLL's modified
+time is newer than its last run. The MSI keeps the time that Microsoft built the DLL, so another
+version installed after a build that passed may not fail the next build. Programs still check as
+they start, so they don't start with it.
 
 ## How it works
 
@@ -51,20 +55,20 @@ says.
 
 KGames takes only the installed one, at
 `C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll`, where `GameInputRedist.msi` puts
-it. `Source/Installation.rs` checks that it's there, with the standard library alone, and
-`Build.rs` includes it, so the build fails without it. `game_input::installed_runtime` also checks
-that the DLL's version is 4.0.306.0, and every program calls it as it starts, even in a scripted
-run or with `--no-input`. `game_input::create` calls it too, then loads the DLL, and returns its
-path and version with the API. The build doesn't check the version, because reading it takes
-Windows' API, which a build script would have to build a second time.
+it. `installed_runtime` in `Source/Installation.rs` checks that it's there, and that its version
+is 4.0.306.0, which it reads from the DLL's own bytes: its version resource's `VS_FIXEDFILEINFO`,
+which starts with the signature `0xFEEF04BD`. That takes only the standard library, so `Build.rs`
+includes the file, and runs the check with no dependencies. Every program runs it again as it
+starts, even in a scripted run or with `--no-input`. `game_input::create` runs it too, then loads
+the DLL, and returns its path and version with the API.
 
 The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
 each program that reads keyboards and mice.
 
 ## Updating GameInput
 
-1. Set `VERSION` in `Source/Library.rs` and `INSTALL_COMMAND` in `Source/Installation.rs`, and the
-   command in [AGENTS.md](../../AGENTS.md), the root [README](../../README.md), this file and
+1. Set `VERSION` and `INSTALL_COMMAND` in `Source/Installation.rs`, and the command in
+   [AGENTS.md](../../AGENTS.md), the root [README](../../README.md), this file and
    [GameInputDemo](../../Program/GameInputDemo/README.md)'s. `Test/GameInput` checks that they all
    give it.
 2. If the package has a new API version, compare its header with `Source/Library.rs`, change the
@@ -80,7 +84,7 @@ Add GameInput APIs to `Source/Library.rs` by hand: replace the method's
 
 | Path                     | Contents                                                                    |
 | ------------------------ | --------------------------------------------------------------------------- |
-| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader that checks the version  |
-| `Source/Installation.rs` | Where the runtime DLL is installed, and the check that it's there           |
-| `Build.rs`               | Fails the build unless the runtime DLL is installed                         |
+| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader for the runtime DLL      |
+| `Source/Installation.rs` | Where the runtime DLL is installed, and the check of it and its version     |
+| `Build.rs`               | Fails the build unless the runtime DLL 4.0.306.0 is installed               |
 | `Packages`               | A NuGet package you extract to read its headers; not in Git                 |

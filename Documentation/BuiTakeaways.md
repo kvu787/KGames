@@ -455,7 +455,7 @@ Status: Not started. Matters once builds are handed out.
 - **BUI:** `BUI/tools/gen_notices.py` builds `THIRD_PARTY_NOTICES.md` from license files and
   `cargo metadata` (`:120-157`), with a `--check` mode (`:209-216`), run only at release.
 - **Do:** with so few dependencies, a short hand-written notices file, and a test that fails when
-  `Cargo.lock` or `VERSION` in `Library/GameInput/Source/Library.rs` changes without it.
+  `Cargo.lock` or `VERSION` in `Library/GameInput/Source/Installation.rs` changes without it.
 - **Done when:** the file and the test are in.
 
 ### 22. Decide whether idle frames are skipped

@@ -94,7 +94,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     // GameInput 4.0.306 installed, though, and doesn't start without it, even
     // when it doesn't read it (see Library/GameInput).
     let devices = if scripted || arguments.no_input {
-        game_input::installed_runtime()?;
+        game_input::installation::installed_runtime()?;
         None
     } else {
         Some(Rc::new(RefCell::new(Devices::new()?)))

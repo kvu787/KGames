@@ -144,14 +144,9 @@ WaitForSingleObject
 INFINITE
 WAIT_OBJECT_0
 
-// Checking the version of the GameInput runtime that GameInputRedist.msi
-// installed, and loading it
-GetFileVersionInfoSizeW
-GetFileVersionInfoW
+// Loading the GameInput runtime that GameInputRedist.msi installed
 GetProcAddress
 LoadLibraryW
-VerQueryValueW
-VS_FIXEDFILEINFO
 
 // Encoding PNGs with the Windows Imaging Component
 CoCreateInstance

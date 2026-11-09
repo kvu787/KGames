@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
 
-use game_input::VERSION;
-use game_input::installation::{self, INSTALL_COMMAND, RUNTIME};
+use game_input::installation::{self, INSTALL_COMMAND, RUNTIME, VERSION};
 
 // The command that the user installs GameInput with, which is theirs to run.
 const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306""#;
@@ -17,12 +16,32 @@ const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput"
 fn the_runtime_is_4_0_306_where_the_msi_installs_it() {
     assert_eq!(VERSION, [4, 0, 306, 0]);
     assert_eq!(RUNTIME, r"C:\Program Files\Microsoft GameInput\x64\GameInputRedist.dll");
-    let path = game_input::installed_runtime().unwrap();
+    let path = installation::installed_runtime().unwrap();
     assert_eq!(path, Path::new(RUNTIME));
 
     let (_game_input, runtime) = game_input::create().unwrap();
     assert_eq!(runtime.path, path);
     assert_eq!(runtime.version, VERSION);
+}
+
+// The version is read from the DLL's bytes, with the standard library alone,
+// which Build.rs has: from its VS_FIXEDFILEINFO, which starts with the
+// signature 0xFEEF04BD and the structure's version, 1.0.
+#[test]
+fn the_version_is_read_from_the_dll_itself() {
+    assert_eq!(installation::version_in(&std::fs::read(RUNTIME).unwrap()), Some(VERSION));
+    assert_eq!(installation::version_in(&[]), None);
+
+    // The signature alone, without the structure's version, isn't one.
+    let mut bytes = vec![0u8; 64];
+    bytes[4..12].copy_from_slice(&[0xBD, 0x04, 0xEF, 0xFE, 0x00, 0x00, 0x02, 0x00]);
+    assert_eq!(installation::version_in(&bytes), None);
+
+    // 4.1.2.3, as its most significant half, 4 and 1, and its least, 2 and 3.
+    bytes[32..48].copy_from_slice(&[
+        0xBD, 0x04, 0xEF, 0xFE, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x04, 0x00, 0x03, 0x00, 0x02, 0x00,
+    ]);
+    assert_eq!(installation::version_in(&bytes), Some([4, 1, 2, 3]));
 }
 
 // Microsoft's loader in GameInput.lib takes a GameInputRedist.dll beside the
@@ -72,12 +91,12 @@ fn without_4_0_306_it_says_how_to_install_it() {
 
     // A newer version, like one that another program's installer put in,
     // which GameInputRedist.msi 4.0.306 doesn't replace.
-    let message = game_input::wrong_version_message(Some([4, 1, 0, 0]));
+    let message = installation::wrong_version_message(Some([4, 1, 0, 0]));
     assert!(message.contains("is GameInput 4.1.0.0") && message.contains("uninstall Microsoft GameInput first"), "{message}");
     assert!(message.contains(USERS_COMMAND), "{message}");
 
     // An older one, which it does replace.
-    let message = game_input::wrong_version_message(Some([4, 0, 300, 0]));
+    let message = installation::wrong_version_message(Some([4, 0, 300, 0]));
     assert!(message.contains("is GameInput 4.0.300.0") && !message.contains("uninstall"), "{message}");
     assert!(message.contains(USERS_COMMAND), "{message}");
 }
