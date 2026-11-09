@@ -9,8 +9,15 @@ publish = false
 name = "GameInput"
 path = "GameInput.rs"
 
+# A binary of its own, so that nothing loads the runtime before its test
+# puts a file beside the exe.
+[[test]]
+name = "RuntimeImports"
+path = "RuntimeImports.rs"
+
 [dependencies]
 game_input = { path = "../../Library/GameInput" }
+windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]
 workspace = true

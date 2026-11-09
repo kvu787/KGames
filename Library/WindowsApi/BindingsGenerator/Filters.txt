@@ -144,9 +144,10 @@ WaitForSingleObject
 INFINITE
 WAIT_OBJECT_0
 
-// Loading the GameInput runtime that GameInputRedist.msi installed
+// Loading the installed GameInput runtime, with its imports from System32
 GetProcAddress
-LoadLibraryW
+LoadLibraryExW
+LOAD_LIBRARY_SEARCH_SYSTEM32
 
 // Encoding PNGs with the Windows Imaging Component
 CoCreateInstance
@@ -395,6 +396,13 @@ Process32FirstW
 Process32NextW
 PROCESSENTRY32W
 TH32CS_SNAPPROCESS
+
+// Test/GameInput: which DLLs the process has loaded, in a snapshot of its
+// modules
+Module32FirstW
+Module32NextW
+MODULEENTRY32W
+TH32CS_SNAPMODULE
 
 // Memory usage: how much GPU memory the process has reserved, for
 // Library/Graphics, and its working set and private commit, for

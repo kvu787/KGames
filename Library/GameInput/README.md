@@ -49,6 +49,11 @@ handle that holds the DLL open, sharing it only for reading, and `create` loads 
 lets go: until then, no one can write, rename or delete the DLL, nor rename its folder. Once it's
 loaded, Windows keeps it from being written.
 
+`create` loads it with `LoadLibraryExW` and `LOAD_LIBRARY_SEARCH_SYSTEM32`, so the DLLs that the
+runtime imports, like `HID.DLL`, which isn't a known DLL, load from System32, and never from beside
+the exe, where `LoadLibraryW`, which Microsoft's loader uses, looks first.
+`Test/GameInput/RuntimeImports.rs` pins it.
+
 The installed runtime still starts its `GameInputRawInputProxy.exe`, from the same folder, for
 each program that reads keyboards and mice.
 

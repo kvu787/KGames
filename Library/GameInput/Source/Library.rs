@@ -640,6 +640,11 @@ pub struct Runtime {
 // nor rename its folder, until it's loaded, and once it's loaded, Windows
 // keeps it from being written.
 //
+// The DLLs that the runtime imports load from System32 alone. It imports
+// HID.DLL and bcrypt.dll, which aren't known DLLs, so LoadLibraryW, which
+// Microsoft's loader uses, would look for them beside the exe first.
+// Test/GameInput/RuntimeImports.rs pins it.
+//
 // GameInput 4.0.306's runtime crashes when one thread releases the last
 // IGameInput while another creates one, so the first one that this creates is
 // kept for the life of the process, like the module, and the last one is never
@@ -648,7 +653,7 @@ pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
     static KEPT: OnceLock<IGameInput> = OnceLock::new();
     let checked = installation::installed_runtime()?;
     unsafe {
-        let module = LoadLibraryW(PCWSTR(wide(&checked.path).as_ptr()));
+        let module = LoadLibraryExW(PCWSTR(wide(&checked.path).as_ptr()), None, LOAD_LIBRARY_SEARCH_SYSTEM32 as u32);
         if module.0.is_null() {
             let error = Error::from_thread();
             return Err(format!("Couldn't load {}: {} ({})", checked.path.display(), error.message(), error.code()));
