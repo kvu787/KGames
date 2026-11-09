@@ -166,6 +166,20 @@ fn without_4_0_306_it_says_how_to_install_it() {
     assert!(message.contains(USERS_COMMAND), "{message}");
 }
 
+// NuGetPackages.proj asks for exactly the version of GameInput whose runtime
+// the user installs, and packages.lock.json pins that version.
+#[test]
+fn the_package_is_the_runtimes_version() {
+    let version = VERSION[..3].iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
+    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/GameInput");
+    let project = std::fs::read_to_string(folder.join("NuGetPackages.proj")).unwrap();
+    let reference = format!(r#"<PackageReference Include="Microsoft.GameInput" Version="[{version}]""#);
+    assert!(project.contains(&reference), "{project}");
+    let lock = std::fs::read_to_string(folder.join("packages.lock.json")).unwrap();
+    assert!(lock.contains(&format!(r#""requested": "[{version}, {version}]""#)), "{lock}");
+    assert!(lock.contains(&format!(r#""resolved": "{version}""#)), "{lock}");
+}
+
 // The documentation that tells people and agents to install GameInput gives
 // the command that the code checks for.
 #[test]

@@ -12,11 +12,28 @@ Before using this crate, you must install GameInput 4.0.306 with this:
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
+And the .NET SDK, 10 or later, whose `dotnet` restores the NuGet package below. Visual Studio
+installs it with its .NET desktop development workload, or get it from
+[dotnet.microsoft.com](https://dotnet.microsoft.com/download).
+
 # How it works
 
-GameInput has two parts: a header that a game compiles against, and a runtime DLL.
+GameInput comes in two parts: the `Microsoft.GameInput` NuGet package, which a game builds with,
+and a runtime DLL, which the user installs.
 
-**The API.** KGames uses API version 4, from `native/include/v4/GameInput.h` in the NuGet package.
+**The package.** `NuGetPackages.proj` declares the NuGet packages that this crate needs, the way a
+.NET project declares its own: `Microsoft.GameInput`, exactly 4.0.306. `packages.lock.json` pins its
+content by its hash, as `Cargo.lock` does for crates. At the root of the repository, `NuGet.config`
+makes nuget.org the only package source, and `global.json` asks for the .NET SDK 10 or later.
+
+`Build.rs` restores it with `dotnet restore --locked-mode`, which fails when the project asks for
+other packages than the lock file pins, or a package that it downloads has another hash. NuGet puts
+it in its global packages folder, which every checkout shares, normally
+`%UserProfile%\.nuget\packages\microsoft.gameinput\4.0.306`, and `Build.rs` asks MSBuild for its
+folder, as `PkgMicrosoft_GameInput`. Nothing builds the project: `Directory.Build.props` sends what
+the restore writes to `target\DotNet`.
+
+**The API.** KGames uses API version 4, from `native/include/v4/GameInput.h` in the package.
 GameInput isn't in the Windows metadata that `windows-bindgen` reads, so `Source/Library.rs`
 declares the parts that KGames uses by hand, in the same shape as the generated bindings in
 [Library/WindowsApi](../WindowsApi/README.md). Every vtable slot is listed in header order, so it
@@ -72,13 +89,14 @@ program that reads keyboards and mice.
 
 # Updating GameInput
 
-1. Set `VERSION` and `INSTALL_COMMAND` in `Source/Installation.rs`, and the command in
-   [AGENTS.md](../../AGENTS.md), the root [README](../../README.md), this file and
-   [GameInputDemo](../../Program/GameInputDemo/README.md)'s. `Test/GameInput` checks that they all
-   give it.
-2. If the package has a new API version, compare its header with `Source/Library.rs`, change the
-   interface IDs and vtables to match, and update this file. To read the header, extract the
-   `.nupkg`, which is a zip file, into `Packages`, which Git ignores.
+1. Set `VERSION` and `INSTALL_COMMAND` in `Source/Installation.rs`, the version in
+   `NuGetPackages.proj`, and the command in [AGENTS.md](../../AGENTS.md), the root
+   [README](../../README.md), this file and [GameInputDemo](../../Program/GameInputDemo/README.md)'s.
+   Then update the lock file with
+   `dotnet restore Library\GameInput\NuGetPackages.proj --force-evaluate`. `Test/GameInput` checks
+   that they all give the same version.
+2. If the package has a new API version, compare its header, in the package's folder, with
+   `Source/Library.rs`, change the interface IDs and vtables to match, and update this file.
 
 # Using more APIs
 
@@ -87,9 +105,11 @@ Add GameInput APIs to `Source/Library.rs` by hand: replace the method's
 
 # Layout
 
-| Path                     | Contents                                                                    |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader for the runtime DLL      |
-| `Source/Installation.rs` | Where the runtime DLL is installed, and the check of it and its version     |
-| `Build.rs`               | Fails the build unless the runtime DLL 4.0.306.0 is installed               |
-| `Packages`               | A NuGet package you extract to read its headers; not in Git                 |
+| Path                     | Contents                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `Source/Library.rs`      | Hand-written GameInput v4 bindings, and the loader for the runtime DLL           |
+| `Source/Installation.rs` | Where the runtime DLL is installed, and the check of it and its version          |
+| `Build.rs`               | Fails the build unless the runtime DLL 4.0.306.0 is installed; restores packages |
+| `NuGetPackages.proj`     | The NuGet packages that this crate needs: `Microsoft.GameInput` 4.0.306          |
+| `packages.lock.json`     | The hash of each package's content, which a restore checks                       |
+| `Directory.Build.props`  | Sends what a restore writes to `target\DotNet`                                   |

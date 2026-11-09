@@ -29,10 +29,16 @@ GameInput 4.0.306 must be installed, once, from an elevated prompt, with:
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
-That's the user's to do. Nothing in the repo may install GameInput, fetch a GameInput runtime of
-its own, or use any other runtime than that one. KGames doesn't build without it, and programs
-don't start without it, which `Library/GameInput` checks. If a build or a program says that it
-isn't installed, stop and tell the user.
+That's the user's to do. Nothing in the repo may install GameInput, or use any other runtime than
+that one. KGames doesn't build without it, and programs don't start without it, which
+`Library/GameInput` checks. If a build or a program says that it isn't installed, stop and tell the
+user.
+
+The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
+`Library/GameInput/NuGetPackages.proj` declares and its `packages.lock.json` pins, for its header and
+`GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
+tell the user. The package also has runtimes, for sideloading: nothing in the repo may copy or load
+them.
 
 # Folder and file naming
 

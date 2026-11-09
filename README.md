@@ -64,8 +64,10 @@ Programs read all input with GameInput 4.0.306, which you install once, from an 
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
-KGames doesn't build without it, and programs don't start without it.
-[Library/GameInput](Library/GameInput/README.md) says why it's that runtime and no other.
+KGames doesn't build without it, and programs don't start without it. Building also needs the .NET
+SDK, 10 or later, whose `dotnet` restores GameInput's NuGet package. Visual Studio installs it with
+its .NET desktop development workload. [Library/GameInput](Library/GameInput/README.md) says why
+it's that runtime and no other.
 
 ## Program
 
