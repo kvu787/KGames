@@ -1,11 +1,12 @@
 // The movement, in fixed steps: jumping only from the ground, the buffered
 // jump firing on the very step of the landing, coyote time, the jump cut,
-// the spring, and the moving platform that carries the player.
+// the spring, the moving platform that carries the player, and every top in
+// every level holding a player who runs along it.
 
 use platformer::controls::Controls;
 use platformer::game::Game;
 use platformer::level::{self, Zone};
-use platformer::physics::{BUFFER, COYOTE, JUMP_SPEED, STEP};
+use platformer::physics::{self, BUFFER, COYOTE, HALF, JUMP_SPEED, Player, RUN_SPEED, STEP, Solid, Standing};
 use platformer::progress::Progress;
 
 const FRAME: f64 = 1.0 / 60.0;
@@ -174,6 +175,108 @@ fn walls_stop_the_run_where_they_stand() {
         frame(&mut game, run);
     }
     assert!((game.player.position[0] - (door.x - 0.35)).abs() < 1e-9, "stopped at the door's face, {:?}", game.player.position);
+}
+
+// Every top in every level, the doors' and the patrols' at each step of
+// their way included, holds a player who stands on it and runs along it,
+// both ways. The player's box is stored as its center, and a center resting
+// on a top doesn't always round back to it: 2.0 + 0.55 - 0.55 is
+// 1.9999999999999998. That hair of overlap once made the run's X pass take
+// the platform under the player for a wall, and push them back to its edge
+// and off it: an invisible wall on First Steps' platform over the first pit
+// and on Ridgeline's checkpoint block, the two tops at 2.0.
+#[test]
+fn every_top_holds_a_runner_both_ways() {
+    let mut tops: Vec<(String, Zone)> = Vec::new();
+    for level in level::levels() {
+        for (index, &zone) in level.solids.iter().enumerate() {
+            tops.push((format!("{} solid {index}", level.name), zone));
+        }
+        for (index, &zone) in level.doors.iter().enumerate() {
+            tops.push((format!("{} door {index}", level.name), zone));
+        }
+        for (index, patrol) in level.patrols.iter().enumerate() {
+            let steps = (patrol.period / STEP).round() as usize;
+            for step in 0..steps {
+                let seconds = step as f64 * STEP;
+                tops.push((format!("{} patrol {index} at {seconds} s", level.name), patrol.at(seconds)));
+            }
+        }
+    }
+    // One 60 Hz frame's worth of steps.
+    const STEPS: usize = 4;
+    for (name, zone) in tops {
+        let solids = [Solid { zone, standing: Standing::Still }];
+        for push in [1.0, -1.0] {
+            // Where a landing puts the player: the top plus the half height.
+            let mut player = Player::at([zone.center()[0], zone.top()]);
+            let start = player.position;
+            for step in 1..=STEPS {
+                physics::step(&mut player, step as f64 * STEP, push, false, [0.0, 0.0], &solids);
+            }
+            let ran = push * RUN_SPEED * STEP * STEPS as f64;
+            assert!(player.grounded, "{name}, running {push}: still on it, {player:?}");
+            assert!(
+                (player.position[0] - (start[0] + ran)).abs() < 1e-9 && player.position[1] == start[1],
+                "{name}, running {push}: ran {ran} along the top from {start:?}, {player:?}"
+            );
+        }
+    }
+}
+
+// The way the bug was found: jump from the first ground onto First Steps'
+// platform over the pit, holding right, and keep running along it.
+#[test]
+fn a_runner_lands_on_the_platform_over_the_pit_and_runs_along_it() {
+    let mut game = game("PitPlatform");
+    let platform = game.current().solids[4];
+    assert_eq!(platform, Zone::new(15.5, 1.5, 3.0, 0.5), "the platform over the first pit");
+    game.player.position = [12.0, HALF[1]];
+    game.player.velocity = [0.0, 0.0];
+    frame(&mut game, Controls { push: 1.0, jump_pressed: true, jump_held: true, ..Controls::default() });
+    let mut landed = false;
+    let mut farthest = f64::NEG_INFINITY;
+    for _ in 0..60 {
+        frame(&mut game, Controls { push: 1.0, jump_held: true, ..Controls::default() });
+        let on_top = game.player.grounded && game.player.position[1] == platform.top() + HALF[1];
+        if on_top {
+            landed = true;
+            farthest = farthest.max(game.player.position[0]);
+        } else if landed {
+            break;
+        }
+    }
+    assert!(landed, "landed on the platform, {:?}", game.player);
+    assert!(farthest > platform.right(), "ran to its far end, not stopped on it: {farthest}");
+}
+
+// A patrol carries the player by how far it moved, which is rounded too.
+// Ride Ridgeline's lift, which rises and sinks through heights that round
+// every which way, for a whole period, running a frame each way in turn:
+// the player stays on it, never pushed off it as if it were a wall.
+#[test]
+fn a_runner_rides_the_lift_through_every_height() {
+    let mut game = game("Lift");
+    game.level = 1;
+    game.restart();
+    let patrol = game.current().patrols[0];
+    assert!(patrol.to[1] != patrol.zone.y && patrol.to[0] == patrol.zone.x, "Ridgeline's first patrol goes up and down");
+    let zone = patrol.at(game.simulated);
+    game.player.position = [zone.center()[0], zone.top() + HALF[1]];
+    game.player.velocity = [0.0, 0.0];
+    frame(&mut game, Controls::default());
+    assert!(game.player.grounded, "{:?}", game.player);
+    let frames = (patrol.period / FRAME).round() as usize;
+    for index in 0..frames {
+        let push = if index % 2 == 0 { 1.0 } else { -1.0 };
+        frame(&mut game, Controls { push, ..Controls::default() });
+        let zone = patrol.at(game.simulated);
+        assert!(
+            game.player.standing == Standing::Patrol(0) && (game.player.position[0] - zone.center()[0]).abs() < 0.2,
+            "frame {index}: still riding the lift at {zone:?}, {:?}",
+            game.player
+        );
+    }
 }
 
 #[test]
