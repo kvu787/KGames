@@ -1,6 +1,7 @@
 // The GPU timer: its spans measure the GPU's time between two points in a
 // frame's commands, a span around a clear of a large target is longer than
-// one around nothing, and it's ready for the next frame after it's read.
+// one around nothing, it's ready for the next frame after it's read, and it
+// won't resolve a span that was begun and never ended.
 
 use graphics::{AdapterChoice, Gpu, GpuTimer, Offscreen};
 
@@ -46,4 +47,19 @@ fn a_frame_with_no_spans_reads_as_none() {
     target.finish(&mut gpu, frame).unwrap();
     let fence = gpu.signal().unwrap();
     assert_eq!(timer.read(&gpu, fence).unwrap(), Vec::<f64>::new());
+}
+
+// Resolving a query that was never ended is undefined, and can hang the GPU,
+// so a span that's begun and not ended stops the program at the resolve.
+#[test]
+#[should_panic(expected = "never ended")]
+fn resolving_a_span_that_never_ended_panics() {
+    let gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut timer = GpuTimer::new(&gpu, 2).unwrap();
+    let mut target = Offscreen::new(&gpu, 16, 16, [0.0; 4]).unwrap();
+    let frame = target.begin().unwrap();
+    let ended = timer.begin(&frame);
+    timer.end(&frame, ended);
+    let _never_ended = timer.begin(&frame);
+    timer.resolve(&frame);
 }

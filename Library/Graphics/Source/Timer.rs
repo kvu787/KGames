@@ -32,6 +32,9 @@ pub struct GpuTimer {
     spans: u32,
     // How many spans this frame has begun.
     begun: u32,
+    // Which of them it has ended. Resolving a query that was never ended is
+    // undefined, and can hang the GPU or remove the device.
+    ended: Vec<bool>,
 }
 
 impl GpuTimer {
@@ -60,12 +63,14 @@ impl GpuTimer {
                 frequency,
                 spans,
                 begun: 0,
+                ended: vec![false; spans as usize],
             })
         }
     }
 
-    // Starts a span: the GPU takes the time once it reaches this point in
-    // the frame's commands.
+    // Starts a span. A timestamp is the time when the GPU has finished all of
+    // the frame's work before it, so a span is the GPU's time for the work
+    // between its begin and its end.
     pub fn begin(&mut self, frame: &Frame) -> Span {
         assert!(self.begun < self.spans, "more spans than the timer was made for");
         let span = Span(self.begun);
@@ -74,7 +79,10 @@ impl GpuTimer {
         span
     }
 
-    pub fn end(&self, frame: &Frame, span: Span) {
+    pub fn end(&mut self, frame: &Frame, span: Span) {
+        assert!(span.0 < self.begun, "a span that this frame didn't begin");
+        assert!(!self.ended[span.0 as usize], "a span ended twice");
+        self.ended[span.0 as usize] = true;
         unsafe { frame.list.EndQuery(&self.heap, D3D12_QUERY_TYPE_TIMESTAMP, span.0 * 2 + 1) };
     }
 
@@ -84,6 +92,10 @@ impl GpuTimer {
         if self.begun == 0 {
             return;
         }
+        assert!(
+            self.ended[..self.begun as usize].iter().all(|ended| *ended),
+            "a span was begun and never ended, so its end can't be resolved"
+        );
         unsafe {
             frame.list.ResolveQueryData(&self.heap, D3D12_QUERY_TYPE_TIMESTAMP, 0, self.begun * 2, &self.readback, 0);
         }
@@ -96,6 +108,7 @@ impl GpuTimer {
         gpu.wait_for(fence)?;
         let count = self.begun as usize;
         self.begun = 0;
+        self.ended.fill(false);
         if count == 0 {
             return Ok(Vec::new());
         }
