@@ -69,7 +69,8 @@ The file isn't checked in; delete it for a fresh start.
 ## Testing
 
 `Program\RunLightly\RunLightly.ps1 cargo test -p platformer_tests` runs the
-tests: the physics (determinism at 60 against 240 Hz, buffer, coyote, carry),
+tests: the physics (determinism at 60 against 240 Hz, buffer, coyote, carry,
+and every top in every level holding a player who runs along it),
 the event graph's one-frame laws, the progress file, and the frames through
 `Headless`. `Program\RunInBackground\RunInBackground.ps1 Platformer
 --all-scripts` runs the input scripts in `Test/Platformer/Scripts` in a real
