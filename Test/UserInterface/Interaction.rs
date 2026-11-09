@@ -7,7 +7,7 @@ use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
+    AppBar, Button, Card, CheckBox, Clipboard, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
     Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox, Palette, Point, Program, Rect, Segmented, Sense, Severity, Slider,
     Startup, Text, TextBox, ThemeKind, TooltipLine, Tree, Ui, View, ViewInput,
 };
@@ -292,6 +292,22 @@ fn a_focused_text_field_takes_the_keys_that_type() {
     app.key(Key::ESCAPE).key(Key::A);
     assert_eq!(app.program.shortcut, 2);
     assert_eq!(focused(&app), Some(Value::Null));
+}
+
+// Cut takes the text away only once it's on the clipboard. Windows'
+// clipboard can be unavailable for a moment, while another program has it
+// open, and then the selection stays.
+#[test]
+fn a_cut_keeps_the_text_unless_the_clipboard_takes_it() {
+    let mut app = Headless::new(Test::default());
+    app.click("Field").type_text("keep");
+    app.set_clipboard(Clipboard::Unavailable);
+    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::X);
+    assert_eq!(app.program.text, "keep");
+    app.set_clipboard(Clipboard::Own(String::new()));
+    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::X);
+    assert_eq!(app.program.text, "");
+    assert_eq!(app.clipboard_text().as_deref(), Some("keep"));
 }
 
 #[test]

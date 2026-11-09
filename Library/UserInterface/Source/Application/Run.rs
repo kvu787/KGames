@@ -126,8 +126,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     };
 
     let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
-    let clipboard = if scripted { Clipboard::Own(String::new()) } else { Clipboard::Windows };
-    let mut ui = Interface::new(fonts, ThemeKind::Light, clipboard);
+    // Windows' clipboard, once there's a window to own what it writes, or,
+    // in a scripted run, the interface's own.
+    let mut ui = Interface::new(fonts, ThemeKind::Light, Clipboard::Own(String::new()));
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     // The PerfBar along the top of the window, with the input
@@ -152,6 +153,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     }
 
     let mut window = Window::create(&program.title(), display.monitor, mode).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    if !scripted {
+        ui.clipboard = Clipboard::Windows(window.hwnd());
+    }
     window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();

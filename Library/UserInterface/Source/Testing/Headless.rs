@@ -100,6 +100,17 @@ impl<P: Program> Headless<P> {
         headless
     }
 
+    // Replaces the interface's own clipboard, like with one that's
+    // unavailable, as Windows' is while another program keeps it open.
+    pub fn set_clipboard(&mut self, clipboard: Clipboard) -> &mut Self {
+        self.ui.clipboard = clipboard;
+        self
+    }
+
+    pub fn clipboard_text(&self) -> Option<String> {
+        self.ui.clipboard.text()
+    }
+
     pub fn size(&self) -> Size {
         self.custom_size
             .unwrap_or_else(|| Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT }))
