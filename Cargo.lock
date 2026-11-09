@@ -142,6 +142,7 @@ dependencies = [
  "displays",
  "identify_displays",
  "user_interface",
+ "windows_api",
 ]
 
 [[package]]

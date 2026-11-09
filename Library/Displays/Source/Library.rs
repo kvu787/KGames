@@ -22,7 +22,8 @@ const IDENTIFIER_LENGTH: usize = 6;
 
 pub struct Display {
     pub identifier: String,
-    // The monitor's model from its EDID, like "DELL U2720Q".
+    // The monitor's friendly name, which Windows usually makes from its
+    // EDID, like "DELL U2720Q".
     pub name: String,
     // What the monitor is plugged into, like "HDMI" or "Built in".
     pub connection: &'static str,
@@ -63,8 +64,13 @@ impl Display {
     }
 }
 
-// The displays that show part of the desktop, from left to right.
+// The displays that show part of the desktop, from left to right, in
+// physical pixels and with their own DPI, whatever DPI awareness the calling
+// thread has. Windows tells a thread that isn't per-monitor aware that every
+// display is at 96 DPI, and scales its areas to match, so this asks as a
+// per-monitor aware thread, and then puts the thread's awareness back.
 pub fn enumerate() -> Result<Vec<Display>> {
+    let _aware = PerMonitorAware::new();
     // Without QueryDisplayConfig's monitors, identifiers come from GDI device names.
     let targets = unsafe { targets() }.unwrap_or_default();
     let mut displays = Vec::new();
@@ -115,6 +121,24 @@ pub fn enumerate() -> Result<Vec<Display>> {
         (a.area.left, a.area.top, &a.identifier).cmp(&(b.area.left, b.area.top, &b.identifier))
     });
     Ok(displays)
+}
+
+// Makes the thread per-monitor DPI aware while it lives.
+struct PerMonitorAware(DPI_AWARENESS_CONTEXT);
+
+impl PerMonitorAware {
+    fn new() -> Self {
+        Self(unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) })
+    }
+}
+
+impl Drop for PerMonitorAware {
+    fn drop(&mut self) {
+        // Null if it couldn't be changed, so there's nothing to put back.
+        if !self.0.0.is_null() {
+            unsafe { SetThreadDpiAwarenessContext(self.0) };
+        }
+    }
 }
 
 // The display with this identifier, ignoring case.

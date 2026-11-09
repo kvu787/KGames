@@ -9,10 +9,15 @@ publish = false
 name = "Boxes"
 path = "Boxes.rs"
 
+[[test]]
+name = "Displays"
+path = "Displays.rs"
+
 [dependencies]
 displays = { path = "../../Library/Displays" }
 identify_displays = { path = "../../Program/IdentifyDisplays" }
 user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]
 workspace = true
