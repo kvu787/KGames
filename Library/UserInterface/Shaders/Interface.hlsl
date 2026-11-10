@@ -3,7 +3,7 @@
 // antialiased and corners round at any size. Colors are sRGB and
 // premultiplied, and blend in sRGB, as Windows' own controls do.
 //
-// The instances are in a structured buffer, laid out like painter.rs'
+// The instances are in a structured buffer, laid out like Painter.h's
 // Instance, and the pixel shader gets its instance from the vertex shader,
 // flat, rather than reading the buffer for every pixel.
 

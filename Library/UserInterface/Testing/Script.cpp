@@ -235,8 +235,7 @@ std::expected<ScriptFrame, std::string> ScriptRunner::frame(std::uint64_t frame,
         output.events.insert(output.events.end(), std::make_move_iterator(found->second.begin()), std::make_move_iterator(found->second.end()));
         scheduled.erase(found);
     }
-    // The steps aren't copied first, as the Rust copies them to change the
-    // runner while it reads them: nothing here changes the script.
+    // The steps aren't copied first: nothing here changes the script.
     for (const Script::Step& step : script.steps) {
         if (step.frame != frame) {
             continue;

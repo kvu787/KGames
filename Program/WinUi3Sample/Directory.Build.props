@@ -1,6 +1,6 @@
 <Project>
   <!--
-    Builds into the target folder at the root of the repository, like the Cargo workspace, which
+    Builds into the target folder at the root of the repository, like the C++ projects, which
     .gitignore leaves out, instead of into bin and obj folders next to the project.
   -->
   <PropertyGroup>

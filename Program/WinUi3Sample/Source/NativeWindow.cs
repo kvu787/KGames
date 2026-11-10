@@ -4,7 +4,7 @@ namespace WinUi3Sample;
 
 // What WinUI 3 has no API for: showing the window maximized without activating it, as
 // RunInBackground needs, so that it opens beneath the other windows, and typing in the window that
-// has focus stays there. Library/UserInterface's window.rs does the same for the other programs.
+// has focus stays there. Library/UserInterface's Window.cpp does the same for the other programs.
 static unsafe partial class NativeWindow {
     static nint activationHook;
 

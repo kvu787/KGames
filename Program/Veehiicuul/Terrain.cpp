@@ -191,8 +191,7 @@ std::expected<Terrain, std::string> Terrain::parse(const Value& value) {
         return std::unexpected(std::string("Terrain.Origin must be a cell's coordinates, two whole numbers"));
     }
     // No cell is past the farthest, so that the cells around any of them
-    // have coordinates that an int32 holds. This is the C++'s own: the Rust
-    // read any int32, and added to it past its ends.
+    // have coordinates that an int32 holds.
     if (std::ranges::any_of(*origin, [](double coordinate) { return std::abs(coordinate) > static_cast<double>(FarthestCell); })) {
         return std::unexpected(
             std::format("Terrain.Origin must be within {} cells of [0, 0], not [{}, {}]", FarthestCell, base::display((*origin)[0]), base::display((*origin)[1])));

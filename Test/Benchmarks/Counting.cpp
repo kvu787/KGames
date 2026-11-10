@@ -2,8 +2,8 @@
 // its counts.
 //
 // The counters are the whole process's, so these tests are one test, which
-// runs them one after another, as the Rust's ran them without its test
-// harness: the tests of a project all run on the main thread, one at a time,
+// runs them one after another: the tests of a project all run on the main
+// thread, one at a time,
 // so nothing else allocates while they count, and counting is off whenever
 // the harness itself runs, between tests. A CHECK that holds allocates
 // nothing. A CHECK_EQ makes its message's text before it compares, even an
@@ -108,10 +108,9 @@ struct Form {
     void (*release)(void*);
 };
 
-// Not in the Rust, whose allocator has one way in and one way out: every
-// form of operator new counts the bytes that it was asked for, and every
-// form of operator delete the same bytes, whether the compiler told it them
-// or the heap did.
+// C++ has many ways into the heap and out of it: every form of operator new
+// counts the bytes that it was asked for, and every form of operator delete
+// the same bytes, whether the compiler told it them or the heap did.
 void every_form_of_new_and_delete_counts_the_same_bytes() {
     const Form forms[] = {
         {"new, delete", [] { return ::operator new(Size); }, [](void* block) { ::operator delete(block); }},

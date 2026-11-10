@@ -161,8 +161,8 @@ template <class M> MenuLayout layout(Fonts& fonts, Rect bounds, Point origin, co
         y = std::max(origin.y - height, bounds.y + tokens::SpaceS);
     }
     // In a window narrower than the menu and its margins, the least place
-    // for it is past the most. Rust's clamp panics then, and std::clamp is
-    // undefined, so this stops the program as the Rust does.
+    // for it is past the most. std::clamp is undefined then, where Rust's
+    // clamp panics, so this stops the program.
     float least = bounds.x + tokens::SpaceS;
     float most = std::max(bounds.right() - width - tokens::SpaceS, bounds.x);
     if (!(least <= most)) {

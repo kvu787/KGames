@@ -1,6 +1,5 @@
 <!--
-  The tool that makes the car for Library\Meshes, as Meshes builds: what Meshes' build.rs is in
-  Rust. Meshes.vcxproj runs it.
+  The tool that makes the car for Library\Meshes, as Meshes builds. Meshes.vcxproj runs it.
 -->
 <Project DefaultTargets="Build">
   <PropertyGroup>

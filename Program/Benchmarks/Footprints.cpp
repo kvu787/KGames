@@ -98,17 +98,13 @@ template <Subject S> std::vector<Usage> program(const S& subject, Budget budget)
 template <Subject S> Usage moving(const S& subject, Budget budget) {
     Headless<typename S::P> app = subject.make();
     size_t step = 0;
-    // The note is the Rust's, for the two programs' rows to be the same. It
-    // isn't true of either: `send` runs one frame.
-    return memory::measure(std::format("memory/{}/frame/moving", subject.name()), "frame", budget, Frames,
-                           [&] {
-                               step += 1;
-                               float t = static_cast<float>(step) * 0.017f;
-                               float x = (std::sin(t) * 0.5f + 0.5f) * tokens::WindowWidth;
-                               float y = (std::cos(t * 0.7f) * 0.5f + 0.5f) * tokens::MaximizedHeight;
-                               app.send({{Event::PointerMoved{Point(x, y)}}});
-                           })
-        .with_note("2 frames an iteration");
+    return memory::measure(std::format("memory/{}/frame/moving", subject.name()), "frame", budget, Frames, [&] {
+        step += 1;
+        float t = static_cast<float>(step) * 0.017f;
+        float x = (std::sin(t) * 0.5f + 0.5f) * tokens::WindowWidth;
+        float y = (std::cos(t * 0.7f) * 0.5f + 0.5f) * tokens::MaximizedHeight;
+        app.send({{Event::PointerMoved{Point(x, y)}}});
+    });
 }
 
 // Frames in a row, counted only after the program has run for long enough

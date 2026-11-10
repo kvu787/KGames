@@ -108,7 +108,7 @@ template <class P> P& program_of(std::expected<P, std::string>& created) {
 // What every program does before anything else: it stops a failure from
 // opening a dialog, with base::fail_quietly, and has what it writes to
 // standard output and standard error go out as it's written, with each line
-// ending in a line feed alone, as the Rust's does.
+// ending in a line feed alone.
 void begin();
 
 // Says why the program ended, on standard error, after the program's name.

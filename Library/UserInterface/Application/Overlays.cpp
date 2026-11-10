@@ -24,10 +24,10 @@ namespace user_interface {
 
 namespace {
 
-// An overlay that's shown. Its members are in the reverse of the Rust's
-// order, as C++ destroys them last to first, where Rust drops them first to
-// last: the window goes first, and the presenter, which waits for the GPU to
-// finish its last frame as it goes, before the renderer and its buffers.
+// An overlay that's shown. Its members are destroyed last to first, and are
+// in this order for that: the window goes first, and the presenter, which
+// waits for the GPU to finish its last frame as it goes, before the renderer
+// and its buffers.
 struct Shown {
     std::uint32_t frames;
     Interface ui;
