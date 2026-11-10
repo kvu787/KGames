@@ -101,11 +101,23 @@ foreach ($name in $names) {
     $projects += $found[0].FullName
 }
 
+# MSBuild builds as many projects at once as the computer has processors, and
+# each project's compiler runs as many copies of itself (/MP). Through
+# RunLightly, which says in KGAMES_LIGHT_JOBS how many processors its cap on
+# CPU time is worth, it's that many of each instead, so that a build's work is
+# steady rather than bursts that the cap stops. CL_MPCount is the property
+# that Visual Studio sets for its own "Maximum concurrent C++ compilations".
+$parallel = @('-maxCpuCount')
+if ($env:KGAMES_LIGHT_JOBS) {
+    $jobs = [int]$env:KGAMES_LIGHT_JOBS
+    $parallel = @("-maxCpuCount:$jobs", "-property:CL_MPCount=$jobs")
+}
+
 foreach ($project in $projects) {
     # Without node reuse, MSBuild's worker processes end with the build, so
     # none outlives a RunLightly job, and none from another build, outside
     # the job, does this one's work.
-    & $msbuild $project -nologo -maxCpuCount -nodeReuse:false -verbosity:minimal "-property:Configuration=$configuration" -property:Platform=x64 "-property:KGamesHardened=$($hardened.ToString().ToLowerInvariant())"
+    & $msbuild $project -nologo @parallel -nodeReuse:false -verbosity:minimal "-property:Configuration=$configuration" -property:Platform=x64 "-property:KGamesHardened=$($hardened.ToString().ToLowerInvariant())"
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

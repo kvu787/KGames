@@ -7,7 +7,7 @@
 # after other processes'. It runs that in a PowerShell process of its own, so
 # that the shell this is run from, like someone's terminal, stays as it is.
 #
-#     Program\RunLightly\RunLightly.ps1 cargo test --workspace
+#     Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1
 #
 # Run from a command that's already in a RunLightly job, which
 # KGAMES_LIGHT_JOB names, like RunInBackground run through RunLightly, it just
@@ -18,7 +18,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 if ($args.Count -eq 0) {
-    Write-Error 'Name a command to run, like: Program\RunLightly\RunLightly.ps1 cargo test --workspace'
+    Write-Error 'Name a command to run, like: Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1'
 }
 
 if ($env:KGAMES_LIGHT_JOB) {

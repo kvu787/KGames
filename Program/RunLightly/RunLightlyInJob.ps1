@@ -31,7 +31,7 @@
 #
 # The command's process is made here, suspended, put in the job, and only then
 # let run: a process that PowerShell starts the usual way doesn't always end
-# up in its job (cargo, cmd and the rest didn't here, though a child
+# up in its job (cmd and the rest didn't here, though a child
 # PowerShell did), while the processes that a native process in the job
 # starts do. Microsoft's documentation says that a job's processes start
 # theirs in it unless the job allows breakaway, which this one doesn't, but
@@ -42,11 +42,13 @@
 # mode also puts every process whose parent is in the job into it, within a
 # quarter second.
 #
-# Cargo runs as many jobs as the cap is worth in cores, like 8 of 24 at 33%,
-# instead of one for each efficiency core, so that its work is steady rather
-# than bursts that the cap stops, and the other efficiency cores stay free.
-# Tests run on as many threads. .NET's and MSBuild's build servers would run
-# outside the job, so they're turned off.
+# KGAMES_LIGHT_JOBS in the environment says how many cores the cap is worth,
+# like 8 of 24 at 33%. Program\Build\Build.ps1 has MSBuild build that many
+# projects at once, and each project's compiler run that many copies of
+# itself, instead of one for each core, so that a build's work is steady
+# rather than bursts that the cap stops, and the other efficiency cores stay
+# free. .NET's and MSBuild's build servers would run outside the job, so
+# they're turned off.
 #
 # It exits with the command's exit code.
 
@@ -458,8 +460,7 @@ $env:UseSharedCompilation = 'false'
 $cores = [System.Numerics.BitOperations]::PopCount($processors)
 $share = [Math]::Max(1, [Math]::Round([Lightly]::ProcessorCount * $percent / 100))
 $jobs = [Math]::Min($cores, $share)
-$env:CARGO_BUILD_JOBS = [string]$jobs
-$env:RUST_TEST_THREADS = [string]$jobs
+$env:KGAMES_LIGHT_JOBS = [string]$jobs
 # Library/Graphics puts the GPU work of every process that draws after other
 # processes'.
 $env:KGAMES_GPU_PRIORITY = 'Idle'

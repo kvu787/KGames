@@ -5,14 +5,14 @@ and RunInBackground, which runs through it. Coding agents run their builds and t
 the [AGENTS.md](../../AGENTS.md) at the root).
 
 ```powershell
-Program\RunLightly\RunLightly.ps1 cargo test --workspace
-Program\RunLightly\RunLightly.ps1 cargo build --release -p UiShowcase
+Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1
+Program\RunLightly\RunLightly.ps1 Program\Build\Build.ps1 --release UiShowcase
 ```
 
 It runs the command in a PowerShell process of its own (`RunLightlyInJob.ps1`), which puts itself
 in a Windows job object first, so that the shell it's run from stays as it is. The job's limits hold
-the command and every process that it starts, like Cargo's `rustc` and linker, which can't escape
-them:
+the command and every process that it starts, like MSBuild's compilers and linker, which can't
+escape them:
 
 | Limit    | What it does                                                                 |
 | -------- | ---------------------------------------------------------------------------- |
@@ -41,20 +41,23 @@ Jobs can't hold the rest, so RunLightly sets it itself:
 | Membership      | The command's process is made suspended, put in the job, and then let run, and a  |
 |                 | process whose parent is in the job but that Windows left out, like what a .NET    |
 |                 | process starts here, is put in within a quarter second, unless it's in a job of   |
-|                 | its own by then, as rustup's cargo is: so run cargo as the command, not from a    |
-|                 | script. Microsoft's documentation says that Windows puts them in, as the job      |
-|                 | allows no breakaway, but here it leaves out what PowerShell or .NET starts        |
+|                 | its own by then. Microsoft's documentation says that Windows puts them in, as the |
+|                 | job allows no breakaway, but here it leaves out what PowerShell or .NET starts    |
 | GPU priority    | `KGAMES_GPU_PRIORITY=Idle` in the environment, which                              |
 |                 | [Library/Graphics](../../Library/Graphics/README.md) reads: every process that    |
 |                 | draws, like a test or a test run of a program, puts its GPU work after other      |
 |                 | processes', like the game's frames                                                |
 
-Cargo runs as many jobs as the cap is worth in cores, and tests run on as many threads
-(`CARGO_BUILD_JOBS` and `RUST_TEST_THREADS`), instead of one for each efficiency core, so that the
+A build runs as many jobs as the cap is worth in cores, instead of one for each core, so that its
 work is steady rather than bursts that the cap stops, and the other efficiency cores stay free.
+RunLightly says how many in `KGAMES_LIGHT_JOBS`, and `Program\Build\Build.ps1` has MSBuild build
+that many projects at once, and each project's compiler run that many copies of itself. When
+several projects with many files compile at the same time, that's more compilers than jobs for a
+while, which the cap holds like anything else. A test project runs its tests one after another, in
+one process.
 
 On an Intel Core Ultra 9 275HX, with 8 performance cores and 16 efficiency cores, a command
-gets the 16 efficiency cores, and Cargo runs 8 jobs, a third of 24. Windows numbers that CPU's
+gets the 16 efficiency cores, and a build runs 8 jobs, a third of 24. Windows numbers that CPU's
 cores with the two kinds mixed: its performance cores are logical processors 0, 1, 10 to 13, 22
 and 23. RunLightly asks Windows each core's efficiency class instead of assuming an order.
 
@@ -77,21 +80,24 @@ What it can't hold:
 
 [FrameTimes](../FrameTimes/README.md) measures a game's frame times, which shows what a build does
 to it. Build FrameTimes once, and go somewhere in the game that draws steadily, to stay in for both
-runs. Start a build that has work to do, like the whole workspace into a new target folder, in one
-terminal:
+runs. Start a build that has work to do, like everything in the hardened configuration, which
+nothing else uses, after deleting what it built last, in one terminal:
 
 ```powershell
-Program\RunLightly\RunLightly.ps1 cargo build --release --workspace --target-dir target\BuildCheck
+Remove-Item -Recurse -Force target\ReleaseHardened, target\Intermediate\ReleaseHardened -ErrorAction SilentlyContinue
+```
+
+```powershell
+Program\RunLightly\RunLightly.ps1 Program\Build\Build.ps1 --release --hardened
 ```
 
 While it builds, measure the game in another:
 
 ```powershell
-target\release\frame_times.exe AceCombat8 --seconds 60
+target\Release\FrameTimes.exe AceCombat8 --seconds 60
 ```
 
 Then measure the game again, in the same place, without the build, and compare the two. The 99th
 percentile, the maximum and the stutters show the hitches that the build adds, more than the mean
 does. Run FrameTimes directly, not through RunLightly, so that it reads the game's events as they
-come, not at idle priority behind the build. Delete `target\BuildCheck` afterwards, so that the
-next check builds everything again.
+come, not at idle priority behind the build.
