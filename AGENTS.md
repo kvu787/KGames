@@ -41,14 +41,6 @@ loader, which loads the installed runtime unless a `GameInputRedist.dll` is besi
 in the repo may put one there, nor copy or load the runtimes in the package, which are for
 sideloading.
 
-# Folder and file naming
-
-This only applies to things that we have the freedom to name as wanted.
-Use CamelCase.
-Use complete proper words. Don't use typical shortenings. Good: Source, Documentation. Bad: src, docs.
-
-Exceptions: README.md, LICENSE.md, TODO.md, README.txt, LICENSE.txt, TODO.txt, AGENTS.md
-
 # PowerShell
 
 All PowerShell scripts must:
