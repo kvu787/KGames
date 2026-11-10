@@ -73,6 +73,39 @@ TEST(whole_numbers_stop_where_rusts_do) {
     CHECK_EQ(base::rem_euclid(5.5, 2.0), 1.5);
 }
 
+// i64::wrapping_add and wrapping_sub: a sum or a difference past the type's
+// ends goes around to the other, where + and - are undefined in C++, and
+// the difference of two totals that went around is still how far apart
+// they are.
+TEST(signed_numbers_go_around_their_type_s_ends_where_asked_to) {
+    constexpr std::int64_t Most = std::numeric_limits<std::int64_t>::max();
+    constexpr std::int64_t Least = std::numeric_limits<std::int64_t>::min();
+    CHECK_EQ(base::wrapping_add(std::int64_t{2}, std::int64_t{3}), std::int64_t{5});
+    CHECK_EQ(base::wrapping_add(std::int64_t{2}, std::int64_t{-3}), std::int64_t{-1});
+    CHECK_EQ(base::wrapping_add(Most, std::int64_t{1}), Least);
+    CHECK_EQ(base::wrapping_add(Most, Most), std::int64_t{-2});
+    CHECK_EQ(base::wrapping_add(Least, std::int64_t{-1}), Most);
+    CHECK_EQ(base::wrapping_add(Least, Least), std::int64_t{0});
+    CHECK_EQ(base::wrapping_sub(std::int64_t{2}, std::int64_t{3}), std::int64_t{-1});
+    CHECK_EQ(base::wrapping_sub(Least, std::int64_t{1}), Most);
+    CHECK_EQ(base::wrapping_sub(Most, std::int64_t{-1}), Least);
+    CHECK_EQ(base::wrapping_sub(std::int64_t{0}, Least), Least);
+    CHECK_EQ(base::wrapping_sub(Most, Least), std::int64_t{-1});
+    // A total that went around, less the total before it.
+    std::int64_t before = Most - 5;
+    std::int64_t after = base::wrapping_add(before, std::int64_t{12});
+    CHECK_EQ(after, Least + 6);
+    CHECK_EQ(base::wrapping_sub(after, before), std::int64_t{12});
+    // The narrower types go around their own ends.
+    CHECK_EQ(base::wrapping_add(std::numeric_limits<std::int32_t>::max(), std::int32_t{1}), std::numeric_limits<std::int32_t>::min());
+    CHECK_EQ(base::wrapping_sub(std::numeric_limits<std::int32_t>::min(), std::int32_t{1}), std::numeric_limits<std::int32_t>::max());
+    CHECK_EQ(static_cast<int>(base::wrapping_add(std::int8_t{127}, std::int8_t{1})), -128);
+    CHECK_EQ(static_cast<int>(base::wrapping_sub(std::int16_t{-32768}, std::int16_t{1})), 32767);
+    // At compile time too, where an overflow of + wouldn't compile.
+    static_assert(base::wrapping_add(Most, std::int64_t{1}) == Least);
+    static_assert(base::wrapping_sub(Least, std::int64_t{1}) == Most);
+}
+
 TEST(a_sum_type_holds_one_alternative) {
     Shape circle = Shape::Circle{2.0f};
     CHECK(base::is<Shape::Circle>(circle));
