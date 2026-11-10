@@ -80,6 +80,11 @@ TEST(splits_lines_and_cases) {
     CHECK_EQ(base::lines("a\n"), (std::vector<std::string_view>{"a"}));
     CHECK_EQ(base::to_ascii_lowercase("AbC\xC3\x89"), "abc\xC3\x89");
     CHECK_EQ(base::to_ascii_uppercase("AbC"), "ABC");
+    CHECK_EQ(base::join(std::vector<std::string>{"a", "b", "c"}, ", "), "a, b, c");
+    CHECK_EQ(base::join(std::vector<std::string_view>{}, ", "), "");
+    CHECK_EQ(base::join(std::vector<std::string_view>{"one"}, ", "), "one");
+    CHECK_EQ(base::trim_end(" a b \t\n"), " a b");
+    CHECK_EQ(base::trim_end("a\xC2\xA0"), "a");
     CHECK(base::eq_ignore_ascii_case("Ctrl", "cTRL"));
     CHECK(!base::eq_ignore_ascii_case("Ctrl", "Ctr"));
     CHECK_EQ(base::replace("a.b.c", ".", "::"), "a::b::c");

@@ -50,8 +50,10 @@ template <class T> T expect(std::optional<T>&& optional, std::string_view messag
 
 // Stops a failure from opening a dialog, which would take focus and wait for
 // someone to close it: the C runtime's assertions and errors go to stderr,
-// and a crash ends the program at once. Every program and test calls it
-// first.
+// and a crash ends the program at once. And has an exception that nothing
+// catches, like a panic, write what it says to stderr before it stops the
+// program, as a panic does in Rust, so that a program that stopped says why.
+// Every program and test calls it first.
 void fail_quietly();
 
 } // namespace base

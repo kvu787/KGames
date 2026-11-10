@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -152,6 +153,23 @@ std::vector<std::string_view> split(std::string_view text, char separator);
 
 // The text's lines, without their line ends: str::lines.
 std::vector<std::string_view> lines(std::string_view text);
+
+// The parts with the separator between them: [String]::join.
+template <std::ranges::input_range Parts> std::string join(Parts&& parts, std::string_view separator) {
+    std::string joined;
+    bool first = true;
+    for (auto&& part : parts) {
+        if (!first) {
+            joined += separator;
+        }
+        first = false;
+        joined += std::string_view(part);
+    }
+    return joined;
+}
+
+// Without the whitespace at its end: str::trim_end.
+std::string_view trim_end(std::string_view text);
 
 // ASCII letters in lower or upper case: str::to_ascii_lowercase.
 std::string to_ascii_lowercase(std::string_view text);

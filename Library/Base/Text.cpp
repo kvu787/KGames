@@ -157,6 +157,21 @@ std::string_view trim(std::string_view text) {
     return text;
 }
 
+std::string_view trim_end(std::string_view text) {
+    while (!text.empty()) {
+        size_t start = text.size() - 1;
+        while (start > 0 && (static_cast<unsigned char>(text[start]) & 0xC0) == 0x80) {
+            start -= 1;
+        }
+        Decoded last = decode_char(text.substr(start));
+        if (!is_space(last.character) || start + last.length != text.size()) {
+            break;
+        }
+        text.remove_suffix(last.length);
+    }
+    return text;
+}
+
 bool eq_ignore_ascii_case(std::string_view a, std::string_view b) {
     if (a.size() != b.size()) {
         return false;
