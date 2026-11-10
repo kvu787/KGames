@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -20,6 +21,7 @@ using json::Value;
 using veehiicuul::terrain::Cell;
 using veehiicuul::terrain::disk;
 using veehiicuul::terrain::distance;
+using veehiicuul::terrain::FarthestCell;
 using veehiicuul::terrain::neighbors;
 using veehiicuul::terrain::Terrain;
 
@@ -117,4 +119,54 @@ TEST(writes_its_cells_as_rows_and_reads_them_back) {
     std::expected<Terrain, std::string> wrong = Terrain::parse(json::parse(text).value());
     CHECK(!wrong.has_value());
     CHECK_EQ(wrong.error(), "Terrain.Rows[0] has '1', which isn't one of the palette's 1 colors");
+}
+
+// A cell is FarthestCell at most from cell [0, 0], along each axis, so that
+// the cells around it, a brush's and a fill's, and the steps between it and
+// them, are numbers that an int32 holds: a point far away, or any point of
+// a terrain of tiny cells, is in the farthest cell, and a file whose cells
+// are past it is wrong.
+TEST(cells_are_no_farther_than_the_farthest_cell) {
+    Terrain tiny = terrain_with(false);
+    tiny.size = 1e-300;
+    Cell far_ = tiny.cell_at({1.0, 0.0});
+    CHECK_EQ(far_, Cell(FarthestCell, 0));
+    CHECK_EQ(tiny.cell_at({-1.0, 0.0}), Cell(-FarthestCell, 0));
+    CHECK_EQ(tiny.cell_at({1.0, 1.0}), Cell(FarthestCell, FarthestCell));
+    CHECK_EQ(terrain_with(true).cell_at({-1e300, 1e300}), Cell(FarthestCell, -FarthestCell));
+    // A brush and a fill there are the cells that they are anywhere.
+    for (Cell cell : {far_, Cell(-FarthestCell, FarthestCell)}) {
+        for (Cell neighbor : neighbors(cell)) {
+            CHECK_EQ(distance(neighbor, cell), 1);
+        }
+        std::vector<Cell> brush = disk(cell, 8);
+        CHECK_EQ(brush.size(), 217);
+        CHECK(std::ranges::all_of(brush, [&](Cell under) { return distance(under, cell) <= 8; }));
+        std::vector<Cell> filled = tiny.region(cell, 60);
+        CHECK_EQ(filled.size(), 10981);
+        CHECK(std::ranges::all_of(filled, [&](Cell under) { return distance(under, cell) <= 60; }));
+    }
+    // Painting with a brush there leaves the cells past the farthest
+    // unpainted, so that the terrain reads back from what it writes.
+    Terrain painted = terrain_with(false);
+    for (Cell under : disk({FarthestCell, -FarthestCell}, 2)) {
+        painted.set(under, std::uint8_t{1});
+    }
+    CHECK_EQ(painted.cells.size(), 9);
+    CHECK_EQ(painted.get({FarthestCell - 2, -FarthestCell + 2}), std::optional<std::uint8_t>(std::uint8_t{1}));
+    CHECK_EQ(painted.get({FarthestCell + 1, -FarthestCell}), std::nullopt);
+    CHECK_EQ(Terrain::parse(painted.to_value()).value(), painted);
+
+    auto problem = [](std::string_view origin, std::string_view rows) {
+        std::string text = std::format(R"({{ "Size": 2, "Orientation": "PointyTop", "Palette": ["#000000"], "Origin": {}, "Rows": {} }})", origin, rows);
+        std::expected<Terrain, std::string> terrain = Terrain::parse(json::parse(text).value());
+        return terrain ? std::string("It reads") : terrain.error();
+    };
+    CHECK_EQ(problem("[2147483647, 2147483647]", R"(["00", "00"])"), "Terrain.Origin must be within 1073741824 cells of [0, 0], not [2147483647, 2147483647]");
+    CHECK_EQ(problem("[0, -1073741825]", R"(["0"])"), "Terrain.Origin must be within 1073741824 cells of [0, 0], not [0, -1073741825]");
+    CHECK_EQ(problem("[1e300, 0]", R"([])"), std::format("Terrain.Origin must be within 1073741824 cells of [0, 0], not [1{}, 0]", std::string(300, '0')));
+    CHECK_EQ(problem("[1073741824, 0]", R"(["00"])"), "Terrain.Rows[0] goes past 1073741824 cells from [0, 0]");
+    CHECK_EQ(problem("[0, 1073741824]", R"(["0", "", "0"])"), "Terrain.Rows[2] goes past 1073741824 cells from [0, 0]");
+    // Up to it, they read.
+    CHECK_EQ(problem("[1073741823, -1073741824]", R"(["00", ".."])"), "It reads");
 }

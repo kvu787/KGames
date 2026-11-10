@@ -36,6 +36,7 @@ using terrain_editor::TerrainMsg;
 using track_editor::TrackMsg;
 using user_interface::AppBar;
 using user_interface::Button;
+using user_interface::ButtonStyle;
 using user_interface::Card;
 using user_interface::CardArea;
 using user_interface::CheckBox;
@@ -294,10 +295,7 @@ void Veehiicuul::commands(Ui& ui, Tree<Message>& tree, Rect bar) const {
     tree.add("Mode", tabs, SelectorBar<Message>(mode, Modes).on_select(base::make<Message::Mode>));
 
     // From the right end: save, redo and undo, then the scene.
-    Button<Message> save_button = Button<Message>("Save").icon(Icon::Save).on_press(Message::Save{});
-    if (unsaved_now) {
-        save_button = std::move(save_button).accent();
-    }
+    Button<Message> save_button = Button<Message>("Save").icon(Icon::Save).style(unsaved_now ? ButtonStyle::Accent : ButtonStyle::Standard).on_press(Message::Save{});
     Button<Message> undo_button = Button<Message>("Undo").icon(Icon::Undo).on_press(Message::Undo{});
     Button<Message> redo_button = Button<Message>("Redo").icon(Icon::Redo).on_press(Message::Redo{});
     Button<Message> new_scene_button = Button<Message>("New scene").icon(Icon::Add).on_press(Message::NewScene{});

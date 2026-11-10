@@ -41,6 +41,14 @@ namespace veehiicuul::terrain {
 // A cell's axial coordinates, (q, r).
 using Cell = std::pair<std::int32_t, std::int32_t>;
 
+// How far a cell can be from cell [0, 0], along each axis: far past any
+// scene, and near enough that the cells around it, as far as a brush or a
+// fill reaches, and the steps between it and them, are numbers that an int32
+// holds, where adding to a cell's coordinates past that is undefined. A point
+// farther away is in the farthest cell, and a file with cells past it is
+// wrong.
+inline constexpr std::int32_t FarthestCell = 1 << 30;
+
 inline constexpr std::string_view Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 // The most colors a palette has, one a character.
 inline constexpr size_t PaletteSize = 62;
@@ -65,7 +73,8 @@ struct Terrain {
 
     std::optional<std::uint8_t> get(Cell cell) const;
 
-    // Paints a cell with a palette index, or clears it with nothing.
+    // Paints a cell with a palette index, or clears it with nothing. A cell
+    // past the farthest stays unpainted.
     void set(Cell cell, std::optional<std::uint8_t> color);
 
     // Every cell connected to `start` through cells of its color, or

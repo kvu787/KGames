@@ -21,7 +21,8 @@ namespace {
 constexpr double Sqrt3 = 1.732'050'807'568'877'2;
 
 // The cell nearest fractional axial coordinates, by rounding them as the
-// cube coordinates (q, r, -q - r).
+// cube coordinates (q, r, -q - r), and no farther than the farthest cell,
+// which a point far away, or any point of a terrain of tiny cells, is in.
 Cell round_axial(double q, double r) {
     double s = -q - r;
     double rq = std::round(q);
@@ -35,7 +36,10 @@ Cell round_axial(double q, double r) {
     } else if (dr > ds) {
         rr = -rq - rs;
     }
-    return {base::saturating_cast<std::int32_t>(rq), base::saturating_cast<std::int32_t>(rr)};
+    auto within = [](double coordinate) {
+        return std::clamp(base::saturating_cast<std::int32_t>(coordinate), -FarthestCell, FarthestCell);
+    };
+    return {within(rq), within(rr)};
 }
 
 // For the set of cells that a fill has seen.
@@ -100,6 +104,14 @@ std::optional<std::uint8_t> Terrain::get(Cell cell) const {
 }
 
 void Terrain::set(Cell cell, std::optional<std::uint8_t> color) {
+    // A brush or a fill at the farthest cell reaches past it, where a
+    // scene's file has no cells.
+    auto within = [](std::int32_t coordinate) {
+        return coordinate >= -FarthestCell && coordinate <= FarthestCell;
+    };
+    if (color && !(within(cell.first) && within(cell.second))) {
+        return;
+    }
     if (color) {
         cells.insert_or_assign(cell, *color);
     } else {
@@ -178,6 +190,14 @@ std::expected<Terrain, std::string> Terrain::parse(const Value& value) {
     if (std::ranges::any_of(*origin, [](double coordinate) { return coordinate - std::trunc(coordinate) != 0.0; })) {
         return std::unexpected(std::string("Terrain.Origin must be a cell's coordinates, two whole numbers"));
     }
+    // No cell is past the farthest, so that the cells around any of them
+    // have coordinates that an int32 holds. This is the C++'s own: the Rust
+    // read any int32, and added to it past its ends.
+    if (std::ranges::any_of(*origin, [](double coordinate) { return std::abs(coordinate) > static_cast<double>(FarthestCell); })) {
+        return std::unexpected(
+            std::format("Terrain.Origin must be within {} cells of [0, 0], not [{}, {}]", FarthestCell, base::display((*origin)[0]), base::display((*origin)[1])));
+    }
+    std::array<std::int64_t, 2> first{static_cast<std::int64_t>((*origin)[0]), static_cast<std::int64_t>((*origin)[1])};
     std::map<Cell, std::uint8_t> painted;
     std::expected<const Value*, std::string> rows_member = files::member(value, "Rows", "Terrain.");
     if (!rows_member) {
@@ -201,10 +221,12 @@ std::expected<Terrain, std::string> Terrain::parse(const Value& value) {
             if (color == std::string_view::npos || color >= colors.size()) {
                 return std::unexpected(std::format("Terrain.Rows[{}] has {}, which isn't one of the palette's {} colors", row_index, debug_character(character), colors.size()));
             }
-            Cell cell{
-                base::saturating_cast<std::int32_t>((*origin)[0]) + static_cast<std::int32_t>(column),
-                base::saturating_cast<std::int32_t>((*origin)[1]) + static_cast<std::int32_t>(row_index),
-            };
+            std::int64_t q = first[0] + static_cast<std::int64_t>(column);
+            std::int64_t r = first[1] + static_cast<std::int64_t>(row_index);
+            if (q > FarthestCell || r > FarthestCell) {
+                return std::unexpected(std::format("Terrain.Rows[{}] goes past {} cells from [0, 0]", row_index, FarthestCell));
+            }
+            Cell cell{static_cast<std::int32_t>(q), static_cast<std::int32_t>(r)};
             painted.insert_or_assign(cell, static_cast<std::uint8_t>(color));
         }
     }
