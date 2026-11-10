@@ -12,7 +12,7 @@
     "CBV(b1)"
 
 // The terrain's palette, then the road, two of barriers and two of the
-// start line, as ground.rs says.
+// start line, as Ground.h says.
 static const uint MaterialCount = 72;
 
 cbuffer ObjectConstants : register(b0)

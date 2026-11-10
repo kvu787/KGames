@@ -8,11 +8,13 @@
 #include "Base/Text.h"
 #include "SimplePaint/Material.h"
 #include "Testing/Testing.h"
+#include "UserInterface/Application/Settings.h"
 #include "Veehiicuul/Collision.h"
 #include "Veehiicuul/Driving.h"
 #include "Veehiicuul/Files.h"
 #include "Veehiicuul/Models.h"
 #include "Veehiicuul/Scene.h"
+#include "Veehiicuul/Settings.h"
 #include "Veehiicuul/Vehicles.h"
 
 #include "Folders.h"
@@ -27,6 +29,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -34,14 +37,17 @@ namespace files = veehiicuul::files;
 
 using simple_paint::Material;
 using simple_paint::Parameters;
+using user_interface::Settings;
 using veehiicuul::collision::Footprint;
 using veehiicuul::document::Document;
 using veehiicuul::driving::Acceleration;
+using veehiicuul::driving::DeadZone;
 using veehiicuul::models::Model;
 using veehiicuul::models::Models;
 using veehiicuul::models::paint_file;
 using veehiicuul::models::paint_from_color;
 using veehiicuul::scene::Scene;
+using veehiicuul::settings::GameSettings;
 using veehiicuul::vehicles::Vehicle;
 using veehiicuul::vehicles::Vehicles;
 
@@ -64,7 +70,7 @@ std::pair<Models, Document> load() {
 }
 
 // A file's text, which must be there.
-std::string read(const std::filesystem::path& path) {
+std::string text_of(const std::filesystem::path& path) {
     std::expected<std::string, std::string> text = files::read(path);
     if (!text) {
         base::panic(text.error());
@@ -133,11 +139,11 @@ TEST(the_vehicles_each_look_and_drive_their_own_way) {
 TEST(the_files_write_back_as_they_were_and_only_what_changed) {
     auto [models, document] = load();
     for (const Scene& scene : document.scenes) {
-        std::string text = read(folder() / base::path(std::format("Scenes/{}.json", scene.name)));
+        std::string text = text_of(folder() / base::path(std::format("Scenes/{}.json", scene.name)));
         CHECK_EQ(scene.to_json(), text, "Scenes/{}.json", scene.name);
     }
-    CHECK_EQ(document.vehicles.to_json(), read(folder() / "Vehicles.json"));
-    CHECK_EQ(paint_file(document.paint("SlopeCar")), read(folder() / "Models/SlopeCar.json"));
+    CHECK_EQ(document.vehicles.to_json(), text_of(folder() / "Vehicles.json"));
+    CHECK_EQ(paint_file(document.paint("SlopeCar")), text_of(folder() / "Models/SlopeCar.json"));
     CHECK(document.changed_files(document).empty());
     Document changed = document;
     changed.scenes[0].track.barrier_width = 2.0;
@@ -186,10 +192,49 @@ TEST(says_what_is_wrong_with_the_vehicles_file) {
     }
 }
 
-// The test of the game's own settings in Settings.json,
-// settings_name_the_scene_vehicle_camera_and_dead_zones, reads them through
-// Library/UserInterface's settings, and comes with the rest of the port to
-// it.
+namespace {
+
+// Reads the game's settings from Settings.json's text, with what's wrong.
+std::pair<GameSettings, std::vector<std::string>> read(std::string_view text) {
+    Settings settings = Settings::from_text(text);
+    GameSettings game = GameSettings::read(settings);
+    return {game, std::vector<std::string>(settings.problems().begin(), settings.problems().end())};
+}
+
+} // namespace
+
+TEST(settings_name_the_scene_vehicle_camera_and_dead_zones) {
+    auto [defaults, no_problems] = read("{}");
+    CHECK(no_problems.empty(), "{}", testing::describe(no_problems));
+    CHECK_EQ(defaults, GameSettings());
+    CHECK_EQ(std::tuple(std::string_view(defaults.scene), std::string_view(defaults.vehicle), defaults.follow),
+             std::tuple(std::string_view("Ribeye"), std::string_view("Yellow"), false));
+    auto [following, none] = read(R"({ "Camera": "follow", "DeadZones": { "Sideways": [0.2, 0.9] } })");
+    CHECK(none.empty(), "{}", testing::describe(none));
+    CHECK(following.follow);
+    CHECK_EQ(following.dead_zones.sideways, (DeadZone{.inner = 0.2, .outer = 0.9}));
+    CHECK_EQ(following.dead_zones.forward_and_back, (DeadZone{.inner = 0.05, .outer = 0.95}));
+    // A setting that's wrong keeps its default, and says why.
+    struct Case {
+        std::string_view text;
+        std::string_view problem;
+    };
+    for (const Case& expected : {
+             Case{R"({ "Camera": "Above" })", "Camera must be \"Fixed\" or \"Follow\", not \"Above\", so it's the default."},
+             Case{R"({ "Scene": 3 })", "Scene must be a name, not 3, so it's the default."},
+             Case{R"({ "DeadZones": { "Sideways": [0.9, 0.2] } })",
+                  "DeadZones has Sideways, which must be [inner, outer], from 0 to 1 with inner below outer, not a list of 2, so it's the default."},
+         }) {
+        auto [settings, problems] = read(expected.text);
+        CHECK_EQ(problems, (std::vector<std::string>{std::string(expected.problem)}));
+        CHECK_EQ(settings, GameSettings());
+    }
+    // The game's own Settings.json is right.
+    Settings settings = Settings::load(folder() / "Settings.json");
+    GameSettings game = GameSettings::read(settings);
+    CHECK(settings.problems().empty(), "{}", testing::describe(settings.problems()));
+    CHECK_EQ(std::tuple(std::string_view(game.scene), std::string_view(game.vehicle), game.follow), std::tuple(std::string_view("Ribeye"), std::string_view("Yellow"), false));
+}
 
 // A color's channels are two hex digits each, with no sign or space.
 TEST(colors_are_hex_digits_only) {

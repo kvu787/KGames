@@ -6,5 +6,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-cargo run --release --manifest-path (Join-Path $PSScriptRoot 'Cargo.toml') -- --display Primary @args
+$repository = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+& (Join-Path $repository 'Program\Build\Build.ps1') --release Veehiicuul
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+# Through the pipeline, so that this waits for the game, which has no console
+# of its own, and shows what it writes.
+& (Join-Path $repository 'target\Release\Veehiicuul.exe') --display Primary @args | Out-Host
 exit $LASTEXITCODE

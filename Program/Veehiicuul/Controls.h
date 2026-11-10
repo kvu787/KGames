@@ -21,6 +21,12 @@
 #include <array>
 #include <cstdint>
 
+namespace user_interface {
+
+class Ui;
+
+} // namespace user_interface
+
 namespace veehiicuul::controls {
 
 struct Controls {
@@ -42,8 +48,8 @@ struct Controls {
     bool default_zoom = false;
     bool toggle_card = false;
 
-    // Reading the frame's controls from the interface, `read`, comes with the
-    // rest of the port to Library/UserInterface.
+    // The frame's controls, with the wheel's notches over the game's view.
+    static Controls read(const user_interface::Ui& ui, double notches);
 
     bool operator==(const Controls&) const = default;
 };

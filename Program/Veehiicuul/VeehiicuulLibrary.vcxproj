@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\Library\Meshes\Meshes.vcxproj" />
     <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
     <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
   </ItemGroup>
   <!--
     The shaders, compiled to DXIL as the library builds: SimplePaint's, for the 16 materials that a

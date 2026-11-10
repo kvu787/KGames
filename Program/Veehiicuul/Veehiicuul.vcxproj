@@ -1,0 +1,14 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Gltf\Gltf.vcxproj" />
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\Meshes\Meshes.vcxproj" />
+    <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

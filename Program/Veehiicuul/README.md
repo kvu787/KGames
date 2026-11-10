@@ -196,7 +196,8 @@ and a notice under the app bar says so.
 ## Build and run
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release Veehiicuul
+target\Release\Veehiicuul.exe
 ```
 
 Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It opens the game on
@@ -206,7 +207,7 @@ the primary display. `--display` and `--no-activate` work as in every program, a
 ## Testing
 
 ```powershell
-cargo test -p veehiicuul_tests
+Program\RunTests\RunTests.ps1 VeehiicuulTests
 Program\RunInBackground\RunInBackground.ps1 Veehiicuul --all-scripts
 ```
 
@@ -241,40 +242,44 @@ and how editing feels with a real mouse.
 
 ## Layout
 
-| Path                    | Contents                                                               |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `src/main.rs`           | Runs the game with Library/UserInterface's main loop                   |
-| `src/lib.rs`            | The game's parts, as a library that `Test/Veehiicuul` tests            |
-| `src/program.rs`        | The game as a `Program`: the bars, undo, saving, and Play's card       |
-| `src/game.rs`           | The document, the models, the car, the camera, and Play                |
-| `src/document.rs`       | What the editors change and Save writes                                |
-| `src/scene.rs`          | Reads and writes a scene                                               |
-| `src/terrain.rs`        | The hexel terrain, its hexels' places, brushes and fills               |
-| `src/track.rs`          | A track's curves, start and colors, and its shape and problems         |
-| `src/curve.rs`          | The closed B-spline curves                                             |
-| `src/ground.rs`         | Makes the terrain's and the track's meshes                             |
-| `src/models.rs`         | Reads the models from Blender, and their paint                         |
-| `src/vehicles.rs`       | Reads and writes `Vehicles.json`                                       |
-| `src/files.rs`          | Numbers, points and colors in the game's files                         |
-| `src/controls.rs`       | What the gamepad and the keys do in Play                               |
-| `src/driving.rs`        | How a car moves, its dead zones, and its brake                         |
-| `src/collision.rs`      | Footprints, and whether a car touches an edge                          |
-| `src/camera.rs`         | The game's camera and the editors' views                               |
-| `src/editing.rs`        | What the editors share: their cards, views, controls, and what they    |
-|                         | draw over the view                                                     |
-| `src/scene_editor.rs`   | The Scene tab                                                          |
-| `src/terrain_editor.rs` | The Terrain tab                                                        |
-| `src/track_editor.rs`   | The Track tab                                                          |
-| `src/vehicle_editor.rs` | The Vehicles tab, with the footprint creator                           |
-| `src/settings.rs`       | The game's own settings in `Settings.json`, and their defaults         |
-| `src/drawing.rs`        | Draws the ground and the models, under the interface                   |
-| `Shaders/Ground.hlsl`   | Draws the ground in flat colors, with SimplePaint's root signature     |
-| `build.rs`              | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
-| `Models`, `Scenes`      | The models and their paint, and the scenes                             |
-| `Vehicles.json`         | The vehicles                                                           |
-| `Settings.json`         | The settings                                                           |
-| `HumanRun.ps1`          | Builds the game and runs it on the primary display, for people to play |
-| `HumanRun.cmd`          | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
+| Path                        | Contents                                                               |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `Main.cpp`                  | Runs the game with Library/UserInterface's main loop                   |
+| `Veehiicuul.h`, `.cpp`      | The game's parts, as a library that `Test/Veehiicuul` tests: every     |
+|                             | header, and the game's name and folder                                 |
+| `Program.h`, `.cpp`         | The game as a `Program`: the bars, undo, saving, and Play's card       |
+| `Game.h`, `.cpp`            | The document, the models, the car, the camera, and Play                |
+| `Document.h`, `.cpp`        | What the editors change and Save writes                                |
+| `Scene.h`, `.cpp`           | Reads and writes a scene                                               |
+| `Terrain.h`, `.cpp`         | The hexel terrain, its hexels' places, brushes and fills               |
+| `Track.h`, `.cpp`           | A track's curves, start and colors, and its shape and problems         |
+| `Curve.h`, `.cpp`           | The closed B-spline curves                                             |
+| `Ground.h`, `.cpp`          | Makes the terrain's and the track's meshes                             |
+| `Models.h`, `.cpp`          | Reads the models from Blender, and their paint                         |
+| `Vehicles.h`, `.cpp`        | Reads and writes `Vehicles.json`                                       |
+| `Files.h`, `.cpp`           | Numbers, points and colors in the game's files                         |
+| `Controls.h`, `.cpp`        | What the gamepad and the keys do in Play                               |
+| `Driving.h`, `.cpp`         | How a car moves, its dead zones, and its brake                         |
+| `Collision.h`, `.cpp`       | Footprints, and whether a car touches an edge                          |
+| `Camera.h`, `.cpp`          | The game's camera and the editors' views                               |
+| `Angles.h`                  | Degrees as radians, and radians as degrees                             |
+| `Editing.h`, `.cpp`         | What the editors share: their cards, views, controls, and what they    |
+|                             | draw over the view                                                     |
+| `SceneEditor.h`, `.cpp`     | The Scene tab                                                          |
+| `TerrainEditor.h`, `.cpp`   | The Terrain tab                                                        |
+| `TrackEditor.h`, `.cpp`     | The Track tab                                                          |
+| `VehicleEditor.h`, `.cpp`   | The Vehicles tab, with the footprint creator                           |
+| `Settings.h`, `.cpp`        | The game's own settings in `Settings.json`, and their defaults         |
+| `Drawing.h`, `.cpp`         | Draws the ground and the models, under the interface                   |
+| `Shaders/Ground.hlsl`       | Draws the ground in flat colors, with SimplePaint's root signature     |
+| `VeehiicuulLibrary.vcxproj` | Builds the game's parts, and compiles SimplePaint's shaders for 16     |
+|                             | slots, and the ground's                                                |
+| `Veehiicuul.vcxproj`        | Builds `Veehiicuul.exe`, of `Main.cpp` and the game's parts            |
+| `Models`, `Scenes`          | The models and their paint, and the scenes                             |
+| `Vehicles.json`             | The vehicles                                                           |
+| `Settings.json`             | The settings                                                           |
+| `HumanRun.ps1`              | Builds the game and runs it on the primary display, for people to play |
+| `HumanRun.cmd`              | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
 
 # Design doc
 

@@ -10,6 +10,12 @@
 
 #include <string>
 
+namespace user_interface {
+
+class Settings;
+
+} // namespace user_interface
+
 namespace veehiicuul::settings {
 
 struct GameSettings {
@@ -20,10 +26,14 @@ struct GameSettings {
     bool follow = false;
     driving::DeadZones dead_zones;
 
-    // Reading the game's settings from Library/UserInterface's, `read`, comes
-    // with the rest of the port to it.
+    // Reads the game's settings, in this order, which a missing
+    // Settings.json is written in.
+    static GameSettings read(user_interface::Settings& settings);
 
     bool operator==(const GameSettings&) const = default;
 };
+
+// How a failed check in a test shows the settings.
+std::string describe_value(const GameSettings& settings);
 
 } // namespace veehiicuul::settings
