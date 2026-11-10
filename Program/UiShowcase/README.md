@@ -74,18 +74,19 @@ The first press on the window while it doesn't have focus only gives it focus.
 ## Build and run
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release UiShowcase
+target\Release\UiShowcase.exe
 ```
 
-Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It opens the showcase on
-the primary display. `--display` and `--no-activate` work as in every program, and
+Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It builds the showcase and
+opens it on the primary display. `--display` and `--no-activate` work as in every program, and
 [RunInBackground](../RunInBackground/README.md) runs it for coding agents. `Settings.json` has the
 settings that every program has.
 
 ## Testing
 
 ```powershell
-cargo test -p ui_showcase_tests
+Program\RunTests\RunTests.ps1 UiShowcaseTests
 Program\RunInBackground\RunInBackground.ps1 UiShowcase --all-scripts
 ```
 
@@ -104,12 +105,14 @@ like `Volume` and `Selected`, the `Log`'s newest lines, and the interface's, as 
 
 ## Layout
 
-| Path              | Contents                                                             |
-| ----------------- | -------------------------------------------------------------------- |
-| `src/main.rs`     | Runs the showcase with Library/UserInterface's main loop             |
-| `src/lib.rs`      | The showcase's parts, as a library that `Test/UiShowcase` tests      |
-| `src/showcase.rs` | What each widget shows, the list's items, the log, and the shortcuts |
-| `src/cards.rs`    | Lays out the cards in fixed pixels, and draws their widgets          |
-| `HumanRun.ps1`    | Builds the showcase and runs it on the primary display, for people   |
-| `HumanRun.cmd`    | Runs `HumanRun.ps1`, for double-clicking in File Explorer            |
-| `Settings.json`   | The settings that every program has                                  |
+| Path                         | Contents                                                             |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `Main.cpp`                   | Runs the showcase with Library/UserInterface's main loop             |
+| `UiShowcase.h`               | The showcase's parts, as a library that `Test/UiShowcase` tests      |
+| `Showcase.h`, `Showcase.cpp` | What each widget shows, the list's items, the log, and the shortcuts |
+| `Cards.h`, `Cards.cpp`       | Lays out the cards in fixed pixels, and draws their widgets          |
+| `UiShowcaseLibrary.vcxproj`  | Builds all but `Main.cpp` into the library that the tests link       |
+| `UiShowcase.vcxproj`         | Builds `Main.cpp` and that library into `UiShowcase.exe`             |
+| `HumanRun.ps1`               | Builds the showcase and runs it on the primary display, for people   |
+| `HumanRun.cmd`               | Runs `HumanRun.ps1`, for double-clicking in File Explorer            |
+| `Settings.json`              | The settings that every program has                                  |

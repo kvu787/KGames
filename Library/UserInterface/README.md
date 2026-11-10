@@ -20,62 +20,67 @@ name.
 
 ## A program
 
-```rust
-use user_interface::{AppBar, Button, Card, Context, Icon, Options, Program, Slider, Startup, Status, Tree, Ui};
+```cpp
+#include "UserInterface/UserInterface.h"
 
-struct Volume {
-    level: f64,
-}
+#include "Folders.h"
 
-#[derive(Clone)]
-enum Message {
-    Set(f64),
-    Mute,
-}
+using namespace user_interface;
 
-impl Program for Volume {
-    type Message = Message;
+struct Message {
+    struct Set {
+        double level;
+    };
+    struct Mute {};
+    std::variant<Set, Mute> value;
+    template <base::AlternativeOf<Message> T> Message(T&& alternative) : value(std::forward<T>(alternative)) {}
+};
 
-    fn title(&self) -> String {
-        "Volume".to_string()
+class Volume : public Program<Message> {
+public:
+    double level = 50.0;
+
+    std::string title() const {
+        return "Volume";
     }
 
-    fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
-        match message {
-            Message::Set(level) => self.level = level,
-            Message::Mute => self.level = 0.0,
-        }
+    void update(Message message, Context<Message>&) {
+        base::match(
+            message, [&](const Message::Set& set) { level = set.level; }, [&](const Message::Mute&) { level = 0.0; });
     }
 
-    fn view(&self, ui: &mut Ui) -> Tree<Message> {
-        let mut tree = Tree::new();
-        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
-        tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
-            let mut area = area.content;
-            let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Set);
-            card.add("Level", area.cut_top(Slider::<Message>::height(true), 8.0), slider);
-            card.add("Mute", area.cut_top(32.0, 0.0).left_strip(120.0), Button::new("Mute").on_press(Message::Mute));
+    Tree<Message> view(Ui& ui) const {
+        Tree<Message> tree;
+        Shell shell = tree.shell(ui, AppBar(Icon::Volume, "Volume"), false, base::vec(Status::shortcut("F11", "Fullscreen")));
+        tree.card(ui, std::nullopt, shell.page.left_strip(400.0f).top_strip(200.0f), Card("Output"), [&](Ui&, Tree<Message>& card, CardArea card_area) {
+            Rect area = card_area.content;
+            Slider<Message> slider = Slider<Message>(level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(base::make<Message::Set>);
+            card.add("Level", area.cut_top(Slider<Message>::height(true), 8.0f), std::move(slider));
+            card.add("Mute", area.cut_top(32.0f, 0.0f).left_strip(120.0f), Button<Message>("Mute").on_press(Message::Mute{}));
         });
-        tree
+        return tree;
     }
-}
+};
 
-fn main() -> std::process::ExitCode {
-    user_interface::run(Options::new("Volume", env!("CARGO_MANIFEST_DIR")), |_startup: &mut Startup| {
-        Ok(Volume { level: 50.0 })
-    })
+int main() {
+    return run(Options("Volume", folders::Project), [](Startup&) { return Volume(); });
 }
 ```
 
-`run` reads `Settings.json` and the command line, opens the window on the chosen display, creates
-the program, and runs the main loop until the window closes. A program can also draw 3D: its
-`prepare` creates GPU resources once, and its `render` records commands into each frame, after
-the frame is cleared to the theme's background and before the interface draws over it, where a
-card made with `card_with_view` leaves a hole.
+A program derives from `Program<M>`, where `M` is its message type, a sum type as
+[Library/Base](../Base/Sum.h) has them, and its `Main.cpp` calls `user_interface::run` with a function
+that makes it from the `Startup`, which may instead return a `std::expected` with why it couldn't
+start. `run` reads `Settings.json` and the command line, opens the window on the chosen display,
+creates the program, and runs the main loop until the window closes. Nothing of a program is virtual:
+`run` is a template of the program's type, and calls what the program defines, or `Program<M>`'s own
+where it leaves something out. A program can also draw 3D: its `prepare` creates GPU resources once,
+and its `render` records commands into each frame, after the frame is cleared to the theme's
+background and before the interface draws over it, where a card made with `Card::with_view` leaves a
+hole.
 
 | `Program` item | What it's for                                                                 |
 | -------------- | ----------------------------------------------------------------------------- |
-| `Message`      | What a frame's input means to the program; `Clone`, and usually an enum       |
+| `Message`      | What a frame's input means to the program: `M`, copyable, usually a sum type  |
 | `title`        | The window's title                                                            |
 | `input`        | The program's own messages from the frame's input, like shortcuts or a tick,  |
 |                | queued after the widgets'                                                     |
@@ -98,18 +103,18 @@ committing an edit once the button is up, or rebuilding what a 3D view shows.
 Color with the theme's roles and size with the tokens and the controls' metrics, instead of values
 of your own, so that every program looks like one family, and like Windows 11.
 
-- **Themes** (`design/theme.rs`): light by default, and dark, which `F9` switches to and from in
+- **Themes** (`Design/Theme.h`): light by default, and dark, which `F9` switches to and from in
   every program. The roles are WinUI's theme resources, like `text_primary` for
   TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
   11's default blue accent and its ramp. Status colors, like `critical`, and colors that tell
   graphs' series apart, `theme.data`, are there too.
-- **Tokens** (`design/tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
-  corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
-  ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
-  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), elevation as WinUI's ThemeShadow makes
-  it from a depth (`elevation(z)`, with tooltips at 16, flyouts at 32, submenus 8 over their menu,
-  and dialogs at 128), and the page's sizes.
-- **Controls** (`design/controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
+- **Tokens** (`Design/Tokens.h`, in `user_interface::tokens`): Fluent's 4-pixel spacing ramp
+  (`SpaceXxs` to `SpaceXxxl`), corner radii (4 for controls, 8 for cards, flyouts and dialogs), the
+  control height (32), the type ramp (`Caption`, `Body`, `BodyStrong`, `BodyLarge`, `Subtitle`,
+  `Title`, `TitleLarge`, `Display`, and `Mono` and `MonoCaption` in Cascadia Mono), elevation as
+  WinUI's ThemeShadow makes it from a depth (`elevation(z)`, with tooltips at 16, flyouts at 32,
+  submenus 8 over their menu, and dialogs at 128), and the page's sizes.
+- **Controls** (`Design/Controls.h`, in `user_interface::controls`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
   a list item's backplate and selection pill, a menu item's padding, and the focus visual's two
   rings, each from WinUI's styles.
@@ -124,24 +129,27 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Type**: Segoe UI Variable, in its optical sizes: Small for captions, Text for body text, and
   Display for titles, laid out by DirectWrite with kerning and font fallback, each line as tall as
   the type ramp says.
-- **Icons** (`design/icons.rs`): Fluent's system icons, from Segoe Fluent Icons.
-- **The page** (`widgets/shell.rs`): an app bar along the top with the program's icon, title, and
+- **Icons** (`Design/Icons.h`): Fluent's system icons, from Segoe Fluent Icons.
+- **The page** (`Widgets/Shell.h`): an app bar along the top with the program's icon, title, and
   its own menus, tabs and commands, a menu row under it for a menu bar whose menus' names line up
   with the page's left edge, if the program wants one, notices under them, a status bar along the
-  bottom with shortcuts and status, and cards between them, `PAGE_PADDING` from the window's edges
-  and `CARD_GAP` from each other.
+  bottom with shortcuts and status, and cards between them, `tokens::PagePadding` from the window's
+  edges and `tokens::CardGap` from each other.
 
 ## Widgets
 
-A widget is a value that `view` builds, like `Button::new("Save").accent()`, and adds to the
+A widget is a value that `view` builds, like `Button<Message>("Save").accent()`, and adds to the
 frame's tree with `tree.add(name, rect, widget)`, or `tree.draw(rect, widget)` for what's only
 looked at, like text. What it does is a reaction given where it's built: a message, like
-`on_press(Message::Save)`, or a function of the widget's value that makes one, like
-`on_change(Message::Set)`. The name is what it's known by from frame to frame, and what scripts and
-tests point at. Each named widget is a target, whose area, kind and label the interface's state
-lists. A widget of a program's own implements `Widget<M>`: its `kind`, `sense` and `parts` say what
-it is to the input, `interact` turns what happened to it into messages through `Dispatch`, and
-`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus.
+`on_press(Message::Save{})`, or a function of the widget's value that makes one, like
+`on_change(base::make<Message::Set>)`, or a lambda. The name is what it's known by from frame to
+frame, and what scripts and tests point at. Each named widget is a target, whose area, kind and label
+the interface's state lists. A widget that sends messages is a template of the program's message
+type, like `Button<Message>`, and one that sends none, like `Text`, is a plain class. A widget of a
+program's own derives from `Widget<M>`, or from `Widget<>` if it sends no messages: its `kind`,
+`sense` and `parts` say what it is to the input, `interact` turns what happened to it into messages
+through `Dispatch<M>`, and `draw` paints it through `Draw`, whose `look` has the frame's hover, press
+and focus.
 
 | Widget                             | WinUI's                   | Notes                                                           |
 | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
@@ -187,19 +195,20 @@ stands on its own, so a program that keeps focus off everything, like a game, ca
 `tree.set_focusable(false)` first and opts its text fields back in one by one.
 A widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
 `takes_wheel_while_focused()`, like a number box's - so what it's in doesn't scroll under it;
-`Sense::VIEW` takes it already.
-`Canvas::new(|painter, rect| ...)` draws a program's own graphics, like graphs and previews:
+`Sense::View` takes it already.
+`Canvas([=](Painter& painter, Rect rect) { ... })` draws a program's own graphics, like graphs and
+previews, when the frame is drawn, after `view` has returned, so it captures what it needs by value:
 rounded rectangles with borders and gradients, Fluent's shadows, circles, rings, arcs, lines,
 polygons, text and icons, with clipping. State that a widget of a program's own keeps between
-frames, like a scroll offset, lives in the interface's memory, `ctx.memory::<T>()` in its contexts,
+frames, like a scroll offset, lives in the interface's memory, `ctx.memory<T>()` in its contexts,
 by the widget's id; `Ui::memory` reads it in `view`, like for laying out a scrolled list.
 
 ## Input
 
 All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads. Every
 program needs GameInput 4.0.306 installed, as that README says, and doesn't start without it, not
-even in a scripted run or with `--no-input`, which don't read it. `platform/input_devices.rs`
-reads every device's readings once a frame, right before the frame, and `input/reader.rs` turns
+even in a scripted run or with `--no-input`, which don't read it. `Platform/InputDevices.cpp`
+reads every device's readings once a frame, right before the frame, and `Input/Reader.cpp` turns
 them into the interface's events, in the order they happened, with the window's focus changes
 between them. The window's messages bring none of it. The library turns on GameInput's background
 input, which GameInput otherwise gives a program only while it has focus, so that it follows the
@@ -263,7 +272,7 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 In any other setup, the window says what's wrong instead of showing the program. It checks again
 whenever the window moves or changes size, or the displays, the scale or the taskbar change.
 
-The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
+The top `tokens::PerfBarHeight`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at
 `ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
 areas, which leaves the program 2560 × 1352 maximized and 2560 × 1423 in borderless fullscreen;
@@ -294,7 +303,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 
 ## Input latency
 
-The main loop (`application/run.rs`) handles the window's messages without waiting, and waits until
+The main loop (`Application/Run.h`) handles the window's messages without waiting, and waits until
 the GPU has finished the last frame and DXGI can take another. Only then does it read the input,
 build the frame's interface, draw it and present it, so a frame's input is as fresh as it can be.
 The swap chain has a frame latency waitable object and a maximum frame latency of 1, and draws on
@@ -324,7 +333,7 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 ## PerfBar
 
 Every program's window shows its performance along its top, in the PerfBar
-(`application/performance.rs`, drawn by `widgets/shell.rs`): the frames over the last second, and
+(`Application/Performance.cpp`, drawn by `Widgets/Shell.cpp`): the frames over the last second, and
 the input latency over the second before the newest frame known on the screen, since Windows' events
 about presents come late: about 15 ms, as PresentTiming flushes ETW's buffers every 8 ms. Its
 sections go one after another from its left, in this order, a `|` between each two, and a `=`
@@ -348,7 +357,7 @@ on too.
 
 The PerfBar is pure black and white: `#000000` text on `#FFFFFF` in the light theme, and
 `#FFFFFF` on `#000000` in the dark one. Its text is set in Cascadia Mono at 14 pixels,
-`PERF_BAR_TEXT`, centered above its divider, in fields whose widths never change, so that every
+`tokens::PerfBarText`, centered above its divider, in fields whose widths never change, so that every
 label and value stays in the same place: numbers are right-aligned in their fields, a number that
 isn't known yet, like the input latency's before the first present, is a dash, and one too wide for
 its field fills it with `#`. Without input latency, the PerfBar says why at its end, after `VSync`,
@@ -397,12 +406,12 @@ asserts on exactly what that input made. `queue` only queues events, for `frame`
 `send_message` and `queue_message` feed the program messages directly, for testing `update` on the
 real pipeline:
 
-```rust
-let mut app = Headless::new(Volume { level: 50.0 });
+```cpp
+Headless app(Volume{});
 app.click("Mute");
-assert_eq!(app.program.level, 0.0);
+CHECK_EQ(app.program.level, 0.0);
 app.key(Key::F11);
-assert!(app.fullscreen());
+CHECK(app.fullscreen());
 ```
 
 `render` draws the last frame offscreen with the GPU, with the program's 3D, for tests that check
@@ -455,39 +464,45 @@ The state is the program's, and the interface's as `Interface`: the `Theme`, `Si
 interface's own clipboard, never Windows'. A scripted run reads and writes its files in its output
 folder, through `startup.data_folder`.
 
-`Test/UserInterface` tests the library itself, with a GPU test that draws offscreen.
+`Test/UserInterface` tests the library itself, with a GPU test that draws offscreen:
+`Program\RunTests\RunTests.ps1 UserInterfaceTests` builds and runs its tests, and
+`Program\Build\Build.ps1 UserInterface` builds the library alone.
 
 ## Layout
 
-| Path                             | Contents                                                                   |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `src/lib.rs`                     | The library's modules and what it exports                                  |
-| `src/application/program.rs`     | `Program`, `Options`, `Startup`, and the command line                      |
-| `src/application/run.rs`         | The main loop                                                              |
-| `src/application/settings.rs`    | `Settings.json`                                                            |
-| `src/application/overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes          |
-| `src/application/performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen |
-| `src/core/interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
-| `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
-| `src/core/interface.rs`          | The interface: input against the shown tree, messages, layout, focus,      |
-|                                  | popups, tooltips, widget memory, and the frame's phases                    |
-| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check   |
-| `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
-| `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
-| `src/platform/clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests          |
-| `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
-| `src/input/events.rs`            | A frame's input, from its events                                           |
-| `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
-| `src/design/theme.rs`            | WinUI's theme resources, light and dark                                    |
-| `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |
-| `src/design/controls.rs`         | WinUI 3's controls' sizes, paddings and parts                              |
-| `src/design/icons.rs`            | Segoe Fluent Icons                                                         |
-| `src/drawing/geometry.rs`        | Points, sizes, insets, rectangles and colors                               |
-| `src/drawing/text.rs`            | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas       |
-| `src/drawing/painter.rs`         | The draw list, and the Painter that programs draw their own graphics with  |
-| `src/drawing/renderer.rs`        | Draws the draw list with Direct3D 12, in one draw call                     |
-| `Shaders/Interface.hlsl`         | The shapes' and glyphs' shader                                             |
-| `src/widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                    |
-| `src/testing/script.rs`          | Scripts                                                                    |
-| `src/testing/headless.rs`        | Runs a program's frames without a window, for tests                        |
-| `build.rs`                       | Compiles the shader at build time                                          |
+| Path                        | Contents                                                                   |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `UserInterface.h`           | Includes all of the library, which is what a program includes              |
+| `Application/Program.h`     | `Program`, `Options`, `Startup`, and the command line                      |
+| `Application/Run.h`         | The main loop                                                              |
+| `Application/Settings.h`    | `Settings.json`                                                            |
+| `Application/Overlays.h`    | Frameless windows over each display, like IdentifyDisplays' boxes          |
+| `Application/Performance.h` | What the PerfBar shows, and the input latency from GameInput to the screen |
+| `Application/Attempt.h`     | A Windows call's failure as what the program says of it                    |
+| `Core/Interaction.h`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
+| `Core/Tree.h`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
+| `Core/Interface.h`          | The interface: input against the shown tree, messages, layout, focus,      |
+|                             | popups, tooltips, widget memory, and the frame's phases                    |
+| `Platform/Window.h`         | The Win32 window, its focus, its cursor, its two setups, and their check   |
+| `Platform/InputDevices.h`   | Reads gamepads, keyboards and mice with GameInput, once a frame            |
+| `Platform/Clock.h`          | The performance counter, which input and frames are timed on               |
+| `Platform/Clipboard.h`      | Windows' clipboard, and the interface's own for scripts and tests          |
+| `Input/Devices.h`           | Keys, shortcuts, mouse buttons and the gamepad                             |
+| `Input/Events.h`            | A frame's input, from its events                                           |
+| `Input/Reader.h`            | Turns a frame's GameInput readings into events                             |
+| `Design/Theme.h`            | WinUI's theme resources, light and dark                                    |
+| `Design/Tokens.h`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |
+| `Design/Controls.h`         | WinUI 3's controls' sizes, paddings and parts                              |
+| `Design/Icons.h`            | Segoe Fluent Icons                                                         |
+| `Drawing/Geometry.h`        | Points, sizes, insets, rectangles and colors                               |
+| `Drawing/Text.h`            | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas       |
+| `Drawing/Painter.h`         | The draw list, and the Painter that programs draw their own graphics with  |
+| `Drawing/Renderer.h`        | Draws the draw list with Direct3D 12, in one draw call                     |
+| `Shaders/Interface.hlsl`    | The shapes' and glyphs' shader                                             |
+| `Widgets/*.h`               | The widgets, cards, menus, dialogs, and the page's bars                    |
+| `Testing/Script.h`          | Scripts                                                                    |
+| `Testing/Headless.h`        | Runs a program's frames without a window, for tests                        |
+| `UserInterface.vcxproj`     | The library's project, which compiles the shader as it builds              |
+
+Nearly every header has its `.cpp` beside it. What depends on a program's message type, like
+`Tree<M>`, `Button<M>` and `Headless<P>`, is a template in its header, and the rest is compiled once.
