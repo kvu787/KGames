@@ -1,0 +1,15 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Program\Benchmarks\BenchmarksLibrary.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+  </ItemGroup>
+  <!--
+    The tests' own operator new and operator delete, which count the heap, as Benchmarks.exe has
+    them. Allocator.cpp says why it's here.
+  -->
+  <ItemGroup>
+    <ClCompile Include="..\..\Program\Benchmarks\Allocator.cpp" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

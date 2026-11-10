@@ -1,0 +1,20 @@
+<Project DefaultTargets="Build">
+  <!--
+    Allocator.cpp replaces the global operator new and operator delete, which only works from a
+    program's own objects, not from a library's, so Benchmarks.vcxproj and BenchmarksTests.vcxproj
+    compile it themselves, as it says.
+  -->
+  <PropertyGroup>
+    <KGamesExclude>Allocator.cpp</KGamesExclude>
+  </PropertyGroup>
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Gltf\Gltf.vcxproj" />
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\PolygonMesh\PolygonMesh.vcxproj" />
+    <ProjectReference Include="..\..\Library\PresentTiming\PresentTiming.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

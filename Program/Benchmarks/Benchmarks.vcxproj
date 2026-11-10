@@ -1,0 +1,15 @@
+<Project DefaultTargets="Build">
+  <!-- A console program: it has no window, and prints what it measures. -->
+  <PropertyGroup>
+    <KGamesConsole>true</KGamesConsole>
+  </PropertyGroup>
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+  </ItemGroup>
+  <!-- The program's own operator new and operator delete, which count the heap. Allocator.cpp says why it's here. -->
+  <ItemGroup>
+    <ClCompile Include="Allocator.cpp" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>
