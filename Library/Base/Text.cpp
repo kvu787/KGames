@@ -292,12 +292,77 @@ std::string to_ascii_uppercase(std::string_view text) {
 
 namespace {
 
-// std::to_chars without a precision writes the shortest digits that read
-// back as the same number, which is what Rust writes too.
-template <class Float> std::string shortest(Float value, std::chars_format format) {
-    char buffer[400];
-    auto result = std::to_chars(buffer, buffer + sizeof(buffer), value, format);
-    return std::string(buffer, result.ptr);
+// The shortest digits that read back as the number, which is what Rust
+// writes: the digits, and the power of ten of the first one, so that the
+// number is d.ddd x 10^exponent.
+struct Digits {
+    // A double takes at most 17, and one more if the last rounds up to 10.
+    char digits[20];
+    size_t count;
+    int exponent;
+};
+
+template <class Float> Digits shortest_digits(Float magnitude) {
+    // Without a precision, std::to_chars writes the shortest digits that
+    // read back as the same number, like "2.5460000610351562e+02". Only its
+    // scientific form does: its fixed form writes a large number's every
+    // digit, where Rust writes the shortest ones and then zeros.
+    char buffer[64];
+    char* end = std::to_chars(buffer, buffer + sizeof(buffer), magnitude, std::chars_format::scientific).ptr;
+    Digits shortest{};
+    char* at = buffer;
+    for (; *at != 'e'; at++) {
+        if (*at != '.') {
+            shortest.digits[shortest.count++] = *at;
+        }
+    }
+    at++;
+    bool negative = *at == '-';
+    at++;
+    std::from_chars(at, end, shortest.exponent);
+    if (negative) {
+        shortest.exponent = -shortest.exponent;
+    }
+
+    // A number exactly halfway between two candidates of the same length:
+    // std::to_chars gives the one whose last digit is even, and Rust the
+    // upper one. It takes nearly all the digits the type can need for two
+    // candidates to both read back as the number, so the number's exact
+    // digits, which are slow to make, are only made then.
+    if (shortest.count + 2 >= static_cast<size_t>(std::numeric_limits<Float>::max_digits10)) {
+        // Every digit of the number: a double has at most 767.
+        char exact[800];
+        int precision = static_cast<int>(shortest.count);
+        char* exact_end = std::to_chars(exact, exact + sizeof(exact), magnitude, std::chars_format::scientific, 780).ptr;
+        std::string_view all(exact, exact_end);
+        all = all.substr(0, all.find('e'));
+        while (all.ends_with('0')) {
+            all.remove_suffix(1);
+        }
+        // "d." then the rest: one more digit than the shortest, a 5, after
+        // the same digits.
+        bool halfway = all.size() == static_cast<size_t>(precision) + 2 && all.back() == '5' && all[0] == shortest.digits[0] &&
+                       std::string_view(shortest.digits + 1, shortest.count - 1) == all.substr(2, shortest.count - 1);
+        if (halfway) {
+            size_t digit = shortest.count;
+            while (digit > 0 && shortest.digits[digit - 1] == '9') {
+                shortest.digits[digit - 1] = '0';
+                digit -= 1;
+            }
+            if (digit > 0) {
+                shortest.digits[digit - 1] += 1;
+            } else {
+                // 9.99 went up to 10.0.
+                shortest.digits[0] = '1';
+                shortest.exponent += 1;
+            }
+            // Zeros at the end aren't digits of the shortest.
+            while (shortest.count > 1 && shortest.digits[shortest.count - 1] == '0') {
+                shortest.count -= 1;
+            }
+        }
+    }
+    return shortest;
 }
 
 template <class Float> std::optional<std::string> special(Float value) {
@@ -310,28 +375,70 @@ template <class Float> std::optional<std::string> special(Float value) {
     return std::nullopt;
 }
 
+// The digits without an exponent: with zeros after them up to the point, or
+// between the point and them.
+void write_fixed(std::string& text, const Digits& shortest) {
+    std::string_view digits(shortest.digits, shortest.count);
+    if (shortest.exponent >= 0) {
+        size_t whole = static_cast<size_t>(shortest.exponent) + 1;
+        if (digits.size() <= whole) {
+            text += digits;
+            text.append(whole - digits.size(), '0');
+        } else {
+            text += digits.substr(0, whole);
+            text += '.';
+            text += digits.substr(whole);
+        }
+    } else {
+        text += "0.";
+        text.append(static_cast<size_t>(-shortest.exponent) - 1, '0');
+        text += digits;
+    }
+}
+
 template <class Float> std::string display_float(Float value) {
     if (auto text = special(value)) {
         return *text;
     }
-    return shortest(value, std::chars_format::fixed);
+    std::string text;
+    if (std::signbit(value)) {
+        text += '-';
+    }
+    if (value == 0) {
+        text += '0';
+        return text;
+    }
+    write_fixed(text, shortest_digits(std::abs(value)));
+    return text;
 }
 
 template <class Float> std::string debug_float(Float value) {
     if (auto text = special(value)) {
         return *text;
     }
-    Float size = std::abs(value);
-    if (size != 0 && (size < static_cast<Float>(1e-4) || size >= static_cast<Float>(1e16))) {
-        // "1.5e-07" and "1e+16" are 1.5e-7 and 1e16 in Rust.
-        std::string text = shortest(value, std::chars_format::scientific);
-        size_t exponent = text.find('e') + 1;
-        std::string digits = text.substr(exponent + 1);
-        digits.erase(0, std::min(digits.find_first_not_of('0'), digits.size() - 1));
-        return text.substr(0, exponent) + (text[exponent] == '-' ? "-" : "") + digits;
+    std::string text;
+    if (std::signbit(value)) {
+        text += '-';
     }
-    std::string text = shortest(value, std::chars_format::fixed);
-    if (text.find('.') == std::string::npos) {
+    if (value == 0) {
+        text += "0.0";
+        return text;
+    }
+    Float size = std::abs(value);
+    Digits shortest = shortest_digits(size);
+    if (size < static_cast<Float>(1e-4) || size >= static_cast<Float>(1e16)) {
+        // Like 1.5e-7 and 1e16.
+        text += shortest.digits[0];
+        if (shortest.count > 1) {
+            text += '.';
+            text.append(shortest.digits + 1, shortest.count - 1);
+        }
+        text += 'e';
+        text += std::to_string(shortest.exponent);
+        return text;
+    }
+    write_fixed(text, shortest);
+    if (shortest.exponent >= 0 && shortest.count <= static_cast<size_t>(shortest.exponent) + 1) {
         text += ".0";
     }
     return text;

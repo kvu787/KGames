@@ -5,6 +5,8 @@
 #include "Base/Text.h"
 #include "Testing/Testing.h"
 
+#include <bit>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <vector>
@@ -186,4 +188,38 @@ TEST(characters_iterate_to_the_end_of_any_text) {
     CHECK_EQ(*second, U'a');
     CHECK_EQ(*first, U'b');
     CHECK(++first == both.end());
+}
+
+// Where std::to_chars and Rust part ways, found by writing 1.2 million
+// numbers with both. A number exactly halfway between two candidates of the
+// same length takes the upper one in Rust, and a large number is its
+// shortest digits and then zeros, never every digit it has.
+TEST(numbers_are_written_as_rust_writes_them_at_the_edges) {
+    // 254.6f as a double is 254.600006103515625: halfway at 17 digits.
+    double widened = static_cast<double>(254.6f);
+    CHECK_EQ(base::display(widened), "254.60000610351563");
+    CHECK_EQ(base::debug(widened), "254.60000610351563");
+    CHECK_EQ(base::parse_f64(base::display(widened)), widened);
+
+    float large = std::bit_cast<float>(std::uint32_t{0xD6E8F2CF});
+    CHECK_EQ(base::display(large), "-128064780000000");
+    CHECK_EQ(base::debug(large), "-128064780000000.0");
+    CHECK_EQ(base::display(std::bit_cast<float>(std::uint32_t{0xCDBDF613})), "-398377570");
+    CHECK_EQ(base::debug(std::bit_cast<float>(std::uint32_t{0xCDBDF613})), "-398377570.0");
+
+    double huge = std::bit_cast<double>(std::uint64_t{0xC78BA87FE0000000});
+    CHECK_EQ(base::display(huge), "-4595506921444331000000000000000000000");
+    CHECK_EQ(base::debug(huge), "-4.595506921444331e36");
+    CHECK_EQ(base::display(std::bit_cast<double>(std::uint64_t{0x456E2969E0000000})), "291706757306122680000000000");
+
+    double tiny = std::bit_cast<double>(std::uint64_t{0x397E69B5A0000000});
+    CHECK_EQ(base::display(tiny), "0.00000000000000000000000000000009371706882305017");
+    CHECK_EQ(base::debug(tiny), "9.371706882305017e-32");
+
+    CHECK_EQ(base::display(5e-324), "0." + std::string(323, '0') + "5");
+    CHECK_EQ(base::debug(5e-324), "5e-324");
+    CHECK_EQ(base::debug(1.7976931348623157e308), "1.7976931348623157e308");
+    CHECK_EQ(base::display(123456789.0f), "123456790");
+    CHECK_EQ(base::debug(0.3f), "0.3");
+    CHECK_EQ(base::debug(static_cast<double>(0.3f)), "0.30000001192092896");
 }
