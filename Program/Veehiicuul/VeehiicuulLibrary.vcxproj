@@ -1,0 +1,21 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Gltf\Gltf.vcxproj" />
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\Meshes\Meshes.vcxproj" />
+    <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+  </ItemGroup>
+  <!--
+    The shaders, compiled to DXIL as the library builds: SimplePaint's, for the 16 materials that a
+    model has at most, from where Library\SimplePaint has them, and the ground's.
+  -->
+  <ItemGroup>
+    <Shader Include="$(KGamesRoot)Library\SimplePaint\Shaders\SimplePaint.hlsl" Name="SimplePaint" Arguments="-O3 -Ges -WX -D SIMPLE_PAINT_MATERIAL_COUNT=16" />
+    <Shader Include="Shaders\Ground.hlsl" Name="Ground" Arguments="-O3 -WX" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>
