@@ -680,18 +680,19 @@ Input::Handled Input::handle_mouse(double time, GameInputMouseState state, std::
     bool motion_only = changes.empty();
 
     // Position and wheel are running totals, so the change since the
-    // previous reading is the motion. The positions flags say which of
-    // relative and absolute position the device reports.
+    // previous reading is the motion, which goes around an int64's ends
+    // with them. The positions flags say which of relative and absolute
+    // position the device reports.
     std::array<std::int64_t, 2> delta{0, 0};
     if (old) {
         GameInputMousePositions relative = GameInputMouseRelativePosition;
         if ((state.positions & relative) != 0 && (old->positions & relative) != 0) {
-            delta = {state.positionX - old->positionX, state.positionY - old->positionY};
+            delta = {base::wrapping_sub(state.positionX, old->positionX), base::wrapping_sub(state.positionY, old->positionY)};
         }
         if (delta[0] != 0 || delta[1] != 0) {
             changes.push_back(std::format("moved ({:+}, {:+})", delta[0], delta[1]));
         }
-        std::array<std::int64_t, 2> wheel{state.wheelX - old->wheelX, state.wheelY - old->wheelY};
+        std::array<std::int64_t, 2> wheel{base::wrapping_sub(state.wheelX, old->wheelX), base::wrapping_sub(state.wheelY, old->wheelY)};
         if (wheel[1] != 0) {
             changes.push_back(std::format("wheel {:+}", wheel[1]));
         }

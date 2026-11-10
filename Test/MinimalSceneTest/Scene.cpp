@@ -127,6 +127,15 @@ TEST(a_frame_counts_a_tenth_of_a_second_at_most) {
     CHECK(std::abs(motion.position - 1.2f) < 1e-6f, "{}", base::display(motion.position));
 }
 
+// A frame's time that isn't a number counts as that tenth of a second too,
+// as f32::min has it in Rust: std::min gives a NaN back, and the sphere would
+// be nowhere from then on.
+TEST(a_frame_whose_time_isn_t_a_number_counts_a_tenth_of_a_second) {
+    Motion motion;
+    motion.advance_frame(std::numeric_limits<float>::quiet_NaN());
+    CHECK_EQ(std::pair(motion.position, motion.direction), std::pair(0.8f, 1.0f));
+}
+
 TEST(the_sphere_moves_with_the_frames_clock) {
     Headless<MovingSphere> app = sphere();
     app.wait(0.5);

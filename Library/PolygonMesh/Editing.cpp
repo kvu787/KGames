@@ -371,10 +371,15 @@ Selection Mesh::merge_by_distance_impl(const std::set<std::uint32_t>& vertices, 
     // Vertices by the cube of `distance` that they're in, so each looks
     // only at its own and the 26 around it.
     double cell_size = static_cast<double>(std::max(distance, 1.0e-6f));
+    // The farthest cube each way has every vertex past it too, so that the
+    // cubes around a vertex's, one more and one less along each axis, have
+    // numbers that an int64 holds: a vertex can be farther than an int64 of
+    // cubes away, and adding 1 to the most that an int64 holds is undefined.
+    constexpr std::int64_t Farthest = std::int64_t{1} << 62;
     auto cell = [&](math::Vector3 position) {
         std::array<std::int64_t, 3> numbers{};
         for (size_t axis = 0; axis < 3; axis++) {
-            numbers[axis] = base::saturating_cast<std::int64_t>(std::floor(static_cast<double>(position[axis]) / cell_size));
+            numbers[axis] = std::clamp(base::saturating_cast<std::int64_t>(std::floor(static_cast<double>(position[axis]) / cell_size)), -Farthest, Farthest);
         }
         return numbers;
     };

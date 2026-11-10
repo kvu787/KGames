@@ -445,6 +445,29 @@ TEST(merging_by_distance) {
     assert_close(signed_volume(cube), 8.0f, 1.0e-5f, "the merged cube's volume");
 }
 
+// Vertices so far away that the cubes they're in have no numbers that an
+// int64 holds, as a file's can be, merge like any others: those at the same
+// place do, and those at opposite ends, in the farthest cubes each way,
+// don't look for each other past them.
+TEST(merging_by_distance_far_away) {
+    Mesh mesh;
+    for (Vector3 position : {
+             Vector3{1.0e30f, 0.0f, 0.0f},
+             Vector3{-1.0e30f, 0.0f, 0.0f},
+             Vector3{1.0e30f, 0.0f, 0.0f},
+             Vector3{0.0f, 3.0e38f, -3.0e38f},
+             Vector3{0.0f, 0.0f, 0.0f},
+             Vector3{0.0f, 3.0e38f, -3.0e38f},
+             Vector3{-1.0e30f, 0.0f, 0.0f},
+         }) {
+        mesh.add_vertex(position);
+    }
+    Selection selection = mesh.merge_by_distance(std::views::iota(0, 7), 0.001f);
+    CHECK_EQ(mesh.positions, (std::vector<Vector3>{{1.0e30f, 0.0f, 0.0f}, {-1.0e30f, 0.0f, 0.0f}, {0.0f, 3.0e38f, -3.0e38f}, {0.0f, 0.0f, 0.0f}}));
+    CHECK_EQ(selection.vertices, range_set<std::uint32_t>(0, 4));
+    assert_valid(mesh, "far vertices merged");
+}
+
 TEST(subdividing_faces) {
     Mesh cube = primitives::cube(2.0f);
     cube.set_crease(Edge(2, 3), 3.0f);

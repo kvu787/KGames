@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -638,6 +639,38 @@ TEST(scripted_readings_are_whole_states) {
     CHECK_EQ(events.size(), 2);
     CHECK_EQ(events[0].second.label, "Pad One");
     CHECK_EQ(events[0].second.rumble_motors, GameInputRumbleLowFrequency | GameInputRumbleHighFrequency);
+}
+
+// A mouse's position and wheel are running totals, which go around an
+// int64's ends when a script moves it that far, and the motion that the demo
+// shows, the difference of two totals, goes around with them. Adding and
+// subtracting them as they are is undefined past those ends.
+TEST(a_scripted_mouse_s_totals_go_around_an_int64_s_ends) {
+    constexpr std::int64_t Most = std::numeric_limits<std::int64_t>::max();
+    constexpr std::int64_t Least = std::numeric_limits<std::int64_t>::min();
+    constexpr std::string_view Far = R"({ "Mouse": { "Id": 4, "Motion": [1e300, -1e300], "Wheel": [-1e300, 1e300] } })";
+    ScriptedSource source;
+    for (std::string_view step : {Rodent, Far, Far}) {
+        std::expected<void, std::string> applied = source.apply(json::parse(step).value());
+        CHECK(applied.has_value(), "{}", applied.error());
+    }
+    std::vector<std::tuple<std::int64_t, std::int64_t, std::int64_t, std::int64_t>> totals;
+    for (const Reading& reading : source.readings(GameInputKindMouse)) {
+        totals.emplace_back(reading.mouse.positionX, reading.mouse.positionY, reading.mouse.wheelX, reading.mouse.wheelY);
+    }
+    // A step's motion is the most that an int64 holds, and two of them go
+    // around.
+    CHECK_EQ(totals, (std::vector<std::tuple<std::int64_t, std::int64_t, std::int64_t, std::int64_t>>{{Most, Least, Least, Most}, {-2, 0, 0, -2}}));
+
+    // The demo's motion is from the first reading, its starting point, to
+    // the second.
+    Input input = ::input();
+    step(input, Rodent);
+    input.update(true);
+    step(input, Far);
+    step(input, Far);
+    input.update(true);
+    CHECK_EQ(input.log_[0].text, "Rodent: moved (+9223372036854775807, -9223372036854775808), wheel +9223372036854775807, horizontal wheel -9223372036854775808");
 }
 
 TEST(scripted_steps_say_what_is_wrong_with_them) {

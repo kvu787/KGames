@@ -266,10 +266,12 @@ std::expected<void, std::string> ScriptedSource::apply(const json::Value& step) 
             GameInputMouseState& mouse = reading.mouse;
             mouse.buttons = *buttons;
             mouse.positions = GameInputMouseRelativePosition;
-            mouse.positionX += base::saturating_cast<std::int64_t>((*motion)[0]);
-            mouse.positionY += base::saturating_cast<std::int64_t>((*motion)[1]);
-            mouse.wheelX += base::saturating_cast<std::int64_t>((*wheel)[0]);
-            mouse.wheelY += base::saturating_cast<std::int64_t>((*wheel)[1]);
+            // Running totals, which go around an int64's ends, as the
+            // differences that the demo takes of them do.
+            mouse.positionX = base::wrapping_add(mouse.positionX, base::saturating_cast<std::int64_t>((*motion)[0]));
+            mouse.positionY = base::wrapping_add(mouse.positionY, base::saturating_cast<std::int64_t>((*motion)[1]));
+            mouse.wheelX = base::wrapping_add(mouse.wheelX, base::saturating_cast<std::int64_t>((*wheel)[0]));
+            mouse.wheelY = base::wrapping_add(mouse.wheelY, base::saturating_cast<std::int64_t>((*wheel)[1]));
         });
     } else {
         return std::unexpected(std::format("{} isn't a step for the demo", name));

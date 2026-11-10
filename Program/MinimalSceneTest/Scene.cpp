@@ -80,7 +80,9 @@ GpuMaterial compile(const Parameters& parameters) {
 } // namespace
 
 void Motion::advance_frame(float seconds) {
-    advance(std::min(seconds, LongestFrame));
+    // std::fmin, which gives the longest frame for a time that isn't a
+    // number, as f32::min does: std::min would give the NaN back.
+    advance(std::fmin(seconds, LongestFrame));
 }
 
 void Motion::advance(float seconds) {
