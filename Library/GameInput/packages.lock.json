@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.GameInput": {
+        "type": "Direct",
+        "requested": "[4.0.306, 4.0.306]",
+        "resolved": "4.0.306",
+        "contentHash": "hUAXXMrArsbqRzV0Y+5XJ86kswJEQtlSpm2wcef8TlF5RyWw3oS22KH/jF8rRezzGD1AzqhratSakgR3WtA9uw=="
+      }
+    }
+  }
+}

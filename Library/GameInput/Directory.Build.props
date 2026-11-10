@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Restores NuGetPackages.proj into the target folder at the root of the repository, like the
+    Cargo workspace builds, which .gitignore leaves out, instead of into an obj folder here.
+  -->
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\..\target\DotNet</ArtifactsPath>
+  </PropertyGroup>
+</Project>

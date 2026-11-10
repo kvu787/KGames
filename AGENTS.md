@@ -29,10 +29,17 @@ GameInput 4.0.306 must be installed, once, from an elevated prompt, with:
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
-That's the user's to do. Nothing in the repo may install GameInput, fetch a GameInput runtime of
-its own, or use any other runtime than that one. KGames doesn't build without it, and programs
-don't start without it, which `Library/GameInput` checks. If a build or a program says that it
-isn't installed, stop and tell the user.
+That's the user's to do. Nothing in the repo may install GameInput. KGames doesn't build without
+it, and programs don't start without it, which `Library/GameInput` checks. If a build or a program
+says that it isn't installed, stop and tell the user.
+
+The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
+`Library/GameInput/NuGetPackages.proj` declares and its `packages.lock.json` pins, and links its
+`GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
+tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
+loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
+in the repo may put one there, nor copy or load the runtimes in the package, which are for
+sideloading.
 
 # Folder and file naming
 
@@ -91,6 +98,9 @@ version. `LICENSE.txt` has its text, and it covers everything in the repository.
   compatible.
 - Closed-source SDKs and runtimes, like the GameInput runtime, which the user installs, stay out
   of the repository.
+- `GameInput.lib`, which KGames links, comes from the `Microsoft.GameInput` NuGet package, which the
+  build restores outside the repository. The package ships its source, `native/src/GameInput.cpp`,
+  under the MIT license, and KGames treats the library as MIT-licensed too.
 - Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`,
   except `Library/WindowsApi/BindingsGenerator`, a workspace of its own, which states it.
 

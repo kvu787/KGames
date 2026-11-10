@@ -1,7 +1,8 @@
-// Library/GameInput: that KGames uses GameInput 4.0.306's installed runtime,
-// from System32, and no other, and that it says how to install it where it
-// isn't installed. KGames doesn't build without it, so these run where it's
-// installed.
+// Library/GameInput: that KGames starts GameInput with GameInputInitialize
+// from the NuGet package's GameInput.lib, whose loader takes GameInput
+// 4.0.306's installed runtime, from System32, unless one is beside the exe,
+// and that it says how to install it where it isn't installed. KGames doesn't
+// build without it, so these run where it's installed.
 
 #[path = "Modules.rs"]
 mod modules;
@@ -9,6 +10,7 @@ mod modules;
 use core::ffi::c_void;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
@@ -25,11 +27,11 @@ const USERS_COMMAND: &str = r#"winget install --exact --id "Microsoft.GameInput"
 fn the_runtime_is_4_0_306_in_system32() {
     assert_eq!(VERSION, [4, 0, 306, 0]);
     assert_eq!(RUNTIME, r"C:\Windows\System32\GameInputRedist.dll");
-    let path = installation::installed_runtime().unwrap().into_path();
-    assert_eq!(path, Path::new(RUNTIME));
+    assert_eq!(installation::installed_runtime().unwrap(), Path::new(RUNTIME));
 
+    // With nothing beside the exe, the loader takes it.
     let (_game_input, runtime) = game_input::create().unwrap();
-    assert_eq!(runtime.path, path);
+    assert!(modules::same(&runtime.path, Path::new(RUNTIME)), "{:?}", runtime.path);
     assert_eq!(runtime.version, VERSION);
 }
 
@@ -53,26 +55,18 @@ fn the_version_is_read_from_the_dll_itself() {
     assert_eq!(installation::version_in(&bytes), Some([4, 1, 2, 3]));
 }
 
-// The check holds the DLL open, as create loads it, so that what loads is
-// what was checked: until it lets go, no one can write, rename or delete the
-// DLL, nor rename its folder. And a DLL that's being written isn't checked.
-// System32 takes an administrator to change at all, so this checks a copy.
+// The check reads the DLL without letting others write it, so a DLL that's
+// being written isn't checked. System32 takes an administrator to change at
+// all, so this checks a copy.
 #[test]
-fn a_checked_dll_cant_change_until_its_let_go() {
-    let folder = std::env::current_exe().unwrap().with_file_name(format!("HeldRuntime{}", std::process::id()));
+fn a_dll_thats_being_written_isnt_checked() {
+    let folder = std::env::current_exe().unwrap().with_file_name(format!("CheckedRuntime{}", std::process::id()));
     std::fs::create_dir_all(&folder).unwrap();
     let _removed = RemovedOnDrop(folder.clone());
     let dll = folder.join("GameInputRedist.dll");
     std::fs::copy(RUNTIME, &dll).unwrap();
+    assert_eq!(installation::check(&dll).unwrap(), dll);
 
-    let checked = installation::check(&dll).unwrap();
-    assert!(OpenOptions::new().write(true).open(&dll).is_err());
-    assert!(std::fs::rename(&dll, folder.join("Renamed.dll")).is_err());
-    assert!(std::fs::remove_file(&dll).is_err());
-    assert!(std::fs::rename(&folder, folder.with_extension("Renamed")).is_err());
-
-    // Once it lets go, it can change.
-    assert_eq!(checked.into_path(), dll);
     let writing = OpenOptions::new().write(true).open(&dll).unwrap();
     assert!(installation::check(&dll).is_err());
     drop(writing);
@@ -80,24 +74,50 @@ fn a_checked_dll_cant_change_until_its_let_go() {
     assert!(installation::check(&dll).unwrap_err().contains("isn't installed"));
 }
 
-// Microsoft's loader in GameInput.lib takes a GameInputRedist.dll beside the
-// exe over an installed one of the same version. KGames' never does.
+// GameInput.lib's loader, which create starts GameInput with, takes a
+// GameInputRedist.dll beside the exe over the installed one of the same
+// version, as Microsoft's documentation of sideloading says. So nothing in
+// the repo may put one beside an exe.
+//
+// The loader picks a runtime once a process, and a loaded DLL can't be
+// deleted, so a copy of this test's exe, in a folder of its own, with a copy
+// of the runtime beside it, runs this test again, and says which runtime it
+// loaded.
 #[test]
-fn a_runtime_beside_the_exe_is_never_loaded() {
-    let beside = std::env::current_exe().unwrap().with_file_name("GameInputRedist.dll");
-    std::fs::copy(RUNTIME, &beside).unwrap();
-    let _removed = RemovedOnDrop(beside);
+fn a_runtime_beside_the_exe_of_the_same_version_is_loaded() {
+    const IN_THE_COPY: &str = "KGAMES_GAME_INPUT_TEST_IN_THE_COPY";
+    if std::env::var_os(IN_THE_COPY).is_some() {
+        let (_game_input, runtime) = game_input::create().unwrap();
+        println!("Loaded {}", runtime.path.display());
+        return;
+    }
 
-    let (_game_input, runtime) = game_input::create().unwrap();
-    assert_eq!(runtime.path, Path::new(RUNTIME));
+    let exe = std::env::current_exe().unwrap();
+    let folder = exe.with_file_name(format!("SideloadedRuntime{}", std::process::id()));
+    std::fs::create_dir_all(&folder).unwrap();
+    let _removed = RemovedOnDrop(folder.clone());
+    let copy = folder.join(exe.file_name().unwrap());
+    std::fs::copy(&exe, &copy).unwrap();
+    let beside = folder.join("GameInputRedist.dll");
+    std::fs::copy(RUNTIME, &beside).unwrap();
+
+    let output = Command::new(&copy)
+        .args(["--exact", "a_runtime_beside_the_exe_of_the_same_version_is_loaded", "--nocapture"])
+        .env(IN_THE_COPY, "1")
+        .output()
+        .unwrap();
+    let printed = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{printed}{}", String::from_utf8_lossy(&output.stderr));
+    let loaded = printed.lines().find_map(|line| line.strip_prefix("Loaded ")).expect(&printed);
+    assert!(modules::same(Path::new(loaded), &beside), "{loaded}");
 }
 
 // The runtime's DLL is also what COM loads to carry calls to GameInput's
 // service, from System32, where the installer registers it. The runtime
 // connects to its service on a thread of its own as it starts, which loads
 // that copy, about 5 ms in, and reports devices after that, about 600 ms in,
-// so this waits for the first device. A process that loaded another copy
-// would run two, so KGames loads System32's, and runs one.
+// so this waits for the first device. With nothing beside the exe,
+// GameInput.lib's loader takes System32's copy too, so the process runs one.
 #[test]
 fn one_copy_of_the_runtime_runs() {
     static REPORTED: AtomicBool = AtomicBool::new(false);
@@ -164,6 +184,20 @@ fn without_4_0_306_it_says_how_to_install_it() {
     let message = installation::wrong_version_message(runtime, Some([4, 0, 300, 0]));
     assert!(message.contains("is GameInput 4.0.300.0") && !message.contains("uninstall"), "{message}");
     assert!(message.contains(USERS_COMMAND), "{message}");
+}
+
+// NuGetPackages.proj asks for exactly the version of GameInput whose runtime
+// the user installs, and packages.lock.json pins that version.
+#[test]
+fn the_package_is_the_runtimes_version() {
+    let version = VERSION[..3].iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
+    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/GameInput");
+    let project = std::fs::read_to_string(folder.join("NuGetPackages.proj")).unwrap();
+    let reference = format!(r#"<PackageReference Include="Microsoft.GameInput" Version="[{version}]""#);
+    assert!(project.contains(&reference), "{project}");
+    let lock = std::fs::read_to_string(folder.join("packages.lock.json")).unwrap();
+    assert!(lock.contains(&format!(r#""requested": "[{version}, {version}]""#)), "{lock}");
+    assert!(lock.contains(&format!(r#""resolved": "{version}""#)), "{lock}");
 }
 
 // The documentation that tells people and agents to install GameInput gives
