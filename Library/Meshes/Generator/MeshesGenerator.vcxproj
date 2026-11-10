@@ -1,0 +1,14 @@
+<!--
+  The tool that makes the car for Library\Meshes, as Meshes builds: what Meshes' build.rs is in
+  Rust. Meshes.vcxproj runs it.
+-->
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <KGamesKind>Tool</KGamesKind>
+  </PropertyGroup>
+  <Import Project="..\..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Gltf\Gltf.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\KGames.targets" />
+</Project>

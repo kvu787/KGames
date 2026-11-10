@@ -1,0 +1,8 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Meshes\Meshes.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

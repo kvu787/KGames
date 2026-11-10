@@ -15,5 +15,7 @@ one format, so that a material can be copied between programs, like from SimpleP
 }
 ```
 
-A member that's missing keeps its default, and a value that SimplePaint rejects is an error.
-SimplePaint itself leaves serialization to its hosts.
+`paint_settings::parse` reads a material from a JSON object, `to_value` makes one, and `format`
+writes one as text, for nesting in a settings file. A member that's missing keeps its default,
+and a value that SimplePaint rejects is an error. SimplePaint itself leaves serialization to its
+hosts.

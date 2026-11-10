@@ -1,0 +1,28 @@
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <!-- The generator's sources are its own project's. -->
+    <KGamesExclude>Generator\**</KGamesExclude>
+  </PropertyGroup>
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\SimplePaint\SimplePaint.vcxproj" />
+    <!-- Built first, so that the target below can run it. Nothing of it is linked. -->
+    <ProjectReference Include="Generator\MeshesGenerator.vcxproj" ReferenceOutputAssembly="false" LinkLibraryDependencies="false" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+
+  <!--
+    Makes the car, Car.h, which Meshes.cpp includes, from the model that Blender exported for
+    Veehiicuul, with MeshesGenerator, when the model or the generator has changed. The generator
+    names the model too, in Generator\Main.cpp.
+  -->
+  <PropertyGroup>
+    <MeshesGenerator>$(OutDir)MeshesGenerator.exe</MeshesGenerator>
+    <MeshesCarModel>$(KGamesRoot)Program\Veehiicuul\Models\SlopeCar.glb</MeshesCarModel>
+    <MeshesCar>$(KGamesGenerated)Car.h</MeshesCar>
+  </PropertyGroup>
+  <Target Name="MeshesCar" BeforeTargets="ClCompile" Inputs="$(MeshesCarModel);$(MeshesGenerator)" Outputs="$(MeshesCar)">
+    <MakeDir Directories="$(KGamesGenerated)" />
+    <Exec Command="&quot;$(MeshesGenerator)&quot; &quot;$(MeshesCar)&quot;" />
+  </Target>
+</Project>

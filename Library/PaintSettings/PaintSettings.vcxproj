@@ -1,0 +1,8 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\Json\Json.vcxproj" />
+    <ProjectReference Include="..\SimplePaint\SimplePaint.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>
