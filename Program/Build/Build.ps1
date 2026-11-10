@@ -8,6 +8,11 @@
 #     Program\Build\Build.ps1 --release                Everything, in Release
 #     Program\Build\Build.ps1 --release Platformer     One project, and what it uses
 #     Program\Build\Build.ps1 MathTests JsonTests
+#     Program\Build\Build.ps1 --release --hardened Benchmarks
+#
+# --hardened builds beside the usual build, into target\ReleaseHardened or
+# target\DebugHardened, with the standard library checking every index and
+# stopping the program at a wrong one, as KGames.props says.
 #
 # A project is named as its .vcxproj is, like Platformer, PlatformerLibrary,
 # MathTests or Json. Programs and libraries go to target\Debug or
@@ -24,14 +29,16 @@ $ErrorActionPreference = 'Stop'
 
 $repository = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $configuration = 'Debug'
+$hardened = $false
 $names = @()
 foreach ($argument in $args) {
     switch ($argument) {
         '--release' { $configuration = 'Release' }
         '--debug' { $configuration = 'Debug' }
+        '--hardened' { $hardened = $true }
         default {
             if ($argument.StartsWith('-')) {
-                Write-Error "Unknown argument $argument. Build.ps1 takes --release, --debug, and the names of projects."
+                Write-Error "Unknown argument $argument. Build.ps1 takes --release, --debug, --hardened, and the names of projects."
             }
             $names += $argument
         }
@@ -98,7 +105,7 @@ foreach ($project in $projects) {
     # Without node reuse, MSBuild's worker processes end with the build, so
     # none outlives a RunLightly job, and none from another build, outside
     # the job, does this one's work.
-    & $msbuild $project -nologo -maxCpuCount -nodeReuse:false -verbosity:minimal "-property:Configuration=$configuration" -property:Platform=x64
+    & $msbuild $project -nologo -maxCpuCount -nodeReuse:false -verbosity:minimal "-property:Configuration=$configuration" -property:Platform=x64 "-property:KGamesHardened=$($hardened.ToString().ToLowerInvariant())"
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

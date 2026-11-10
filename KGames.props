@@ -77,8 +77,16 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
 
   <PropertyGroup>
-    <OutDir>$(KGamesRoot)target\$(Configuration)\</OutDir>
-    <IntDir>$(KGamesRoot)target\Intermediate\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    <!--
+      A hardened build, which Program\Build\Build.ps1 makes with its hardened option, goes beside
+      the usual one, in target\ReleaseHardened: the same code, with the standard library checking
+      every index into a vector, a span, a string or an array and every use of an empty optional,
+      and stopping the program at a wrong one, as Rust does. It's for measuring what the checks
+      cost, and for running the programs with them on.
+    -->
+    <KGamesVariant Condition="'$(KGamesHardened)' == 'true'">Hardened</KGamesVariant>
+    <OutDir>$(KGamesRoot)target\$(Configuration)$(KGamesVariant)\</OutDir>
+    <IntDir>$(KGamesRoot)target\Intermediate\$(Configuration)$(KGamesVariant)\$(MSBuildProjectName)\</IntDir>
     <!-- What a build generates for the project's code to include, like its compiled shaders. -->
     <KGamesGenerated>$(IntDir)Generated\</KGamesGenerated>
     <LinkIncremental>false</LinkIncremental>
@@ -98,6 +106,7 @@
       -->
       <AdditionalIncludeDirectories>$(KGamesRoot)Library;$(KGamesRoot)Program;$(KGamesGenerated);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(KGamesHardened)' == 'true'">_MSVC_STL_HARDENING=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <!-- Headers included with angle brackets, like the Windows SDK's, aren't the repository's to fix. -->
