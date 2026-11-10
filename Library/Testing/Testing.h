@@ -89,6 +89,10 @@ template <class T> std::string describe_one(const T& value) {
         return base::debug(base::display(value));
     } else if constexpr (StringLike<T>) {
         return base::debug(std::string_view(value));
+    } else if constexpr (std::convertible_to<const T&, std::wstring_view>) {
+        return base::debug(base::narrow(std::wstring_view(value)));
+    } else if constexpr (std::same_as<T, wchar_t> || std::same_as<T, char8_t> || std::same_as<T, char16_t>) {
+        return std::format("{}", static_cast<std::uint32_t>(value));
     } else if constexpr (std::same_as<T, float> || std::same_as<T, double>) {
         return base::debug(value);
     } else if constexpr (std::integral<T>) {

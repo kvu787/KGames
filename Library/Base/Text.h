@@ -20,6 +20,9 @@ namespace base {
 std::wstring widen(std::string_view text);
 std::string narrow(std::wstring_view text);
 
+// U+FFFD, which stands for bytes that aren't UTF-8: char::REPLACEMENT_CHARACTER.
+inline constexpr char32_t Replacement = 0xFFFD;
+
 // How many bytes the character takes in UTF-8: char::len_utf8.
 constexpr size_t len_utf8(char32_t character) {
     return character < 0x80 ? 1 : character < 0x800 ? 2 : character < 0x10000 ? 3 : 4;
@@ -29,10 +32,14 @@ constexpr size_t len_utf8(char32_t character) {
 void push_char(std::string& text, char32_t character);
 
 // The character at the start of the text, which mustn't be empty, and how
-// many bytes it takes. U+FFFD, and one byte, for bytes that aren't UTF-8.
+// many bytes it takes. For bytes that aren't UTF-8, U+FFFD, and as many
+// bytes as start a character before one is wrong, at least one, so that
+// text that isn't UTF-8 reads as String::from_utf8_lossy gives it.
 struct Decoded {
     char32_t character;
     size_t length;
+    // Whether the bytes were UTF-8.
+    bool valid = true;
 };
 Decoded decode_char(std::string_view text);
 
@@ -97,8 +104,22 @@ size_t char_count(std::string_view text);
 // text's end: str::is_char_boundary.
 bool is_char_boundary(std::string_view text, size_t offset);
 
-// Without the whitespace at its ends: str::trim.
+// Without the whitespace at its ends, which is Unicode's: str::trim.
 std::string_view trim(std::string_view text);
+
+// Whether the texts are the same but for the case of their ASCII letters:
+// str::eq_ignore_ascii_case.
+bool eq_ignore_ascii_case(std::string_view a, std::string_view b);
+
+// Whether the bytes are UTF-8.
+bool is_utf8(std::string_view text);
+
+// The bytes as text, with U+FFFD where they aren't UTF-8:
+// String::from_utf8_lossy.
+std::string from_utf8_lossy(std::string_view bytes);
+
+// With every `from` replaced by `to`: str::replace.
+std::string replace(std::string_view text, std::string_view from, std::string_view to);
 
 // The parts between the separators: str::split.
 std::vector<std::string_view> split(std::string_view text, char separator);
@@ -134,7 +155,15 @@ std::optional<float> parse_f32(std::string_view text);
 std::optional<std::int64_t> parse_i64(std::string_view text);
 std::optional<std::uint64_t> parse_u64(std::string_view text);
 
+// A whole number in a radix from 2 to 36, with an optional + before it:
+// u64::from_str_radix.
+std::optional<std::uint64_t> parse_u64(std::string_view text, int radix);
+
 // The program's arguments, after its own name: std::env::args().skip(1).
 std::vector<std::string> arguments();
+
+// An environment variable's value, or nothing if it isn't set:
+// std::env::var.
+std::optional<std::string> environment_variable(std::string_view name);
 
 } // namespace base

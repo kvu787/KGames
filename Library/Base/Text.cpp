@@ -51,30 +51,58 @@ void push_char(std::string& text, char32_t character) {
 }
 
 Decoded decode_char(std::string_view text) {
-    constexpr Decoded Invalid{U'�', 1};
+    constexpr Decoded Invalid{Replacement, 1, false};
     auto byte = [&](size_t index) {
         return static_cast<unsigned char>(text[index]);
     };
     auto continues = [&](size_t index) {
         return index < text.size() && (byte(index) & 0xC0) == 0x80;
     };
+    // Whether the byte at the index is there and in the range.
+    auto within = [&](size_t index, unsigned char low, unsigned char high) {
+        return index < text.size() && byte(index) >= low && byte(index) <= high;
+    };
+    // Bytes that aren't UTF-8 are one U+FFFD for the longest run of them that
+    // starts a character, as String::from_utf8_lossy gives.
+    auto invalid = [](size_t length) {
+        return Decoded{Replacement, length, false};
+    };
     unsigned char first = byte(0);
     if (first < 0x80) {
         return {first, 1};
     }
-    if ((first & 0xE0) == 0xC0 && continues(1)) {
-        char32_t character = (static_cast<char32_t>(first & 0x1F) << 6) | (byte(1) & 0x3F);
-        return character >= 0x80 ? Decoded{character, 2} : Invalid;
+    if (first >= 0xC2 && first <= 0xDF) {
+        if (!continues(1)) {
+            return Invalid;
+        }
+        return {(static_cast<char32_t>(first & 0x1F) << 6) | (byte(1) & 0x3F), 2};
     }
-    if ((first & 0xF0) == 0xE0 && continues(1) && continues(2)) {
-        char32_t character = (static_cast<char32_t>(first & 0x0F) << 12) | (static_cast<char32_t>(byte(1) & 0x3F) << 6) | (byte(2) & 0x3F);
-        bool surrogate = character >= 0xD800 && character < 0xE000;
-        return character >= 0x800 && !surrogate ? Decoded{character, 3} : Invalid;
+    if (first >= 0xE0 && first <= 0xEF) {
+        // Not the long form of a shorter character, and not a surrogate.
+        unsigned char low = first == 0xE0 ? 0xA0 : 0x80;
+        unsigned char high = first == 0xED ? 0x9F : 0xBF;
+        if (!within(1, low, high)) {
+            return Invalid;
+        }
+        if (!continues(2)) {
+            return invalid(2);
+        }
+        return {(static_cast<char32_t>(first & 0x0F) << 12) | (static_cast<char32_t>(byte(1) & 0x3F) << 6) | (byte(2) & 0x3F), 3};
     }
-    if ((first & 0xF8) == 0xF0 && continues(1) && continues(2) && continues(3)) {
-        char32_t character =
-            (static_cast<char32_t>(first & 0x07) << 18) | (static_cast<char32_t>(byte(1) & 0x3F) << 12) | (static_cast<char32_t>(byte(2) & 0x3F) << 6) | (byte(3) & 0x3F);
-        return character >= 0x10000 && character < 0x110000 ? Decoded{character, 4} : Invalid;
+    if (first >= 0xF0 && first <= 0xF4) {
+        // Not the long form of a shorter character, and no more than U+10FFFF.
+        unsigned char low = first == 0xF0 ? 0x90 : 0x80;
+        unsigned char high = first == 0xF4 ? 0x8F : 0xBF;
+        if (!within(1, low, high)) {
+            return Invalid;
+        }
+        if (!continues(2)) {
+            return invalid(2);
+        }
+        if (!continues(3)) {
+            return invalid(3);
+        }
+        return {(static_cast<char32_t>(first & 0x07) << 18) | (static_cast<char32_t>(byte(1) & 0x3F) << 12) | (static_cast<char32_t>(byte(2) & 0x3F) << 6) | (byte(3) & 0x3F), 4};
     }
     return Invalid;
 }
@@ -97,22 +125,105 @@ bool is_char_boundary(std::string_view text, size_t offset) {
 
 namespace {
 
-// What char::is_whitespace is for ASCII, which is all that the files here
-// have at their ends.
-bool is_space(char character) {
-    return character == ' ' || (character >= '\t' && character <= '\r');
+// char::is_whitespace: Unicode's White_Space.
+bool is_space(char32_t character) {
+    return character == U' ' || (character >= U'\t' && character <= U'\r') || character == 0x85 || character == 0xA0 || character == 0x1680 ||
+           (character >= 0x2000 && character <= 0x200A) || character == 0x2028 || character == 0x2029 || character == 0x202F || character == 0x205F || character == 0x3000;
 }
 
 } // namespace
 
 std::string_view trim(std::string_view text) {
-    while (!text.empty() && is_space(text.front())) {
-        text.remove_prefix(1);
+    while (!text.empty()) {
+        Decoded first = decode_char(text);
+        if (!is_space(first.character)) {
+            break;
+        }
+        text.remove_prefix(first.length);
     }
-    while (!text.empty() && is_space(text.back())) {
-        text.remove_suffix(1);
+    while (!text.empty()) {
+        // The last character starts at the last byte that isn't a
+        // continuation byte.
+        size_t start = text.size() - 1;
+        while (start > 0 && (static_cast<unsigned char>(text[start]) & 0xC0) == 0x80) {
+            start -= 1;
+        }
+        Decoded last = decode_char(text.substr(start));
+        if (!is_space(last.character) || start + last.length != text.size()) {
+            break;
+        }
+        text.remove_suffix(last.length);
     }
     return text;
+}
+
+bool eq_ignore_ascii_case(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (size_t index = 0; index < a.size(); index++) {
+        auto lower = [](char character) {
+            return character >= 'A' && character <= 'Z' ? static_cast<char>(character - 'A' + 'a') : character;
+        };
+        if (lower(a[index]) != lower(b[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool is_utf8(std::string_view text) {
+    while (!text.empty()) {
+        Decoded decoded = decode_char(text);
+        // U+FFFD in three bytes is the character itself. In fewer, it stands
+        // for bytes that aren't UTF-8.
+        if (!decoded.valid) {
+            return false;
+        }
+        text.remove_prefix(decoded.length);
+    }
+    return true;
+}
+
+std::string from_utf8_lossy(std::string_view bytes) {
+    if (is_utf8(bytes)) {
+        return std::string(bytes);
+    }
+    std::string text;
+    text.reserve(bytes.size());
+    for (char32_t character : chars(bytes)) {
+        push_char(text, character);
+    }
+    return text;
+}
+
+std::string replace(std::string_view text, std::string_view from, std::string_view to) {
+    std::string replaced;
+    if (from.empty()) {
+        return std::string(text);
+    }
+    while (true) {
+        size_t at = text.find(from);
+        replaced += text.substr(0, at);
+        if (at == std::string_view::npos) {
+            return replaced;
+        }
+        replaced += to;
+        text.remove_prefix(at + from.size());
+    }
+}
+
+std::optional<std::string> environment_variable(std::string_view name) {
+    std::wstring wide_name = widen(name);
+    DWORD size = GetEnvironmentVariableW(wide_name.c_str(), nullptr, 0);
+    if (size == 0) {
+        // Not set, or set to nothing, which reads as nothing either way.
+        return GetLastError() == ERROR_ENVVAR_NOT_FOUND ? std::nullopt : std::optional<std::string>(std::string());
+    }
+    std::wstring value(size, L'\0');
+    DWORD length = GetEnvironmentVariableW(wide_name.c_str(), value.data(), size);
+    value.resize(length);
+    return narrow(value);
 }
 
 std::vector<std::string_view> split(std::string_view text, char separator) {
@@ -325,6 +436,21 @@ std::optional<std::uint64_t> parse_u64(std::string_view text) {
         return std::nullopt;
     }
     return parse_number<std::uint64_t>(text);
+}
+
+std::optional<std::uint64_t> parse_u64(std::string_view text, int radix) {
+    if (text.starts_with('+')) {
+        text.remove_prefix(1);
+    }
+    if (text.empty() || text.starts_with('-') || text.starts_with('+')) {
+        return std::nullopt;
+    }
+    std::uint64_t number = 0;
+    auto result = std::from_chars(text.data(), text.data() + text.size(), number, radix);
+    if (result.ec != std::errc() || result.ptr != text.data() + text.size()) {
+        return std::nullopt;
+    }
+    return number;
 }
 
 std::vector<std::string> arguments() {

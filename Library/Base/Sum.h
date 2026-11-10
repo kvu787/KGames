@@ -86,7 +86,9 @@ template <class T, SumType S> T* as(S& sum) {
 
 // Makes the alternative from its members' values, in their order.
 template <class T>
-inline constexpr auto make = [](auto&&... values) { return T{std::forward<decltype(values)>(values)...}; };
+inline constexpr auto make = [](auto&&... values) {
+    return T{std::forward<decltype(values)>(values)...};
+};
 
 // Calls the arm for the alternative that the sum type holds.
 template <SumType S, class... Arms> decltype(auto) match(S&& sum, Arms&&... arms) {

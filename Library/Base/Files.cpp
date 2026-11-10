@@ -40,19 +40,6 @@ struct File {
     }
 };
 
-bool is_utf8(std::string_view text) {
-    while (!text.empty()) {
-        Decoded decoded = decode_char(text);
-        // U+FFFD is what bytes that aren't UTF-8 decode to, one at a time,
-        // and what the three bytes of a real U+FFFD decode to.
-        if (decoded.character == U'�' && decoded.length == 1) {
-            return false;
-        }
-        text.remove_prefix(decoded.length);
-    }
-    return true;
-}
-
 } // namespace
 
 std::expected<std::vector<std::uint8_t>, std::string> read(const std::filesystem::path& path) {
@@ -112,6 +99,19 @@ std::expected<void, std::string> write(const std::filesystem::path& path, std::s
 
 std::expected<void, std::string> write(const std::filesystem::path& path, std::string_view text) {
     return write(path, std::span(reinterpret_cast<const std::uint8_t*>(text.data()), text.size()));
+}
+
+std::filesystem::path current_exe() {
+    std::wstring path(MAX_PATH, L'\0');
+    while (true) {
+        DWORD length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
+        if (length < path.size()) {
+            path.resize(length);
+            return std::filesystem::path(path);
+        }
+        // It didn't fit.
+        path.resize(path.size() * 2);
+    }
 }
 
 std::expected<void, std::string> create_dir_all(const std::filesystem::path& path) {

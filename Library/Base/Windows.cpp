@@ -27,6 +27,8 @@ std::string describe(HRESULT code) {
 
 WindowsError::WindowsError(HRESULT code) : code_(code), message_(describe(code)) {}
 
+WindowsError::WindowsError(HRESULT code, std::string_view message) : code_(code), message_(std::format("{} (0x{:08X})", message, static_cast<unsigned long>(code))) {}
+
 WindowsError last_error() {
     return WindowsError(HRESULT_FROM_WIN32(GetLastError()));
 }

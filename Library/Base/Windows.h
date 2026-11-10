@@ -14,6 +14,7 @@
 
 #include <exception>
 #include <string>
+#include <string_view>
 
 namespace base {
 
@@ -21,6 +22,10 @@ namespace base {
 class WindowsError : public std::exception {
 public:
     explicit WindowsError(HRESULT code);
+
+    // With what the program says went wrong, in place of what the system
+    // says the code means: "No GPU supports Direct3D 12. (0x80004005)".
+    WindowsError(HRESULT code, std::string_view message);
 
     HRESULT code() const {
         return code_;

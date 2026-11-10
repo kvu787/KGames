@@ -34,6 +34,9 @@ std::expected<void, std::string> write(const std::filesystem::path& path, std::s
 // Makes the folder, and those it's in: std::fs::create_dir_all.
 std::expected<void, std::string> create_dir_all(const std::filesystem::path& path);
 
+// The program's own exe: std::env::current_exe.
+std::filesystem::path current_exe();
+
 // What the system says an error code means, as Rust's io::Error shows it.
 std::string os_error(unsigned long code);
 
