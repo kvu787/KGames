@@ -12,7 +12,7 @@
     "CBV(b0), " \
     "CBV(b1)"
 
-// The ground's and the cube's, as scene.rs says.
+// The ground's and the cube's, as Scene.cpp says.
 static const uint MaterialCount = 2;
 static const float Ambient = 0.28f;
 static const float Diffuse = 0.72f;

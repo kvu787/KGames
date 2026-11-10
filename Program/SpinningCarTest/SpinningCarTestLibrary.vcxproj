@@ -1,0 +1,22 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\Meshes\Meshes.vcxproj" />
+    <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+  </ItemGroup>
+  <!--
+    The shaders, compiled to DXIL as the library builds: SimplePaint's, for the car's five
+    materials and the sphere's, from where Library\SimplePaint has them, and the ground's and the
+    cube's.
+  -->
+  <ItemGroup>
+    <Shader Include="$(KGamesRoot)Library\SimplePaint\Shaders\SimplePaint.hlsl" Name="SimplePaint" Arguments="-O3 -Ges -WX -D SIMPLE_PAINT_MATERIAL_COUNT=6" />
+    <Shader Include="Shaders\FlatShading.hlsl" Name="FlatShading" Arguments="-O3 -WX" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

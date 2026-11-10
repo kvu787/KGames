@@ -51,7 +51,8 @@ whether the car moves, whether the window has focus, with an info bar's status i
 keycaps, and what's wrong with `Settings.json`, if anything, as warning info bars.
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release SpinningCarTest
+target\Release\SpinningCarTest.exe
 ```
 
 Or run `HumanRun.cmd`, which opens the test on the primary display. `--display` and
@@ -81,7 +82,7 @@ save it, and copy it from its `Paint.json`.
 ## Testing
 
 ```powershell
-cargo test -p spinning_car_test_tests
+Program\RunTests\RunTests.ps1 SpinningCarTestTests
 Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 
@@ -98,17 +99,19 @@ as `Notice/0`, `Notice/1` and so on.
 
 ## Layout
 
-| Path                       | Contents                                                                 |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `src/main.rs`              | Runs the test with Library/UserInterface                                 |
-| `src/lib.rs`               | The test's parts, as a library that `Test/SpinningCarTest` tests         |
-| `src/spinning_car.rs`      | The test as a `Program`: where the car is, the keys, and the state       |
-| `src/controls.rs`          | What S does                                                              |
-| `src/scene.rs`             | The objects, the camera, the light and the animation                     |
-| `src/settings.rs`          | The materials and the sphere's resolution, and their defaults            |
-| `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
-|                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |
-| `build.rs`                 | Compiles SimplePaint's shaders for six materials, and `FlatShading.hlsl` |
-| `HumanRun.ps1`             | Builds the test and runs it on the primary display, for people to use    |
-| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
-| `Settings.json`            | The settings, which the test writes if it's missing                      |
+| Path                             | Contents                                                               |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `Main.cpp`                       | Runs the test with Library/UserInterface                               |
+| `SpinningCarTest.h`, `.cpp`      | The test's parts, as a library that `Test/SpinningCarTest` tests       |
+| `SpinningCar.h`, `.cpp`          | The test as a `Program`: where the car is, the keys, and the state     |
+| `Controls.h`, `.cpp`             | What S does                                                            |
+| `Scene.h`, `.cpp`                | The objects, the camera, the light and the animation                   |
+| `Settings.h`, `.cpp`             | The materials and the sphere's resolution, and their defaults          |
+| `Shaders/FlatShading.hlsl`       | Draws the ground and the cube, with its root signature, which is       |
+|                                  | SimplePaint's, so SimplePaint's pipeline and meshes draw with it       |
+| `SpinningCarTestLibrary.vcxproj` | Builds all but `Main.cpp` into the library, and compiles SimplePaint's |
+|                                  | shaders for six materials, and `FlatShading.hlsl`                      |
+| `SpinningCarTest.vcxproj`        | Builds `Main.cpp` and the library into `SpinningCarTest.exe`           |
+| `HumanRun.ps1`                   | Builds the test and runs it on the primary display, for people to use  |
+| `HumanRun.cmd`                   | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
+| `Settings.json`                  | The settings, which the test writes if it's missing                    |
