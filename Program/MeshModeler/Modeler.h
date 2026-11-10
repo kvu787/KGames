@@ -550,6 +550,10 @@ private:
     // An edit to the paint that's picked, which begins one step of the
     // history if none is under way.
     void edit_paint(PaintEdit edit);
+
+    // Picks the last paint, if the one picked isn't among the paints any
+    // more, which a document always has one of.
+    void keep_paint_picked();
 };
 
 } // namespace mesh_modeler::modeler

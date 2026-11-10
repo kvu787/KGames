@@ -214,6 +214,11 @@ void Modeler::run(Context<Message>& ui, Command command) {
             } else {
                 say(Severity::Informational, "There's nothing to undo");
             }
+            // The paint picked may be gone with the step, like one that was
+            // just added. Another is picked here, and not only at the
+            // frame's end, in Prepare: the next message of this frame may
+            // edit the paint picked, or paint with it.
+            keep_paint_picked();
         },
         [&](const Command::Redo&) {
             if (std::optional<std::string> step = document.redo()) {
@@ -221,6 +226,8 @@ void Modeler::run(Context<Message>& ui, Command command) {
             } else {
                 say(Severity::Informational, "There's nothing to redo");
             }
+            // As after Undo: the step may be a paint's removal.
+            keep_paint_picked();
         },
         [&](const Command::SelectAll&) {
             Snapshot before = document.snapshot();
@@ -471,6 +478,10 @@ void Modeler::open_chosen() {
     }
 }
 
+void Modeler::keep_paint_picked() {
+    editor.active_paint = std::min(editor.active_paint, document.paints.size() - 1);
+}
+
 void Modeler::begin_paint_edit() {
     if (!paint_edit) {
         paint_edit = document.snapshot();
@@ -694,7 +705,7 @@ void Modeler::update(Message sent, Context<Message>& ui) {
         [&](Message::SaveAsResult& save_as_result) { answer(ui, Prompt::SaveAs{}, save_as_result.result); },
         [&](Message::OpenResult& open_result) { answer(ui, Prompt::Open{}, open_result.result); },
         [&](Message::Prepare&) {
-            editor.active_paint = std::min(editor.active_paint, document.paints.size() - 1);
+            keep_paint_picked();
             view_ = cards::view_content(ui.bounds());
             prepare_scene(ui.theme());
         });

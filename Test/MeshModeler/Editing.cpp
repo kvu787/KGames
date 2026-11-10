@@ -33,7 +33,10 @@ using math::Vector3;
 using mesh_modeler::document::Document;
 using mesh_modeler::document::Snapshot;
 using mesh_modeler::editing::Element;
+using mesh_modeler::modeler::Command;
+using mesh_modeler::modeler::Message;
 using mesh_modeler::modeler::Modeler;
+using mesh_modeler::modeler::PaintEdit;
 using polygon_mesh::Edge;
 using polygon_mesh::Mesh;
 using polygon_mesh::Selection;
@@ -475,6 +478,52 @@ TEST(the_paint_button_paints_the_selected_faces_with_the_paint_picked) {
     app.click("Add paint");
     CHECK_EQ(app.program.document.paints.size(), 4);
     CHECK_EQ(app.program.editor.active_paint, 3);
+}
+
+// An Undo or a Redo that takes the paint picked away picks one that's there
+// as it does, not at the frame's end: the next message of its frame may
+// paint with the paint picked. The test is the two messages in one frame.
+TEST(an_undo_or_a_redo_that_takes_the_paint_picked_away_picks_one_that_s_there_for_its_frame_s_next_message) {
+    Headless<Modeler> app = modeler("UndoThenPaint");
+    auto paints_are_there = [&] {
+        size_t count = app.program.document.paints.size();
+        return std::ranges::all_of(app.program.document.mesh.faces, [&](const polygon_mesh::Face& face) { return face.material < count; });
+    };
+    app.key(Key::A);
+    app.click("Add paint");
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{5}, size_t{4}));
+    // Undo takes the paint that was added away, and the faces are painted
+    // with the last that's left.
+    app.queue_message(Message::Command{Command::Undo{}});
+    app.queue_message(Message::Command{Command::AssignPaint{}});
+    app.frame();
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{4}, size_t{3}));
+    CHECK(paints_are_there());
+    CHECK(std::ranges::all_of(app.program.document.mesh.faces, [](const polygon_mesh::Face& face) { return face.material == 3; }));
+
+    // Redo, of the last paint's removal, with that paint picked again.
+    app.click("Remove paint");
+    app.key_with(Modifiers::Control, Key::Z);
+    app.click("Paints/3");
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{4}, size_t{3}));
+    app.queue_message(Message::Command{Command::Redo{}});
+    app.queue_message(Message::Command{Command::AssignPaint{}});
+    app.frame();
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{3}, size_t{2}));
+    CHECK(paints_are_there());
+}
+
+// The same, with an edit of the paint picked after the Undo: it edits a
+// paint that's there, where it would write past the paints.
+TEST(an_edit_of_the_paint_picked_after_an_undo_in_its_frame_edits_a_paint_that_s_there) {
+    Headless<Modeler> app = modeler("UndoThenRename");
+    app.click("Add paint");
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{5}, size_t{4}));
+    app.queue_message(Message::Command{Command::Undo{}});
+    app.queue_message(Message::Paint{PaintEdit::Name{"Renamed"}});
+    app.frame();
+    CHECK_EQ(std::pair(app.program.document.paints.size(), app.program.editor.active_paint), std::pair(size_t{4}, size_t{3}));
+    CHECK_EQ(app.program.document.paints[3].name, "Renamed");
 }
 
 TEST(a_paint_s_color_and_settings_change_in_one_step_each) {
