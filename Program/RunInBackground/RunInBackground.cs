@@ -56,9 +56,6 @@ const string Usage = """
       --keep-open             Leaves the program running after the screenshot
       --debug-build           Builds the Debug configuration, which turns on the
                               D3D12 debug layer
-      --rust                  Runs the program's Rust, while it's still beside its
-                              C++, built into target\Rust. What it saves goes to
-                              target\RunInBackground\Rust
       --no-vsync              Runs without vertical sync, drawing frames as fast
                               as it can. Runs are vertically synced by default
 
@@ -86,7 +83,6 @@ static void Run(string[] arguments) {
     string? screenshot = null;
     var keepOpen = false;
     var debugBuild = false;
-    var rust = false;
     var verticalSync = true;
     var scripts = new List<string>();
     var allScripts = false;
@@ -113,9 +109,6 @@ static void Run(string[] arguments) {
             break;
         case "--debug-build":
             debugBuild = true;
-            break;
-        case "--rust":
-            rust = true;
             break;
         case "--no-vsync":
             verticalSync = false;
@@ -147,12 +140,12 @@ static void Run(string[] arguments) {
         throw new FailureException($"Name the program to run\n\n{Usage}");
     }
 
-    // This file is in Program\RunInBackground. The repository's Cargo
-    // workspace builds every program into the target folder at its root.
+    // This file is in Program\RunInBackground. Every program builds into the
+    // target folder at the repository's root.
     var here = (string)AppContext.GetData("EntryPointFileDirectoryPath")!;
     var repository = Path.GetFullPath(Path.Combine(here, "..", ".."));
     var target = Path.Combine(repository, "target");
-    var output = rust ? Path.Combine(target, "RunInBackground", "Rust") : Path.Combine(target, "RunInBackground");
+    var output = Path.Combine(target, "RunInBackground");
     Directory.CreateDirectory(output);
     // A path given on the command line is relative to the current directory.
     screenshot = Path.GetFullPath(screenshot ?? Path.Combine(output, $"{program}.png"));
@@ -184,7 +177,7 @@ static void Run(string[] arguments) {
         }
         // Where the program's Directory.Build.props puts the build.
         exe = Path.Combine(target, "DotNet", "bin", program, $"{configuration.ToLowerInvariant()}_win-x64", $"{program}.exe");
-    } else if (!rust) {
+    } else {
         // A C++ program, which Program\Build\Build.ps1 builds with MSBuild, into target\Debug
         // or target\Release.
         if (!File.Exists(Path.Combine(repository, "Program", program, $"{program}.vcxproj"))) {
@@ -196,25 +189,6 @@ static void Run(string[] arguments) {
             throw new FailureException($"The build failed with exit code {buildExit}");
         }
         exe = Path.Combine(target, configuration, $"{program}.exe");
-    } else {
-        // The program's Rust, which Cargo builds into target\Rust, apart from the C++, as
-        // Windows doesn't tell target\debug from target\Debug. Its exe has its package's
-        // name, like game_input_demo for GameInputDemo.
-        var manifest = Path.Combine(repository, "Program", program, "Cargo.toml");
-        if (!File.Exists(manifest)) {
-            throw new FailureException($"Program\\{program} has no Cargo.toml");
-        }
-        var package = PackageName(manifest);
-        var rustTarget = Path.Combine(target, "Rust");
-        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--target-dir", rustTarget, "--bin", package };
-        if (!debugBuild) {
-            build.Add("--release");
-        }
-        var cargoExit = ProgramProcess.RunInLightJob(build);
-        if (cargoExit != 0) {
-            throw new FailureException($"cargo build failed with exit code {cargoExit}");
-        }
-        exe = Path.Combine(rustTarget, debugBuild ? "debug" : "release", $"{package}.exe");
     }
     var sync = verticalSync ? " --vsync" : " --no-vsync";
 
@@ -370,23 +344,6 @@ static string Value(string[] arguments, ref int index) {
         throw new FailureException($"{arguments[index]} needs a value after it");
     }
     return arguments[++index];
-}
-
-// The name in a Cargo.toml's [package] table, which Cargo gives its program's exe.
-static string PackageName(string manifest) {
-    var package = false;
-    foreach (var line in File.ReadLines(manifest)) {
-        var text = line.Trim();
-        if (text.StartsWith('[')) {
-            package = text == "[package]";
-            continue;
-        }
-        var parts = text.Split('=', 2);
-        if (package && parts.Length == 2 && parts[0].Trim() == "name") {
-            return parts[1].Trim().Trim('"');
-        }
-    }
-    throw new FailureException($"{manifest} names no package");
 }
 
 // A popup's picture, with the black that PrintWindow gives the transparent
@@ -616,9 +573,7 @@ sealed class FailureException(string message) : Exception(message);
 // Run through RunLightly, this program is in its job, whose name
 // KGAMES_LIGHT_JOB gives, and the processes it starts should be too: the
 // build, and the program. Windows doesn't always put them there itself (see
-// RunLightlyInJob.ps1), and rustup's cargo, once it runs, is in a job of its
-// own that it can't be taken out of, so they're made with that job in their
-// list of jobs, the program's before the job that ends it, which nests in
+// RunLightlyInJob.ps1), so they're made with that job in their list of jobs, the program's before the job that ends it, which nests in
 // it. A program that's to keep running also gets a handle to RunLightly's
 // job, which it holds until it exits: the job ends its processes when its
 // last handle closes, as RunLightly's does when it ends, so the program

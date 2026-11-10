@@ -37,6 +37,7 @@ UiShowcase's `VerticalSync.json` expects it to start on.
 
 RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it
 starts: only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time.
+The build is `Program\Build\Build.ps1 --release <program>`, into `target\Release`.
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time
@@ -55,14 +56,14 @@ other windows that show drawn over its own, where they are on the screen.
 
 | Argument              | Value                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
-| `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`. Its exe |
-|                       | has its package's name, like `game_input_demo.exe`                         |
+| `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`, whose   |
+|                       | `GameInputDemo.vcxproj` builds `GameInputDemo.exe`                         |
 | `--display <id>`      | The identifier of the display to open on. `CVVNY2` by default              |
 | `--seconds <seconds>` | How long the program runs before the screenshot. 3 by default              |
 | `--screenshot <path>` | Where to save the screenshot, as a PNG.                                    |
 |                       | `target\RunInBackground\<program>.png` by default                          |
 | `--keep-open`         | Leaves the program running after the screenshot                            |
-| `--debug-build`       | Builds with Cargo's dev profile, which turns on the D3D12 debug layer, or  |
+| `--debug-build`       | Builds the Debug configuration, which turns on the D3D12 debug layer, or   |
 |                       | a WinUI 3 app's Debug configuration                                        |
 | `--no-vsync`          | Runs without vertical sync, drawing frames as fast as it can. Runs are     |
 |                       | vertically synced by default                                               |
