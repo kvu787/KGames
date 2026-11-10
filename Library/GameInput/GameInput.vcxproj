@@ -1,0 +1,47 @@
+<!--
+  Library\GameInput: a static library that also takes GameInput.lib into itself, Microsoft's loader,
+  from the Microsoft.GameInput NuGet package, so that every program that links this library links
+  the loader, GameInputInitialize, which game_input::create starts GameInput with (see README.md).
+
+  Before it compiles, it fails the build unless GameInput 4.0.306's installed runtime DLL is in
+  System32, which every program needs to start (see Installation.h), by running
+  InstallationCheck, a program that's compiled from the same Installation.cpp. The user installs
+  the runtime, once. The build never does. It runs on every build, since another version can be
+  installed after one.
+-->
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <!-- InstallationCheck is a project of its own. -->
+    <KGamesExclude>InstallationCheck\**</KGamesExclude>
+  </PropertyGroup>
+  <Import Project="..\..\KGames.props" />
+  <PropertyGroup>
+    <!-- GameInput.lib, for x64, in the package. -->
+    <GameInputLibrary>native\lib\x64\GameInput.lib</GameInputLibrary>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Lib>
+      <AdditionalDependencies>$(GameInputPackage)\$(GameInputLibrary);%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <!-- Built first, and run below. Nothing of it is linked. -->
+    <ProjectReference Include="InstallationCheck\GameInputInstallationCheck.vcxproj" ReferenceOutputAssembly="false" LinkLibraryDependencies="false" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+
+  <Target Name="CheckGameInputInstallation" BeforeTargets="ClCompile">
+    <!-- It prints what's wrong, and how to install GameInput, on one line, and exits with 1. -->
+    <Exec Command="&quot;$(OutDir)GameInputInstallationCheck.exe&quot;" ConsoleToMSBuild="true" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GameInputInstallationProblem" />
+      <Output TaskParameter="ExitCode" PropertyName="GameInputInstallationExitCode" />
+    </Exec>
+    <Error Condition="'$(GameInputInstallationExitCode)' != '0'" Text="$(GameInputInstallationProblem)" />
+  </Target>
+
+  <!-- Without the package, there's no GameInput.h to compile with, and no GameInput.lib to take in. -->
+  <Target Name="CheckGameInputPackage" BeforeTargets="ClCompile" AfterTargets="CheckGameInputInstallation">
+    <Error Condition="'$(GameInputPackage)' == ''" Text="The Microsoft.GameInput NuGet package isn't restored, so there's no GameInput.h or GameInput.lib to build with. Build with Program\Build\Build.ps1, which restores it with dotnet, as Library\GameInput\NuGetPackages.proj declares it, before it builds." />
+    <Error Condition="!Exists('$(GameInputPackage)\$(GameInputLibrary)')" Text="dotnet restored Microsoft.GameInput, but $(GameInputPackage) has no $(GameInputLibrary)" />
+  </Target>
+</Project>

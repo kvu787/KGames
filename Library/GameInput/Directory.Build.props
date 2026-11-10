@@ -1,7 +1,11 @@
 <Project>
   <!--
-    Restores NuGetPackages.proj into the target folder at the root of the repository, like the
-    Cargo workspace builds, which .gitignore leaves out, instead of into an obj folder here.
+    Restores NuGetPackages.proj into the target folder at the root of the repository, like every
+    build, which .gitignore leaves out, instead of into an obj folder here.
+
+    MSBuild reads this for every project in this folder, so for GameInput.vcxproj and
+    InstallationCheck too. These properties are the .NET SDK's, and nothing in a C++ project
+    reads them.
   -->
   <PropertyGroup>
     <UseArtifactsOutput>true</UseArtifactsOutput>

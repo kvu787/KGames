@@ -1,0 +1,15 @@
+<!--
+  A console program that GameInput.vcxproj runs before it compiles: Main.cpp, and the same
+  Installation.cpp that Library\GameInput checks the installed runtime with.
+-->
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <KGamesKind>Tool</KGamesKind>
+  </PropertyGroup>
+  <Import Project="..\..\..\KGames.props" />
+  <ItemGroup>
+    <ClCompile Include="..\Installation.cpp" />
+    <ClInclude Include="..\Installation.h" />
+  </ItemGroup>
+  <Import Project="..\..\..\KGames.targets" />
+</Project>
