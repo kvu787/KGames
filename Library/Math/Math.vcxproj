@@ -1,0 +1,4 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <Import Project="..\..\KGames.targets" />
+</Project>
