@@ -153,7 +153,7 @@ implementation, and the commits after it apply what the experiment taught:
 
 - **The interaction types got a module of their own.** `Sense`, `Target`,
   `Response` and their kin are the contract that survived both modes
-  unchanged, so they moved out of `Ui.rs` into `Core/Interaction.rs`.
+  unchanged, so they moved out of `Ui.rs` into `core/interaction.rs`.
 - **Wheel interest is typed.** `hovered_takes_wheel` matched target kind
   strings; now a widget declares it in its `Sense` (`takes_wheel()`,
   `takes_wheel_while_focused()`), which the retained `Control` trait's

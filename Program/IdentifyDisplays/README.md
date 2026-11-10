@@ -5,8 +5,8 @@ program opens on. Put the identifier in the `"Display"` setting of the program's
 `Settings.json`, or pass it to the program with `--display`.
 
 ```powershell
-cargo run --release --bin IdentifyDisplays
-cargo run --release --bin IdentifyDisplays -- --list
+cargo run --release --bin identify_displays
+cargo run --release --bin identify_displays -- --list
 ```
 
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
@@ -50,8 +50,8 @@ the displays, saves it in `target\TestOutput`, and checks that its text fits and
 
 ## Layout
 
-| Path                | Contents                                                          |
-| ------------------- | ----------------------------------------------------------------- |
-| `Source/Main.rs`    | Finds the displays, writes them to the console, and shows a box   |
-|                     | on each                                                           |
-| `Source/Library.rs` | Lays out and draws a box, as a library that the test draws        |
+| Path          | Contents                                                        |
+| ------------- | --------------------------------------------------------------- |
+| `src/main.rs` | Finds the displays, writes them to the console, and shows a box |
+|               | on each                                                         |
+| `src/lib.rs`  | Lays out and draws a box, as a library that the test draws      |

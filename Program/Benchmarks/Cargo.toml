@@ -6,14 +6,12 @@ license.workspace = true
 
 # The harness and the benchmarks, which Test/Benchmarks tests.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
-name = "Benchmarks"
-path = "Source/Main.rs"
+name = "benchmarks"
 # Every test is in Test.
 test = false
 

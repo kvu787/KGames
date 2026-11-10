@@ -167,7 +167,7 @@ To open the demo on another display, find the display's identifier with `Identif
 pass it with `--display`, or put it in the [settings file](#settings-file):
 
 ```powershell
-cargo run --release --bin IdentifyDisplays
+cargo run --release --bin identify_displays
 cargo run --release -- --display KXGR16
 ```
 
@@ -267,7 +267,7 @@ Then the demo:
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
    pause a held key would show as pressed again.
 
-`Source/GameInputSource.rs` takes the library's devices and readings, once each a frame, as plain
+`src/game_input_source.rs` takes the library's devices and readings, once each a frame, as plain
 data, so that the rest of the demo also runs on input from tests and scripts (see
 [Testing](#testing)). Its `Options::gamepad` is on, so that gamepads' readings count as input that
 its frames take, for the [input latency](../../Library/UserInterface/README.md) that every program
@@ -335,7 +335,7 @@ thousands of frames a second, even when nothing changes. Minimizing the window s
 ## Testing
 
 The demo reads devices and readings from an `InputSource`: GameInput's in a normal run, and a
-scripted one, in `Source/ScriptedSource.rs`, in tests and scripted runs. So everything after
+scripted one, in `src/scripted_source.rs`, in tests and scripted runs. So everything after
 GameInput, from which gamepad it listens to, to dropping input without focus, the rumble test, the
 shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
 
@@ -440,18 +440,18 @@ For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#us
 
 ## Layout
 
-| Path                        | Contents                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `Source/Main.rs`            | Runs the demo with Library/UserInterface's main loop                             |
-| `Source/Library.rs`         | The demo's parts, as a library that `Test/GameInputDemo` tests                   |
-| `Source/Demo.rs`            | The demo as a `Program`: its input source, and what it does each frame           |
-| `Source/Settings.rs`        | The demo's own setting, `RumbleTestInnerDeadZone`                                |
-| `Source/Devices.rs`         | Devices and readings as plain data, and `InputSource`, which gives them          |
-| `Source/DeviceTree.rs`      | Looks up a device's nodes in Windows' device tree, from its PnP path             |
-| `Source/GameInputSource.rs` | Takes the devices and readings that the library reads with GameInput             |
-| `Source/ScriptedSource.rs`  | Devices and readings from tests and scripts, instead of GameInput                |
-| `Source/Input.rs`           | Keeps what the cards show, from the devices and readings                         |
-| `Source/Cards.rs`           | Lays out the cards in fixed pixels, and draws them with Library/UserInterface    |
-| `HumanRun.ps1`              | Builds the demo and runs it on the primary display, for people to use it         |
-| `HumanRun.cmd`              | Runs `HumanRun.ps1`, for double-clicking in File Explorer                        |
-| `Settings.json`             | The [settings file](#settings-file), which the demo writes if it's missing       |
+| Path                       | Contents                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `src/main.rs`              | Runs the demo with Library/UserInterface's main loop                          |
+| `src/lib.rs`               | The demo's parts, as a library that `Test/GameInputDemo` tests                |
+| `src/demo.rs`              | The demo as a `Program`: its input source, and what it does each frame        |
+| `src/settings.rs`          | The demo's own setting, `RumbleTestInnerDeadZone`                             |
+| `src/devices.rs`           | Devices and readings as plain data, and `InputSource`, which gives them       |
+| `src/device_tree.rs`       | Looks up a device's nodes in Windows' device tree, from its PnP path          |
+| `src/game_input_source.rs` | Takes the devices and readings that the library reads with GameInput          |
+| `src/scripted_source.rs`   | Devices and readings from tests and scripts, instead of GameInput             |
+| `src/input.rs`             | Keeps what the cards show, from the devices and readings                      |
+| `src/cards.rs`             | Lays out the cards in fixed pixels, and draws them with Library/UserInterface |
+| `HumanRun.ps1`             | Builds the demo and runs it on the primary display, for people to use it      |
+| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                     |
+| `Settings.json`            | The [settings file](#settings-file), which the demo writes if it's missing    |

@@ -5,34 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Driving"
-path = "Driving.rs"
-
-[[test]]
-name = "Collision"
-path = "Collision.rs"
-
-[[test]]
-name = "Track"
-path = "Track.rs"
-
-[[test]]
-name = "Terrain"
-path = "Terrain.rs"
-
-[[test]]
-name = "Document"
-path = "Document.rs"
-
-[[test]]
-name = "Game"
-path = "Game.rs"
-
-[[test]]
-name = "Editors"
-path = "Editors.rs"
-
 [dependencies]
 json = { path = "../../Library/Json" }
 simple_paint = { path = "../../Library/SimplePaint" }

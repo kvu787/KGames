@@ -66,7 +66,7 @@ To reproduce:
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
-Program\RunLightly\RunLightly.ps1 target\release\Benchmarks.exe --filter memory --json target\Benchmarks\Memory.json
+Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe --filter memory --json target\Benchmarks\Memory.json
 Program\RunInBackground\RunInBackground.ps1 UiShowcase --keep-open
 ```
 

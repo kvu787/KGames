@@ -5,18 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Keys"
-path = "Keys.rs"
-
-[[test]]
-name = "Scene"
-path = "Scene.rs"
-
-[[test]]
-name = "Settings"
-path = "Settings.rs"
-
 [dependencies]
 minimal_scene_test = { path = "../../Program/MinimalSceneTest" }
 simple_paint = { path = "../../Library/SimplePaint" }

@@ -98,18 +98,18 @@ committing an edit once the button is up, or rebuilding what a 3D view shows.
 Color with the theme's roles and size with the tokens and the controls' metrics, instead of values
 of your own, so that every program looks like one family, and like Windows 11.
 
-- **Themes** (`Design/Theme.rs`): light by default, and dark, which `F9` switches to and from in
+- **Themes** (`design/theme.rs`): light by default, and dark, which `F9` switches to and from in
   every program. The roles are WinUI's theme resources, like `text_primary` for
   TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
   11's default blue accent and its ramp. Status colors, like `critical`, and colors that tell
   graphs' series apart, `theme.data`, are there too.
-- **Tokens** (`Design/Tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
+- **Tokens** (`design/tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
   corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
   ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
   `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), elevation as WinUI's ThemeShadow makes
   it from a depth (`elevation(z)`, with tooltips at 16, flyouts at 32, submenus 8 over their menu,
   and dialogs at 128), and the page's sizes.
-- **Controls** (`Design/Controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
+- **Controls** (`design/controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
   a list item's backplate and selection pill, a menu item's padding, and the focus visual's two
   rings, each from WinUI's styles.
@@ -124,8 +124,8 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Type**: Segoe UI Variable, in its optical sizes: Small for captions, Text for body text, and
   Display for titles, laid out by DirectWrite with kerning and font fallback, each line as tall as
   the type ramp says.
-- **Icons** (`Design/Icons.rs`): Fluent's system icons, from Segoe Fluent Icons.
-- **The page** (`Widgets/Shell.rs`): an app bar along the top with the program's icon, title, and
+- **Icons** (`design/icons.rs`): Fluent's system icons, from Segoe Fluent Icons.
+- **The page** (`widgets/shell.rs`): an app bar along the top with the program's icon, title, and
   its own menus, tabs and commands, a menu row under it for a menu bar whose menus' names line up
   with the page's left edge, if the program wants one, notices under them, a status bar along the
   bottom with shortcuts and status, and cards between them, `PAGE_PADDING` from the window's edges
@@ -198,8 +198,8 @@ by the widget's id; `Ui::memory` reads it in `view`, like for laying out a scrol
 
 All input comes from [GameInput](../GameInput/README.md): keyboards, mice and gamepads. Every
 program needs GameInput 4.0.306 installed, as that README says, and doesn't start without it, not
-even in a scripted run or with `--no-input`, which don't read it. `Platform/InputDevices.rs`
-reads every device's readings once a frame, right before the frame, and `Input/Reader.rs` turns
+even in a scripted run or with `--no-input`, which don't read it. `platform/input_devices.rs`
+reads every device's readings once a frame, right before the frame, and `input/reader.rs` turns
 them into the interface's events, in the order they happened, with the window's focus changes
 between them. The window's messages bring none of it. The library turns on GameInput's background
 input, which GameInput otherwise gives a program only while it has focus, so that it follows the
@@ -294,7 +294,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 
 ## Input latency
 
-The main loop (`Application/Run.rs`) handles the window's messages without waiting, and waits until
+The main loop (`application/run.rs`) handles the window's messages without waiting, and waits until
 the GPU has finished the last frame and DXGI can take another. Only then does it read the input,
 build the frame's interface, draw it and present it, so a frame's input is as fresh as it can be.
 The swap chain has a frame latency waitable object and a maximum frame latency of 1, and draws on
@@ -324,7 +324,7 @@ processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 ## PerfBar
 
 Every program's window shows its performance along its top, in the PerfBar
-(`Application/Performance.rs`, drawn by `Widgets/Shell.rs`): the frames over the last second, and
+(`application/performance.rs`, drawn by `widgets/shell.rs`): the frames over the last second, and
 the input latency over the second before the newest frame known on the screen, since Windows' events
 about presents come late: about 15 ms, as PresentTiming flushes ETW's buffers every 8 ms. Its
 sections go one after another from its left, in this order, a `|` between each two, and a `=`
@@ -459,35 +459,35 @@ folder, through `startup.data_folder`.
 
 ## Layout
 
-| Path                                | Contents                                                                    |
-| ----------------------------------- | --------------------------------------------------------------------------- |
-| `Source/Library.rs`                 | The library's modules and what it exports                                   |
-| `Source/Application/Program.rs`     | `Program`, `Options`, `Startup`, and the command line                       |
-| `Source/Application/Run.rs`         | The main loop                                                               |
-| `Source/Application/Settings.rs`    | `Settings.json`                                                             |
-| `Source/Application/Overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes           |
-| `Source/Application/Performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen  |
-| `Source/Core/Interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`   |
-| `Source/Core/Tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts                |
-| `Source/Core/Interface.rs`          | The interface: input against the shown tree, messages, layout, focus,       |
-|                                     | popups, tooltips, widget memory, and the frame's phases                     |
-| `Source/Platform/Window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check    |
-| `Source/Platform/InputDevices.rs`   | Reads gamepads, keyboards and mice with GameInput, once a frame             |
-| `Source/Platform/Clock.rs`          | The performance counter, which input and frames are timed on                |
-| `Source/Platform/Clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests           |
-| `Source/Input/Devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                              |
-| `Source/Input/Events.rs`            | A frame's input, from its events                                            |
-| `Source/Input/Reader.rs`            | Turns a frame's GameInput readings into events                              |
-| `Source/Design/Theme.rs`            | WinUI's theme resources, light and dark                                     |
-| `Source/Design/Tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes         |
-| `Source/Design/Controls.rs`         | WinUI 3's controls' sizes, paddings and parts                               |
-| `Source/Design/Icons.rs`            | Segoe Fluent Icons                                                          |
-| `Source/Drawing/Geometry.rs`        | Points, sizes, insets, rectangles and colors                                |
-| `Source/Drawing/Text.rs`            | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas        |
-| `Source/Drawing/Painter.rs`         | The draw list, and the Painter that programs draw their own graphics with   |
-| `Source/Drawing/Renderer.rs`        | Draws the draw list with Direct3D 12, in one draw call                      |
-| `Shaders/Interface.hlsl`            | The shapes' and glyphs' shader                                              |
-| `Source/Widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                     |
-| `Source/Testing/Script.rs`          | Scripts                                                                     |
-| `Source/Testing/Headless.rs`        | Runs a program's frames without a window, for tests                         |
-| `Build.rs`                          | Compiles the shader at build time                                           |
+| Path                             | Contents                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `src/lib.rs`                     | The library's modules and what it exports                                  |
+| `src/application/program.rs`     | `Program`, `Options`, `Startup`, and the command line                      |
+| `src/application/run.rs`         | The main loop                                                              |
+| `src/application/settings.rs`    | `Settings.json`                                                            |
+| `src/application/overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes          |
+| `src/application/performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen |
+| `src/core/interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
+| `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
+| `src/core/interface.rs`          | The interface: input against the shown tree, messages, layout, focus,      |
+|                                  | popups, tooltips, widget memory, and the frame's phases                    |
+| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check   |
+| `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
+| `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
+| `src/platform/clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests          |
+| `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
+| `src/input/events.rs`            | A frame's input, from its events                                           |
+| `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
+| `src/design/theme.rs`            | WinUI's theme resources, light and dark                                    |
+| `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |
+| `src/design/controls.rs`         | WinUI 3's controls' sizes, paddings and parts                              |
+| `src/design/icons.rs`            | Segoe Fluent Icons                                                         |
+| `src/drawing/geometry.rs`        | Points, sizes, insets, rectangles and colors                               |
+| `src/drawing/text.rs`            | DirectWrite: fonts, cached layouts, hit testing, and the glyph atlas       |
+| `src/drawing/painter.rs`         | The draw list, and the Painter that programs draw their own graphics with  |
+| `src/drawing/renderer.rs`        | Draws the draw list with Direct3D 12, in one draw call                     |
+| `Shaders/Interface.hlsl`         | The shapes' and glyphs' shader                                             |
+| `src/widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                    |
+| `src/testing/script.rs`          | Scripts                                                                    |
+| `src/testing/headless.rs`        | Runs a program's frames without a window, for tests                        |
+| `build.rs`                       | Compiles the shader at build time                                          |

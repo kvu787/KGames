@@ -5,7 +5,6 @@ edition = "2024"
 license.workspace = true
 
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false

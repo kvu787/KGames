@@ -6,10 +6,6 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
 
-[[bin]]
-name = "BindingsGenerator"
-path = "Source/Main.rs"
-
 [dependencies]
 windows-bindgen = "0.100"
 

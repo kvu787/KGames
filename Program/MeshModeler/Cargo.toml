@@ -3,18 +3,15 @@ name = "mesh_modeler"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-build = "Build.rs"
 
 # The modeler's parts, which Test/MeshModeler tests without a window.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
-name = "MeshModeler"
-path = "Source/Main.rs"
+name = "mesh_modeler"
 # Every test is in Test.
 test = false
 

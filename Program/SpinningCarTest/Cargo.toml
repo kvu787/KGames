@@ -3,18 +3,15 @@ name = "spinning_car_test"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-build = "Build.rs"
 
 # The test's parts, which Test/SpinningCarTest tests without a window.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
-name = "SpinningCarTest"
-path = "Source/Main.rs"
+name = "spinning_car_test"
 # Every test is in Test.
 test = false
 

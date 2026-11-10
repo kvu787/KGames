@@ -5,23 +5,10 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Harness"
-path = "Harness.rs"
-
-[[test]]
-name = "Groups"
-path = "Groups.rs"
-
-[[test]]
-name = "Memory"
-path = "Memory.rs"
-
 # Counts the whole process's heap, so it runs without libtest, whose other
 # threads would allocate while it counts.
 [[test]]
-name = "Counting"
-path = "Counting.rs"
+name = "counting"
 harness = false
 
 [dependencies]

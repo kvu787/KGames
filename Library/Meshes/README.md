@@ -10,7 +10,7 @@ passes SimplePaint's checks.
 
 The car, `meshes::car`, faces +Z, with Y up and its wheels on Y = 0. It's 3 units wide and about
 6 long, and has five parts, each with its own material: the axles, the body, the cabin, the
-headlights and the wheels. `Build.rs` makes it as the crate builds, from the model that Blender
+headlights and the wheels. `build.rs` makes it as the crate builds, from the model that Blender
 exported for Veehiicuul, `Program/Veehiicuul/Models/SlopeCar.glb`, which it reads with
 [Gltf](../Gltf/README.md), so it's always the car in that file. To change the car, change the
 model. `VERTICES` and `INDICES` are the model's, in its order, and each part's constant is the

@@ -3,15 +3,13 @@ name = "simple_paint"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-build = "Build.rs"
-# Nothing is linked. This only lets Build.rs tell the build scripts of
+# Nothing is linked. This only lets build.rs tell the build scripts of
 # packages that depend on this one where the shaders are, as
 # DEP_SIMPLE_PAINT_SHADERS, so they can compile them with their own
 # material count.
 links = "simple_paint"
 
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false

@@ -38,7 +38,7 @@ computing GPU constants. SimplePaint has no JSON dependency or application setti
 ## Compile and bind the shaders
 
 `Shaders/SimplePaint.hlsl` contains complete `VSMain` and `PSMain` entry points. A host
-compiles them in its `Build.rs`, with its own material count, from the folder that this crate
+compiles them in its `build.rs`, with its own material count, from the folder that this crate
 names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package) shows how.
 
 - `b0`: `orthographic::ObjectTransforms`, 96 bytes, built with `make_projection` and
@@ -79,14 +79,14 @@ there is no positive facing cutoff.
 
 ## Files
 
-| File                            | Purpose                                                        |
-| ------------------------------- | -------------------------------------------------------------- |
-| `Source/Material.rs`            | Parameters, validation, coefficients, GPU ABI                  |
-| `Source/Geometry.rs`            | Host-independent mesh validation, and the adapter's vertex     |
-| `Source/Orthographic.rs`        | Validated transforms for the adapter's vertex stage            |
-| `Source/Direct3D12.rs`          | The adapter's pipeline, and meshes in GPU memory               |
-| `Shaders/SimplePaintCore.hlsli` | Reusable paint math without bindings                           |
-| `Shaders/SimplePaint.hlsl`      | Configurable DX12 VS/PS adapter, with its root signature       |
-| `Build.rs`                      | Tells dependents' build scripts where the shaders are          |
+| File                            | Purpose                                                    |
+| ------------------------------- | ---------------------------------------------------------- |
+| `src/material.rs`               | Parameters, validation, coefficients, GPU ABI              |
+| `src/geometry.rs`               | Host-independent mesh validation, and the adapter's vertex |
+| `src/orthographic.rs`           | Validated transforms for the adapter's vertex stage        |
+| `src/direct3d12.rs`             | The adapter's pipeline, and meshes in GPU memory           |
+| `Shaders/SimplePaintCore.hlsli` | Reusable paint math without bindings                       |
+| `Shaders/SimplePaint.hlsl`      | Configurable DX12 VS/PS adapter, with its root signature   |
+| `build.rs`                      | Tells dependents' build scripts where the shaders are      |
 
 The facing-lobe and anchored color-curve mathematical construction is credited to Kevin Vu.

@@ -5,38 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Basics"
-path = "Basics.rs"
-
-[[test]]
-name = "Interaction"
-path = "Interaction.rs"
-
-[[test]]
-name = "Scripts"
-path = "Scripts.rs"
-
-[[test]]
-name = "Rendering"
-path = "Rendering.rs"
-
-[[test]]
-name = "Latency"
-path = "Latency.rs"
-
-[[test]]
-name = "PerfBar"
-path = "PerfBar.rs"
-
-[[test]]
-name = "Reader"
-path = "Reader.rs"
-
-[[test]]
-name = "InfoCard"
-path = "InfoCard.rs"
-
 [dependencies]
 present_timing = { path = "../../Library/PresentTiming" }
 user_interface = { path = "../../Library/UserInterface" }

@@ -4,27 +4,22 @@ version = "0.1.0"
 edition = "2024"
 license.workspace = true
 publish = false
-build = "Build.rs"
 
 # Each test is its own program, and prints what it measured.
 [[test]]
-name = "Contract"
-path = "Contract.rs"
+name = "contract"
 harness = false
 
 [[test]]
-name = "OrthographicTransforms"
-path = "OrthographicTransforms.rs"
+name = "orthographic_transforms"
 harness = false
 
 [[test]]
-name = "Gpu"
-path = "Gpu.rs"
+name = "gpu"
 harness = false
 
 [[test]]
-name = "ShaderCompilation"
-path = "ShaderCompilation.rs"
+name = "shader_compilation"
 harness = false
 
 [dependencies]

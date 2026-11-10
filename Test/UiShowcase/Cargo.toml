@@ -5,10 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Showcase"
-path = "Showcase.rs"
-
 [dependencies]
 ui_showcase = { path = "../../Program/UiShowcase" }
 user_interface = { path = "../../Library/UserInterface" }

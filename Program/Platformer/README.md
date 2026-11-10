@@ -41,7 +41,7 @@ a bug in the graph, and stops the program instead of hiding.
 
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,
-never from a snapshot. `Test/Platformer/Events.rs` pins the one-frame law:
+never from a snapshot. `Test/Platformer/tests/events.rs` pins the one-frame law:
 its deepest test collects the last coin, opens the door, reaches the goal,
 sets the record, writes the file and flashes the save light in one
 `Game::update`, and asserts all of it, the file on disk included.
@@ -55,16 +55,16 @@ The file isn't checked in; delete it for a fresh start.
 
 ## Layout
 
-| Path                  | Contents                                                        |
-| --------------------- | --------------------------------------------------------------- |
-| `Source/Level.rs`     | The levels: zones, coins, spikes, springs, doors, patrols       |
-| `Source/Physics.rs`   | Fixed-step movement: run, gravity, jump buffer, coyote, carry   |
-| `Source/Events.rs`    | Every occurrence, as data, with the cascade cap                 |
-| `Source/Game.rs`      | The simulation: steps, detections, and the drained event graph  |
-| `Source/Progress.rs`  | Save.json: unlocked levels and best times                       |
-| `Source/Controls.rs`  | The frame's input, from the keyboard and the gamepad            |
-| `Source/Program.rs`   | The Program: one Tick message a frame, and the app bar's two    |
-| `Source/Cards.rs`     | The view: the world's canvas, the Run and Events cards, banner  |
+| Path              | Contents                                                       |
+| ----------------- | -------------------------------------------------------------- |
+| `src/level.rs`    | The levels: zones, coins, spikes, springs, doors, patrols      |
+| `src/physics.rs`  | Fixed-step movement: run, gravity, jump buffer, coyote, carry  |
+| `src/events.rs`   | Every occurrence, as data, with the cascade cap                |
+| `src/game.rs`     | The simulation: steps, detections, and the drained event graph |
+| `src/progress.rs` | Save.json: unlocked levels and best times                      |
+| `src/controls.rs` | The frame's input, from the keyboard and the gamepad           |
+| `src/program.rs`  | The Program: one Tick message a frame, and the app bar's two   |
+| `src/cards.rs`    | The view: the world's canvas, the Run and Events cards, banner |
 
 ## Testing
 

@@ -42,7 +42,7 @@ efficiency cores, at efficient clocks, at idle priority, with a third of the CPU
 the GPU's work after other processes'. So every CPU time here is a few times what a performance
 core would take, the maximums include the job's stops, and the GPU's maximums include its
 scheduler giving the GPU to something else for a frame. The minimums and medians are the costs
-themselves. Run `Benchmarks.exe` from a terminal, with no game running, for the performance cores'
+themselves. Run `benchmarks.exe` from a terminal, with no game running, for the performance cores'
 numbers. The comparisons between benchmarks hold either way.
 
 The benchmarks time each iteration on the performance counter, and the GPU's spans with
@@ -55,7 +55,7 @@ To reproduce:
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
-Program\RunLightly\RunLightly.ps1 target\release\Benchmarks.exe --json target\Benchmarks\Benchmarks.json
+Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe --json target\Benchmarks\Benchmarks.json
 Program\RunInBackground\RunInBackground.ps1 UiShowcase --no-vsync --seconds 6
 ```
 

@@ -5,22 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Physics"
-path = "Physics.rs"
-
-[[test]]
-name = "Events"
-path = "Events.rs"
-
-[[test]]
-name = "Progress"
-path = "Progress.rs"
-
-[[test]]
-name = "Game"
-path = "Game.rs"
-
 [dependencies]
 json = { path = "../../Library/Json" }
 platformer = { path = "../../Program/Platformer" }

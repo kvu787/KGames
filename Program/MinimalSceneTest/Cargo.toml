@@ -3,18 +3,15 @@ name = "minimal_scene_test"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-build = "Build.rs"
 
 # The test's parts, which Test/MinimalSceneTest tests without a window.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
-name = "MinimalSceneTest"
-path = "Source/Main.rs"
+name = "minimal_scene_test"
 # Every test is in Test.
 test = false
 

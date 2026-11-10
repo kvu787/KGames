@@ -55,8 +55,8 @@ other windows that show drawn over its own, where they are on the screen.
 
 | Argument              | Value                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
-| `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`, and its |
-|                       | exe's name                                                                 |
+| `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`. Its exe |
+|                       | has its package's name, like `game_input_demo.exe`                         |
 | `--display <id>`      | The identifier of the display to open on. `CVVNY2` by default              |
 | `--seconds <seconds>` | How long the program runs before the screenshot. 3 by default              |
 | `--screenshot <path>` | Where to save the screenshot, as a PNG.                                    |
