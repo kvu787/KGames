@@ -56,7 +56,8 @@ foreach ($name in $names) {
         Write-Error "Test has no project named $name.vcxproj. It has: $($all -join ', ')"
     }
 }
-$selected = if ($names.Count -gt 0) { $names } else { $all }
+# An array, even of one: an if gives one name as a string.
+$selected = @(if ($names.Count -gt 0) { $names } else { $all })
 
 if ($build) {
     $buildArguments = @("--$($configuration.ToLowerInvariant())")

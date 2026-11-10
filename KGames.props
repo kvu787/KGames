@@ -137,6 +137,13 @@
     <Link>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <!--
+        /LTCG, which generates all of a program's code each time it links. The default with whole
+        program optimization is /LTCG:incremental, which keeps code from the last link, and fails
+        with LNK1103, "debugging information corrupt", after some edits, with /Z7's debug
+        information.
+      -->
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
 

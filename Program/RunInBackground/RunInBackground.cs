@@ -54,9 +54,11 @@ const string Usage = """
                               contents, as a PNG.
                               target\RunInBackground\<program>.png by default
       --keep-open             Leaves the program running after the screenshot
-      --debug-build           Builds with Cargo's dev profile, which turns on the
-                              D3D12 debug layer, or a WinUI 3 app's Debug
-                              configuration
+      --debug-build           Builds the Debug configuration, which turns on the
+                              D3D12 debug layer
+      --rust                  Runs the program's Rust, while it's still beside its
+                              C++, built into target\Rust. What it saves goes to
+                              target\RunInBackground\Rust
       --no-vsync              Runs without vertical sync, drawing frames as fast
                               as it can. Runs are vertically synced by default
 
@@ -84,6 +86,7 @@ static void Run(string[] arguments) {
     string? screenshot = null;
     var keepOpen = false;
     var debugBuild = false;
+    var rust = false;
     var verticalSync = true;
     var scripts = new List<string>();
     var allScripts = false;
@@ -110,6 +113,9 @@ static void Run(string[] arguments) {
             break;
         case "--debug-build":
             debugBuild = true;
+            break;
+        case "--rust":
+            rust = true;
             break;
         case "--no-vsync":
             verticalSync = false;
@@ -146,7 +152,7 @@ static void Run(string[] arguments) {
     var here = (string)AppContext.GetData("EntryPointFileDirectoryPath")!;
     var repository = Path.GetFullPath(Path.Combine(here, "..", ".."));
     var target = Path.Combine(repository, "target");
-    var output = Path.Combine(target, "RunInBackground");
+    var output = rust ? Path.Combine(target, "RunInBackground", "Rust") : Path.Combine(target, "RunInBackground");
     Directory.CreateDirectory(output);
     // A path given on the command line is relative to the current directory.
     screenshot = Path.GetFullPath(screenshot ?? Path.Combine(output, $"{program}.png"));
@@ -178,14 +184,29 @@ static void Run(string[] arguments) {
         }
         // Where the program's Directory.Build.props puts the build.
         exe = Path.Combine(target, "DotNet", "bin", program, $"{configuration.ToLowerInvariant()}_win-x64", $"{program}.exe");
+    } else if (!rust) {
+        // A C++ program, which Program\Build\Build.ps1 builds with MSBuild, into target\Debug
+        // or target\Release.
+        if (!File.Exists(Path.Combine(repository, "Program", program, $"{program}.vcxproj"))) {
+            throw new FailureException($"Program\\{program} has no {program}.vcxproj or {program}.csproj");
+        }
+        var configuration = debugBuild ? "Debug" : "Release";
+        var buildExit = ProgramProcess.RunInLightJob(["pwsh", "-NoProfile", "-File", Path.Combine(repository, "Program", "Build", "Build.ps1"), $"--{configuration.ToLowerInvariant()}", program]);
+        if (buildExit != 0) {
+            throw new FailureException($"The build failed with exit code {buildExit}");
+        }
+        exe = Path.Combine(target, configuration, $"{program}.exe");
     } else {
-        // A Rust program's exe has its package's name, like game_input_demo for GameInputDemo.
+        // The program's Rust, which Cargo builds into target\Rust, apart from the C++, as
+        // Windows doesn't tell target\debug from target\Debug. Its exe has its package's
+        // name, like game_input_demo for GameInputDemo.
         var manifest = Path.Combine(repository, "Program", program, "Cargo.toml");
         if (!File.Exists(manifest)) {
-            throw new FailureException($"Program\\{program} has no Cargo.toml or .csproj");
+            throw new FailureException($"Program\\{program} has no Cargo.toml");
         }
         var package = PackageName(manifest);
-        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", package };
+        var rustTarget = Path.Combine(target, "Rust");
+        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--target-dir", rustTarget, "--bin", package };
         if (!debugBuild) {
             build.Add("--release");
         }
@@ -193,7 +214,7 @@ static void Run(string[] arguments) {
         if (cargoExit != 0) {
             throw new FailureException($"cargo build failed with exit code {cargoExit}");
         }
-        exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{package}.exe");
+        exe = Path.Combine(rustTarget, debugBuild ? "debug" : "release", $"{package}.exe");
     }
     var sync = verticalSync ? " --vsync" : " --no-vsync";
 

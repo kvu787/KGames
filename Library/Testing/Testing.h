@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include "Base/Files.h"
 #include "Base/Text.h"
 
 #include <concepts>
@@ -83,6 +84,9 @@ template <class T> std::string describe_one(const T& value) {
         std::string text;
         base::push_char(text, value);
         return "'" + text + "'";
+    } else if constexpr (std::same_as<T, std::filesystem::path>) {
+        // Before the ranges, as a path is a range of paths.
+        return base::debug(base::display(value));
     } else if constexpr (StringLike<T>) {
         return base::debug(std::string_view(value));
     } else if constexpr (std::same_as<T, float> || std::same_as<T, double>) {
