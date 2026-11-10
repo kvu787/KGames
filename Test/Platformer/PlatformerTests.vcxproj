@@ -1,0 +1,8 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Program\Platformer\PlatformerLibrary.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>
