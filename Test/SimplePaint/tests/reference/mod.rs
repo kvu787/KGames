@@ -1,5 +1,5 @@
 // An independent binary64 evaluation of Specification.md, and the cases that
-// the GPU test compares it with. Shared by the tests with #[path].
+// the GPU test compares it with. Shared by the tests as `mod reference;`.
 
 #![allow(dead_code)]
 
