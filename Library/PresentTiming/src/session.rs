@@ -1,0 +1,409 @@
+// A real-time ETW session with the providers that events.rs lists, whose
+// events a thread of its own reads as they come, and hands to a callback.
+// The session is the system's: it outlives the process if the process ends
+// without stopping it, like when the process is killed. So a session's name
+// has its process's ID, and a session whose process is gone is stopped
+// before a new one starts, while another process's live session is left
+// alone.
+//
+// ETW hands a real-time session's events to its reader when a buffer fills,
+// or when the session's flush timer goes off, at most once a second. So a
+// thread of its own flushes the session's buffers every FLUSH_PERIOD, as
+// Intel's PresentMon service does for its overlay, so that the events come
+// 7 to 52 ms after they happen, 13 in the median, as measured, instead of 1
+// to 2 seconds later.
+
+use std::ffi::c_void;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+use windows_api::*;
+use windows_core::{GUID, PCWSTR, PWSTR};
+
+use crate::StartError;
+use crate::events::PROVIDERS;
+
+// How often the session's buffers are flushed to the reader: 8 ms, the
+// shortest period that Intel's PresentMon service allows, and its overlay's.
+const FLUSH_PERIOD: Duration = Duration::from_millis(8);
+
+// EVENT_TRACE_PROPERTIES, with room after it for the session's name and its
+// log file's, as long as the ones that QueryAllTraces's sample makes room for.
+#[repr(C)]
+struct Properties {
+    properties: EVENT_TRACE_PROPERTIES,
+    name: [u16; 1024],
+    log_file: [u16; 1024],
+}
+
+impl Properties {
+    // For a session without a log file, as a real-time one is.
+    fn new() -> Box<Properties> {
+        let mut properties: Box<Properties> = Box::new(unsafe { std::mem::zeroed() });
+        properties.properties.Wnode.BufferSize = size_of::<Properties>() as u32;
+        properties.properties.LoggerNameOffset = std::mem::offset_of!(Properties, name) as u32;
+        properties
+    }
+
+    // For QueryAllTraces, which needs room for each session's log file's name
+    // too.
+    fn for_query() -> Box<Properties> {
+        let mut properties = Properties::new();
+        properties.properties.LogFileNameOffset = std::mem::offset_of!(Properties, log_file) as u32;
+        properties
+    }
+}
+
+pub struct Session {
+    control: CONTROLTRACE_ID,
+    name: Vec<u16>,
+    trace: PROCESSTRACE_HANDLE,
+    thread: Option<JoinHandle<()>>,
+    flusher: Option<Flusher>,
+}
+
+// The thread that flushes the session's buffers, and what tells it to stop.
+struct Flusher {
+    stop: Arc<AtomicBool>,
+    thread: JoinHandle<()>,
+}
+
+impl Flusher {
+    // Flushes the session every FLUSH_PERIOD, on a fixed cadence, until it's
+    // stopped. Without the thread, if it can't start, the events still come,
+    // with the flush timer.
+    fn start(control: CONTROLTRACE_ID) -> Option<Flusher> {
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = stop.clone();
+        let thread = std::thread::Builder::new()
+            .name("PresentTiming flush".to_string())
+            .spawn(move || {
+                let mut next = Instant::now();
+                loop {
+                    // After a late wake, the cadence starts again from now.
+                    next += FLUSH_PERIOD;
+                    let now = Instant::now();
+                    if next > now {
+                        // A high-resolution waitable timer, in Rust's
+                        // standard library, which Windows' 15.6 ms timer
+                        // tick doesn't round up.
+                        std::thread::sleep(next - now);
+                    } else {
+                        next = now;
+                    }
+                    if stopping.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    let mut properties = Properties::new();
+                    unsafe {
+                        let _ = ControlTraceW(control, PCWSTR::null(), &mut properties.properties, EVENT_TRACE_CONTROL_FLUSH as u32);
+                    }
+                }
+            })
+            .ok()?;
+        Some(Flusher { stop, thread })
+    }
+
+    fn stop(self) {
+        self.stop.store(true, Ordering::Relaxed);
+        let _ = self.thread.join();
+    }
+}
+
+// What the reading thread hands each event to.
+pub type Callback = Box<dyn FnMut(&EVENT_RECORD) + Send>;
+
+// The callback, and whether it panicked, after which no event goes to it: an
+// unwinding out of ETW's callback would abort the process, and a tracker's
+// mistake should lose the stats, not the program.
+struct Context {
+    callback: Callback,
+    failed: bool,
+}
+
+// What every session here is named: this, the program, and the process ID.
+const PREFIX: &str = "KGames ";
+
+impl Session {
+    // Starts the session, named after the program and this process, enables
+    // the providers, and starts reading.
+    pub fn start(program: &str, callback: Callback) -> Result<Session, StartError> {
+        let name: Vec<u16> = format!("{PREFIX}{program} {}", unsafe { GetCurrentProcessId() }).encode_utf16().chain([0]).collect();
+        unsafe {
+            stop_leftovers();
+            let mut control = CONTROLTRACE_ID(0);
+            let mut properties = session_properties();
+            let mut status = StartTraceW(&mut control, PCWSTR(name.as_ptr()), &mut properties.properties);
+            if status == ERROR_ALREADY_EXISTS as u32 {
+                // Left over by a run that didn't stop it.
+                stop(CONTROLTRACE_ID(0), &name);
+                properties = session_properties();
+                status = StartTraceW(&mut control, PCWSTR(name.as_ptr()), &mut properties.properties);
+            }
+            match status {
+                0 => {}
+                code if code == ERROR_ACCESS_DENIED as u32 => return Err(StartError::AccessDenied),
+                code => return Err(StartError::Failed(format!("StartTrace failed with error {code}"))),
+            }
+            let source = properties.properties.Wnode.Guid;
+            for provider in &PROVIDERS {
+                let status = enable(control, source, provider.guid, provider.level, provider.any, provider.all, provider.events);
+                // NVIDIA's provider is only there with NVIDIA's driver.
+                if status != 0 && provider.guid != crate::events::NVIDIA {
+                    stop(control, &name);
+                    return Err(StartError::Failed(format!("EnableTraceEx2 failed with error {status}")));
+                }
+            }
+
+            let context = Box::into_raw(Box::new(Context { callback, failed: false }));
+            let mut logfile: EVENT_TRACE_LOGFILEW = std::mem::zeroed();
+            let mut logger_name = name.clone();
+            logfile.LoggerName = PWSTR(logger_name.as_mut_ptr());
+            logfile.Anonymous.ProcessTraceMode =
+                (PROCESS_TRACE_MODE_EVENT_RECORD | PROCESS_TRACE_MODE_RAW_TIMESTAMP | PROCESS_TRACE_MODE_REAL_TIME) as u32;
+            logfile.Anonymous2.EventRecordCallback = Some(on_event);
+            logfile.Context = context as *mut c_void;
+            let trace = OpenTraceW(&mut logfile);
+            if trace.0 == u64::MAX {
+                drop(Box::from_raw(context));
+                stop(control, &name);
+                return Err(StartError::Failed(format!("OpenTrace failed: {}", windows_core::Error::from_thread())));
+            }
+            let context = context as usize;
+            let thread = std::thread::Builder::new()
+                .name("PresentTiming".to_string())
+                .spawn(move || {
+                    // Returns once the session stops, or the trace closes.
+                    let _ = ProcessTrace(&[trace], None, None);
+                    drop(Box::from_raw(context as *mut Context));
+                });
+            let thread = match thread {
+                Ok(thread) => thread,
+                Err(error) => {
+                    let _ = CloseTrace(trace);
+                    drop(Box::from_raw(context as *mut Context));
+                    stop(control, &name);
+                    return Err(StartError::Failed(format!("couldn't start a thread: {error}")));
+                }
+            };
+            Ok(Session {
+                control,
+                name,
+                trace,
+                thread: Some(thread),
+                flusher: Flusher::start(control),
+            })
+        }
+    }
+}
+
+// Reads the events in a trace file, like one that xperf or WPR saved, in
+// order, and gives the performance counter's frequency on the computer that
+// saved it.
+pub fn read_file(path: &std::path::Path, callback: Callback) -> Result<i64, String> {
+    use std::os::windows::ffi::OsStrExt;
+    let mut path: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+    let mut context = Context { callback, failed: false };
+    unsafe {
+        let mut logfile: EVENT_TRACE_LOGFILEW = std::mem::zeroed();
+        logfile.LogFileName = PWSTR(path.as_mut_ptr());
+        logfile.Anonymous.ProcessTraceMode = (PROCESS_TRACE_MODE_EVENT_RECORD | PROCESS_TRACE_MODE_RAW_TIMESTAMP) as u32;
+        logfile.Anonymous2.EventRecordCallback = Some(on_event);
+        logfile.Context = &mut context as *mut Context as *mut c_void;
+        let trace = OpenTraceW(&mut logfile);
+        if trace.0 == u64::MAX {
+            return Err(format!("OpenTrace failed: {}", windows_core::Error::from_thread()));
+        }
+        let frequency = match file_clock(logfile.LogfileHeader.ReservedFlags, logfile.LogfileHeader.PerfFreq) {
+            Ok(frequency) => frequency,
+            Err(message) => {
+                let _ = CloseTrace(trace);
+                return Err(message);
+            }
+        };
+        let status = ProcessTrace(&[trace], None, None);
+        let _ = CloseTrace(trace);
+        if status != 0 {
+            return Err(format!("ProcessTrace failed with error {status}"));
+        }
+        if context.failed {
+            return Err("reading the events panicked".to_string());
+        }
+        Ok(frequency)
+    }
+}
+
+// The performance counter's frequency on the computer that saved a trace
+// file, from its header, if its events are timed on the performance counter.
+// The header's ReservedFlags is the session's ClientContext, which says the
+// clock: 1 for the performance counter, 2 for the system time, and 3 for the
+// CPU's cycles, which would give wrong times here.
+pub fn file_clock(reserved_flags: u32, performance_frequency: i64) -> Result<i64, String> {
+    match reserved_flags {
+        1 if performance_frequency > 0 => Ok(performance_frequency),
+        1 => Err("the trace's performance counter frequency is missing".to_string()),
+        2 => Err("the trace's events are timed with the system time, not the performance counter".to_string()),
+        3 => Err("the trace's events are timed with the CPU's cycles, not the performance counter".to_string()),
+        clock => Err(format!("the trace's events are timed with an unknown clock, {clock}")),
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        // Before the session stops, so that nothing flushes a stopped one.
+        if let Some(flusher) = self.flusher.take() {
+            flusher.stop();
+        }
+        unsafe {
+            for provider in &PROVIDERS {
+                let _ = EnableTraceEx2(
+                    self.control,
+                    &provider.guid,
+                    EVENT_CONTROL_CODE_DISABLE_PROVIDER as u32,
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                );
+            }
+            stop(self.control, &self.name);
+            let _ = CloseTrace(self.trace);
+        }
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+unsafe extern "system" fn on_event(record: *mut EVENT_RECORD) {
+    unsafe {
+        let record = &*record;
+        let context = &mut *(record.UserContext as *mut Context);
+        if context.failed {
+            return;
+        }
+        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (context.callback)(record))).is_err() {
+            context.failed = true;
+        }
+    }
+}
+
+// Stops the sessions named here whose processes are gone, which they
+// outlived: a process that's killed doesn't stop its own. A session's
+// process is the number at the end of its name.
+unsafe fn stop_leftovers() {
+    // QueryAllTracesW fills what fits, and says how many sessions there are,
+    // which can be more than 64, so it's asked again with room for them all.
+    let mut room = 64;
+    let (sessions, count) = loop {
+        let mut sessions: Vec<Box<Properties>> = (0..room).map(|_| Properties::for_query()).collect();
+        let mut pointers: Vec<*mut EVENT_TRACE_PROPERTIES> =
+            sessions.iter_mut().map(|session| &mut session.properties as *mut EVENT_TRACE_PROPERTIES).collect();
+        let mut count = 0u32;
+        let status = unsafe { QueryAllTracesW(pointers.as_mut_ptr(), room as u32, &mut count) };
+        if status == ERROR_MORE_DATA as u32 && count as usize > room {
+            room = count as usize;
+            continue;
+        }
+        if status != 0 && status != ERROR_MORE_DATA as u32 {
+            return;
+        }
+        break (sessions, (count as usize).min(room));
+    };
+    for session in sessions.iter().take(count) {
+        let end = session.name.iter().position(|&unit| unit == 0).unwrap_or(session.name.len());
+        let name = String::from_utf16_lossy(&session.name[..end]);
+        let Some(rest) = name.strip_prefix(PREFIX) else {
+            continue;
+        };
+        let Some(process) = rest.rsplit(' ').next().and_then(|id| id.parse::<u32>().ok()) else {
+            continue;
+        };
+        if !unsafe { process_is_gone(process) } {
+            continue;
+        }
+        let wide: Vec<u16> = name.encode_utf16().chain([0]).collect();
+        unsafe { stop(CONTROLTRACE_ID(0), &wide) };
+    }
+}
+
+// Whether no process has the ID any more, or the one that has it has
+// exited. One that can't be opened at all, like a protected process, is
+// taken as alive.
+unsafe fn process_is_gone(process: u32) -> bool {
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION as u32, false, process);
+        if handle.0.is_null() {
+            // ERROR_INVALID_PARAMETER, which E_INVALIDARG is as an HRESULT:
+            // no process has the ID.
+            return windows_core::Error::from_thread().code() == E_INVALIDARG;
+        }
+        let mut code = 0u32;
+        let running = GetExitCodeProcess(handle, &mut code).as_bool() && code == STILL_ACTIVE as u32;
+        let _ = CloseHandle(handle);
+        !running
+    }
+}
+
+// The session's properties, as PresentMon's: real-time, with times on the
+// performance counter, and buffers that a busy system doesn't fill up. The
+// flush timer hands the buffers to the reader once a second, if the flusher
+// hasn't. The session is independent: a session that a killed process left,
+// whose buffers no one reads, fills up, and without this, an event that
+// can't be written to one of the sessions that its provider is enabled for
+// isn't written to any, like PresentMon's.
+fn session_properties() -> Box<Properties> {
+    let mut properties = Properties::new();
+    let session = &mut properties.properties;
+    session.Wnode.ClientContext = 1;
+    session.Wnode.Flags = WNODE_FLAG_TRACED_GUID as u32;
+    session.LogFileMode = (EVENT_TRACE_REAL_TIME_MODE | EVENT_TRACE_INDEPENDENT_SESSION_MODE) as u32;
+    session.BufferSize = 64;
+    session.MinimumBuffers = 64;
+    session.MaximumBuffers = 1024;
+    session.FlushTimer = 1;
+    properties
+}
+
+unsafe fn stop(control: CONTROLTRACE_ID, name: &[u16]) {
+    let mut properties = Properties::new();
+    unsafe {
+        let _ = ControlTraceW(control, PCWSTR(name.as_ptr()), &mut properties.properties, EVENT_TRACE_CONTROL_STOP as u32);
+    }
+}
+
+// Enables a provider for the session, with only the events listed.
+unsafe fn enable(control: CONTROLTRACE_ID, source: GUID, provider: GUID, level: u8, any: u64, all: u64, events: &[u16]) -> u32 {
+    // EVENT_FILTER_EVENT_ID: FilterIn, a reserved byte, the count, and the
+    // event IDs, as 16-bit words.
+    let mut filter: Vec<u16> = vec![1, events.len() as u16];
+    filter.extend_from_slice(events);
+    let descriptor = EVENT_FILTER_DESCRIPTOR {
+        Ptr: filter.as_ptr() as u64,
+        Size: (4 + 2 * events.len()) as u32,
+        Type: EVENT_FILTER_TYPE_EVENT_ID,
+    };
+    let parameters = ENABLE_TRACE_PARAMETERS {
+        Version: ENABLE_TRACE_PARAMETERS_VERSION_2 as u32,
+        EnableProperty: EVENT_ENABLE_PROPERTY_IGNORE_KEYWORD_0 as u32,
+        ControlFlags: 0,
+        SourceId: source,
+        EnableFilterDesc: &descriptor as *const EVENT_FILTER_DESCRIPTOR as *mut EVENT_FILTER_DESCRIPTOR,
+        FilterDescCount: 1,
+    };
+    unsafe {
+        EnableTraceEx2(
+            control,
+            &provider,
+            EVENT_CONTROL_CODE_ENABLE_PROVIDER as u32,
+            level,
+            any,
+            all,
+            0,
+            Some(&parameters),
+        )
+    }
+}

@@ -1,6 +1,6 @@
 <!--
   The NuGet packages that Library/GameInput needs, declared the way a .NET project declares its own.
-  Build.rs restores them with dotnet, in locked mode, into NuGet's global packages folder, and
+  build.rs restores them with dotnet, in locked mode, into NuGet's global packages folder, and
   packages.lock.json pins each one's content by its hash, as Cargo.lock does for crates. Nothing
   builds this project: it only lists packages.
 -->
@@ -12,9 +12,9 @@
   </PropertyGroup>
   <ItemGroup>
     <!--
-      Exactly the version of the runtime that the user installs (see Source/Installation.rs).
+      Exactly the version of the runtime that the user installs (see src/installation.rs).
       ExcludeAssets keeps its build files out of this project, and GeneratePathProperty gives its
-      folder as PkgMicrosoft_GameInput, which Build.rs reads.
+      folder as PkgMicrosoft_GameInput, which build.rs reads.
     -->
     <PackageReference Include="Microsoft.GameInput" Version="[4.0.306]" ExcludeAssets="all" GeneratePathProperty="true" />
   </ItemGroup>

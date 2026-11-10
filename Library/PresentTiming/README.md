@@ -10,7 +10,7 @@ PresentMon's: its "screen time", which PresentMon's `MsUntilDisplayed`, `Display
 ## How it works
 
 Windows says what happens to every present in its own events, which a real-time ETW session
-(`Source/Session.rs`) reads on a thread of its own, as they happen:
+(`src/session.rs`) reads on a thread of its own, as they happen:
 
 | Provider                     | What it says                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------- |
@@ -21,10 +21,10 @@ Windows says what happens to every present in its own events, which a real-time 
 | `Microsoft-Windows-Dwm-Core` | DWM's frames, which composed presents show in, and the copies that DWM takes    |
 | `NVIDIA-DD-External`         | When NVIDIA's driver means to flip, if that's later than the kernel's flip      |
 
-The session enables the same events, levels and keywords as PresentMon. `Source/Decoder.rs` finds
+The session enables the same events, levels and keywords as PresentMon. `src/decoder.rs` finds
 the events' fields by name, with the layouts that Windows' trace data helper (TDH) gives from the
 providers' manifests, or from a trace file's own metadata for versions that this computer's
-manifests don't have. `Source/Events.rs` turns them into plain data, and `Source/Tracker.rs`
+manifests don't have. `src/events.rs` turns them into plain data, and `src/tracker.rs`
 follows each present through them, by the keys that each event has: its thread while its `Present`
 call runs, then Win32k's token, the kernel's present history token, and its queue packet's submit
 sequence, which the flips and sync interrupts name.
@@ -141,10 +141,10 @@ Windows sends them, for every mode.
 
 ## Layout
 
-| Path                | Contents                                                                        |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `Source/Library.rs` | `PresentTiming`, `Present`, `read_file`, and the NVIDIA flip delay's correction |
-| `Source/Session.rs` | The real-time ETW session, and reading trace files                              |
-| `Source/Events.rs`  | The providers, their events, and the events as plain data                       |
-| `Source/Decoder.rs` | Finds events' fields by name, with TDH's layouts                                |
-| `Source/Tracker.rs` | Follows presents through the events to when the display took them, and how      |
+| Path             | Contents                                                                        |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `src/lib.rs`     | `PresentTiming`, `Present`, `read_file`, and the NVIDIA flip delay's correction |
+| `src/session.rs` | The real-time ETW session, and reading trace files                              |
+| `src/events.rs`  | The providers, their events, and the events as plain data                       |
+| `src/decoder.rs` | Finds events' fields by name, with TDH's layouts                                |
+| `src/tracker.rs` | Follows presents through the events to when the display took them, and how      |

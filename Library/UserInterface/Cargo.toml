@@ -3,10 +3,8 @@ name = "user_interface"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
-build = "Build.rs"
 
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test/UserInterface.
 test = false
 doctest = false

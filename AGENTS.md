@@ -72,7 +72,7 @@ kind that holds, because a later session never read the conversation that invent
 - A comment is a promise: a comment or README that says the code does something the code doesn't
   do is a bug, and models believe documentation more than people do. Keep them true in the same
   change that would make them false.
-- A rewrite of a library core, like `Library/UserInterface/Source/Core`, is a rare, deliberate
+- A rewrite of a library core, like `Library/UserInterface/src/core`, is a rare, deliberate
   event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
   with an adversarial review of the new code and the findings pinned by tests, as
   `Documentation/LogicReview.md` records for the last one.
@@ -123,7 +123,7 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: input on the tree the user saw becomes messages, `update` applies them, and one read-only `view` describes the frame's widgets from the state, so a frame's output always comes from that frame's input, never a frame late. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
 - Use the light theme by default.
-- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/Source/Design/Tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/Source/Design/Controls.rs`.
+- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/src/design/controls.rs`.
 - Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/Rendering.rs` checks it.
 - `F9` toggles between light and dark mode. Default is light mode.
 - `F10` toggles between VSync on and off. Default is VSync on.

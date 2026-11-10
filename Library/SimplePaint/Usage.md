@@ -47,10 +47,10 @@ Depend on the crate with a path from your package's folder, like a program in `P
 simple_paint = { path = "../../Library/SimplePaint" }
 ```
 
-- `Source/Material.rs`: validated parameters and GPU constant compilation, with no DirectX types.
-- `Source/Geometry.rs`: validation for indexed triangle meshes.
-- `Source/Orthographic.rs`: the validated transforms that the adapter's vertex stage reads.
-- `Source/Direct3D12.rs`: the adapter's pipeline and meshes in GPU memory, for hosts that draw
+- `src/material.rs`: validated parameters and GPU constant compilation, with no DirectX types.
+- `src/geometry.rs`: validation for indexed triangle meshes.
+- `src/orthographic.rs`: the validated transforms that the adapter's vertex stage reads.
+- `src/direct3d12.rs`: the adapter's pipeline and meshes in GPU memory, for hosts that draw
   with [Library/Graphics](../Graphics/README.md).
 - `Shaders/SimplePaintCore.hlsli`: the binding-independent HLSL functions.
 - `Shaders/SimplePaint.hlsl`: the configurable DX12 vertex and pixel shader adapter.
@@ -94,7 +94,7 @@ Use an orthographic projection with affine object/view transforms and clip W = 1
 
 Before uploading geometry, call `validate_mesh(vertices, indices, material_count)`. It accepts slices of vertices and 32-bit indices. Vertices implement `PaintVertex`, which gives their position, normal, and material index; `simple_paint::Vertex` does. Use normal lengths in [0.5, 2], positions within [-1,000,000, 1,000,000], valid indices, one material per triangle, and the common normal cone described in the specification. The validation returns an error if interpolation could approach a zero normal under that contract. `direct3d12::Mesh::new` validates the mesh before uploading it, then copies it into the GPU's own memory once with `Gpu::run`, which waits for the GPU, so make meshes at setup. The GPU core assumes these checks have succeeded.
 
-Compile the HLSL entry points as `vs_6_0` and `ps_6_0` in your package's `Build.rs`, with DXC `-O3 -Ges -WX`, adding `-D SIMPLE_PAINT_MATERIAL_COUNT=N` for your material count. The GPU tests additionally use `-all_resources_bound -Qstrip_debug -Qstrip_reflect`. The crate's build script tells your build script where the shaders are, in the `DEP_SIMPLE_PAINT_SHADERS` environment variable, and [Library/ShaderCompiler](../ShaderCompiler/README.md) runs DXC:
+Compile the HLSL entry points as `vs_6_0` and `ps_6_0` in your package's `build.rs`, with DXC `-O3 -Ges -WX`, adding `-D SIMPLE_PAINT_MATERIAL_COUNT=N` for your material count. The GPU tests additionally use `-all_resources_bound -Qstrip_debug -Qstrip_reflect`. The crate's build script tells your build script where the shaders are, in the `DEP_SIMPLE_PAINT_SHADERS` environment variable, and [Library/ShaderCompiler](../ShaderCompiler/README.md) runs DXC:
 
 ```rust
 let shaders = PathBuf::from(std::env::var("DEP_SIMPLE_PAINT_SHADERS").unwrap());

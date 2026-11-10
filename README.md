@@ -8,16 +8,16 @@ KGames bugs that BUI showed up
 
 BUI handles each Win32 key and character message as it arrives (BUI/kit/intern/kit_window_win32.c:656-703). KGames instead collects a whole frame's input first, and loses information doing so:
 
-Keys and typed text lose their order within a frame. The text box handles all the frame's keys first, then all its typed text (TextBox.rs:331-412).
+Keys and typed text lose their order within a frame. The text box handles all the frame's keys first, then all its typed text (text_box.rs:331-412).
 Typing "x" then Backspace in one frame deletes the old character and then inserts "x".
 "a", Left, "b" gives "ab" instead of "ba".
 Modifiers are read once, at the end of the frame, not per key.
-Repeated presses collapse into one. key_pressed only asks whether the key was pressed at all this frame (Events.rs:239).
-In ListView.rs:207-224, two Down presses in one frame move one row, and Down then Up always ends on Up, whatever the order.
+Repeated presses collapse into one. key_pressed only asks whether the key was pressed at all this frame (events.rs:239).
+In list_view.rs:207-224, two Down presses in one frame move one row, and Down then Up always ends on Up, whatever the order.
 That breaks AGENTS.md's rule that two of the same intent never collapse into one.
 The survey says ComboBox, Menu and Navigation have the same problem. I didn't check those three myself.
 Fix for bugs 1 and 2: keep one ordered list of key and character events, each key with its own modifiers, and have the widgets work through it in order.
-When the glyph atlas fills, text is missing for a frame. When there's no room left, the glyph is simply not drawn (Text.rs:246-256, :494-500), and the atlas only starts over on the next frame (:359). A code comment even describes this. BUI never drops a glyph: it draws what it has, clears the atlas and carries on. For KGames, the fix is to start the atlas over and paint the frame again.
+When the glyph atlas fills, text is missing for a frame. When there's no room left, the glyph is simply not drawn (text.rs:246-256, :494-500), and the atlas only starts over on the next frame (:359). A code comment even describes this. BUI never drops a glyph: it draws what it has, clears the atlas and carries on. For KGames, the fix is to start the atlas over and paint the frame again.
 
 # Motivation
 
