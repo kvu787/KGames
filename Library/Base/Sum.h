@@ -32,6 +32,12 @@
 //
 // An arm is a lambda, so it can't return from the function it's in, or break
 // out of a loop there. Code that needs to does it with base::as instead.
+//
+// base::make<Part::Index> is a function that makes that alternative from its
+// members' values, for where a function is wanted, like a widget's reaction
+// to its value, which makes the program's message from it:
+//
+//     Slider<Message>(volume, 0.0f, 1.0f).on_change(base::make<Message::Volume>)
 
 #pragma once
 
@@ -77,6 +83,10 @@ template <class T, SumType S> const T* as(const S& sum) {
 template <class T, SumType S> T* as(S& sum) {
     return std::get_if<T>(&sum.value);
 }
+
+// Makes the alternative from its members' values, in their order.
+template <class T>
+inline constexpr auto make = [](auto&&... values) { return T{std::forward<decltype(values)>(values)...}; };
 
 // Calls the arm for the alternative that the sum type holds.
 template <SumType S, class... Arms> decltype(auto) match(S&& sum, Arms&&... arms) {
