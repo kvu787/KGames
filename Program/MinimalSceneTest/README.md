@@ -47,7 +47,8 @@ whether the window has focus, with an info bar's status icon, the keys on keycap
 wrong with `Settings.json`, if anything, as warning info bars.
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release MinimalSceneTest
+target\Release\MinimalSceneTest.exe
 ```
 
 Or run `HumanRun.cmd`, which opens the test on the primary display. `--display` and
@@ -64,7 +65,7 @@ it from its `Paint.json`.
 ## Testing
 
 ```powershell
-cargo test -p minimal_scene_test_tests
+Program\RunTests\RunTests.ps1 MinimalSceneTestTests
 Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
 ```
 
@@ -81,14 +82,16 @@ so on.
 
 ## Layout
 
-| Path                   | Contents                                                                 |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `src/main.rs`          | Runs the test with Library/UserInterface                                 |
-| `src/lib.rs`           | The test's parts, as a library that `Test/MinimalSceneTest` tests        |
-| `src/moving_sphere.rs` | The test as a `Program`: the sphere's motion, the keys, and the state    |
-| `src/scene.rs`         | The camera, the objects, and the sphere's motion, drawn with SimplePaint |
-| `src/settings.rs`      | The objects' materials, and their defaults                               |
-| `build.rs`             | Compiles SimplePaint's shaders for three materials                       |
-| `HumanRun.ps1`         | Builds the test and runs it on the primary display, for people to use it |
-| `HumanRun.cmd`         | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
-| `Settings.json`        | The settings, which the test writes if it's missing                      |
+| Path                              | Contents                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `Main.cpp`                        | Runs the test with Library/UserInterface                                 |
+| `MinimalSceneTest.h`, `.cpp`      | The test's parts, as a library that `Test/MinimalSceneTest` tests        |
+| `MovingSphere.h`, `.cpp`          | The test as a `Program`: the sphere's motion, the keys, and the state    |
+| `Scene.h`, `.cpp`                 | The camera, the objects, and the sphere's motion, drawn with SimplePaint |
+| `Settings.h`, `.cpp`              | The objects' materials, and their defaults                               |
+| `MinimalSceneTestLibrary.vcxproj` | Builds all but `Main.cpp` into the library, and compiles SimplePaint's   |
+|                                   | shaders for three materials                                              |
+| `MinimalSceneTest.vcxproj`        | Builds `Main.cpp` and the library into `MinimalSceneTest.exe`            |
+| `HumanRun.ps1`                    | Builds the test and runs it on the primary display, for people to use it |
+| `HumanRun.cmd`                    | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
+| `Settings.json`                   | The settings, which the test writes if it's missing                      |
