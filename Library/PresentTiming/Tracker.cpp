@@ -827,7 +827,7 @@ void Tracker::complete(std::uint64_t id) {
 
     // A present that waits too long for its Present_Stop stops waiting.
     if (!completed.empty()) {
-        std::uint64_t oldest = completed.front();
+        std::uint64_t oldest = *completed.front();
         if (get(oldest).waiting_for_present_stop && start - get(oldest).start > 2 * frequency()) {
             Tracked& present = get_mut(oldest);
             present.waiting_for_present_stop = false;
@@ -897,7 +897,7 @@ void Tracker::stop_tracking(std::uint64_t id) {
 
 void Tracker::emit_ready() {
     while (!completed.empty()) {
-        std::uint64_t id = completed.front();
+        std::uint64_t id = *completed.front();
         if (get(id).waiting_for_present_stop) {
             break;
         }

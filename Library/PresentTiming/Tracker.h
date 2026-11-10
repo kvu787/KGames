@@ -18,12 +18,12 @@
 
 #pragma once
 
+#include "Base/VecDeque.h"
 #include "PresentTiming/Events.h"
 #include "PresentTiming/Present.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <map>
 #include <optional>
 #include <tuple>
@@ -162,7 +162,7 @@ private:
     std::uint32_t dwm_thread = 0;
     bool completed_one = false;
     // Completed presents, in the order they completed.
-    std::deque<std::uint64_t> completed;
+    base::VecDeque<std::uint64_t> completed;
     // NVIDIA's flip requests.
     std::uint32_t last_flip_token = 0;
     std::unordered_map<std::uint32_t, std::int64_t> last_flip_time;
