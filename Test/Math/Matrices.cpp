@@ -91,3 +91,24 @@ TEST(normalizing_gives_length_1_or_zero_for_nothing) {
     CHECK_EQ(normalize({0.0f, 0.0f, 0.0f}), (Vector3{0.0f, 0.0f, 0.0f}));
     CHECK_EQ(normalize({std::numeric_limits<float>::infinity(), 0.0f, 0.0f}), (Vector3{0.0f, 0.0f, 0.0f}));
 }
+
+// Rust's sum of floats starts from -0.0, so a sum of products that are all
+// negative zero is negative zero, and the C++ gives the same bits.
+TEST(a_sum_of_negative_zeros_is_negative_zero) {
+    Matrix negative;
+    for (auto& row : negative.rows) {
+        row.fill(-1.0f);
+    }
+    for (float component : negative.transform({0.0f, 0.0f, 0.0f, 0.0f})) {
+        CHECK(component == 0.0f && std::signbit(component));
+    }
+    Matrix zero{};
+    Matrix product = zero * negative;
+    for (const auto& row : product.rows) {
+        for (float entry : row) {
+            CHECK(entry == 0.0f && std::signbit(entry));
+        }
+    }
+    // A positive zero among them makes the sum positive.
+    CHECK(!std::signbit(negative.transform({0.0f, 0.0f, 0.0f, -0.0f})[0]));
+}

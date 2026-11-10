@@ -28,8 +28,16 @@ constexpr size_t len_utf8(char32_t character) {
     return character < 0x80 ? 1 : character < 0x800 ? 2 : character < 0x10000 ? 3 : 4;
 }
 
-// Adds the character to the string: String::push.
-void push_char(std::string& text, char32_t character);
+// Adds the character to the string: String::push. ASCII, which nearly all
+// text here is, is added without a call.
+void push_char_beyond_ascii(std::string& text, char32_t character);
+inline void push_char(std::string& text, char32_t character) {
+    if (character < 0x80) {
+        text.push_back(static_cast<char>(character));
+    } else {
+        push_char_beyond_ascii(text, character);
+    }
+}
 
 // The character at the start of the text, which mustn't be empty, and how
 // many bytes it takes. For bytes that aren't UTF-8, U+FFFD, and as many
@@ -41,7 +49,14 @@ struct Decoded {
     // Whether the bytes were UTF-8.
     bool valid = true;
 };
-Decoded decode_char(std::string_view text);
+Decoded decode_char_beyond_ascii(std::string_view text);
+inline Decoded decode_char(std::string_view text) {
+    unsigned char first = static_cast<unsigned char>(text.front());
+    if (first < 0x80) {
+        return {first, 1};
+    }
+    return decode_char_beyond_ascii(text);
+}
 
 // The text's characters, for a range-based for: str::chars.
 //
@@ -54,14 +69,17 @@ public:
         using value_type = char32_t;
 
         Iterator() = default;
-        explicit Iterator(std::string_view rest) : rest_(rest) {}
+        explicit Iterator(std::string_view rest) : rest_(rest) {
+            decode();
+        }
 
         char32_t operator*() const {
-            return decode_char(rest_).character;
+            return current_.character;
         }
 
         Iterator& operator++() {
-            rest_.remove_prefix(decode_char(rest_).length);
+            rest_.remove_prefix(current_.length);
+            decode();
             return *this;
         }
 
@@ -76,7 +94,15 @@ public:
         }
 
     private:
+        // Each character is decoded once, as the iterator gets to it.
+        void decode() {
+            if (!rest_.empty()) {
+                current_ = decode_char(rest_);
+            }
+        }
+
         std::string_view rest_;
+        Decoded current_{0, 0};
     };
 
     explicit Chars(std::string_view text) : text_(text) {}

@@ -165,3 +165,20 @@ TEST(an_environment_variable_that_isnt_set_is_nothing) {
     CHECK(!base::environment_variable("KGAMES_BASE_TESTS_NO_SUCH_VARIABLE").has_value());
     CHECK(base::environment_variable("SystemRoot").has_value());
 }
+
+// The iterator decodes each character once, and stops at the text's end
+// whatever the last character's length.
+TEST(characters_iterate_to_the_end_of_any_text) {
+    CHECK_EQ(characters(""), std::vector<char32_t>{});
+    CHECK_EQ(characters("a"), std::vector<char32_t>{U'a'});
+    CHECK_EQ(characters("\xF0\x9F\x98\x80"), std::vector<char32_t>{0x1F600});
+    CHECK_EQ(characters("\xF0\x9F\x98\x80z"), (std::vector<char32_t>{0x1F600, U'z'}));
+    // Cut short at the end: one replacement, and no read past the end.
+    CHECK_EQ(characters("z\xF0\x9F"), (std::vector<char32_t>{U'z', base::Replacement}));
+    base::Chars both = base::chars("ab");
+    base::Chars::Iterator first = both.begin();
+    base::Chars::Iterator second = first++;
+    CHECK_EQ(*second, U'a');
+    CHECK_EQ(*first, U'b');
+    CHECK(++first == both.end());
+}

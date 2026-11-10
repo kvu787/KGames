@@ -32,7 +32,7 @@ std::string narrow(std::wstring_view text) {
     return narrow;
 }
 
-void push_char(std::string& text, char32_t character) {
+void push_char_beyond_ascii(std::string& text, char32_t character) {
     if (character < 0x80) {
         text.push_back(static_cast<char>(character));
     } else if (character < 0x800) {
@@ -50,7 +50,7 @@ void push_char(std::string& text, char32_t character) {
     }
 }
 
-Decoded decode_char(std::string_view text) {
+Decoded decode_char_beyond_ascii(std::string_view text) {
     constexpr Decoded Invalid{Replacement, 1, false};
     auto byte = [&](size_t index) {
         return static_cast<unsigned char>(text[index]);

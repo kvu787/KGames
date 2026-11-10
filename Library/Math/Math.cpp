@@ -99,9 +99,9 @@ Matrix Matrix::transpose() const {
 Vector4 Matrix::transform(Vector4 v) const {
     Vector4 transformed;
     for (size_t column = 0; column < 4; column++) {
-        // From 0, in the rows' order, as Rust's sum adds them, so that the
-        // floats round the same way.
-        float sum = 0.0f;
+        // From -0.0, in the rows' order, as Rust's sum adds them, so that
+        // the floats round the same way, and a sum of negative zeros is one.
+        float sum = -0.0f;
         for (size_t row = 0; row < 4; row++) {
             sum += v[row] * rows[row][column];
         }
@@ -124,7 +124,7 @@ Matrix operator*(const Matrix& a, const Matrix& b) {
     Matrix product;
     for (size_t row = 0; row < 4; row++) {
         for (size_t column = 0; column < 4; column++) {
-            float sum = 0.0f;
+            float sum = -0.0f;
             for (size_t k = 0; k < 4; k++) {
                 sum += a.rows[row][k] * b.rows[k][column];
             }
