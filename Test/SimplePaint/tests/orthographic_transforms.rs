@@ -1,7 +1,6 @@
 // The packed orthographic transforms against full matrix products, and the
 // projection's near and far depth endpoints.
 
-#[path = "Reference.rs"]
 mod reference;
 
 use math::{Matrix, dot};

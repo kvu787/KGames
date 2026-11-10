@@ -8,7 +8,7 @@
 // test_case_0.csv to test_case_5.csv:
 //
 //   $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
-//   cargo test -p present_timing_tests --test Gold -- --ignored --nocapture
+//   cargo test -p present_timing_tests --test gold -- --ignored --nocapture
 //
 // It also tests, without traces, that read_file takes only a trace whose
 // events are timed on the performance counter.

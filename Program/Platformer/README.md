@@ -41,7 +41,7 @@ a bug in the graph, and stops the program instead of hiding.
 
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,
-never from a snapshot. `Test/Platformer/Events.rs` pins the one-frame law:
+never from a snapshot. `Test/Platformer/tests/events.rs` pins the one-frame law:
 its deepest test collects the last coin, opens the door, reaches the goal,
 sets the record, writes the file and flashes the save light in one
 `Game::update`, and asserts all of it, the file on disk included.

@@ -3,7 +3,6 @@
 // endpoints, transform validation, mesh validation, and the specification's
 // two facing equations against each other.
 
-#[path = "Reference.rs"]
 mod reference;
 
 use math::Matrix;

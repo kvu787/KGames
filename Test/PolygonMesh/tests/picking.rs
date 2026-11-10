@@ -2,7 +2,6 @@
 // through concave faces only where they are, the vertex and edge nearest a
 // ray, and the bounds and centers of meshes and selections.
 
-#[path = "Common.rs"]
 #[allow(dead_code)]
 mod common;
 

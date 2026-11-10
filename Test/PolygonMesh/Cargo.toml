@@ -5,38 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Primitives"
-path = "Primitives.rs"
-
-[[test]]
-name = "Topology"
-path = "Topology.rs"
-
-[[test]]
-name = "Selection"
-path = "Selection.rs"
-
-[[test]]
-name = "Editing"
-path = "Editing.rs"
-
-[[test]]
-name = "Subdivision"
-path = "Subdivision.rs"
-
-[[test]]
-name = "Triangulation"
-path = "Triangulation.rs"
-
-[[test]]
-name = "Picking"
-path = "Picking.rs"
-
-[[test]]
-name = "Files"
-path = "Files.rs"
-
 [dependencies]
 math = { path = "../../Library/Math" }
 polygon_mesh = { path = "../../Library/PolygonMesh" }

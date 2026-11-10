@@ -2,7 +2,6 @@
 // wound so that its faces point out, has the Euler characteristic of its
 // shape, and is quads where it can be.
 
-#[path = "Common.rs"]
 #[allow(dead_code)]
 mod common;
 

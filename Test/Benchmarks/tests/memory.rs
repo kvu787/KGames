@@ -1,5 +1,5 @@
 // The memory harness: how many runs a budget asks for, the usage that it
-// makes of the counts, the tables, and the process's memory. Counting.rs
+// makes of the counts, the tables, and the process's memory. counting.rs
 // tests the counting allocator, and the measurements that turn it on.
 
 use benchmarks::memory::{self, Counts, Video, process_memory, runs, table, video_table};

@@ -5,10 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Matrices"
-path = "Matrices.rs"
-
 [dependencies]
 math = { path = "../../Library/Math" }
 

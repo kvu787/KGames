@@ -4,7 +4,6 @@
 // falls back to its triangle's flat one, concave faces are cut inside
 // themselves, and faces without area are left out.
 
-#[path = "Common.rs"]
 #[allow(dead_code)]
 mod common;
 

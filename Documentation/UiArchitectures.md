@@ -83,7 +83,7 @@ architecture. It only prices the structure: the one-frame guarantee by construct
 
 ## Code size
 
-Lines of each program's `Source`, same programs, same behavior, same scripts:
+Lines of each program's `src`, same programs, same behavior, same scripts:
 
 | Program          | Immediate | MVU    | Callback view | Retained       |
 | ---------------- | --------- | ------ | ------------- | -------------- |

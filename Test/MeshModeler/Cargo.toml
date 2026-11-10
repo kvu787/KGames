@@ -5,18 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Editing"
-path = "Editing.rs"
-
-[[test]]
-name = "Files"
-path = "Files.rs"
-
-[[test]]
-name = "Rendering"
-path = "Rendering.rs"
-
 [dependencies]
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }

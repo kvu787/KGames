@@ -4,7 +4,6 @@
 // and that it says how to install it where it isn't installed. KGames doesn't
 // build without it, so these run where it's installed.
 
-#[path = "Modules.rs"]
 mod modules;
 
 use core::ffi::c_void;
@@ -36,7 +35,7 @@ fn the_runtime_is_4_0_306_in_system32() {
 }
 
 // The version is read from the DLL's bytes, with the standard library alone,
-// which Build.rs has: from its VS_FIXEDFILEINFO, which starts with the
+// which rs has: from its VS_FIXEDFILEINFO, which starts with the
 // signature 0xFEEF04BD and the structure's version, 1.0.
 #[test]
 fn the_version_is_read_from_the_dll_itself() {

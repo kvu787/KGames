@@ -5,10 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Meshes"
-path = "Meshes.rs"
-
 [dependencies]
 meshes = { path = "../../Library/Meshes" }
 simple_paint = { path = "../../Library/SimplePaint" }

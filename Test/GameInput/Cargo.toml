@@ -5,15 +5,9 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "GameInput"
-path = "GameInput.rs"
-
-# A binary of its own, so that nothing loads the runtime before its test
-# puts a file beside the exe.
-[[test]]
-name = "RuntimeImports"
-path = "RuntimeImports.rs"
+# Cargo makes a test binary of each file in tests, so runtime_imports.rs is one
+# of its own, and nothing loads the runtime before its test puts a file beside
+# the exe.
 
 [dependencies]
 game_input = { path = "../../Library/GameInput" }

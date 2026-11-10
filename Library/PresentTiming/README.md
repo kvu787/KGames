@@ -117,7 +117,7 @@ providers, and gives a process's presents with the performance counter's frequen
 with what `PresentMon --etl_file` says of the same file: a present's `TimeInQPC` is its `start`,
 and `MsUntilDisplayed` is its `screen` less its `start`, in milliseconds.
 
-`Test/PresentTiming/Gold.rs` does that for the six gold traces in PresentMon's repository
+`Test/PresentTiming/tests/gold.rs` does that for the six gold traces in PresentMon's repository
 (`Tests/Gold`), from Windows 10, without running PresentMon: it compares with the gold CSVs beside
 them, which PresentMon 2.6.1's own tests require its output for the traces to match, row for row.
 All 1,448 presents in them, of every process, DXGI's, Direct3D 9's and others', have the same
@@ -131,12 +131,12 @@ The traces aren't in this repository, so the test is ignored unless it's asked f
 
 ```powershell
 $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
-Program\RunLightly\RunLightly.ps1 cargo test -p present_timing_tests --test Gold '--' --ignored --nocapture
+Program\RunLightly\RunLightly.ps1 cargo test -p present_timing_tests --test gold '--' --ignored --nocapture
 ```
 
 The traces don't have legacy copies, composed CPU copies, or Windows 11's hardware flip queue,
 whose flips' status after the flip tells immediate flips from ones that wait for the sync
-interrupt. `Test/PresentTiming/Tracker.rs` tests the tracker with made-up events in the order that
+interrupt. `Test/PresentTiming/tests/tracker.rs` tests the tracker with made-up events in the order that
 Windows sends them, for every mode.
 
 ## Layout

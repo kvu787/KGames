@@ -7,7 +7,6 @@
 // With --benchmark, it instead times 128 warmed 1024 x 1024 draws for Shift 0
 // and Shift 0.6 on the hardware adapter, with GPU timestamps.
 
-#[path = "Reference.rs"]
 mod reference;
 
 use graphics::{UploadBuffer, create_buffer, create_texture, transition};
@@ -21,7 +20,7 @@ use windows_core::{Interface, PCWSTR, Result};
 
 static VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 static PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-// The shaders' SIMPLE_PAINT_MATERIAL_COUNT, from Build.rs.
+// The shaders' SIMPLE_PAINT_MATERIAL_COUNT, from rs.
 const MATERIAL_COUNT: usize = 6;
 const FORMAT: DXGI_FORMAT = DXGI_FORMAT_R32G32B32A32_FLOAT;
 const BENCHMARK_REPETITIONS: u32 = 128;

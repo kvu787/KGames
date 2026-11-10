@@ -153,9 +153,9 @@ Status: Proposed, as a session card.
 
 Status: Proposed, as a session card.
 
-- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks single pixels, and since
+- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks single pixels, and since
   `375d713` compares a press's frame with the frame a second later, below the PerfBar
-  ([Rendering.rs:274-298](../Test/UserInterface/Rendering.rs#L274)). Nothing compares the frames
+  ([rendering.rs:274-298](../Test/UserInterface/tests/rendering.rs#L274)). Nothing compares the frames
   before and after a round trip, and UiShowcase's `Scripts/Themes.json` checks only state.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
@@ -299,10 +299,10 @@ Status: Not started.
 
 Status: Not started.
 
-- **KGames:** [Rendering.rs](../Test/UserInterface/Rendering.rs) checks pixels and compares frames
+- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks pixels and compares frames
   with later frames, on the high-performance adapter only, and nothing is a reference for the
   interface's shader.
-  [Gpu.rs](../Test/SimplePaint/Gpu.rs) and [Reference.rs](../Test/SimplePaint/Reference.rs) already
+  [gpu.rs](../Test/SimplePaint/tests/gpu.rs) and [reference/mod.rs](../Test/SimplePaint/tests/reference/mod.rs) already
   compare hardware and WARP against a binary64 reference, but only for SimplePaint's shader.
 - **BUI:** `BUI/gpu/tests/test_gpu_parity.c:87-169`, `:191-230` draws one scene of every primitive at
   fractional coordinates on the CPU and on the GPU, counts the pixels that differ by more than 3

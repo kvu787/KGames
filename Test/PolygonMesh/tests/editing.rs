@@ -2,7 +2,6 @@
 // known exactly: what each makes, what it selects, and that it keeps the mesh
 // valid, consistently wound, and closed where it was.
 
-#[path = "Common.rs"]
 #[allow(dead_code)]
 mod common;
 

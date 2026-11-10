@@ -5,10 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Settings"
-path = "Settings.rs"
-
 [dependencies]
 json = { path = "../../Library/Json" }
 paint_settings = { path = "../../Library/PaintSettings" }

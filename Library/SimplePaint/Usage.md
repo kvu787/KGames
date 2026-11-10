@@ -128,4 +128,4 @@ They require Windows 11 x64, DXC from the Windows SDK, and Shader Model 6.0 runt
 
 The tests include 81,940 curve comparisons, 20,000 comparisons between the specification's slice/Schlick and rational facing equations, parameter, transform and mesh validation checks, and 30,208 production VS/PS samples on each of the preferred adapter and WARP. The GPU tests include 4,096 interpolated-normal cases and check both linear and sRGB error against an independent binary64 evaluation of the specification. [Specification.md](Specification.md#verification) defines the coverage and acceptance criteria.
 
-The `ShaderCompilation` test compiles both shader stages with the default count of one and an explicit count of three. A zero material count must fail shader compilation.
+The `shader_compilation` test compiles both shader stages with the default count of one and an explicit count of three. A zero material count must fail shader compilation.

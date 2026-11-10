@@ -5,22 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "GpuPriority"
-path = "GpuPriority.rs"
-
-[[test]]
-name = "DepthBuffer"
-path = "DepthBuffer.rs"
-
-[[test]]
-name = "Timer"
-path = "Timer.rs"
-
-[[test]]
-name = "Presenter"
-path = "Presenter.rs"
-
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
 

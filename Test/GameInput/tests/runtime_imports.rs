@@ -9,7 +9,6 @@
 // the runtime, or HID.DLL, before the file beside the exe is there.
 
 // It needs only `named`.
-#[path = "Modules.rs"]
 #[allow(dead_code)]
 mod modules;
 

@@ -5,18 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Cards"
-path = "Cards.rs"
-
-[[test]]
-name = "Devices"
-path = "Devices.rs"
-
-[[test]]
-name = "Input"
-path = "Input.rs"
-
 [dependencies]
 game_input = { path = "../../Library/GameInput" }
 game_input_demo = { path = "../../Program/GameInputDemo" }

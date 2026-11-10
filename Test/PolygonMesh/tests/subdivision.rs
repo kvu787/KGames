@@ -3,7 +3,6 @@
 // infinitely sharp and semi-sharp creases, fixed boundary corners, n-gons and
 // triangles becoming quads, and meshes that aren't manifolds.
 
-#[path = "Common.rs"]
 #[allow(dead_code)]
 mod common;
 

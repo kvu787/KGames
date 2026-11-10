@@ -5,10 +5,6 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-[[test]]
-name = "Models"
-path = "Models.rs"
-
 [dependencies]
 gltf = { path = "../../Library/Gltf" }
 json = { path = "../../Library/Json" }
