@@ -1,0 +1,10 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Program\SimplePaintDemo\SimplePaintDemoLibrary.vcxproj" />
+    <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

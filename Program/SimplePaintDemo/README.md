@@ -46,7 +46,8 @@ you save.
 ## Build and run
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release SimplePaintDemo
+target\Release\SimplePaintDemo.exe
 ```
 
 Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It opens the demo on
@@ -57,7 +58,7 @@ the settings that every program has; the demo has none of its own.
 ## Testing
 
 ```powershell
-cargo test -p simple_paint_demo_tests
+Program\RunTests\RunTests.ps1 SimplePaintDemoTests
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
@@ -87,10 +88,11 @@ another frame, the demo does what it says and builds its cards, and the frame is
 demo's `render` copies the sphere into the preview card's view, and then the interface draws
 over the rest in one draw call. The sliders don't take keyboard focus, as the arrow keys move
 the selected one, which stands out like a list's selected row, with the accent's pill at its
-left. The library's slider handles dragging, inside the range that SimplePaint accepts, but the
-demo turns the wheel over a slider itself, by whole steps of the setting, so that a value always
-lands on the decimal that it shows, and a value from `Paint.json` between steps or past the
-range never moves the other way. Parts of a notch add up over the same slider.
+left. The library's slider handles dragging and the wheel, a step of the setting at a time,
+inside the range that SimplePaint accepts, and the demo takes what it sends to the setting's
+nearest step, so that a value always lands on the decimal that it shows. A value from
+`Paint.json` between steps or past the range never moves the other way. Parts of a notch add up
+over the same slider.
 
 The demo draws the sphere into its own 4x multisampled texture, through an sRGB view, so the
 shader's linear output is encoded once, and resolves it, which averages the samples in linear
@@ -103,16 +105,18 @@ looks round and its normals interpolate smoothly.
 
 ## Layout
 
-| Path             | Contents                                                                     |
-| ---------------- | ---------------------------------------------------------------------------- |
-| `src/main.rs`    | Runs the demo with Library/UserInterface's main loop                         |
-| `src/lib.rs`     | The demo's parts, as a library that `Test/SimplePaintDemo` tests             |
-| `src/demo.rs`    | The demo as a program: the editor, its cards, and the sphere's preview       |
-| `src/editor.rs`  | The material, its settings, what the keys and the wheel do, and `Paint.json` |
-| `src/cards.rs`   | Lays out the cards in fixed pixels, and draws them and their widgets         |
-| `src/preview.rs` | Draws the sphere with SimplePaint, and copies it into the frame              |
-| `build.rs`       | Compiles SimplePaint's shaders for one material                              |
-| `HumanRun.ps1`   | Builds the demo and runs it on the primary display, for people to use it     |
-| `HumanRun.cmd`   | Runs `HumanRun.ps1`, for double-clicking in File Explorer                    |
-| `Settings.json`  | The settings that every program has, which the demo writes if it's missing   |
-| `Paint.json`     | The material, once it's saved; not in Git until you add it                   |
+| Path                             | Contents                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `Main.cpp`                       | Runs the demo with Library/UserInterface's main loop                       |
+| `SimplePaintDemo.h`              | The demo's parts, as a library that `Test/SimplePaintDemo` tests           |
+| `Demo.h`, `.cpp`                 | The demo as a program: the editor, its cards, and the sphere's preview     |
+| `Editor.h`, `.cpp`               | The material, its settings, what the keys and the wheel do, `Paint.json`   |
+| `Cards.h`, `.cpp`                | Lays out the cards in fixed pixels, and draws them and their widgets       |
+| `Preview.h`, `.cpp`              | Draws the sphere with SimplePaint, and copies it into the frame            |
+| `SimplePaintDemoLibrary.vcxproj` | Builds all but `Main.cpp` into the library, and compiles SimplePaint's     |
+|                                  | shaders for one material                                                   |
+| `SimplePaintDemo.vcxproj`        | Builds `Main.cpp` and the library into `SimplePaintDemo.exe`               |
+| `HumanRun.ps1`                   | Builds the demo and runs it on the primary display, for people to use it   |
+| `HumanRun.cmd`                   | Runs `HumanRun.ps1`, for double-clicking in File Explorer                  |
+| `Settings.json`                  | The settings that every program has, which the demo writes if it's missing |
+| `Paint.json`                     | The material, once it's saved; not in Git until you add it                 |
