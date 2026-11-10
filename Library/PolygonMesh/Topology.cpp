@@ -12,9 +12,30 @@ std::string describe_value(const Ring& ring) {
     return std::format("Ring {{ edges: {}, faces: {}, closed: {} }}", describe_numbers(ring.edges), describe_numbers(ring.faces), ring.closed);
 }
 
+namespace {
+
+// Adds to one of a topology's small lists, which gets room for `room` items
+// with its first: a std::vector that grows on its own allocates again for
+// its second, third and fourth items.
+void add(std::vector<size_t>& list, size_t item, size_t room) {
+    if (list.capacity() == 0) {
+        list.reserve(room);
+    }
+    list.push_back(item);
+}
+
+} // namespace
+
 Topology::Topology(const Mesh& mesh) {
-    std::set<Edge> sorted = mesh.edges();
-    edges_.assign(sorted.begin(), sorted.end());
+    // Each edge once, in order, as Mesh::edges gives them, without the set
+    // in between, which allocates a node an edge.
+    for (const Face& face : mesh.faces) {
+        for (Edge edge : face.edges()) {
+            edges_.push_back(edge);
+        }
+    }
+    std::ranges::stable_sort(edges_);
+    edges_.erase(std::unique(edges_.begin(), edges_.end()), edges_.end());
     indices.reserve(edges_.size());
     for (size_t index = 0; index < edges_.size(); index++) {
         indices.emplace(edges_[index], index);
@@ -30,7 +51,7 @@ Topology::Topology(const Mesh& mesh) {
         sides.reserve(face.vertices.size());
         for (auto [a, b] : face.sides()) {
             size_t edge = indices.at(Edge(a, b));
-            edge_faces_[edge].push_back(face_index);
+            add(edge_faces_[edge], face_index, 2);
             if (a < b) {
                 forward[edge] += 1;
             } else {
@@ -40,13 +61,13 @@ Topology::Topology(const Mesh& mesh) {
         }
         face_edges_.push_back(std::move(sides));
         for (std::uint32_t vertex : face.vertices) {
-            vertex_faces_[vertex].push_back(face_index);
+            add(vertex_faces_[vertex], face_index, 4);
         }
     }
     vertex_edges_.resize(mesh.positions.size());
     for (size_t index = 0; index < edges_.size(); index++) {
         for (std::uint32_t vertex : edges_[index].vertices()) {
-            vertex_edges_[vertex].push_back(index);
+            add(vertex_edges_[vertex], index, 4);
         }
     }
     edge_consistent.reserve(edges_.size());

@@ -466,11 +466,9 @@ std::expected<void, std::string> add_primitive(const Value& document, std::span<
             std::uint32_t a = first + static_cast<std::uint32_t>(indices[triangle]);
             std::uint32_t b = first + static_cast<std::uint32_t>(indices[triangle + 1]);
             std::uint32_t c = first + static_cast<std::uint32_t>(indices[triangle + 2]);
-            if (mirrored) {
-                model.indices.insert(model.indices.end(), {a, c, b});
-            } else {
-                model.indices.insert(model.indices.end(), {a, b, c});
-            }
+            model.indices.push_back(a);
+            model.indices.push_back(mirrored ? c : b);
+            model.indices.push_back(mirrored ? b : c);
         }
     } else {
         // Without normals, each triangle is flat, with its own vertices.
@@ -488,7 +486,9 @@ std::expected<void, std::string> add_primitive(const Value& document, std::span<
             model.positions.append_range(corners);
             model.normals.insert(model.normals.end(), 3, normal);
             model.materials.insert(model.materials.end(), 3, material);
-            model.indices.insert(model.indices.end(), {base, base + 1, base + 2});
+            model.indices.push_back(base);
+            model.indices.push_back(base + 1);
+            model.indices.push_back(base + 2);
         }
     }
     return {};

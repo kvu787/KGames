@@ -15,9 +15,30 @@ void newline(std::string& text, size_t depth) {
     text.append(depth * 4, ' ');
 }
 
+// Whether the byte is an ASCII character that a JSON string has as itself:
+// not a control character, a quote or a backslash, and not part of a
+// character of several bytes.
+bool plain(char byte) {
+    unsigned char code = static_cast<unsigned char>(byte);
+    return code >= 0x20 && code < 0x80 && byte != '"' && byte != '\\';
+}
+
 void write_string(std::string& text, std::string_view value) {
     text.push_back('"');
-    for (char32_t character : base::chars(value)) {
+    while (!value.empty()) {
+        // A run of characters that are written as they are goes in at once.
+        size_t run = 0;
+        while (run < value.size() && plain(value[run])) {
+            run += 1;
+        }
+        text.append(value.substr(0, run));
+        value.remove_prefix(run);
+        if (value.empty()) {
+            break;
+        }
+        base::Decoded decoded = base::decode_char(value);
+        value.remove_prefix(decoded.length);
+        char32_t character = decoded.character;
         switch (character) {
         case U'"':
             text += "\\\"";
@@ -269,6 +290,13 @@ struct Parser {
         position += 1;
         std::string string;
         while (true) {
+            // A run of characters that are themselves goes in at once.
+            size_t run = position;
+            while (run < text.size() && plain(text[run])) {
+                run += 1;
+            }
+            string.append(text.substr(position, run - position));
+            position = run;
             size_t start = position;
             if (position >= text.size()) {
                 return error("expected '\"' to end the string");

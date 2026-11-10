@@ -86,16 +86,24 @@ StartLine start_line(std::span<const std::span<const std::array<double, 2>>> out
 }
 
 std::pair<std::array<double, 2>, std::array<double, 2>> bounds(const std::array<std::array<double, 2>, 2>& segment) {
-    const std::array<double, 2>& a = segment[0];
-    const std::array<double, 2>& b = segment[1];
-    return {{std::min(a[0], b[0]), std::min(a[1], b[1])}, {std::max(a[0], b[0]), std::max(a[1], b[1])}};
+    // The coordinates as values, and what std::min and std::max say of
+    // them written out, so that each is one instruction: std::min and
+    // std::max give back references, which the compiler follows into memory.
+    double ax = segment[0][0];
+    double ay = segment[0][1];
+    double bx = segment[1][0];
+    double by = segment[1][1];
+    return {{bx < ax ? bx : ax, by < ay ? by : ay}, {ax < bx ? bx : ax, ay < by ? by : ay}};
 }
 
 // Whether two outlines' edges cross, or, for one outline, whether edges that
 // aren't next to each other do.
 bool crosses(std::span<const std::array<double, 2>> a, std::span<const std::array<double, 2>> b, bool same) {
     auto segment = [](std::span<const std::array<double, 2>> outline, size_t index) {
-        return std::array<std::array<double, 2>, 2>{outline[index], outline[(index + 1) % outline.size()]};
+        // The next point, around to the first: without a division, which
+        // the remainder would be for every pair of edges.
+        size_t next = index + 1 == outline.size() ? 0 : index + 1;
+        return std::array<std::array<double, 2>, 2>{outline[index], outline[next]};
     };
     for (size_t i = 0; i < a.size(); i++) {
         std::array<std::array<double, 2>, 2> first = segment(a, i);

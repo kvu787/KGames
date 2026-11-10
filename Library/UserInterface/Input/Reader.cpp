@@ -152,7 +152,7 @@ FrameInput InputReader::read(std::span<const std::tuple<std::int64_t, game_input
         update_buttons(cursor, inside, frame.events);
     }
     std::vector<std::pair<std::int64_t, Item>> items;
-    items.reserve(window.focus_changes.size());
+    items.reserve(window.focus_changes.size() + readings.size());
     for (const FocusChange& change : window.focus_changes) {
         items.emplace_back(change.time, Item::Focus{change.gained});
     }
