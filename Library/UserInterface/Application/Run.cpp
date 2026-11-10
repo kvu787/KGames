@@ -30,6 +30,10 @@ void report(std::string_view name, std::string_view message) {
     std::println(stderr, "{}: {}", name, message);
 }
 
+void report_stopped(std::string_view what) {
+    std::println(stderr, "The program stopped: {}", what);
+}
+
 void report_passed(std::uint64_t frames) {
     std::println("The script passed, in {} frames.", frames);
 }

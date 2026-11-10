@@ -66,7 +66,7 @@ std::expected<void, HRESULT> check(LONG error) {
 }
 
 std::vector<HMONITOR> monitors() {
-    auto add = [](HMONITOR monitor, HDC, LPRECT, LPARAM monitors) -> BOOL {
+    auto add = [](HMONITOR monitor, HDC, LPRECT, LPARAM monitors) noexcept -> BOOL {
         reinterpret_cast<std::vector<HMONITOR>*>(monitors)->push_back(monitor);
         return TRUE;
     };

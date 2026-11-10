@@ -57,7 +57,8 @@ Rect Rect::intersect(Rect other) const {
     float top = std::max(y, other.y);
     float right = std::min(this->right(), other.right());
     float bottom = std::min(this->bottom(), other.bottom());
-    return Rect(left, top, std::max(right - left, 0.0f), std::max(bottom - top, 0.0f));
+    // fmax, as Rust's max: a size that isn't a number is no size.
+    return Rect(left, top, std::fmax(right - left, 0.0f), std::fmax(bottom - top, 0.0f));
 }
 
 Rect Rect::union_(Rect other) const {
@@ -77,7 +78,7 @@ Rect Rect::inset(float amount) const {
 }
 
 Rect Rect::pad(Insets insets) const {
-    return Rect(x + insets.left, y + insets.top, std::max(width - insets.horizontal(), 0.0f), std::max(height - insets.vertical(), 0.0f));
+    return Rect(x + insets.left, y + insets.top, std::fmax(width - insets.horizontal(), 0.0f), std::fmax(height - insets.vertical(), 0.0f));
 }
 
 Rect Rect::top_strip(float strip_height) const {
@@ -146,7 +147,7 @@ std::vector<Rect> Rect::columns_weighted(std::span<const float> weights, float g
 }
 
 std::vector<float> Rect::split_widths(size_t count, float gap) const {
-    float available = std::max(width - gap * static_cast<float>(base::saturating_sub(count, size_t{1})), 0.0f);
+    float available = std::fmax(width - gap * static_cast<float>(base::saturating_sub(count, size_t{1})), 0.0f);
     std::vector<float> widths;
     widths.reserve(count);
     float used = 0.0f;

@@ -84,7 +84,10 @@ std::int32_t low_word(LPARAM value) {
     return static_cast<std::int16_t>(static_cast<std::uint16_t>(value & 0xFFFF));
 }
 
-LRESULT CALLBACK window_procedure(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+// noexcept, so that an exception stops the program with its reason, as a
+// panic in a function that Windows calls does in Rust, instead of unwinding
+// into Windows.
+LRESULT CALLBACK window_procedure(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept {
     Shared* shared = reinterpret_cast<Shared*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (shared == nullptr) {
         return DefWindowProcW(hwnd, message, wparam, lparam);

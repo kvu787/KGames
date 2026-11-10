@@ -118,7 +118,9 @@ DWRITE_GRID_FIT_MODE grid_fit(IDWriteFontFace* face, float size) {
 
 // The text renderer that IDWriteTextLayout::Draw calls back, which only
 // collects the glyphs. It lives on the stack for that one call, so its
-// reference count never frees it.
+// reference count never frees it. Its functions are noexcept, so that an
+// exception stops the program with its reason: DirectWrite would catch one
+// that left them, and return an error that says nothing of it.
 class Collector final : public IDWriteTextRenderer {
 public:
     std::vector<PlacedGlyph> glyphs;
@@ -126,7 +128,7 @@ public:
 
     explicit Collector(Faces& faces) : faces(faces) {}
 
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** object) override {
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** object) noexcept override {
         if (iid == __uuidof(IUnknown) || iid == __uuidof(IDWritePixelSnapping) || iid == __uuidof(IDWriteTextRenderer)) {
             *object = static_cast<IDWriteTextRenderer*>(this);
             return S_OK;
@@ -135,22 +137,22 @@ public:
         return E_NOINTERFACE;
     }
 
-    ULONG STDMETHODCALLTYPE AddRef() override {
+    ULONG STDMETHODCALLTYPE AddRef() noexcept override {
         return 1;
     }
 
-    ULONG STDMETHODCALLTYPE Release() override {
+    ULONG STDMETHODCALLTYPE Release() noexcept override {
         return 1;
     }
 
-    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) override {
+    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override {
         // Baselines snap to whole pixels; glyphs keep their quarter pixels
         // across.
         *disabled = FALSE;
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* transform) override {
+    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override {
         *transform = DWRITE_MATRIX{
             .m11 = 1.0f,
             .m12 = 0.0f,
@@ -162,13 +164,13 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* pixels) override {
+    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* pixels) noexcept override {
         *pixels = 1.0f;
         return S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE DrawGlyphRun(void*, FLOAT baseline_x, FLOAT baseline_y, DWRITE_MEASURING_MODE, const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION*,
-                                           IUnknown*) override {
+                                           IUnknown*) noexcept override {
         if (run->fontFace == nullptr) {
             return S_OK;
         }
@@ -197,15 +199,15 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) override {
+    HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) noexcept override {
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) override {
+    HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) noexcept override {
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, IUnknown*) override {
+    HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, IUnknown*) noexcept override {
         return S_OK;
     }
 };

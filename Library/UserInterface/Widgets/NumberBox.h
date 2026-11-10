@@ -183,6 +183,10 @@ public:
 
 private:
     std::string format(double shown) const {
+        // Rust writes what isn't a number as NaN, and std::format as nan.
+        if (std::isnan(shown)) {
+            return "NaN";
+        }
         return std::format("{:.{}f}", shown, decimals_);
     }
 

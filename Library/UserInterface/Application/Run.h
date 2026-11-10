@@ -57,6 +57,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -115,6 +116,29 @@ void report(std::string_view name, std::string_view message);
 
 // Says that the script passed, on standard output.
 void report_passed(std::uint64_t frames);
+
+// What a program that a panic stopped exits with, as in Rust.
+inline constexpr int StoppedExitCode = 101;
+
+// Says what stopped the program, on standard error, as base::fail_quietly
+// has a program that stops without unwinding say it.
+void report_stopped(std::string_view what);
+
+// Calls `body`, which returns the program's exit code. If an exception
+// leaves it, like a panic, this catches it, says what stopped the program,
+// and returns StoppedExitCode. Catching it is what destroys everything that
+// `body` held as the exception left, as a panic's unwinding drops it in
+// Rust: the session that times the presents stops, the presenter waits for
+// the GPU, a program's motors stop. An exception that nothing catches stops
+// a C++ program without destroying anything.
+template <class Body> int unwinding(Body&& body) {
+    try {
+        return std::forward<Body>(body)();
+    } catch (const std::exception& exception) {
+        report_stopped(exception.what());
+        return StoppedExitCode;
+    }
+}
 
 // A program's state with the interface's.
 json::Value state_with(json::Value program, const Interface& ui);
@@ -525,7 +549,7 @@ template <class Create> std::expected<void, std::string> run_program(const Optio
 // Runs the program that `create` makes until its window closes or its script
 // ends. If it can't start, or a script's expectation isn't met, it says why
 // on standard error and exits with a failure: this returns what `main`
-// returns, 0 or 1.
+// returns, 0 or 1, or 101 if a panic stopped the program.
 //
 // `create` is called once, with a Startup&, and returns the program, or a
 // std::expected<P, std::string> with why it couldn't start.
@@ -533,12 +557,14 @@ template <class Create>
     requires IsProgram<run_detail::ProgramOf<Create>>
 int run(Options options, Create&& create) {
     run_detail::begin();
-    std::expected<void, std::string> result = run_detail::run_program(options, std::forward<Create>(create));
-    if (!result) {
-        run_detail::report(options.name, result.error());
-        return 1;
-    }
-    return 0;
+    return run_detail::unwinding([&]() -> int {
+        std::expected<void, std::string> result = run_detail::run_program(options, std::forward<Create>(create));
+        if (!result) {
+            run_detail::report(options.name, result.error());
+            return 1;
+        }
+        return 0;
+    });
 }
 
 } // namespace user_interface

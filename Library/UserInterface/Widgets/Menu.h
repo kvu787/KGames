@@ -20,6 +20,7 @@
 #pragma once
 
 #include "Base/Panic.h"
+#include "Base/Text.h"
 #include "UserInterface/Core/Interaction.h"
 #include "UserInterface/Core/Tree.h"
 #include "UserInterface/Design/Controls.h"
@@ -159,7 +160,15 @@ template <class M> MenuLayout layout(Fonts& fonts, Rect bounds, Point origin, co
     if (y + height > bounds.bottom() - tokens::SpaceS) {
         y = std::max(origin.y - height, bounds.y + tokens::SpaceS);
     }
-    float x = std::clamp(origin.x, bounds.x + tokens::SpaceS, std::max(bounds.right() - width - tokens::SpaceS, bounds.x));
+    // In a window narrower than the menu and its margins, the least place
+    // for it is past the most. Rust's clamp panics then, and std::clamp is
+    // undefined, so this stops the program as the Rust does.
+    float least = bounds.x + tokens::SpaceS;
+    float most = std::max(bounds.right() - width - tokens::SpaceS, bounds.x);
+    if (!(least <= most)) {
+        base::panic(std::format("a menu {} wide doesn't fit in a window {} wide", base::display(width), base::display(bounds.width)));
+    }
+    float x = std::clamp(origin.x, least, most);
     return MenuLayout{
         .panel = Rect(std::round(x), std::round(y), width, height),
         .has_icons = has_icons,

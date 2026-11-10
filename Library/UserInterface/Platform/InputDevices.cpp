@@ -31,8 +31,10 @@ using input_devices_detail::DeviceQueue;
 using Microsoft::WRL::ComPtr;
 
 // GameInput's device callback runs on one of its threads. It only queues the
-// event, and the main thread takes it in `read`.
-void CALLBACK on_device_event(game_input::GameInputCallbackToken, void* context, game_input::GameInputDeviceEvent event, game_input::IGameInputDevice* device) {
+// event, and the main thread takes it in `read`. It's noexcept, so that an
+// exception stops the program with its reason, as a panic in a function
+// that Windows calls does in Rust, instead of unwinding into GameInput.
+void CALLBACK on_device_event(game_input::GameInputCallbackToken, void* context, game_input::GameInputDeviceEvent event, game_input::IGameInputDevice* device) noexcept {
     DeviceQueue* queue = static_cast<DeviceQueue*>(context);
     if (device != nullptr) {
         std::lock_guard lock(queue->mutex);
