@@ -95,6 +95,14 @@ json::Value environment() {
 #else
     std::string_view profile = "debug";
 #endif
+    // Whether the standard library checks every index, and stops the program
+    // at a wrong one: Build.ps1's hardened build, which defines the macro as
+    // 1. The standard library's own headers define it as 0 otherwise.
+#if _MSVC_STL_HARDENING
+    bool hardened = true;
+#else
+    bool hardened = false;
+#endif
     return json::object({
         {"Gpu", json::Value(gpu)},
         {"Lightly", json::Value(base::environment_variable("KGAMES_LIGHT_JOB").has_value())},
@@ -102,6 +110,7 @@ json::Value environment() {
         {"Cores", json::Value(static_cast<double>(system.dwNumberOfProcessors))},
         {"Language", json::Value("C++")},
         {"Compiler", json::Value(compiler())},
+        {"Hardened", json::Value(hardened)},
     });
 }
 

@@ -3,13 +3,11 @@
 // describes them.
 //
 // - Harness.h: times a body many times and keeps the statistics.
+// - Interface.h: the programs' frames on the CPU and the GPU, text, input and
+//   the PerfBar.
 // - Libraries.h: meshes, models, JSON, math and the present tracker.
 // - Memory.h: counts the heap, and reads the GPU's and the process's memory.
-// - Footprints.h: what the libraries hold and churn.
-//
-// The benchmarks of the programs' frames, text, input and the PerfBar, and
-// of what the programs hold, come with Library/UserInterface, which they
-// measure: their groups go where the comments in Groups and MemoryGroups say.
+// - Footprints.h: what the programs and the libraries hold and churn.
 //
 // The heap counts of every benchmark that asks for them are from one
 // allocator for the whole program, which is Allocator.cpp's.
@@ -19,6 +17,7 @@
 #include "Benchmarks/BlackBox.h"
 #include "Benchmarks/Footprints.h"
 #include "Benchmarks/Harness.h"
+#include "Benchmarks/Interface.h"
 #include "Benchmarks/Libraries.h"
 #include "Benchmarks/Memory.h"
 #include "Json/Json.h"
@@ -53,8 +52,11 @@ struct Group {
 };
 
 inline constexpr auto Groups = std::to_array<Group>({
-    // Before these, with Library/UserInterface: ui, gpu, text, input and
-    // perfbar.
+    {"ui", false, interface_::frames},
+    {"gpu", true, interface_::draws},
+    {"text", false, interface_::text},
+    {"input", false, interface_::input},
+    {"perfbar", false, interface_::perf_bar},
     {"mesh", false, libraries::meshes},
     {"gltf", false, libraries::models},
     {"json", false, libraries::json},
@@ -72,10 +74,10 @@ struct MemoryGroup {
 };
 
 inline constexpr auto MemoryGroups = std::to_array<MemoryGroup>({
-    // Before this, with Library/UserInterface: memory/frames and
-    // memory/caches.
+    {"memory/frames", false, footprints::frames},
+    {"memory/caches", false, footprints::caches},
     {"memory/libraries", false, footprints::libraries},
-    // After it, with Library/UserInterface: memory/gpu.
+    {"memory/gpu", true, footprints::video},
 });
 
 // What the command line asks for.
@@ -105,8 +107,8 @@ std::vector<MemoryGroup> selected_memory(std::optional<std::string_view> filter)
 
 // What the measurements were taken on, for the report's header: the GPU,
 // whether the program ran in RunLightly's job, the build, the processors,
-// and what compiled it, for comparing with the same benchmarks in another
-// language.
+// and what compiled it, and whether with the standard library's checks, for
+// comparing with the same benchmarks in another language or another build.
 json::Value environment();
 
 // The measurements, the memory, and the environment as one JSON object.

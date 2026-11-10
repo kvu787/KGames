@@ -8,6 +8,7 @@
     <KGamesExclude>Allocator.cpp</KGamesExclude>
   </PropertyGroup>
   <Import Project="..\..\KGames.props" />
+  <!-- The libraries, and then the programs whose frames the benchmarks run, by their libraries. -->
   <ItemGroup>
     <ProjectReference Include="..\..\Library\Gltf\Gltf.vcxproj" />
     <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
@@ -15,6 +16,15 @@
     <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
     <ProjectReference Include="..\..\Library\PolygonMesh\PolygonMesh.vcxproj" />
     <ProjectReference Include="..\..\Library\PresentTiming\PresentTiming.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+    <ProjectReference Include="..\GameInputDemo\GameInputDemoLibrary.vcxproj" />
+    <ProjectReference Include="..\MeshModeler\MeshModelerLibrary.vcxproj" />
+    <ProjectReference Include="..\MinimalSceneTest\MinimalSceneTestLibrary.vcxproj" />
+    <ProjectReference Include="..\SimplePaintDemo\SimplePaintDemoLibrary.vcxproj" />
+    <ProjectReference Include="..\SpinningCarTest\SpinningCarTestLibrary.vcxproj" />
+    <ProjectReference Include="..\UiShowcase\UiShowcaseLibrary.vcxproj" />
+    <ProjectReference Include="..\Veehiicuul\VeehiicuulLibrary.vcxproj" />
   </ItemGroup>
   <Import Project="..\..\KGames.targets" />
 </Project>
