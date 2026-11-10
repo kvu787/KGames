@@ -1,0 +1,17 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\ShaderCompiler\ShaderCompiler.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+  </ItemGroup>
+  <!--
+    SimplePaint's production shaders for the GPU test, with six materials, so that the test
+    exercises the material array's stride.
+  -->
+  <ItemGroup>
+    <Shader Include="$(KGamesRoot)Library\SimplePaint\Shaders\SimplePaint.hlsl" Name="SimplePaint" Arguments="-O3 -Ges -WX -all_resources_bound -Qstrip_debug -Qstrip_reflect -D SIMPLE_PAINT_MATERIAL_COUNT=6" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

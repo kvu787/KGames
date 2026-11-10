@@ -1,0 +1,8 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\Math\Math.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

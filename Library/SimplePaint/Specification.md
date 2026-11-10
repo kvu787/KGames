@@ -1,6 +1,6 @@
 # SimplePaint specification
 
-This is the specification for the SimplePaint module in this folder. It defines the real-number appearance, accepted machine inputs, finite-precision evaluation, geometry requirements, GPU layout, and verification criteria. The Rust/HLSL sources implement this contract; [Test/SimplePaint](../../Test/SimplePaint) verifies it. [Usage.md](Usage.md) explains the controls and integration, and [README.md](README.md) identifies the module's entry points. The supported development and target platform is Windows 11 x64.
+This is the specification for the SimplePaint module in this folder. It defines the real-number appearance, accepted machine inputs, finite-precision evaluation, geometry requirements, GPU layout, and verification criteria. The C++/HLSL sources implement this contract; [Test/SimplePaint](../../Test/SimplePaint) verifies it. [Usage.md](Usage.md) explains the controls and integration, and [README.md](README.md) identifies the module's entry points. The supported development and target platform is Windows 11 x64.
 
 ## Purpose and abstract interface
 
@@ -118,7 +118,7 @@ This is a deliberate supported subset of the abstract equations. The margin boun
 
 The smallest linear base color is approximately `7.56e-5`; the smallest `A` is approximately `7.38e-8`. Merely using positive curve coefficients is insufficient: a rounded facing value near one can still erase the tiny quantity `1-f` and significantly alter such a curve. The implementation retains that quantity independently.
 
-`Parameters` uses Rust `f64`. `Material::compile` checks every field, including finite status, **before conversion or coefficient computation**, and returns an `Error` naming the offending parameter. Values just outside a limit must not round into the accepted interval. Negative zero is accepted where zero is allowed. Equal and reversed tone endpoints are accepted.
+`Parameters` uses C++ `double`. `Material::compile` checks every field, including finite status, **before conversion or coefficient computation**, and returns an `Error` naming the offending parameter. Values just outside a limit must not round into the accepted interval. Negative zero is accepted where zero is allowed. Equal and reversed tone endpoints are accepted.
 
 Serialization and user-interface parsing belong to the host. Validate parsed binary64 parameters before conversion to GPU constants; SimplePaint has no JSON dependency.
 
@@ -194,7 +194,7 @@ Use full `float` arithmetic, not `half`/`min16float`. Direct3D's [floating-point
 
 ## Geometry and transform validation
 
-`validate_mesh` runs before upload. It checks nonempty indexed triangle data, index bounds, finite bounded positions, normal lengths in [0.5,2], valid material indices, and one material per triangle. Position components must have magnitude at most one million. Indices are unsigned 32-bit values in the reusable validator. `direct3d12::Mesh::new` calls it before uploading a mesh.
+`validate_mesh` runs before upload. It checks nonempty indexed triangle data, index bounds, finite bounded positions, normal lengths in [0.5,2], valid material indices, and one material per triangle. Position components must have magnitude at most one million. Indices are unsigned 32-bit values in the reusable validator. `direct3d12::Mesh`'s constructor calls it before uploading a mesh.
 
 For each triangle, let `S` be the sum of its three vertex normals. Each vertex normal must satisfy `dot(N,S) >= 0.125*length(S)`, with `S` nonzero. Thus every barycentric interpolation has projection at least 0.125 on the same unit direction. Its length cannot approach zero. This is a conservative sufficient condition: some mathematically usable meshes are rejected so the GPU core can rely on a simple validated contract. Normal validation does not repair data or flip normals. Degenerate positional triangles need not shade any pixels; winding and culling are application choices.
 
@@ -204,9 +204,9 @@ Combined with the mesh cone condition, these transforms keep interpolated normal
 
 ## Encapsulation, layout, and DX12 integration
 
-This folder is the complete module: the `simple_paint` crate, its shaders, and its documentation. `src/material.rs` owns parameters, validation, sRGB conversion, coefficient construction, and the GPU ABI, independent of DirectX types and scene settings. `src/geometry.rs` owns reusable mesh validation. `src/orthographic.rs` owns the optional transform adapter, built on [Library/Math](../Math/README.md), which follows DirectXMath's conventions. `src/direct3d12.rs` owns the optional pipeline and mesh helpers for hosts that draw with [Library/Graphics](../Graphics/README.md). `SimplePaintCore.hlsli` owns rotation, facing, and color evaluation and declares no bindings or material counts. `SimplePaint.hlsl` provides a reusable DX12 adapter whose `SIMPLE_PAINT_MATERIAL_COUNT` defaults to one; the host configures the count for both stages. Serialization, constant buffers, and synchronization belong to the host.
+This folder is the complete module: the `SimplePaint` library, its shaders, and its documentation. `Material.h` and `Material.cpp` own parameters, validation, sRGB conversion, coefficient construction, and the GPU ABI, independent of DirectX types and scene settings. `Geometry.h` owns reusable mesh validation. `Orthographic.h` and `Orthographic.cpp` own the optional transform adapter, built on [Library/Math](../Math/README.md), which follows DirectXMath's conventions. `Direct3D12.h` and `Direct3D12.cpp` own the optional pipeline and mesh helpers for hosts that draw with [Library/Graphics](../Graphics/README.md). `SimplePaintCore.hlsli` owns rotation, facing, and color evaluation and declares no bindings or material counts. `SimplePaint.hlsl` provides a reusable DX12 adapter whose `SIMPLE_PAINT_MATERIAL_COUNT` defaults to one; the host configures the count for both stages. Serialization, constant buffers, and synchronization belong to the host.
 
-| Byte offset | Rust field         | HLSL field      | Meaning                                   |
+| Byte offset | C++ member         | HLSL field      | Meaning                                   |
 | ----------- | ------------------ | --------------- | ----------------------------------------- |
 | 0           | `warp`             | warp            | cos(-angle), sin(-angle), k, nonzero flag |
 | 16          | `numerator_dark`   | numeratorDark   | ND for RGB, zero padding                  |
@@ -214,9 +214,9 @@ This folder is the complete module: the `simple_paint` crate, its shaders, and i
 | 48          | `complement_dark`  | complementDark  | CD for RGB, zero padding                  |
 | 64          | `complement_light` | complementLight | CL for RGB, zero padding                  |
 
-`GpuMaterial` is `#[repr(C, align(16))]`, and the crate asserts its size of 80, alignment 16, and every field offset at compile time. The GPU tests exercise all six material indices, so the constant-buffer array stride and bindings are tested with the production shaders. `Material` has no mutating setters; `compile` returns a complete material only after all validation succeeds. `constants()` exposes read-only owned data for copying to an upload buffer.
+`GpuMaterial` is `alignas(16)`, and `Material.h` asserts its size of 80, alignment 16, and every member's offset at compile time. The GPU tests exercise all six material indices, so the constant-buffer array stride and bindings are tested with the production shaders. `Material` has no mutating setters; `compile` returns a complete material only after all validation succeeds. `constants()` exposes read-only owned data for copying to an upload buffer.
 
-The supplied DX12 adapter binds a 96-byte `orthographic::ObjectTransforms` block at `b0` and a tightly packed `GpuMaterial` array at `b1`, both as root constant buffer views, and embeds that root signature in its compiled vertex stage. Each constant-buffer start address is 256-byte aligned, and CBV allocation sizes are rounded up to a multiple of 256 bytes. Material array elements retain their 80-byte stride. For example, six materials occupy 480 bytes in a 512-byte allocation, which `direct3d12::materials_size(6)` returns. The host must match the compiled material count in both shader stages and its Rust allocation, then synchronize any updates against GPU use.
+The supplied DX12 adapter binds a 96-byte `orthographic::ObjectTransforms` block at `b0` and a tightly packed `GpuMaterial` array at `b1`, both as root constant buffer views, and embeds that root signature in its compiled vertex stage. Each constant-buffer start address is 256-byte aligned, and CBV allocation sizes are rounded up to a multiple of 256 bytes. Material array elements retain their 80-byte stride. For example, six materials occupy 480 bytes in a 512-byte allocation, which `direct3d12::materials_size(6)` returns. The host must match the compiled material count in both shader stages and its C++ allocation, then synchronize any updates against GPU use.
 
 ## Optimization
 
@@ -226,7 +226,7 @@ The PS source has one square root on the zero-shift path and two on the shifted 
 
 ## Verification
 
-Run the module's four tests with `cargo test -p simple_paint_tests`, as [Usage.md](Usage.md#build-and-verify) describes:
+Run the module's four tests with `Program\RunTests\RunTests.ps1 SimplePaintTests`, as [Usage.md](Usage.md#build-and-verify) describes:
 
 | Test                   | Coverage                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------- |
@@ -239,12 +239,12 @@ Run the module's four tests with `cargo test -p simple_paint_tests`, as [Usage.m
 | ShaderCompilation      | The adapter with the default material count of one, an explicit three, and a     |
 |                        | rejected zero                                                                    |
 
-The tests live in their own package and use only the crate's public interface, as any host does. No host application sources are required.
+The tests live in their own project and use only the library's public interface, as any host does. No host application sources are required.
 
-The independent binary64 GPU reference in `Test/SimplePaint/tests/reference/mod.rs` starts from the requested binary64 material parameters and the stored binary32 interpolated normal. It evaluates the specification's rotation, normalized rational facing, explicit tone remapping, and uncomposed color curve. This includes CPU coefficient conversion, VS rotation, GPU interpolation, and shader evaluation error. It does not measure errors from an external mesh exporter or an arbitrary host's world/view calculation; `orthographic_transforms` covers the supplied transform adapter separately. Its random cases come from a fixed-seed SplitMix64 generator, so every run tests the same cases.
+The independent binary64 GPU reference in `Test/SimplePaint/Reference.cpp` starts from the requested binary64 material parameters and the stored binary32 interpolated normal. It evaluates the specification's rotation, normalized rational facing, explicit tone remapping, and uncomposed color curve. This includes CPU coefficient conversion, VS rotation, GPU interpolation, and shader evaluation error. It does not measure errors from an external mesh exporter or an arbitrary host's world/view calculation; `orthographic_transforms` covers the supplied transform adapter separately. Its random cases come from a fixed-seed SplitMix64 generator, so every run tests the same cases.
 
 The regression acceptance criterion is finite output in [0,1], alpha exactly one, and **maximum absolute per-channel error <= 0.001 in both linear RGB and sRGB** on both GPU backends. The sRGB criterion is measured before display quantization. Each GPU run includes 4,096 cases with distinct triangle vertex normals and fails on DX12 debug-layer warnings or errors when the debug layer is available. The test prints the measured maximum errors and whether debug validation was available.
 
 The deterministic suite covers boundaries, peaks, poles, both sides of the silhouette, inverted and constant tone ranges, scaled normals, interpolation, and random cases. It is not an exhaustive proof over all binary64 parameter combinations or a promise of bitwise identity across GPU drivers. The abstract equivalence and positive-denominator arguments are analytic; the finite-precision error criterion is tested. Rerun the GPU tests when changing the compiler, arithmetic, accepted limits, or target hardware. Host applications must additionally test their own mesh validation and rendering integration.
 
-An optional GPU-timestamp microbenchmark is available with `cargo test --release -p simple_paint_tests --test gpu -- --benchmark`. It times 128 warmed 1024x1024 draws for Shift=0 and Shift=0.6 on the preferred hardware adapter, using constant normals and a float4 render target. It excludes CPU submission, setup, and readback; its output is not a whole-scene FPS prediction.
+An optional GPU-timestamp microbenchmark is available with `target\Release\SimplePaintTests.exe gpu --benchmark`, once `Program\Build\Build.ps1 --release SimplePaintTests` has built it: `gpu` picks the test, and `--benchmark` is for the test itself. It times 128 warmed 1024x1024 draws for Shift=0 and Shift=0.6 on the preferred hardware adapter, using constant normals and a float4 render target. It excludes CPU submission, setup, and readback; its output is not a whole-scene FPS prediction.

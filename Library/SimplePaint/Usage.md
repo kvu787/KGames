@@ -19,14 +19,14 @@ This guide describes the module in this folder. [Specification.md](Specification
 
 Parentheses exclude an endpoint; brackets include it. These are the mathematical domains. This binary32 GPU implementation accepts the following numerical subset, with `m = 1/1024 = 0.0009765625` and `M = 1-m = 0.9990234375`:
 
-| Input              | Accepted finite Rust value |
-| ------------------ | -------------------------- |
-| Each sRGB channel  | [m, M]                     |
-| Brightness         | [m, M]                     |
-| Shift              | [0, M]                     |
-| Rotation (degrees) | [0, 360)                   |
-| Dark Point         | [0, M]                     |
-| Light Point        | [m, 1]                     |
+| Input              | Accepted finite `double` value |
+| ------------------ | ------------------------------ |
+| Each sRGB channel  | [m, M]                         |
+| Brightness         | [m, M]                         |
+| Shift              | [0, M]                         |
+| Rotation (degrees) | [0, 360)                       |
+| Dark Point         | [0, M]                         |
+| Light Point        | [m, 1]                         |
 
 The implementation **returns an error for out-of-range values, NaN, and infinity**. It does not clamp inputs, wrap rotation, or silently repair a material. Values inside the abstract domains but outside these numerical limits are also errors. GPU constants are rounded to binary32 after validation and precomputation in binary64. The [specification](Specification.md) explains the accuracy tradeoff.
 
@@ -38,38 +38,42 @@ Dark Point and Light Point choose **tones**, not RGB intensities. Their resultin
 
 There is no positive facing cutoff. Back-facing normals and exact silhouette normals select Dark Point. A front-facing surface approaches that tone continuously as its facing approaches zero. The shader does not flip back-face normals; an application may choose to cull back faces.
 
-## Use from a Rust package
+## Use from a C++ project
 
-Depend on the crate with a path from your package's folder, like a program in `Program`:
+Reference the library's project from your `.vcxproj`, with a path from your project's folder, like a program in `Program`, and include `"SimplePaint/SimplePaint.h"`, or only the headers that you use:
 
-```toml
-[dependencies]
-simple_paint = { path = "../../Library/SimplePaint" }
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+</ItemGroup>
 ```
 
-- `src/material.rs`: validated parameters and GPU constant compilation, with no DirectX types.
-- `src/geometry.rs`: validation for indexed triangle meshes.
-- `src/orthographic.rs`: the validated transforms that the adapter's vertex stage reads.
-- `src/direct3d12.rs`: the adapter's pipeline and meshes in GPU memory, for hosts that draw
+- `Material.h`: validated parameters and GPU constant compilation, with no DirectX types.
+- `Geometry.h`: validation for indexed triangle meshes.
+- `Orthographic.h`: the validated transforms that the adapter's vertex stage reads.
+- `Direct3D12.h`: the adapter's pipeline and meshes in GPU memory, for hosts that draw
   with [Library/Graphics](../Graphics/README.md).
 - `Shaders/SimplePaintCore.hlsli`: the binding-independent HLSL functions.
 - `Shaders/SimplePaint.hlsl`: the configurable DX12 vertex and pixel shader adapter.
 
 Compile each material once when its settings change:
 
-```rust
-use simple_paint::{Material, Parameters};
+```cpp
+#include "SimplePaint/SimplePaint.h"
 
-let parameters = Parameters {
-    base_color_srgb: [0.107, 0.223, 0.578],
-    brightness: 0.5,
-    shift: 0.6,
-    rotation_degrees: 45.0,
-    dark_point: 0.05,
-    light_point: 0.95,
+simple_paint::Parameters parameters{
+    .base_color_srgb = {0.107, 0.223, 0.578},
+    .brightness = 0.5,
+    .shift = 0.6,
+    .rotation_degrees = 45.0,
+    .dark_point = 0.05,
+    .light_point = 0.95,
 };
-let material = Material::compile(&parameters)?;
-let gpu = *material.constants(); // Copy it to an upload buffer.
+std::expected<simple_paint::Material, simple_paint::Error> material = simple_paint::Material::compile(parameters);
+if (!material) {
+    return std::unexpected(material.error());
+}
+simple_paint::GpuMaterial gpu = material->constants(); // Copy it to an upload buffer.
 ```
 
 Handle the `Error` at your UI or loading boundary and display its message. Keep the last valid material if an edit fails. Do not change GPU constants after compilation.
@@ -92,27 +96,19 @@ The included DX12 adapter uses `b0` for the 96-byte packed object transforms, `b
 
 Use an orthographic projection with affine object/view transforms and clip W = 1. `orthographic::make_projection` constructs a right-handed orthographic projection, and `orthographic::build_object_transforms` constructs the columns consumed by the adapter's vertex stage, from a [Library/Math](../Math/README.md) matrix. The helper rejects perspective, shear, nonuniform scale, singular scale, nonfinite values, and out-of-range transforms. Its supported uniform scale is [1/1024, 1024]. A different normal-transform adapter is your project's responsibility; the provided adapter only supports those validated transforms.
 
-Before uploading geometry, call `validate_mesh(vertices, indices, material_count)`. It accepts slices of vertices and 32-bit indices. Vertices implement `PaintVertex`, which gives their position, normal, and material index; `simple_paint::Vertex` does. Use normal lengths in [0.5, 2], positions within [-1,000,000, 1,000,000], valid indices, one material per triangle, and the common normal cone described in the specification. The validation returns an error if interpolation could approach a zero normal under that contract. `direct3d12::Mesh::new` validates the mesh before uploading it, then copies it into the GPU's own memory once with `Gpu::run`, which waits for the GPU, so make meshes at setup. The GPU core assumes these checks have succeeded.
+Before uploading geometry, call `validate_mesh(vertices, indices, material_count)`. It accepts spans, vectors and arrays of vertices and 32-bit indices. A vertex is any type that satisfies `PaintVertex`, with `position`, `normal` and `material_index` members; `simple_paint::Vertex` is one. Use normal lengths in [0.5, 2], positions within [-1,000,000, 1,000,000], valid indices, one material per triangle, and the common normal cone described in the specification. The validation returns an error if interpolation could approach a zero normal under that contract. `direct3d12::Mesh`'s constructor validates the mesh before uploading it, then copies it into the GPU's own memory once with `Gpu::run`, which waits for the GPU, so make meshes at setup. The GPU core assumes these checks have succeeded.
 
-Compile the HLSL entry points as `vs_6_0` and `ps_6_0` in your package's `build.rs`, with DXC `-O3 -Ges -WX`, adding `-D SIMPLE_PAINT_MATERIAL_COUNT=N` for your material count. The GPU tests additionally use `-all_resources_bound -Qstrip_debug -Qstrip_reflect`. The crate's build script tells your build script where the shaders are, in the `DEP_SIMPLE_PAINT_SHADERS` environment variable, and [Library/ShaderCompiler](../ShaderCompiler/README.md) runs DXC:
+Compile the HLSL entry points as `vs_6_0` and `ps_6_0` as your project builds, with DXC `-O3 -Ges -WX`, adding `-D SIMPLE_PAINT_MATERIAL_COUNT=N` for your material count. The GPU tests additionally use `-all_resources_bound -Qstrip_debug -Qstrip_reflect`. Name the shader, where it is in this folder, in a `Shader` item in your `.vcxproj`, and the build runs DXC on its `VSMain` and `PSMain`, as [Library/ShaderCompiler](../ShaderCompiler/README.md) describes:
 
-```rust
-let shaders = PathBuf::from(std::env::var("DEP_SIMPLE_PAINT_SHADERS").unwrap());
-let source = shaders.join("SimplePaint.hlsl");
-// Also covers SimplePaintCore.hlsli, which is in the same folder.
-shader_compiler::rerun_if_changed(&source);
-let output_directory = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-for (entry_point, profile, output) in [
-    ("VSMain", "vs_6_0", "SimplePaintVertex.cso"),
-    ("PSMain", "ps_6_0", "SimplePaintPixel.cso"),
-] {
-    let arguments = ["-O3", "-Ges", "-WX", "-D", "SIMPLE_PAINT_MATERIAL_COUNT=3"];
-    shader_compiler::compile(&source, entry_point, profile, &arguments, &output_directory.join(output))
-        .unwrap_or_else(|error| panic!("{error}"));
-}
+```xml
+<ItemGroup>
+  <Shader Include="$(KGamesRoot)Library\SimplePaint\Shaders\SimplePaint.hlsl" Name="SimplePaint" Arguments="-O3 -Ges -WX -D SIMPLE_PAINT_MATERIAL_COUNT=3" />
+</ItemGroup>
 ```
 
-Embed the DXIL with `include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"))`. Bind both constant buffers before drawing; `direct3d12::Mesh::draw` does.
+The build compiles them again when a file in the `Shaders` folder changes, which covers `SimplePaintCore.hlsli`. Embed the DXIL by including `"SimplePaintVertex.h"` and `"SimplePaintPixel.h"`, which the build makes, in one `.cpp`: they define the arrays of bytes `SimplePaintVertex` and `SimplePaintPixel`. Bind both constant buffers before drawing; `direct3d12::Mesh::draw` does.
+
+Code that compiles the shaders while it runs, like the `shader_compilation` test, finds them in `simple_paint::ShaderDirectory`.
 
 The shader returns **linear RGB**, with alpha 1 supplied by the adapter. Encode it to sRGB once for display, for example with an `R8G8B8A8_UNORM_SRGB` render-target view. Do not apply a second gamma function in the pixel shader. For HDR or a later composite pass, retain linear values and let that pipeline perform the final display conversion.
 
@@ -121,7 +117,7 @@ The shader returns **linear RGB**, with alpha 1 supplied by the adapter. Encode 
 The tests are in [Test/SimplePaint](../../Test/SimplePaint), apart from the module, like every test in KGames. From the root of the repository:
 
 ```powershell
-cargo test -p simple_paint_tests
+Program\RunTests\RunTests.ps1 SimplePaintTests
 ```
 
 They require Windows 11 x64, DXC from the Windows SDK, and Shader Model 6.0 runtimes for the preferred hardware adapter and WARP. They check D3D12 debug-layer warnings and errors when the debug layer, the "Graphics Tools" optional Windows feature, is installed.

@@ -5,7 +5,7 @@ SimplePaint is the shader that KGames' programs color 3D models with. It makes i
 surface shader that paints a surface from its normal relative to the camera.
 
 [Specification.md](Specification.md) defines the mathematics, supported inputs, GPU layout,
-and verification criteria. The Rust/HLSL sources implement that contract, and
+and verification criteria. The C++/HLSL sources implement that contract, and
 [Test/SimplePaint](../../Test/SimplePaint) verifies it. Keep the specification, implementation,
 and tests aligned when changing the shader. [Usage.md](Usage.md) explains the controls and
 integration, and [SimplePaintDemo](../../Program/SimplePaintDemo/README.md) edits a material
@@ -13,19 +13,22 @@ live on a sphere.
 
 ## Compile a material
 
-```rust
-use simple_paint::{Material, Parameters};
+```cpp
+#include "SimplePaint/SimplePaint.h"
 
-let parameters = Parameters {
-    base_color_srgb: [0.107, 0.223, 0.578],
-    brightness: 0.5,
-    shift: 0.6,
-    rotation_degrees: 45.0,
-    dark_point: 0.05,
-    light_point: 0.95,
+simple_paint::Parameters parameters{
+    .base_color_srgb = {0.107, 0.223, 0.578},
+    .brightness = 0.5,
+    .shift = 0.6,
+    .rotation_degrees = 45.0,
+    .dark_point = 0.05,
+    .light_point = 0.95,
 };
-let material = Material::compile(&parameters)?;
-let gpu = *material.constants(); // Copy before material is dropped.
+std::expected<simple_paint::Material, simple_paint::Error> material = simple_paint::Material::compile(parameters);
+if (!material) {
+    return std::unexpected(material.error());
+}
+simple_paint::GpuMaterial gpu = material->constants(); // Copy before material is destroyed.
 ```
 
 All values must be finite. With `m = 1/1024` and `M = 1-m`, RGB and Brightness accept [m,M],
@@ -38,8 +41,8 @@ computing GPU constants. SimplePaint has no JSON dependency or application setti
 ## Compile and bind the shaders
 
 `Shaders/SimplePaint.hlsl` contains complete `VSMain` and `PSMain` entry points. A host
-compiles them in its `build.rs`, with its own material count, from the folder that this crate
-names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package) shows how.
+compiles them as it builds, with its own material count, by naming the file in a `Shader` item
+in its `.vcxproj`. [Usage.md](Usage.md#use-from-a-c-project) shows how.
 
 - `b0`: `orthographic::ObjectTransforms`, 96 bytes, built with `make_projection` and
   `build_object_transforms`.
@@ -65,8 +68,8 @@ and `b1` the same way, like SpinningCarTest's `FlatShading.hlsl`.
 
 ## Validate geometry and transforms
 
-Call `validate_mesh` before upload, or let `direct3d12::Mesh::new` call it. Positions must be
-finite with component magnitudes <= 1e6; normal lengths must be in [0.5,2]. Indices must
+Call `validate_mesh` before upload, or let `direct3d12::Mesh`'s constructor call it. Positions
+must be finite with component magnitudes <= 1e6; normal lengths must be in [0.5,2]. Indices must
 describe a nonempty triangle list, with one valid material per triangle. Every triangle normal
 must project at least 0.125 onto the normalized sum of its three normals, ensuring
 interpolation never reaches zero. Validation fails instead of repairing a mesh.
@@ -79,14 +82,15 @@ there is no positive facing cutoff.
 
 ## Files
 
-| File                            | Purpose                                                    |
-| ------------------------------- | ---------------------------------------------------------- |
-| `src/material.rs`               | Parameters, validation, coefficients, GPU ABI              |
-| `src/geometry.rs`               | Host-independent mesh validation, and the adapter's vertex |
-| `src/orthographic.rs`           | Validated transforms for the adapter's vertex stage        |
-| `src/direct3d12.rs`             | The adapter's pipeline, and meshes in GPU memory           |
-| `Shaders/SimplePaintCore.hlsli` | Reusable paint math without bindings                       |
-| `Shaders/SimplePaint.hlsl`      | Configurable DX12 VS/PS adapter, with its root signature   |
-| `build.rs`                      | Tells dependents' build scripts where the shaders are      |
+| File                                 | Purpose                                                    |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `Material.h`, `Material.cpp`         | Parameters, validation, coefficients, GPU ABI              |
+| `Geometry.h`                         | Host-independent mesh validation, and the adapter's vertex |
+| `Error.h`                            | Why a material, mesh or transform was rejected             |
+| `Orthographic.h`, `Orthographic.cpp` | Validated transforms for the adapter's vertex stage        |
+| `Direct3D12.h`, `Direct3D12.cpp`     | The adapter's pipeline, and meshes in GPU memory           |
+| `SimplePaint.h`, `SimplePaint.cpp`   | All of those in one header, and where the shaders are      |
+| `Shaders/SimplePaintCore.hlsli`      | Reusable paint math without bindings                       |
+| `Shaders/SimplePaint.hlsl`           | Configurable DX12 VS/PS adapter, with its root signature   |
 
 The facing-lobe and anchored color-curve mathematical construction is credited to Kevin Vu.
