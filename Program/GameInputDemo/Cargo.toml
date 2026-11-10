@@ -7,14 +7,13 @@ license.workspace = true
 # The demo's parts, which Test/GameInputDemo tests without a window, and
 # without GameInput.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
 name = "GameInputDemo"
-path = "Source/Main.rs"
+path = "src/main.rs"
 # Every test is in Test.
 test = false
 

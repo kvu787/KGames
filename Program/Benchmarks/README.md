@@ -74,7 +74,7 @@ was done, which is the footprint of what it built, or a leak for work that shoul
 | `memory/libraries` | A subdivided mesh, its topology and its triangles, a model, and a scene        |
 | `memory/gpu`       | How much of the GPU's memory a program's drawing takes, from the device        |
 
-The counts are of the Rust heap, from a global allocator in `Source/Memory.rs` that counts
+The counts are of the Rust heap, from a global allocator in `src/memory.rs` that counts
 nothing until a memory benchmark turns it on, so the timing benchmarks are unaffected. What
 DirectWrite, Direct3D and the display driver allocate is in their own heaps, which the counts
 can't see: the text benchmarks give what a layout adds to the process's private commit instead,
@@ -94,13 +94,13 @@ they count.
 
 ## Layout
 
-| Path                   | Contents                                                              |
-| ---------------------- | --------------------------------------------------------------------- |
-| `Source/Main.rs`       | Reads the command line, runs the groups, and prints the table         |
-| `Source/Library.rs`    | The groups and the command line, as a library that the tests test     |
-| `Source/Harness.rs`    | Times a body within a budget, and keeps the statistics                |
-| `Source/Interface.rs`  | The programs' frames, on the CPU and the GPU, text, input, the PerfBar |
-| `Source/Libraries.rs`  | Meshes, models, JSON, math and the present tracker                    |
-| `Source/Memory.rs`     | The counting allocator, the usage it makes of the counts, and the     |
-|                        | process's and the GPU's memory                                        |
-| `Source/Footprints.rs` | What the programs and the libraries hold and churn                    |
+| Path                | Contents                                                               |
+| ------------------- | ---------------------------------------------------------------------- |
+| `src/main.rs`       | Reads the command line, runs the groups, and prints the table          |
+| `src/lib.rs`        | The groups and the command line, as a library that the tests test      |
+| `src/harness.rs`    | Times a body within a budget, and keeps the statistics                 |
+| `src/interface.rs`  | The programs' frames, on the CPU and the GPU, text, input, the PerfBar |
+| `src/libraries.rs`  | Meshes, models, JSON, math and the present tracker                     |
+| `src/memory.rs`     | The counting allocator, the usage it makes of the counts, and the      |
+|                     | process's and the GPU's memory                                         |
+| `src/footprints.rs` | What the programs and the libraries hold and churn                     |

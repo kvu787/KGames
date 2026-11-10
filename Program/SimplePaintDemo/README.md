@@ -103,16 +103,16 @@ looks round and its normals interpolate smoothly.
 
 ## Layout
 
-| Path                | Contents                                                                     |
-| ------------------- | ---------------------------------------------------------------------------- |
-| `Source/Main.rs`    | Runs the demo with Library/UserInterface's main loop                         |
-| `Source/Library.rs` | The demo's parts, as a library that `Test/SimplePaintDemo` tests             |
-| `Source/Demo.rs`    | The demo as a program: the editor, its cards, and the sphere's preview       |
-| `Source/Editor.rs`  | The material, its settings, what the keys and the wheel do, and `Paint.json` |
-| `Source/Cards.rs`   | Lays out the cards in fixed pixels, and draws them and their widgets         |
-| `Source/Preview.rs` | Draws the sphere with SimplePaint, and copies it into the frame              |
-| `Build.rs`          | Compiles SimplePaint's shaders for one material                              |
-| `HumanRun.ps1`      | Builds the demo and runs it on the primary display, for people to use it     |
-| `HumanRun.cmd`      | Runs `HumanRun.ps1`, for double-clicking in File Explorer                    |
-| `Settings.json`     | The settings that every program has, which the demo writes if it's missing   |
-| `Paint.json`        | The material, once it's saved; not in Git until you add it                   |
+| Path             | Contents                                                                     |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `src/main.rs`    | Runs the demo with Library/UserInterface's main loop                         |
+| `src/lib.rs`     | The demo's parts, as a library that `Test/SimplePaintDemo` tests             |
+| `src/demo.rs`    | The demo as a program: the editor, its cards, and the sphere's preview       |
+| `src/editor.rs`  | The material, its settings, what the keys and the wheel do, and `Paint.json` |
+| `src/cards.rs`   | Lays out the cards in fixed pixels, and draws them and their widgets         |
+| `src/preview.rs` | Draws the sphere with SimplePaint, and copies it into the frame              |
+| `build.rs`       | Compiles SimplePaint's shaders for one material                              |
+| `HumanRun.ps1`   | Builds the demo and runs it on the primary display, for people to use it     |
+| `HumanRun.cmd`   | Runs `HumanRun.ps1`, for double-clicking in File Explorer                    |
+| `Settings.json`  | The settings that every program has, which the demo writes if it's missing   |
+| `Paint.json`     | The material, once it's saved; not in Git until you add it                   |

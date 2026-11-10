@@ -100,15 +100,15 @@ as `Notice/0`, `Notice/1` and so on.
 
 | Path                       | Contents                                                                 |
 | -------------------------- | ------------------------------------------------------------------------ |
-| `Source/Main.rs`           | Runs the test with Library/UserInterface                                 |
-| `Source/Library.rs`        | The test's parts, as a library that `Test/SpinningCarTest` tests         |
-| `Source/SpinningCar.rs`    | The test as a `Program`: where the car is, the keys, and the state       |
-| `Source/Controls.rs`       | What S does                                                              |
-| `Source/Scene.rs`          | The objects, the camera, the light and the animation                     |
-| `Source/Settings.rs`       | The materials and the sphere's resolution, and their defaults            |
+| `src/main.rs`              | Runs the test with Library/UserInterface                                 |
+| `src/lib.rs`               | The test's parts, as a library that `Test/SpinningCarTest` tests         |
+| `src/spinning_car.rs`      | The test as a `Program`: where the car is, the keys, and the state       |
+| `src/controls.rs`          | What S does                                                              |
+| `src/scene.rs`             | The objects, the camera, the light and the animation                     |
+| `src/settings.rs`          | The materials and the sphere's resolution, and their defaults            |
 | `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
 |                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |
-| `Build.rs`                 | Compiles SimplePaint's shaders for six materials, and `FlatShading.hlsl` |
+| `build.rs`                 | Compiles SimplePaint's shaders for six materials, and `FlatShading.hlsl` |
 | `HumanRun.ps1`             | Builds the test and runs it on the primary display, for people to use    |
 | `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
 | `Settings.json`            | The settings, which the test writes if it's missing                      |

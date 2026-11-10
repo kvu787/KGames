@@ -50,8 +50,8 @@ the displays, saves it in `target\TestOutput`, and checks that its text fits and
 
 ## Layout
 
-| Path                | Contents                                                          |
-| ------------------- | ----------------------------------------------------------------- |
-| `Source/Main.rs`    | Finds the displays, writes them to the console, and shows a box   |
-|                     | on each                                                           |
-| `Source/Library.rs` | Lays out and draws a box, as a library that the test draws        |
+| Path          | Contents                                                        |
+| ------------- | --------------------------------------------------------------- |
+| `src/main.rs` | Finds the displays, writes them to the console, and shows a box |
+|               | on each                                                         |
+| `src/lib.rs`  | Lays out and draws a box, as a library that the test draws      |

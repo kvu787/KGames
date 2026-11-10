@@ -104,12 +104,12 @@ like `Volume` and `Selected`, the `Log`'s newest lines, and the interface's, as 
 
 ## Layout
 
-| Path                 | Contents                                                             |
-| -------------------- | -------------------------------------------------------------------- |
-| `Source/Main.rs`     | Runs the showcase with Library/UserInterface's main loop             |
-| `Source/Library.rs`  | The showcase's parts, as a library that `Test/UiShowcase` tests      |
-| `Source/Showcase.rs` | What each widget shows, the list's items, the log, and the shortcuts |
-| `Source/Cards.rs`    | Lays out the cards in fixed pixels, and draws their widgets          |
-| `HumanRun.ps1`       | Builds the showcase and runs it on the primary display, for people   |
-| `HumanRun.cmd`       | Runs `HumanRun.ps1`, for double-clicking in File Explorer            |
-| `Settings.json`      | The settings that every program has                                  |
+| Path              | Contents                                                             |
+| ----------------- | -------------------------------------------------------------------- |
+| `src/main.rs`     | Runs the showcase with Library/UserInterface's main loop             |
+| `src/lib.rs`      | The showcase's parts, as a library that `Test/UiShowcase` tests      |
+| `src/showcase.rs` | What each widget shows, the list's items, the log, and the shortcuts |
+| `src/cards.rs`    | Lays out the cards in fixed pixels, and draws their widgets          |
+| `HumanRun.ps1`    | Builds the showcase and runs it on the primary display, for people   |
+| `HumanRun.cmd`    | Runs `HumanRun.ps1`, for double-clicking in File Explorer            |
+| `Settings.json`   | The settings that every program has                                  |

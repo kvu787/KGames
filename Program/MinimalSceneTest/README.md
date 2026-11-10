@@ -81,14 +81,14 @@ so on.
 
 ## Layout
 
-| Path                     | Contents                                                                 |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `Source/Main.rs`         | Runs the test with Library/UserInterface                                 |
-| `Source/Library.rs`      | The test's parts, as a library that `Test/MinimalSceneTest` tests        |
-| `Source/MovingSphere.rs` | The test as a `Program`: the sphere's motion, the keys, and the state    |
-| `Source/Scene.rs`        | The camera, the objects, and the sphere's motion, drawn with SimplePaint |
-| `Source/Settings.rs`     | The objects' materials, and their defaults                               |
-| `Build.rs`               | Compiles SimplePaint's shaders for three materials                       |
-| `HumanRun.ps1`           | Builds the test and runs it on the primary display, for people to use it |
-| `HumanRun.cmd`           | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
-| `Settings.json`          | The settings, which the test writes if it's missing                      |
+| Path                   | Contents                                                                 |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `src/main.rs`          | Runs the test with Library/UserInterface                                 |
+| `src/lib.rs`           | The test's parts, as a library that `Test/MinimalSceneTest` tests        |
+| `src/moving_sphere.rs` | The test as a `Program`: the sphere's motion, the keys, and the state    |
+| `src/scene.rs`         | The camera, the objects, and the sphere's motion, drawn with SimplePaint |
+| `src/settings.rs`      | The objects' materials, and their defaults                               |
+| `build.rs`             | Compiles SimplePaint's shaders for three materials                       |
+| `HumanRun.ps1`         | Builds the test and runs it on the primary display, for people to use it |
+| `HumanRun.cmd`         | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
+| `Settings.json`        | The settings, which the test writes if it's missing                      |

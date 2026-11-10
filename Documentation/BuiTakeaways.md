@@ -242,7 +242,7 @@ Status: Not started.
     time, not size ([text.rs:350-357](../Library/UserInterface/src/drawing/text.rs#L350)), so
     flinging a big table would make hundreds of layouts a frame.
   - UiShowcase filters its lists again with `to_lowercase` inside `view`
-    ([Showcase.rs:165-167](../Program/UiShowcase/Source/Showcase.rs#L165)).
+    ([showcase.rs:165-167](../Program/UiShowcase/src/showcase.rs#L165)).
 - **BUI:** `BUI/bindings/rust/blenderui-table`:
   - No node per row or cell: one canvas paints the visible cells
     (`BUI/bindings/rust/blenderui/src/table/data_table.rs:205-210`).

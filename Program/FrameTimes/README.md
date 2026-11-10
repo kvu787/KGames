@@ -74,9 +74,9 @@ ETW session.
 
 ## Layout
 
-| Path                | Contents                                                                  |
-| ------------------- | ------------------------------------------------------------------------- |
-| `Source/Main.rs`    | Reads the command line, finds the process, and reads its presents for a   |
-|                     | while                                                                     |
-| `Source/Library.rs` | The statistics, as functions of the presents, the command line, finding a |
-|                     | process, and the report, as a library that the tests test                 |
+| Path          | Contents                                                                  |
+| ------------- | ------------------------------------------------------------------------- |
+| `src/main.rs` | Reads the command line, finds the process, and reads its presents for a   |
+|               | while                                                                     |
+| `src/lib.rs`  | The statistics, as functions of the presents, the command line, finding a |
+|               | process, and the report, as a library that the tests test                 |

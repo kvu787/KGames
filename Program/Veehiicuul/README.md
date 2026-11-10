@@ -241,40 +241,40 @@ and how editing feels with a real mouse.
 
 ## Layout
 
-| Path                       | Contents                                                               |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `Source/Main.rs`           | Runs the game with Library/UserInterface's main loop                   |
-| `Source/Library.rs`        | The game's parts, as a library that `Test/Veehiicuul` tests            |
-| `Source/Program.rs`        | The game as a `Program`: the bars, undo, saving, and Play's card       |
-| `Source/Game.rs`           | The document, the models, the car, the camera, and Play                |
-| `Source/Document.rs`       | What the editors change and Save writes                                |
-| `Source/Scene.rs`          | Reads and writes a scene                                               |
-| `Source/Terrain.rs`        | The hexel terrain, its hexels' places, brushes and fills               |
-| `Source/Track.rs`          | A track's curves, start and colors, and its shape and problems         |
-| `Source/Curve.rs`          | The closed B-spline curves                                             |
-| `Source/Ground.rs`         | Makes the terrain's and the track's meshes                             |
-| `Source/Models.rs`         | Reads the models from Blender, and their paint                         |
-| `Source/Vehicles.rs`       | Reads and writes `Vehicles.json`                                       |
-| `Source/Files.rs`          | Numbers, points and colors in the game's files                         |
-| `Source/Controls.rs`       | What the gamepad and the keys do in Play                               |
-| `Source/Driving.rs`        | How a car moves, its dead zones, and its brake                         |
-| `Source/Collision.rs`      | Footprints, and whether a car touches an edge                          |
-| `Source/Camera.rs`         | The game's camera and the editors' views                               |
-| `Source/Editing.rs`        | What the editors share: their cards, views, controls, and what they    |
-|                            | draw over the view                                                     |
-| `Source/SceneEditor.rs`    | The Scene tab                                                          |
-| `Source/TerrainEditor.rs`  | The Terrain tab                                                        |
-| `Source/TrackEditor.rs`    | The Track tab                                                          |
-| `Source/VehicleEditor.rs`  | The Vehicles tab, with the footprint creator                           |
-| `Source/Settings.rs`       | The game's own settings in `Settings.json`, and their defaults         |
-| `Source/Drawing.rs`        | Draws the ground and the models, under the interface                   |
-| `Shaders/Ground.hlsl`      | Draws the ground in flat colors, with SimplePaint's root signature     |
-| `Build.rs`                 | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
-| `Models`, `Scenes`         | The models and their paint, and the scenes                             |
-| `Vehicles.json`            | The vehicles                                                           |
-| `Settings.json`            | The settings                                                           |
-| `HumanRun.ps1`             | Builds the game and runs it on the primary display, for people to play |
-| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
+| Path                    | Contents                                                               |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `src/main.rs`           | Runs the game with Library/UserInterface's main loop                   |
+| `src/lib.rs`            | The game's parts, as a library that `Test/Veehiicuul` tests            |
+| `src/program.rs`        | The game as a `Program`: the bars, undo, saving, and Play's card       |
+| `src/game.rs`           | The document, the models, the car, the camera, and Play                |
+| `src/document.rs`       | What the editors change and Save writes                                |
+| `src/scene.rs`          | Reads and writes a scene                                               |
+| `src/terrain.rs`        | The hexel terrain, its hexels' places, brushes and fills               |
+| `src/track.rs`          | A track's curves, start and colors, and its shape and problems         |
+| `src/curve.rs`          | The closed B-spline curves                                             |
+| `src/ground.rs`         | Makes the terrain's and the track's meshes                             |
+| `src/models.rs`         | Reads the models from Blender, and their paint                         |
+| `src/vehicles.rs`       | Reads and writes `Vehicles.json`                                       |
+| `src/files.rs`          | Numbers, points and colors in the game's files                         |
+| `src/controls.rs`       | What the gamepad and the keys do in Play                               |
+| `src/driving.rs`        | How a car moves, its dead zones, and its brake                         |
+| `src/collision.rs`      | Footprints, and whether a car touches an edge                          |
+| `src/camera.rs`         | The game's camera and the editors' views                               |
+| `src/editing.rs`        | What the editors share: their cards, views, controls, and what they    |
+|                         | draw over the view                                                     |
+| `src/scene_editor.rs`   | The Scene tab                                                          |
+| `src/terrain_editor.rs` | The Terrain tab                                                        |
+| `src/track_editor.rs`   | The Track tab                                                          |
+| `src/vehicle_editor.rs` | The Vehicles tab, with the footprint creator                           |
+| `src/settings.rs`       | The game's own settings in `Settings.json`, and their defaults         |
+| `src/drawing.rs`        | Draws the ground and the models, under the interface                   |
+| `Shaders/Ground.hlsl`   | Draws the ground in flat colors, with SimplePaint's root signature     |
+| `build.rs`              | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
+| `Models`, `Scenes`      | The models and their paint, and the scenes                             |
+| `Vehicles.json`         | The vehicles                                                           |
+| `Settings.json`         | The settings                                                           |
+| `HumanRun.ps1`          | Builds the game and runs it on the primary display, for people to play |
+| `HumanRun.cmd`          | Runs `HumanRun.ps1`, for double-clicking in File Explorer              |
 
 # Design doc
 

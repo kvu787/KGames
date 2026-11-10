@@ -7,14 +7,13 @@ license.workspace = true
 # The statistics, the command line and finding the process, which
 # Test/FrameTimes tests without an ETW session.
 [lib]
-path = "Source/Library.rs"
 # Every test is in Test.
 test = false
 doctest = false
 
 [[bin]]
 name = "FrameTimes"
-path = "Source/Main.rs"
+path = "src/main.rs"
 # Every test is in Test.
 test = false
 

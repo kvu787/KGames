@@ -148,23 +148,23 @@ much of the world the view's height shows.
 
 ## Layout
 
-| Path                    | Contents                                                                  |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `Source/Main.rs`        | Runs the modeler with Library/UserInterface's main loop                   |
-| `Source/Library.rs`     | The modeler's parts, as a library that `Test/MeshModeler` tests           |
-| `Source/Modeler.rs`     | The modeler as a program: its state, its commands, and the scene it draws |
-| `Source/Cards.rs`       | Lays out the app bar, the cards and the dialogs in fixed pixels           |
-| `Source/Interaction.rs` | What the keys and the pointer do in the view, and modal edits             |
-| `Source/Editing.rs`     | Selection modes, tools, picking, modal edits and the mesh's edits         |
-| `Source/Document.rs`    | The mesh, its paints and selection, the history, and the files            |
-| `Source/Paint.rs`       | Paints: a name and SimplePaint's settings                                 |
-| `Source/Camera.rs`      | The orthographic camera, and mapping between the world and pixels         |
-| `Source/Overlay.rs`     | What's drawn over the mesh: the grid, the cage and the selection          |
-| `Source/Viewport.rs`    | Draws the mesh and the overlay into the view with Direct3D 12             |
-| `Shaders/Flat.hlsl`     | Flat lighting of the paints' base colors                                  |
-| `Shaders/Overlay.hlsl`  | Lines, dots and triangles over the mesh, tested against its depth         |
-| `Build.rs`              | Compiles SimplePaint's shaders and the modeler's for 16 paints            |
-| `HumanRun.ps1`          | Builds the modeler and runs it on the primary display, for people         |
-| `HumanRun.cmd`          | Runs `HumanRun.ps1`, for double-clicking in File Explorer                 |
-| `Settings.json`         | The settings that every program has                                       |
-| `Models`                | Saved models and exported OBJ files; not in Git                           |
+| Path                   | Contents                                                                  |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `src/main.rs`          | Runs the modeler with Library/UserInterface's main loop                   |
+| `src/lib.rs`           | The modeler's parts, as a library that `Test/MeshModeler` tests           |
+| `src/modeler.rs`       | The modeler as a program: its state, its commands, and the scene it draws |
+| `src/cards.rs`         | Lays out the app bar, the cards and the dialogs in fixed pixels           |
+| `src/interaction.rs`   | What the keys and the pointer do in the view, and modal edits             |
+| `src/editing.rs`       | Selection modes, tools, picking, modal edits and the mesh's edits         |
+| `src/document.rs`      | The mesh, its paints and selection, the history, and the files            |
+| `src/paint.rs`         | Paints: a name and SimplePaint's settings                                 |
+| `src/camera.rs`        | The orthographic camera, and mapping between the world and pixels         |
+| `src/overlay.rs`       | What's drawn over the mesh: the grid, the cage and the selection          |
+| `src/viewport.rs`      | Draws the mesh and the overlay into the view with Direct3D 12             |
+| `Shaders/Flat.hlsl`    | Flat lighting of the paints' base colors                                  |
+| `Shaders/Overlay.hlsl` | Lines, dots and triangles over the mesh, tested against its depth         |
+| `build.rs`             | Compiles SimplePaint's shaders and the modeler's for 16 paints            |
+| `HumanRun.ps1`         | Builds the modeler and runs it on the primary display, for people         |
+| `HumanRun.cmd`         | Runs `HumanRun.ps1`, for double-clicking in File Explorer                 |
+| `Settings.json`        | The settings that every program has                                       |
+| `Models`               | Saved models and exported OBJ files; not in Git                           |
