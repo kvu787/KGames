@@ -33,10 +33,10 @@ That's the user's to do. Nothing in the repo may install GameInput. KGames doesn
 it, and programs don't start without it, which `Library/GameInput` checks. If a build or a program
 says that it isn't installed, stop and tell the user.
 
-The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
-`Library/GameInput/NuGetPackages.proj` declares and its `packages.lock.json` pins, and links its
-`GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
-tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
+`Program\Build\Build.ps1` restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`,
+as `Library/GameInput/NuGetPackages.proj` declares and its `packages.lock.json` pins, and the build
+includes its `GameInput.h` and links its `GameInput.lib`. It needs the .NET SDK, 10 or later: if a
+build says that it's missing, stop and tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
 loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
 in the repo may put one there, nor copy or load the runtimes in the package, which are for
 sideloading.
@@ -151,7 +151,39 @@ A destructor never throws. Nothing else throws on purpose.
 - A type that tests compare says how a failed check shows it, with a `describe_value` function
   beside it, in its namespace, that returns a `std::string`.
 - A test reads its files from `folders::Project` or `folders::Repository`, from `"Folders.h"`, and
-  writes only under `std::filesystem::temp_directory_path()`, in a folder of its own.
+  writes only under `std::filesystem::temp_directory_path()`, in a folder of its own, but for the
+  frames that it draws for people to look at, which go to `target\TestOutput`.
+- A project's tests run in one process, one after another. A test that changes something of the
+  whole process, like an environment variable, puts it back. A test that needs a process of its
+  own, like one that must stop the program, starts the test program again with its own name as the
+  filter, as `Test/Base/Stopping.cpp` does.
+
+## What C++ lets through
+
+The compiler doesn't check these, so the code and its reviews must:
+
+- A lambda that a widget or anything else keeps owns what it uses: it captures by value. One
+  that's called before the function that made it returns, like a card's builder, may capture by
+  reference.
+- A `std::string_view` or a `std::span` is for a parameter, or a local that dies before what it
+  views. A member that's one says, in its comment, what must outlive it.
+- A function that Windows calls back, like a window procedure, a GameInput or ETW callback, or a
+  COM method, is `noexcept`: an exception stops the program there with its reason, as
+  `base::fail_quietly` has it written, instead of unwinding into Windows.
+- An index, a subtraction of sizes, or a `std::clamp` whose bounds may cross, that input, a file or
+  a program using a library can make wrong, is checked, and stops the program with `base::panic`
+  or returns an error. The standard library checks nothing in Release.
+  `Program\Build\Build.ps1 --hardened` builds with its checks on.
+- Members are destroyed last to first. Where the order matters, like a window and what draws into
+  it, the declarations are in the order that makes it right, with a comment that says so.
+- A list of two texts for a `std::span<const std::string_view>` is written `{{"A", "B"}}`.
+  `Test/Base/Language.cpp` fails if a newer standard library reads that as one text.
+- A queue with two ends is a `base::VecDeque`, never a `std::deque`, which allocates for each
+  item. A `std::vector` that's filled to a known size reserves it first: it grows from one item by
+  half each time, which is an allocation for each of its first four items.
+- Numbers go to text with `base::display` and `base::debug`, and files and states are compared by
+  their bytes, so nothing writes a `float` or a `double` with `std::format`'s `{}` or
+  `std::to_string`.
 
 # Correctness
 
@@ -176,7 +208,7 @@ kind that holds, because a later session never read the conversation that invent
 - A comment is a promise: a comment or README that says the code does something the code doesn't
   do is a bug, and models believe documentation more than people do. Keep them true in the same
   change that would make them false.
-- A rewrite of a library core, like `Library/UserInterface/src/core`, is a rare, deliberate
+- A rewrite of a library core, like `Library/UserInterface/Core`, is a rare, deliberate
   event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
   with an adversarial review of the new code and the findings pinned by tests, as
   `Documentation/LogicReview.md` records for the last one.
@@ -197,8 +229,6 @@ version. `LICENSE.txt` has its text, and it covers everything in the repository.
 - `GameInput.lib`, which KGames links, comes from the `Microsoft.GameInput` NuGet package, which the
   build restores outside the repository. The package ships its source, `native/src/GameInput.cpp`,
   under the MIT license, and KGames treats the library as MIT-licensed too.
-- Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`,
-  except `Library/WindowsApi/BindingsGenerator`, a workspace of its own, which states it.
 
 # Git
 
@@ -215,20 +245,21 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 
 - `Program` holds what's runnable, `Library` what isn't and is shared, and `Test` every test.
 - Put code that more than one program can use in `Library`, not in a program.
-- Every Rust package is a member of the Cargo workspace in the root `Cargo.toml`.
-- Add Windows APIs to `Library/WindowsApi`, as its README says, instead of generating bindings
-  in another crate. Every crate must share its types.
+- Every C++ project is in `KGames.slnx`, at the root.
+- `Library/Base` has what every project uses and C++'s standard library lacks, like sum types,
+  panics and UTF-8, and `Library/Testing` the test harness. Look there before writing a helper,
+  and put one that a second project needs there.
 
 # GUI programs
 
 - Read all input with GameInput, through `Library/UserInterface`, which reads keyboards, mice and gamepads with it, and not from window messages.
 - Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
-- Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
-- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: input on the tree the user saw becomes messages, `update` applies them, and one read-only `view` describes the frame's widgets from the state, so a frame's output always comes from that frame's input, never a frame late. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
+- Use Win32, C++, Direct3D 12 and DirectWrite, through the libraries in `Library`.
+- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program<Message>`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: input on the tree the user saw becomes messages, `update` applies them, and one read-only `view` describes the frame's widgets from the state, so a frame's output always comes from that frame's input, never a frame late. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
 - Use the light theme by default.
-- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/src/design/controls.rs`.
-- Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
+- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/Design/Tokens.h`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/Design/Controls.h`.
+- Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/Rendering.cpp` checks it.
 - `F9` toggles between light and dark mode. Default is light mode.
 - `F10` toggles between VSync on and off. Default is VSync on.
 - `F11` toggles between windowed and borderless fullscreen. Default is windowed.
@@ -259,21 +290,21 @@ While working:
 
 How:
 
-- Run builds, tests and anything else that keeps the CPU busy with `Program\RunLightly\RunLightly.ps1 <command>`, like `Program\RunLightly\RunLightly.ps1 cargo test --workspace`. It runs the command, and every process that it starts, only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time, at low I/O and memory priority, in efficiency mode, and with their GPU work after other processes', so that a game the user is playing keeps its cores and its frame rate. It's slower than running the command directly. Give it `cargo` as the command itself, not a script that runs cargo: rustup's cargo puts itself in a job of its own, which RunLightly can't take it out of afterwards.
+- Run builds, tests and anything else that keeps the CPU busy with `Program\RunLightly\RunLightly.ps1 <command>`, like `Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1`. It runs the command, and every process that it starts, only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time, at low I/O and memory priority, in efficiency mode, and with their GPU work after other processes', so that a game the user is playing keeps its cores and its frame rate. It's slower than running the command directly. `Program\Build\Build.ps1` runs MSBuild without the worker processes that outlive a build, so that none of a build's work is outside RunLightly's.
 - Run a GUI program with `Program\RunInBackground\RunInBackground.ps1 <program>`, like `Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo`, from the root of the repository. It builds the program, opens it on CVVNY2 without activating it, without GameInput, with vertical sync, so that it draws at most one frame a refresh and is light on a computer that someone's playing games on, saves a screenshot of what it draws to `target\RunInBackground\<program>.png`, and closes it. Read the screenshot to see the result.
 - With `--debug-build`, the D3D12 debug layer's warnings and errors go to `target\RunInBackground\<program>Errors.log`. Check it after changing how a program draws.
-- Don't start a GUI program any other way, like with `cargo run`. The `HumanRun.cmd` and `HumanRun.ps1` in a program's folder are for the user to launch it and use it. Never run them. Without `--no-activate`, a program's window takes focus. Without `--display CVVNY2`, it opens on the display in its `Settings.json`, or on the primary display if that one isn't connected.
+- Don't start a GUI program any other way, like by running its exe. The `HumanRun.cmd` and `HumanRun.ps1` in a program's folder are for the user to launch it and use it. Never run them. Without `--no-activate`, a program's window takes focus. Without `--display CVVNY2`, it opens on the display in its `Settings.json`, or on the primary display if that one isn't connected.
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.
 - With `--keep-open`, the program keeps running after the script ends. Stop it with `Stop-Process` and the process ID the script prints, once you're done with it.
 - Run `IdentifyDisplays` only with `--list`. Without it, it puts a box on every display.
 - Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Test input with tests and scripts instead, as below.
-- Tests that use the GPU, like `cargo test -p simple_paint_tests`, draw offscreen, without a window, so run them freely, with RunLightly like any other build.
+- Tests that use the GPU, like `Program\RunTests\RunTests.ps1 SimplePaintTests`, draw offscreen, without a window, so run them freely, with RunLightly like any other build.
 
 ## Power and locking
 
 Assume that Windows' "Turn my screen off after", "Make my device sleep after" and "Make my device hibernate after" are all set to "Never", both plugged in and on battery. The machine may be locked or unlocked, though, and may lock or unlock while the agent works.
 
-- Work the same either way. Builds, `cargo test --workspace`, and RunInBackground's screenshots and scripts all work while the machine is locked, and draw the same frames.
+- Work the same either way. Builds, `Program\RunTests\RunTests.ps1`, and RunInBackground's screenshots and scripts all work while the machine is locked, and draw the same frames.
 - While it's locked, the lock screen has focus, so a program never does, as in any run.
 - Don't lock or unlock the machine, wake or turn off its displays, or change its power settings.
 
@@ -281,9 +312,9 @@ Assume that Windows' "Turn my screen off after", "Make my device sleep after" an
 
 Test what programs do with input in two layers, which never touch the user's input or focus:
 
-1. **Tests**, in `Test/<program>`. Each GUI program is a library (`src/lib.rs`) and a small `src/main.rs`, so tests drive its parts without a window: what input does, where clicks land in the cards' real layout, which the library lays out without a GPU, and its motion and settings. `user_interface::Headless` runs a program's frames that way, with input that the test makes up, and can draw them offscreen. Put a program's logic in its library, and test it there. Run them with `Program\RunLightly\RunLightly.ps1 cargo test --workspace`.
+1. **Tests**, in `Test/<program>`. Each GUI program is a library (`<Program>Library.vcxproj`) and a small `Main.cpp`, so tests drive its parts without a window: what input does, where clicks land in the cards' real layout, which the library lays out without a GPU, and its motion and settings. `user_interface::Headless` runs a program's frames that way, with input that the test makes up, and can draw them offscreen. Put a program's logic in its library, and test it there. Run them with `Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1`.
 2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. [Library/UserInterface's README](Library/UserInterface/README.md#testing) describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
 
 To write a script, run one that captures, and read the state it saves: `Interface.Targets` has every widget's name and area, like SimplePaintDemo's sliders. Point at widgets by name, like `{ "Frame": 1, "Press": "Volume" }`, instead of by pixels, so that scripts keep working when a layout changes. GameInputDemo's scripts also connect and press gamepads, keyboards and mice, which its README describes.
 
-After changing a program, run `cargo test --workspace`, with RunLightly, and its scripts with `--all-scripts`. Neither covers real devices, Windows' input path, the user taking or giving focus, or input latency. Ask the user to try those.
+After changing a program, run `Program\RunTests\RunTests.ps1`, with RunLightly, and its scripts with `--all-scripts`. Neither covers real devices, Windows' input path, the user taking or giving focus, or input latency. Ask the user to try those.
