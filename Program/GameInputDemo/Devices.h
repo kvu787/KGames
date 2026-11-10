@@ -9,6 +9,7 @@
 #include "Base/Windows.h"
 #include "GameInput/GameInput.h"
 #include "GameInputDemo/DeviceTree.h"
+#include "UserInterface/Platform/InputDevices.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -55,9 +56,9 @@ struct Device {
     // there are none, once they're looked up.
     Tree tree;
 
-    // from_game_input, which makes a device from the library's, as it reads
-    // it from GameInput, with its node in Windows' device tree, comes with
-    // the parts of the demo that use Library/UserInterface.
+    // A device as the library reads it from GameInput, with its node in
+    // Windows' device tree.
+    static Device from_game_input(const user_interface::Device& device, Tree tree);
 
     std::string_view family_name() const;
 
@@ -88,28 +89,7 @@ std::string rumble_motor_names(game_input::GameInputRumbleMotors motors);
 
 // A snapshot of one device's whole state, at a time: the library's, which
 // it reads from GameInput, and which a script makes up too.
-//
-// Until the parts of the demo that use Library/UserInterface are ported, it's
-// defined here, member for member as "UserInterface/Platform/InputDevices.h"
-// defines user_interface::Reading. With them, it becomes that type, by
-// `using user_interface::Reading;`.
-struct Reading {
-    // The ID of the device it's from (see Device), or nothing when GameInput
-    // doesn't say.
-    std::optional<size_t> device;
-    // On GameInput's clock, in microseconds.
-    std::uint64_t timestamp = 0;
-    // Which kinds of input the reading has, like a gamepad's, or both a
-    // keyboard's and a mouse's.
-    game_input::GameInputKind kinds{};
-    game_input::GameInputGamepadState gamepad{};
-    // The keys held down.
-    std::vector<game_input::GameInputKeyState> keys;
-    // The buttons held, and running totals of the motion and the wheels.
-    game_input::GameInputMouseState mouse{};
-
-    bool operator==(const Reading&) const = default;
-};
+using user_interface::Reading;
 
 // Where devices and readings come from.
 class InputSource {

@@ -1,14 +1,14 @@
 # GameInputDemo
 
-A Rust program that reads gamepads, keyboards and mice with Microsoft's
+A C++ program that reads gamepads, keyboards and mice with Microsoft's
 [GameInput](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview)
 API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
-It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
-crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
-KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
-whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, list,
-scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
+It uses no outside frameworks: the C++ standard library, the Windows SDK and GameInput are all it
+has besides the repo's own [Library](../../Library) libraries. Like every KGames GUI program, it's
+built on [Library/UserInterface](../../Library/UserInterface/README.md), whose main loop runs it,
+and whose widgets draw its app bar, status bar, cards, combo box, list, scroll bars, keycaps,
+badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
 
 ## Supported window setups
 
@@ -144,18 +144,21 @@ always inside the window.
 
 ## Requirements
 
-- Rust with the `x86_64-pc-windows-msvc` toolchain
+- Visual Studio with its Desktop development with C++ workload, which has MSBuild and the C++
+  compiler
 - Windows SDK (provides `dxc.exe` under `C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`)
 - GameInput 4.0.306, installed once, from an elevated prompt, with
   `winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"`. The
   demo doesn't build or start without it (see [Library/GameInput](../../Library/GameInput/README.md))
+- The .NET SDK, 10 or later, whose `dotnet` restores GameInput's NuGet package for the build, and
+  runs [RunInBackground](../RunInBackground/README.md)
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
-- Optional, for [RunInBackground](../RunInBackground/README.md): the .NET 10 SDK
 
 ## Build and run
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release GameInputDemo
+target\Release\GameInputDemo.exe
 ```
 
 Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people who want to
@@ -167,8 +170,9 @@ To open the demo on another display, find the display's identifier with `Identif
 pass it with `--display`, or put it in the [settings file](#settings-file):
 
 ```powershell
-cargo run --release --bin identify_displays
-cargo run --release -- --display KXGR16
+Program\Build\Build.ps1 --release IdentifyDisplays GameInputDemo
+target\Release\IdentifyDisplays.exe
+target\Release\GameInputDemo.exe --display KXGR16
 ```
 
 To open the demo without taking focus from the window you're typing in, add `--no-activate`. The
@@ -197,9 +201,9 @@ that display. The demo matches identifiers without regard to case.
 
 ### Settings file
 
-The demo reads `Settings.json`, in this folder next to `Cargo.toml`, when it starts. The folder's
-path is built into the exe, so the exe finds the file wherever it's run from. The file is in Git. If
-it doesn't exist, the demo writes it with the defaults:
+The demo reads `Settings.json`, in this folder next to the demo's projects, when it starts. The
+folder's path is built into the exe, so the exe finds the file wherever it's run from. The file is
+in Git. If it doesn't exist, the demo writes it with the defaults:
 
 ```json
 {
@@ -237,9 +241,10 @@ isn't, the demo writes why to standard error and exits, instead of opening on th
 
 ## How it gets GameInput
 
-The [GameInput library](../../Library/GameInput/README.md) declares the API by hand, and starts
-GameInput with `GameInputInitialize` from Microsoft's `GameInput.lib`, which loads GameInput
-4.0.306's installed runtime, from System32, unless a `GameInputRedist.dll` is beside the exe.
+The [GameInput library](../../Library/GameInput/README.md) has the API from Microsoft's own
+`GameInput.h`, and starts GameInput with `GameInputInitialize` from Microsoft's `GameInput.lib`,
+which loads GameInput 4.0.306's installed runtime, from System32, unless a `GameInputRedist.dll` is
+beside the exe.
 The status bar of the demo's window shows which runtime it loaded. Without it installed, the demo
 doesn't build, and doesn't start. With `--no-input`, it reads no input, and the status bar says
 that GameInput isn't available.
@@ -267,11 +272,10 @@ Then the demo:
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
    pause a held key would show as pressed again.
 
-`src/game_input_source.rs` takes the library's devices and readings, once each a frame, as plain
-data, so that the rest of the demo also runs on input from tests and scripts (see
-[Testing](#testing)). Its `Options::gamepad` is on, so that gamepads' readings count as input that
-its frames take, for the [input latency](../../Library/UserInterface/README.md) that every program
-measures.
+`GameInputSource.h` takes the library's devices and readings, once each a frame, as plain data, so
+that the rest of the demo also runs on input from tests and scripts (see [Testing](#testing)). Its
+`Options::gamepad` is on, so that gamepads' readings count as input that its frames take, for the
+[input latency](../../Library/UserInterface/README.md) that every program measures.
 
 Like every KGames program, the demo only handles input while its window has focus, and the app bar
 says whether it has focus. The library turns on GameInput's background input, so that it follows
@@ -335,12 +339,12 @@ thousands of frames a second, even when nothing changes. Minimizing the window s
 ## Testing
 
 The demo reads devices and readings from an `InputSource`: GameInput's in a normal run, and a
-scripted one, in `src/scripted_source.rs`, in tests and scripted runs. So everything after
-GameInput, from which gamepad it listens to, to dropping input without focus, the rumble test, the
-shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
+scripted one, in `ScriptedSource.h`, in tests and scripted runs. So everything after GameInput,
+from which gamepad it listens to, to dropping input without focus, the rumble test, the shortcuts
+and the log, runs without a gamepad, and without your keyboard and mouse.
 
 ```powershell
-cargo test -p game_input_demo_tests
+Program\RunTests\RunTests.ps1 GameInputDemoTests
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 
@@ -350,7 +354,7 @@ and its list, the Devices card's list, its rows and their tooltips, and what scr
 fit. One draws a frame with the GPU, offscreen, and checks where the sticks' dots are. The scripts in
 `Test/GameInputDemo/Scripts` run the real demo, in its window, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Program`
-steps, which the demo's `Program::script` does, connect and disconnect devices, and give their
+steps, which the demo's `Demo::script` does, connect and disconnect devices, and give their
 readings:
 
 ```json
@@ -412,6 +416,7 @@ nothing on it.
 | `Overview`      | Gives every card something to show, for a look at the whole window              |
 | `Picker`        | Picks gamepads with the combo box, with clicks and keys, and closes its list    |
 | `RumbleTest`    | Drives the motors with the sticks, and stops them without focus                 |
+| `Theme`         | Switches to the dark theme with `F9`, and back                                  |
 
 What only real devices show still needs a person: GameInput's own readings and device events, how
 the motors feel, and focus changing while a gamepad is held.
@@ -433,25 +438,28 @@ GameInput.
 
 ## Using more APIs
 
-For Windows APIs, which `windows-bindgen` generates, see
-[Library/WindowsApi](../../Library/WindowsApi/README.md).
+Windows APIs come from the Windows SDK's own headers, included after `"Base/Windows.h"`, with the
+library that each needs linked where it's used, by a `#pragma comment(lib, ...)`, as
+`DeviceTree.cpp` does for the configuration manager's.
 
 For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#using-more-apis).
 
 ## Layout
 
-| Path                       | Contents                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `src/main.rs`              | Runs the demo with Library/UserInterface's main loop                          |
-| `src/lib.rs`               | The demo's parts, as a library that `Test/GameInputDemo` tests                |
-| `src/demo.rs`              | The demo as a `Program`: its input source, and what it does each frame        |
-| `src/settings.rs`          | The demo's own setting, `RumbleTestInnerDeadZone`                             |
-| `src/devices.rs`           | Devices and readings as plain data, and `InputSource`, which gives them       |
-| `src/device_tree.rs`       | Looks up a device's nodes in Windows' device tree, from its PnP path          |
-| `src/game_input_source.rs` | Takes the devices and readings that the library reads with GameInput          |
-| `src/scripted_source.rs`   | Devices and readings from tests and scripts, instead of GameInput             |
-| `src/input.rs`             | Keeps what the cards show, from the devices and readings                      |
-| `src/cards.rs`             | Lays out the cards in fixed pixels, and draws them with Library/UserInterface |
-| `HumanRun.ps1`             | Builds the demo and runs it on the primary display, for people to use it      |
-| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                     |
-| `Settings.json`            | The [settings file](#settings-file), which the demo writes if it's missing    |
+| Path                           | Contents                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `Main.cpp`                     | Runs the demo with Library/UserInterface's main loop                          |
+| `GameInputDemo.h`              | The demo's parts, as a library that `Test/GameInputDemo` tests                |
+| `Demo.h`, `.cpp`               | The demo as a `Program`: its input source, and what it does each frame        |
+| `Settings.h`, `.cpp`           | The demo's own setting, `RumbleTestInnerDeadZone`                             |
+| `Devices.h`, `.cpp`            | Devices and readings as plain data, and `InputSource`, which gives them       |
+| `DeviceTree.h`, `.cpp`         | Looks up a device's nodes in Windows' device tree, from its PnP path          |
+| `GameInputSource.h`, `.cpp`    | Takes the devices and readings that the library reads with GameInput          |
+| `ScriptedSource.h`, `.cpp`     | Devices and readings from tests and scripts, instead of GameInput             |
+| `Input.h`, `.cpp`              | Keeps what the cards show, from the devices and readings                      |
+| `Cards.h`, `.cpp`              | Lays out the cards in fixed pixels, and draws them with Library/UserInterface |
+| `GameInputDemoLibrary.vcxproj` | Builds all but `Main.cpp` into the library                                    |
+| `GameInputDemo.vcxproj`        | Builds `Main.cpp` and the library into `GameInputDemo.exe`                    |
+| `HumanRun.ps1`                 | Builds the demo and runs it on the primary display, for people to use it      |
+| `HumanRun.cmd`                 | Runs `HumanRun.ps1`, for double-clicking in File Explorer                     |
+| `Settings.json`                | The [settings file](#settings-file), which the demo writes if it's missing    |

@@ -8,6 +8,7 @@
 #include "GameInputDemo/Devices.h"
 #include "GameInputDemo/ScriptedSource.h"
 #include "Testing/Testing.h"
+#include "UserInterface/Testing/Script.h"
 #include "Json/Json.h"
 
 #include "Base/Text.h"
@@ -39,6 +40,7 @@ using game_input_demo::Listen;
 using game_input_demo::LogEntry;
 using game_input_demo::Reading;
 using game_input_demo::ScriptedSource;
+using user_interface::compare;
 
 namespace {
 
@@ -48,49 +50,6 @@ constexpr std::string_view PadTwo = R"({ "Connect": { "Id": 2, "Name": "Pad Two"
                                         "Motors": ["LowFrequency", "HighFrequency"] } })";
 constexpr std::string_view Keys = R"({ "Connect": { "Id": 3, "Name": "Keys", "Input": ["Keyboard"] } })";
 constexpr std::string_view Rodent = R"({ "Connect": { "Id": 4, "Name": "Rodent", "Input": ["Mouse"] } })";
-
-// Whether `actual` has everything that `expected` has: objects match if each
-// member that `expected` names matches, lists match item by item, and
-// numbers match to a millionth. Each mismatch says where it is.
-//
-// It's Library/UserInterface's, which checks a script's "Expect" steps with
-// it. It's written out here until the tests of the demo's parts that use the
-// library are ported, which take the library's.
-void compare(const json::Value& expected, const json::Value& actual, std::string& path, std::vector<std::string>& mismatches) {
-    const json::Value::Object* expected_object = base::as<json::Value::Object>(expected);
-    const json::Value::Array* expected_array = base::as<json::Value::Array>(expected);
-    const json::Value::Array* actual_array = base::as<json::Value::Array>(actual);
-    const json::Value::Number* expected_number = base::as<json::Value::Number>(expected);
-    const json::Value::Number* actual_number = base::as<json::Value::Number>(actual);
-    if (expected_object != nullptr && base::is<json::Value::Object>(actual)) {
-        for (const auto& [name, value] : expected_object->members) {
-            size_t length = path.size();
-            if (!path.empty()) {
-                path.push_back('.');
-            }
-            path += name;
-            if (const json::Value* actual_value = actual.get(name)) {
-                compare(value, *actual_value, path, mismatches);
-            } else {
-                mismatches.push_back(std::format("{} is missing", path));
-            }
-            path.resize(length);
-        }
-    } else if (expected_array != nullptr && actual_array != nullptr && expected_array->values.size() == actual_array->values.size()) {
-        for (size_t index = 0; index < expected_array->values.size(); index++) {
-            size_t length = path.size();
-            path += std::format("[{}]", index);
-            compare(expected_array->values[index], actual_array->values[index], path, mismatches);
-            path.resize(length);
-        }
-    } else if (expected_number != nullptr && actual_number != nullptr) {
-        if (std::abs(expected_number->value - actual_number->value) > 1e-6 * std::max(std::abs(expected_number->value), 1.0)) {
-            mismatches.push_back(std::format("{} is {}, not {}", path, base::display(actual_number->value), base::display(expected_number->value)));
-        }
-    } else if (expected != actual) {
-        mismatches.push_back(std::format("{} is {}, not {}", path, base::replace(actual.to_json(), "\n", " "), base::replace(expected.to_json(), "\n", " ")));
-    }
-}
 
 // The demo's input, from a test's devices and readings, with the rumble
 // test's dead zone at a tenth of the sticks' deflection.

@@ -50,21 +50,6 @@ constexpr std::array<std::pair<GameInputKind, std::string_view>, 14> KindNames{{
     {GameInputKindRawDeviceReport, "raw reports"},
 }};
 
-// The items with the separator between them, as a slice's join gives them in
-// Rust.
-template <class Items> std::string join(const Items& items, std::string_view separator) {
-    std::string joined;
-    bool first = true;
-    for (const auto& item : items) {
-        if (!first) {
-            joined += separator;
-        }
-        joined += item;
-        first = false;
-    }
-    return joined;
-}
-
 // The buttons held in the reading, of this kind of input. Keys aren't
 // buttons.
 std::int32_t buttons(GameInputKind kind, const Reading& reading) {
@@ -209,6 +194,13 @@ bool Listen::operator==(const Listen& other) const {
         return chosen->device.id == other_chosen->device.id;
     }
     return chosen == nullptr && other_chosen == nullptr;
+}
+
+std::string describe_value(const Listen& listen) {
+    if (const Listen::Gamepad* chosen = base::as<Listen::Gamepad>(listen)) {
+        return std::format("Gamepad({}, {})", chosen->device.id, base::debug(chosen->device.label));
+    }
+    return "NoGamepad";
 }
 
 Input::Input(std::unique_ptr<InputSource> input_source, float rumble_dead_zone) :
@@ -542,7 +534,7 @@ void Input::handle_reading(Source from, GameInputKind kind, const Reading& readi
     // Analog motion arrives up to thousands of times a second, so a run
     // of motion-only readings from one device shares one log entry.
     std::optional<std::pair<Source, size_t>> merge_key = motion_only ? std::optional(std::pair(from, id.value_or(0))) : std::nullopt;
-    log(time, from, std::format("{}: {}", label, join(changes, ", ")), merge_key);
+    log(time, from, std::format("{}: {}", label, base::join(changes, ", ")), merge_key);
 
     latest = LatestEvent{
         .number = reading_count,
@@ -628,7 +620,7 @@ Input::Handled Input::handle_gamepad(double time, GameInputGamepadState state, G
     summary.reserve(4);
     summary.push_back(std::format("Left stick {}   Right stick {}", pair(state.leftThumbstickX, state.leftThumbstickY), pair(state.rightThumbstickX, state.rightThumbstickY)));
     summary.push_back(std::format("Left trigger {:.3f}   Right trigger {:.3f}", state.leftTrigger, state.rightTrigger));
-    summary.push_back(std::format("Buttons held: {}", held.empty() ? std::string("none") : join(held, " ")));
+    summary.push_back(std::format("Buttons held: {}", held.empty() ? std::string("none") : base::join(held, " ")));
     summary.push_back(std::format("buttons = 0x{:08X}", static_cast<std::uint32_t>(state.buttons)));
     return {std::move(changes), std::move(summary), motion_only};
 }
@@ -737,7 +729,7 @@ Input::Handled Input::handle_mouse(double time, GameInputMouseState state, std::
     std::vector<std::string> summary;
     summary.reserve(2);
     summary.push_back(std::format("Total motion ({}, {})   wheel ({}, {})", state.positionX, state.positionY, state.wheelX, state.wheelY));
-    summary.push_back(std::format("Buttons held: {}", held.empty() ? std::string("none") : join(held, ", ")));
+    summary.push_back(std::format("Buttons held: {}", held.empty() ? std::string("none") : base::join(held, ", ")));
     if ((state.positions & GameInputMouseAbsolutePosition) != 0) {
         summary.push_back(std::format("Absolute position ({}, {})", state.absolutePositionX, state.absolutePositionY));
     }
@@ -866,7 +858,7 @@ std::string kind_names(GameInputKind kinds) {
             names.push_back(name);
         }
     }
-    return names.empty() ? std::string("none") : join(names, ", ");
+    return names.empty() ? std::string("none") : base::join(names, ", ");
 }
 
 std::string key_name(const GameInputKeyState& key) {

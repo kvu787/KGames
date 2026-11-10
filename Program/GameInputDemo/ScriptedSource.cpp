@@ -5,6 +5,7 @@
 #include "Base/Windows.h"
 #include "GameInputDemo/DeviceTree.h"
 #include "GameInputDemo/Input.h"
+#include "UserInterface/Input/Devices.h"
 
 #include <array>
 #include <cmath>
@@ -16,59 +17,6 @@ namespace game_input_demo {
 using namespace game_input;
 
 namespace {
-
-// A key's virtual-key code from its name, like "A", "F11", "Left" or "Space",
-// without regard to case: what user_interface::Key::parse gives, with its
-// names. It stands in for the library's until the parts of the demo that use
-// Library/UserInterface are ported. Then key_state calls Key::parse, and this
-// goes.
-std::optional<std::uint8_t> parse_key(std::string_view name) {
-    // Names that aren't the key's character or F-number.
-    static constexpr std::array<std::pair<std::uint8_t, std::string_view>, 36> Names{{
-        {0x08, "Backspace"}, {0x09, "Tab"},       {0x0D, "Enter"},    {0x10, "Shift"},    {0x11, "Ctrl"},      {0x12, "Alt"},          {0x13, "Pause"},     {0x14, "CapsLock"},
-        {0x1B, "Esc"},       {0x20, "Space"},     {0x21, "PageUp"},   {0x22, "PageDown"}, {0x23, "End"},       {0x24, "Home"},         {0x25, "Left"},      {0x26, "Up"},
-        {0x27, "Right"},     {0x28, "Down"},      {0x2D, "Insert"},   {0x2E, "Delete"},   {0x5B, "Windows"},   {0x5C, "RightWindows"}, {0xA0, "LeftShift"}, {0xA1, "RightShift"},
-        {0xA2, "LeftCtrl"},  {0xA3, "RightCtrl"}, {0xA4, "LeftAlt"},  {0xA5, "RightAlt"}, {0xBA, "Semicolon"}, {0xBB, "Plus"},         {0xBC, "Comma"},     {0xBD, "Minus"},
-        {0xBE, "Period"},    {0xBF, "Slash"},     {0xC0, "Backtick"}, {0xDE, "Quote"},
-    }};
-    for (const auto& [key, known] : Names) {
-        if (base::eq_ignore_ascii_case(known, name)) {
-            return key;
-        }
-    }
-    std::string upper = base::to_ascii_uppercase(name);
-    if (upper == "CONTROL") {
-        return std::uint8_t{0x11};
-    }
-    if (upper == "ESCAPE") {
-        return std::uint8_t{0x1B};
-    }
-    if (upper == "RETURN") {
-        return std::uint8_t{0x0D};
-    }
-    if (base::char_count(upper) == 1) {
-        char32_t character = base::decode_char(upper).character;
-        bool alphanumeric = (character >= U'0' && character <= U'9') || (character >= U'A' && character <= U'Z');
-        return alphanumeric ? std::optional(static_cast<std::uint8_t>(character)) : std::nullopt;
-    }
-    std::string_view rest = upper;
-    if (rest.starts_with('F')) {
-        if (std::optional<std::uint64_t> number = base::parse_u64(rest.substr(1)); number && *number >= 1 && *number <= 24) {
-            return static_cast<std::uint8_t>(0x6F + *number);
-        }
-    }
-    if (rest.starts_with("NUMPAD")) {
-        if (std::optional<std::uint64_t> number = base::parse_u64(rest.substr(6)); number && *number <= 9) {
-            return static_cast<std::uint8_t>(0x60 + *number);
-        }
-    }
-    if (rest.starts_with("KEY")) {
-        if (std::optional<std::uint64_t> code = base::parse_u64(rest.substr(3), 16); code && *code <= 0xFF) {
-            return static_cast<std::uint8_t>(*code);
-        }
-    }
-    return std::nullopt;
-}
 
 std::expected<size_t, std::string> id(const json::Value& value) {
     if (const json::Value* member = value.get("Id")) {
@@ -351,11 +299,11 @@ ScriptedSource* ScriptedSource::as_scripted() {
 }
 
 std::optional<GameInputKeyState> key_state(std::string_view name) {
-    std::optional<std::uint8_t> parsed = parse_key(name);
+    std::optional<user_interface::Key> parsed = user_interface::Key::parse(name);
     if (!parsed) {
         return std::nullopt;
     }
-    std::uint32_t key = *parsed;
+    std::uint32_t key = parsed->code;
     std::uint32_t scan_code = MapVirtualKeyW(key, MAPVK_VK_TO_VSC_EX);
     // Windows gives the arrow keys and Delete the scan codes of their twins
     // on the numeric keypad, without the prefix that the keys themselves send.

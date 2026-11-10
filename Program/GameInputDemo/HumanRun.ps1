@@ -6,5 +6,11 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-cargo run --release --manifest-path (Join-Path $PSScriptRoot 'Cargo.toml') -- --display Primary @args
-exit $LASTEXITCODE
+& (Join-Path $PSScriptRoot '..\Build\Build.ps1') --release GameInputDemo
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+$exe = Join-Path $PSScriptRoot '..\..\target\Release\GameInputDemo.exe'
+# In this terminal, so that what the demo writes, like why it couldn't start, shows here.
+$demo = Start-Process -FilePath $exe -ArgumentList (@('--display', 'Primary') + $args) -NoNewWindow -PassThru -Wait
+exit $demo.ExitCode

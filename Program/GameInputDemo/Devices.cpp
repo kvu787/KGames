@@ -1,5 +1,6 @@
 #include "GameInputDemo/Devices.h"
 
+#include "Base/Text.h"
 #include "GameInputDemo/Input.h"
 
 #include <array>
@@ -19,21 +20,6 @@ constexpr std::array<std::pair<GameInputSystemButtons, std::string_view>, 2> Sys
     {GameInputSystemButtonShare, "Share"},
 }};
 
-// The items with the separator between them, as a slice's join gives them in
-// Rust.
-template <class Items> std::string join(const Items& items, std::string_view separator) {
-    std::string joined;
-    bool first = true;
-    for (const auto& item : items) {
-        if (!first) {
-            joined += separator;
-        }
-        joined += item;
-        first = false;
-    }
-    return joined;
-}
-
 // The names of the flags that are set, from `choices`, or "none".
 template <class Choices> std::string names(std::int32_t flags, const Choices& choices) {
     std::vector<std::string_view> names;
@@ -45,7 +31,7 @@ template <class Choices> std::string names(std::int32_t flags, const Choices& ch
     if (names.empty()) {
         return "none";
     } else {
-        return join(names, ", ");
+        return base::join(names, ", ");
     }
 }
 
@@ -154,6 +140,30 @@ std::string guid(const GUID& id) {
 
 } // namespace
 
+Device Device::from_game_input(const user_interface::Device& device, Tree tree) {
+    return Device{
+        .id = device.id,
+        .label = device.label,
+        .vendor_id = device.vendor_id,
+        .product_id = device.product_id,
+        .revision = device.revision,
+        .usage = device.usage,
+        .hardware_version = device.hardware_version,
+        .firmware_version = device.firmware_version,
+        .family = device.family,
+        .supported_input = device.supported_input,
+        .rumble_motors = device.rumble_motors,
+        .system_buttons = device.system_buttons,
+        .container_id = device.container_id,
+        .pnp_path = device.pnp_path,
+        .xinput_index = device.xinput_index,
+        .keyboard = device.keyboard,
+        .mouse = device.mouse,
+        .gamepad = device.gamepad,
+        .tree = std::move(tree),
+    };
+}
+
 std::string_view Device::family_name() const {
     switch (family) {
     case GameInputFamilyVirtual:
@@ -251,7 +261,7 @@ std::vector<Section> Device::details() const {
         if (!node.location.empty()) {
             node_rows.emplace_back("Location", node.location);
         }
-        node_rows.emplace_back("Hardware IDs", or_none(join(node.hardware_ids, "\n")));
+        node_rows.emplace_back("Hardware IDs", or_none(base::join(node.hardware_ids, "\n")));
         sections.push_back(Section{.title = "Windows", .rows = std::move(node_rows)});
     }
     // Each node above it by its class, then its names and where it is,

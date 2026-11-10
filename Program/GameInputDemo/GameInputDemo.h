@@ -4,10 +4,14 @@
 
 #pragma once
 
+#include "GameInputDemo/Cards.h"
+#include "GameInputDemo/Demo.h"
 #include "GameInputDemo/DeviceTree.h"
 #include "GameInputDemo/Devices.h"
+#include "GameInputDemo/GameInputSource.h"
 #include "GameInputDemo/Input.h"
 #include "GameInputDemo/ScriptedSource.h"
+#include "GameInputDemo/Settings.h"
 
 #include <string_view>
 

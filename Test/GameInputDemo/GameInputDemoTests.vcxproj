@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\Program\GameInputDemo\GameInputDemoLibrary.vcxproj" />
     <ProjectReference Include="..\..\Library\GameInput\GameInput.vcxproj" />
     <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
   </ItemGroup>
   <Import Project="..\..\KGames.targets" />
 </Project>

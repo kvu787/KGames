@@ -132,6 +132,10 @@ struct Listen {
     bool operator==(const Listen& other) const;
 };
 
+// How a failed check in a test shows a choice: which it is, and its
+// gamepad's ID and label.
+std::string describe_value(const Listen& listen);
+
 // The Keyboard and Mouse cards each show one device: the last one whose
 // reading changed their kind of input. A reading can have several kinds, like
 // one from a keyboard that is also a mouse, and a reading that doesn't change
