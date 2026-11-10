@@ -4,20 +4,28 @@ The geometry of a polygon mesh modeler, like Blender's edit mode: a mesh of poly
 material each and creased edges, its topology, selections of vertices, edges and faces,
 primitives to start from, the edits of a modeler, Catmull-Clark subdivision surfaces, triangles
 for [SimplePaint](../SimplePaint/README.md) to draw, picking, and files. It has no interface or
-GPU, so a modeler and its tests use it alike. `Test/PolygonMesh` tests it.
+GPU, so a modeler and its tests use it alike. `Test/PolygonMesh` tests it. `PolygonMesh.h`
+includes all of it, in the namespace `polygon_mesh`.
 
-```rust
-use polygon_mesh::{Shading, primitives};
-use std::path::Path;
+```cpp
+#include "PolygonMesh/PolygonMesh.h"
 
-let mut mesh = primitives::cube(2.0);
-let top = mesh.extrude_faces([3]);
-mesh.translate(top.vertices.iter().copied(), [0.0, 1.0, 0.0]);
-let surface = mesh.catmull_clark(2);
-let triangles = surface.mesh.triangulate(Shading::Smooth { angle: 0.5 });
-simple_paint::validate_mesh(&triangles.vertices, &triangles.indices, mesh.material_count())?;
-let picked = surface.ray_cast([0.0, 5.0, 0.0], [0.0, -1.0, 0.0]).map(|hit| hit.face);
-mesh.save(Path::new("Mesh.json"))?;
+using namespace polygon_mesh;
+
+std::expected<void, std::string> model() {
+    Mesh mesh = primitives::cube(2.0f);
+    Selection top = mesh.extrude_faces({3});
+    mesh.translate(top.vertices, {0.0f, 1.0f, 0.0f});
+    SubdivisionSurface surface = mesh.catmull_clark(2);
+    Triangles triangles = surface.mesh.triangulate(Shading::Smooth{.angle = 0.5f});
+    auto valid = simple_paint::validate_mesh(triangles.vertices, triangles.indices, mesh.material_count());
+    if (!valid) {
+        return std::unexpected(valid.error().message);
+    }
+    std::optional<Hit> hit = surface.ray_cast({0.0f, 5.0f, 0.0f}, {0.0f, -1.0f, 0.0f});
+    std::optional<size_t> picked = hit.transform([](const Hit& found) { return found.face; });
+    return mesh.save("Mesh.json");
+}
 ```
 
 A `Mesh` has `positions`, `faces` and `creases`, all public. A `Face` is its `vertices`,
@@ -26,8 +34,8 @@ index that SimplePaint paints the face with. Every face has at least 3 vertices,
 and none twice, which `Mesh::validate` checks and every operation keeps. Edges are the faces'
 sides, so there are no edges without faces, and a vertex that no face uses is loose. An `Edge`
 is undirected, its smaller vertex first, so both faces next to it name it the same way.
-`creases` maps an edge to its sharpness, more than 0 and at most `INFINITELY_SHARP`, 10, which
-counts as infinitely sharp; an edge that isn't there is smooth. `Mesh` is `Clone`, so that a
+`creases` maps an edge to its sharpness, more than 0 and at most `InfinitelySharp`, 10, which
+counts as infinitely sharp; an edge that isn't there is smooth. A `Mesh` copies, so that a
 modeler can undo by keeping copies.
 
 Nothing assumes a manifold. An edge can have any number of faces, and the faces around a vertex
@@ -43,28 +51,39 @@ them, and returns the selection that results.
 |               | `material_count`, `face_center`, `face_normal`, `face_area`, `face_area_vector`,     |
 |               | `validate`, `topology`                                                               |
 | `Face`        | `sides` (directed), `edges`, `has_side`, `flip`                                      |
-| `Edge`        | `new`, `vertices`, `contains`, `other`                                               |
+| `Edge`        | `Edge(a, b)`, `vertices`, `contains`, `other`                                        |
 | `Topology`    | `edges`, `edge`, `edge_index`, `edge_faces`, `faces_of_edge`, `face_edges`,          |
 |               | `vertex_edges`, `vertex_faces`, `valence`, `is_boundary`, `is_non_manifold`,         |
 |               | `is_boundary_vertex`, `boundary_edges`, `non_manifold_edges`, `is_closed`,           |
 |               | `is_consistently_wound`, `euler_characteristic`, `edge_loop`, `edge_ring`,           |
 |               | `face_loop`, `ring`                                                                  |
 | `Selection`   | `vertices`, `edges`, `faces`; `from_vertices`, `from_edges`, `from_faces`, `all`,    |
-|               | `new` (none), `inverted`, `in_mode`, `union`, `edge_loop`, `edge_ring`, `face_loop`, |
-|               | `center`, `is_empty`                                                                 |
+|               | `Selection()` (none), `inverted`, `in_mode`, `union_`, `edge_loop`, `edge_ring`,     |
+|               | `face_loop`, `center`, `is_empty`                                                    |
 | `primitives`  | `cube`, `plane`, `cylinder`, `cone`, `uv_sphere`, `torus`                            |
 | Editing       | `translate`, `rotate`, `scale`, `transform`, `extrude_faces`, `extrude_edges`,       |
 |               | `inset_region`, `inset_individual`, `delete_vertices`, `delete_edges`,               |
 |               | `delete_faces`, `delete_only_faces`, `remove_unused_vertices`, `make_face`, `fill`,  |
 |               | `merge_at_center`, `merge_by_distance`, `subdivide_faces`, `loop_cut`,               |
 |               | `flip_faces`, `recalculate_normals_outside`, `crease_edges`, `assign_material`,      |
-|               | all methods of `Mesh`                                                                |
+|               | all member functions of `Mesh`                                                       |
 | Subdivision   | `Mesh::catmull_clark`, `SubdivisionSurface`'s `mesh` and `base_faces`                |
-| Triangles     | `Mesh::triangulate`, `Shading::Flat` and `Shading::Smooth { angle }`, `Triangles`'   |
+| Triangles     | `Mesh::triangulate`, `Shading::Flat{}` and `Shading::Smooth{angle}`, `Triangles`'    |
 |               | `vertices`, `indices` and `faces`, `Mesh::face_triangles`                            |
-| Picking       | `Mesh::ray_cast` and `SubdivisionSurface::ray_cast`, to a `Hit`'s `face`, `distance` |
-|               | and `point`; `nearest_vertex`, `nearest_edge`, `bounds`, `center_of`                 |
-| Files         | `to_json`, `from_json`, `save`, `load`, `to_obj`, all methods of `Mesh`              |
+| Picking       | `Mesh::ray_cast`, `Triangles::ray_cast` and `SubdivisionSurface::ray_cast`, to a     |
+|               | `Hit`'s `face`, `distance` and `point`; `nearest_vertex`, `nearest_edge`, `bounds`,  |
+|               | `center_of`                                                                          |
+| Files         | `to_json`, `from_json`, `save`, `load`, `to_obj`, all member functions of `Mesh`     |
+
+Its headers are `Mesh.h`, with `Edge`, `Face` and `Mesh`, `Topology.h`, `Selection.h`,
+`Primitives.h`, `Editing.h`, `Extrusion.h`, `Cutting.h`, `Subdivision.h`, `Triangulation.h`,
+`Picking.h` and `Files.h`, each with a `.cpp` beside it. `Mesh.h` declares every member function
+of `Mesh`, and says what each does. The other files define the ones that are theirs, like
+`Editing.h` and `Editing.cpp` the edits.
+
+What may be absent is a `std::optional`, like a ray's `Hit`, and what may go wrong is a
+`std::expected` with what's wrong as text, like the selection that `make_face` returns, or a mesh
+that `load` reads.
 
 ## Topology
 
@@ -114,10 +133,11 @@ and triangles only around a sphere's poles and a cone's tip.
 
 ## Editing
 
-The edits are Blender's, in edit mode, as methods of `Mesh`. Each takes its vertices, edges or
-faces as any iterator of them, like a `Selection`'s sets or an array, and leaves out the ones that
-aren't in the mesh. One that changes which faces there are returns the selection that results, as
-Blender leaves it, and the others leave the selection as it was.
+The edits are Blender's, in edit mode, as member functions of `Mesh`. Each takes its vertices,
+edges or faces as any range of them, like a `Selection`'s sets, a `std::vector`, a view like
+`std::views::iota(0, 8)`, or a list in braces, like `{3, 7}`, and leaves out the ones that aren't
+in the mesh. One that changes which faces there are returns the selection that results, as Blender
+leaves it, and the others leave the selection as it was.
 
 | Edit                           | What it does                                                                           | What it selects |
 | ------------------------------ | -------------------------------------------------------------------------------------- | --------------- |
@@ -231,7 +251,7 @@ surface isn't a manifold are corners too: on a non-manifold edge, on two stretch
 or with faces that don't make one fan around them.
 
 Each level, both halves of an edge get its sharpness less 1, and infinitely sharp edges, of
-sharpness `INFINITELY_SHARP` or more, stay infinitely sharp:
+sharpness `InfinitelySharp` or more, stay infinitely sharp:
 
 $$
 s' = \max(s - 1, 0)
@@ -260,21 +280,21 @@ level, and like a smooth one after, and sharpness 0.5 is halfway between the two
 
 ## Triangles for SimplePaint
 
-`Mesh::triangulate(shading)` gives `Triangles`: `simple_paint::Vertex`es, `u32` indices, three
-for each triangle, wound like the faces, and in `faces`, the face that each triangle comes from,
-for picking and for drawing the selected faces. A subdivision surface draws by triangulating its
-`mesh`, and `base_faces[faces[i]]` is the base face of triangle i.
+`Mesh::triangulate(shading)` gives `Triangles`: `simple_paint::Vertex`es, `std::uint32_t` indices,
+three for each triangle, wound like the faces, and in `faces`, the face that each triangle comes
+from, for picking and for drawing the selected faces. A subdivision surface draws by triangulating
+its `mesh`, and `base_faces[faces[i]]` is the base face of triangle i.
 
 Each face is cut into n - 2 triangles by ear clipping in the plane of its normal, so concave faces
 work. `face_triangles(face)` gives a face's triangles as places in its list of vertices.
 
-- `Shading::Flat` gives each face its own normal.
-- `Shading::Smooth { angle }` smooths normals across each edge between two faces that meet at up
+- `Shading::Flat{}` gives each face its own normal.
+- `Shading::Smooth{angle}` smooths normals across each edge between two faces that meet at up
   to `angle` radians, like Blender's Auto Smooth, weighing each face by the angle of its corner.
   They split at sharper edges, at creased edges of any sharpness, at boundary and non-manifold
-  edges, and between materials. An angle of PI smooths every edge that isn't creased.
+  edges, and between materials. An angle of pi smooths every edge that isn't creased.
 
-What it gives passes `simple_paint::validate_mesh(&triangles.vertices, &triangles.indices,
+What it gives passes `simple_paint::validate_mesh(triangles.vertices, triangles.indices,
 mesh.material_count())` for any mesh with positions that SimplePaint accepts: every vertex is
 used, triangles without area, like the walls of an extrusion that hasn't moved, are left out, and
 a triangle whose smooth normals don't share SimplePaint's cone gets its own flat normal instead,
