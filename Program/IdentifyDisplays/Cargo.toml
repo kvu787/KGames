@@ -11,8 +11,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "IdentifyDisplays"
-path = "src/main.rs"
+name = "identify_displays"
 # Every test is in Test.
 test = false
 

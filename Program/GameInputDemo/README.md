@@ -167,7 +167,7 @@ To open the demo on another display, find the display's identifier with `Identif
 pass it with `--display`, or put it in the [settings file](#settings-file):
 
 ```powershell
-cargo run --release --bin IdentifyDisplays
+cargo run --release --bin identify_displays
 cargo run --release -- --display KXGR16
 ```
 

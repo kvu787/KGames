@@ -12,8 +12,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "GameInputDemo"
-path = "src/main.rs"
+name = "game_input_demo"
 # Every test is in Test.
 test = false
 

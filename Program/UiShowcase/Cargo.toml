@@ -11,8 +11,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "UiShowcase"
-path = "src/main.rs"
+name = "ui_showcase"
 # Every test is in Test.
 test = false
 

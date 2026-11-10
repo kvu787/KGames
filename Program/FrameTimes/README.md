@@ -8,10 +8,10 @@ console program, without a window: it reads the process's presents with
 statistics of the times between its frames on the screen.
 
 ```powershell
-Program\RunLightly\RunLightly.ps1 cargo build --release --bin FrameTimes
-target\release\FrameTimes.exe AceCombat8
-target\release\FrameTimes.exe AceCombat8.exe --seconds 60
-target\release\FrameTimes.exe 1234
+Program\RunLightly\RunLightly.ps1 cargo build --release --bin frame_times
+target\release\frame_times.exe AceCombat8
+target\release\frame_times.exe AceCombat8.exe --seconds 60
+target\release\frame_times.exe 1234
 ```
 
 Name the process by its exe's name, without regard to case and with or without `.exe`, or by its

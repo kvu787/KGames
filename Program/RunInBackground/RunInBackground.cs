@@ -44,7 +44,7 @@ const string Usage = """
     Usage: RunInBackground.ps1 <program> [options]
 
       <program>               The program to run, like GameInputDemo: the name
-                              of its folder in Program, and of its exe
+                              of its folder in Program
 
       --display <identifier>  The display to open on, as IdentifyDisplays --list
                               shows it. CVVNY2 by default
@@ -179,7 +179,13 @@ static void Run(string[] arguments) {
         // Where the program's Directory.Build.props puts the build.
         exe = Path.Combine(target, "DotNet", "bin", program, $"{configuration.ToLowerInvariant()}_win-x64", $"{program}.exe");
     } else {
-        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", program };
+        // A Rust program's exe has its package's name, like game_input_demo for GameInputDemo.
+        var manifest = Path.Combine(repository, "Program", program, "Cargo.toml");
+        if (!File.Exists(manifest)) {
+            throw new FailureException($"Program\\{program} has no Cargo.toml or .csproj");
+        }
+        var package = PackageName(manifest);
+        var build = new List<string> { "cargo", "build", "--manifest-path", Path.Combine(repository, "Cargo.toml"), "--bin", package };
         if (!debugBuild) {
             build.Add("--release");
         }
@@ -187,7 +193,7 @@ static void Run(string[] arguments) {
         if (cargoExit != 0) {
             throw new FailureException($"cargo build failed with exit code {cargoExit}");
         }
-        exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{program}.exe");
+        exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{package}.exe");
     }
     var sync = verticalSync ? " --vsync" : " --no-vsync";
 
@@ -343,6 +349,23 @@ static string Value(string[] arguments, ref int index) {
         throw new FailureException($"{arguments[index]} needs a value after it");
     }
     return arguments[++index];
+}
+
+// The name in a Cargo.toml's [package] table, which Cargo gives its program's exe.
+static string PackageName(string manifest) {
+    var package = false;
+    foreach (var line in File.ReadLines(manifest)) {
+        var text = line.Trim();
+        if (text.StartsWith('[')) {
+            package = text == "[package]";
+            continue;
+        }
+        var parts = text.Split('=', 2);
+        if (package && parts.Length == 2 && parts[0].Trim() == "name") {
+            return parts[1].Trim().Trim('"');
+        }
+    }
+    throw new FailureException($"{manifest} names no package");
 }
 
 // A popup's picture, with the black that PrintWindow gives the transparent

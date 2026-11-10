@@ -87,7 +87,7 @@ Program\RunLightly\RunLightly.ps1 cargo build --release --workspace --target-dir
 While it builds, measure the game in another:
 
 ```powershell
-target\release\FrameTimes.exe AceCombat8 --seconds 60
+target\release\frame_times.exe AceCombat8 --seconds 60
 ```
 
 Then measure the game again, in the same place, without the build, and compare the two. The 99th

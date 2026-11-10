@@ -5,8 +5,8 @@ program opens on. Put the identifier in the `"Display"` setting of the program's
 `Settings.json`, or pass it to the program with `--display`.
 
 ```powershell
-cargo run --release --bin IdentifyDisplays
-cargo run --release --bin IdentifyDisplays -- --list
+cargo run --release --bin identify_displays
+cargo run --release --bin identify_displays -- --list
 ```
 
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like

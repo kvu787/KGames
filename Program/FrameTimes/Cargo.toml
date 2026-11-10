@@ -12,8 +12,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "FrameTimes"
-path = "src/main.rs"
+name = "frame_times"
 # Every test is in Test.
 test = false
 

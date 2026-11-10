@@ -8,10 +8,10 @@ program, without a window. [Documentation/Performance.md](../../Documentation/Pe
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
-Program\RunLightly\RunLightly.ps1 target\release\Benchmarks.exe
-target\release\Benchmarks.exe --filter mesh --quick
-target\release\Benchmarks.exe --json target\Benchmarks\Benchmarks.json
-target\release\Benchmarks.exe --list
+Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe
+target\release\benchmarks.exe --filter mesh --quick
+target\release\benchmarks.exe --json target\Benchmarks\Benchmarks.json
+target\release\benchmarks.exe --list
 ```
 
 | Argument          | What it does                                                               |

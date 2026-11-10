@@ -11,8 +11,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "SpinningCarTest"
-path = "src/main.rs"
+name = "spinning_car_test"
 # Every test is in Test.
 test = false
 

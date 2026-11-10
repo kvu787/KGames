@@ -11,8 +11,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "MeshModeler"
-path = "src/main.rs"
+name = "mesh_modeler"
 # Every test is in Test.
 test = false
 
