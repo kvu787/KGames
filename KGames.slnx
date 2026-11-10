@@ -1,0 +1,19 @@
+<!--
+  Every C++ project in the repository, for Visual Studio, and for Program\Build\Build.ps1, which
+  builds them all with MSBuild. KGames.props says what each project is.
+-->
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Library/">
+    <Project Path="Library/Base/Base.vcxproj" />
+    <Project Path="Library/Json/Json.vcxproj" />
+    <Project Path="Library/Math/Math.vcxproj" />
+    <Project Path="Library/Testing/Testing.vcxproj" />
+  </Folder>
+  <Folder Name="/Test/">
+    <Project Path="Test/Json/JsonTests.vcxproj" />
+    <Project Path="Test/Math/MathTests.vcxproj" />
+  </Folder>
+</Solution>

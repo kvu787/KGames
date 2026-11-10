@@ -1,0 +1,153 @@
+<!--
+  The settings of every C++ project in the repository, which each .vcxproj imports first, and
+  KGames.targets last. A project is then little more than the projects it uses:
+
+      <Project DefaultTargets="Build">
+        <Import Project="..\..\KGames.props" />
+        <ItemGroup>
+          <ProjectReference Include="..\Json\Json.vcxproj" />
+        </ItemGroup>
+        <Import Project="..\..\KGames.targets" />
+      </Project>
+
+  What a project builds follows from where it is, as AGENTS.md lays the repository out:
+
+    - Library\<Name>\<Name>.vcxproj: a static library, of every .cpp in its folder.
+    - Program\<Name>\<Name>Library.vcxproj: a program's parts, as a static library that its tests
+      link, of every .cpp in its folder but Main.cpp.
+    - Program\<Name>\<Name>.vcxproj: the program, <Name>.exe, of Main.cpp and that library. A
+      window's program unless it sets KGamesConsole to true.
+    - Test\<Name>\<Name>Tests.vcxproj: a console program of every .cpp in its folder, with
+      Library\Testing, whose main runs its tests.
+
+  A project that's something else says so with KGamesKind, before it imports this: Tool, a console
+  program that a build runs, like Library\Meshes\Generator.
+
+  Everything builds into the target folder at the root, which .gitignore leaves out:
+  target\<Configuration> has the programs and libraries, and target\Intermediate the rest.
+-->
+<Project>
+  <PropertyGroup>
+    <KGamesRoot>$(MSBuildThisFileDirectory)</KGamesRoot>
+    <KGamesFolder>$([MSBuild]::MakeRelative('$(KGamesRoot)', '$(MSBuildProjectDirectory)\'))</KGamesFolder>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(KGamesKind)' == ''">
+    <KGamesKind Condition="$(KGamesFolder.StartsWith('Library\'))">Library</KGamesKind>
+    <KGamesKind Condition="$(KGamesFolder.StartsWith('Test\'))">Tests</KGamesKind>
+    <KGamesKind Condition="$(KGamesFolder.StartsWith('Program\')) and $(MSBuildProjectName.EndsWith('Library'))">ProgramLibrary</KGamesKind>
+    <KGamesKind Condition="$(KGamesFolder.StartsWith('Program\')) and !$(MSBuildProjectName.EndsWith('Library'))">Program</KGamesKind>
+  </PropertyGroup>
+  <PropertyGroup>
+    <KGamesIsProgram Condition="'$(KGamesKind)' == 'Program' or '$(KGamesKind)' == 'Tests' or '$(KGamesKind)' == 'Tool'">true</KGamesIsProgram>
+    <!-- Tests and tools write to the console. So does a program that says so. -->
+    <KGamesConsole Condition="'$(KGamesKind)' == 'Tests' or '$(KGamesKind)' == 'Tool'">true</KGamesConsole>
+  </PropertyGroup>
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>$(MSBuildProjectName)</RootNamespace>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <!-- The newest installed Windows SDK. -->
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType Condition="'$(KGamesIsProgram)' == 'true'">Application</ConfigurationType>
+    <ConfigurationType Condition="'$(KGamesIsProgram)' != 'true'">StaticLibrary</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)' != 'Debug'">false</UseDebugLibraries>
+    <!-- Release optimizes across every library of a program as it links, as Visual Studio's own Release does. -->
+    <WholeProgramOptimization Condition="'$(Configuration)' == 'Release'">true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <PropertyGroup>
+    <OutDir>$(KGamesRoot)target\$(Configuration)\</OutDir>
+    <IntDir>$(KGamesRoot)target\Intermediate\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    <!-- What a build generates for the project's code to include, like its compiled shaders. -->
+    <KGamesGenerated>$(IntDir)Generated\</KGamesGenerated>
+    <LinkIncremental>false</LinkIncremental>
+    <!-- No vcpkg, whatever the machine has integrated with MSBuild. -->
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <!-- /utf-8: the sources and the strings in them are UTF-8. /Zc:preprocessor: the standard's preprocessor. -->
+      <AdditionalOptions>/utf-8 /Zc:preprocessor /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <!--
+        "Library/..." and "Program/..." name every header of the repository's own, like
+        "Json/Json.h" and "Platformer/Game.h".
+      -->
+      <AdditionalIncludeDirectories>$(KGamesRoot)Library;$(KGamesRoot)Program;$(KGamesGenerated);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <!-- Headers included with angle brackets, like the Windows SDK's, aren't the repository's to fix. -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <!-- /Z7: debug information in each .obj, so no compiler shares a .pdb, or a server that writes it. -->
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <SupportJustMyCode>false</SupportJustMyCode>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem Condition="'$(KGamesConsole)' == 'true'">Console</SubSystem>
+      <SubSystem Condition="'$(KGamesConsole)' != 'true'">Windows</SubSystem>
+      <!-- Every program starts at main, whether or not it has a console. -->
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- What every project uses: Library\Base, and for tests, Library\Testing. A program uses its library. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Base'">
+    <ProjectReference Include="$(KGamesRoot)Library\Base\Base.vcxproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(KGamesKind)' == 'Tests'">
+    <ProjectReference Include="$(KGamesRoot)Library\Testing\Testing.vcxproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(KGamesKind)' == 'Program' and Exists('$(MSBuildProjectDirectory)\$(MSBuildProjectName)Library.vcxproj')">
+    <ProjectReference Include="$(MSBuildProjectDirectory)\$(MSBuildProjectName)Library.vcxproj" />
+  </ItemGroup>
+</Project>

@@ -49,6 +49,110 @@ All PowerShell scripts must:
 - Use `Set-StrictMode -Version Latest`
 - Use `$ErrorActionPreference = 'Stop'`
 
+# C++
+
+KGames is C++, as the newest MSVC compiles it with `/std:c++latest`, built with MSBuild. It uses
+the C++ standard library, the Windows SDK and GameInput, and no other library.
+
+## Building and testing
+
+- `Program\Build\Build.ps1` builds every project in `KGames.slnx`, in Debug, or the projects named,
+  like `Program\Build\Build.ps1 --release Platformer`. It finds Visual Studio's MSBuild, which isn't
+  on the PATH. Programs and libraries go to `target\Debug` and `target\Release`.
+- `Program\RunTests\RunTests.ps1` builds the tests in `Test` and runs them, or the test projects
+  named, like `Program\RunTests\RunTests.ps1 JsonTests --filter writes`. Tests build in Debug, where
+  the C runtime and the standard library check what Release doesn't, like the bounds of an index.
+- Run both through RunLightly, as below.
+- `KGames.props` says what each `.vcxproj` builds from where it is, and `KGames.targets` what it
+  compiles: every `.cpp` in its folder, so a new file needs no line in a project. A new project
+  goes in `KGames.slnx`, and names the projects it uses with `ProjectReference`.
+- Warnings are errors, at `/W4`. Fix what a warning points at instead of turning it off.
+- Format C++ with `.clang-format`, with Visual Studio's `clang-format.exe`, before committing.
+
+## Files
+
+- A library is `Library/<Name>`: `<Name>.vcxproj`, and its headers and sources beside it, in
+  folders for its parts, like `Library/UserInterface/Core/Interface.h` and `Interface.cpp`.
+  `<Name>.h` includes every header that the library's users need.
+- A program is `Program/<Name>`: `<Name>Library.vcxproj` builds everything but `Main.cpp` into a
+  static library, which its tests link, and `<Name>.vcxproj` builds `Main.cpp` into `<Name>.exe`.
+- A project's tests are `Test/<Name>/<Name>Tests.vcxproj`, with a `.cpp` for each thing they test.
+- Name files and folders in PascalCase. Headers are `.h`, start with a comment that says what the
+  file is, and then `#pragma once`.
+- Include the repository's headers with quotes, from `Library` or `Program`, like
+  `"Json/Json.h"` or `"Platformer/Game.h"`, and everything else with angle brackets.
+- Include `Windows.h` only through `"Base/Windows.h"`, before any other header of the Windows SDK.
+- Link a system library where it's used, with `#pragma comment(lib, "d3d12.lib")` in the `.cpp`.
+- A project that compiles shaders names them with `Shader` items, as `KGames.targets` says.
+
+## Names
+
+- Types are `PascalCase`. Functions, variables, parameters, members and namespaces are
+  `snake_case`. Constants and enumerators are `PascalCase`, like `LineLength` and `Layer::Popup`.
+- Nothing is `ALL_CAPS` but a macro, since the Windows SDK defines thousands of those, like
+  `DELETE`, `TRANSPARENT`, `NEAR`, `ERROR` and `TEXT`, which would replace a constant of the name.
+- A library's namespace is its name in snake_case, like `user_interface` for
+  `Library/UserInterface`. A program's is the program's name, like `platformer`.
+- A data member that a member function shares its name with ends in an underscore: `rect_` for
+  `rect()`.
+- These are macros or keywords, so a name that would be one ends in an underscore, like `near_`:
+  `near`, `far`, `small`, `interface`, `min`, `max`, `leave`, `except`, `try`, `module`,
+  `requires`, `default`, `delete`, `new`, `this`, `template`, `class`, `union`, `export`,
+  `register`, `and`, `or`, `not`, `xor`.
+- A test's name is a sentence in snake_case that says what holds, like
+  `a_jump_press_rises_on_its_own_frame`.
+
+## Types
+
+- A struct that's only data is a `struct` with public members, default member initializers, and
+  `bool operator==(const T&) const = default;` if anything compares it. A type with something to
+  keep true is a `class` with private members.
+- A type that code never copies is move-only: delete its copy constructor and copy assignment, so
+  that a copy that's meant to be a move doesn't compile. Types that own what's costly to copy, like
+  a tree of widgets or a mesh, are move-only unless copying one is part of what they're for.
+- Take what a function only reads as `const T&`, or by value if it's as small as two pointers, and
+  as `std::string_view` or `std::span<const T>` for text and arrays. Take what it keeps by value,
+  and `std::move` it in. Take what it changes as `T&`.
+- Never keep a reference, pointer, iterator, `string_view` or `span` into a container across a
+  call that can grow or change the container.
+- Something that may be absent is a `std::optional<T>`, or a pointer, null for absent, when it's
+  something that lives elsewhere.
+- A value that's one of several alternatives with their own data is a sum type, as
+  `Library/Base/Sum.h` says: a struct with its alternatives nested, and `base::match`, `base::is`
+  and `base::as`. Without data, it's an `enum class`.
+- Something with several implementations, chosen as the program runs, is a class with virtual
+  functions and a virtual destructor, held in a `std::unique_ptr`. Chosen as it compiles, it's a
+  template, with a concept that says what it needs.
+- COM objects are held in `Microsoft::WRL::ComPtr`.
+- Text is UTF-8 in `std::string`, and UTF-16 only on the way into and out of the Windows API, with
+  `base::widen` and `base::narrow`. A character is a `char32_t`, from `base::chars`.
+- Sizes and indices are `size_t`. A cast between number types is a `static_cast`, and a float that
+  may be out of an integer's range goes through `base::saturating_cast`. Float literals of `float`s
+  end in `f`.
+
+## Errors
+
+Three kinds, and each has one way:
+
+- What can go wrong in what the program reads, like a settings file or a model: the function
+  returns `std::expected<T, std::string>`, or an error type of its own, and its caller decides.
+- A call of the Windows API that fails: `base::check` throws a `base::WindowsError`, which
+  nothing catches but the code that can go on without what failed.
+- What can't happen: `base::panic`, which throws a `base::Panic` that only tests catch, so it
+  stops the program. `optional.value()` and `expected.value()` throw too, where the code relies
+  on there being a value.
+
+A destructor never throws. Nothing else throws on purpose.
+
+## Tests
+
+- A test is `TEST(name) { ... }` with `CHECK`, `CHECK_EQ`, `CHECK_NE` and `CHECK_THROWS`, as
+  `Library/Testing/Testing.h` says. A failed check ends its test.
+- A type that tests compare says how a failed check shows it, with a `describe_value` function
+  beside it, in its namespace, that returns a `std::string`.
+- A test reads its files from `folders::Project` or `folders::Repository`, from `"Folders.h"`, and
+  writes only under `std::filesystem::temp_directory_path()`, in a folder of its own.
+
 # Correctness
 
 Development here is heavy and session-based: a rule that only a machine check enforces is the only

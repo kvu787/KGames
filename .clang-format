@@ -1,0 +1,33 @@
+# How the C++ is formatted, with the clang-format that Visual Studio installs:
+#
+#     & "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\clang-format.exe" -i <files>
+#
+# Four spaces, braces on the line that opens them, and long lines, as the
+# rest of the repository is written.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 180
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BreakConstructorInitializers: AfterColon
+PackConstructorInitializers: NextLine
+InsertBraces: true
+IndentCaseLabels: false
+IndentPPDirectives: None
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceAfterTemplateKeyword: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+ReflowComments: false
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1

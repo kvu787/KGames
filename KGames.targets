@@ -1,0 +1,73 @@
+<!--
+  What every C++ project builds with, which each .vcxproj imports last, after KGames.props and its
+  own items: its sources, which are the .cpp and .h files in its folder, so that a new file needs
+  no line in a project, and its shaders.
+
+  A project compiles HLSL to DXIL as it builds, with the Windows SDK's dxc.exe, by naming it:
+
+      <Shader Include="Shaders\Interface.hlsl" Name="Interface" Arguments="-O3 -WX" />
+
+  That compiles the file's VSMain and PSMain for Shader Model 6.0 into <Name>Vertex.h and
+  <Name>Pixel.h, which each define the shader's bytes as an array of that name, like
+  InterfaceVertex, for the project's code to include. They're compiled again when any shader in
+  the file's folder changes, which covers the files it includes from there.
+
+  KGamesExclude names sources in the folder that the project doesn't compile, like a tool's in a
+  folder of its own: Generator\**.
+
+  Every project can also include "Folders.h", which a build makes: folders::Project is the
+  project's folder, and folders::Repository the repository's.
+-->
+<Project>
+  <ItemGroup Condition="'$(KGamesKind)' == 'Program'">
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(KGamesKind)' == 'ProgramLibrary'">
+    <ClCompile Include="**\*.cpp" Exclude="Main.cpp;$(KGamesExclude)" />
+    <ClInclude Include="**\*.h" Exclude="$(KGamesExclude)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(KGamesKind)' == 'Library' or '$(KGamesKind)' == 'Tests' or '$(KGamesKind)' == 'Tool'">
+    <ClCompile Include="**\*.cpp" Exclude="$(KGamesExclude)" />
+    <ClInclude Include="**\*.h" Exclude="$(KGamesExclude)" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <!--
+    Folders.h, which every project can include: where the project and the repository are on the
+    machine that built it, for the files that a program or a test reads from there, like a
+    program's Settings.json.
+  -->
+  <Target Name="KGamesFolders" BeforeTargets="ClCompile">
+    <ItemGroup>
+      <KGamesFoldersLine Include="// Made by KGames.targets: where the project and the repository are, on the machine that built it." />
+      <KGamesFoldersLine Include="#pragma once" />
+      <KGamesFoldersLine Include="namespace folders {" />
+      <KGamesFoldersLine Include="inline constexpr const char* Project = R&quot;($(MSBuildProjectDirectory))&quot;%3B" />
+      <KGamesFoldersLine Include="inline constexpr const char* Repository = R&quot;($(KGamesRoot.TrimEnd('\')))&quot;%3B" />
+      <KGamesFoldersLine Include="} // namespace folders" />
+    </ItemGroup>
+    <MakeDir Directories="$(KGamesGenerated)" />
+    <WriteLinesToFile File="$(KGamesGenerated)Folders.h" Lines="@(KGamesFoldersLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <PropertyGroup>
+    <KGamesDxc>$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxc.exe</KGamesDxc>
+  </PropertyGroup>
+
+  <!-- Every shader file beside the ones that the project compiles. -->
+  <Target Name="KGamesShaderFolders" Condition="'@(Shader)' != ''">
+    <ItemGroup>
+      <KGamesShaderFile Include="%(Shader.RootDir)%(Shader.Directory)*.hlsl;%(Shader.RootDir)%(Shader.Directory)*.hlsli" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(KGamesDxc)')" Text="dxc.exe isn't at $(KGamesDxc). Install the Windows SDK." />
+  </Target>
+
+  <Target Name="KGamesShaders" BeforeTargets="ClCompile" DependsOnTargets="KGamesShaderFolders" Condition="'@(Shader)' != ''"
+          Inputs="@(Shader);@(KGamesShaderFile);$(MSBuildProjectFullPath);$(MSBuildThisFileFullPath)"
+          Outputs="$(KGamesGenerated)%(Shader.Name)Vertex.h;$(KGamesGenerated)%(Shader.Name)Pixel.h">
+    <MakeDir Directories="$(KGamesGenerated)" />
+    <Exec Command="&quot;$(KGamesDxc)&quot; -nologo -T vs_6_0 -E VSMain %(Shader.Arguments) -Vn %(Shader.Name)Vertex -Fh &quot;$(KGamesGenerated)%(Shader.Name)Vertex.h&quot; &quot;%(Shader.FullPath)&quot;" StandardOutputImportance="low" />
+    <Exec Command="&quot;$(KGamesDxc)&quot; -nologo -T ps_6_0 -E PSMain %(Shader.Arguments) -Vn %(Shader.Name)Pixel -Fh &quot;$(KGamesGenerated)%(Shader.Name)Pixel.h&quot; &quot;%(Shader.FullPath)&quot;" StandardOutputImportance="low" />
+  </Target>
+</Project>
