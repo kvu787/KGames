@@ -1,0 +1,23 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\Math\Math.vcxproj" />
+    <ProjectReference Include="..\..\Library\PaintSettings\PaintSettings.vcxproj" />
+    <ProjectReference Include="..\..\Library\PolygonMesh\PolygonMesh.vcxproj" />
+    <ProjectReference Include="..\..\Library\SimplePaint\SimplePaint.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+  </ItemGroup>
+  <!--
+    The shaders, compiled to DXIL as the library builds: SimplePaint's, for the modeler's materials,
+    from where Library\SimplePaint has them; the flat shader, for the same materials' colors; and
+    the overlay's. The 16 materials match Paint.h's MaximumPaints.
+  -->
+  <ItemGroup>
+    <Shader Include="$(KGamesRoot)Library\SimplePaint\Shaders\SimplePaint.hlsl" Name="SimplePaint" Arguments="-O3 -Ges -WX -D SIMPLE_PAINT_MATERIAL_COUNT=16" />
+    <Shader Include="Shaders\Flat.hlsl" Name="Flat" Arguments="-O3 -WX -D MATERIAL_COUNT=16" />
+    <Shader Include="Shaders\Overlay.hlsl" Name="Overlay" Arguments="-O3 -WX" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

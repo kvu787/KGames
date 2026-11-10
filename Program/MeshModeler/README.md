@@ -99,7 +99,8 @@ window ask before changes are lost.
 ## Build and run
 
 ```powershell
-cargo run --release
+Program\Build\Build.ps1 --release MeshModeler
+target\Release\MeshModeler.exe
 ```
 
 Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It opens the modeler
@@ -110,7 +111,7 @@ the settings that every program has; the modeler has none of its own.
 ## Testing
 
 ```powershell
-cargo test -p mesh_modeler_tests
+Program\RunTests\RunTests.ps1 MeshModelerTests
 Program\RunInBackground\RunInBackground.ps1 MeshModeler --all-scripts
 ```
 
@@ -148,23 +149,26 @@ much of the world the view's height shows.
 
 ## Layout
 
-| Path                   | Contents                                                                  |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `src/main.rs`          | Runs the modeler with Library/UserInterface's main loop                   |
-| `src/lib.rs`           | The modeler's parts, as a library that `Test/MeshModeler` tests           |
-| `src/modeler.rs`       | The modeler as a program: its state, its commands, and the scene it draws |
-| `src/cards.rs`         | Lays out the app bar, the cards and the dialogs in fixed pixels           |
-| `src/interaction.rs`   | What the keys and the pointer do in the view, and modal edits             |
-| `src/editing.rs`       | Selection modes, tools, picking, modal edits and the mesh's edits         |
-| `src/document.rs`      | The mesh, its paints and selection, the history, and the files            |
-| `src/paint.rs`         | Paints: a name and SimplePaint's settings                                 |
-| `src/camera.rs`        | The orthographic camera, and mapping between the world and pixels         |
-| `src/overlay.rs`       | What's drawn over the mesh: the grid, the cage and the selection          |
-| `src/viewport.rs`      | Draws the mesh and the overlay into the view with Direct3D 12             |
-| `Shaders/Flat.hlsl`    | Flat lighting of the paints' base colors                                  |
-| `Shaders/Overlay.hlsl` | Lines, dots and triangles over the mesh, tested against its depth         |
-| `build.rs`             | Compiles SimplePaint's shaders and the modeler's for 16 paints            |
-| `HumanRun.ps1`         | Builds the modeler and runs it on the primary display, for people         |
-| `HumanRun.cmd`         | Runs `HumanRun.ps1`, for double-clicking in File Explorer                 |
-| `Settings.json`        | The settings that every program has                                       |
-| `Models`               | Saved models and exported OBJ files; not in Git                           |
+| Path                         | Contents                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `Main.cpp`                   | Runs the modeler with Library/UserInterface's main loop                   |
+| `MeshModeler.h`              | The modeler's parts, as a library that `Test/MeshModeler` tests           |
+| `Modeler.h`, `.cpp`          | The modeler as a program: its state, its commands, and the scene it draws |
+| `Cards.h`, `.cpp`            | Lays out the app bar, the cards and the dialogs in fixed pixels           |
+| `Interaction.h`, `.cpp`      | What the keys and the pointer do in the view, and modal edits             |
+| `Editing.h`, `.cpp`          | Selection modes, tools, picking, modal edits and the mesh's edits         |
+| `Document.h`, `.cpp`         | The mesh, its paints and selection, the history, and the files            |
+| `Paint.h`, `.cpp`            | Paints: a name and SimplePaint's settings                                 |
+| `Camera.h`, `.cpp`           | The orthographic camera, and mapping between the world and pixels         |
+| `Angles.h`                   | Degrees to radians and back, for the camera and for rotations             |
+| `Overlay.h`, `.cpp`          | What's drawn over the mesh: the grid, the cage and the selection          |
+| `Viewport.h`, `.cpp`         | Draws the mesh and the overlay into the view with Direct3D 12             |
+| `Shaders/Flat.hlsl`          | Flat lighting of the paints' base colors                                  |
+| `Shaders/Overlay.hlsl`       | Lines, dots and triangles over the mesh, tested against its depth         |
+| `MeshModelerLibrary.vcxproj` | Builds all but `Main.cpp` into the library, and compiles SimplePaint's    |
+|                              | shaders and the modeler's for 16 paints                                   |
+| `MeshModeler.vcxproj`        | Builds `Main.cpp` and the library into `MeshModeler.exe`                  |
+| `HumanRun.ps1`               | Builds the modeler and runs it on the primary display, for people         |
+| `HumanRun.cmd`               | Runs `HumanRun.ps1`, for double-clicking in File Explorer                 |
+| `Settings.json`              | The settings that every program has                                       |
+| `Models`                     | Saved models and exported OBJ files; not in Git                           |
