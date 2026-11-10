@@ -6,4 +6,4 @@ transforms as `v * M`, so transforms compose from left to right, like
 angles are in radians.
 
 `Matrix::look_at_rh` and `Matrix::orthographic_rh` match `XMMatrixLookAtRH` and
-`XMMatrixOrthographicRH`. [Test/Math](../../Test/Math/tests/matrices.rs) checks them.
+`XMMatrixOrthographicRH`. [Test/Math](../../Test/Math/Matrices.cpp) checks them.

@@ -3,7 +3,7 @@
 Veehiicuul is a racing game seen from above: drive a car around a track as fast as you dare
 without touching the road's edges. It's also where its levels are made: tabs in the app bar go
 between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
-program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
+program, it's built from the libraries in [Library](../../Library) on Win32 and Direct3D 12, with
 [Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, widgets and design
 system, after Fluent 2, ignores input without focus, and supports the two window setups in
 [Library/UserInterface](../../Library/UserInterface/README.md#window-setups).
@@ -296,7 +296,7 @@ Question: Should different underlying stats always be visually distinguisable?
 ## Simple paint
 
 The simple paint shader needs to be available in all parts of the flow, which currently is Blender
-and Veehiicuul which is written in Rust and DX12.
+and Veehiicuul which is written in C++ and DX12.
 
 The canonical implementation of simple paint for Blender will be a Blender Python script that
 generates the shader node graph for simple paint.
