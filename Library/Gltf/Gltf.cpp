@@ -24,8 +24,8 @@ constexpr std::uint32_t JsonChunk = 0x4E4F534A;
 constexpr std::uint32_t BinaryChunk = 0x004E4942;
 
 // What Rust's standard library has and C++'s doesn't: u32::from_le_bytes,
-// usize::next_multiple_of, checked_add, checked_mul, and str::from_utf8's
-// check.
+// usize::next_multiple_of, checked_add and checked_mul. str::from_utf8's
+// check is base::is_utf8.
 std::uint32_t u32_from_le_bytes(std::span<const std::uint8_t> bytes) {
     return static_cast<std::uint32_t>(bytes[0]) | static_cast<std::uint32_t>(bytes[1]) << 8 | static_cast<std::uint32_t>(bytes[2]) << 16 |
            static_cast<std::uint32_t>(bytes[3]) << 24;
@@ -42,19 +42,6 @@ constexpr std::optional<size_t> checked_add(size_t a, size_t b) {
 
 constexpr std::optional<size_t> checked_mul(size_t a, size_t b) {
     return b == 0 || a <= std::numeric_limits<size_t>::max() / b ? std::optional<size_t>(a * b) : std::nullopt;
-}
-
-bool is_utf8(std::string_view text) {
-    while (!text.empty()) {
-        base::Decoded decoded = base::decode_char(text);
-        // U+FFFD is what bytes that aren't UTF-8 decode to, one at a time,
-        // and what the three bytes of a real U+FFFD decode to.
-        if (decoded.character == U'�' && decoded.length == 1) {
-            return false;
-        }
-        text.remove_prefix(decoded.length);
-    }
-    return true;
 }
 
 // The member `name` of `value`, if it's this kind of value, or null.
@@ -665,7 +652,7 @@ std::expected<Model, std::string> parse(std::span<const std::uint8_t> bytes) {
         std::span<const std::uint8_t> data = bytes.subspan(offset + 8, chunk_length);
         if (*kind == JsonChunk && !text) {
             std::string_view chunk_text(reinterpret_cast<const char*>(data.data()), data.size());
-            if (!is_utf8(chunk_text)) {
+            if (!base::is_utf8(chunk_text)) {
                 return std::unexpected("has JSON that isn't UTF-8");
             }
             text = chunk_text;

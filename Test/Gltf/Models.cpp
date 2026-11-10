@@ -198,6 +198,19 @@ TEST(says_what_is_wrong_with_a_file) {
     }
 }
 
+// A character cut short after its second or its third byte isn't UTF-8, any
+// more than one cut short after its first, as std::str::from_utf8 has it in
+// Rust: a material's name would be bytes that aren't text.
+TEST(says_that_json_with_a_character_cut_short_isn_t_utf_8) {
+    for (std::string_view name : {std::string_view("Red\xC3"), std::string_view("Red\xE2\x82"), std::string_view("Red\xF0\x9F\x98")}) {
+        std::string materials = std::format(R"([{{ "name": "{}" }}])", name);
+        CHECK_EQ(problem_of(triangle(R"([{ "mesh": 0 }])", materials, Primitive)), "has JSON that isn't UTF-8", "after {} bytes", name.size() - 3);
+    }
+    // The whole character is.
+    std::string_view whole = "[{ \"name\": \"Red\xE2\x82\xAC\" }]";
+    CHECK_EQ(parse(triangle(R"([{ "mesh": 0 }])", whole, Primitive)).value().material_list[0].name, "Red\xE2\x82\xAC");
+}
+
 // The car, as Blender exported it: one mesh with five materials, 3 units
 // wide and about 6 long, facing +Z, with its wheels on the ground.
 TEST(reads_the_car_that_blender_exported) {
