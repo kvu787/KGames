@@ -255,6 +255,19 @@ public:
         size_t index_ = 0;
     };
 
+    // The same items in the same order, wherever each ring starts.
+    bool operator==(const VecDeque& other) const {
+        if (size_ != other.size_) {
+            return false;
+        }
+        for (size_t index = 0; index < size_; index++) {
+            if (!((*this)[index] == other[index])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     using iterator = Iterator<VecDeque, T>;
     using const_iterator = Iterator<const VecDeque, const T>;
 

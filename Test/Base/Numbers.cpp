@@ -144,6 +144,15 @@ TEST(files_write_and_read_back_and_say_what_went_wrong) {
     CHECK_EQ(base::read_to_string(file).error(), "stream did not contain valid UTF-8");
     CHECK_EQ(base::read(file).value().size(), 3);
 
+    // A file that isn't there is told from one that can't be read.
+    CHECK(base::is_not_found(base::read(folder / "Missing.txt").error()));
+    CHECK(base::is_not_found(base::read(folder / "Missing" / "Missing.txt").error()));
+    CHECK(!base::is_not_found(base::read_to_string(file).error()));
+    // A folder can't be read as a file, and it's there.
+    CHECK(!base::is_not_found(base::read(folder).error()));
+    // No folder is made already.
+    CHECK(base::create_dir_all(std::filesystem::path()).has_value());
+
     // A path is UTF-8 on the way in and out.
     CHECK_EQ(base::display(base::path("C:\\a\\\xC3\xA9")), "C:\\a\\\xC3\xA9");
     CHECK(base::current_exe().filename() == std::filesystem::path("BaseTests.exe"));

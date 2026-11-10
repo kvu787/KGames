@@ -113,6 +113,17 @@ TEST(a_queue_owns_its_items) {
     CHECK_EQ(shared.use_count(), 1);
 }
 
+TEST(queues_are_equal_by_their_items) {
+    base::VecDeque<int> pushed;
+    pushed.push_back(2);
+    pushed.push_back(3);
+    pushed.push_front(1);
+    CHECK(pushed == (base::VecDeque<int>{1, 2, 3}));
+    CHECK(!(pushed == (base::VecDeque<int>{1, 2})));
+    CHECK(!(pushed == (base::VecDeque<int>{1, 2, 4})));
+    CHECK(base::VecDeque<int>() == base::VecDeque<int>());
+}
+
 TEST(a_queues_items_work_with_the_standard_algorithms) {
     base::VecDeque<int> queue{5, 1, 4};
     queue.push_front(9);

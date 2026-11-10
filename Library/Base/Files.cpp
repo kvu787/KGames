@@ -114,7 +114,22 @@ std::filesystem::path current_exe() {
     }
 }
 
+bool is_not_found(std::string_view error) {
+    // The codes that Rust's standard library reads as NotFound:
+    // ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND, ERROR_INVALID_DRIVE,
+    // ERROR_BAD_NETPATH and ERROR_BAD_NET_NAME.
+    for (unsigned long code : {ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND, ERROR_INVALID_DRIVE, ERROR_BAD_NETPATH, ERROR_BAD_NET_NAME}) {
+        if (error.ends_with(std::format("(os error {})", code))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::expected<void, std::string> create_dir_all(const std::filesystem::path& path) {
+    if (path.empty()) {
+        return {};
+    }
     std::error_code error;
     std::filesystem::create_directories(path, error);
     if (error) {
