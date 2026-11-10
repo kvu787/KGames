@@ -1,17 +1,17 @@
 // The platformer's parts, as a library, so that Test/Platformer can test
 // them without a window: the levels, the physics, the events and the game
-// they drive, and the progress that persists. Main.cpp is the program.
-//
-// The cards and the program that Library/UserInterface runs aren't here
-// yet: they come with that library's widgets and main loop.
+// they drive, the progress that persists, and the program that
+// Library/UserInterface runs. Main.cpp is the program.
 
 #pragma once
 
+#include "Platformer/Cards.h"
 #include "Platformer/Controls.h"
 #include "Platformer/Events.h"
 #include "Platformer/Game.h"
 #include "Platformer/Level.h"
 #include "Platformer/Physics.h"
+#include "Platformer/Program.h"
 #include "Platformer/Progress.h"
 
 #include <string_view>

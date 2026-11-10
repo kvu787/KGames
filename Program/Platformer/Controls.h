@@ -11,13 +11,16 @@
 //
 // Without the window's focus, the interface has no input at all, so the
 // controls are at rest.
-//
-// Controls::read, which reads them from Library/UserInterface's Ui, isn't
-// here yet: it comes with the parts of the program that use that library.
 
 #pragma once
 
 #include <cstdint>
+
+namespace user_interface {
+
+class Ui;
+
+} // namespace user_interface
 
 namespace platformer::controls {
 
@@ -31,6 +34,8 @@ struct Controls {
     // To the previous level, -1, or the next, 1.
     std::int32_t level = 0;
     bool toggle_cards = false;
+
+    static Controls read(const user_interface::Ui& ui);
 
     bool operator==(const Controls&) const = default;
 };

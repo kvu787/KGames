@@ -41,7 +41,7 @@ a bug in the graph, and stops the program instead of hiding.
 
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,
-never from a snapshot. `Test/Platformer/tests/events.rs` pins the one-frame law:
+never from a snapshot. `Test/Platformer/Events.cpp` pins the one-frame law:
 its deepest test collects the last coin, opens the door, reaches the goal,
 sets the record, writes the file and flashes the save light in one
 `Game::update`, and asserts all of it, the file on disk included.
@@ -55,23 +55,23 @@ The file isn't checked in; delete it for a fresh start.
 
 ## Layout
 
-| Path              | Contents                                                       |
-| ----------------- | -------------------------------------------------------------- |
-| `src/level.rs`    | The levels: zones, coins, spikes, springs, doors, patrols      |
-| `src/physics.rs`  | Fixed-step movement: run, gravity, jump buffer, coyote, carry  |
-| `src/events.rs`   | Every occurrence, as data, with the cascade cap                |
-| `src/game.rs`     | The simulation: steps, detections, and the drained event graph |
-| `src/progress.rs` | Save.json: unlocked levels and best times                      |
-| `src/controls.rs` | The frame's input, from the keyboard and the gamepad           |
-| `src/program.rs`  | The Program: one Tick message a frame, and the app bar's two   |
-| `src/cards.rs`    | The view: the world's canvas, the Run and Events cards, banner |
+| Path                         | Contents                                                       |
+| ---------------------------- | -------------------------------------------------------------- |
+| `Level.h`, `Level.cpp`       | The levels: zones, coins, spikes, springs, doors, patrols      |
+| `Physics.h`, `Physics.cpp`   | Fixed-step movement: run, gravity, jump buffer, coyote, carry  |
+| `Events.h`, `Events.cpp`     | Every occurrence, as data, with the cascade cap                |
+| `Game.h`, `Game.cpp`         | The simulation: steps, detections, and the drained event graph |
+| `Progress.h`, `Progress.cpp` | Save.json: unlocked levels and best times                      |
+| `Controls.h`, `Controls.cpp` | The frame's input, from the keyboard and the gamepad           |
+| `Program.h`, `Program.cpp`   | The Program: one Tick message a frame, and the app bar's two   |
+| `Cards.h`, `Cards.cpp`       | The view: the world's canvas, the Run and Events cards, banner |
 
 ## Testing
 
-`Program\RunLightly\RunLightly.ps1 cargo test -p platformer_tests` runs the
-tests: the physics (determinism at 60 against 240 Hz, buffer, coyote, carry,
-and every top in every level holding a player who runs along it),
-the event graph's one-frame laws, the progress file, and the frames through
-`Headless`. `Program\RunInBackground\RunInBackground.ps1 Platformer
---all-scripts` runs the input scripts in `Test/Platformer/Scripts` in a real
-window.
+`Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1
+PlatformerTests` runs the tests: the physics (determinism at 60 against
+240 Hz, buffer, coyote, carry, and every top in every level holding a player
+who runs along it), the event graph's one-frame laws, the progress file, and
+the frames through `Headless`. `Program\RunInBackground\RunInBackground.ps1
+Platformer --all-scripts` runs the input scripts in `Test/Platformer/Scripts`
+in a real window.

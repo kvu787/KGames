@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Program\Platformer\PlatformerLibrary.vcxproj" />
     <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
   </ItemGroup>
   <Import Project="..\..\KGames.targets" />
 </Project>

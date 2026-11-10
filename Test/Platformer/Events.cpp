@@ -294,9 +294,7 @@ TEST(the_game_runs_the_same_at_any_frame_rate) {
             game.update(with_press, static_cast<double>(number) / static_cast<double>(rate));
         }
         remove_dir_all(folder);
-        // The log as a vector, which compares.
-        std::vector<std::pair<double, std::string>> log(game.log.begin(), game.log.end());
-        return std::tuple(game.player.position, game.player.velocity, game.coins, game.lives, std::move(log));
+        return std::tuple(game.player.position, game.player.velocity, game.coins, game.lives, game.log);
     };
     auto slow = run(60);
     auto fast = run(240);

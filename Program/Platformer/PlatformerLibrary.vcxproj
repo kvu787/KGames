@@ -2,6 +2,7 @@
   <Import Project="..\..\KGames.props" />
   <ItemGroup>
     <ProjectReference Include="..\..\Library\Json\Json.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
   </ItemGroup>
   <Import Project="..\..\KGames.targets" />
 </Project>

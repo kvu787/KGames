@@ -2,12 +2,10 @@
 
 #include "Base/Files.h"
 #include "Base/Numbers.h"
-#include "Base/Text.h"
 #include "Json/Json.h"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <format>
 #include <utility>
 
@@ -15,33 +13,13 @@ namespace platformer::progress {
 
 using json::Value;
 
-namespace {
-
-// Whether what base::read_to_string says went wrong is that the file isn't
-// there: the system's errors that are std::io::ErrorKind::NotFound in Rust.
-// Base's errors end with the system's code, like "(os error 2)".
-bool is_not_found(std::string_view error) {
-    constexpr std::string_view Before = "(os error ";
-    size_t start = error.rfind(Before);
-    if (start == std::string_view::npos || !error.ends_with(')')) {
-        return false;
-    }
-    std::string_view digits = error.substr(start + Before.size(), error.size() - 1 - (start + Before.size()));
-    std::optional<std::uint64_t> code = base::parse_u64(digits);
-    // ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND, ERROR_INVALID_DRIVE,
-    // ERROR_BAD_NETPATH and ERROR_BAD_NET_NAME.
-    return code && (*code == 2 || *code == 3 || *code == 15 || *code == 53 || *code == 67);
-}
-
-} // namespace
-
 Progress::Progress(size_t levels) : unlocked(1), best(levels, std::nullopt), dirty(false) {}
 
 std::expected<Progress, std::string> Progress::load(const std::filesystem::path& path, size_t levels) {
     Progress progress(levels);
     std::expected<std::string, std::string> text = base::read_to_string(path);
     if (!text) {
-        if (is_not_found(text.error())) {
+        if (base::is_not_found(text.error())) {
             return progress;
         }
         return std::unexpected(std::format("Couldn't read {}: {}", File, text.error()));
@@ -84,12 +62,9 @@ std::expected<std::string, std::string> Progress::save(const std::filesystem::pa
         times.push_back(time ? Value(Value::Number{*time}) : Value(Value::Null{}));
     }
     Value value = json::object({{"Unlocked", Value::Number{static_cast<double>(unlocked)}}, {"Best", Value::Array{std::move(times)}}});
-    // A file that's named without a folder has none to make.
     std::filesystem::path folder = path.parent_path();
-    if (!folder.empty()) {
-        if (std::expected<void, std::string> made = base::create_dir_all(folder); !made) {
-            return std::unexpected(std::format("Couldn't make {}: {}", base::display(folder), made.error()));
-        }
+    if (std::expected<void, std::string> made = base::create_dir_all(folder); !made) {
+        return std::unexpected(std::format("Couldn't make {}: {}", base::display(folder), made.error()));
     }
     if (std::expected<void, std::string> written = base::write(path, value.to_json()); !written) {
         return std::unexpected(std::format("Couldn't write {}: {}", File, written.error()));
