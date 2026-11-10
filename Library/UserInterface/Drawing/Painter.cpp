@@ -1,6 +1,7 @@
 #include "UserInterface/Drawing/Painter.h"
 
 #include "Base/Numbers.h"
+#include "Base/Panic.h"
 #include "Base/Text.h"
 
 #include <algorithm>
@@ -187,6 +188,10 @@ size_t DrawList::layer_len() const {
 
 void DrawList::move_to_back(size_t first, size_t middle) {
     std::vector<Instance>& layer = layers[static_cast<size_t>(layer_)];
+    // The marks are the caller's, and must be the layer's own, in order.
+    if (middle > layer.size() || first > middle) {
+        base::panic(std::format("the instances from {} on can't move to before those from {}, in a layer of {}", middle, first, layer.size()));
+    }
     size_t moved = layer.size() - middle;
     // The last `moved` instances go to before the ones from `first`.
     std::rotate(layer.begin() + static_cast<std::ptrdiff_t>(first), layer.end() - static_cast<std::ptrdiff_t>(moved), layer.end());

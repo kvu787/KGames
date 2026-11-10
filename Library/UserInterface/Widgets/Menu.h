@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "Base/Panic.h"
 #include "UserInterface/Core/Interaction.h"
 #include "UserInterface/Core/Tree.h"
 #include "UserInterface/Design/Controls.h"
@@ -269,6 +270,11 @@ void interact_menu(const Interaction& interaction, Dispatch<M>& ctx, std::string
         }
         if (state.highlighted) {
             size_t highlighted = *state.highlighted;
+            // The highlight is kept from an earlier frame, whose menu may
+            // have had more items.
+            if (highlighted >= items.size()) {
+                base::panic(std::format("the menu {} highlights item {}, but has only {} items now", name, highlighted, items.size()));
+            }
             const MenuItem<M>& item = items[highlighted];
             bool opens = item.submenu_.has_value();
             const Input& input = ctx.input();
