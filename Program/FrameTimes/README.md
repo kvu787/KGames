@@ -8,10 +8,10 @@ console program, without a window: it reads the process's presents with
 statistics of the times between its frames on the screen.
 
 ```powershell
-Program\RunLightly\RunLightly.ps1 cargo build --release --bin frame_times
-target\release\frame_times.exe AceCombat8
-target\release\frame_times.exe AceCombat8.exe --seconds 60
-target\release\frame_times.exe 1234
+Program\RunLightly\RunLightly.ps1 Program\Build\Build.ps1 --release FrameTimes
+target\Release\FrameTimes.exe AceCombat8
+target\Release\FrameTimes.exe AceCombat8.exe --seconds 60
+target\Release\FrameTimes.exe 1234
 ```
 
 Name the process by its exe's name, without regard to case and with or without `.exe`, or by its
@@ -65,7 +65,7 @@ that reads its presents, stops it.
 ## Testing
 
 ```powershell
-cargo test -p frame_times_tests
+Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1 FrameTimesTests
 ```
 
 The tests in `Test/FrameTimes` give the statistics made-up presents, some of which never reached
@@ -74,9 +74,9 @@ ETW session.
 
 ## Layout
 
-| Path          | Contents                                                                  |
-| ------------- | ------------------------------------------------------------------------- |
-| `src/main.rs` | Reads the command line, finds the process, and reads its presents for a   |
-|               | while                                                                     |
-| `src/lib.rs`  | The statistics, as functions of the presents, the command line, finding a |
-|               | process, and the report, as a library that the tests test                 |
+| Path                             | Contents                                                              |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `Main.cpp`                       | Reads the command line, finds the process, and reads its presents for |
+|                                  | a while                                                               |
+| `FrameTimes.h`, `FrameTimes.cpp` | The statistics, as functions of the presents, the command line,       |
+|                                  | finding a process, and the report, as a library that the tests test   |

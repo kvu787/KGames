@@ -1,0 +1,8 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Program\FrameTimes\FrameTimesLibrary.vcxproj" />
+    <ProjectReference Include="..\..\Library\PresentTiming\PresentTiming.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

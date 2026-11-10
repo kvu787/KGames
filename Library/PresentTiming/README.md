@@ -10,7 +10,7 @@ PresentMon's: its "screen time", which PresentMon's `MsUntilDisplayed`, `Display
 ## How it works
 
 Windows says what happens to every present in its own events, which a real-time ETW session
-(`src/session.rs`) reads on a thread of its own, as they happen:
+(`Session.cpp`) reads on a thread of its own, as they happen:
 
 | Provider                     | What it says                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------- |
@@ -21,13 +21,13 @@ Windows says what happens to every present in its own events, which a real-time 
 | `Microsoft-Windows-Dwm-Core` | DWM's frames, which composed presents show in, and the copies that DWM takes    |
 | `NVIDIA-DD-External`         | When NVIDIA's driver means to flip, if that's later than the kernel's flip      |
 
-The session enables the same events, levels and keywords as PresentMon. `src/decoder.rs` finds
-the events' fields by name, with the layouts that Windows' trace data helper (TDH) gives from the
+The session enables the same events, levels and keywords as PresentMon. `Decoder.cpp` finds the
+events' fields by name, with the layouts that Windows' trace data helper (TDH) gives from the
 providers' manifests, or from a trace file's own metadata for versions that this computer's
-manifests don't have. `src/events.rs` turns them into plain data, and `src/tracker.rs`
-follows each present through them, by the keys that each event has: its thread while its `Present`
-call runs, then Win32k's token, the kernel's present history token, and its queue packet's submit
-sequence, which the flips and sync interrupts name.
+manifests don't have. `Events.cpp` turns them into plain data, and `Tracker.cpp` follows each
+present through them, by the keys that each event has: its thread while its `Present` call runs,
+then Win32k's token, the kernel's present history token, and its queue packet's submit sequence,
+which the flips and sync interrupts name.
 
 ETW hands a real-time session's events to its reader a buffer at a time: when a buffer fills, or
 when the session's flush timer goes off, at most once a second, which hands each event over 1 to 2
@@ -117,7 +117,7 @@ providers, and gives a process's presents with the performance counter's frequen
 with what `PresentMon --etl_file` says of the same file: a present's `TimeInQPC` is its `start`,
 and `MsUntilDisplayed` is its `screen` less its `start`, in milliseconds.
 
-`Test/PresentTiming/tests/gold.rs` does that for the six gold traces in PresentMon's repository
+`Test/PresentTiming/Gold.cpp` does that for the six gold traces in PresentMon's repository
 (`Tests/Gold`), from Windows 10, without running PresentMon: it compares with the gold CSVs beside
 them, which PresentMon 2.6.1's own tests require its output for the traces to match, row for row.
 All 1,448 presents in them, of every process, DXGI's, Direct3D 9's and others', have the same
@@ -126,25 +126,26 @@ composed flips, 147 composed GPU copies, 81 independent flips, 31 overlay planes
 `read_file` gives two presents of each swap chain that PresentMon's console doesn't write: its
 first, and its last, which PresentMon writes only once the next one reaches the screen.
 
-The traces aren't in this repository, so the test is ignored unless it's asked for, with
-`PRESENTMON_GOLD` naming a folder that has them:
+The traces aren't in this repository, so the test checks nothing, and says that it's ignored,
+unless it's asked for, with `PRESENTMON_GOLD` naming a folder that has them:
 
 ```powershell
 $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
-Program\RunLightly\RunLightly.ps1 cargo test -p present_timing_tests --test gold '--' --ignored --nocapture
+Program\RunLightly\RunLightly.ps1 Program\RunTests\RunTests.ps1 PresentTimingTests --filter gold_traces
 ```
 
 The traces don't have legacy copies, composed CPU copies, or Windows 11's hardware flip queue,
 whose flips' status after the flip tells immediate flips from ones that wait for the sync
-interrupt. `Test/PresentTiming/tests/tracker.rs` tests the tracker with made-up events in the order that
-Windows sends them, for every mode.
+interrupt. `Test/PresentTiming/Tracker.cpp` tests the tracker with made-up events in the order
+that Windows sends them, for every mode.
 
 ## Layout
 
-| Path             | Contents                                                                        |
-| ---------------- | ------------------------------------------------------------------------------- |
-| `src/lib.rs`     | `PresentTiming`, `Present`, `read_file`, and the NVIDIA flip delay's correction |
-| `src/session.rs` | The real-time ETW session, and reading trace files                              |
-| `src/events.rs`  | The providers, their events, and the events as plain data                       |
-| `src/decoder.rs` | Finds events' fields by name, with TDH's layouts                                |
-| `src/tracker.rs` | Follows presents through the events to when the display took them, and how      |
+| Path                                   | Contents                                                                   |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| `PresentTiming.h`, `PresentTiming.cpp` | `PresentTiming`, `read_file`, and the NVIDIA flip delay's correction       |
+| `Present.h`                            | `Present`, `PresentMode` and `StartError`, which the other headers use     |
+| `Session.h`, `Session.cpp`             | The real-time ETW session, and reading trace files                         |
+| `Events.h`, `Events.cpp`               | The providers, their events, and the events as plain data                  |
+| `Decoder.h`, `Decoder.cpp`             | Finds events' fields by name, with TDH's layouts                           |
+| `Tracker.h`, `Tracker.cpp`             | Follows presents through the events to when the display took them, and how |
