@@ -3,12 +3,20 @@
 Reads models from binary glTF files, `.glb`, like the ones that Blender exports with
 File > Export > glTF 2.0, so that models made in Blender come into KGames' programs as they are.
 `gltf::load` reads a file into a `Model`: every mesh of the file's default scene as one list of
-triangles, with each node's transform applied, and the materials that the triangles use.
+triangles, with each node's transform applied, and the materials that the triangles use. It
+returns what's wrong with the file instead, as text, if it can't. `gltf::parse` does the same for
+a file's bytes.
 
-```rust
-let model = gltf::load(Path::new("Models/SlopeCar.glb"))?;
-for material in &model.material_list {
-    println!("{}: {:?}", material.name, material.base_color);
+```cpp
+#include "Gltf/Gltf.h"
+
+std::expected<gltf::Model, std::string> model = gltf::load("Models/SlopeCar.glb");
+if (!model) {
+    return std::unexpected(model.error());
+}
+for (const gltf::Material& material : model->material_list) {
+    const std::array<float, 4>& color = material.base_color;
+    std::println("{}: {} {} {} {}", material.name, color[0], color[1], color[2], color[3]);
 }
 ```
 
