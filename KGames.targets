@@ -22,12 +22,21 @@
   <ItemGroup Condition="'$(KGamesKind)' == 'Program'">
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
+  <!--
+    Each source's object goes in the folder under the project's intermediate folder that the
+    source is in under the project's, so that Drawing\Text.cpp and Widgets\Text.cpp are two
+    objects. In one folder, as MSBuild puts them, the second would replace the first.
+  -->
   <ItemGroup Condition="'$(KGamesKind)' == 'ProgramLibrary'">
-    <ClCompile Include="**\*.cpp" Exclude="Main.cpp;$(KGamesExclude)" />
+    <ClCompile Include="**\*.cpp" Exclude="Main.cpp;$(KGamesExclude)">
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+    </ClCompile>
     <ClInclude Include="**\*.h" Exclude="$(KGamesExclude)" />
   </ItemGroup>
   <ItemGroup Condition="'$(KGamesKind)' == 'Library' or '$(KGamesKind)' == 'Tests' or '$(KGamesKind)' == 'Tool'">
-    <ClCompile Include="**\*.cpp" Exclude="$(KGamesExclude)" />
+    <ClCompile Include="**\*.cpp" Exclude="$(KGamesExclude)">
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+    </ClCompile>
     <ClInclude Include="**\*.h" Exclude="$(KGamesExclude)" />
   </ItemGroup>
 
