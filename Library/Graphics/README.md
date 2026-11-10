@@ -25,9 +25,9 @@ widgets go on top.
 
 ## Frames
 
-Every frame's target is `TARGET_FORMAT`, 8-bit BGRA, with two views: `Frame::view`, which stores
+Every frame's target is `TargetFormat`, 8-bit BGRA, with two views: `Frame::view`, which stores
 colors as they are, for the interface, whose colors are sRGB already, and `Frame::srgb_view`, which
-encodes linear colors to sRGB, for 3D shading like SimplePaint's. `DEPTH_FORMAT` is for 3D views'
+encodes linear colors to sRGB, for 3D shading like SimplePaint's. `DepthFormat` is for 3D views'
 depth buffers. A frame's target is in the render target state while its commands are recorded.
 
 ## Pacing
@@ -48,7 +48,7 @@ add a copy between GPUs to every frame, and keep Windows from flipping frames st
 ## GPU priority
 
 Windows' job objects can't limit the GPU, so a process that must stay out of a game's way lowers
-its own GPU scheduling priority. `Gpu::new` reads `KGAMES_GPU_PRIORITY`, which
+its own GPU scheduling priority. `Gpu`'s constructor reads `KGAMES_GPU_PRIORITY`, which
 [RunLightly](../../Program/RunLightly/README.md) sets to `Idle` for coding agents' tests and test
 runs, and sets the process's priority before it creates the device, so the GPU's scheduler puts
 the process's frames after other processes', like a game's. The other values are `BelowNormal`,
