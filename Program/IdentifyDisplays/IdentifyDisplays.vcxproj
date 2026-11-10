@@ -1,0 +1,12 @@
+<Project DefaultTargets="Build">
+  <!-- A console program: it writes the displays to the console, with or without its boxes. -->
+  <PropertyGroup>
+    <KGamesConsole>true</KGamesConsole>
+  </PropertyGroup>
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\Library\Displays\Displays.vcxproj" />
+    <ProjectReference Include="..\..\Library\UserInterface\UserInterface.vcxproj" />
+  </ItemGroup>
+  <Import Project="..\..\KGames.targets" />
+</Project>

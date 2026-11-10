@@ -5,8 +5,9 @@ program opens on. Put the identifier in the `"Display"` setting of the program's
 `Settings.json`, or pass it to the program with `--display`.
 
 ```powershell
-cargo run --release --bin identify_displays
-cargo run --release --bin identify_displays -- --list
+Program\Build\Build.ps1 --release IdentifyDisplays
+target\Release\IdentifyDisplays.exe
+target\Release\IdentifyDisplays.exe --list
 ```
 
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
@@ -42,7 +43,7 @@ for this program and for the others.
 ## Testing
 
 ```powershell
-cargo test -p identify_displays_tests
+Program\RunTests\RunTests.ps1 IdentifyDisplaysTests
 ```
 
 The test in `Test/IdentifyDisplays` draws each display's box offscreen, without putting windows on
@@ -50,8 +51,11 @@ the displays, saves it in `target\TestOutput`, and checks that its text fits and
 
 ## Layout
 
-| Path          | Contents                                                        |
-| ------------- | --------------------------------------------------------------- |
-| `src/main.rs` | Finds the displays, writes them to the console, and shows a box |
-|               | on each                                                         |
-| `src/lib.rs`  | Lays out and draws a box, as a library that the test draws      |
+| Path                              | Contents                                                        |
+| --------------------------------- | --------------------------------------------------------------- |
+| `Main.cpp`                        | Finds the displays, writes them to the console, and shows a box |
+|                                   | on each                                                         |
+| `IdentifyDisplays.h`, `.cpp`      | Lays out and draws a box, as a library that the test draws      |
+| `IdentifyDisplaysLibrary.vcxproj` | Builds all but `Main.cpp` into the library                      |
+| `IdentifyDisplays.vcxproj`        | Builds `Main.cpp` and the library into `IdentifyDisplays.exe`,  |
+|                                   | a console program                                               |
