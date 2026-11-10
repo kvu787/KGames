@@ -48,6 +48,40 @@ if (-not $msbuild) {
     Write-Error 'Building KGames needs Visual Studio with its Desktop development with C++ workload, which has MSBuild and the C++ compiler. vswhere found none.'
 }
 
+# Restores the NuGet packages that Library\GameInput\NuGetPackages.proj
+# declares, with dotnet, as packages.lock.json pins them: Microsoft.GameInput,
+# whose GameInput.h the C++ includes and whose GameInput.lib it links (see
+# Library\GameInput\GameInput.props). Only when what declares them is newer
+# than the last restore, so that a build that has them doesn't start dotnet.
+$gameInput = Join-Path $repository 'Library\GameInput'
+$restored = Join-Path $repository 'target\DotNet\obj\NuGetPackages\NuGetPackages.proj.nuget.g.props'
+$declared = @(
+    (Join-Path $gameInput 'NuGetPackages.proj'),
+    (Join-Path $gameInput 'packages.lock.json'),
+    (Join-Path $gameInput 'Directory.Build.props'),
+    (Join-Path $repository 'NuGet.config'),
+    (Join-Path $repository 'global.json')
+)
+$newest = ($declared | ForEach-Object { (Get-Item $_).LastWriteTimeUtc } | Measure-Object -Maximum).Maximum
+if (-not (Test-Path $restored) -or (Get-Item $restored).LastWriteTimeUtc -lt $newest) {
+    if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+        Write-Error 'Building KGames needs the .NET SDK, 10 or later, whose dotnet restores the Microsoft.GameInput NuGet package that Library/GameInput/NuGetPackages.proj declares. Visual Studio installs it with its .NET desktop development workload, or get it from https://dotnet.microsoft.com/download'
+    }
+    # A build that restores in passing doesn't send dotnet's usage data.
+    $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+    $env:DOTNET_NOLOGO = '1'
+    # Locked mode fails, instead of changing packages.lock.json, when the
+    # project asks for other packages than the lock file pins, and a package
+    # that it downloads must have the hash that the lock file gives. Without
+    # build servers, nothing that it starts outlives it.
+    & dotnet restore (Join-Path $gameInput 'NuGetPackages.proj') --locked-mode --disable-build-servers --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "dotnet restore of Library\GameInput\NuGetPackages.proj failed with exit code $LASTEXITCODE."
+    }
+    # A restore that changed nothing leaves the file as old as it was.
+    (Get-Item $restored).LastWriteTimeUtc = [DateTime]::UtcNow
+}
+
 $projects = @()
 if ($names.Count -eq 0) {
     $projects += Join-Path $repository 'KGames.slnx'

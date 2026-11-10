@@ -140,6 +140,9 @@
     </Link>
   </ItemDefinitionGroup>
 
+  <!-- Where GameInput's NuGet package is, and its GameInput.h. -->
+  <Import Project="$(KGamesRoot)Library\GameInput\GameInput.props" />
+
   <!-- What every project uses: Library\Base, and for tests, Library\Testing. A program uses its library. -->
   <ItemGroup Condition="'$(MSBuildProjectName)' != 'Base'">
     <ProjectReference Include="$(KGamesRoot)Library\Base\Base.vcxproj" />

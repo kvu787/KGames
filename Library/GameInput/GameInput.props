@@ -1,0 +1,25 @@
+<!--
+  Where the Microsoft.GameInput NuGet package is, for every C++ project, which KGames.props
+  imports this into: GameInputPackage, and its GameInput.h on the include path, as <GameInput.h>.
+
+  Program\Build\Build.ps1 restores the package before it builds, with dotnet, as
+  NuGetPackages.proj declares it and packages.lock.json pins it. A restore leaves the package's
+  folder, which can be another on another machine, in a file of properties in the target folder,
+  and this reads PkgMicrosoft_GameInput from that file. It reads the one property instead of
+  importing the file, whose other properties are for the .NET project that was restored.
+
+  Without a restore, GameInputPackage is empty, and GameInput.vcxproj fails with what to do.
+-->
+<Project>
+  <PropertyGroup>
+    <GameInputRestore>$(KGamesRoot)target\DotNet\obj\NuGetPackages\NuGetPackages.proj.nuget.g.props</GameInputRestore>
+  </PropertyGroup>
+  <PropertyGroup Condition="Exists('$(GameInputRestore)')">
+    <GameInputPackage>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(GameInputRestore)')), '&lt;PkgMicrosoft_GameInput[^&gt;]*&gt;([^&lt;]*)&lt;').Groups[1].Value)</GameInputPackage>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(GameInputPackage)' != ''">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(GameInputPackage)\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>
