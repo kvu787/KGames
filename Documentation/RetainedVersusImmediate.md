@@ -1,5 +1,10 @@
 # Retained versus immediate mode
 
+> This compares two versions of the library from when KGames was written in Rust. The names of
+> files, the line counts and the measurements are those versions'. KGames is C++ now, as
+> [CppVersusRust.md](CppVersusRust.md) says, with the architecture that
+> [UiArchitectures.md](UiArchitectures.md) ends on.
+
 KGames' UI library was immediate mode: every frame, each program rebuilt its
 whole interface with `ui.add(name, rect, widget)`, widgets borrowed the
 program's state as `&mut`, and the return value said what the input did. This

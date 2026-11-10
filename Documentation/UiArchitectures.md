@@ -1,5 +1,10 @@
 # Immediate, retained, MVU and callback view
 
+> This compares four versions of the library from when KGames was written in Rust. The names of
+> files, the line counts and the measurements are those versions', and what it says of Rust's
+> borrow rules was true of them. KGames is C++ now, as [CppVersusRust.md](CppVersusRust.md) says,
+> with the MVU architecture that this document ends on.
+
 KGames' UI library has now been written four ways, each complete: every program ported, every
 workspace test and every input script passing, the same Fluent 2 pixels drawn by the same renderer.
 This document compares the four implementations as built, not as ideals, the way

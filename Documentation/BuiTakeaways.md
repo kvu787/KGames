@@ -5,8 +5,10 @@ from Blender's UI, with bindings for Python, Rust, JavaScript and Dear ImGui. Th
 list: each takeaway is a [task](#tasks), and each task's status says how far it got.
 
 BUI was read at commit `e8126ca` (2026-11-08), from a clone at `C:\Users\K\RepositoryExternal\BUI`,
-and KGames at commit `b00bee2`, checked again after merging main at `c4f1d90`. Line numbers come
-from those commits, and drift as either repository changes. A path that starts with `BUI/` is in BUI's repository; the rest are KGames'.
+and KGames at commit `b00bee2`, checked again after merging main at `c4f1d90`. BUI's line numbers
+come from its commit, and KGames' from its port to C++, which came after those commits. They drift
+as either repository changes. A path that starts with `BUI/` is in BUI's repository; the rest are
+KGames'.
 
 ## Keeping this document true
 
@@ -87,17 +89,18 @@ and 4 are the cheapest checks with the most reach.
 
 Status: Not started. A bug in KGames, checked in the code.
 
-- **KGames:** `Input` keeps the frame's presses in `keys_pressed` and its typed text in one `text`
+- **KGames:** `Input` keeps the frame's presses in `keys_pressed_` and its typed text in one `text`
   string, and the modifiers are the ones held at the end of the frame
-  ([events.rs:60-66](../Library/UserInterface/src/input/events.rs#L60)).
+  ([Events.h:102](../Library/UserInterface/Input/Events.h#L102),
+  [164-166](../Library/UserInterface/Input/Events.h#L164)).
   - The text box handles all the frame's keys, then all its text
-    ([text_box.rs:331-412](../Library/UserInterface/src/widgets/text_box.rs#L331)). Typing "x"
+    ([TextBox.cpp:260-340](../Library/UserInterface/Widgets/TextBox.cpp#L260)). Typing "x"
     then Backspace in one frame deletes the old character and then inserts "x", and "a", Left,
     "b" gives "ab" instead of "ba".
   - `key_pressed` only asks whether a key was pressed at all
-    ([events.rs:239-241](../Library/UserInterface/src/input/events.rs#L239)). So two Down
+    ([Events.cpp:159-161](../Library/UserInterface/Input/Events.cpp#L159)). So two Down
     presses in one frame move a ListView one row, and Down then Up ends on Up whatever their order
-    ([list_view.rs:207-224](../Library/UserInterface/src/widgets/list_view.rs#L207)). That breaks
+    ([ListView.h:188-205](../Library/UserInterface/Widgets/ListView.h#L188)). That breaks
     AGENTS.md's rule that two of the same intent never collapse into one. The survey found the
     same in ComboBox, Menu and Navigation, which haven't been checked yet.
 - **BUI:** handles each `WM_KEYDOWN` and `WM_CHAR` as it arrives, with that message's modifiers
@@ -113,13 +116,14 @@ Status: Not started. A bug in KGames, checked in the code.
 Status: Not started. A bug in KGames, checked in the code.
 
 - **KGames:** the glyph atlas is 2048 x 2048
-  ([text.rs:201](../Library/UserInterface/src/drawing/text.rs#L201)). When a glyph doesn't fit,
-  `place` returns `None` ([text.rs:246-256](../Library/UserInterface/src/drawing/text.rs#L246)),
-  `quads` draws nothing for it ([text.rs:494-500](../Library/UserInterface/src/drawing/text.rs#L494)),
+  ([Text.h:175](../Library/UserInterface/Drawing/Text.h#L175)). When a glyph doesn't fit,
+  `place` returns `std::nullopt`
+  ([Text.cpp:230-240](../Library/UserInterface/Drawing/Text.cpp#L230)),
+  `quads` draws nothing for it ([Text.h:279-287](../Library/UserInterface/Drawing/Text.h#L279)),
   and the atlas starts over only in the next frame's `begin_frame`
-  ([text.rs:359](../Library/UserInterface/src/drawing/text.rs#L359)). So the frame that fills
+  ([Text.cpp:411](../Library/UserInterface/Drawing/Text.cpp#L411)). So the frame that fills
   it shows text with glyphs missing, which breaks the law of the frame. The comment at
-  [text.rs:223-224](../Library/UserInterface/src/drawing/text.rs#L223) describes this.
+  [Text.h:203-204](../Library/UserInterface/Drawing/Text.h#L203) describes this.
 - **BUI:** draws what it has recorded, clears the atlas and places the glyph again, so it never
   loses one (`BUI/gpu/intern/gpu_d3d11.c:867-873`, `:908-911`).
 - **Do:** BUI's split draw doesn't fit KGames' one draw a frame. Instead, when a frame fills the
@@ -134,15 +138,16 @@ Status: Not started. A bug in KGames, checked in the code.
 Status: Proposed, as a session card.
 
 - **KGames:** about 187 colors in
-  [theme.rs](../Library/UserInterface/src/design/theme.rs), about 157 metrics in
-  [controls.rs](../Library/UserInterface/src/design/controls.rs) and the tokens in
-  [tokens.rs](../Library/UserInterface/src/design/tokens.rs) are copied by hand from WinUI 3, and
+  [Theme.h](../Library/UserInterface/Design/Theme.h) and
+  [Theme.cpp](../Library/UserInterface/Design/Theme.cpp), about 157 metrics in
+  [Controls.h](../Library/UserInterface/Design/Controls.h) and the tokens in
+  [Tokens.h](../Library/UserInterface/Design/Tokens.h) are copied by hand from WinUI 3, and
   their comments name the WinUI resources. Nothing checks them.
 - **BUI:** `BUI/tools/gen_theme.py` generates its theme from Blender's own XML presets instead of
   copying values by hand.
 - **The source:** `generic.xaml`, in the Windows App SDK package that WinUi3Sample pins:
   `%USERPROFILE%\.nuget\packages\microsoft.windowsappsdk.winui\2.6.5\lib\net6.0-windows10.0.17763.0\Microsoft.WinUI\Themes\generic.xaml`.
-  The survey's script matched 104 of theme.rs's colors with no mismatches, and MenuBarHeight 40,
+  The survey's script matched 104 of Theme.cpp's colors with no mismatches, and MenuBarHeight 40,
   ButtonPadding 11,5,11,6, CheckBoxSize 20 and SliderHorizontalThumbWidth 18 agree too.
 - **Do:** commit the values the comments name, extracted from `generic.xaml`, light and dark, as
   data in `Test/UserInterface`, with a repeatable extraction step, and a test that compares the
@@ -153,9 +158,9 @@ Status: Proposed, as a session card.
 
 Status: Proposed, as a session card.
 
-- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks single pixels, and since
+- **KGames:** [Rendering.cpp](../Test/UserInterface/Rendering.cpp) checks single pixels, and since
   `375d713` compares a press's frame with the frame a second later, below the PerfBar
-  ([rendering.rs:274-298](../Test/UserInterface/tests/rendering.rs#L274)). Nothing compares the frames
+  ([Rendering.cpp:325-349](../Test/UserInterface/Rendering.cpp#L325)). Nothing compares the frames
   before and after a round trip, and UiShowcase's `Scripts/Themes.json` checks only state.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
@@ -174,9 +179,9 @@ Status: Not started.
   composition.
 - **BUI:** turns the IME on only while a text field has focus
   (`BUI/kit/intern/kit_ime_win32.c:207-266`).
-- **Do:** call `ImmAssociateContextEx(hwnd, NULL, 0)` on KGames' windows, with its binding in
-  `Library/WindowsApi`. KGames' text comes from GameInput (see task 6), so this loses nothing until
-  task 6 turns the IME on for focused text fields.
+- **Do:** call `ImmAssociateContextEx(hwnd, NULL, 0)` on KGames' windows, from the Windows SDK's
+  `imm.h`, linked with `imm32.lib`. KGames' text comes from GameInput (see task 6), so this loses
+  nothing until task 6 turns the IME on for focused text fields.
 - **Done when:** it's called, and the user has tried it with an IME, which no test can.
 
 ### 6. IME composition in text fields
@@ -185,7 +190,7 @@ Status: Not started. Needs an exception in AGENTS.md, which says to read all inp
 GameInput.
 
 - **KGames:** text comes from `ToUnicodeEx` on GameInput's scan codes
-  ([reader.rs:356-397](../Library/UserInterface/src/input/reader.rs#L356)), so Chinese,
+  ([Reader.cpp:349-392](../Library/UserInterface/Input/Reader.cpp#L349)), so Chinese,
   Japanese and Korean can't be typed.
 - **BUI:** `BUI/kit/intern/kit_ime_win32.c`, which comes from Chromium's `ImeInput` by way of
   Blender's GHOST, and `BUI/kit/intern/kit_ime.c`:
@@ -208,9 +213,9 @@ GameInput.
 Status: Not started.
 
 - **KGames:** can't show images. The renderer binds only the glyph atlas
-  ([renderer.rs](../Library/UserInterface/src/drawing/renderer.rs)), `Library/Gltf` ignores
-  textures ([lib.rs:9](../Library/Gltf/src/lib.rs#L9)), and WIC is used only to write
-  PNGs ([png.rs](../Library/Graphics/src/png.rs)).
+  ([Renderer.cpp](../Library/UserInterface/Drawing/Renderer.cpp)), `Library/Gltf` ignores
+  textures ([Gltf.h:9](../Library/Gltf/Gltf.h#L9)), and WIC is used only to write
+  PNGs ([Png.cpp](../Library/Graphics/Png.cpp)).
 - **BUI:**
   - It decodes at the size drawn (`BUI/kit/intern/image/filetype.c:107-148`), into premultiplied
     pixels, with a box-filter downscale (`imbuf.c:129-245`).
@@ -221,7 +226,7 @@ Status: Not started.
 - **Do:**
   - Decode with WIC instead of BUI's C decoders: `IWICBitmapScaler` or `IWICBitmapSourceTransform`
     to decode at the size drawn, and `IWICFormatConverter` to `32bppPBGRA` for premultiplied
-    pixels. Add the bindings to `Library/WindowsApi`.
+    pixels. They're in the Windows SDK's `wincodec.h`, which `Png.cpp` includes already.
   - Decode synchronously. BUI's worker pool (`loader.c`) lands images frames after the input that
     asked for them.
   - Port the cache rule and the clamped sampling.
@@ -237,12 +242,12 @@ Status: Not started.
 - **KGames:**
   - ListView has fixed row heights, one selection, and a named target per visible row, whose
     children the program lays out
-    ([list_view.rs:1-18](../Library/UserInterface/src/widgets/list_view.rs#L1)).
+    ([ListView.h:1-18](../Library/UserInterface/Widgets/ListView.h#L1)).
   - The text cache keeps every distinct string's DirectWrite layout for 600 frames, bounded by
-    time, not size ([text.rs:350-357](../Library/UserInterface/src/drawing/text.rs#L350)), so
+    time, not size ([Text.cpp:403-410](../Library/UserInterface/Drawing/Text.cpp#L403)), so
     flinging a big table would make hundreds of layouts a frame.
   - UiShowcase filters its lists again with `to_lowercase` inside `view`
-    ([showcase.rs:165-167](../Program/UiShowcase/src/showcase.rs#L165)).
+    ([Showcase.cpp:69-77](../Program/UiShowcase/Showcase.cpp#L69)).
 - **BUI:** `BUI/bindings/rust/blenderui-table`:
   - No node per row or cell: one canvas paints the visible cells
     (`BUI/bindings/rust/blenderui/src/table/data_table.rs:205-210`).
@@ -281,17 +286,17 @@ Status: Not started.
 - **Undo and redo:** BUI keeps a stack of snapshots while editing
   (`BUI/kit/intern/blender/interface_undo.cc:116-134`, used at `BUI/kit/intern/kit_core.c:3098-3128`).
   KGames' TextBox has none, though WinUI's has Ctrl+Z. It belongs in `Editing`
-  ([text_box.rs:127-137](../Library/UserInterface/src/widgets/text_box.rs#L127)).
+  ([TextBox.cpp:30-47](../Library/UserInterface/Widgets/TextBox.cpp#L30)).
 - **Word jumps:** BUI moves by classes of characters: punctuation, braces, operators, quotes and
   spaces (`BUI/core/intern/string_cursor_utf8.c:32-122`, `:178-257`). KGames treats punctuation
-  like spaces ([text_box.rs:157-184](../Library/UserInterface/src/widgets/text_box.rs#L157)).
+  like spaces ([TextBox.cpp:88-115](../Library/UserInterface/Widgets/TextBox.cpp#L88)).
 - **Combining marks:** BUI's caret steps over zero-width combining marks
-  (`string_cursor_utf8.c:149-152`), and KGames' steps by `char`
-  ([text_box.rs:149-155](../Library/UserInterface/src/widgets/text_box.rs#L149)). Better than
-  either: DirectWrite's `GetClusterMetrics`, in `text.rs`.
+  (`string_cursor_utf8.c:149-152`), and KGames' steps by code point
+  ([TextBox.cpp:60-76](../Library/UserInterface/Widgets/TextBox.cpp#L60)). Better than
+  either: DirectWrite's `GetClusterMetrics`, in `Text.cpp`.
 - **Expressions:** BUI evaluates expressions in number fields (`kit_core.c:3342`), and KGames'
   NumberBox accepts only digits
-  ([number_box.rs:35-37](../Library/UserInterface/src/widgets/number_box.rs#L35)). Match WinUI's
+  ([NumberBox.cpp:5-7](../Library/UserInterface/Widgets/NumberBox.cpp#L5)). Match WinUI's
   `AcceptsExpression` with a small parser, instead of porting BUI's `expr_pylike_eval`.
 - **Done when:** each is tested and shown in UiShowcase.
 
@@ -299,11 +304,12 @@ Status: Not started.
 
 Status: Not started.
 
-- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks pixels and compares frames
+- **KGames:** [Rendering.cpp](../Test/UserInterface/Rendering.cpp) checks pixels and compares frames
   with later frames, on the high-performance adapter only, and nothing is a reference for the
   interface's shader.
-  [gpu.rs](../Test/SimplePaint/tests/gpu.rs) and [reference/mod.rs](../Test/SimplePaint/tests/reference/mod.rs) already
-  compare hardware and WARP against a binary64 reference, but only for SimplePaint's shader.
+  [Gpu.cpp](../Test/SimplePaint/Gpu.cpp) and [Reference.cpp](../Test/SimplePaint/Reference.cpp)
+  already compare hardware and WARP against a binary64 reference, but only for SimplePaint's
+  shader.
 - **BUI:** `BUI/gpu/tests/test_gpu_parity.c:87-169`, `:191-230` draws one scene of every primitive at
   fractional coordinates on the CPU and on the GPU, counts the pixels that differ by more than 3
   levels, allows 0.2% of them (1% for text), and writes a diff image. It also has targeted cases: a
@@ -314,8 +320,8 @@ Status: Not started.
   WARP, diff them, and save the diff PNG to `target/TestOutput`. Fail instead of skipping, since
   WARP always exists. The tolerance can be tighter than BUI's: DirectWrite rasterizes the atlas on
   the CPU and the shader reads it exactly, so the adapters differ only in shader math. Then (1-2
-  days), write an f64 Rust reference of the shader's shape, shadow, line, arc and polygon kinds, as
-  SimplePaint does.
+  days), write a C++ reference, in `double`, of the shader's shape, shadow, line, arc and polygon
+  kinds, as SimplePaint does.
 - **Done when:** both tests pass on hardware and WARP.
 
 ### 12. Measure whole processes' CPU and GPU
@@ -324,7 +330,7 @@ Status: Not started.
 
 - **KGames:** nothing calls `QueryProcessCycleTime`, and [Memory.md](Memory.md)'s whole-process
   table was measured by hand. UiShowcase draws 115 frames a second on a 120 Hz display even when
-  idle ([Performance.md:118-121](Performance.md#L118)).
+  idle ([Performance.md:125-128](Performance.md#L125)).
 - **BUI:** `BUI/bindings/rust/bench/common/measure.rs:137-155` counts the CPU of all of a process's
   threads with `QueryProcessCycleTime`, calibrated against the CPU's clock. `GetProcessTimes`
   counts in 15.6 ms ticks, which line up with a 60 Hz loop and under-report
@@ -342,7 +348,7 @@ Status: Not started.
 
 Status: Not started.
 
-- **KGames:** "Nothing leaks" and "692 allocations a frame" ([Memory.md:13-17](Memory.md#L13)) were
+- **KGames:** "Nothing leaks" and "692 allocations a frame" ([Memory.md:20-24](Memory.md#L20)) were
   measured once, and `Test/Benchmarks` tests the harness, not these numbers.
 - **BUI:** `BUI/bindings/rust/blenderui/tests/parity.rs:66-69` fails when the coverage numbers in
   its README fall. `BUI/bench/images/image_grid.c` reports allocations in an unchanged redraw,
@@ -385,9 +391,10 @@ Status: Not started. Builds on task 3.
   tkinter and on BUI, and requires the same results.
 - **Do:** add `--measure <json>` to WinUi3Sample. It opens a page of controls at fixed positions,
   forces each into its states with `VisualStateManager.GoToState`, which needs no input, and writes
-  each part's bounds and colors to JSON, which gets committed. A cargo test lays out the same
-  controls with `Headless` and compares them by `Target.kind`, which uses WinUI's control names
-  ([interaction.rs:148-149](../Library/UserInterface/src/core/interaction.rs#L148)). Both draw
+  each part's bounds and colors to JSON, which gets committed. A test, run with
+  `Program\RunTests\RunTests.ps1`, lays out the same controls with `Headless` and compares them by
+  `Target.kind`, which uses WinUI's control names
+  ([Interaction.h:157-158](../Library/UserInterface/Core/Interaction.h#L157)). Both draw
   text with DirectWrite at 96 DPI, so a tolerance of 1 pixel is realistic.
 - **Done when:** the test passes, with any differences it finds fixed.
 
@@ -399,7 +406,7 @@ Status: Not started.
   samples the pointer's path every 2 pixels, so fast drags skip none
   (`BUI/kit/intern/kit_core.c:1856-1912`).
 - **KGames:** sees only where the pointer ends the frame
-  ([events.rs:117-120](../Library/UserInterface/src/input/events.rs#L117)).
+  ([Events.cpp:53](../Library/UserInterface/Input/Events.cpp#L53)).
 - **Do:** sample the frame's pointer segment against the shown tree, in `interact`. WinUI doesn't do
   this, so decide first whether it fits Fluent 2.
 - **Done when:** tested and shown in UiShowcase, or dropped.
@@ -412,7 +419,8 @@ Status: Not started.
   ramp is at `kit_color.c:574-899`. The curve lacks Fritsch-Carlson's zero slope where the
   neighbouring slopes change sign, so it overshoots at peaks.
 - **KGames:** has neither. Its ColorPicker already keeps hue through grays
-  ([color_picker.rs:20-46](../Library/UserInterface/src/widgets/color_picker.rs#L20)), so BUI's
+  ([ColorPicker.h:32-42](../Library/UserInterface/Widgets/ColorPicker.h#L32),
+  [ColorPicker.cpp:5-18](../Library/UserInterface/Widgets/ColorPicker.cpp#L5)), so BUI's
   color wheel adds nothing.
 - **Do:** port both, with the zero-slope fix, styled in Fluent, for response curves and gradients.
 - **Done when:** tested and shown in UiShowcase.
@@ -449,13 +457,16 @@ Status: Not started. For when a program needs video.
 
 Status: Not started. Matters once builds are handed out.
 
-- **KGames:** `Cargo.lock` has four outside crates, `windows-core`, `windows-link`,
-  `windows-result` and `windows-strings`, all MIT OR Apache-2.0, and every program loads the
-  GameInput runtime that the user installs.
+- **KGames:** the C++ uses only the C++ standard library, the Windows SDK and GameInput. Its one
+  outside package is the `Microsoft.GameInput` NuGet package, 4.0.306, which
+  `Library/GameInput/NuGetPackages.proj` declares and `Library/GameInput/packages.lock.json` pins.
+  KGames links the package's `GameInput.lib`, and treats it as MIT-licensed, since the package
+  ships the library's source under MIT, as AGENTS.md's License section says. Every program loads
+  the GameInput runtime that the user installs.
 - **BUI:** `BUI/tools/gen_notices.py` builds `THIRD_PARTY_NOTICES.md` from license files and
   `cargo metadata` (`:120-157`), with a `--check` mode (`:209-216`), run only at release.
 - **Do:** with so few dependencies, a short hand-written notices file, and a test that fails when
-  `Cargo.lock` or `VERSION` in `Library/GameInput/src/installation.rs` changes without it.
+  `packages.lock.json` or `Version` in `Library/GameInput/Installation.h` changes without it.
 - **Done when:** the file and the test are in.
 
 ### 22. Decide whether idle frames are skipped
@@ -466,11 +477,11 @@ Status: Not started. A decision for the user.
   (`BUI/kit/intern/kit_core.c:378-392`, `:1640-1664`, `:2222-2282`;
   `BUI/kit/intern/kit_window_win32.c:385-392`).
 - **KGames:** draws every refresh
-  ([run.rs:1-18](../Library/UserInterface/src/application/run.rs#L1)), 115 frames a second on a
-  120 Hz display when idle ([Performance.md:118-121](Performance.md#L118)).
+  ([Run.h:1-18](../Library/UserInterface/Application/Run.h#L1)), 115 frames a second on a
+  120 Hz display when idle ([Performance.md:125-128](Performance.md#L125)).
 - **The trade-off:** skipping frames with no events, messages or animation would lighten idle tools
   while the user games, but the PerfBar measures every frame. The GPU saving alone isn't worth it:
-  drawing takes 0.02 to 0.16 ms of GPU ([Performance.md:8](Performance.md#L8)).
+  drawing takes 0.02 to 0.16 ms of GPU ([Performance.md:15](Performance.md#L15)).
 - **Done when:** decided, and done or dropped.
 
 ## Studied, not tasks
@@ -523,7 +534,7 @@ Status: Not started. A decision for the user.
 - **The file browser** (`BUI/ui/space_file`): it reads directories synchronously, and has bugs with
   non-ASCII paths (`BUI/kit/intern/kit_filebrowser_paths.c:57-67`). MeshModeler's own Open dialog
   is enough.
-- **The vendored C decoders** (Wuffs, libjpeg-turbo, libwebp): AGENTS.md says to use Win32, Rust,
+- **The vendored C decoders** (Wuffs, libjpeg-turbo, libwebp): AGENTS.md says to use Win32, C++,
   Direct3D 12 and DirectWrite, and WIC does the job (task 7).
 - **The async image loader and the video clock:** they land results frames late (tasks 7 and 20).
 - **Release tooling, features.json, doc images and CI** (`check_versions.py`, `bump_version.py`,

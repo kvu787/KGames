@@ -1,5 +1,12 @@
 # Performance
 
+> These are measurements of KGames as it was written in Rust, which it was until it was ported to
+> C++. The toolchain, the commands to reproduce them, the build times and the names of files are
+> that version's. [CppVersusRust.md](CppVersusRust.md) has the same benchmarks for the C++ and the
+> Rust side by side, and what's said here about where the time goes holds for both, since the C++
+> is the same code file for file. Today, `Program\Build\Build.ps1 --release Benchmarks` builds
+> `target\Release\Benchmarks.exe`.
+
 Where the programs' time goes, measured on 2026-11-06 at commit `2fb2672` with
 [Benchmarks](../Program/Benchmarks/README.md), [RunInBackground](../Program/RunInBackground/README.md)
 and the PerfBar, and read from the code. The short of it:

@@ -1,5 +1,12 @@
 # Memory
 
+> These are measurements of KGames as it was written in Rust, which it was until it was ported to
+> C++. The toolchain, the commands to reproduce them and the names of files are that version's, and
+> "the Rust heap" is the program's own heap. [CppVersusRust.md](CppVersusRust.md) has the heap's
+> numbers for the C++ and the Rust side by side. What's said here about a window's memory, the
+> GPU's and the driver's holds for both. Today, `Program\Build\Build.ps1 --release Benchmarks`
+> builds `target\Release\Benchmarks.exe`.
+
 Where the programs' memory goes, measured on 2026-11-06 at commit `5f03bcb` with
 [Benchmarks](../Program/Benchmarks/README.md)' memory groups,
 [RunInBackground](../Program/RunInBackground/README.md), Windows' process and GPU counters, and

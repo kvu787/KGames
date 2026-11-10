@@ -14,13 +14,13 @@ in a Windows job object first, so that the shell it's run from stays as it is. T
 the command and every process that it starts, like MSBuild's compilers and linker, which can't
 escape them:
 
-| Limit    | What it does                                                                 |
-| -------- | ---------------------------------------------------------------------------- |
-| Affinity | Only the CPU's efficiency cores                                              |
-| Priority | Idle: anything else that wants a core gets it first                          |
-| CPU time | At most 33% of the whole CPU's, or `KGAMES_LIGHT_CPU_PERCENT`'s              |
-| Lifetime | The job's processes are killed when RunLightly ends, however that happens,   |
-|          | unless one holds a handle to the job, by the name in `KGAMES_LIGHT_JOB`      |
+| Limit    | What it does                                                               |
+| -------- | -------------------------------------------------------------------------- |
+| Affinity | Only the CPU's efficiency cores                                            |
+| Priority | Idle: anything else that wants a core gets it first                        |
+| CPU time | At most 33% of the whole CPU's, or `KGAMES_LIGHT_CPU_PERCENT`'s            |
+| Lifetime | The job's processes are killed when RunLightly ends, however that happens, |
+|          | unless one holds a handle to the job, by the name in `KGAMES_LIGHT_JOB`    |
 
 The efficiency cores leave the performance cores, where a game's threads run, to the game. On a
 CPU whose cores are all alike, it takes all of them but a quarter. The cap on CPU time also leaves
@@ -31,13 +31,13 @@ running, with the limits, after RunInBackground ends.
 
 Jobs can't hold the rest, so RunLightly sets it itself:
 
-| Setting         | What it does                                                                     |
-| --------------- | -------------------------------------------------------------------------------- |
+| Setting         | What it does                                                                      |
+| --------------- | --------------------------------------------------------------------------------- |
 | I/O priority    | Low, on itself, which its processes inherit: the game's reads and writes go first |
 | Memory priority | Low, the same way: when memory is short, the build's pages go before the game's   |
 | Efficiency mode | On every process in the job, a few times a second, as processes don't inherit it: |
-|                 | the efficiency cores run them at efficient clocks, and the chip's power budget     |
-|                 | stays with the game's cores (Task Manager shows the leaf)                          |
+|                 | the efficiency cores run them at efficient clocks, and the chip's power budget    |
+|                 | stays with the game's cores (Task Manager shows the leaf)                         |
 | Membership      | The command's process is made suspended, put in the job, and then let run, and a  |
 |                 | process whose parent is in the job but that Windows left out, like what a .NET    |
 |                 | process starts here, is put in within a quarter second, unless it's in a job of   |
