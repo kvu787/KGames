@@ -301,10 +301,20 @@ private:
 
     void grow_to(size_t capacity) {
         T* bigger = std::allocator<T>().allocate(capacity);
+        // If a move throws, the new buffer goes, and the queue is as it was,
+        // but for the items that were moved from.
+        size_t moved = 0;
+        try {
+            for (; moved < size_; moved++) {
+                std::construct_at(bigger + moved, std::move(*slot(moved)));
+            }
+        } catch (...) {
+            std::destroy_n(bigger, moved);
+            std::allocator<T>().deallocate(bigger, capacity);
+            throw;
+        }
         for (size_t index = 0; index < size_; index++) {
-            T* item = slot(index);
-            std::construct_at(bigger + index, std::move(*item));
-            std::destroy_at(item);
+            std::destroy_at(slot(index));
         }
         if (buffer_ != nullptr) {
             std::allocator<T>().deallocate(buffer_, capacity_);

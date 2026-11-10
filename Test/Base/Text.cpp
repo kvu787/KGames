@@ -6,6 +6,7 @@
 #include "Testing/Testing.h"
 
 #include <bit>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -222,4 +223,40 @@ TEST(numbers_are_written_as_rust_writes_them_at_the_edges) {
     CHECK_EQ(base::display(123456789.0f), "123456790");
     CHECK_EQ(base::debug(0.3f), "0.3");
     CHECK_EQ(base::debug(static_cast<double>(0.3f)), "0.30000001192092896");
+}
+
+// The start of a text is a character's boundary whatever its first byte is,
+// as in Rust. A search back for a boundary, like a text box's, ends there:
+// it didn't, in text that started with a byte that continues a character.
+TEST(the_start_of_any_text_is_a_boundary) {
+    CHECK(base::is_char_boundary("\x80"
+                                 "abc",
+                                 0));
+    CHECK(base::is_char_boundary("", 0));
+    CHECK(!base::is_char_boundary("a\x80", 1));
+}
+
+// A number too large to hold is infinity, and one too small is zero, as
+// Rust reads them, whichever way it's written: with its size in its digits,
+// or in its exponent.
+TEST(numbers_out_of_range_go_to_the_right_end) {
+    std::string tiny = "0." + std::string(400, '0') + "1";
+    CHECK_EQ(base::parse_f64(tiny), 0.0);
+    std::string huge = "1" + std::string(400, '0');
+    CHECK_EQ(base::parse_f64(huge), std::numeric_limits<double>::infinity());
+    // Its digits are huge and its exponent is negative: still huge.
+    CHECK_EQ(base::parse_f64(huge + "e-5"), std::numeric_limits<double>::infinity());
+    // Its digits are tiny and its exponent is positive: still tiny.
+    CHECK_EQ(base::parse_f64(tiny + "e5"), 0.0);
+    CHECK_EQ(base::parse_f64("-" + huge), -std::numeric_limits<double>::infinity());
+    CHECK(std::signbit(base::parse_f64("-" + tiny).value()));
+    CHECK_EQ(base::parse_f64("1e400"), std::numeric_limits<double>::infinity());
+    CHECK_EQ(base::parse_f64("1e-400"), 0.0);
+    CHECK_EQ(base::parse_f64("1e99999999999999999999999"), std::numeric_limits<double>::infinity());
+    CHECK_EQ(base::parse_f64("1e-99999999999999999999999"), 0.0);
+    CHECK_EQ(base::parse_f32("1e39"), std::numeric_limits<float>::infinity());
+    CHECK_EQ(base::parse_f32("1e-50"), 0.0f);
+    // In range, close to the ends.
+    CHECK_EQ(base::parse_f64("1.7976931348623157e308"), std::numeric_limits<double>::max());
+    CHECK_EQ(base::parse_f64("5e-324"), std::numeric_limits<double>::denorm_min());
 }

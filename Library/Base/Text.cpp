@@ -117,6 +117,11 @@ size_t char_count(std::string_view text) {
 }
 
 bool is_char_boundary(std::string_view text, size_t offset) {
+    // The start is one whatever the first byte is, as in Rust, so that a
+    // search back for a boundary always ends.
+    if (offset == 0) {
+        return true;
+    }
     if (offset >= text.size()) {
         return offset == text.size();
     }
@@ -472,9 +477,33 @@ template <class Float> std::optional<Float> parse_float(std::string_view text) {
     }
     if (result.ec == std::errc::result_out_of_range) {
         // Rust reads a number too large as infinity, and one too small as 0.
+        // Which it is shows in the power of ten of its first digit that
+        // isn't 0: where that digit is from the point, and the exponent.
         bool negative = text.starts_with('-');
-        bool tiny = text.find("e-") != std::string_view::npos || text.find("E-") != std::string_view::npos;
-        Float size = tiny ? Float{0} : std::numeric_limits<Float>::infinity();
+        std::string_view digits = negative ? text.substr(1) : text;
+        size_t exponent_at = digits.find_first_of("eE");
+        std::string_view mantissa = digits.substr(0, exponent_at);
+        long long exponent = 0;
+        if (exponent_at != std::string_view::npos) {
+            std::string_view written = digits.substr(exponent_at + 1);
+            bool down = written.starts_with('-');
+            if (down || written.starts_with('+')) {
+                written.remove_prefix(1);
+            }
+            // An exponent too long for a long long is as far as one goes.
+            if (std::from_chars(written.data(), written.data() + written.size(), exponent).ec != std::errc()) {
+                exponent = std::numeric_limits<long long>::max() / 2;
+            }
+            exponent = down ? -exponent : exponent;
+        }
+        size_t point = mantissa.find('.');
+        size_t whole = point == std::string_view::npos ? mantissa.size() : point;
+        size_t first = mantissa.find_first_not_of("0.");
+        long long power = 0;
+        if (first != std::string_view::npos) {
+            power = first < whole ? static_cast<long long>(whole - first) - 1 : -static_cast<long long>(first - point);
+        }
+        Float size = power + exponent > 0 ? std::numeric_limits<Float>::infinity() : Float{0};
         return negative ? -size : size;
     }
     return number;

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -137,4 +138,57 @@ TEST(a_queues_items_work_with_the_standard_algorithms) {
     }
     CHECK_EQ(items(queue), (std::vector<int>{2, 8, 10, 18}));
     CHECK_EQ(queue.end() - queue.begin(), 4);
+}
+
+namespace {
+
+// Counts the ones alive, and throws when the one marked is moved.
+struct Fragile {
+    static inline int alive = 0;
+    int number;
+    bool throws;
+
+    Fragile(int number, bool throws) : number(number), throws(throws) {
+        alive += 1;
+    }
+
+    Fragile(Fragile&& other) : number(other.number), throws(other.throws) {
+        if (throws) {
+            throw std::runtime_error("this one doesn't move");
+        }
+        alive += 1;
+    }
+
+    ~Fragile() {
+        alive -= 1;
+    }
+};
+
+} // namespace
+
+// When a move throws as the queue grows, the new buffer goes with what was
+// moved into it, and the queue keeps what it had: nothing is destroyed
+// twice, and nothing is left behind.
+TEST(a_queue_survives_a_move_that_throws_as_it_grows) {
+    Fragile::alive = 0;
+    {
+        base::VecDeque<Fragile> queue;
+        queue.reserve(4);
+        for (int number = 0; number < 4; number++) {
+            queue.push_back(Fragile(number, false));
+        }
+        CHECK_EQ(Fragile::alive, 4);
+        // The third one throws when the queue moves it to a bigger buffer.
+        queue[2].throws = true;
+        CHECK_THROWS(queue.reserve(16));
+        CHECK_EQ(queue.size(), 4);
+        CHECK_EQ(queue.capacity(), 4);
+        CHECK_EQ(Fragile::alive, 4);
+        CHECK_EQ(queue[3].number, 3);
+        queue[2].throws = false;
+        queue.reserve(16);
+        CHECK_EQ(queue.capacity(), 16);
+        CHECK_EQ(Fragile::alive, 4);
+    }
+    CHECK_EQ(Fragile::alive, 0);
 }
