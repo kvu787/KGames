@@ -1,0 +1,20 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\KGames.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\Json\Json.vcxproj" />
+  </ItemGroup>
+  <!--
+    The rest of what the library uses, and its shader, to turn on once the code that needs them is here:
+
+  <ItemGroup>
+    <ProjectReference Include="..\Displays\Displays.vcxproj" />
+    <ProjectReference Include="..\GameInput\GameInput.vcxproj" />
+    <ProjectReference Include="..\Graphics\Graphics.vcxproj" />
+    <ProjectReference Include="..\PresentTiming\PresentTiming.vcxproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Shader Include="Shaders\Interface.hlsl" Name="Interface" Arguments="-O3 -WX" />
+  </ItemGroup>
+  -->
+  <Import Project="..\..\KGames.targets" />
+</Project>
