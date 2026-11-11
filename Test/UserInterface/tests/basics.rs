@@ -250,6 +250,31 @@ fn vsync_arguments_override_the_setting_only_when_given() {
     assert_eq!(parse(&["--no-vsync", "--vsync"]), Some(true));
 }
 
+// RunInBackground starts every program with --vsync, --theme Light and
+// --window-mode Maximized, so that its scripts and screenshots start the same
+// way whatever the program's Settings.json says.
+#[test]
+fn the_command_line_overrides_the_theme_window_mode_and_vertical_sync_settings() {
+    let parse = |arguments: &[&str]| Arguments::parse(arguments.iter().map(|argument| argument.to_string()), &[]);
+    let started = |arguments: &[&str]| {
+        let settings = r#"{ "Theme": "Dark", "WindowMode": "BorderlessFullscreen", "VerticalSync": false }"#;
+        let mut startup = Startup::for_tests(settings, &std::env::temp_dir());
+        parse(arguments).unwrap().override_settings(&mut startup.common);
+        let common = startup.common;
+        (common.theme, common.window_mode, common.vertical_sync)
+    };
+    assert_eq!(started(&[]), (ThemeKind::Dark, WindowMode::BorderlessFullscreen, false));
+    let run_in_background = ["--vsync", "--theme", "Light", "--window-mode", "Maximized"];
+    assert_eq!(started(&run_in_background), (ThemeKind::Light, WindowMode::Maximized, true));
+    // Words ignore case, and the last one says, so RunInBackground's
+    // --arguments, after its own, can say otherwise.
+    assert_eq!(started(&["--theme", "light", "--theme", "DARK", "--window-mode", "maximized"]), (ThemeKind::Dark, WindowMode::Maximized, false));
+    assert_eq!(parse(&["--theme", "Blue"]).unwrap_err(), "--theme takes Light or Dark, not Blue.");
+    assert_eq!(parse(&["--window-mode", "Windowed"]).unwrap_err(), "--window-mode takes Maximized or BorderlessFullscreen, not Windowed.");
+    assert_eq!(parse(&["--theme"]).unwrap_err(), "--theme needs a value after it.");
+    assert!(parse(&["--light"]).unwrap_err().contains("--theme <Light or Dark>, --window-mode <Maximized or BorderlessFullscreen>"));
+}
+
 #[test]
 fn text_lays_out_with_directwrite() {
     let mut fonts = Fonts::new().unwrap();

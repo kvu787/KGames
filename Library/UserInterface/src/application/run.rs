@@ -11,7 +11,7 @@
 // messages instead, which stops it drawing.
 //
 // Programs start in the theme, window mode and vertical sync that their
-// Settings.json says.
+// Settings.json says, unless the command line says otherwise.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
@@ -80,13 +80,14 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         std::fs::create_dir_all(output).map_err(|error| format!("Couldn't make the folder {}: {error}", output.display()))?;
     }
 
-    // The settings that every program has, then, in `create`, the program's
-    // own.
+    // The settings that every program has, as the command line overrides
+    // them, then, in `create`, the program's own.
     let mut startup = Startup::new(Settings::load(&folder.join("Settings.json")), &data_folder, scripted);
+    arguments.override_settings(&mut startup.common);
     let common = startup.common.clone();
     let display_setting = common.display;
     let mode = common.window_mode;
-    let vertical_sync = arguments.vsync.unwrap_or(common.vertical_sync);
+    let vertical_sync = common.vertical_sync;
     startup.arguments = arguments.own.clone();
 
     // All input comes from GameInput, except in a scripted run, which the

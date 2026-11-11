@@ -287,14 +287,19 @@ every one of the settings that every program has, which `Test/UserInterface` che
 |                | tear. `false`: frames present at once, and may tear                      |
 | `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
 
-| Argument          | What it does                                                              |
-| ----------------- | ------------------------------------------------------------------------- |
-| `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary  |
-| `--no-activate`   | Opens beneath the other windows, without taking focus, in efficiency mode |
-| `--no-input`      | Doesn't start GameInput, so the program reads no input at all             |
-| `--vsync`         | Waits for vertical sync, whatever `VerticalSync` says                     |
-| `--no-vsync`      | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
-| `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`       |
+| Argument               | What it does                                                              |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `--display <id>`       | Opens on the display, which must be connected. `Primary` for the primary  |
+| `--no-activate`        | Opens beneath the other windows, without taking focus, in efficiency mode |
+| `--no-input`           | Doesn't start GameInput, so the program reads no input at all             |
+| `--vsync`              | Waits for vertical sync, whatever `VerticalSync` says                     |
+| `--no-vsync`           | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
+| `--theme <theme>`      | Starts `Light` or `Dark`, whatever `Theme` says                           |
+| `--window-mode <mode>` | Starts `Maximized` or `BorderlessFullscreen`, whatever `WindowMode` says  |
+| `--script <path>`      | Runs a script instead of the user's input, with `--output <folder>`       |
+
+What the command line says goes into `startup.common` too, so a program sees the theme, window mode
+and vertical sync that it starts in. Of an argument given twice, the last one says.
 
 ## Input latency
 

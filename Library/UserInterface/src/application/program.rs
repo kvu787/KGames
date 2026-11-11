@@ -17,9 +17,10 @@ use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
-use crate::application::settings::{CommonSettings, Settings};
+use crate::application::settings::{CommonSettings, Settings, WindowMode};
 use crate::core::interface::{Context, Ui};
 use crate::core::tree::Tree;
+use crate::design::theme::ThemeKind;
 use crate::platform::input_devices::Devices;
 use crate::widgets::info_bar::Severity;
 
@@ -77,7 +78,7 @@ pub trait Program {
 
 // How the library runs a program. Every program starts in the theme, window
 // mode and vertical sync that its Settings.json says, unless the command
-// line says otherwise for vertical sync, and F9, F11 and F10 switch them.
+// line says otherwise, and F9, F11 and F10 switch them.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".
@@ -126,8 +127,9 @@ pub struct Startup {
     // Settings.json, which the program reads its own settings from.
     pub settings: Settings,
     // The settings that every program has, which were read from `settings`
-    // first: the display, window mode, vertical sync and theme that the
-    // program starts in, besides --display's and --vsync's.
+    // first, as the command line overrides them: the window mode, vertical
+    // sync and theme that the program starts in. `display` is the setting's,
+    // which --display overrides with a display that must be connected.
     pub common: CommonSettings,
     // Where the program reads and writes its files: its folder, or a
     // script's output folder, so that scripts never change its files.
@@ -201,6 +203,11 @@ pub struct Arguments {
     // Whether frames wait for vertical sync, with --vsync or --no-vsync,
     // whatever the VerticalSync setting says, like for test runs.
     pub vsync: Option<bool>,
+    // The theme and window mode to start in, with --theme and --window-mode,
+    // whatever the Theme and WindowMode settings say, so that test runs start
+    // the same way whatever someone set for themselves.
+    pub theme: Option<ThemeKind>,
+    pub window_mode: Option<WindowMode>,
     // Doesn't start GameInput, for test runs, which never have focus, so
     // that nothing of theirs reads the devices of someone using the computer.
     pub no_input: bool,
@@ -223,11 +230,20 @@ impl Arguments {
                 "--no-activate" => parsed.no_activate = true,
                 "--vsync" => parsed.vsync = Some(true),
                 "--no-vsync" => parsed.vsync = Some(false),
+                "--theme" => parsed.theme = Some(choose("--theme", value("--theme")?, &[ThemeKind::Light, ThemeKind::Dark], ThemeKind::name)?),
+                "--window-mode" => {
+                    let modes = [WindowMode::Maximized, WindowMode::BorderlessFullscreen];
+                    parsed.window_mode = Some(choose("--window-mode", value("--window-mode")?, &modes, WindowMode::name)?);
+                }
                 "--no-input" => parsed.no_input = true,
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
-                other => return Err(format!("Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, and --script <path> with --output <folder>.")),
+                other => {
+                    return Err(format!(
+                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, --theme <Light or Dark>, --window-mode <Maximized or BorderlessFullscreen>, and --script <path> with --output <folder>."
+                    ));
+                }
             }
         }
         if parsed.script.is_some() != parsed.output.is_some() {
@@ -235,4 +251,26 @@ impl Arguments {
         }
         Ok(parsed)
     }
+
+    // Overrides the settings that every program has with what the command
+    // line says, of vertical sync, the theme and the window mode.
+    pub fn override_settings(&self, common: &mut CommonSettings) {
+        if let Some(vsync) = self.vsync {
+            common.vertical_sync = vsync;
+        }
+        if let Some(theme) = self.theme {
+            common.theme = theme;
+        }
+        if let Some(window_mode) = self.window_mode {
+            common.window_mode = window_mode;
+        }
+    }
+}
+
+// One of the choices, by its name, whatever the name's case.
+fn choose<T: Copy>(argument: &str, value: String, choices: &[T], name: impl Fn(T) -> &'static str) -> Result<T, String> {
+    choices.iter().copied().find(|choice| name(*choice).eq_ignore_ascii_case(&value)).ok_or_else(|| {
+        let names: Vec<&str> = choices.iter().map(|choice| name(*choice)).collect();
+        format!("{argument} takes {}, not {value}.", names.join(" or "))
+    })
 }
