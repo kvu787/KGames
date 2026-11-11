@@ -75,10 +75,9 @@ pub trait Program {
     }
 }
 
-// How the library runs a program. Every program starts in the light theme
-// and maximized unless Settings.json says otherwise, and with vertical sync
-// on unless Settings.json or the command line says otherwise, which F9, F11
-// and F10 switch.
+// How the library runs a program. Every program starts in the theme, window
+// mode and vertical sync that its Settings.json says, unless the command
+// line says otherwise for vertical sync, and F9, F11 and F10 switch them.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".

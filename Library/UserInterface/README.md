@@ -98,12 +98,12 @@ committing an edit once the button is up, or rebuilding what a 3D view shows.
 Color with the theme's roles and size with the tokens and the controls' metrics, instead of values
 of your own, so that every program looks like one family, and like Windows 11.
 
-- **Themes** (`design/theme.rs`): light by default, and dark, which `F9` switches to and from in
-  every program, and which a program starts in with `"Theme": "Dark"` in its
-  [settings](#settings-and-the-command-line). The roles are WinUI's theme resources, like
-  `text_primary` for TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
-  11's default blue accent and its ramp. Status colors, like `critical`, and colors that tell
-  graphs' series apart, `theme.data`, are there too.
+- **Themes** (`design/theme.rs`): light and dark, which `F9` switches between in every program,
+  which starts in the one that `Theme` in its [settings](#settings-and-the-command-line) says.
+  The roles are WinUI's theme resources, like `text_primary` for TextFillColorPrimary,
+  `control_fill` for ControlFillColorDefault, and `card_background` for
+  CardBackgroundFillColorDefault, with Windows 11's default blue accent and its ramp. Status
+  colors, like `critical`, and colors that tell graphs' series apart, `theme.data`, are there too.
 - **Tokens** (`design/tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
   corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
   ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
@@ -308,12 +308,13 @@ layouts are cached, so a frame that shows the same text as the last one asks Dir
 nothing, and glyphs are rasterized once each into an atlas. Minimizing the window stops the loop
 drawing.
 
-Programs start with vertical sync on, unless `VerticalSync` or `--no-vsync` says otherwise: frames
-wait for the screen's refresh, and DXGI can take another only once the last one has gone to the
-screen, so the loop waits for that, and for messages, instead of spinning: a frame couldn't begin
-any sooner, and the input is still read as soon as one can. `F10` switches it on and off while the
-program runs. With it off, frames present as soon as they're drawn, and may tear, and the loop
-spins, so that the input that reaches the screen is as fresh as it can be.
+Programs start with vertical sync on or off as `VerticalSync` says, unless `--vsync` or
+`--no-vsync` says otherwise. With it on, frames wait for the screen's refresh, and DXGI can take
+another only once the last one has gone to the screen, so the loop waits for that, and for
+messages, instead of spinning: a frame couldn't begin any sooner, and the input is still read as
+soon as one can. `F10` switches it on and off while the program runs. With it off, frames present
+as soon as they're drawn, and may tear, and the loop spins, so that the input that reaches the
+screen is as fresh as it can be.
 
 RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input`, so that they share the
 computer lightly with someone using it, like playing a game: the window opens beneath the others

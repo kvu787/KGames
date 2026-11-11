@@ -751,7 +751,7 @@ fn f10_shows_the_new_vertical_sync_on_its_own_frame() {
 #[test]
 fn f10_switches_vertical_sync_even_while_a_text_field_has_focus() {
     let mut app = Headless::new(Test::default());
-    // It starts on, as every program does.
+    // It starts on, as Headless::new starts a program.
     assert!(app.vertical_sync());
     app.key(Key::F10);
     assert!(!app.vertical_sync());
@@ -766,7 +766,7 @@ fn f10_switches_vertical_sync_even_while_a_text_field_has_focus() {
 #[test]
 fn f9_switches_the_theme_even_while_a_text_field_has_focus() {
     let mut app = Headless::new(Test::default());
-    // It starts light, as every program does.
+    // It starts light, as Headless::new starts a program.
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     app.key(Key::F9);
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);

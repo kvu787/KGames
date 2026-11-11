@@ -99,8 +99,7 @@ fn starting_in_the_dark_theme_logs_no_change_of_theme() {
     app.key(Key::F9);
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     assert_eq!(themed(&app), ["Light theme"]);
-    // And starting light, as every program's Settings.json says, is no
-    // change either.
+    // And starting light is no change either.
     let mut app = Headless::start(Startup::for_tests(r#"{ "Theme": "Light" }"#, &folder), |startup| Ok(Showcase::new(startup)));
     app.frames(3);
     assert_eq!(themed(&app), Vec::<String>::new());

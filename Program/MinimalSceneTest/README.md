@@ -24,8 +24,8 @@ ignores input without focus, and supports the two
 |            | and the cube's paint their color on faces that face up, and the sphere's    |
 |            | has equal Dark and Light Points, a constant color                           |
 | Background | #4c4c4c                                                                     |
-| Frames     | Maximized by default, waiting for vertical sync, unless `F10` says not to,  |
-|            | which lets them tear, and without antialiasing                              |
+| Frames     | Maximized or not, and waiting for vertical sync or not, as `Settings.json`  |
+|            | says, until `F11` or `F10` switches them. Without antialiasing              |
 
 The scene fills the window at either height, with its own depth buffer, and the card goes over
 it. Library/UserInterface's main loop reads the input and the time right before it draws a

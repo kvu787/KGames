@@ -25,8 +25,8 @@ Windows reports every change of the foreground window to RunInBackground, so eve
 moment counts, and RunInBackground stops the program as soon as it does, so that it has focus for
 as short a time as can be.
 
-Every program also starts with vertical sync on by itself, but a run's `--vsync` keeps it on even if
-the program's Settings.json says `"VerticalSync": false`.
+A run's `--vsync` turns vertical sync on even if the program's Settings.json says
+`"VerticalSync": false`.
 
 Scripts run on their own fixed clock, so their frames and expectations are the same with vertical
 sync or without. `--no-vsync` runs the program with `--no-vsync`, as fast as it can draw, like for

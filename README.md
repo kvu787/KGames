@@ -43,10 +43,10 @@ This decision was primarily motivated by my experience working with those depend
 - GUI apps
   - If the window isn't focused, the app must ignore all input.
   - Use Win32, Rust, Direct3D 12, DirectWrite
-  - Use a light theme by default
   - F9 to toggle between light and dark mode
-  - F10 to toggle VSync, on by default
-  - F11 to toggle borderless fullscreen, windowed by default
+  - F10 to toggle VSync
+  - F11 to toggle borderless fullscreen
+  - Each program's Settings.json says which of those it starts in
   - Optimize for minimal input latency
 
 GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), a user

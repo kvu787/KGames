@@ -127,7 +127,7 @@ parts: waiting, from the reading to the frame reading it; building, to the `Pres
 presenting, from `Present` to the screen. The benchmarks can't measure it, as there's no input
 without a user, so this part is read from the code, with the frame costs above.
 
-With vertical sync on, as every program starts:
+With vertical sync on, as every program's Settings.json starts it:
 
 1. The presenter has a frame latency waitable object and a maximum frame latency of 1, so the
    object signals once the last frame has left DXGI's queue, which with vertical sync is when the

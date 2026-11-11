@@ -11,7 +11,7 @@
 // messages instead, which stops it drawing.
 //
 // Programs start in the theme, window mode and vertical sync that their
-// Settings.json says: light, maximized and on, by default.
+// Settings.json says.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
