@@ -1,7 +1,7 @@
 {
   "Display": "Primary",
-  "WindowMode": "WindowedMaximized",
-  "VerticalSync": true,
+  "WindowMode": "BorderlessFullscreen",
+  "VerticalSync": false,
   "Theme": "Light",
   "SimplePaintShader_Axles": {
     "BaseColor": [0.2159017, 0.21590173, 0.2159017],
