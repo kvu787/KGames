@@ -65,8 +65,12 @@ kind that holds, because a later session never read the conversation that invent
   consumers read everything else from the state as it is when they apply, never from a snapshot.
   The test for an intent-carrying message is two of the same intent in one frame: they cancel, or
   apply twice, and never collapse into one.
-- Simulations run in fixed steps on their own clock, never the frame's, and a test drives the same
-  inputs at 60 and 240 frames a second and asserts identical results, events included. Event
+- Simulations move by each frame's own time, the time since the frame before, in one step a frame,
+  like a Godot game's `_process` with its delta, never in fixed steps on a clock of their own: a
+  frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a
+  second, fits 2 steps in some frames and 3 in others, and what moves judders. Cap a frame's time,
+  so that a late one, like after the window was minimized, doesn't carry things far, and test
+  frames at 100 frames a second and of uneven lengths: each moves things by its own time. Event
   queues drain to quiescence inside the frame; a cascade that doesn't settle stops the program
   instead of hiding.
 - A comment is a promise: a comment or README that says the code does something the code doesn't

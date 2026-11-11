@@ -60,7 +60,7 @@ pub struct Player {
     // What the player stands on, while grounded.
     pub standing: Standing,
     // Until when a jump press still counts, and until when the ground the
-    // player left still does, on the simulation's clock.
+    // player left still does, on the game's clock.
     pub jump_until: f64,
     pub coyote_until: f64,
 }
