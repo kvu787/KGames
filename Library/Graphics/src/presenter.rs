@@ -7,26 +7,28 @@
 //   previous frame and DXGI can take another. The main loop polls it while it
 //   handles window messages, and reads input only once it's ready, so no input
 //   ages during the wait.
-// - With vertical sync on, as every program starts, frames wait for the
+// - With vertical sync on, as a presenter starts, frames wait for the
 //   screen's refresh, and never tear, so a program draws no faster than the
 //   screen shows.
-// - With it off, frames present without waiting for vertical sync. With
-//   tearing allowed, a frame can reach the screen mid-refresh, when Windows
-//   flips it straight there, like in borderless fullscreen.
+// - With it off, frames present without waiting, and may tear: a frame can
+//   reach the screen mid-refresh when Windows flips it straight there, like
+//   in borderless fullscreen. There's no way between the two, of frames that
+//   don't wait and don't tear either.
 
 use windows_api::*;
-use windows_core::{Interface, Result};
+use windows_core::{BOOL, Error, Interface, Result};
 
 use crate::resources::{DescriptorHeap, command_list, create_target_views, execute, transition};
 use crate::{Frame, Gpu, TARGET_FORMAT, check_handle};
 
 const BUFFER_COUNT: u32 = 2;
 
+// The swap chain's flags, which ResizeBuffers must be given again.
+const FLAGS: u32 = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT as u32 | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING as u32;
+
 pub struct Presenter {
     swap_chain: IDXGISwapChain3,
     waitable: HANDLE,
-    flags: u32,
-    tearing: bool,
     buffers: Vec<ID3D12Resource>,
     views: DescriptorHeap,
     allocator: ID3D12CommandAllocator,
@@ -50,14 +52,15 @@ pub struct Presenter {
 }
 
 impl Presenter {
-    // With `allow_tearing` false, frames still don't wait for vertical sync,
-    // but the screen takes the newest one at each refresh, so none tear.
-    pub fn new(gpu: &Gpu, window: HWND, width: u32, height: u32, allow_tearing: bool) -> Result<Self> {
+    // Fails where Windows can't present frames that tear, which frames
+    // without vertical sync need.
+    pub fn new(gpu: &Gpu, window: HWND, width: u32, height: u32) -> Result<Self> {
         unsafe {
-            let tearing = allow_tearing && gpu.tearing_supported;
-            let mut flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT as u32;
-            if gpu.tearing_supported {
-                flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING as u32;
+            if !tearing_supported(&gpu.factory) {
+                return Err(Error::new(
+                    E_FAIL,
+                    "Windows can't present frames that tear here, which frames without vertical sync need.",
+                ));
             }
             let description = DXGI_SWAP_CHAIN_DESC1 {
                 Width: width.max(1),
@@ -67,7 +70,7 @@ impl Presenter {
                 BufferUsage: DXGI_USAGE(DXGI_USAGE_RENDER_TARGET_OUTPUT),
                 BufferCount: BUFFER_COUNT,
                 SwapEffect: DXGI_SWAP_EFFECT_FLIP_DISCARD,
-                Flags: flags,
+                Flags: FLAGS,
                 ..Default::default()
             };
             let swap_chain: IDXGISwapChain3 = gpu
@@ -91,8 +94,6 @@ impl Presenter {
             let mut presenter = Self {
                 swap_chain,
                 waitable,
-                flags,
-                tearing,
                 buffers: Vec::new(),
                 views,
                 allocator,
@@ -104,21 +105,17 @@ impl Presenter {
                 last_frame: 0,
                 waitable_signaled: false,
                 present_time: 0,
-                vsync: false,
+                vsync: true,
             };
             presenter.create_views(gpu)?;
             Ok(presenter)
         }
     }
 
-    // Whether frames may tear.
-    pub fn tearing(&self) -> bool {
-        self.tearing && !self.vsync
-    }
-
     // Makes frames wait for vertical sync, which paces them at the display's
     // refresh rate instead of as fast as the GPU goes, so that they don't
-    // keep the GPU busy. They don't tear then. Every program starts with it.
+    // keep the GPU busy, and they don't tear. A presenter starts with it on.
+    // Off, frames present at once, and may tear.
     pub fn set_vsync(&mut self, vsync: bool) {
         self.vsync = vsync;
     }
@@ -142,7 +139,7 @@ impl Presenter {
         self.buffers.clear();
         unsafe {
             self.swap_chain
-                .ResizeBuffers(BUFFER_COUNT, width, height, TARGET_FORMAT, self.flags)
+                .ResizeBuffers(BUFFER_COUNT, width, height, TARGET_FORMAT, FLAGS)
                 .ok()?;
         }
         self.width = width;
@@ -227,11 +224,7 @@ impl Presenter {
             )]);
             frame.list.Close().ok()?;
             execute(&gpu.queue, &frame.list)?;
-            let (interval, flags) = match (self.vsync, self.tearing) {
-                (true, _) => (1, 0),
-                (false, true) => (0, DXGI_PRESENT_ALLOW_TEARING),
-                (false, false) => (0, 0),
-            };
+            let (interval, flags) = present_arguments(self.vsync);
             let _ = QueryPerformanceCounter(&mut self.present_time);
             let swap_chain = &self.swap_chain;
             // Present's DXGI_STATUS codes are successes, which change nothing
@@ -240,6 +233,21 @@ impl Presenter {
             present_then_signal(&mut self.last_frame, present, || gpu.signal()).map_err(|error| with_removed_reason(gpu, error))
         }
     }
+}
+
+// Present's sync interval and flags: with vertical sync, the frame waits for
+// the screen's next refresh, and without it, it goes at once, and may tear.
+pub fn present_arguments(vsync: bool) -> (u32, u32) {
+    if vsync { (1, 0) } else { (0, DXGI_PRESENT_ALLOW_TEARING) }
+}
+
+// Whether Windows can present frames that tear, which both the display
+// driver and Windows must support.
+fn tearing_supported(factory: &IDXGIFactory6) -> bool {
+    let mut supported = BOOL(0);
+    let size = size_of::<BOOL>() as u32;
+    let result = unsafe { factory.CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &mut supported as *mut BOOL as *mut _, size) };
+    result.is_ok() && supported.as_bool()
 }
 
 // Presents, then has the GPU signal the fence after the frame's commands,

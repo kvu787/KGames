@@ -93,7 +93,7 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut
     for overlay in overlays {
         let window = Window::create_overlay(&overlay.title, overlay.rect).map_err(|error| format!("Couldn't open a window: {error}"))?;
         let (width, height) = window.client_size();
-        let presenter = Presenter::new(&gpu, window.hwnd(), width, height, false).map_err(|error| format!("Couldn't make a swap chain: {error}"))?;
+        let presenter = Presenter::new(&gpu, window.hwnd(), width, height).map_err(|error| format!("Couldn't make a swap chain: {error}"))?;
         let renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make a renderer: {error}"))?;
         let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
         shown.push(Shown {

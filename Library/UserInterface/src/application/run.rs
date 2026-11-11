@@ -15,7 +15,8 @@
 // gone to the screen, so the loop waits for that, and for messages, instead
 // of spinning: a frame couldn't begin any sooner, and the input is still read
 // as soon as one can. F10 switches it on and off. Without it, frames present
-// as soon as they're drawn, and the loop spins, for the lowest latency.
+// as soon as they're drawn, and may tear, and the loop spins, for the lowest
+// latency.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -83,7 +84,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let modes = [WindowMode::Maximized.name(), WindowMode::BorderlessFullscreen.name()];
     let mode = settings.choice("WindowMode", WindowMode::Maximized.name(), &modes);
     let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
-    let allow_tearing = settings.boolean("AllowTearing", true);
     let vertical_sync_setting = settings.boolean("VerticalSync", true);
     let vertical_sync = arguments.vsync.unwrap_or(vertical_sync_setting);
     let mut startup = Startup::new(settings, &data_folder, scripted);
@@ -163,14 +163,14 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     // the presenter waits for the GPU to finish the last frame as it goes,
     // before the renderer's buffers and the program's resources go.
     let mut renderer = Renderer::new(&gpu).map_err(|error| format!("Couldn't make the renderer: {error}"))?;
-    let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height, allow_tearing).map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
+    let mut presenter = Presenter::new(&gpu, window.hwnd(), width, height).map_err(|error| format!("Couldn't make the swap chain: {error}"))?;
     presenter.set_vsync(vertical_sync);
     program.prepare(&mut gpu).map_err(|error| format!("Couldn't prepare to draw: {error}"))?;
     ui.environment = Environment {
         gpu: gpu.name.clone(),
         display: display.identifier.clone(),
         display_name: display.name.clone(),
-        tearing: presenter.tearing(),
+        tearing: !vertical_sync,
         vertical_sync,
         scripted,
     };
@@ -275,7 +275,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
-                    ui.environment.tearing = presenter.tearing();
+                    ui.environment.tearing = !presenter.vsync();
                 }
                 Request::Close => break 'frames,
             }

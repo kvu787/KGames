@@ -279,9 +279,8 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | -------------- | ------------------------------------------------------------------------ |
 | `Display`      | `"Primary"`, or the identifier of the display to open on                 |
 | `WindowMode`   | `"Maximized"`, by default, or `"BorderlessFullscreen"`                   |
-| `AllowTearing` | Whether frames may tear, which lets them reach the screen mid-refresh    |
-| `VerticalSync` | Whether frames wait for the screen's refresh, which also stops tearing.  |
-|                | `true` by default                                                        |
+| `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
+|                | tear. `false`: frames present at once, and may tear                      |
 
 | Argument          | What it does                                                              |
 | ----------------- | ------------------------------------------------------------------------- |

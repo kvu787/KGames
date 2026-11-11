@@ -4,7 +4,7 @@
 //     {
 //         "Display": "Primary",
 //         "WindowMode": "Maximized",
-//         "AllowTearing": true,
+//         "VerticalSync": true,
 //         "RumbleTestInnerDeadZone": 0.1
 //     }
 

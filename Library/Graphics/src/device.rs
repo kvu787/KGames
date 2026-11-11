@@ -2,7 +2,7 @@
 // for setup work, like copying meshes into GPU memory.
 
 use windows_api::*;
-use windows_core::{BOOL, Error, Interface, Result};
+use windows_core::{Error, Interface, Result};
 
 // Which GPU draws.
 #[derive(Clone, Copy, Debug)]
@@ -102,9 +102,6 @@ pub struct Gpu {
     pub name: String,
     pub device: ID3D12Device,
     pub queue: ID3D12CommandQueue,
-    // Whether presenting may tear, which needs both the display driver's and
-    // Windows' support.
-    pub tearing_supported: bool,
     fence: ID3D12Fence,
     fence_event: HANDLE,
     last_signal: u64,
@@ -146,16 +143,6 @@ impl Gpu {
                 device.CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, &setup_allocator, None)?;
             setup_list.Close().ok()?;
 
-            let mut tearing = BOOL(0);
-            let tearing_supported = factory
-                .CheckFeatureSupport(
-                    DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-                    &mut tearing as *mut BOOL as *mut _,
-                    size_of::<BOOL>() as u32,
-                )
-                .is_ok()
-                && tearing.as_bool();
-
             let info_queue = if debug { device.cast::<ID3D12InfoQueue>().ok() } else { None };
             Ok(Self {
                 factory,
@@ -163,7 +150,6 @@ impl Gpu {
                 name,
                 device,
                 queue,
-                tearing_supported,
                 fence,
                 fence_event,
                 last_signal: 0,

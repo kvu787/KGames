@@ -36,11 +36,13 @@ The swap chain is a flip model one, with a frame latency waitable object and a m
 latency of 1, so no frame waits behind another in DXGI's queue, and only one frame is on the GPU at
 a time. `Presenter::poll_ready` says, without blocking, whether the GPU has finished the last frame
 and DXGI can take another, so the main loop can keep handling messages while it waits, and read
-input only once a frame can start. With vertical sync, which every program starts with, frames
+input only once a frame can start. With vertical sync, which a presenter starts with, frames
 wait for the display's refresh, and never tear. Without it, as with `"VerticalSync": false` in a
-program's Settings.json, or `--no-vsync`, frames present without waiting, and may tear if
-`allow_tearing` and the system allow it. `Presenter::set_vsync` switches between the two from the
-next frame on, as `F10` does in every program. DXGI's Alt+Enter, which would switch the display's mode, is off.
+program's Settings.json, or `--no-vsync`, frames present without waiting, and may tear: a frame can
+reach the screen mid-refresh when Windows flips it straight there. There's no way between the two,
+of frames that don't wait and don't tear either, and `Presenter::new` fails where Windows can't
+present frames that tear. `Presenter::set_vsync` switches between the two from the next frame on,
+as `F10` does in every program. DXGI's Alt+Enter, which would switch the display's mode, is off.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.

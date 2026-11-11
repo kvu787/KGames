@@ -155,11 +155,11 @@ fn a_missing_settings_file_is_written_with_the_defaults() {
     let path = folder.join("Settings.json");
     let _ = std::fs::remove_file(&path);
     let mut settings = Settings::load(&path);
-    settings.boolean("AllowTearing", true);
+    settings.boolean("VerticalSync", true);
     settings.number("DeadZone", 0.1, |_| Ok(()));
     settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("\"AllowTearing\": true") && written.contains("\"DeadZone\": 0.1"), "{written}");
+    assert!(written.contains("\"VerticalSync\": true") && written.contains("\"DeadZone\": 0.1"), "{written}");
     std::fs::remove_dir_all(&folder).unwrap();
 }
 

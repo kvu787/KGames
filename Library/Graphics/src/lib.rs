@@ -18,7 +18,7 @@ pub use depth::DepthBuffer;
 pub use device::{AdapterChoice, Gpu, GpuPriority, VideoMemory, gpu_priority, set_gpu_priority};
 pub use frame::{Frame, Image, Offscreen, Readback};
 pub use png::write_png;
-pub use presenter::{Presenter, present_then_signal};
+pub use presenter::{Presenter, present_arguments, present_then_signal};
 pub use resources::{
     DescriptorHeap, UploadBuffer, bytecode, create_buffer, create_texture, heap_properties,
     transition,

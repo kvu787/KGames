@@ -1,7 +1,7 @@
 {
     "Display": "Primary",
     "WindowMode": "Maximized",
-    "AllowTearing": true,
+    "VerticalSync": true,
     "Scene": "Ribeye",
     "Vehicle": "Yellow",
     "Camera": "Fixed",

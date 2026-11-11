@@ -3,12 +3,23 @@
 // it lets go of the frame's buffers, whether Present succeeds or not. A
 // failed Present returns its error, and the main loop ends, so the value
 // must be kept before then, or the buffers would go while the GPU still
-// draws into them.
+// draws into them. And how it presents, with vertical sync or without.
 
-use graphics::present_then_signal;
+use graphics::{present_arguments, present_then_signal};
 use windows_core::{Error, HRESULT};
 
 const FAILED: HRESULT = HRESULT(0x887A0001_u32 as i32);
+
+// DXGI_PRESENT_ALLOW_TEARING.
+const ALLOW_TEARING: u32 = 0x200;
+
+// Vertical sync on never tears, and off always may: there's no third way, of
+// frames that don't wait and don't tear either.
+#[test]
+fn frames_wait_for_vertical_sync_or_may_tear() {
+    assert_eq!(present_arguments(true), (1, 0));
+    assert_eq!(present_arguments(false), (0, ALLOW_TEARING));
+}
 
 #[test]
 fn a_presented_frame_s_fence_value_is_kept_and_returned() {

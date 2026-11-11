@@ -205,7 +205,6 @@ it doesn't exist, the demo writes it with the defaults:
 {
     "Display": "Primary",
     "WindowMode": "Maximized",
-    "AllowTearing": true,
     "VerticalSync": true,
     "RumbleTestInnerDeadZone": 0.1
 }
@@ -215,11 +214,11 @@ it doesn't exist, the demo writes it with the defaults:
 | ------------------------- | --------------------------------------------------------------------------- |
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
 | `WindowMode`              | `"Maximized"` or `"BorderlessFullscreen"`, the two supported setups         |
-| `AllowTearing`            | Whether frames may tear, which lets them reach the screen mid-refresh       |
-| `VerticalSync`            | Whether frames wait for the screen's refresh, which `F10` switches          |
+| `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
+|                           | once, and may tear. `F10` switches it                                       |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first four are the settings that every KGames program has, which
+The first three are the settings that every KGames program has, which
 [Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 
@@ -308,12 +307,11 @@ machine, an RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a whole frame takes ab
 
 Without vertical sync, when Windows flips the demo's frames straight to the screen, a frame can
 replace the one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
-compositor shows the newest frame at its next refresh. With `"AllowTearing": false` in the
-[settings](#settings-file), frames still don't wait, but the screen takes the newest one at each
-refresh, so none tear, even in fullscreen. `F11`, or `"WindowMode": "BorderlessFullscreen"`, makes
-the window cover its monitor, which lets Windows flip the frames straight to the screen, instead of
-the compositor copying them into its own frame. That saves up to a refresh, and lets frames tear. In
-a window, Windows can only do that if the GPU supports multiplane overlays.
+compositor shows the newest frame at its next refresh. `F11`, or
+`"WindowMode": "BorderlessFullscreen"`, makes the window cover its monitor, which lets Windows flip
+the frames straight to the screen, instead of the compositor copying them into its own frame. That
+saves up to a refresh, and lets frames tear. In a window, Windows can only do that if the GPU
+supports multiplane overlays.
 
 What it doesn't do:
 

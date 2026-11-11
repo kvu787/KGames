@@ -1,7 +1,7 @@
 {
     "Display": "Primary",
     "WindowMode": "Maximized",
-    "AllowTearing": true,
+    "VerticalSync": true,
     "SimplePaintShader_Axles": {
         "BaseColor": [0.2159017, 0.21590173, 0.2159017],
         "Brightness": 0.5,

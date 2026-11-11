@@ -25,7 +25,7 @@ ignores input without focus, and supports the two
 |            | has equal Dark and Light Points, a constant color                           |
 | Background | #4c4c4c                                                                     |
 | Frames     | Maximized by default, waiting for vertical sync, unless `F10` says not to,  |
-|            | tearing allowed without it, and without antialiasing                        |
+|            | which lets them tear, and without antialiasing                              |
 
 The scene fills the window at either height, with its own depth buffer, and the card goes over
 it. Library/UserInterface's main loop reads the input and the time right before it draws a

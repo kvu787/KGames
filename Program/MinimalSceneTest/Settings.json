@@ -1,7 +1,7 @@
 {
     "Display": "Primary",
     "WindowMode": "Maximized",
-    "AllowTearing": true,
+    "VerticalSync": true,
     "Sphere": {
         "BaseColor": [0.17000002, 0.47433347, 0.9990234375],
         "Brightness": 0.5,
