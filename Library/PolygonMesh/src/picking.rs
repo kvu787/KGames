@@ -132,6 +132,7 @@ impl SubdivisionSurface {
 // side, by Moller and Trumbore's method. A little past the triangle's edges
 // counts, so that a ray along the edge between two triangles hits one of them
 // whatever the rounding.
+#[inline]
 fn ray_triangle(origin: Vector3, direction: Vector3, [a, b, c]: [Vector3; 3]) -> Option<f32> {
     let first = subtract(b, a);
     let second = subtract(c, a);

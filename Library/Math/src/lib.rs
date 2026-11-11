@@ -7,28 +7,38 @@
 // - Spaces are right-handed: in view space, +X is right, +Y is up, and the
 //   camera looks along -Z.
 // - Angles are in radians.
+//
+// The functions that are a few multiplications are #[inline]. Cargo's release
+// profile doesn't optimize across packages, so without it a dot product in
+// another package is a call, with its vectors passed through memory: a ray
+// cast through a mesh's triangles took twice as long.
 
 use std::ops::Mul;
 
 pub type Vector3 = [f32; 3];
 pub type Vector4 = [f32; 4];
 
+#[inline]
 pub fn add(a: Vector3, b: Vector3) -> Vector3 {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
+#[inline]
 pub fn subtract(a: Vector3, b: Vector3) -> Vector3 {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
+#[inline]
 pub fn scale(v: Vector3, factor: f32) -> Vector3 {
     [v[0] * factor, v[1] * factor, v[2] * factor]
 }
 
+#[inline]
 pub fn dot(a: Vector3, b: Vector3) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
+#[inline]
 pub fn cross(a: Vector3, b: Vector3) -> Vector3 {
     [
         a[1] * b[2] - a[2] * b[1],
@@ -37,12 +47,14 @@ pub fn cross(a: Vector3, b: Vector3) -> Vector3 {
     ]
 }
 
+#[inline]
 pub fn length(v: Vector3) -> f32 {
     dot(v, v).sqrt()
 }
 
 // v at length 1, or zero if it has no length, as XMVector3Normalize gives,
 // or none that a float can divide by.
+#[inline]
 pub fn normalize(v: Vector3) -> Vector3 {
     let length = length(v);
     if length > 1.0e-30 && length.is_finite() { scale(v, 1.0 / length) } else { [0.0; 3] }
@@ -137,18 +149,21 @@ impl Matrix {
         ])
     }
 
+    #[inline]
     pub fn transpose(&self) -> Matrix {
         let m = &self.0;
         Matrix(std::array::from_fn(|row| std::array::from_fn(|column| m[column][row])))
     }
 
     // v * M.
+    #[inline]
     pub fn transform(&self, v: Vector4) -> Vector4 {
         let m = &self.0;
         std::array::from_fn(|column| (0..4).map(|row| v[row] * m[row][column]).sum())
     }
 
     // A point, with w = 1, so the translation applies.
+    #[inline]
     pub fn transform_point(&self, point: Vector3) -> Vector3 {
         let [x, y, z, _] = self.transform([point[0], point[1], point[2], 1.0]);
         [x, y, z]
@@ -156,6 +171,7 @@ impl Matrix {
 
     // A direction, with w = 0, so the translation doesn't apply, like
     // XMVector3TransformNormal.
+    #[inline]
     pub fn transform_direction(&self, direction: Vector3) -> Vector3 {
         let [x, y, z, _] = self.transform([direction[0], direction[1], direction[2], 0.0]);
         [x, y, z]
@@ -166,6 +182,7 @@ impl Matrix {
 impl Mul for Matrix {
     type Output = Matrix;
 
+    #[inline]
     fn mul(self, other: Matrix) -> Matrix {
         let (a, b) = (&self.0, &other.0);
         Matrix(std::array::from_fn(|row| {
