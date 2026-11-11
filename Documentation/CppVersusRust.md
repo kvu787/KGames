@@ -5,8 +5,9 @@ compare in performance and in the structure of the code: all 14 libraries, all 1
 all of their tests, file for file and test for test, about 48,000 lines of Rust into about 59,000
 of C++. Both pass the same tests, run the same input scripts and draw the same pixels, so this
 compares two working implementations of the same programs, not ideals, as
-[UiArchitectures.md](UiArchitectures.md) did for the library's architectures. The Rust is the
-repository at commit `e171759`. The C++ replaced it.
+[UiArchitectures.md](UiArchitectures.md) did for the library's architectures. The Rust is `main`,
+as it was at commit `e171759`. The C++ is the `cpp-rewrite` branch, where this was written and
+measured. KGames went on in Rust, as [What was decided](#what-was-decided) says.
 
 The short of it:
 
@@ -908,6 +909,35 @@ it used of Rust's inside it:
 | SpinningCarTest  |     996 |    1,109 |       0.90 |
 | UiShowcase       |   1,215 |    1,366 |       0.89 |
 | Veehiicuul       |   1,528 |    1,722 |       0.89 |
+
+## What was decided
+
+KGames stays in Rust. The C++ is kept on the `cpp-rewrite` branch, as it was when this was
+measured, and isn't developed.
+
+- **The C++ bought nothing that a person at the computer would notice.** In its window a program
+  draws the same frames at the same rate, answers input as fast, and uses the same CPU time,
+  memory and GPU. The few percent that the C++'s frames lead by in the benchmarks don't show
+  there.
+- **It costs the most where KGames is worked on.** Coding agents write KGames, in many sessions,
+  and build after every change. A build that takes nine times as long is paid at each of them.
+- **The compiler's checks are what the repository leans on.** [AGENTS.md](../AGENTS.md) says that
+  only a rule that a machine checks holds, since a later session never read the conversation
+  that made it. Rust checks lifetimes, moves, indexes and overflow in debug builds. In C++ those
+  became thirteen rules for the code and its reviews to keep, and the port broke each of them at
+  least once before a test or a review found it.
+- **It's a quarter more code** to read and to keep true.
+
+What speaks for the C++ is Windows' own headers and Microsoft's own `GameInput.h` in place of
+generated bindings and `unsafe`, and smaller exes. Neither changes what the programs do.
+
+Nothing else was measured. A language with a garbage collector would work against the input
+latency that the programs are built for, and one without Rust's checks gives up what cost the
+C++ the most.
+
+The Rust took what the comparison showed about it: the defects that the reviews of the C++ found
+in both, and the places where the benchmarks showed the Rust behind. `main`'s copy of this
+document lists them.
 
 ## What wasn't measured
 

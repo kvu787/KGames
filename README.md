@@ -1,3 +1,7 @@
+> This is the `cpp-rewrite` branch: KGames rewritten from Rust in C++, to compare the two.
+> [Documentation/CppVersusRust.md](Documentation/CppVersusRust.md) has the comparison. KGames
+> itself went on in Rust, on `main`, so this branch is kept as a reference and isn't developed.
+
 This repo will contain some of the games I make.
 
 I plan to develop the latest versions of Veehiicuul and Automatou in here.
