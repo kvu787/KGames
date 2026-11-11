@@ -16,29 +16,36 @@ The short of it:
 2. **A frame costs about the same, and the C++'s is a little cheaper.** A frame's update is 6% to
    16% faster in C++ for six of the seven programs and 5% slower for the seventh. The GPU's work
    is identical. See [Performance](#performance).
-3. **Code that builds data structures was up to twice as slow as ported.** Meshes, glTF and JSON
+3. **Run as a person runs them, nothing tells them apart.** In their windows, with vertical sync,
+   both draw 120 frames a second without dropping one, answer the mouse in the same 9
+   milliseconds, and use the same CPU time, memory and GPU. Without vertical sync the Rust draws
+   0% to 5% more frames a second: in a window the C++ takes up to 9% longer to build a frame, the
+   reverse of the benchmarks. See [As a person runs them](#as-a-person-runs-them).
+4. **Code that builds data structures was up to twice as slow as ported.** Meshes, glTF and JSON
    took 1.4 to 2.1 times the Rust's time when the C++ was the Rust written line for line. Five
    changes of a few lines each brought most of the mesh code within 16% and made JSON faster than
    the Rust. Reading glTF is still 1.4 to 1.7 times as slow, and one mesh function twice. The
    causes were the standard library's containers and MSVC's inlining more than the language.
-4. **Memory is the same** for the process and for the GPU. On its own heap the C++ allocates
+5. **Memory is the same** for the process and for the GPU. On its own heap the C++ allocates
    half to nine tenths as often in a frame, and 1.1 to 1.9 times the bytes. See
    [Memory](#memory).
-5. **The C++ is a quarter more code**: 1.24 times the lines and 1.30 times the tokens, in 419
+6. **The C++ is a quarter more code**: 1.24 times the lines and 1.30 times the tokens, in 419
    files where the Rust had 255, not counting the 1,294 lines of `Library/Base`, which has what
    C++'s standard library lacks. Sum types and headers are most of it. What calls Windows got
    shorter. See [The code](#the-code).
-6. **C++ let through what Rust refuses or stops at.** Thirteen kinds of mistake compiled without a
+7. **C++ let through what Rust refuses or stops at.** Thirteen kinds of mistake compiled without a
    warning, and tests, a comparison with the Rust's output and three reviews found them. Two
    could have read or written memory that wasn't theirs. Turning the standard library's checks
    on costs nothing that shows, but in the glTF reader, where it's 2.3 times. See
    [What C++ lets through](#what-c-lets-through).
-7. **The C++ builds ten times slower**: 335 seconds for everything from nothing, where the Rust
-   took 31, and 171 seconds after one source file changed, where the Rust took 20. See
+8. **The C++ builds ten times slower**: 335 seconds for everything from nothing, where the Rust
+   took 31, and 171 seconds after one source file changed, where the Rust took 20. Unthrottled
+   it's 117 seconds against 13, and 63 against 7. See
    [Building and testing](#building-and-testing).
 
 So for these programs the two languages give the same frames at the same cost. What C++ adds is a
-few percent on a frame and Windows' own headers. What it takes is a quarter more code to read, a
+few percent on a frame in the benchmarks, which doesn't show in a window, and Windows' own
+headers. What it takes is a quarter more code to read, a
 build that's ten times as long, and the compiler's checks, which tests, reviews and a hardened
 build have to stand in for.
 
@@ -72,7 +79,8 @@ generation from LLVM's with the same source: Visual Studio's ClangCL toolset isn
 Everything ran through [RunLightly](../Program/RunLightly/README.md), as coding agents must: on
 the efficiency cores, at idle priority, with a third of the CPU's time. So every time here is a
 few times what a performance core would take, for both languages alike. The ratios are what to
-read.
+read. [As a person runs them](#as-a-person-runs-them) is the exception: what's there ran
+unthrottled, on the performance cores and in real windows.
 
 ## They behave the same
 
@@ -277,6 +285,222 @@ Against that Rust, the C++'s frames still lead, by 1% to 14% for the same six pr
 rows that are now within 16% are 12% to 30% behind, and the ray cast that was twice as fast is
 twice as slow. The table's own Rust column is the one to read for what KGames was, since KGames
 built with Cargo's release profile as it comes.
+
+## As a person runs them
+
+Everything above ran throttled, on the efficiency cores. For this section the computer was left
+alone, and nothing was throttled: the benchmarks ran on the performance cores, and the eight
+programs with windows ran as [HumanRun](../Program/UiShowcase/HumanRun.ps1) starts them, the
+optimized exes, maximized on the primary display, 2560 x 1440 at 120 Hz, with the focus, reading
+their input from GameInput. The two languages took turns, and which went first changed by round.
+
+The short of it: with vertical sync, which is how the programs start, nothing tells the two
+apart. Both draw 120 frames a second without dropping one, answer the mouse in the same 9
+milliseconds, and use the same CPU time, memory and GPU. Without it, where a frame is as short as
+the program and Windows can make it, the Rust draws 0% to 5% more frames a second.
+
+### On the performance cores
+
+Benchmarks, as in [Performance](#performance), each process held to the eight performance cores.
+**Throttled** is the ratio from the table above, to compare.
+
+| Benchmark                                |    C++ |   Rust | C++ / Rust | Throttled | Hardened / C++ | Rust LTO / Rust |
+| ---------------------------------------- | -----: | -----: | ---------: | --------: | -------------: | --------------: |
+| `ui/UiShowcase/frame/steady`             |    127 |    134 |       0.95 |      0.94 |           0.97 |            1.05 |
+| `ui/UiShowcase/frame/moving`             |    132 |    140 |       0.95 |      0.91 |           1.02 |            1.04 |
+| `ui/UiShowcase/start`                    |  1,938 |  1,880 |       1.04 |      1.01 |           1.00 |            1.00 |
+| `ui/SimplePaintDemo/frame/steady`        |   48.9 |   58.8 |       0.83 |      0.84 |           1.00 |            0.99 |
+| `ui/MeshModeler/frame/steady`            |   77.0 |   80.0 |       0.97 |      0.94 |           1.00 |            1.03 |
+| `ui/MeshModeler/subdivided/frame/steady` |   77.3 |   80.8 |       0.95 |      0.93 |           0.99 |            1.04 |
+| `ui/MeshModeler/subdivided/frame/moving` |   77.6 |   80.9 |       0.94 |      0.93 |           0.99 |            1.04 |
+| `ui/GameInputDemo/frame/steady`          |   41.3 |   50.9 |       0.82 |      0.87 |           1.00 |            1.00 |
+| `ui/Veehiicuul/frame/steady`             |   52.6 |   51.7 |       1.02 |      1.05 |           1.01 |            0.98 |
+| `ui/Veehiicuul/start`                    |  3,050 |  2,378 |       1.29 |      1.25 |           1.24 |            1.00 |
+| `ui/MinimalSceneTest/frame/steady`       |   10.1 |   12.3 |       0.83 |      0.87 |           0.99 |            0.98 |
+| `ui/SpinningCarTest/frame/steady`        |   11.7 |   14.4 |       0.81 |      0.85 |           0.99 |            0.98 |
+| `gpu/UiShowcase/draw`                    |   97.2 |   97.2 |       1.00 |      0.99 |           1.00 |            1.00 |
+| `cpu/UiShowcase/record`                  |   4.00 |   4.10 |       0.98 |      0.97 |           1.00 |            1.00 |
+| `gpu/SimplePaintDemo/draw`               |    124 |    123 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `cpu/SimplePaintDemo/record`             |   4.80 |   4.90 |       0.98 |      0.97 |           1.00 |            1.02 |
+| `gpu/MeshModeler/subdivided/draw`        |    136 |    137 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `cpu/MeshModeler/subdivided/record`      |   3.90 |   4.10 |       0.98 |      0.98 |           0.97 |            1.00 |
+| `gpu/GameInputDemo/draw`                 |   99.1 |   98.2 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `cpu/GameInputDemo/record`               |   2.50 |   2.60 |       0.96 |      0.95 |           1.00 |            1.00 |
+| `gpu/Veehiicuul/draw`                    |   41.3 |   41.2 |       1.00 |      1.00 |           1.00 |            0.99 |
+| `cpu/Veehiicuul/record`                  |   7.90 |   6.20 |       1.29 |      1.22 |           1.04 |            0.95 |
+| `gpu/MinimalSceneTest/draw`              |   19.2 |   18.7 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `cpu/MinimalSceneTest/record`            |   2.40 |   2.60 |       0.93 |      0.96 |           1.00 |            0.96 |
+| `gpu/SpinningCarTest/draw`               |   20.6 |   19.8 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `cpu/SpinningCarTest/record`             |   2.90 |   3.00 |       0.94 |      1.00 |           1.00 |            0.97 |
+| `text/layout/cached`                     |  0.022 |  0.030 |       0.79 |      1.03 |           1.00 |            0.95 |
+| `text/layout/new`                        |   6.30 |   6.20 |       1.00 |      1.00 |           1.00 |            1.00 |
+| `text/layout/wrapped-new`                |   19.3 |   19.5 |       1.00 |      1.01 |           1.00 |            1.00 |
+| `text/quads/cached`                      |  0.010 |  0.018 |       0.59 |      0.69 |           1.00 |            0.82 |
+| `text/rasterize/new`                     |  0.440 |  0.440 |       0.98 |      1.02 |           0.98 |            0.98 |
+| `text/layout/caption-cached`             |  0.020 |  0.030 |       0.68 |      1.03 |           1.00 |            0.95 |
+| `input/reader/frame`                     |  0.400 |  0.400 |       1.25 |      1.40 |           1.00 |            0.75 |
+| `perfbar/frame` (mean)                   |  0.213 |  0.156 |       1.36 |      1.38 |           1.01 |            0.92 |
+| `mesh/catmull-clark/cube/1`              |   3.50 |   3.20 |       1.09 |      1.12 |           1.06 |            0.91 |
+| `mesh/catmull-clark/cube/2`              |   15.9 |   14.7 |       1.07 |      1.10 |           1.07 |            0.89 |
+| `mesh/catmull-clark/cube/3`              |   64.8 |   59.8 |       1.08 |      1.11 |           1.06 |            0.90 |
+| `mesh/catmull-clark/cube/4`              |    270 |    236 |       1.12 |      1.14 |           1.05 |            0.91 |
+| `mesh/catmull-clark/torus/1`             |    605 |    541 |       1.14 |      1.16 |           1.04 |            0.92 |
+| `mesh/catmull-clark/torus/2`             |  3,119 |  2,923 |       0.97 |      1.09 |           1.05 |            0.84 |
+| `mesh/triangulate/smooth`                | 14,782 | 13,494 |       1.14 |      1.12 |           1.07 |            0.91 |
+| `mesh/triangulate/flat`                  | 10,540 |  7,188 |       1.45 |      1.45 |           1.03 |            0.93 |
+| `mesh/topology`                          |  7,416 |  7,022 |       1.05 |      1.01 |           1.05 |            0.90 |
+| `mesh/ray-cast/triangles`                |    210 |    512 |       0.42 |      0.48 |           1.04 |            0.23 |
+| `mesh/ray-cast/mesh`                     |  2,285 |  2,171 |       1.04 |      1.03 |           1.04 |            0.82 |
+| `mesh/primitive/uv-sphere`               |   75.6 |   57.5 |       1.31 |      1.27 |           1.00 |            0.97 |
+| `mesh/edges`                             |  2,860 |  1,584 |       1.80 |      2.05 |           1.08 |            0.87 |
+| `gltf/parse/SlopeCar`                    |   88.5 |   53.1 |       1.67 |      1.42 |           2.51 |            0.99 |
+| `gltf/parse/BigCone`                     |    474 |    236 |       2.04 |      1.66 |           2.37 |            1.06 |
+| `json/parse/scene`                       |   35.1 |   46.5 |       0.77 |      0.75 |           1.01 |            0.98 |
+| `json/write/scene`                       |   47.6 |   75.4 |       0.63 |      0.60 |           0.99 |            1.00 |
+| `math/matrix/multiply`                   |  0.012 | 0.0091 |       1.25 |      1.03 |           1.01 |            0.87 |
+| `math/matrix/transform-points`           | 0.0012 | 0.0016 |       0.73 |      0.79 |           1.03 |            0.54 |
+| `present-timing/tracker/present`         |  0.500 |  0.600 |       0.83 |      1.00 |           1.00 |            1.00 |
+
+- **The ratios held.** A performance core takes about seven tenths of the time for both, and
+  most rows' ratios moved by a few hundredths. A frame's update is 3% to 19% faster in C++ for
+  the same six programs, and 2% slower for Veehiicuul. Leaving Windows to choose the cores gave
+  the same ratios as holding the processes to the performance cores.
+- **glTF is further behind**: 1.67 and 2.04 times the Rust's time, where throttled it was 1.42
+  and 1.66. The Rust gained more from the faster core than the C++ did.
+- **Looking up cached text is further ahead**, at 0.59 to 0.79.
+- **Link-time optimization doesn't help the Rust's frames here.** UiShowcase's and MeshModeler's
+  take 3% to 5% longer with it, where throttled they took 2% to 5% less. It still helps the mesh
+  rows by about a tenth.
+
+### In real windows
+
+Each program ran for 3 seconds, and then for 8 that were measured, in four ways: with vertical
+sync and without, each left alone and with the mouse moving over the window. The mouse was moved
+by injected input, a thousand moves a second on a path that crosses the window, which reaches
+GameInput as a mouse's own does. There were two sets of runs:
+
+- With PresentMon recording every frame's present, twice for each program, way and language.
+- Without it, four times, with only the program running. The CPU's time is the process's cycle
+  count, which is every thread's, the driver's and GameInput's included. Windows' own count of a
+  process's CPU time is sampled at the timer's tick, and for a program that works for a fraction
+  of a millisecond every 8 it gave anything from 0.02 to 1.1 seconds for the same idle 8 seconds.
+
+A number is the middle one of its runs. With vertical sync, which is what a program starts with:
+
+| Program          | Frames a second | 99th percentile frame, ms, C++ | Rust | GPU busy, ms, C++ |  Rust | Core %, idle, C++ | Rust | Core %, mouse, C++ |  Rust |
+| ---------------- | --------------: | -----------------------------: | ---: | ----------------: | ----: | ----------------: | ---: | -----------------: | ----: |
+| UiShowcase       |           120.0 |                           8.50 | 8.51 |             0.271 | 0.274 |              8.08 | 8.01 |              11.24 | 10.90 |
+| SimplePaintDemo  |           120.0 |                           8.48 | 8.47 |             0.305 | 0.307 |              6.90 | 6.84 |               9.39 |  9.37 |
+| MeshModeler      |           120.0 |                           8.46 | 8.48 |             0.319 | 0.317 |              7.43 | 7.32 |               9.86 |  9.81 |
+| GameInputDemo    |           120.0 |                           8.47 | 8.46 |             0.279 | 0.276 |              7.01 | 6.85 |              11.32 | 11.27 |
+| Veehiicuul       |           120.0 |                           8.44 | 8.45 |             0.227 | 0.229 |              7.36 | 6.98 |              10.08 |  9.66 |
+| MinimalSceneTest |           120.0 |                           8.45 | 8.46 |             0.262 | 0.263 |              6.65 | 6.63 |               8.81 |  8.88 |
+| SpinningCarTest  |           120.0 |                           8.50 | 8.52 |             0.257 | 0.274 |              6.47 | 6.58 |               9.00 |  9.02 |
+| Platformer       |           120.0 |                           8.47 | 8.47 |             0.281 | 0.285 |              6.91 | 6.88 |               8.97 |  8.85 |
+
+- **Frames.** Both languages presented 120.0 frames a second in every run, a frame every 8.33
+  milliseconds, with the 99th percentile within a quarter of a millisecond of that, and PresentMon
+  saw every frame reach the screen. Every present was an independent flip on a hardware plane.
+- **The GPU** is busy for 0.2 to 0.3 milliseconds of a frame in both.
+- **The CPU.** A program uses 6.5% to 8% of one core when it's left alone and 9% to 11% while
+  the mouse moves. The C++ uses between 2% less and 5% more than the Rust, and a language's own
+  runs of a program differ by about as much.
+- **Memory.** The working set is 98 to 103 MiB in both, within a MiB of each other, the
+  private commit 126 to 156 MiB, within 2%, and the GPU's dedicated memory 61.8 to 91.6 MiB, the
+  same to the tenth. Both run 33 or 34 threads. GameInputDemo, which keeps what the mouse sent,
+  grows to 140 MiB in C++ and 144 in Rust while it moves.
+
+Without vertical sync a program draws as often as it can. PresentMon records at most 2,048
+presents a second, so these are the programs' own counts, which the PerfBar shows:
+
+| Program          | Frames a second, idle, C++ |  Rust |    x | Frames a second, mouse, C++ |  Rust |    x |
+| ---------------- | -------------------------: | ----: | ---: | --------------------------: | ----: | ---: |
+| UiShowcase       |                      1,761 | 1,803 | 0.98 |                       1,515 | 1,581 | 0.96 |
+| SimplePaintDemo  |                      2,080 | 2,078 | 1.00 |                       1,896 | 1,896 | 1.00 |
+| MeshModeler      |                      1,846 | 1,909 | 0.97 |                       1,680 | 1,722 | 0.98 |
+| GameInputDemo    |                      2,173 | 2,214 | 0.98 |                       1,602 | 1,620 | 0.99 |
+| Veehiicuul       |                      2,439 | 2,556 | 0.95 |                       2,095 | 2,181 | 0.96 |
+| MinimalSceneTest |                      3,026 | 3,130 | 0.97 |                       2,605 | 2,581 | 1.01 |
+| SpinningCarTest  |                      3,055 | 3,073 | 0.99 |                       2,578 | 2,546 | 1.01 |
+| Platformer       |                      2,700 | 2,740 | 0.99 |                       2,372 | 2,367 | 1.00 |
+
+The Rust draws up to 5% more frames a second, and never fewer by more than 1%. A frame here is a
+third to two thirds of a millisecond, and the program's own code is a third of it or less: the
+rest is the present, the driver, Windows' messages and waiting for the GPU's queue, which are the
+same code in both. Either way the process uses about four fifths of one core.
+
+### Input latency
+
+The PerfBar measures the time from when GameInput stamped a reading to when the frame that used
+it reached the screen, in three parts: waiting to be read, building the frame, and presenting it.
+To record it, both languages were built with the same few temporary lines, which write the
+PerfBar's summary to a file as often as the bar refreshes it, 10 times a second. They were never
+committed. The mouse moved as above. Milliseconds, the middle of four runs without PresentMon.
+Three more with it gave the same to within a tenth of a millisecond.
+
+| Program          | Latency, vertical sync, C++ | Rust | Building, C++ |  Rust |    x | Latency, no sync, C++ | Rust | Building, C++ |  Rust |    x |
+| ---------------- | --------------------------: | ---: | ------------: | ----: | ---: | --------------------: | ---: | ------------: | ----: | ---: |
+| UiShowcase       |                        8.96 | 8.95 |         0.379 | 0.360 | 1.05 |                  1.00 | 0.98 |         0.319 | 0.308 | 1.03 |
+| SimplePaintDemo  |                        9.00 | 8.99 |         0.218 | 0.224 | 0.97 |                  0.84 | 0.84 |         0.182 | 0.180 | 1.01 |
+| MeshModeler      |                        8.96 | 8.95 |         0.262 | 0.255 | 1.03 |                  0.92 | 0.92 |         0.228 | 0.217 | 1.05 |
+| GameInputDemo    |                        8.99 | 8.97 |         0.403 | 0.374 | 1.08 |                  0.98 | 0.97 |         0.328 | 0.321 | 1.02 |
+| Veehiicuul       |                        8.97 | 8.87 |         0.229 | 0.215 | 1.06 |                  0.73 | 0.73 |         0.180 | 0.165 | 1.09 |
+| MinimalSceneTest |                        8.92 | 9.04 |         0.145 | 0.144 | 1.01 |                  0.64 | 0.65 |         0.108 | 0.107 | 1.01 |
+| SpinningCarTest  |                        8.93 | 8.92 |         0.153 | 0.155 | 0.99 |                  0.64 | 0.65 |         0.110 | 0.108 | 1.02 |
+| Platformer       |                        8.92 | 8.94 |         0.185 | 0.173 | 1.06 |                  0.68 | 0.68 |         0.119 | 0.110 | 1.08 |
+
+- **The latency is the same**: 8.9 to 9.0 milliseconds with vertical sync, of which 7.9 to 8.2
+  is the present waiting for the display and 0.6 to 0.7 the reading waiting to be read, and 0.6
+  to 1.0 without it. The 99th percentile is 10.3 to 10.7 with, and 1.0 to 1.5 without, in both.
+- **Building the frame**, the only part that's the program's, takes up to 9% longer in C++,
+  which is at most 29 microseconds, and up to 3% less.
+- This is from the reading's stamp to the screen. What a mouse and its cable take before, and a
+  display after, are a person's to measure, and injected input isn't a device.
+
+That the C++ builds a frame a little slower in its window is the reverse of the benchmarks,
+where its frames are faster. Building includes the present's call, the same in both. For the
+rest, the main thread of UiShowcase, MeshModeler and Veehiicuul was sampled in their windows,
+without vertical sync, a few thousand samples each, so this is rough:
+
+- The program's `view` takes about 1.4 times the Rust's share of a frame in UiShowcase and
+  MeshModeler, while layout and drawing take about 0.8 of it in UiShowcase and Veehiicuul. In
+  MeshModeler drawing too took 1.2 times.
+- In UiShowcase, more than half of `view`'s difference is one function. The list's search
+  lowercases every item's text each frame, which the C++ does through UTF-16 and Windows'
+  `LCMapStringEx`, with up to three allocations, and Rust's `to_lowercase` does in UTF-8: 2.9% of
+  the thread's time against 0.5%.
+- In Veehiicuul it's `update`, at 1.8 times the Rust's share, which compares the document with
+  the saved one each frame. The terrain in it is a `std::map`, with a node for each cell, where
+  Rust's `BTreeMap` keeps several cells in a node.
+
+Both are the kind that [Where the differences came from](#where-the-differences-came-from)
+found in the mesh code. Why they weigh more in a window than in the benchmark, which runs the
+same `view`, wasn't found. A window's frame runs after the driver and Windows have had the
+core's caches for a few hundred microseconds, where the benchmark's runs right after the last.
+
+### Starting
+
+Each program was started ten times in each language, after a first start that isn't counted,
+with PresentMon recording its presents. Milliseconds from the call that creates the process, the
+middle of the ten:
+
+| Program          | Window shows, C++ | Rust | First frame presented, C++ | Rust |    x | First frame on the screen, C++ | Rust |
+| ---------------- | ----------------: | ---: | -------------------------: | ---: | ---: | -----------------------------: | ---: |
+| UiShowcase       |               218 |  216 |                        232 |  231 | 1.00 |                            251 |  245 |
+| SimplePaintDemo  |               219 |  219 |                        233 |  235 | 0.99 |                            251 |  251 |
+| MeshModeler      |               215 |  214 |                        234 |  231 | 1.01 |                            251 |  249 |
+| GameInputDemo    |               214 |  216 |                        231 |  232 | 1.00 |                            250 |  251 |
+| Veehiicuul       |               222 |  223 |                        238 |  238 | 1.00 |                            257 |  258 |
+| MinimalSceneTest |               217 |  218 |                        232 |  231 | 1.01 |                            249 |  249 |
+| SpinningCarTest  |               224 |  221 |                        234 |  234 | 1.00 |                            253 |  250 |
+| Platformer       |               219 |  220 |                        231 |  232 | 0.99 |                            246 |  247 |
+
+A program is on the screen a quarter of a second after it's started, in either language, and
+a language's own starts of a program differ by 8 to 44 milliseconds. What the program does to
+start, which the benchmarks' `start` rows time at 2 to 3 milliseconds, is a hundredth of that.
+The rest is Windows making the process, the Direct3D device, the swap chain and the window, and
+GameInput starting. So the 0.7 milliseconds that Veehiicuul's start takes longer in C++ doesn't
+show.
 
 ## Memory
 
@@ -629,6 +853,22 @@ with `--all-targets` in Rust.
 | Every test, run, in debug                                        |  61.9 | 28.5 |        2.2 |
 | What an optimized build of everything leaves on the disk, in MB  | 6,488 |  589 |       11.0 |
 
+Without RunLightly, with every core and nothing else running, both build about three times as
+fast, and the gap between them stays:
+
+| What                                                             |  C++ | Rust | C++ / Rust |
+| ---------------------------------------------------------------- | ---: | ---: | ---------: |
+| Everything, optimized, from nothing                              |  117 | 12.6 |        9.3 |
+| Everything, optimized, with nothing changed                      |  1.3 |  0.2 |        6.5 |
+| UiShowcase, optimized, after touching one widget's source file   |  8.1 |  3.2 |        2.5 |
+| Everything, optimized, after touching one widget's source file   | 62.6 |  6.8 |        9.2 |
+| UiShowcase, optimized, after touching the UI core's `Interface`  | 25.4 |  3.1 |        8.2 |
+| Everything, optimized, after touching the UI core's `Interface`  | 79.3 |  6.7 |       11.8 |
+| Everything, in debug, from nothing                               | 54.7 | 10.6 |        5.2 |
+| Everything, in debug, with nothing changed                       |  1.3 |  0.2 |        6.5 |
+| The UI library's tests, in debug, after one widget's source file |  3.3 |  4.2 |       0.79 |
+| Every test, run, in debug                                        | 48.3 | 21.4 |        2.3 |
+
 The Rust builds in a tenth of the time, and it isn't the compilers' speed that does it:
 
 - **Headers.** The C++ is 253 source files, and each compiles what it includes again: the
@@ -671,15 +911,17 @@ it used of Rust's inside it:
 
 ## What wasn't measured
 
-- **Performance cores.** Everything ran on the efficiency cores, throttled. The ratios between the
-  two languages should hold on the performance cores, but weren't measured there.
 - **Another C++ compiler.** With clang-cl, the C++ would get LLVM's code generation, and what's
   MSVC's here would show apart from what's C++'s. The toolset isn't installed.
 - **Profile-guided optimization**, for either.
-- **Input latency and real windows.** The benchmarks run the programs' frames through `Headless`
-  and draw offscreen. Nothing here says that the two differ in a real window, and the GPU's work
-  is the same to the percent, but real devices, focus, and the latency that the PerfBar shows need
-  a person at the computer.
+- **A person's devices.** In the real windows the mouse was moved by injected input, and the
+  latency is from GameInput's stamp to the screen. A real mouse, keyboard or gamepad, what they
+  take before GameInput has a reading, and what the display takes after, weren't measured, nor
+  was anything while a person used a program.
+- **Borderless fullscreen**, which `F11` switches to, and displays at other rates than 120 Hz.
+  The real windows were maximized.
+- **Why a frame costs the C++ more in a window than in the benchmark.** A rough profile points at
+  two functions, as [Input latency](#input-latency) says, and doesn't account for the rest.
 - **`GameInputSource` with real devices, and IdentifyDisplays' boxes**, which no test or script
   runs in either language.
 
@@ -699,6 +941,16 @@ and there:
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
 Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe --filter mesh --json target\Benchmarks\Mesh.json
 ```
+
+[As a person runs them](#as-a-person-runs-them) ran the same exes without RunLightly. For the
+performance cores, each Benchmarks process was started with its affinity set to them, which on
+this CPU is the mask `0xC03C03`. For the real windows, a script started each program with
+`--display Primary`, and `--no-vsync` for the runs without vertical sync, gave its window the
+focus, moved the mouse with `SendInput`, and recorded it with
+`PresentMon --process_id <id> --timed 8 --qpc_time --output_file <csv>` or, without PresentMon,
+with `QueryProcessCycleTime`. Those scripts aren't in the repository: they take the focus and
+inject input, which [AGENTS.md](../AGENTS.md) forbids an agent that hasn't been given the
+computer, as this one was for these measurements.
 
 Both programs take the same arguments and run the same benchmarks, as
 [Benchmarks' README](../Program/Benchmarks/README.md) says. Run the two one after the other, a
