@@ -111,10 +111,11 @@ and `Right` for the parts to its sides. It always faces the way it moves.
   or scene. Then the controls don't move it for 0.35 seconds, so that the player can let go
   first. Only where the car is in each frame counts, so a car that's fast enough can carry it
   past an edge.
-- **Time.** Each frame moves the car on in steps of 1/240 of a second, as many as the time since
-  the frame before holds, so that the car drives the same at any frame rate; what's left waits
-  for the next frame. A frame counts 0.1 seconds at most, for one that comes late, like after the
-  window was minimized.
+- **Time.** Each frame moves the car on by the time since the frame before, in one go, so that
+  it moves smoothly at any frame rate, by as much as each frame shows. There are no fixed steps:
+  a frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a
+  second, would fit 2 steps in some frames and 3 in others, and the car would judder. A frame
+  counts 0.1 seconds at most, for one that comes late, like after the window was minimized.
 
 ## Files
 

@@ -1,11 +1,10 @@
-// The game: a run through a level, simulated in fixed steps on its own
-// clock, publishing an Event for everything that happens. Each substep
-// moves the world, detects what the movement did - coins touched, springs
-// landed on, spikes hit, the goal reached - and then drains the event queue
-// to quiescence: every consumer runs, and whatever they publish runs too,
-// before the next substep. So a frame's input produces the whole graph of
-// its consequences inside that frame, however deep it goes, and the view
-// only ever describes settled state.
+// The game: a run through a level, publishing an Event for everything that
+// happens. Each frame moves the world by the frame's own time, in one step,
+// detects what the movement did - coins touched, springs landed on, spikes
+// hit, the goal reached - and then drains the event queue to quiescence:
+// every consumer runs, and whatever they publish runs too. So a frame's
+// input produces the whole graph of its consequences inside that frame,
+// however deep it goes, and the view only ever describes settled state.
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -15,7 +14,7 @@ use json::Value;
 use crate::controls::Controls;
 use crate::events::{Cause, Event, MOST_EVENTS};
 use crate::level::{Level, Zone};
-use crate::physics::{self, BUFFER, HALF, Player, SPRING_SPEED, STEP, Solid, Standing};
+use crate::physics::{self, BUFFER, HALF, LONGEST_FRAME, Player, SPRING_SPEED, Solid, Standing};
 use crate::progress::Progress;
 
 // Lives per run.
@@ -34,8 +33,8 @@ pub enum RunState {
 }
 
 // A moment drawn over the world for a while, like a coin's sparkle. State,
-// not an action: spawned by an event's consumer, timed on the simulation's
-// clock, pruned once over, drawn by the view.
+// not an action: spawned by an event's consumer, timed on the game's clock,
+// pruned once over, drawn by the view.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EffectKind {
     Sparkle,
@@ -79,10 +78,14 @@ pub struct Game {
     pub reached: Vec<bool>,
     pub checkpoint: Option<usize>,
     pub state: RunState,
-    // When the run started, on the simulation's clock.
+    // When the run started, on the game's clock.
     pub started: f64,
-    // The simulation's clock, which only ever moves in steps of STEP.
+    // The game's clock: the frames' times added up, each at most
+    // LONGEST_FRAME, from 0 as the game starts.
     pub simulated: f64,
+    // The last frame's time, on the frames' clock, which update is given,
+    // and which starts at 0 too.
+    last: f64,
     // The events: the queue that drains inside the frame, the log the Events
     // card shows, and how many drained this frame, against the cap.
     queue: VecDeque<Event>,
@@ -108,6 +111,7 @@ impl Game {
             state: RunState::Running,
             started: 0.0,
             simulated: 0.0,
+            last: 0.0,
             queue: VecDeque::new(),
             log: VecDeque::new(),
             drained_this_frame: 0,
@@ -165,10 +169,13 @@ impl Game {
         }
     }
 
-    // A frame: the frame's one-off controls, then fixed steps up to
-    // `seconds`, each followed by its events, drained to quiescence.
+    // A frame, at `seconds` on the frames' clock: the frame's one-off
+    // controls, then one step by the frame's time, the time since the frame
+    // before, at most LONGEST_FRAME, then its events, drained to quiescence.
     pub fn update(&mut self, controls: &Controls, seconds: f64) {
         self.drained_this_frame = 0;
+        let frame = (seconds - self.last).clamp(0.0, LONGEST_FRAME);
+        self.last = seconds;
         if controls.toggle_cards {
             self.show_cards = !self.show_cards;
         }
@@ -183,22 +190,20 @@ impl Game {
             }
         }
         if controls.jump_pressed {
-            // The press counts for a moment, so one just before a landing
-            // jumps on the very step of the landing.
+            // The press counts for a moment, from the frame's start, so one
+            // just before a landing jumps on the very frame of the landing.
             self.player.jump_until = self.simulated + BUFFER;
         }
-        while self.simulated + STEP <= seconds {
-            self.simulated += STEP;
-            self.step(controls);
-            self.drain();
-        }
+        self.simulated += frame;
+        self.step(controls, frame);
+        self.drain();
         let simulated = self.simulated;
         self.effects.retain(|effect| effect.started + effect.kind.life() > simulated);
     }
 
-    // One fixed step: the platforms move, the player moves against them, and
-    // what the movement did becomes events.
-    fn step(&mut self, controls: &Controls) {
+    // One frame's step, `seconds` long: the platforms move, the player moves
+    // against them, and what the movement did becomes events.
+    fn step(&mut self, controls: &Controls, seconds: f64) {
         if self.state != RunState::Running {
             return;
         }
@@ -208,14 +213,14 @@ impl Game {
         // The platform the player stood on carries them by how far it moved.
         let carry = match self.player.standing {
             Standing::Patrol(patrol) => {
-                let before = level.patrols[patrol].at(now - STEP);
+                let before = level.patrols[patrol].at(now - seconds);
                 let after = level.patrols[patrol].at(now);
                 [after.x - before.x, after.y - before.y]
             }
             Standing::Still => [0.0, 0.0],
         };
 
-        // What's solid this step: the ground, the doors still closed, and
+        // What's solid this frame: the ground, the doors still closed, and
         // the platforms where they are now.
         let mut solids: Vec<Solid> = level.solids.iter().map(|&zone| Solid { zone, standing: Standing::Still }).collect();
         for (door, &zone) in level.doors.iter().enumerate() {
@@ -230,7 +235,7 @@ impl Game {
             });
         }
 
-        physics::step(&mut self.player, now, controls.push, controls.jump_held, carry, &solids);
+        physics::step(&mut self.player, now, seconds, controls.push, controls.jump_held, carry, &solids);
 
         // What the movement did, as events. Each check reads the state as
         // the last drain left it, so nothing is published twice.

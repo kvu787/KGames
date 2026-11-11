@@ -439,11 +439,12 @@ Status: Not started. For when a program needs video.
     (`BUI/gpu/shaders/bui_ui.hlsl:322-346`).
 - **Don't port** `BUI/kit/intern/image/play.c`: a frame advances only once the worker has decoded
   the next one (`:160-171`), and the clock jumps after a frame runs 0.25 s late (`:192`), so what
-  shows depends on decoding speed. That breaks fixed-step simulations and identical results at 60
-  and 240 frames a second. Pick the frame from the program's clock, and wait for its decode.
+  shows depends on decoding speed, not on the frame's time. Pick the video's frame from the
+  frame's time, and wait for its decode.
 - **Do:** port the reader and the shader. Direct3D 12 samples NV12 through two plane views, R8 and
   R8G8.
-- **Done when:** a test plays a clip at 60 and 240 frames a second and shows the same frames.
+- **Done when:** a test plays a clip at 60 and 240 frames a second and shows the same video
+  frames at the same times.
 
 ### 21. A third-party notices file and its check
 
@@ -503,7 +504,7 @@ Status: Not started. A decision for the user.
   the frame, with up to three layout passes (`kit_core.c:2239-2250`).
 - **Testing:**
   - BUI's GPU parity test passes without a GPU, and lets 1% of text pixels differ.
-  - Nothing tests BUI at 60 against 240 frames a second, or a cause's effects on its own frame.
+  - Nothing tests a cause's effects on its own frame.
   - CI turns off warnings as errors (`BUI/.github/workflows/ci.yml:45`).
   - The gpui benchmark takes focus (`BUI/bindings/rust/bench/gpui-bench/src/scene.rs:62`).
 - **Benchmark records:** BUI's `results.md` disagrees with its README's table, which predates newer

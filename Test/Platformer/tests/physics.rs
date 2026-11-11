@@ -1,12 +1,14 @@
-// The movement, in fixed steps: jumping only from the ground, the buffered
-// jump firing on the very step of the landing, coyote time, the jump cut,
-// the spring, the moving platform that carries the player, and every top in
+// The movement, a step a frame by the frame's own time: each frame moving
+// the player by its time, at 100 frames a second and at uneven ones, a jump
+// as high at any frame rate, jumping only from the ground, the buffered jump
+// firing on the very frame of the landing, coyote time, the jump cut, the
+// spring, the moving platform that carries the player, and every top in
 // every level holding a player who runs along it.
 
 use platformer::controls::Controls;
 use platformer::game::Game;
 use platformer::level::{self, Zone};
-use platformer::physics::{self, BUFFER, COYOTE, HALF, JUMP_SPEED, Player, RUN_SPEED, STEP, Solid, Standing};
+use platformer::physics::{self, BUFFER, COYOTE, FASTEST_FALL, GRAVITY, HALF, JUMP_SPEED, LONGEST_FRAME, Player, RUN_SPEED, Solid, Standing};
 use platformer::progress::Progress;
 
 const FRAME: f64 = 1.0 / 60.0;
@@ -58,9 +60,10 @@ fn a_jump_needs_the_ground_or_a_fresh_ledge() {
     assert!(game.player.velocity[1] < rising, "the second press did nothing but fall along");
 }
 
-// A press just before the landing jumps on the very step of the landing.
+// A press just before the landing jumps on the very frame of the landing,
+// which rises from the next.
 #[test]
-fn a_buffered_jump_fires_on_the_landing_step() {
+fn a_buffered_jump_fires_on_the_landing_frame() {
     let mut game = game("Buffer");
     // A short hop without holding, so the fall starts soon.
     frame(&mut game, Controls { jump_pressed: true, ..Controls::default() });
@@ -177,9 +180,9 @@ fn walls_stop_the_run_where_they_stand() {
     assert!((game.player.position[0] - (door.x - 0.35)).abs() < 1e-9, "stopped at the door's face, {:?}", game.player.position);
 }
 
-// Every top in every level, the doors' and the patrols' at each step of
-// their way included, holds a player who stands on it and runs along it,
-// both ways. The player's box is stored as its center, and a center resting
+// Every top in every level, the doors' and the patrols' at every 240th of a
+// second of their way included, holds a player who stands on it and runs
+// along it, both ways, through frames of uneven lengths. The player's box is stored as its center, and a center resting
 // on a top doesn't always round back to it: 2.0 + 0.55 - 0.55 is
 // 1.9999999999999998. That hair of overlap once made the run's X pass take
 // the platform under the player for a wall, and push them back to its edge
@@ -196,25 +199,27 @@ fn every_top_holds_a_runner_both_ways() {
             tops.push((format!("{} door {index}", level.name), zone));
         }
         for (index, patrol) in level.patrols.iter().enumerate() {
-            let steps = (patrol.period / STEP).round() as usize;
-            for step in 0..steps {
-                let seconds = step as f64 * STEP;
+            let samples = (patrol.period * 240.0).round() as usize;
+            for sample in 0..samples {
+                let seconds = sample as f64 / 240.0;
                 tops.push((format!("{} patrol {index} at {seconds} s", level.name), patrol.at(seconds)));
             }
         }
     }
-    // One 60 Hz frame's worth of steps.
-    const STEPS: usize = 4;
+    // A 60 Hz frame, a 240 Hz one, a 100 Hz one, and the longest.
+    const FRAMES: [f64; 4] = [1.0 / 60.0, 1.0 / 240.0, 0.01, LONGEST_FRAME];
     for (name, zone) in tops {
         let solids = [Solid { zone, standing: Standing::Still }];
         for push in [1.0, -1.0] {
             // Where a landing puts the player: the top plus the half height.
             let mut player = Player::at([zone.center()[0], zone.top()]);
             let start = player.position;
-            for step in 1..=STEPS {
-                physics::step(&mut player, step as f64 * STEP, push, false, [0.0, 0.0], &solids);
+            let mut now = 0.0;
+            for seconds in FRAMES {
+                now += seconds;
+                physics::step(&mut player, now, seconds, push, false, [0.0, 0.0], &solids);
             }
-            let ran = push * RUN_SPEED * STEP * STEPS as f64;
+            let ran = push * RUN_SPEED * FRAMES.iter().sum::<f64>();
             assert!(player.grounded, "{name}, running {push}: still on it, {player:?}");
             assert!(
                 (player.position[0] - (start[0] + ran)).abs() < 1e-9 && player.position[1] == start[1],
@@ -292,13 +297,77 @@ fn the_patrol_is_a_pure_function_of_time() {
     assert!((far.x - patrol.to[0]).abs() < 1e-9);
 }
 
-// One fixed step at a time: STEP never varies, so a frame's work is a whole
-// number of steps and the clock never drifts from the step count.
+// Each frame moves the game by its own time, the time since the frame before,
+// in one step, as the Godot version's _Process does with its delta: at 100
+// frames a second, each frame runs the player 10 milliseconds' worth, and
+// pulls a falling player down by 10 milliseconds of gravity, and so does a
+// frame of any other length, up to LONGEST_FRAME. In fixed steps of 1/240 of
+// a second, a 100 Hz frame held 2 or 3 of them, so the player moved by 8.3
+// or 12.5 milliseconds' worth, and juddered.
 #[test]
-fn the_clock_moves_in_whole_steps() {
-    let mut game = game("Clock");
-    let before = game.simulated;
-    frame(&mut game, Controls::default());
-    let steps = (game.simulated - before) / STEP;
-    assert!((steps - steps.round()).abs() < 1e-9, "{steps}");
+fn each_frame_moves_the_game_by_its_own_time() {
+    let mut game = game("FrameTime");
+    let run = Controls { push: 1.0, ..Controls::default() };
+    let hundred_hertz = [0.01; 10];
+    let uneven = [0.007, 0.013, 0.004, 0.016, 0.0101, 0.0069];
+    let mut time = game.simulated;
+    for frame_time in hundred_hertz.iter().chain(&uneven) {
+        let (clock, x) = (game.simulated, game.player.position[0]);
+        time += frame_time;
+        game.update(&run, time);
+        assert!((game.simulated - clock - frame_time).abs() < 1e-12, "the clock moved {}", game.simulated - clock);
+        let ran = game.player.position[0] - x;
+        assert!((ran - RUN_SPEED * frame_time).abs() < 1e-12, "a frame of {frame_time} seconds ran {ran}");
+        assert!(game.player.grounded);
+    }
+
+    // In the air, each frame pulls the player down by its time's gravity.
+    game.player.position[1] += 5.0;
+    game.player.velocity[1] = 0.0;
+    for frame_time in hundred_hertz.iter().chain(&uneven) {
+        let speed = game.player.velocity[1];
+        time += frame_time;
+        game.update(&Controls::default(), time);
+        assert!(!game.player.grounded);
+        let pulled = speed - game.player.velocity[1];
+        assert!((pulled - GRAVITY * frame_time).abs() < 1e-12, "a frame of {frame_time} seconds pulled {pulled}");
+    }
+
+    // A frame that comes late, like after the window was minimized, counts
+    // LONGEST_FRAME.
+    let (clock, y) = (game.simulated, game.player.position[1]);
+    time += 0.5;
+    game.update(&Controls::default(), time);
+    assert!((game.simulated - clock - LONGEST_FRAME).abs() < 1e-12, "the late frame moved the clock {}", game.simulated - clock);
+    let fell = y - game.player.position[1];
+    assert!(fell > 0.0 && fell <= FASTEST_FALL * LONGEST_FRAME + 1e-12, "fell {fell}, no faster than the fastest fall");
+}
+
+// Gravity's pull is exact, so a held jump peaks at JUMP_SPEED squared over
+// twice GRAVITY above the ground, at any frame rate, instead of lower at
+// lower ones.
+#[test]
+fn a_jump_reaches_the_same_height_at_any_frame_rate() {
+    let peak = JUMP_SPEED * JUMP_SPEED / (2.0 * GRAVITY);
+    for rate in [20.0, 30.0, 60.0, 100.0, 144.0, 240.0] {
+        let mut game = game(&format!("Peak{rate}"));
+        let ground = game.player.position[1];
+        let mut time = game.simulated;
+        let mut top = ground;
+        let mut held = Controls { jump_pressed: true, jump_held: true, ..Controls::default() };
+        for _ in 0..(rate as usize) {
+            time += 1.0 / rate;
+            game.update(&held, time);
+            held.jump_pressed = false;
+            top = top.max(game.player.position[1]);
+        }
+        // The frames sample the arc, so the highest of them is within an
+        // eighth of a frame's gravity of the peak.
+        let sampling = GRAVITY / (rate * rate) / 8.0;
+        assert!(
+            top - ground <= peak + 1e-9 && top - ground >= peak - sampling - 1e-9,
+            "at {rate} frames a second, the jump reached {} of {peak}",
+            top - ground
+        );
+    }
 }

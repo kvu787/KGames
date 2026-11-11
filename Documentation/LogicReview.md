@@ -35,8 +35,11 @@ code in its own commit, most with a test that pins it.
 **Veehiicuul**
 
 - A crash was detected once a frame and its pause anchored to the frame clock, so a run through a
-  crash diverged between 60 and 240 Hz. The car now crashes on the very drive step that touches
-  the edge, and the pause runs on the drive's clock; a test drives a crash at both rates.
+  crash diverged between 60 and 240 Hz. The car then crashed on the very drive step that touched
+  the edge, and the pause ran on the drive's clock. The drive's fixed steps were dropped later, as
+  they made the car judder at frame rates that they don't divide, like 100: the car now moves by
+  each frame's time, a crash is where it is at a frame's end, and the pause runs on the frames'
+  clock, which a test checks at 60, 100 and 240 frames a second.
 - Undo could strand the track builder's chosen curve past the islands that are left: adding an
   island, undoing it, and pressing Delete indexed out of bounds. The frame's last message now
   clamps the track's and the terrain's choices, as it already kept the scene's pick.
