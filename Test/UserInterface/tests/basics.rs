@@ -173,7 +173,7 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
     let (defaults, problems) = read("{}");
     let light = CommonSettings {
         display: "Primary".to_string(),
-        window_mode: WindowMode::MaximizedWindowed,
+        window_mode: WindowMode::WindowedMaximized,
         vertical_sync: true,
         theme: ThemeKind::Light,
     };
@@ -198,10 +198,10 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
     let (wrong, problems) = read(r#"{ "Theme": true }"#);
     assert_eq!(wrong.theme, ThemeKind::Light);
     assert_eq!(problems, ["Theme must be \"Light\" or \"Dark\", not true, so it's the default."]);
-    // The window mode that was called Maximized is MaximizedWindowed.
+    // The window mode that was called Maximized is WindowedMaximized.
     let (old, problems) = read(r#"{ "WindowMode": "Maximized" }"#);
-    assert_eq!(old.window_mode, WindowMode::MaximizedWindowed);
-    assert_eq!(problems, ["WindowMode must be \"MaximizedWindowed\" or \"BorderlessFullscreen\", not \"Maximized\", so it's the default."]);
+    assert_eq!(old.window_mode, WindowMode::WindowedMaximized);
+    assert_eq!(problems, ["WindowMode must be \"WindowedMaximized\" or \"BorderlessFullscreen\", not \"Maximized\", so it's the default."]);
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     startup.settings.boolean("Own", false);
     startup.settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    let expected = "{\n    \"Display\": \"Primary\",\n    \"WindowMode\": \"MaximizedWindowed\",\n    \"VerticalSync\": true,\n    \"Theme\": \"Light\",\n    \"Own\": false\n}\n";
+    let expected = "{\n    \"Display\": \"Primary\",\n    \"WindowMode\": \"WindowedMaximized\",\n    \"VerticalSync\": true,\n    \"Theme\": \"Light\",\n    \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }
@@ -255,7 +255,7 @@ fn vsync_arguments_override_the_setting_only_when_given() {
 }
 
 // RunInBackground starts every program with --vsync, --theme Light and
-// --window-mode MaximizedWindowed, so that its scripts and screenshots start
+// --window-mode WindowedMaximized, so that its scripts and screenshots start
 // the same way whatever the program's Settings.json says.
 #[test]
 fn the_command_line_overrides_the_theme_window_mode_and_vertical_sync_settings() {
@@ -268,15 +268,15 @@ fn the_command_line_overrides_the_theme_window_mode_and_vertical_sync_settings()
         (common.theme, common.window_mode, common.vertical_sync)
     };
     assert_eq!(started(&[]), (ThemeKind::Dark, WindowMode::BorderlessFullscreen, false));
-    let run_in_background = ["--vsync", "--theme", "Light", "--window-mode", "MaximizedWindowed"];
-    assert_eq!(started(&run_in_background), (ThemeKind::Light, WindowMode::MaximizedWindowed, true));
+    let run_in_background = ["--vsync", "--theme", "Light", "--window-mode", "WindowedMaximized"];
+    assert_eq!(started(&run_in_background), (ThemeKind::Light, WindowMode::WindowedMaximized, true));
     // Words ignore case, and the last one says, so RunInBackground's
     // --arguments, after its own, can say otherwise.
-    assert_eq!(started(&["--theme", "light", "--theme", "DARK", "--window-mode", "maximizedwindowed"]), (ThemeKind::Dark, WindowMode::MaximizedWindowed, false));
+    assert_eq!(started(&["--theme", "light", "--theme", "DARK", "--window-mode", "windowedmaximized"]), (ThemeKind::Dark, WindowMode::WindowedMaximized, false));
     assert_eq!(parse(&["--theme", "Blue"]).unwrap_err(), "--theme takes Light or Dark, not Blue.");
-    assert_eq!(parse(&["--window-mode", "Maximized"]).unwrap_err(), "--window-mode takes MaximizedWindowed or BorderlessFullscreen, not Maximized.");
+    assert_eq!(parse(&["--window-mode", "Maximized"]).unwrap_err(), "--window-mode takes WindowedMaximized or BorderlessFullscreen, not Maximized.");
     assert_eq!(parse(&["--theme"]).unwrap_err(), "--theme needs a value after it.");
-    assert!(parse(&["--light"]).unwrap_err().contains("--theme <Light or Dark>, --window-mode <MaximizedWindowed or BorderlessFullscreen>"));
+    assert!(parse(&["--light"]).unwrap_err().contains("--theme <Light or Dark>, --window-mode <WindowedMaximized or BorderlessFullscreen>"));
 }
 
 #[test]

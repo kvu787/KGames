@@ -3,7 +3,7 @@
 //
 //     {
 //         "Display": "Primary",
-//         "WindowMode": "MaximizedWindowed",
+//         "WindowMode": "WindowedMaximized",
 //         "VerticalSync": true,
 //         "Theme": "Light",
 //         "RumbleTestInnerDeadZone": 0.1

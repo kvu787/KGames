@@ -16,22 +16,22 @@ use crate::design::theme::ThemeKind;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum WindowMode {
     #[default]
-    MaximizedWindowed,
+    WindowedMaximized,
     BorderlessFullscreen,
 }
 
 impl WindowMode {
     pub fn name(self) -> &'static str {
         match self {
-            WindowMode::MaximizedWindowed => "MaximizedWindowed",
+            WindowMode::WindowedMaximized => "WindowedMaximized",
             WindowMode::BorderlessFullscreen => "BorderlessFullscreen",
         }
     }
 
     pub fn other(self) -> WindowMode {
         match self {
-            WindowMode::MaximizedWindowed => WindowMode::BorderlessFullscreen,
-            WindowMode::BorderlessFullscreen => WindowMode::MaximizedWindowed,
+            WindowMode::WindowedMaximized => WindowMode::BorderlessFullscreen,
+            WindowMode::BorderlessFullscreen => WindowMode::WindowedMaximized,
         }
     }
 }
@@ -55,8 +55,8 @@ impl CommonSettings {
     // Reads them, each its default if it's missing or wrong.
     pub fn read(settings: &mut Settings) -> CommonSettings {
         let display = settings.string("Display", "Primary");
-        let modes = [WindowMode::MaximizedWindowed, WindowMode::BorderlessFullscreen];
-        let window_mode = settings.choice_of("WindowMode", WindowMode::MaximizedWindowed, &modes, |mode| mode.name());
+        let modes = [WindowMode::WindowedMaximized, WindowMode::BorderlessFullscreen];
+        let window_mode = settings.choice_of("WindowMode", WindowMode::WindowedMaximized, &modes, |mode| mode.name());
         let vertical_sync = settings.boolean("VerticalSync", true);
         let themes = [ThemeKind::Light, ThemeKind::Dark];
         let theme = settings.choice_of("Theme", ThemeKind::Light, &themes, |theme| theme.name());

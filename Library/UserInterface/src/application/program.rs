@@ -232,7 +232,7 @@ impl Arguments {
                 "--no-vsync" => parsed.vsync = Some(false),
                 "--theme" => parsed.theme = Some(choose("--theme", value("--theme")?, &[ThemeKind::Light, ThemeKind::Dark], ThemeKind::name)?),
                 "--window-mode" => {
-                    let modes = [WindowMode::MaximizedWindowed, WindowMode::BorderlessFullscreen];
+                    let modes = [WindowMode::WindowedMaximized, WindowMode::BorderlessFullscreen];
                     parsed.window_mode = Some(choose("--window-mode", value("--window-mode")?, &modes, WindowMode::name)?);
                 }
                 "--no-input" => parsed.no_input = true,
@@ -241,7 +241,7 @@ impl Arguments {
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
                 other => {
                     return Err(format!(
-                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, --theme <Light or Dark>, --window-mode <MaximizedWindowed or BorderlessFullscreen>, and --script <path> with --output <folder>."
+                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, --theme <Light or Dark>, --window-mode <WindowedMaximized or BorderlessFullscreen>, and --script <path> with --output <folder>."
                     ));
                 }
             }

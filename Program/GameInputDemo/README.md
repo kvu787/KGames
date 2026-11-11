@@ -204,7 +204,7 @@ it doesn't exist, the demo writes it with the defaults:
 ```json
 {
     "Display": "Primary",
-    "WindowMode": "MaximizedWindowed",
+    "WindowMode": "WindowedMaximized",
     "VerticalSync": true,
     "Theme": "Light",
     "RumbleTestInnerDeadZone": 0.1
@@ -214,7 +214,7 @@ it doesn't exist, the demo writes it with the defaults:
 | Setting                   | Value                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
-| `WindowMode`              | `"MaximizedWindowed"` or `"BorderlessFullscreen"`, the two supported setups |
+| `WindowMode`              | `"WindowedMaximized"` or `"BorderlessFullscreen"`, the two supported setups |
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
 | `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
@@ -229,7 +229,7 @@ and the last is the demo's own.
 - `F11` switches between the two window modes, whichever the demo opened in.
 - A setting that's missing keeps its default. So does one that's wrong, and a notice under the app
   bar says what's wrong with it. If the file isn't valid JSON, it says where, and the demo uses the
-  defaults. Values that are words, like `"MaximizedWindowed"`, ignore case, but setting names don't.
+  defaults. Values that are words, like `"WindowedMaximized"`, ignore case, but setting names don't.
 - The demo never changes the file once it exists. Delete it to get the defaults back.
 
 `--display` and an identifier on the command line overrides `Display`. `--display Primary` opens on

@@ -193,7 +193,7 @@ impl Window {
             Window {
                 hwnd,
                 shared,
-                mode: WindowMode::MaximizedWindowed,
+                mode: WindowMode::WindowedMaximized,
                 cursors,
                 dark_title_bar: None,
             }
@@ -251,7 +251,7 @@ impl Window {
             let flags = (SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER) as u32;
             let (style, area) = match mode {
                 WindowMode::BorderlessFullscreen => (WS_POPUP | visible, info.rcMonitor),
-                WindowMode::MaximizedWindowed => {
+                WindowMode::WindowedMaximized => {
                     // Maximized as Windows would, but without activating, which
                     // Windows has no documented way to do: ShowWindow's
                     // SW_SHOWMAXIMIZED activates the window. So the style says
@@ -445,7 +445,7 @@ impl Window {
             let (client_width, client_height) = self.client_size();
             let client = (client_width as i32, client_height as i32);
             match self.mode {
-                WindowMode::MaximizedWindowed => {
+                WindowMode::WindowedMaximized => {
                     let work = info.rcWork;
                     let taskbar_right = work.left == monitor.left
                         && work.top == monitor.top
@@ -458,7 +458,7 @@ impl Window {
                         problems.push("The window must be maximized, or borderless fullscreen with F11.".to_string());
                     } else if client != (DISPLAY_WIDTH, MAXIMIZED_CLIENT_HEIGHT) {
                         problems.push(format!(
-                            "The window's client area is {client_width} × {client_height}. Maximized windowed, it must be {DISPLAY_WIDTH} × {MAXIMIZED_CLIENT_HEIGHT}."
+                            "The window's client area is {client_width} × {client_height}. Windowed maximized, it must be {DISPLAY_WIDTH} × {MAXIMIZED_CLIENT_HEIGHT}."
                         ));
                     }
                 }

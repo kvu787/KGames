@@ -39,7 +39,7 @@ fn the_file_it_writes_reads_back_as_the_defaults() {
 fn the_program_s_settings_file_has_the_defaults() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Program/MinimalSceneTest/Settings.json");
     let mut settings = Settings::load(&path);
-    assert_eq!(CommonSettings::read(&mut settings).window_mode, WindowMode::MaximizedWindowed);
+    assert_eq!(CommonSettings::read(&mut settings).window_mode, WindowMode::WindowedMaximized);
     assert_eq!(SceneSettings::read(&mut settings), SceneSettings::default());
     assert!(settings.problems().is_empty(), "{:?}", settings.problems());
 }

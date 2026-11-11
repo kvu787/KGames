@@ -26,8 +26,8 @@ moment counts, and RunInBackground stops the program as soon as it does, so that
 as short a time as can be.
 
 A run's `--vsync` turns vertical sync on even if the program's Settings.json says
-`"VerticalSync": false`. A run also starts the program light and maximized windowed, with
-`--theme Light` and `--window-mode MaximizedWindowed`, whatever its `Theme` and `WindowMode`
+`"VerticalSync": false`. A run also starts the program light and windowed maximized, with
+`--theme Light` and `--window-mode WindowedMaximized`, whatever its `Theme` and `WindowMode`
 settings say, so that its scripts and screenshots start the same way whatever you set for
 yourself. `--arguments`, which come after these, can say otherwise, like
 `--arguments "--theme Dark"`.
