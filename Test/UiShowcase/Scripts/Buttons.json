@@ -1,19 +1,19 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Standard" },
-        { "Frame": 3, "Click": "Accent" },
-        { "Frame": 5, "Click": "Save" },
-        { "Frame": 7, "Click": "Pin" },
-        { "Frame": 9, "Click": "Add" },
-        { "Frame": 11, "Click": "Add" },
-        { "Frame": 13, "Click": "Disabled" },
-        { "Frame": 15, "Press": "Subtle" },
-        { "Frame": 16, "Capture": "Pressed" },
-        { "Frame": 16, "Expect": { "Interface": { "Pressed": "Subtle" }, "Presses": { "Subtle": 1 } } },
-        { "Frame": 17, "Move": [1200, 900] },
-        { "Frame": 18, "Release": true },
-        { "Frame": 20, "Expect": { "Presses": { "Standard": 1, "Accent": 1, "Subtle": 1, "Save": 1 }, "Pinned": true, "Count": 2 } },
-        { "Frame": 21, "Move": "Accent" },
-        { "Frame": 30, "Capture": "Buttons" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Standard" },
+    { "Frame": 3, "Click": "Accent" },
+    { "Frame": 5, "Click": "Save" },
+    { "Frame": 7, "Click": "Pin" },
+    { "Frame": 9, "Click": "Add" },
+    { "Frame": 11, "Click": "Add" },
+    { "Frame": 13, "Click": "Disabled" },
+    { "Frame": 15, "Press": "Subtle" },
+    { "Frame": 16, "Capture": "Pressed" },
+    { "Frame": 16, "Expect": { "Interface": { "Pressed": "Subtle" }, "Presses": { "Subtle": 1 } } },
+    { "Frame": 17, "Move": [1200, 900] },
+    { "Frame": 18, "Release": true },
+    { "Frame": 20, "Expect": { "Presses": { "Standard": 1, "Accent": 1, "Subtle": 1, "Save": 1 }, "Pinned": true, "Count": 2 } },
+    { "Frame": 21, "Move": "Accent" },
+    { "Frame": 30, "Capture": "Buttons" }
+  ]
 }

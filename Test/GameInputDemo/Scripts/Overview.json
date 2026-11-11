@@ -1,45 +1,45 @@
 {
-    "Steps": [
-        {
-            "Frame": 1,
-            "Program": {
-                "Connect": {
-                    "Id": 1,
-                    "Name": "Xbox Controller (045E:0B13)",
-                    "Input": ["Gamepad"],
-                    "Motors": ["LowFrequency", "HighFrequency", "LeftTrigger", "RightTrigger"]
-                }
-            }
-        },
-        {
-            "Frame": 1,
-            "Program": { "Connect": { "Id": 2, "Name": "Wireless Controller (054C:0CE6)", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } }
-        },
-        { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "HID Keyboard Device (29EA:0360)", "Input": ["Keyboard", "Mouse"] } } },
-        { "Frame": 1, "Program": { "Connect": { "Id": 4, "Name": "Razer DeathAdder V4 Pro (1532:00BF)", "Input": ["Mouse"] } } },
-        { "Frame": 2, "Program": { "Keyboard": { "Id": 3, "Down": ["F1"] } } },
-        { "Frame": 3, "Program": { "Keyboard": { "Id": 3, "Down": [] } } },
-        { "Frame": 4, "Program": { "Mouse": { "Id": 4 } } },
-        { "Frame": 5, "Program": { "Mouse": { "Id": 4, "Motion": [120, 40] } } },
-        { "Frame": 6, "Program": { "Mouse": { "Id": 4, "Motion": [60, 20], "Buttons": ["Right"] } } },
-        { "Frame": 7, "Program": { "Keyboard": { "Id": 3, "Down": ["Shift", "W", "D"] } } },
-        {
-            "Frame": 8,
-            "Program": {
-                "Gamepad": { "Id": 1, "LeftStick": [0.42, 0.61], "RightStick": [-0.83, -0.2], "LeftTrigger": 0.35, "RightTrigger": 0.9, "Buttons": ["A", "RB", "Up"] }
-            }
-        },
-        {
-            "Frame": 9,
-            "Expect": {
-                "Listen": "Xbox Controller (045E:0B13)",
-                "RumbleTest": true,
-                "Keyboard": { "Device": "HID Keyboard Device (29EA:0360)", "Keys": ["Shift", "W", "D"] },
-                "Mouse": { "Device": "Razer DeathAdder V4 Pro (1532:00BF)", "Buttons": ["Right"] },
-                "Gamepad": { "Device": "Xbox Controller (045E:0B13)", "Buttons": ["A", "RB", "Up"] },
-                "Interface": { "WindowFocused": true, "Popup": null }
-            }
-        },
-        { "Frame": 9, "Capture": "Overview" }
-    ]
+  "Steps": [
+    {
+      "Frame": 1,
+      "Program": {
+        "Connect": {
+          "Id": 1,
+          "Name": "Xbox Controller (045E:0B13)",
+          "Input": ["Gamepad"],
+          "Motors": ["LowFrequency", "HighFrequency", "LeftTrigger", "RightTrigger"]
+        }
+      }
+    },
+    {
+      "Frame": 1,
+      "Program": { "Connect": { "Id": 2, "Name": "Wireless Controller (054C:0CE6)", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } }
+    },
+    { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "HID Keyboard Device (29EA:0360)", "Input": ["Keyboard", "Mouse"] } } },
+    { "Frame": 1, "Program": { "Connect": { "Id": 4, "Name": "Razer DeathAdder V4 Pro (1532:00BF)", "Input": ["Mouse"] } } },
+    { "Frame": 2, "Program": { "Keyboard": { "Id": 3, "Down": ["F1"] } } },
+    { "Frame": 3, "Program": { "Keyboard": { "Id": 3, "Down": [] } } },
+    { "Frame": 4, "Program": { "Mouse": { "Id": 4 } } },
+    { "Frame": 5, "Program": { "Mouse": { "Id": 4, "Motion": [120, 40] } } },
+    { "Frame": 6, "Program": { "Mouse": { "Id": 4, "Motion": [60, 20], "Buttons": ["Right"] } } },
+    { "Frame": 7, "Program": { "Keyboard": { "Id": 3, "Down": ["Shift", "W", "D"] } } },
+    {
+      "Frame": 8,
+      "Program": {
+        "Gamepad": { "Id": 1, "LeftStick": [0.42, 0.61], "RightStick": [-0.83, -0.2], "LeftTrigger": 0.35, "RightTrigger": 0.9, "Buttons": ["A", "RB", "Up"] }
+      }
+    },
+    {
+      "Frame": 9,
+      "Expect": {
+        "Listen": "Xbox Controller (045E:0B13)",
+        "RumbleTest": true,
+        "Keyboard": { "Device": "HID Keyboard Device (29EA:0360)", "Keys": ["Shift", "W", "D"] },
+        "Mouse": { "Device": "Razer DeathAdder V4 Pro (1532:00BF)", "Buttons": ["Right"] },
+        "Gamepad": { "Device": "Xbox Controller (045E:0B13)", "Buttons": ["A", "RB", "Up"] },
+        "Interface": { "WindowFocused": true, "Popup": null }
+      }
+    },
+    { "Frame": 9, "Capture": "Overview" }
+  ]
 }

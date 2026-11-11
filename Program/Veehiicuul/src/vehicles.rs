@@ -3,15 +3,15 @@
 // the same on every track. Its paint goes over its model's, slot by slot.
 //
 //     {
-//         "Vehicles": [
-//             {
-//                 "Name": "Green",
-//                 "Model": "SlopeCar",
-//                 "Acceleration": { "Forward": 10, "Reverse": 100, "Left": 40, "Right": 40 },
-//                 "Footprint": { "Left": 1.5, "Right": 1.5, "Front": 2.9925, "Back": 3 },
-//                 "Paint": { "SlopeCarBodyBlue": { ... } }
-//             }
-//         ]
+//       "Vehicles": [
+//         {
+//           "Name": "Green",
+//           "Model": "SlopeCar",
+//           "Acceleration": { "Forward": 10, "Reverse": 100, "Left": 40, "Right": 40 },
+//           "Footprint": { "Left": 1.5, "Right": 1.5, "Front": 2.9925, "Back": 3 },
+//           "Paint": { "SlopeCarBodyBlue": { ... } }
+//         }
+//       ]
 //     }
 
 use json::Value;

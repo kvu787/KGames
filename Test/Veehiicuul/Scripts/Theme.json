@@ -1,19 +1,19 @@
 {
-    "Steps": [
-        { "Frame": 1, "Expect": { "Interface": { "Theme": "Light" } } },
-        { "Frame": 2, "Key": "F9" },
-        { "Frame": 2, "Expect": { "Interface": { "Theme": "Dark" } } },
-        { "Frame": 20, "Capture": "Play" },
-        { "Frame": 21, "Click": "Mode/Terrain" },
-        { "Frame": 40, "Capture": "Terrain" },
-        { "Frame": 41, "Click": "Mode/Track" },
-        { "Frame": 60, "Capture": "Track" },
-        { "Frame": 61, "Click": "Mode/Vehicles" },
-        { "Frame": 80, "Capture": "Vehicles" },
-        { "Frame": 81, "Click": "Mode/Scene" },
-        { "Frame": 100, "Capture": "Scene" },
-        { "Frame": 100, "Expect": { "Mode": "Scene", "Interface": { "Theme": "Dark" } } },
-        { "Frame": 101, "Key": "F9" },
-        { "Frame": 101, "Expect": { "Interface": { "Theme": "Light" } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Expect": { "Interface": { "Theme": "Light" } } },
+    { "Frame": 2, "Key": "F9" },
+    { "Frame": 2, "Expect": { "Interface": { "Theme": "Dark" } } },
+    { "Frame": 20, "Capture": "Play" },
+    { "Frame": 21, "Click": "Mode/Terrain" },
+    { "Frame": 40, "Capture": "Terrain" },
+    { "Frame": 41, "Click": "Mode/Track" },
+    { "Frame": 60, "Capture": "Track" },
+    { "Frame": 61, "Click": "Mode/Vehicles" },
+    { "Frame": 80, "Capture": "Vehicles" },
+    { "Frame": 81, "Click": "Mode/Scene" },
+    { "Frame": 100, "Capture": "Scene" },
+    { "Frame": 100, "Expect": { "Mode": "Scene", "Interface": { "Theme": "Dark" } } },
+    { "Frame": 101, "Key": "F9" },
+    { "Frame": 101, "Expect": { "Interface": { "Theme": "Light" } } }
+  ]
 }

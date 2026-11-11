@@ -13,11 +13,11 @@
 // 9, then A to Z, then a to z, or "." for a cell that isn't painted.
 //
 //     "Terrain": {
-//         "Size": 2,
-//         "Orientation": "PointyTop",
-//         "Palette": ["#17B856", "#2ACB6B"],
-//         "Origin": [-85, -46],
-//         "Rows": ["..0..1", "..11"]
+//       "Size": 2,
+//       "Orientation": "PointyTop",
+//       "Palette": ["#17B856", "#2ACB6B"],
+//       "Origin": [-85, -46],
+//       "Rows": ["..0..1", "..11"]
 //     }
 
 use std::collections::BTreeMap;

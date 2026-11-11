@@ -1,8 +1,8 @@
 {
-    "FrameTime": 1.0,
-    "Steps": [
-        { "Frame": 1, "Expect": { "SpherePosition": 0.8, "SphereDirection": 1.0 } },
-        { "Frame": 5, "Expect": { "SpherePosition": 4.0, "SphereDirection": 1.0 } },
-        { "Frame": 10, "Expect": { "SpherePosition": 6.0, "SphereDirection": -1.0 } }
-    ]
+  "FrameTime": 1.0,
+  "Steps": [
+    { "Frame": 1, "Expect": { "SpherePosition": 0.8, "SphereDirection": 1.0 } },
+    { "Frame": 5, "Expect": { "SpherePosition": 4.0, "SphereDirection": 1.0 } },
+    { "Frame": 10, "Expect": { "SpherePosition": 6.0, "SphereDirection": -1.0 } }
+  ]
 }

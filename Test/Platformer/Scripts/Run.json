@@ -1,10 +1,10 @@
 {
-    "Steps": [
-        { "Frame": 1, "Expect": { "Level": "First Steps", "Coins": 0, "Lives": 3, "State": "Running", "Unlocked": 1 } },
-        { "Frame": 1, "Hold": ["Right"] },
-        { "Frame": 40, "Expect": { "Coins": 1, "Lives": 3, "State": "Running" } },
-        { "Frame": 40, "Capture": "FirstCoin" },
-        { "Frame": 41, "Hold": [] },
-        { "Frame": 60, "Expect": { "Grounded": true, "Coins": 1 } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Expect": { "Level": "First Steps", "Coins": 0, "Lives": 3, "State": "Running", "Unlocked": 1 } },
+    { "Frame": 1, "Hold": ["Right"] },
+    { "Frame": 40, "Expect": { "Coins": 1, "Lives": 3, "State": "Running" } },
+    { "Frame": 40, "Capture": "FirstCoin" },
+    { "Frame": 41, "Hold": [] },
+    { "Frame": 60, "Expect": { "Grounded": true, "Coins": 1 } }
+  ]
 }

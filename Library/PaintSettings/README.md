@@ -6,12 +6,12 @@ one format, so that a material can be copied between programs, like from SimpleP
 
 ```json
 {
-    "BaseColor": [0.107, 0.223, 0.578],
-    "Brightness": 0.5,
-    "Shift": 0.0,
-    "RotationDegrees": 0.0,
-    "DarkPoint": 0.0,
-    "LightPoint": 1.0
+  "BaseColor": [0.107, 0.223, 0.578],
+  "Brightness": 0.5,
+  "Shift": 0.0,
+  "RotationDegrees": 0.0,
+  "DarkPoint": 0.0,
+  "LightPoint": 1.0
 }
 ```
 

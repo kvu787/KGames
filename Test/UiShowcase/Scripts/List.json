@@ -1,12 +1,12 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Items/2" },
-        { "Frame": 3, "Key": "Down" },
-        { "Frame": 5, "Expect": { "Selected": 3, "Interface": { "Focused": "Items" } } },
-        { "Frame": 6, "Scroll": { "At": "Items", "Notches": -10 } },
-        { "Frame": 8, "Capture": "Scrolled" },
-        { "Frame": 9, "DoubleClick": "Items/33" },
-        { "Frame": 12, "Expect": { "Selected": 33, "Opened": 33 } },
-        { "Frame": 12, "Capture": "Opened" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Items/2" },
+    { "Frame": 3, "Key": "Down" },
+    { "Frame": 5, "Expect": { "Selected": 3, "Interface": { "Focused": "Items" } } },
+    { "Frame": 6, "Scroll": { "At": "Items", "Notches": -10 } },
+    { "Frame": 8, "Capture": "Scrolled" },
+    { "Frame": 9, "DoubleClick": "Items/33" },
+    { "Frame": 12, "Expect": { "Selected": 33, "Opened": 33 } },
+    { "Frame": 12, "Capture": "Opened" }
+  ]
 }

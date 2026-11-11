@@ -1,15 +1,15 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Paints/1" },
-        { "Frame": 3, "Expect": { "ActivePaint": 1 } },
-        { "Frame": 4, "Key": "P" },
-        { "Frame": 6, "Drag": { "From": { "Target": "View", "At": [0.435, 0.558] }, "To": { "Target": "View", "At": [0.593, 0.54] }, "Frames": 10 } },
-        { "Frame": 20, "Expect": { "Tool": "Paint", "Undo": "Paint", "Mesh": { "Materials": [0, 1, 0, 0, 0, 1] } } },
-        { "Frame": 21, "Click": "Paints/2" },
-        { "Frame": 23, "Click": { "Target": "View", "At": [0.5, 0.33] } },
-        { "Frame": 25, "Move": { "Target": "View", "At": [0.8, 0.2] } },
-        { "Frame": 30, "Capture": "Painted" },
-        { "Frame": 31, "Key": "Q" },
-        { "Frame": 33, "Expect": { "Tool": "Select" } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Paints/1" },
+    { "Frame": 3, "Expect": { "ActivePaint": 1 } },
+    { "Frame": 4, "Key": "P" },
+    { "Frame": 6, "Drag": { "From": { "Target": "View", "At": [0.435, 0.558] }, "To": { "Target": "View", "At": [0.593, 0.54] }, "Frames": 10 } },
+    { "Frame": 20, "Expect": { "Tool": "Paint", "Undo": "Paint", "Mesh": { "Materials": [0, 1, 0, 0, 0, 1] } } },
+    { "Frame": 21, "Click": "Paints/2" },
+    { "Frame": 23, "Click": { "Target": "View", "At": [0.5, 0.33] } },
+    { "Frame": 25, "Move": { "Target": "View", "At": [0.8, 0.2] } },
+    { "Frame": 30, "Capture": "Painted" },
+    { "Frame": 31, "Key": "Q" },
+    { "Frame": 33, "Expect": { "Tool": "Select" } }
+  ]
 }

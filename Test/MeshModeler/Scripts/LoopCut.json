@@ -1,18 +1,18 @@
 {
-    "Steps": [
-        { "Frame": 1, "Key": "Ctrl+R" },
-        { "Frame": 2, "Move": { "Target": "View", "At": [0.528, 0.598] } },
-        { "Frame": 6, "Expect": { "Tool": "Loop cut", "LoopPreviewEdges": 4 } },
-        { "Frame": 6, "Capture": "Preview" },
-        { "Frame": 7, "Click": { "Target": "View", "At": [0.528, 0.598] } },
-        { "Frame": 9, "Expect": { "Mode": "Edge", "Undo": "Loop cut", "Mesh": { "Faces": 10, "Vertices": 12, "Valid": true }, "Selection": { "Edges": 4 } } },
-        { "Frame": 10, "Key": "Esc" },
-        { "Frame": 11, "Key": "Ctrl+2" },
-        { "Frame": 13, "Expect": { "Tool": "Select", "Subdivision": 2, "SurfaceFaces": 160 } },
-        { "Frame": 14, "Move": { "Target": "View", "At": [0.8, 0.2] } },
-        { "Frame": 20, "Capture": "Subdivided" },
-        { "Frame": 21, "Key": "Shift+Z" },
-        { "Frame": 23, "Expect": { "Shader": "Flat" } },
-        { "Frame": 30, "Capture": "Flat" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Key": "Ctrl+R" },
+    { "Frame": 2, "Move": { "Target": "View", "At": [0.528, 0.598] } },
+    { "Frame": 6, "Expect": { "Tool": "Loop cut", "LoopPreviewEdges": 4 } },
+    { "Frame": 6, "Capture": "Preview" },
+    { "Frame": 7, "Click": { "Target": "View", "At": [0.528, 0.598] } },
+    { "Frame": 9, "Expect": { "Mode": "Edge", "Undo": "Loop cut", "Mesh": { "Faces": 10, "Vertices": 12, "Valid": true }, "Selection": { "Edges": 4 } } },
+    { "Frame": 10, "Key": "Esc" },
+    { "Frame": 11, "Key": "Ctrl+2" },
+    { "Frame": 13, "Expect": { "Tool": "Select", "Subdivision": 2, "SurfaceFaces": 160 } },
+    { "Frame": 14, "Move": { "Target": "View", "At": [0.8, 0.2] } },
+    { "Frame": 20, "Capture": "Subdivided" },
+    { "Frame": 21, "Key": "Shift+Z" },
+    { "Frame": 23, "Expect": { "Shader": "Flat" } },
+    { "Frame": 30, "Capture": "Flat" }
+  ]
 }

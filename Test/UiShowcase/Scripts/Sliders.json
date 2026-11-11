@@ -1,20 +1,20 @@
 {
-    "Steps": [
-        { "Frame": 1, "Press": "Volume" },
-        { "Frame": 2, "Expect": { "Volume": 50, "Interface": { "Pressed": "Volume" } } },
-        { "Frame": 3, "Move": [1600, 400] },
-        { "Frame": 4, "Capture": "Dragging" },
-        { "Frame": 4, "Expect": { "Volume": 100 } },
-        { "Frame": 5, "Release": true },
-        { "Frame": 6, "Scroll": { "At": "Opacity", "Notches": -3 } },
-        { "Frame": 7, "Expect": { "Opacity": 0.747, "Interface": { "Pressed": null } } },
-        { "Frame": 8, "Click": "Angle" },
-        { "Frame": 10, "Key": "Home" },
-        { "Frame": 11, "Key": "Right" },
-        { "Frame": 12, "Key": "PageUp" },
-        { "Frame": 13, "Expect": { "Angle": 15.1, "Interface": { "Focused": "Angle" } } },
-        { "Frame": 14, "Key": "End" },
-        { "Frame": 16, "Expect": { "Angle": 360 } },
-        { "Frame": 16, "Capture": "Sliders" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Press": "Volume" },
+    { "Frame": 2, "Expect": { "Volume": 50, "Interface": { "Pressed": "Volume" } } },
+    { "Frame": 3, "Move": [1600, 400] },
+    { "Frame": 4, "Capture": "Dragging" },
+    { "Frame": 4, "Expect": { "Volume": 100 } },
+    { "Frame": 5, "Release": true },
+    { "Frame": 6, "Scroll": { "At": "Opacity", "Notches": -3 } },
+    { "Frame": 7, "Expect": { "Opacity": 0.747, "Interface": { "Pressed": null } } },
+    { "Frame": 8, "Click": "Angle" },
+    { "Frame": 10, "Key": "Home" },
+    { "Frame": 11, "Key": "Right" },
+    { "Frame": 12, "Key": "PageUp" },
+    { "Frame": 13, "Expect": { "Angle": 15.1, "Interface": { "Focused": "Angle" } } },
+    { "Frame": 14, "Key": "End" },
+    { "Frame": 16, "Expect": { "Angle": 360 } },
+    { "Frame": 16, "Capture": "Sliders" }
+  ]
 }

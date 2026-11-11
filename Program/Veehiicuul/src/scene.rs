@@ -4,13 +4,13 @@
 // there's nothing, and the camera's view of it all.
 //
 //     {
-//         "Background": "#1CDA61",
-//         "Camera": { "Center": [-3.5, -15.3], "Height": 150 },
-//         "FollowHeight": 45,
-//         "Terrain": { ... },
-//         "Track": { ... },
-//         "Decorations": [{ "Model": "BigCone", "Position": [-53.4, -62.2], "Heading": 28, "Scale": 4.9 }],
-//         "Vehicles": [{ "Vehicle": "Green", "Position": [37.6, -75.5], "Heading": -32.1 }]
+//       "Background": "#1CDA61",
+//       "Camera": { "Center": [-3.5, -15.3], "Height": 150 },
+//       "FollowHeight": 45,
+//       "Terrain": { ... },
+//       "Track": { ... },
+//       "Decorations": [{ "Model": "BigCone", "Position": [-53.4, -62.2], "Heading": 28, "Scale": 4.9 }],
+//       "Vehicles": [{ "Vehicle": "Green", "Position": [37.6, -75.5], "Heading": -32.1 }]
 //     }
 //
 // See terrain.rs and track.rs for theirs.

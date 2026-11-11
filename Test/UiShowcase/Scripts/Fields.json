@@ -1,18 +1,18 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Quantity/Up" },
-        { "Frame": 3, "Expect": { "Quantity": 4 } },
-        { "Frame": 4, "Click": "Scale" },
-        { "Frame": 6, "Key": "Ctrl+A" },
-        { "Frame": 8, "Type": "2.5" },
-        { "Frame": 9, "Key": "Enter" },
-        { "Frame": 11, "Expect": { "Scale": 2.5 } },
-        { "Frame": 12, "Click": "Palette/0" },
-        { "Frame": 14, "Expect": { "Color": "#D13438" } },
-        { "Frame": 15, "Drag": { "From": { "Target": "Picker/Spectrum", "At": [0.1, 0.1] }, "To": { "Target": "Picker/Spectrum", "At": [0.6, 0.5] }, "Frames": 5 } },
-        { "Frame": 22, "Capture": "Picked" },
-        { "Frame": 23, "Click": "Expander" },
-        { "Frame": 25, "Expect": { "Expanded": false } },
-        { "Frame": 25, "Capture": "Collapsed" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Quantity/Up" },
+    { "Frame": 3, "Expect": { "Quantity": 4 } },
+    { "Frame": 4, "Click": "Scale" },
+    { "Frame": 6, "Key": "Ctrl+A" },
+    { "Frame": 8, "Type": "2.5" },
+    { "Frame": 9, "Key": "Enter" },
+    { "Frame": 11, "Expect": { "Scale": 2.5 } },
+    { "Frame": 12, "Click": "Palette/0" },
+    { "Frame": 14, "Expect": { "Color": "#D13438" } },
+    { "Frame": 15, "Drag": { "From": { "Target": "Picker/Spectrum", "At": [0.1, 0.1] }, "To": { "Target": "Picker/Spectrum", "At": [0.6, 0.5] }, "Frames": 5 } },
+    { "Frame": 22, "Capture": "Picked" },
+    { "Frame": 23, "Click": "Expander" },
+    { "Frame": 25, "Expect": { "Expanded": false } },
+    { "Frame": 25, "Capture": "Collapsed" }
+  ]
 }

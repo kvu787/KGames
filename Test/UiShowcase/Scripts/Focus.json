@@ -1,17 +1,17 @@
 {
-    "Steps": [
-        { "Frame": 1, "Key": "Tab" },
-        { "Frame": 3, "Key": "Tab" },
-        { "Frame": 5, "Key": "Tab" },
-        { "Frame": 7, "Key": "Tab" },
-        { "Frame": 9, "Key": "Tab" },
-        { "Frame": 11, "Expect": { "Interface": { "Focused": "Standard" } } },
-        { "Frame": 11, "Capture": "FocusVisual" },
-        { "Frame": 12, "Key": "Space" },
-        { "Frame": 14, "Expect": { "Presses": { "Standard": 1 } } },
-        { "Frame": 15, "Key": "Shift+Tab" },
-        { "Frame": 17, "Expect": { "Interface": { "Focused": "Theme" } } },
-        { "Frame": 18, "Key": "Esc" },
-        { "Frame": 20, "Expect": { "Interface": { "Focused": null } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Key": "Tab" },
+    { "Frame": 3, "Key": "Tab" },
+    { "Frame": 5, "Key": "Tab" },
+    { "Frame": 7, "Key": "Tab" },
+    { "Frame": 9, "Key": "Tab" },
+    { "Frame": 11, "Expect": { "Interface": { "Focused": "Standard" } } },
+    { "Frame": 11, "Capture": "FocusVisual" },
+    { "Frame": 12, "Key": "Space" },
+    { "Frame": 14, "Expect": { "Presses": { "Standard": 1 } } },
+    { "Frame": 15, "Key": "Shift+Tab" },
+    { "Frame": 17, "Expect": { "Interface": { "Focused": "Theme" } } },
+    { "Frame": 18, "Key": "Esc" },
+    { "Frame": 20, "Expect": { "Interface": { "Focused": null } } }
+  ]
 }

@@ -1,25 +1,25 @@
 {
-    "Steps": [
-        { "Frame": 1, "Key": "1" },
-        { "Frame": 3, "Drag": { "From": { "Target": "View", "At": [0.02, 0.02] }, "To": { "Target": "View", "At": [0.98, 0.98] }, "Frames": 10 } },
-        { "Frame": 16, "Expect": { "Mode": "Vertex", "Selection": { "Vertices": 8 }, "Undo": "Select box" } },
-        { "Frame": 16, "Capture": "Vertices" },
-        { "Frame": 17, "Move": { "Target": "View", "At": [0.3, 0.5] } },
-        { "Frame": 18, "Key": "G" },
-        { "Frame": 19, "Key": "Y" },
-        { "Frame": 20, "Move": { "Target": "View", "At": [0.3, 0.4] } },
-        { "Frame": 24, "Capture": "Moving" },
-        { "Frame": 24, "Expect": { "Operation": { "Kind": "Move", "Axis": "Y" } } },
-        { "Frame": 25, "Key": "Esc" },
-        { "Frame": 27, "Expect": { "Operation": null, "Undo": "Select box" } },
-        { "Frame": 28, "Press": { "At": "View", "Button": "Right" } },
-        { "Frame": 29, "Release": "Right" },
-        { "Frame": 45, "Capture": "ContextMenu" },
-        { "Frame": 45, "Expect": { "Interface": { "Popup": "View/ContextMenu" } } },
-        { "Frame": 46, "Key": "Esc" },
-        { "Frame": 48, "Expect": { "Interface": { "Popup": null } } },
-        { "Frame": 49, "Key": "Alt+Z" },
-        { "Frame": 51, "Expect": { "XRay": true } },
-        { "Frame": 60, "Capture": "XRay" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Key": "1" },
+    { "Frame": 3, "Drag": { "From": { "Target": "View", "At": [0.02, 0.02] }, "To": { "Target": "View", "At": [0.98, 0.98] }, "Frames": 10 } },
+    { "Frame": 16, "Expect": { "Mode": "Vertex", "Selection": { "Vertices": 8 }, "Undo": "Select box" } },
+    { "Frame": 16, "Capture": "Vertices" },
+    { "Frame": 17, "Move": { "Target": "View", "At": [0.3, 0.5] } },
+    { "Frame": 18, "Key": "G" },
+    { "Frame": 19, "Key": "Y" },
+    { "Frame": 20, "Move": { "Target": "View", "At": [0.3, 0.4] } },
+    { "Frame": 24, "Capture": "Moving" },
+    { "Frame": 24, "Expect": { "Operation": { "Kind": "Move", "Axis": "Y" } } },
+    { "Frame": 25, "Key": "Esc" },
+    { "Frame": 27, "Expect": { "Operation": null, "Undo": "Select box" } },
+    { "Frame": 28, "Press": { "At": "View", "Button": "Right" } },
+    { "Frame": 29, "Release": "Right" },
+    { "Frame": 45, "Capture": "ContextMenu" },
+    { "Frame": 45, "Expect": { "Interface": { "Popup": "View/ContextMenu" } } },
+    { "Frame": 46, "Key": "Esc" },
+    { "Frame": 48, "Expect": { "Interface": { "Popup": null } } },
+    { "Frame": 49, "Key": "Alt+Z" },
+    { "Frame": 51, "Expect": { "XRay": true } },
+    { "Frame": 60, "Capture": "XRay" }
+  ]
 }

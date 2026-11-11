@@ -1,13 +1,13 @@
 {
-    "Steps": [
-        { "Frame": 1, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
-        { "Frame": 2, "Key": "F11" },
-        { "Frame": 10, "Expect": { "Interface": { "Fullscreen": true, "Size": [2560, 1440] } } },
-        { "Frame": 10, "Capture": "Fullscreen" },
-        { "Frame": 11, "Click": "Shift" },
-        { "Frame": 13, "Expect": { "Parameters": { "Shift": 0.5 } } },
-        { "Frame": 14, "Key": "F11" },
-        { "Frame": 22, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
-        { "Frame": 22, "Capture": "Maximized" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
+    { "Frame": 2, "Key": "F11" },
+    { "Frame": 10, "Expect": { "Interface": { "Fullscreen": true, "Size": [2560, 1440] } } },
+    { "Frame": 10, "Capture": "Fullscreen" },
+    { "Frame": 11, "Click": "Shift" },
+    { "Frame": 13, "Expect": { "Parameters": { "Shift": 0.5 } } },
+    { "Frame": 14, "Key": "F11" },
+    { "Frame": 22, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
+    { "Frame": 22, "Capture": "Maximized" }
+  ]
 }

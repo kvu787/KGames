@@ -1,18 +1,18 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Name" },
-        { "Frame": 3, "Type": "Ada Lovelace" },
-        { "Frame": 4, "Key": "Ctrl+Left" },
-        { "Frame": 6, "Key": "Shift+End" },
-        { "Frame": 8, "Capture": "Selected" },
-        { "Frame": 9, "Type": "Byron" },
-        { "Frame": 10, "Key": "Enter" },
-        { "Frame": 12, "Expect": { "Name": "Ada Byron", "Greeting": "Hello, Ada Byron!" } },
-        { "Frame": 13, "Click": "Search" },
-        { "Frame": 15, "Type": "ember" },
-        { "Frame": 17, "Expect": { "Search": "ember", "Matches": 10 } },
-        { "Frame": 18, "Capture": "Search" },
-        { "Frame": 19, "Click": "Search/Clear" },
-        { "Frame": 21, "Expect": { "Search": "", "Matches": 120 } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Name" },
+    { "Frame": 3, "Type": "Ada Lovelace" },
+    { "Frame": 4, "Key": "Ctrl+Left" },
+    { "Frame": 6, "Key": "Shift+End" },
+    { "Frame": 8, "Capture": "Selected" },
+    { "Frame": 9, "Type": "Byron" },
+    { "Frame": 10, "Key": "Enter" },
+    { "Frame": 12, "Expect": { "Name": "Ada Byron", "Greeting": "Hello, Ada Byron!" } },
+    { "Frame": 13, "Click": "Search" },
+    { "Frame": 15, "Type": "ember" },
+    { "Frame": 17, "Expect": { "Search": "ember", "Matches": 10 } },
+    { "Frame": 18, "Capture": "Search" },
+    { "Frame": 19, "Click": "Search/Clear" },
+    { "Frame": 21, "Expect": { "Search": "", "Matches": 120 } }
+  ]
 }

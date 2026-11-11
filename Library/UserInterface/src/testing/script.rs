@@ -3,14 +3,14 @@
 // focus. RunInBackground runs them, and the README describes the format.
 //
 //     {
-//         "FrameTime": 0.016666666666666666,
-//         "Steps": [
-//             { "Frame": 1, "Click": "Save" },
-//             { "Frame": 3, "Drag": { "From": "Volume", "To": [400, 300], "Frames": 10 } },
-//             { "Frame": 20, "Key": "Ctrl+S" },
-//             { "Frame": 22, "Capture": "Saved" },
-//             { "Frame": 22, "Expect": { "Saved": true, "Interface": { "Popup": null } } }
-//         ]
+//       "FrameTime": 0.016666666666666666,
+//       "Steps": [
+//         { "Frame": 1, "Click": "Save" },
+//         { "Frame": 3, "Drag": { "From": "Volume", "To": [400, 300], "Frames": 10 } },
+//         { "Frame": 20, "Key": "Ctrl+S" },
+//         { "Frame": 22, "Capture": "Saved" },
+//         { "Frame": 22, "Expect": { "Saved": true, "Interface": { "Popup": null } } }
+//       ]
 //     }
 //
 // Frame N's steps happen before frame N's update, which sees them as input,

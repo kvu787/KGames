@@ -429,13 +429,13 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 
 ```json
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Mute" },
-        { "Frame": 3, "Drag": { "From": "Level", "To": [400, 300], "Frames": 10 } },
-        { "Frame": 20, "Key": "Ctrl+S" },
-        { "Frame": 22, "Capture": "Saved" },
-        { "Frame": 22, "Expect": { "Level": 100, "Interface": { "Popup": null } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Mute" },
+    { "Frame": 3, "Drag": { "From": "Level", "To": [400, 300], "Frames": 10 } },
+    { "Frame": 20, "Key": "Ctrl+S" },
+    { "Frame": 22, "Capture": "Saved" },
+    { "Frame": 22, "Expect": { "Level": 100, "Interface": { "Popup": null } } }
+  ]
 }
 ```
 

@@ -1,24 +1,24 @@
 {
-    "FrameTime": 0.125,
-    "Steps": [
-        { "Frame": 1, "Expect": { "TextShown": true, "Stationary": false, "Interface": { "Fullscreen": false, "Size": [2560, 1369], "WindowFocused": true, "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1061, 480, 292] } } } } },
-        { "Frame": 3, "Key": "S" },
-        { "Frame": 4, "Expect": { "Stationary": true, "CarPosition": 0.0, "CarTurn": 1.5707964 } },
-        { "Frame": 4, "Capture": "Stationary" },
-        { "Frame": 5, "Key": "S" },
-        { "Frame": 6, "Expect": { "Stationary": false, "CarPosition": 6.0 } },
-        { "Frame": 7, "Key": "F1" },
-        { "Frame": 8, "Expect": { "TextShown": false } },
-        { "Frame": 8, "Capture": "TextHidden" },
-        { "Frame": 9, "Key": "F1" },
-        { "Frame": 10, "Key": "F11" },
-        { "Frame": 20, "Expect": { "TextShown": true, "Interface": { "Fullscreen": true, "Size": [2560, 1440], "Targets": { "InfoCard": { "Area": [16, 1132, 480, 292] } } } } },
-        { "Frame": 20, "Capture": "Fullscreen" },
-        { "Frame": 21, "Focus": false },
-        { "Frame": 22, "Key": "S" },
-        { "Frame": 23, "Expect": { "Stationary": false, "Interface": { "WindowFocused": false } } },
-        { "Frame": 24, "Focus": true },
-        { "Frame": 25, "Key": "F11" },
-        { "Frame": 35, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369], "WindowFocused": true } } }
-    ]
+  "FrameTime": 0.125,
+  "Steps": [
+    { "Frame": 1, "Expect": { "TextShown": true, "Stationary": false, "Interface": { "Fullscreen": false, "Size": [2560, 1369], "WindowFocused": true, "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1061, 480, 292] } } } } },
+    { "Frame": 3, "Key": "S" },
+    { "Frame": 4, "Expect": { "Stationary": true, "CarPosition": 0.0, "CarTurn": 1.5707964 } },
+    { "Frame": 4, "Capture": "Stationary" },
+    { "Frame": 5, "Key": "S" },
+    { "Frame": 6, "Expect": { "Stationary": false, "CarPosition": 6.0 } },
+    { "Frame": 7, "Key": "F1" },
+    { "Frame": 8, "Expect": { "TextShown": false } },
+    { "Frame": 8, "Capture": "TextHidden" },
+    { "Frame": 9, "Key": "F1" },
+    { "Frame": 10, "Key": "F11" },
+    { "Frame": 20, "Expect": { "TextShown": true, "Interface": { "Fullscreen": true, "Size": [2560, 1440], "Targets": { "InfoCard": { "Area": [16, 1132, 480, 292] } } } } },
+    { "Frame": 20, "Capture": "Fullscreen" },
+    { "Frame": 21, "Focus": false },
+    { "Frame": 22, "Key": "S" },
+    { "Frame": 23, "Expect": { "Stationary": false, "Interface": { "WindowFocused": false } } },
+    { "Frame": 24, "Focus": true },
+    { "Frame": 25, "Key": "F11" },
+    { "Frame": 35, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369], "WindowFocused": true } } }
+  ]
 }

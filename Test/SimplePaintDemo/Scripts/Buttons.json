@@ -1,12 +1,12 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Shift" },
-        { "Frame": 3, "Expect": { "Parameters": { "Shift": 0.5 }, "Selected": "Shift" } },
-        { "Frame": 4, "Click": "Save" },
-        { "Frame": 6, "Expect": { "Saved": true } },
-        { "Frame": 6, "Capture": "Saved" },
-        { "Frame": 7, "Click": "Reset" },
-        { "Frame": 9, "Expect": { "Parameters": { "Shift": 0.0 }, "Saved": null, "Selected": "Shift" } },
-        { "Frame": 20, "Capture": "AfterReset" }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Shift" },
+    { "Frame": 3, "Expect": { "Parameters": { "Shift": 0.5 }, "Selected": "Shift" } },
+    { "Frame": 4, "Click": "Save" },
+    { "Frame": 6, "Expect": { "Saved": true } },
+    { "Frame": 6, "Capture": "Saved" },
+    { "Frame": 7, "Click": "Reset" },
+    { "Frame": 9, "Expect": { "Parameters": { "Shift": 0.0 }, "Saved": null, "Selected": "Shift" } },
+    { "Frame": 20, "Capture": "AfterReset" }
+  ]
 }

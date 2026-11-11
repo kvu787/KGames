@@ -203,11 +203,11 @@ it doesn't exist, the demo writes it with the defaults:
 
 ```json
 {
-    "Display": "Primary",
-    "WindowMode": "WindowedMaximized",
-    "VerticalSync": true,
-    "Theme": "Light",
-    "RumbleTestInnerDeadZone": 0.1
+  "Display": "Primary",
+  "WindowMode": "WindowedMaximized",
+  "VerticalSync": true,
+  "Theme": "Light",
+  "RumbleTestInnerDeadZone": 0.1
 }
 ```
 
@@ -355,17 +355,17 @@ readings:
 
 ```json
 {
-    "Steps": [
-        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"],
-                                                "Motors": ["LowFrequency", "HighFrequency"] } } },
-        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
-        { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
-        { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } } },
-        { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
-        { "Frame": 3, "Program": { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120] } } },
-        { "Frame": 4, "Program": { "Disconnect": 1 } },
-        { "Frame": 5, "Expect": { "Listen": "Pad", "RumbleTest": true } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"],
+                                            "Motors": ["LowFrequency", "HighFrequency"] } } },
+    { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
+    { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
+    { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } } },
+    { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+    { "Frame": 3, "Program": { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120] } } },
+    { "Frame": 4, "Program": { "Disconnect": 1 } },
+    { "Frame": 5, "Expect": { "Listen": "Pad", "RumbleTest": true } }
+  ]
 }
 ```
 

@@ -1,25 +1,25 @@
 {
-    "Steps": [
-        { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } } },
-        { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
-        { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
-        {
-            "Frame": 2,
-            "Expect": {
-                "Interface": {
-                    "Tooltip": null,
-                    "Targets": { "Devices/0": { "Label": "Pad" }, "Devices/1": { "Label": "Keys" }, "Devices/2": { "Label": "Rodent" } }
-                }
-            }
-        },
-        { "Frame": 3, "Move": "Devices/1" },
-        { "Frame": 20, "Expect": { "Interface": { "Hovered": "Devices/1", "Tooltip": null } } },
-        { "Frame": 40, "Expect": { "Interface": { "Hovered": "Devices/1", "Tooltip": { "Name": "Devices/1" } } } },
-        { "Frame": 40, "Capture": "Keys" },
-        { "Frame": 41, "Move": "Devices/0" },
-        { "Frame": 80, "Expect": { "Interface": { "Hovered": "Devices/0", "Tooltip": { "Name": "Devices/0" } } } },
-        { "Frame": 80, "Capture": "Pad" },
-        { "Frame": 81, "Move": { "Target": "Devices/2", "At": [0.5, 1.5] } },
-        { "Frame": 120, "Expect": { "Interface": { "Tooltip": null } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Program": { "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } } },
+    { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
+    { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
+    {
+      "Frame": 2,
+      "Expect": {
+        "Interface": {
+          "Tooltip": null,
+          "Targets": { "Devices/0": { "Label": "Pad" }, "Devices/1": { "Label": "Keys" }, "Devices/2": { "Label": "Rodent" } }
+        }
+      }
+    },
+    { "Frame": 3, "Move": "Devices/1" },
+    { "Frame": 20, "Expect": { "Interface": { "Hovered": "Devices/1", "Tooltip": null } } },
+    { "Frame": 40, "Expect": { "Interface": { "Hovered": "Devices/1", "Tooltip": { "Name": "Devices/1" } } } },
+    { "Frame": 40, "Capture": "Keys" },
+    { "Frame": 41, "Move": "Devices/0" },
+    { "Frame": 80, "Expect": { "Interface": { "Hovered": "Devices/0", "Tooltip": { "Name": "Devices/0" } } } },
+    { "Frame": 80, "Capture": "Pad" },
+    { "Frame": 81, "Move": { "Target": "Devices/2", "At": [0.5, 1.5] } },
+    { "Frame": 120, "Expect": { "Interface": { "Tooltip": null } } }
+  ]
 }

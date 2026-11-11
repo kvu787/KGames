@@ -2,11 +2,11 @@
 // Library/UserInterface's settings.rs), in Settings.json next to Cargo.toml:
 //
 //     {
-//         "Display": "Primary",
-//         "WindowMode": "WindowedMaximized",
-//         "VerticalSync": true,
-//         "Theme": "Light",
-//         "RumbleTestInnerDeadZone": 0.1
+//       "Display": "Primary",
+//       "WindowMode": "WindowedMaximized",
+//       "VerticalSync": true,
+//       "Theme": "Light",
+//       "RumbleTestInnerDeadZone": 0.1
 //     }
 
 use user_interface::Settings;

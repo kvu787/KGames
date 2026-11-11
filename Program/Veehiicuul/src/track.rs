@@ -5,12 +5,12 @@
 // the road, its barriers and the start line from it.
 //
 //     "Track": {
-//         "Start": { "Position": [94.5, -48.5], "Heading": -104.3 },
-//         "Colors": { "Road": "#81858B", "Barriers": ["#F61E22", "#F6FCFF"] },
-//         "BarrierWidth": 1.5,
-//         "BarrierLength": 15,
-//         "Road": [[-94.6, 36.1], ...],
-//         "Islands": [[[-79.7, 21.4], ...], ...]
+//       "Start": { "Position": [94.5, -48.5], "Heading": -104.3 },
+//       "Colors": { "Road": "#81858B", "Barriers": ["#F61E22", "#F6FCFF"] },
+//       "BarrierWidth": 1.5,
+//       "BarrierLength": 15,
+//       "Road": [[-94.6, 36.1], ...],
+//       "Islands": [[[-79.7, 21.4], ...], ...]
 //     }
 
 use json::Value;

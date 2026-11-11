@@ -1,13 +1,13 @@
 {
-    "Steps": [
-        { "Frame": 1, "Move": "Save" },
-        { "Frame": 20, "Expect": { "Interface": { "Tooltip": null } } },
-        { "Frame": 40, "Expect": { "Interface": { "Tooltip": { "Name": "Save" } } } },
-        { "Frame": 40, "Capture": "Sentence" },
-        { "Frame": 41, "Move": "Details" },
-        { "Frame": 80, "Expect": { "Interface": { "Tooltip": { "Name": "Details" } } } },
-        { "Frame": 80, "Capture": "Lines" },
-        { "Frame": 81, "Key": "F1" },
-        { "Frame": 83, "Expect": { "Tooltips": false, "Interface": { "Tooltip": null } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Move": "Save" },
+    { "Frame": 20, "Expect": { "Interface": { "Tooltip": null } } },
+    { "Frame": 40, "Expect": { "Interface": { "Tooltip": { "Name": "Save" } } } },
+    { "Frame": 40, "Capture": "Sentence" },
+    { "Frame": 41, "Move": "Details" },
+    { "Frame": 80, "Expect": { "Interface": { "Tooltip": { "Name": "Details" } } } },
+    { "Frame": 80, "Capture": "Lines" },
+    { "Frame": 81, "Key": "F1" },
+    { "Frame": 83, "Expect": { "Tooltips": false, "Interface": { "Tooltip": null } } }
+  ]
 }

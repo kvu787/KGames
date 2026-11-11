@@ -1,22 +1,22 @@
 {
-    "Steps": [
-        { "Frame": 1, "Click": "Menu/View" },
-        { "Frame": 3, "Move": "Menu/View/Menu/Theme" },
-        { "Frame": 20, "Capture": "Submenu" },
-        { "Frame": 20, "Expect": { "Interface": { "Popup": "Menu/View/Menu/Theme/Menu" } } },
-        { "Frame": 21, "Click": "Menu/View/Menu/Theme/Menu/Dark theme" },
-        { "Frame": 23, "Expect": { "MenuChoice": "Dark theme", "Interface": { "Popup": null, "Theme": "Dark" } } },
-        { "Frame": 24, "Press": { "At": "ContextArea", "Button": "Right" } },
-        { "Frame": 25, "Release": "Right" },
-        { "Frame": 40, "Capture": "ContextMenu" },
-        { "Frame": 40, "Expect": { "Interface": { "Popup": "ContextArea/ContextMenu" } } },
-        { "Frame": 41, "Key": "Down" },
-        { "Frame": 43, "Key": "Down" },
-        { "Frame": 45, "Key": "Enter" },
-        { "Frame": 47, "Expect": { "MenuChoice": "Copy", "Interface": { "Popup": null } } },
-        { "Frame": 48, "Click": "More" },
-        { "Frame": 60, "Capture": "Flyout" },
-        { "Frame": 61, "Key": "Esc" },
-        { "Frame": 63, "Expect": { "Interface": { "Popup": null } } }
-    ]
+  "Steps": [
+    { "Frame": 1, "Click": "Menu/View" },
+    { "Frame": 3, "Move": "Menu/View/Menu/Theme" },
+    { "Frame": 20, "Capture": "Submenu" },
+    { "Frame": 20, "Expect": { "Interface": { "Popup": "Menu/View/Menu/Theme/Menu" } } },
+    { "Frame": 21, "Click": "Menu/View/Menu/Theme/Menu/Dark theme" },
+    { "Frame": 23, "Expect": { "MenuChoice": "Dark theme", "Interface": { "Popup": null, "Theme": "Dark" } } },
+    { "Frame": 24, "Press": { "At": "ContextArea", "Button": "Right" } },
+    { "Frame": 25, "Release": "Right" },
+    { "Frame": 40, "Capture": "ContextMenu" },
+    { "Frame": 40, "Expect": { "Interface": { "Popup": "ContextArea/ContextMenu" } } },
+    { "Frame": 41, "Key": "Down" },
+    { "Frame": 43, "Key": "Down" },
+    { "Frame": 45, "Key": "Enter" },
+    { "Frame": 47, "Expect": { "MenuChoice": "Copy", "Interface": { "Popup": null } } },
+    { "Frame": 48, "Click": "More" },
+    { "Frame": 60, "Capture": "Flyout" },
+    { "Frame": 61, "Key": "Esc" },
+    { "Frame": 63, "Expect": { "Interface": { "Popup": null } } }
+  ]
 }

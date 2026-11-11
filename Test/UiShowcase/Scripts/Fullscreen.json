@@ -1,10 +1,10 @@
 {
-    "Steps": [
-        { "Frame": 2, "Key": "F11" },
-        { "Frame": 10, "Expect": { "Interface": { "Fullscreen": true, "Size": [2560, 1440] } } },
-        { "Frame": 10, "Capture": "Fullscreen" },
-        { "Frame": 11, "Key": "F11" },
-        { "Frame": 20, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
-        { "Frame": 20, "Capture": "Maximized" }
-    ]
+  "Steps": [
+    { "Frame": 2, "Key": "F11" },
+    { "Frame": 10, "Expect": { "Interface": { "Fullscreen": true, "Size": [2560, 1440] } } },
+    { "Frame": 10, "Capture": "Fullscreen" },
+    { "Frame": 11, "Key": "F11" },
+    { "Frame": 20, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } },
+    { "Frame": 20, "Capture": "Maximized" }
+  ]
 }

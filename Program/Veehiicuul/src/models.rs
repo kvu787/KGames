@@ -7,9 +7,9 @@
 // the model, in Models/<Name>.json, and for a vehicle, in Vehicles.json.
 //
 //     {
-//         "Paint": {
-//             "SlopeCarAxles": { "BaseColor": [0.2159, 0.2159, 0.2159], ... }
-//         }
+//       "Paint": {
+//         "SlopeCarAxles": { "BaseColor": [0.2159, 0.2159, 0.2159], ... }
+//       }
 //     }
 
 use std::path::Path;
