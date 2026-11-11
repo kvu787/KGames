@@ -58,6 +58,10 @@ library's README has the details, and the two window setups that programs suppor
 [AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
 you.
 
+KGames was once rewritten in C++, to compare it with the Rust in performance and in the structure
+of the code. [Documentation/CppVersusRust.md](Documentation/CppVersusRust.md) has what that found,
+and why KGames stayed in Rust. The C++ is kept on the `cpp-rewrite` branch.
+
 Programs read all input with GameInput 4.0.306, which you install once, from an elevated prompt:
 
 ```powershell

@@ -88,3 +88,48 @@ and scripts to the window's own loop.
   against `validate()`, a Headless test of GameInputDemo's focus-lost double update, and nested
   scrollables under the wheel. The fixes those would cover are in and pinned by their own tests;
   the sweeps remain good future hardening.
+
+# What the rewrite in C++ found
+
+KGames was rewritten in C++ once, file for file, to compare the two languages.
+[CppVersusRust.md](CppVersusRust.md) has the comparison, and the C++ is on the `cpp-rewrite`
+branch, whose copy of this document records the three adversarial reviews that the rewrite ended
+with. Those read the C++ against the Rust, so what they found in the logic, and not in how C++
+wrote it, was the Rust's too. This records what the Rust took from them, as above. Each fix has a
+test that pins it.
+
+## Found and fixed
+
+- MeshModeler: an Undo or a Redo that took away the paint that was picked left it picked until the
+  frame's end, so a second message in the same frame, an edit of the paint or a stroke with it,
+  indexed past the paints and stopped the program. So did a pick of a row whose paint an Undo
+  earlier in the frame took away. The pick is now kept among the paints as each of them applies.
+- MeshModeler: the view drew the model it drew before after New or Open, until an edit, when the
+  new document's version number was the old one's. A document counts its versions from 1, so that
+  was any model opened before the first edit. What the view drew is forgotten with the document.
+- `ListView` took a selection past its rows, which a program has when its list got shorter, as
+  selected: it asked the program's labels for that row, which stops a program that indexes,
+  activated it on Enter, and moved to the row before it on Up. It's no selection now.
+- Veehiicuul: a point far enough away, or any point on a terrain of tiny cells, was in a cell at
+  an `i32`'s end. The brush's and the fill's steps to the cells around it added past the end, and
+  Save wrote every cell between a terrain's first and last, which for cells at both ends is rows
+  that no disk holds. Cells now stop 1,024 from the origin: a point farther away is in the
+  farthest cell, a brush that reaches past it leaves those cells unpainted, and a file with cells
+  past it is refused.
+- Library/PolygonMesh's merge by distance numbered the cube of a vertex far away with the most
+  that an `i64` holds, and added one to it for the cubes around. GameInputDemo's scripted mouse
+  added to running totals, and took differences of them, past an `i64`'s ends. Each stops a debug
+  build and goes around in an optimized one. The cubes are clamped, and the totals wrap.
+
+## Still open, deliberately
+
+- A menu wider than its window, a menu's highlight past its items, and `DrawList::move_to_back`
+  with marks out of order stop the program, in both languages. None can happen in the two window
+  setups that programs support, and each is a mistake of the code that calls, which a stop says
+  best.
+- A program started with a show command of its launcher's, as Explorer and PowerShell's
+  `Start-Process` give one, comes up at the maximized size without being maximized, and shows the
+  error for an unsupported setup. Windows uses the launcher's command in place of the program's
+  own for a process's first `ShowWindow`. `HumanRun` starts programs without one. It was found
+  while measuring the programs in their windows, and fixing it needs a run that takes the focus,
+  which only a person may start.
