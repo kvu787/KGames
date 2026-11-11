@@ -359,6 +359,30 @@ fn merging_at_the_center() {
     assert_eq!(cube.crease(Edge::new(2, 6)), 3.0);
 }
 
+// Vertices so far away that the cubes they're in have no numbers that an
+// i64 holds, as a file's can be, merge like any others: those at the same
+// place do, and those at opposite ends, in the farthest cubes each way,
+// don't look for each other past them.
+#[test]
+fn merging_by_distance_far_away() {
+    let mut mesh = Mesh::new();
+    for position in [
+        [1.0e30, 0.0, 0.0],
+        [-1.0e30, 0.0, 0.0],
+        [1.0e30, 0.0, 0.0],
+        [0.0, 3.0e38, -3.0e38],
+        [0.0, 0.0, 0.0],
+        [0.0, 3.0e38, -3.0e38],
+        [-1.0e30, 0.0, 0.0],
+    ] {
+        mesh.add_vertex(position);
+    }
+    let selection = mesh.merge_by_distance(0..7, 0.001);
+    assert_eq!(mesh.positions, vec![[1.0e30, 0.0, 0.0], [-1.0e30, 0.0, 0.0], [0.0, 3.0e38, -3.0e38], [0.0, 0.0, 0.0]]);
+    assert_eq!(selection.vertices, set(0..4));
+    assert_valid(&mesh, "far vertices merged");
+}
+
 #[test]
 fn merging_by_distance() {
     // Two quads side by side, each with its own copy of the edge between them.

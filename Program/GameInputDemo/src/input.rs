@@ -893,21 +893,22 @@ impl Input {
         let motion_only = changes.is_empty();
 
         // Position and wheel are running totals, so the change since the
-        // previous reading is the motion. The positions flags say which of
-        // relative and absolute position the device reports.
+        // previous reading is the motion, which goes around an i64's ends
+        // with them. The positions flags say which of relative and absolute
+        // position the device reports.
         let mut delta = [0, 0];
         if let Some(old) = old {
             let relative = GameInputMouseRelativePosition;
             if state.positions & relative != 0 && old.positions & relative != 0 {
                 delta = [
-                    state.positionX - old.positionX,
-                    state.positionY - old.positionY,
+                    state.positionX.wrapping_sub(old.positionX),
+                    state.positionY.wrapping_sub(old.positionY),
                 ];
             }
             if delta != [0, 0] {
                 changes.push(format!("moved ({:+}, {:+})", delta[0], delta[1]));
             }
-            let wheel = [state.wheelX - old.wheelX, state.wheelY - old.wheelY];
+            let wheel = [state.wheelX.wrapping_sub(old.wheelX), state.wheelY.wrapping_sub(old.wheelY)];
             if wheel[1] != 0 {
                 changes.push(format!("wheel {:+}", wheel[1]));
             }

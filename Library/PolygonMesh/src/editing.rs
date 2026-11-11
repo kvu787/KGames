@@ -311,7 +311,13 @@ impl Mesh {
         // Vertices by the cube of `distance` that they're in, so each looks
         // only at its own and the 26 around it.
         let cell_size = distance.max(1.0e-6) as f64;
-        let cell = |position: Vector3| position.map(|p| (p as f64 / cell_size).floor() as i64);
+        // The farthest cube each way has every vertex past it too, so that
+        // the cubes around a vertex's, one more and one less along each
+        // axis, have numbers that an i64 holds: a vertex can be farther
+        // than an i64 of cubes away, and 1 more than the most that an i64
+        // holds stops a debug build and goes around in an optimized one.
+        const FARTHEST: i64 = 1 << 62;
+        let cell = |position: Vector3| position.map(|p| ((p as f64 / cell_size).floor() as i64).clamp(-FARTHEST, FARTHEST));
         let mut cells: HashMap<[i64; 3], Vec<u32>> = HashMap::new();
         for &vertex in &vertices {
             cells.entry(cell(self.position(vertex))).or_default().push(vertex);

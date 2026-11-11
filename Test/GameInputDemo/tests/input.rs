@@ -613,6 +613,40 @@ fn scripted_readings_are_whole_states() {
     assert_eq!(events[0].1.rumble_motors, GameInputRumbleLowFrequency | GameInputRumbleHighFrequency);
 }
 
+// A mouse's position and wheel are running totals, which go around an i64's
+// ends when a script moves it that far, and the motion that the demo shows,
+// the difference of two totals, goes around with them. Adding and
+// subtracting them as they are stops a debug build there.
+#[test]
+fn a_scripted_mouse_s_totals_go_around_an_i64_s_ends() {
+    const FAR: &str = r#"{ "Mouse": { "Id": 4, "Motion": [1e300, -1e300], "Wheel": [-1e300, 1e300] } }"#;
+    let mut source = ScriptedSource::default();
+    for step in [RODENT, FAR, FAR] {
+        source.apply(&json::parse(step).unwrap()).unwrap();
+    }
+    let totals: Vec<_> = source
+        .readings(GameInputKindMouse)
+        .iter()
+        .map(|reading| (reading.mouse.positionX, reading.mouse.positionY, reading.mouse.wheelX, reading.mouse.wheelY))
+        .collect();
+    // A step's motion is the most that an i64 holds, and two of them go
+    // around.
+    assert_eq!(totals, [(i64::MAX, i64::MIN, i64::MIN, i64::MAX), (-2, 0, 0, -2)]);
+
+    // The demo's motion is from the first reading, its starting point, to
+    // the second.
+    let mut input = input();
+    step(&mut input, RODENT);
+    input.update(true);
+    step(&mut input, FAR);
+    step(&mut input, FAR);
+    input.update(true);
+    assert_eq!(
+        input.log[0].text,
+        "Rodent: moved (+9223372036854775807, -9223372036854775808), wheel +9223372036854775807, horizontal wheel -9223372036854775808"
+    );
+}
+
 #[test]
 fn scripted_steps_say_what_is_wrong_with_them() {
     let mut source = ScriptedSource::default();

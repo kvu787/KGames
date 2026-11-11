@@ -194,10 +194,12 @@ impl ScriptedSource {
                     let mouse = &mut reading.mouse;
                     mouse.buttons = buttons;
                     mouse.positions = GameInputMouseRelativePosition;
-                    mouse.positionX += motion_x as i64;
-                    mouse.positionY += motion_y as i64;
-                    mouse.wheelX += wheel_x as i64;
-                    mouse.wheelY += wheel_y as i64;
+                    // Running totals, which go around an i64's ends, as
+                    // the differences that the demo takes of them do.
+                    mouse.positionX = mouse.positionX.wrapping_add(motion_x as i64);
+                    mouse.positionY = mouse.positionY.wrapping_add(motion_y as i64);
+                    mouse.wheelX = mouse.wheelX.wrapping_add(wheel_x as i64);
+                    mouse.wheelY = mouse.wheelY.wrapping_add(wheel_y as i64);
                 })
             }
             other => Err(format!("{other} isn't a step for the demo")),
