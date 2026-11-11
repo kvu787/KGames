@@ -43,6 +43,7 @@ pub mod design {
 
 pub mod drawing {
     pub mod geometry;
+    pub mod hashing;
     pub mod painter;
     pub mod renderer;
     pub mod text;

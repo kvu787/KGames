@@ -242,3 +242,42 @@ mod readme {
         assert!(app.fullscreen());
     }
 }
+
+// QuickHasher is for the library's own small keys, and a HashMap picks a
+// bucket by a hash's low bits and tells the keys in it apart by its top 7.
+// Keys that differ only in a low bit, or only in a high one, as glyph numbers
+// and sizes do, must spread over both: a hasher that left them together
+// would be right, and slow.
+#[test]
+fn the_quick_hasher_spreads_keys_that_are_close() {
+    use std::hash::{BuildHasher, BuildHasherDefault};
+    use user_interface::drawing::hashing::QuickHasher;
+
+    let build = BuildHasherDefault::<QuickHasher>::default();
+    let buckets = 1024;
+    let crowded = |hashes: &[u64]| {
+        let mut low = vec![0u32; buckets];
+        let mut high = vec![0u32; 128];
+        for hash in hashes {
+            low[(hash % buckets as u64) as usize] += 1;
+            high[(hash >> 57) as usize] += 1;
+        }
+        (low.into_iter().max().unwrap(), high.into_iter().max().unwrap())
+    };
+    // 4,096 keys: 4 a bucket and 32 a tag if they spread evenly.
+    let cases: [(&str, Vec<u64>); 4] = [
+        ("numbers in a row", (0..4096u64).map(|number| build.hash_one(number)).collect()),
+        ("numbers that differ in their high bits", (0..4096u64).map(|number| build.hash_one(number << 52)).collect()),
+        ("glyphs of one face at one size", (0..4096u16).map(|glyph| build.hash_one((3u16, glyph, 14.0f32.to_bits(), 1u8))).collect()),
+        ("one glyph at many sizes", (0..4096u32).map(|size| build.hash_one((3u16, 40u16, (size as f32 * 0.25).to_bits(), 0u8))).collect()),
+    ];
+    for (name, hashes) in cases {
+        let (low, high) = crowded(&hashes);
+        assert!(low <= 16, "{name}: {low} keys in one bucket");
+        assert!(high <= 96, "{name}: {high} keys with one tag");
+        let mut distinct = hashes.clone();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), hashes.len(), "{name}: two keys with one hash");
+    }
+}

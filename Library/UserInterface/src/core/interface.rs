@@ -16,7 +16,7 @@
 // dialog takes it from everything under it.
 
 use std::any::{Any, TypeId};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use crate::application::program::{Notice, Program};
 use crate::core::interaction::{Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
@@ -24,6 +24,7 @@ use crate::core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, Tree};
 use crate::design::theme::{Theme, ThemeKind};
 use crate::design::tokens::TOOLTIP_DELAY;
 use crate::drawing::geometry::{Point, Rect, Size};
+use crate::drawing::hashing::{QuickMap, QuickSet};
 use crate::drawing::painter::{DrawList, Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
@@ -177,7 +178,7 @@ pub struct Interface {
     tooltips_enabled: bool,
     // The tooltip that this frame showed: its widget's name, and its area.
     pub(crate) shown_tooltip: Option<(String, Rect)>,
-    memory: HashMap<(Id, TypeId), Box<dyn Any>>,
+    memory: QuickMap<(Id, TypeId), Box<dyn Any>>,
     pub(crate) clipboard: Clipboard,
     pub(crate) cursor: Cursor,
     frame: u64,
@@ -220,7 +221,7 @@ impl Interface {
             tooltip: TooltipState::default(),
             tooltips_enabled: true,
             shown_tooltip: None,
-            memory: HashMap::new(),
+            memory: QuickMap::default(),
             clipboard,
             cursor: Cursor::Arrow,
             frame: 0,
@@ -396,7 +397,7 @@ impl Interface {
     // messages.
     fn dispatch<M: Clone + 'static>(&mut self, tree: &Tree<M>, messages: &mut Vec<M>) {
         let shown = std::mem::take(&mut self.targets);
-        let mut interactions: HashMap<Id, Interaction> = HashMap::new();
+        let mut interactions: QuickMap<Id, Interaction> = QuickMap::default();
         for target in &shown {
             let hit = self.hit(target);
             let anything = hit.hovered || hit.pressed || hit.held || hit.released || hit.activated || hit.secondary_pressed || hit.middle_pressed || hit.wheel != Point::ZERO;
@@ -683,7 +684,7 @@ impl Interface {
             // name can't leave a stale popup capturing the keys. The owner
             // may be a part, like a menu bar's menu, whose content the
             // part's element lays out.
-            let popup_owners: HashSet<Id> = self
+            let popup_owners: QuickSet<Id> = self
                 .targets
                 .iter()
                 .filter(|target| target.layer >= Layer::Popup)

@@ -9,12 +9,11 @@
 // grayscale antialiasing as WinUI's text is, at a quarter-pixel horizontal
 // offset, into an 8-bit atlas that the GPU reads.
 
-use std::collections::HashMap;
-
 use windows_api::*;
 use windows_core::{BOOL, GUID, HRESULT, IUnknown_Vtbl, Interface, PCWSTR, Result};
 
 use crate::drawing::geometry::{Point, Size};
+use crate::drawing::hashing::QuickMap;
 use crate::platform::window::wide;
 
 // Segoe UI Variable's optical sizes, as Windows names them as families,
@@ -223,7 +222,7 @@ struct GlyphKey {
 // Shelf packing: glyphs fill rows left to right, and a row is as tall as its
 // tallest glyph. Once it's full, it starts over with the next frame.
 struct Atlas {
-    glyphs: HashMap<GlyphKey, Option<AtlasGlyph>>,
+    glyphs: QuickMap<GlyphKey, Option<AtlasGlyph>>,
     shelf_x: u32,
     shelf_y: u32,
     shelf_height: u32,
@@ -234,7 +233,7 @@ struct Atlas {
 impl Atlas {
     fn new() -> Self {
         Self {
-            glyphs: HashMap::new(),
+            glyphs: QuickMap::default(),
             shelf_x: 1,
             shelf_y: 1,
             shelf_height: 0,
@@ -265,7 +264,7 @@ impl Atlas {
 #[derive(Default)]
 struct Faces {
     faces: Vec<IDWriteFontFace>,
-    by_pointer: HashMap<usize, u16>,
+    by_pointer: QuickMap<usize, u16>,
 }
 
 impl Faces {
@@ -288,13 +287,14 @@ const LAYOUT_LIFETIME: u64 = 600;
 pub struct Fonts {
     factory: IDWriteFactory2,
     collection: IDWriteFontCollection,
-    formats: HashMap<StyleKey, IDWriteTextFormat>,
-    layouts: HashMap<u64, Vec<TextLayout>>,
+    formats: QuickMap<StyleKey, IDWriteTextFormat>,
+    // By layout_key's hash of the text and how it's laid out.
+    layouts: QuickMap<u64, Vec<TextLayout>>,
     faces: Faces,
     atlas: Atlas,
     frame: u64,
     // The family that each font resolved to, like "Segoe UI Variable Text".
-    resolved: HashMap<Font, String>,
+    resolved: QuickMap<Font, String>,
 }
 
 impl Fonts {
@@ -307,12 +307,12 @@ impl Fonts {
             let mut fonts = Self {
                 factory,
                 collection,
-                formats: HashMap::new(),
-                layouts: HashMap::new(),
+                formats: QuickMap::default(),
+                layouts: QuickMap::default(),
                 faces: Faces::default(),
                 atlas: Atlas::new(),
                 frame: 0,
-                resolved: HashMap::new(),
+                resolved: QuickMap::default(),
             };
             for font in Font::ALL {
                 let family = fonts.find_family(font)?;
