@@ -1,6 +1,8 @@
-# Stop Git from attempting any end-of-line conversion upon checkin or checkout.
+# Store text files with LF line endings, and check them out with LF, on every machine, whatever its
+# core.autocrlf says, as .editorconfig's end_of_line = lf asks. Git tells text files from binary
+# ones by their content, and leaves binary ones as they are.
 # https://git-scm.com/docs/gitattributes
-* -text
+* text=auto eol=lf
 
 *.blend filter=lfs diff=lfs merge=lfs -text
 *.glb filter=lfs diff=lfs merge=lfs -text
