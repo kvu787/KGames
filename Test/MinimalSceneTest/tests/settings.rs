@@ -7,7 +7,7 @@ use minimal_scene_test::moving_sphere::MovingSphere;
 use minimal_scene_test::settings::SceneSettings;
 use simple_paint::{Material, Parameters};
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::{Headless, InfoCard, Point, Settings, Startup, Theme};
+use user_interface::{CommonSettings, Headless, InfoCard, Point, Settings, Startup, Theme, WindowMode};
 
 #[test]
 fn the_defaults_are_a_constant_color_sphere_and_materials_that_simple_paint_accepts() {
@@ -39,7 +39,7 @@ fn the_file_it_writes_reads_back_as_the_defaults() {
 fn the_program_s_settings_file_has_the_defaults() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Program/MinimalSceneTest/Settings.json");
     let mut settings = Settings::load(&path);
-    assert_eq!(settings.choice("WindowMode", "Maximized", &["Maximized", "BorderlessFullscreen"]), "Maximized");
+    assert_eq!(CommonSettings::read(&mut settings).window_mode, WindowMode::MaximizedWindowed);
     assert_eq!(SceneSettings::read(&mut settings), SceneSettings::default());
     assert!(settings.problems().is_empty(), "{:?}", settings.problems());
 }

@@ -1,6 +1,6 @@
 {
     "Display": "Primary",
-    "WindowMode": "Maximized",
+    "WindowMode": "MaximizedWindowed",
     "VerticalSync": true,
     "Theme": "Light",
     "Scene": "Ribeye",

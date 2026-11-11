@@ -258,7 +258,7 @@ logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
 
 | Setup                 | Client area | What makes it                                             |
 | --------------------- | ----------- | --------------------------------------------------------- |
-| Maximized             | 2560 × 1369 | The 2560 × 1392 work area, less the title bar's 23 pixels |
+| Maximized windowed    | 2560 × 1369 | The 2560 × 1392 work area, less the title bar's 23 pixels |
 | Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
 
 In any other setup, the window says what's wrong instead of showing the program. It checks again
@@ -282,7 +282,7 @@ every one of the settings that every program has, which `Test/UserInterface` che
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | `Display`      | `"Primary"`, or the identifier of the display to open on                 |
-| `WindowMode`   | `"Maximized"`, by default, or `"BorderlessFullscreen"`                   |
+| `WindowMode`   | `"MaximizedWindowed"`, by default, or `"BorderlessFullscreen"`           |
 | `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
 |                | tear. `false`: frames present at once, and may tear                      |
 | `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
@@ -295,7 +295,8 @@ every one of the settings that every program has, which `Test/UserInterface` che
 | `--vsync`              | Waits for vertical sync, whatever `VerticalSync` says                     |
 | `--no-vsync`           | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
 | `--theme <theme>`      | Starts `Light` or `Dark`, whatever `Theme` says                           |
-| `--window-mode <mode>` | Starts `Maximized` or `BorderlessFullscreen`, whatever `WindowMode` says  |
+| `--window-mode <mode>` | Starts `MaximizedWindowed` or `BorderlessFullscreen`, whatever            |
+|                        | `WindowMode` says                                                         |
 | `--script <path>`      | Runs a script instead of the user's input, with `--output <folder>`       |
 
 What the command line says goes into `startup.common` too, so a program sees the theme, window mode
@@ -321,17 +322,17 @@ soon as one can. `F10` switches it on and off while the program runs. With it of
 as soon as they're drawn, and may tear, and the loop spins, so that the input that reaches the
 screen is as fresh as it can be.
 
-RunInBackground's test runs also start light and maximized, with `--theme Light` and
-`--window-mode Maximized`, whatever the program's settings say, so that scripts start the same way
-whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`, so that
-they share the computer lightly with someone using it, like playing a game: the window opens beneath the others
-and the process asks Windows for efficiency mode, where a window that someone uses asks for full
-execution speed; frames wait for vertical sync, whatever the program's settings say, at most one a
-refresh, and the loop waits on DXGI between them, instead of spinning; GameInput, with its helper
-process that reads keyboards and mice, doesn't start; and without input there's no input latency to
-measure, so the ETW session that every process's presents would go through isn't started either.
-RunLightly, which RunInBackground runs through, also has the process put its GPU work after other
-processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
+RunInBackground's test runs also start light and maximized windowed, with `--theme Light` and
+`--window-mode MaximizedWindowed`, whatever the program's settings say, so that scripts start the
+same way whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`,
+so that they share the computer lightly with someone using it, like playing a game: the window opens
+beneath the others and the process asks Windows for efficiency mode, where a window that someone
+uses asks for full execution speed; frames wait for vertical sync, whatever the program's settings
+say, at most one a refresh, and the loop waits on DXGI between them, instead of spinning; GameInput,
+with its helper process that reads keyboards and mice, doesn't start; and without input there's no
+input latency to measure, so the ETW session that every process's presents would go through isn't
+started either. RunLightly, which RunInBackground runs through, also has the process put its GPU
+work after other processes' (see [Library/Graphics](../Graphics/README.md#gpu-priority)).
 
 ## PerfBar
 

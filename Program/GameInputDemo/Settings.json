@@ -1,6 +1,6 @@
 {
     "Display": "CVVNY2",
-    "WindowMode": "Maximized",
+    "WindowMode": "MaximizedWindowed",
     "VerticalSync": true,
     "Theme": "Light",
     "RumbleTestInnerDeadZone": 0.1
