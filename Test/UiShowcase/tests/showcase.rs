@@ -5,7 +5,7 @@ use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY};
-use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, ThemeKind, slider_rail};
+use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Startup, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
     Headless::new(Showcase::default())
@@ -82,6 +82,28 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     assert!(app.program.log.iter().any(|line| line == "Light theme"));
     app.click("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+}
+
+// Starting in the dark theme, as "Theme": "Dark" in Settings.json makes it,
+// is no change of theme, which the log would tell of, and the switch and F9
+// still go from there.
+#[test]
+fn starting_in_the_dark_theme_logs_no_change_of_theme() {
+    let folder = std::env::temp_dir();
+    let mut app = Headless::start(Startup::for_tests(r#"{ "Theme": "Dark" }"#, &folder), |startup| Ok(Showcase::new(startup)));
+    app.frames(3);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
+    let themed = |app: &Headless<Showcase>| app.program.log.iter().filter(|line| line.ends_with("theme")).cloned().collect::<Vec<_>>();
+    assert_eq!(themed(&app), Vec::<String>::new());
+    assert_eq!(app.label("DarkTheme").as_deref(), Some("On"));
+    app.key(Key::F9);
+    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
+    assert_eq!(themed(&app), ["Light theme"]);
+    // And starting light, as every program's Settings.json says, is no
+    // change either.
+    let mut app = Headless::start(Startup::for_tests(r#"{ "Theme": "Light" }"#, &folder), |startup| Ok(Showcase::new(startup)));
+    app.frames(3);
+    assert_eq!(themed(&app), Vec::<String>::new());
 }
 
 // F9 and the program's own theme command in one frame are two toggles, which

@@ -105,7 +105,8 @@ pub struct Showcase {
     pub menu_choice: Option<String>,
     pub log: VecDeque<String>,
     // What the interface was on last frame, and its theme, to log what
-    // changes.
+    // changes. The theme starts as the one the settings start the program
+    // in, which isn't a change.
     seen: [Option<String>; 3],
     seen_theme: ThemeKind,
 }
@@ -152,8 +153,11 @@ impl Default for Showcase {
 }
 
 impl Showcase {
-    pub fn new(_startup: &mut Startup) -> Self {
-        Self::default()
+    pub fn new(startup: &mut Startup) -> Self {
+        Self {
+            seen_theme: startup.common.theme,
+            ..Self::default()
+        }
     }
 
     pub fn log(&mut self, line: impl Into<String>) {
