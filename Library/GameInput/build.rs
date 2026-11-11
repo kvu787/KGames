@@ -53,7 +53,7 @@ const LIBRARY: &str = r"native\lib\x64\GameInput.lib";
 fn restore() -> Result<PathBuf, String> {
     let directory = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let project = directory.join("NuGetPackages.proj");
-    for file in ["NuGetPackages.proj", "packages.lock.json", "Directory.Build.props", r"..\..\NuGet.config", r"..\..\global.json"] {
+    for file in ["NuGetPackages.proj", "packages.lock.json", "Directory.Build.props", r"..\..\nuget.config", r"..\..\global.json"] {
         println!("cargo::rerun-if-changed={}", directory.join(file).display());
     }
 

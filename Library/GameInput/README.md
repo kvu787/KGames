@@ -23,7 +23,7 @@ and a runtime DLL, which the user installs.
 
 **The package.** `NuGetPackages.proj` declares the NuGet packages that this crate needs, the way a
 .NET project declares its own: `Microsoft.GameInput`, exactly 4.0.306. `packages.lock.json` pins its
-content by its hash, as `Cargo.lock` does for crates. At the root of the repository, `NuGet.config`
+content by its hash, as `Cargo.lock` does for crates. At the root of the repository, `nuget.config`
 makes nuget.org the only package source, and `global.json` asks for the .NET SDK 10 or later.
 
 `build.rs` restores it with `dotnet restore --locked-mode`, which fails when the project asks for
