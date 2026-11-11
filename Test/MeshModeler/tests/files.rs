@@ -156,3 +156,34 @@ fn saving_an_untitled_model_from_the_unsaved_dialog_asks_for_its_name_then_goes_
     assert_eq!(app.program.document.name, document::UNTITLED);
     assert!(app.program.prompt.is_none());
 }
+
+// A document counts its versions from 1, so one that Open or New brings may
+// be at the version of the one it replaces. The view still draws the new
+// one, on the frame that brought it.
+#[test]
+fn the_view_draws_the_model_that_open_or_new_brings_on_its_frame() {
+    let folder = folder("Redrawn");
+    let mut torus = Document::new();
+    torus.mesh = primitives::torus(1.0, 0.25, 12, 8);
+    torus.name = "Torus".to_string();
+    torus.save(&folder).unwrap();
+    let mut app = Headless::new(Modeler::new(folder.clone()));
+    app.frames(2);
+    let version = app.program.document.version;
+    let cube = app.program.scene.triangles.indices.len();
+    assert_eq!(cube, 6 * 2 * 3);
+
+    app.key_with(Modifiers::CONTROL, Key::O);
+    app.click("OpenModel/Primary");
+    assert_eq!(app.program.document.name, "Torus");
+    assert_eq!(app.program.document.version, version, "the case: the two documents are at one version");
+    let drawn = app.program.scene.version;
+    assert_eq!(app.program.scene.triangles.indices.len(), 12 * 8 * 2 * 3);
+
+    // And back to a cube, with New.
+    app.key_with(Modifiers::CONTROL, Key::N);
+    assert_eq!(app.program.document.name, document::UNTITLED);
+    assert_eq!(app.program.document.version, version);
+    assert_eq!(app.program.scene.triangles.indices.len(), cube);
+    assert!(app.program.scene.version > drawn, "the GPU's copy is remade too");
+}

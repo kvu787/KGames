@@ -348,14 +348,25 @@ impl Modeler {
                 Ok(path) => self.say(Severity::Success, format!("Exported {}", path.display())),
                 Err(error) => self.say(Severity::Error, error),
             },
-            Command::Undo => match self.document.undo() {
-                Some(name) => self.say(Severity::Informational, format!("Undid {name}")),
-                None => self.say(Severity::Informational, "There's nothing to undo"),
-            },
-            Command::Redo => match self.document.redo() {
-                Some(name) => self.say(Severity::Informational, format!("Redid {name}")),
-                None => self.say(Severity::Informational, "There's nothing to redo"),
-            },
+            Command::Undo => {
+                match self.document.undo() {
+                    Some(name) => self.say(Severity::Informational, format!("Undid {name}")),
+                    None => self.say(Severity::Informational, "There's nothing to undo"),
+                }
+                // The paint picked may be gone with the step, like one that
+                // was just added. Another is picked here, and not only at
+                // the frame's end, in Prepare: the next message of this
+                // frame may edit the paint picked, or paint with it.
+                self.keep_paint_picked();
+            }
+            Command::Redo => {
+                match self.document.redo() {
+                    Some(name) => self.say(Severity::Informational, format!("Redid {name}")),
+                    None => self.say(Severity::Informational, "There's nothing to redo"),
+                }
+                // As after Undo: the step may be a paint's removal.
+                self.keep_paint_picked();
+            }
             Command::SelectAll => {
                 let before = self.document.snapshot();
                 self.document.selection = Selection::all(&self.document.mesh).in_mode(&self.document.mesh, self.editor.mode.select_mode());
@@ -501,7 +512,7 @@ impl Modeler {
     pub fn proceed(&mut self, pending: Pending) {
         match pending {
             Pending::New => {
-                self.document = Document::new();
+                self.replace_document(Document::new());
                 self.editor.reset();
                 self.camera = Camera::default();
                 self.prompt = None;
@@ -568,7 +579,7 @@ impl Modeler {
         };
         match Document::open(&self.folder, &name) {
             Ok(document) => {
-                self.document = document;
+                self.replace_document(document);
                 self.editor.reset();
                 if let Some([minimum, maximum]) = self.document.mesh.bounds() {
                     self.camera.frame(minimum, maximum);
@@ -578,6 +589,22 @@ impl Modeler {
             }
             Err(error) => self.say(Severity::Error, error),
         }
+    }
+
+    // Makes another document the modeler's, and forgets what the view drew
+    // of the last one. A document counts its own versions from 1, so the new
+    // one's version may be the last one's, and the triangles made for that
+    // version aren't this document's.
+    fn replace_document(&mut self, document: Document) {
+        self.document = document;
+        self.built = None;
+        self.preview_key = None;
+    }
+
+    // Picks the last paint, if the one picked isn't among the paints any
+    // more. A document always has a paint.
+    fn keep_paint_picked(&mut self) {
+        self.editor.active_paint = self.editor.active_paint.min(self.document.paints.len() - 1);
     }
 
     // A change to the paints from their card, which is one step of the
@@ -831,7 +858,12 @@ impl Program for Modeler {
             Message::Constrain(axis) => self.editor.constrain(axis),
             Message::ConfirmOperation => self.editor.confirm(&mut self.document),
             Message::CancelOperation => self.editor.cancel(&mut self.document),
-            Message::PickPaint(index) => self.editor.active_paint = index,
+            Message::PickPaint(index) => {
+                // The row is of the frame that the user saw. An Undo before
+                // it in this frame may have taken its paint away.
+                self.editor.active_paint = index;
+                self.keep_paint_picked();
+            }
             Message::Paint(edit) => self.edit_paint(edit),
             Message::EndPaintEdit => self.end_paint_edit(),
             Message::NameDraft(name) => self.name_draft = name,
@@ -845,7 +877,7 @@ impl Program for Modeler {
             Message::SaveAsResult(result) => self.answer(ui, Prompt::SaveAs, result),
             Message::OpenResult(result) => self.answer(ui, Prompt::Open, result),
             Message::Prepare => {
-                self.editor.active_paint = self.editor.active_paint.min(self.document.paints.len() - 1);
+                self.keep_paint_picked();
                 self.view = cards::view_content(ui.bounds());
                 let theme = ui.theme().clone();
                 self.prepare_scene(&theme);

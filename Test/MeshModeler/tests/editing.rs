@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use json::Value;
 use math::Vector3;
-use mesh_modeler::modeler::Modeler;
+use mesh_modeler::modeler::{Command, Message, Modeler, PaintEdit};
 use polygon_mesh::Edge;
 use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
@@ -422,6 +422,69 @@ fn the_paint_button_paints_the_selected_faces_with_the_paint_picked() {
     app.click("Add paint");
     assert_eq!(app.program.document.paints.len(), 4);
     assert_eq!(app.program.editor.active_paint, 3);
+}
+
+// An Undo or a Redo that takes the paint picked away picks one that's there
+// as it does, not at the frame's end: the next message of its frame may
+// paint with the paint picked. The test is the two messages in one frame.
+#[test]
+fn an_undo_or_a_redo_that_takes_the_paint_picked_away_picks_one_that_s_there_for_its_frame_s_next_message() {
+    let mut app = modeler("UndoThenPaint");
+    let paints_are_there = |app: &Headless<Modeler>| {
+        let count = app.program.document.paints.len() as u32;
+        app.program.document.mesh.faces.iter().all(|face| face.material < count)
+    };
+    app.key(Key::A);
+    app.click("Add paint");
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (5, 4));
+    // Undo takes the paint that was added away, and the faces are painted
+    // with the last that's left.
+    app.queue_message(Message::Command(Command::Undo));
+    app.queue_message(Message::Command(Command::AssignPaint));
+    app.frame();
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (4, 3));
+    assert!(paints_are_there(&app));
+    assert!(app.program.document.mesh.faces.iter().all(|face| face.material == 3));
+
+    // Redo, of the last paint's removal, with that paint picked again.
+    app.click("Remove paint");
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    app.click("Paints/3");
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (4, 3));
+    app.queue_message(Message::Command(Command::Redo));
+    app.queue_message(Message::Command(Command::AssignPaint));
+    app.frame();
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (3, 2));
+    assert!(paints_are_there(&app));
+}
+
+// The same, with an edit of the paint picked after the Undo: it edits a
+// paint that's there, where it would index past the paints.
+#[test]
+fn an_edit_of_the_paint_picked_after_an_undo_in_its_frame_edits_a_paint_that_s_there() {
+    let mut app = modeler("UndoThenRename");
+    app.click("Add paint");
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (5, 4));
+    app.queue_message(Message::Command(Command::Undo));
+    app.queue_message(Message::Paint(PaintEdit::Name("Renamed".to_string())));
+    app.frame();
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (4, 3));
+    assert_eq!(app.program.document.paints[3].name, "Renamed");
+}
+
+// A press on a paint's row is of the frame that the user saw. An Undo before
+// it in its frame may have taken that paint away, and the pick is then of
+// the last paint that's there.
+#[test]
+fn a_pick_of_a_paint_that_an_undo_took_away_in_its_frame_picks_one_that_s_there() {
+    let mut app = modeler("UndoThenPick");
+    app.click("Add paint");
+    app.queue_message(Message::Command(Command::Undo));
+    app.queue_message(Message::PickPaint(4));
+    app.queue_message(Message::Paint(PaintEdit::Name("Picked".to_string())));
+    app.frame();
+    assert_eq!((app.program.document.paints.len(), app.program.editor.active_paint), (4, 3));
+    assert_eq!(app.program.document.paints[3].name, "Picked");
 }
 
 #[test]
