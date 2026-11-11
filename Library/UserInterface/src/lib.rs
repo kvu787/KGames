@@ -96,7 +96,7 @@ pub use platform::clock;
 pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
-pub use application::settings::{Settings, WindowMode};
+pub use application::settings::{CommonSettings, Settings, WindowMode};
 pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
 pub use core::interface::{Context, Environment, FramePhases, FrameStats, Interface, Ui};
 pub use core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, TooltipLine, Tree, Widget};

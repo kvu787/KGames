@@ -99,8 +99,9 @@ Color with the theme's roles and size with the tokens and the controls' metrics,
 of your own, so that every program looks like one family, and like Windows 11.
 
 - **Themes** (`design/theme.rs`): light by default, and dark, which `F9` switches to and from in
-  every program. The roles are WinUI's theme resources, like `text_primary` for
-  TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
+  every program, and which a program starts in with `"Theme": "Dark"` in its
+  [settings](#settings-and-the-command-line). The roles are WinUI's theme resources, like
+  `text_primary` for TextFillColorPrimary, `control_fill` for ControlFillColorDefault, and `card_background` for CardBackgroundFillColorDefault, with Windows
   11's default blue accent and its ramp. Status colors, like `critical`, and colors that tell
   graphs' series apart, `theme.data`, are there too.
 - **Tokens** (`design/tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
@@ -232,13 +233,13 @@ devices without focus too, and decides what the window takes by its own focus ch
 - Without focus, the window has no input at all, including the gamepad's. The click that gives it
   focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
   go of.
-- `F9` switches between the light and dark themes. Every program starts light. The frame that `F9`
-  is pressed in is all in the new theme, and the title bar asks for it too, which DWM draws, as
-  its documentation promises while Windows' own dark mode is on. A program's own command for it
-  calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
-  frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
-  card and color role follows by itself, as long as the program colors with `ui.theme()` each
-  frame.
+- `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
+  The frame that `F9` is pressed in is all in the new theme, and the title bar asks for it too,
+  which DWM draws, as its documentation promises while Windows' own dark mode is on. A program's
+  own command for it calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme
+  for the rest of that frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which
+  it is. Every widget, card and color role follows by itself, as long as the program colors with
+  `ui.theme()` each frame.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
@@ -271,9 +272,11 @@ they differ by 71 pixels of height. A 3D view may still fill the window, under t
 
 ## Settings and the command line
 
-`Settings.json`, in the program's folder, has the settings every program has, then the program's
-own, which it reads from `startup.settings` with their defaults. A missing file is written with every
-default; a wrong setting keeps its default, and a notice under the app bar says what's wrong.
+`Settings.json`, in the program's folder, has the settings every program has, which the library
+reads first, into `startup.common`, then the program's own, which it reads from `startup.settings`
+with their defaults. A missing file is written with every default; a wrong setting keeps its
+default, and a notice under the app bar says what's wrong. `Headless::start` starts a program in
+the theme that its `Startup`'s settings say, as a run does.
 
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
@@ -281,6 +284,7 @@ default; a wrong setting keeps its default, and a notice under the app bar says 
 | `WindowMode`   | `"Maximized"`, by default, or `"BorderlessFullscreen"`                   |
 | `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
 |                | tear. `false`: frames present at once, and may tear                      |
+| `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
 
 | Argument          | What it does                                                              |
 | ----------------- | ------------------------------------------------------------------------- |

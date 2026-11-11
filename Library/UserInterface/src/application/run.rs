@@ -10,13 +10,15 @@
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// Programs start with vertical sync on: frames present at the screen's
-// refreshes, and DXGI's queue has room again only once the last frame has
-// gone to the screen, so the loop waits for that, and for messages, instead
-// of spinning: a frame couldn't begin any sooner, and the input is still read
-// as soon as one can. F10 switches it on and off. Without it, frames present
-// as soon as they're drawn, and may tear, and the loop spins, for the lowest
-// latency.
+// Programs start in the theme, window mode and vertical sync that their
+// Settings.json says: light, maximized and on, by default.
+//
+// With vertical sync on, frames present at the screen's refreshes, and
+// DXGI's queue has room again only once the last frame has gone to the
+// screen, so the loop waits for that, and for messages, instead of spinning:
+// a frame couldn't begin any sooner, and the input is still read as soon as
+// one can. F10 switches it on and off. Without it, frames present as soon as
+// they're drawn, and may tear, and the loop spins, for the lowest latency.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -78,15 +80,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         std::fs::create_dir_all(output).map_err(|error| format!("Couldn't make the folder {}: {error}", output.display()))?;
     }
 
-    // The settings that every program has, then the program's own.
-    let mut settings = Settings::load(&folder.join("Settings.json"));
-    let display_setting = settings.string("Display", "Primary");
-    let modes = [WindowMode::Maximized.name(), WindowMode::BorderlessFullscreen.name()];
-    let mode = settings.choice("WindowMode", WindowMode::Maximized.name(), &modes);
-    let mode = if mode == WindowMode::Maximized.name() { WindowMode::Maximized } else { WindowMode::BorderlessFullscreen };
-    let vertical_sync_setting = settings.boolean("VerticalSync", true);
-    let vertical_sync = arguments.vsync.unwrap_or(vertical_sync_setting);
-    let mut startup = Startup::new(settings, &data_folder, scripted);
+    // The settings that every program has, then, in `create`, the program's
+    // own.
+    let mut startup = Startup::new(Settings::load(&folder.join("Settings.json")), &data_folder, scripted);
+    let common = startup.common.clone();
+    let display_setting = common.display;
+    let mode = common.window_mode;
+    let vertical_sync = arguments.vsync.unwrap_or(common.vertical_sync);
     startup.arguments = arguments.own.clone();
 
     // All input comes from GameInput, except in a scripted run, which the
@@ -126,9 +126,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     };
 
     let fonts = Fonts::new().map_err(|error| format!("Couldn't start DirectWrite: {error}"))?;
-    // Windows' clipboard, once there's a window to own what it writes, or,
-    // in a scripted run, the interface's own.
-    let mut ui = Interface::new(fonts, ThemeKind::Light, Clipboard::Own(String::new()));
+    // In the theme that the settings say, and with Windows' clipboard, once
+    // there's a window to own what it writes, or, in a scripted run, the
+    // interface's own.
+    let mut ui = Interface::new(fonts, common.theme, Clipboard::Own(String::new()));
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     // The PerfBar along the top of the window, with the input

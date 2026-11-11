@@ -4,7 +4,7 @@
 
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
-use user_interface::{Arguments, Color, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Theme};
+use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Startup, Theme, ThemeKind, WindowMode};
 
 #[test]
 fn rectangles_cut_into_strips_and_columns() {
@@ -160,6 +160,58 @@ fn a_missing_settings_file_is_written_with_the_defaults() {
     settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
     assert!(written.contains("\"VerticalSync\": true") && written.contains("\"DeadZone\": 0.1"), "{written}");
+    std::fs::remove_dir_all(&folder).unwrap();
+}
+
+#[test]
+fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
+    let read = |text: &str| {
+        let mut settings = Settings::from_text(text);
+        (CommonSettings::read(&mut settings), settings.problems().to_vec())
+    };
+    let (defaults, problems) = read("{}");
+    let light = CommonSettings {
+        display: "Primary".to_string(),
+        window_mode: WindowMode::Maximized,
+        vertical_sync: true,
+        theme: ThemeKind::Light,
+    };
+    assert_eq!((defaults, problems.len()), (light.clone(), 0));
+    // Words ignore case.
+    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "WindowMode": "borderlessfullscreen", "VerticalSync": false, "Theme": "dark" }"#);
+    assert_eq!(
+        dark,
+        CommonSettings {
+            display: "CVVNY2".to_string(),
+            window_mode: WindowMode::BorderlessFullscreen,
+            vertical_sync: false,
+            theme: ThemeKind::Dark,
+        }
+    );
+    assert!(problems.is_empty(), "{problems:?}");
+    assert_eq!(read(r#"{ "Theme": "Light" }"#).0.theme, ThemeKind::Light);
+    // A wrong theme is the default, and a notice says why.
+    let (wrong, problems) = read(r#"{ "Theme": "Blue" }"#);
+    assert_eq!(wrong.theme, ThemeKind::Light);
+    assert_eq!(problems, ["Theme must be \"Light\" or \"Dark\", not \"Blue\", so it's the default."]);
+    let (wrong, problems) = read(r#"{ "Theme": true }"#);
+    assert_eq!(wrong.theme, ThemeKind::Light);
+    assert_eq!(problems, ["Theme must be \"Light\" or \"Dark\", not true, so it's the default."]);
+}
+
+#[test]
+fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
+    let folder = std::env::temp_dir().join(format!("UserInterfaceCommonSettings{}", std::process::id()));
+    std::fs::create_dir_all(&folder).unwrap();
+    let path = folder.join("Settings.json");
+    let _ = std::fs::remove_file(&path);
+    // A program's start reads them, as `run` does, before the program's own.
+    let mut startup = Startup::new(Settings::load(&path), &folder, false);
+    startup.settings.boolean("Own", false);
+    startup.settings.write_if_missing().unwrap();
+    let written = std::fs::read_to_string(&path).unwrap();
+    let expected = "{\n    \"Display\": \"Primary\",\n    \"WindowMode\": \"Maximized\",\n    \"VerticalSync\": true,\n    \"Theme\": \"Light\",\n    \"Own\": false\n}\n";
+    assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }
 

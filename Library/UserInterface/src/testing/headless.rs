@@ -80,11 +80,12 @@ impl<P: Program> Headless<P> {
         headless
     }
 
-    // The program that `create` makes from the start, whose notices show
-    // under its app bar.
+    // The program that `create` makes from the start, in the theme that its
+    // settings say, as a real run is, and whose notices show under its app
+    // bar.
     pub fn start(mut startup: Startup, create: impl FnOnce(&mut Startup) -> Result<P, String>) -> Self {
         let program = create(&mut startup).expect("the program couldn't start");
-        let mut headless = Self::new(program);
+        let mut headless = Self::with_theme(program, startup.common.theme);
         headless.ui.notices = startup.take_notices();
         headless.run_frame();
         headless

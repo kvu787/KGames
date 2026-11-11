@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
-use crate::application::settings::Settings;
+use crate::application::settings::{CommonSettings, Settings};
 use crate::core::interface::{Context, Ui};
 use crate::core::tree::Tree;
 use crate::platform::input_devices::Devices;
@@ -75,10 +75,10 @@ pub trait Program {
     }
 }
 
-// How the library runs a program. Every program starts in the light theme,
-// maximized unless Settings.json says otherwise, and with vertical sync on
-// unless Settings.json or the command line says otherwise, which F9, F11 and
-// F10 switch.
+// How the library runs a program. Every program starts in the light theme
+// and maximized unless Settings.json says otherwise, and with vertical sync
+// on unless Settings.json or the command line says otherwise, which F9, F11
+// and F10 switch.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".
@@ -126,6 +126,10 @@ pub struct Notice {
 pub struct Startup {
     // Settings.json, which the program reads its own settings from.
     pub settings: Settings,
+    // The settings that every program has, which were read from `settings`
+    // first: the display, window mode, vertical sync and theme that the
+    // program starts in, besides --display's and --vsync's.
+    pub common: CommonSettings,
     // Where the program reads and writes its files: its folder, or a
     // script's output folder, so that scripts never change its files.
     pub data_folder: PathBuf,
@@ -142,9 +146,13 @@ pub struct Startup {
 }
 
 impl Startup {
-    pub fn new(settings: Settings, data_folder: &Path, scripted: bool) -> Startup {
+    // Reads the settings that every program has from `settings`, before the
+    // program reads its own.
+    pub fn new(mut settings: Settings, data_folder: &Path, scripted: bool) -> Startup {
+        let common = CommonSettings::read(&mut settings);
         Startup {
             settings,
+            common,
             data_folder: data_folder.to_path_buf(),
             scripted,
             arguments: Vec::new(),

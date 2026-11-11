@@ -593,6 +593,29 @@ fn notices_from_the_start_show_and_close() {
     assert_eq!(app.ui.notices()[0].title, "Paint.json");
 }
 
+// A program starts in the theme that its settings say, from its first frame,
+// and the settings every program has are the program's to read too.
+#[test]
+fn a_program_starts_in_the_theme_that_its_settings_say() {
+    let folder = std::env::temp_dir();
+    let dark = Headless::start(Startup::for_tests(r#"{ "Theme": "Dark" }"#, &folder), |startup| {
+        assert_eq!(startup.common.theme, ThemeKind::Dark);
+        Ok(Notices)
+    });
+    assert_eq!(dark.ui.theme().kind, ThemeKind::Dark);
+    assert_eq!(dark.ui.state().get("Theme"), Some(&Value::from("Dark")));
+    assert!(dark.ui.notices().is_empty());
+    let mut light = Headless::start(Startup::for_tests(r#"{ "Theme": "Light" }"#, &folder), |_| Ok(Notices));
+    assert_eq!(light.ui.theme().kind, ThemeKind::Light);
+    // F9 switches whichever it started in.
+    light.key(Key::F9);
+    assert_eq!(light.ui.theme().kind, ThemeKind::Dark);
+    // A wrong one is light, and a notice says why.
+    let wrong = Headless::start(Startup::for_tests(r#"{ "Theme": "Dim" }"#, &folder), |_| Ok(Notices));
+    assert_eq!(wrong.ui.theme().kind, ThemeKind::Light);
+    assert!(wrong.label("Notice/0").unwrap().contains("Theme must be \"Light\" or \"Dark\""), "{:?}", wrong.label("Notice/0"));
+}
+
 // What porting the programs found: segments where widgets can't take focus,
 // a color field left while it's typed in, a slider's steps of a thousandth,
 // and a wide tooltip.

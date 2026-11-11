@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 
 use json::Value;
 
+use crate::design::theme::ThemeKind;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum WindowMode {
     #[default]
@@ -30,6 +32,39 @@ impl WindowMode {
         match self {
             WindowMode::Maximized => WindowMode::BorderlessFullscreen,
             WindowMode::BorderlessFullscreen => WindowMode::Maximized,
+        }
+    }
+}
+
+// The settings that every program has, which the library reads first, in
+// this order, before the program reads its own.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommonSettings {
+    // "Primary", or the identifier of the display to open on.
+    pub display: String,
+    // How the window opens, which F11 switches.
+    pub window_mode: WindowMode,
+    // Whether frames start waiting for vertical sync, unless the command
+    // line says otherwise. F10 switches it.
+    pub vertical_sync: bool,
+    // The theme that the program starts in, which F9 switches.
+    pub theme: ThemeKind,
+}
+
+impl CommonSettings {
+    // Reads them, each its default if it's missing or wrong.
+    pub fn read(settings: &mut Settings) -> CommonSettings {
+        let display = settings.string("Display", "Primary");
+        let modes = [WindowMode::Maximized, WindowMode::BorderlessFullscreen];
+        let window_mode = settings.choice_of("WindowMode", WindowMode::Maximized, &modes, |mode| mode.name());
+        let vertical_sync = settings.boolean("VerticalSync", true);
+        let themes = [ThemeKind::Light, ThemeKind::Dark];
+        let theme = settings.choice_of("Theme", ThemeKind::Light, &themes, |theme| theme.name());
+        CommonSettings {
+            display,
+            window_mode,
+            vertical_sync,
+            theme,
         }
     }
 }
@@ -139,6 +174,13 @@ impl Settings {
                 .ok_or_else(|| format!("must be {}, not \"{text}\"", list_choices(choices))),
             other => Err(format!("must be {}, not {}", list_choices(choices), other.describe())),
         })
+    }
+
+    // One of the choices, by its name, whatever the name's case.
+    pub fn choice_of<T: Copy>(&mut self, name: &str, default: T, choices: &[T], choice_name: impl Fn(T) -> &'static str) -> T {
+        let names: Vec<&str> = choices.iter().map(|choice| choice_name(*choice)).collect();
+        let chosen = self.choice(name, choice_name(default), &names);
+        choices.iter().copied().find(|choice| choice_name(*choice) == chosen).unwrap_or(default)
     }
 
     // Writes the file with every setting's default, if it didn't exist.
