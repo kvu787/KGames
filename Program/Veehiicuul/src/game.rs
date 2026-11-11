@@ -27,13 +27,10 @@ use crate::vehicles::Vehicle;
 pub const PAUSE: f64 = 0.35;
 // The longest that the car moves in one frame, in seconds, so that a frame
 // that comes late, like after the window was minimized, doesn't carry it
-// far.
-pub const LONGEST_STEP: f64 = 0.1;
-// The car drives in steps of this long, as many as a frame's time holds,
-// so that it drives the same at any frame rate: the same push for the same
-// time puts it in the same place. What's left of a frame's time waits for
-// the next.
-pub const DRIVE_STEP: f64 = 1.0 / 240.0;
+// far. Each frame moves it by its own time, the time since the frame
+// before, in one drive: no fixed steps, which a frame would hold a varying
+// number of, and which would make the car judder.
+pub const LONGEST_FRAME: f64 = 0.1;
 
 pub struct Game {
     pub document: Document,
@@ -51,8 +48,6 @@ pub struct Game {
     // seconds.
     restarted: f64,
     last: Option<f64>,
-    // Time that the last frame's drive steps left over.
-    pending: f64,
     // The current scene's track's shape, and the track it's of.
     shape: Shape,
     shape_of: Track,
@@ -99,7 +94,6 @@ impl Game {
             show_card: true,
             restarted: f64::NEG_INFINITY,
             last: None,
-            pending: 0.0,
         };
         game.camera.height = game.default_height();
         game.put_at_start(f64::NEG_INFINITY);
@@ -191,7 +185,7 @@ impl Game {
 
     // Moves the game to a frame's time, `seconds`, with its controls.
     pub fn update(&mut self, controls: &Controls, seconds: f64) {
-        let step = self.last.map_or(0.0, |last| (seconds - last).clamp(0.0, LONGEST_STEP));
+        let step = self.last.map_or(0.0, |last| (seconds - last).clamp(0.0, LONGEST_FRAME));
         self.last = Some(seconds);
         if controls.toggle_card {
             self.show_card = !self.show_card;
@@ -218,28 +212,15 @@ impl Game {
         if controls.restart {
             self.put_at_start(seconds);
         }
-        if self.paused() {
-            self.pending = 0.0;
-        } else {
+        if !self.paused() {
             let push = camera::to_ground(controls.push);
             let acceleration = self.current_vehicle().acceleration;
             let footprint = self.footprint();
-            self.shape();
-            self.pending += step;
-            while self.pending >= DRIVE_STEP {
-                drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, DRIVE_STEP);
-                self.pending -= DRIVE_STEP;
-                // The very step that touches an edge crashes, and the pause
-                // starts at that step's own moment on the drive's clock, so
-                // where the car stops, and when it may move again, don't
-                // depend on the frame rate.
-                let car = self.car;
-                if self.last_shape().edges.touch(&footprint, car.position, car.heading) {
-                    self.crashes += 1;
-                    self.put_at_start(seconds - self.pending);
-                    self.pending = 0.0;
-                    break;
-                }
+            drive(&mut self.car, push, controls.brake, &acceleration, &self.dead_zones, step);
+            let car = self.car;
+            if self.shape().edges.touch(&footprint, car.position, car.heading) {
+                self.crashes += 1;
+                self.put_at_start(seconds);
             }
         }
     }

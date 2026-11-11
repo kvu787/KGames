@@ -344,52 +344,96 @@ fn a_crash_counts_once() {
     assert!(app.program.game.paused());
 }
 
-// A crash too is in fixed steps: the step that touches the edge crashes,
-// and the pause runs on the drive's clock, so a run through a crash and out
-// of its pause is the same at 60 frames a second as at 240.
+// A crash puts the car back at the start on the frame that touches the
+// edge, and the pause is PAUSE seconds of the frames' time, at any frame
+// rate.
 #[test]
-fn a_crash_and_its_pause_are_the_same_at_any_frame_rate() {
-    let run = |rate: u32| {
+fn a_crash_and_its_pause_take_the_frames_time() {
+    for rate in [60.0, 100.0, 240.0] {
         let mut app = start();
-        // Pushing right reaches an edge in under two seconds; four seconds
-        // crosses the crash, the pause, and the drive after it.
+        let start = start_of(&app);
+        let game = &mut app.program.game;
+        // Pushing right reaches an edge in under two seconds.
         let controls = Controls {
             push: [1.0, 0.0],
             ..Controls::default()
         };
-        app.program.game.update(&controls, 0.0);
-        for frame in 1..=(4 * rate) {
-            app.program.game.update(&controls, f64::from(frame) / f64::from(rate));
+        let mut frame = 0;
+        game.update(&controls, 0.0);
+        while game.crashes == 0 {
+            frame += 1;
+            assert!(frame < 2 * rate as u32, "at {rate} frames a second, the car didn't reach the edge");
+            game.update(&controls, f64::from(frame) / rate);
         }
-        (app.program.game.car, app.program.game.crashes)
-    };
-    let slow = run(60);
-    let fast = run(240);
-    assert!(slow.1 >= 1, "the run crashed, {} times", slow.1);
-    assert_eq!(slow.1, fast.1, "the same crashes");
-    assert_eq!(slow.0, fast.0, "the same car after them");
+        let crashed = f64::from(frame) / rate;
+        assert_eq!((game.car.position, game.car.heading, game.car.speed()), (start.position, start.radians(), 0.0));
+        assert!(game.paused());
+        // Still pushing, it stays put until the pause is over, and moves on
+        // the first frame after it.
+        loop {
+            frame += 1;
+            let time = f64::from(frame) / rate;
+            game.update(&controls, time);
+            if time - crashed < PAUSE - 1e-9 {
+                assert!(game.paused(), "at {rate} frames a second, {} seconds after the crash", time - crashed);
+                assert_eq!(game.car.position, start.position);
+            } else if time - crashed > PAUSE + 1e-9 {
+                assert!(!game.paused());
+                assert_ne!(game.car.position, start.position, "at {rate} frames a second");
+                break;
+            }
+        }
+        assert_eq!(game.crashes, 1);
+    }
 }
 
-// The car drives in fixed steps, so the same push for the same time puts it
-// in the same place at 60 frames a second as at 240.
+// Each frame moves the car by its own time, the time since the frame before,
+// in one drive, as the Godot version's _Process does with its delta: at 100
+// frames a second, each frame speeds it up by 10 milliseconds' worth of its
+// acceleration, and moves it by 10 milliseconds of its speed, and so does a
+// frame of any other length. In fixed steps of 1/240 of a second, a 100 Hz
+// frame held 2 or 3 of them, so it moved the car by 8.3 or 12.5
+// milliseconds' worth, and the car juddered.
 #[test]
-fn the_car_drives_the_same_at_any_frame_rate() {
-    let mut slow = start();
-    let mut fast = start();
-    // Up the road, as the keys test drives, for half a second.
-    let controls = Controls {
-        push: [-0.7, 0.7],
+fn each_frame_moves_the_car_by_its_own_time() {
+    let mut app = start();
+    let ahead = ahead_on_the_screen(&app);
+    let push = Controls {
+        push: [f64::from(ahead.x), f64::from(ahead.y)],
         ..Controls::default()
     };
-    slow.program.game.update(&controls, 0.0);
-    fast.program.game.update(&controls, 0.0);
-    for frame in 1..=30 {
-        slow.program.game.update(&controls, frame as f64 / 60.0);
+    let coast = Controls::default();
+    let game = &mut app.program.game;
+    let forward = game.current_vehicle().acceleration.forward;
+    game.update(&push, 0.0);
+    assert_eq!(game.car.speed(), 0.0, "the first frame has no time before it");
+    let hundred_hertz = [0.01; 20];
+    let uneven = [0.007, 0.013, 0.004, 0.016, 0.0101, 0.0069];
+    let mut time = 0.0;
+    for (controls, frame_time) in hundred_hertz
+        .iter()
+        .chain(&uneven)
+        .map(|frame_time| (&push, *frame_time))
+        .chain(hundred_hertz.iter().chain(&uneven).map(|frame_time| (&coast, *frame_time)))
+    {
+        let before = game.car;
+        time += frame_time;
+        game.update(controls, time);
+        let after = game.car;
+        let speeding_up = if controls.push == [0.0, 0.0] { 0.0 } else { forward };
+        assert!(
+            (after.speed() - before.speed() - speeding_up * frame_time).abs() < 1e-9,
+            "a frame of {frame_time} seconds sped the car up from {} to {}",
+            before.speed(),
+            after.speed()
+        );
+        let moved = (after.position[0] - before.position[0]).hypot(after.position[1] - before.position[1]);
+        assert!(
+            (moved - after.speed() * frame_time).abs() < 1e-9,
+            "a frame of {frame_time} seconds moved the car {moved} at {}",
+            after.speed()
+        );
     }
-    for frame in 1..=120 {
-        fast.program.game.update(&controls, frame as f64 / 240.0);
-    }
-    assert_eq!(slow.program.game.car, fast.program.game.car);
-    assert_eq!(slow.program.game.crashes, 0);
-    assert!(slow.program.game.car.speed() > 1.0, "{}", slow.program.game.car.speed());
+    assert!(game.car.speed() > 30.0, "{}", game.car.speed());
+    assert_eq!(game.crashes, 0);
 }
