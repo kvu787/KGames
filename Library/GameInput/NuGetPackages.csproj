@@ -13,8 +13,9 @@
   <ItemGroup>
     <!--
       Exactly the version of the runtime that the user installs (see src/installation.rs).
-      ExcludeAssets keeps its build files out of this project, and GeneratePathProperty gives its
-      folder as PkgMicrosoft_GameInput, which build.rs reads.
+      ExcludeAssets keeps whatever the package has for .NET projects out of this one, which only
+      downloads it. 4.0.306 has nothing for them anyway: its one build file is for C++ projects.
+      And GeneratePathProperty gives the package's folder, as PkgMicrosoft_GameInput, to build.rs.
     -->
     <PackageReference Include="Microsoft.GameInput" Version="[4.0.306]" ExcludeAssets="all" GeneratePathProperty="true" />
   </ItemGroup>
