@@ -26,6 +26,15 @@ use json::Value;
 
 use crate::files::{self, Color};
 
+// How far a cell can be from cell [0, 0], along each axis: a dozen times
+// past the scene that there is. A terrain is saved as rows of characters,
+// from its first cell to its last, so two cells at the ends of what an i32
+// holds would be rows that no disk holds, and the cells around a cell at an
+// end, as far as a brush or a fill reaches, would have coordinates past it.
+// So a point farther away is in the farthest cell, a brush that reaches past
+// it leaves those cells unpainted, and a file with cells past it is wrong.
+pub const FARTHEST_CELL: i32 = 1024;
+
 pub const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 // The most colors a palette has, one a character.
 pub const PALETTE_SIZE: usize = 62;
@@ -84,9 +93,12 @@ impl Terrain {
         self.cells.get(&cell).copied()
     }
 
-    // Paints a cell with a palette index, or clears it with None.
+    // Paints a cell with a palette index, or clears it with None. A cell
+    // past the farthest stays unpainted.
     pub fn set(&mut self, cell: (i32, i32), color: Option<u8>) {
+        let within = |coordinate: i32| (-FARTHEST_CELL..=FARTHEST_CELL).contains(&coordinate);
         match color {
+            Some(_) if !(within(cell.0) && within(cell.1)) => {}
             Some(color) => {
                 self.cells.insert(cell, color);
             }
@@ -160,6 +172,10 @@ impl Terrain {
         if origin.iter().any(|value| value.fract() != 0.0) {
             return Err("Terrain.Origin must be a cell's coordinates, two whole numbers".to_string());
         }
+        if origin.iter().any(|value| value.abs() > FARTHEST_CELL as f64) {
+            return Err(format!("Terrain.Origin must be within {FARTHEST_CELL} cells of [0, 0], not [{}, {}]", origin[0], origin[1]));
+        }
+        let first = [origin[0] as i64, origin[1] as i64];
         let mut cells = BTreeMap::new();
         let Value::Array(rows) = files::member(value, "Rows", "Terrain.")? else {
             return Err("Terrain.Rows must be a list of rows of characters".to_string());
@@ -183,8 +199,11 @@ impl Terrain {
                             palette.len()
                         )
                     })?;
-                let cell = (origin[0] as i32 + column as i32, origin[1] as i32 + row_index as i32);
-                cells.insert(cell, color as u8);
+                let (q, r) = (first[0] + column as i64, first[1] + row_index as i64);
+                if q > FARTHEST_CELL as i64 || r > FARTHEST_CELL as i64 {
+                    return Err(format!("Terrain.Rows[{row_index}] goes past {FARTHEST_CELL} cells from [0, 0]"));
+                }
+                cells.insert((q as i32, r as i32), color as u8);
             }
         }
         Ok(Terrain {
@@ -225,7 +244,8 @@ impl Terrain {
 }
 
 // The cell nearest fractional axial coordinates, by rounding them as the
-// cube coordinates (q, r, -q - r).
+// cube coordinates (q, r, -q - r), and no farther than the farthest cell,
+// which a point far away, or any point of a terrain of tiny cells, is in.
 fn round_axial(q: f64, r: f64) -> (i32, i32) {
     let s = -q - r;
     let (mut rq, mut rr, rs) = (q.round(), r.round(), s.round());
@@ -235,7 +255,8 @@ fn round_axial(q: f64, r: f64) -> (i32, i32) {
     } else if dr > ds {
         rr = -rq - rs;
     }
-    (rq as i32, rr as i32)
+    let within = |coordinate: f64| (coordinate as i32).clamp(-FARTHEST_CELL, FARTHEST_CELL);
+    (within(rq), within(rr))
 }
 
 pub fn neighbors((q, r): (i32, i32)) -> [(i32, i32); 6] {

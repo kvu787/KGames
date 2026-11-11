@@ -2,7 +2,7 @@
 // fills, its palette, and its rows of characters in a scene's file.
 
 use json::Value;
-use veehiicuul::terrain::{Terrain, disk, distance, neighbors};
+use veehiicuul::terrain::{FARTHEST_CELL, Terrain, disk, distance, neighbors};
 
 fn terrain(flat_top: bool) -> Terrain {
     Terrain {
@@ -95,4 +95,81 @@ fn writes_its_cells_as_rows_and_reads_them_back() {
         Terrain::parse(&json::parse(text).unwrap()).err().unwrap(),
         "Terrain.Rows[0] has '1', which isn't one of the palette's 1 colors"
     );
+}
+
+// A cell is FARTHEST_CELL at most from cell [0, 0], along each axis: a point
+// far away, or any point of a terrain of tiny cells, is in the farthest
+// cell, a brush there paints no cell past it, and a file whose cells are
+// past it is wrong. So the cells around any cell have coordinates that an
+// i32 holds, and a terrain's rows are a few thousand characters at most.
+#[test]
+fn cells_are_no_farther_than_the_farthest_cell() {
+    const FAR: i32 = FARTHEST_CELL;
+    let mut tiny = terrain(false);
+    tiny.size = 1e-300;
+    let far = tiny.cell_at([1.0, 0.0]);
+    assert_eq!(far, (FAR, 0));
+    assert_eq!(tiny.cell_at([-1.0, 0.0]), (-FAR, 0));
+    assert_eq!(tiny.cell_at([1.0, 1.0]), (FAR, FAR));
+    assert_eq!(terrain(true).cell_at([-1e300, 1e300]), (FAR, -FAR));
+    // A brush and a fill there are the cells that they are anywhere.
+    for cell in [far, (-FAR, FAR)] {
+        for neighbor in neighbors(cell) {
+            assert_eq!(distance(neighbor, cell), 1);
+        }
+        let brush = disk(cell, 8);
+        assert_eq!(brush.len(), 217);
+        assert!(brush.iter().all(|under| distance(*under, cell) <= 8));
+        let filled = tiny.region(cell, 60);
+        assert_eq!(filled.len(), 10981);
+        assert!(filled.iter().all(|under| distance(*under, cell) <= 60));
+    }
+    // Painting with a brush there leaves the cells past the farthest
+    // unpainted, so that the terrain reads back from what it writes.
+    let mut painted = terrain(false);
+    for under in disk((FAR, -FAR), 2) {
+        painted.set(under, Some(1));
+    }
+    assert_eq!(painted.cells.len(), 9);
+    assert_eq!(painted.get((FAR - 2, -FAR + 2)), Some(1));
+    assert_eq!(painted.get((FAR + 1, -FAR)), None);
+    assert_eq!(Terrain::parse(&painted.to_value()).unwrap(), painted);
+    // Erasing past it is nothing to do, and not a mistake.
+    painted.set((FAR + 1, -FAR), None);
+    assert_eq!(painted.cells.len(), 9);
+
+    let problem = |origin: &str, rows: &str| {
+        let text = format!(r##"{{ "Size": 2, "Orientation": "PointyTop", "Palette": ["#000000"], "Origin": {origin}, "Rows": {rows} }}"##);
+        match Terrain::parse(&json::parse(&text).unwrap()) {
+            Ok(_) => "It reads".to_string(),
+            Err(error) => error,
+        }
+    };
+    assert_eq!(problem("[2147483647, 2147483647]", r#"["00", "00"]"#), "Terrain.Origin must be within 1024 cells of [0, 0], not [2147483647, 2147483647]");
+    assert_eq!(problem("[0, -1025]", r#"["0"]"#), "Terrain.Origin must be within 1024 cells of [0, 0], not [0, -1025]");
+    assert_eq!(problem("[1e300, 0]", "[]"), format!("Terrain.Origin must be within 1024 cells of [0, 0], not [1{}, 0]", "0".repeat(300)));
+    assert_eq!(problem("[1024, 0]", r#"["00"]"#), "Terrain.Rows[0] goes past 1024 cells from [0, 0]");
+    assert_eq!(problem("[0, 1024]", r#"["0", "", "0"]"#), "Terrain.Rows[2] goes past 1024 cells from [0, 0]");
+    // Up to it, they read.
+    assert_eq!(problem("[1023, -1024]", r#"["00", ".."]"#), "It reads");
+}
+
+// Save writes every cell between a terrain's first and its last, so cells at
+// both ends make the most that a terrain's rows can be, which is a file that
+// reads back.
+#[test]
+fn a_terrain_with_cells_at_both_ends_writes_rows_that_read_back() {
+    let mut wide = terrain(false);
+    wide.set((-FARTHEST_CELL, -FARTHEST_CELL), Some(0));
+    wide.set((FARTHEST_CELL, FARTHEST_CELL), Some(2));
+    // Where the brush can't paint, there's nothing to write.
+    wide.set((i32::MAX, i32::MAX), Some(1));
+    wide.set((i32::MIN, i32::MIN), Some(1));
+    let value = wide.to_value();
+    let Some(Value::Array(rows)) = value.get("Rows") else { panic!("no rows") };
+    let across = 2 * FARTHEST_CELL as usize + 1;
+    assert_eq!(rows.len(), across);
+    assert_eq!(rows[0], Value::String("0".to_string()));
+    assert_eq!(rows[across - 1], Value::String(format!("{}2", ".".repeat(across - 1))));
+    assert_eq!(Terrain::parse(&value).unwrap(), wide);
 }

@@ -163,7 +163,8 @@ and the six vehicles parked in a row.
 | `Terrain`      | The hexels' `Size`, from a hexel's middle to its corners, their `Orientation`, |
 |                | `PointyTop` or `FlatTop`, the `Palette`, and the `Rows` of hexels from the     |
 |                | `Origin`, which is a hexel's axial coordinates: a character a hexel, its       |
-|                | palette index, 0 to 9, A to Z, then a to z, or `.` for none                    |
+|                | palette index, 0 to 9, A to Z, then a to z, or `.` for none. Hexels are within |
+|                | 1,024 of hexel [0, 0] along each axis, and the brush paints none past that     |
 | `Track`        | The control points of the `Road`'s curve and the `Islands`' curves, the car's  |
 |                | `Start`, the `Colors` of the road and the two of the barriers, and the         |
 |                | barriers' `BarrierWidth` and `BarrierLength`                                   |
