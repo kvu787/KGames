@@ -18,21 +18,29 @@ and PageUp and PageDown go between unlocked levels.
 
 ## The event graph
 
-The simulation runs in fixed steps of 1/240 s on its own clock, so a run is
-the same at any frame rate. Each step moves the platforms and the player,
-then publishes what the movement did; the queue then drains to quiescence
-before the next step, so chains like this resolve inside one frame:
+Each frame moves the platforms and the player by the frame's own time, the
+time since the frame before, in one step, like a Godot game's `_process` with
+its delta, then publishes what the movement did; the queue then drains to
+quiescence inside the frame, so chains like this resolve inside one frame:
 
 ```text
 CoinCollected (the last one)
   -> AllCoinsCollected
-       -> DoorOpened                        the same frame's movement can now
+       -> DoorOpened                        the next frame's movement can
 GoalReached                                 pass the door and reach the goal
   -> RunFinished
        -> RecordSet        -> SaveProgress ---+
        -> LevelUnlocked    -> SaveProgress ---+-> one write -> ProgressSaved
        (confetti, banner)                            (save light)
 ```
+
+There are no fixed steps on a clock of the game's own: a frame rate that a
+fixed step doesn't divide, like 100 frames a second in steps of 1/240 s, fits
+2 steps in some frames and 3 in others, and the player judders. The game's
+clock is the frames' times added up, each at most 0.05 s, so that a late
+frame, like after the window was minimized, can't carry the player through a
+platform. Gravity's pull is exact, so a jump reaches the same height at any
+frame rate.
 
 Two consumers can ask for a save in one cascade; the first `SaveProgress`
 writes `Save.json` and the second finds the progress clean, so one cascade
@@ -42,9 +50,10 @@ a bug in the graph, and stops the program instead of hiding.
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,
 never from a snapshot. `Test/Platformer/tests/events.rs` pins the one-frame law:
-its deepest test collects the last coin, opens the door, reaches the goal,
-sets the record, writes the file and flashes the save light in one
-`Game::update`, and asserts all of it, the file on disk included.
+its deepest test collects the last coin and opens the door in one
+`Game::update`, then reaches the goal, sets the record, writes the file and
+flashes the save light in the next, and asserts all of it, the file on disk
+included.
 
 ## Save.json
 
@@ -58,9 +67,10 @@ The file isn't checked in; delete it for a fresh start.
 | Path              | Contents                                                       |
 | ----------------- | -------------------------------------------------------------- |
 | `src/level.rs`    | The levels: zones, coins, spikes, springs, doors, patrols      |
-| `src/physics.rs`  | Fixed-step movement: run, gravity, jump buffer, coyote, carry  |
+| `src/physics.rs`  | Movement by the frame's time: run, gravity, jump buffer,       |
+|                   | coyote, carry                                                  |
 | `src/events.rs`   | Every occurrence, as data, with the cascade cap                |
-| `src/game.rs`     | The simulation: steps, detections, and the drained event graph |
+| `src/game.rs`     | The game: a step a frame, detections, and the drained events   |
 | `src/progress.rs` | Save.json: unlocked levels and best times                      |
 | `src/controls.rs` | The frame's input, from the keyboard and the gamepad           |
 | `src/program.rs`  | The Program: one Tick message a frame, and the app bar's two   |
@@ -69,8 +79,9 @@ The file isn't checked in; delete it for a fresh start.
 ## Testing
 
 `Program\RunLightly\RunLightly.ps1 cargo test -p platformer_tests` runs the
-tests: the physics (determinism at 60 against 240 Hz, buffer, coyote, carry,
-and every top in every level holding a player who runs along it),
+tests: the physics (each frame moving the player by its own time, a jump as
+high at any frame rate, buffer, coyote, carry, and every top in every level
+holding a player who runs along it),
 the event graph's one-frame laws, the progress file, and the frames through
 `Headless`. `Program\RunInBackground\RunInBackground.ps1 Platformer
 --all-scripts` runs the input scripts in `Test/Platformer/Scripts` in a real

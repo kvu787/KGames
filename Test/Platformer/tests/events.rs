@@ -1,8 +1,8 @@
 // The event graph, against the two laws: a frame's input produces the
 // correct state by the end of that frame, and every event's whole graph of
 // consequences - however deep - resolves inside the frame that published it.
-// Each test runs ONE Game::update and asserts everything it should have
-// caused, the file on disk included.
+// Each test runs the Game::update that causes something and asserts
+// everything it should have caused, the file on disk included.
 
 use std::path::PathBuf;
 
@@ -72,6 +72,17 @@ fn collect_all_but_last(game: &mut Game) {
     game.coins = total - 1;
 }
 
+// Runs into the closed door at the doorstep, where the last coin is: the
+// frame collects it, which opens the door, and the door stops the frame's
+// run, as it was closed when the frame began. So the run isn't over yet.
+fn open_the_door_at_the_doorstep(game: &mut Game) {
+    collect_all_but_last(game);
+    place(game, [57.6, 0.0]);
+    frame(game, Controls { push: 1.0, ..Controls::default() });
+    assert!(game.doors_open[0]);
+    assert_eq!(game.state, RunState::Running);
+}
+
 #[test]
 fn collecting_the_last_coin_opens_the_door_in_the_same_frame() {
     let mut game = game("LastCoin");
@@ -85,12 +96,13 @@ fn collecting_the_last_coin_opens_the_door_in_the_same_frame() {
     assert!(logged(&game, &["CoinCollected 4", "AllCoinsCollected", "DoorOpened 0"]), "{:?}", game.log);
 }
 
-// The deepest chain: the frame's input collects the last coin, which opens
-// the door, which lets the same frame's movement reach the goal, which ends
-// the run, sets the record, unlocks the next level, saves the file, and
-// flashes the save light - all before this frame's view.
+// The deepest chain: a frame's input collects the last coin, which opens
+// the door, all in that frame. The door was closed as the frame began, so it
+// stops that frame's run, and the next frame's run reaches the goal, which
+// ends the run, sets the record, unlocks the next level, saves the file,
+// and flashes the save light - all before that frame's view.
 #[test]
-fn the_last_coin_and_the_goal_resolve_in_one_frame() {
+fn the_last_coin_opens_the_door_and_the_goal_resolves_in_its_frame() {
     let mut game = game("OneFrame");
     collect_all_but_last(&mut game);
     place(&mut game, [57.6, 0.0]);
@@ -99,10 +111,13 @@ fn the_last_coin_and_the_goal_resolve_in_one_frame() {
         ..Controls::default()
     };
     frame(&mut game, run);
-
-    // The whole graph, in the one frame.
     assert_eq!(game.coins, game.total_coins());
-    assert!(game.doors_open[0]);
+    assert!(game.doors_open[0], "the coin opened the door in its frame");
+    assert!((game.player.position[0] - (game.current().doors[0].x - HALF[0])).abs() < 1e-9, "stopped at the door's face");
+    assert_eq!(game.state, RunState::Running);
+    frame(&mut game, run);
+
+    // The whole graph, in the goal's frame.
     assert!(matches!(game.state, RunState::Finished(_)));
     assert!(game.progress.best[0].is_some(), "the record was set");
     assert_eq!(game.progress.unlocked, 2, "the next level was unlocked");
@@ -136,8 +151,7 @@ fn the_last_coin_and_the_goal_resolve_in_one_frame() {
 #[test]
 fn one_cascade_saves_once() {
     let mut game = game("SaveOnce");
-    collect_all_but_last(&mut game);
-    place(&mut game, [57.6, 0.0]);
+    open_the_door_at_the_doorstep(&mut game);
     frame(&mut game, Controls { push: 1.0, ..Controls::default() });
     assert!(matches!(game.state, RunState::Finished(_)));
     assert_eq!(count(&game, "SaveProgress"), 2, "the record and the unlock each asked, {:?}", game.log);
@@ -151,8 +165,7 @@ fn a_slower_run_sets_no_record_and_saves_nothing() {
     let mut game = game("Slower");
     game.progress.best[0] = Some(0.001);
     game.progress.unlocked = 2;
-    collect_all_but_last(&mut game);
-    place(&mut game, [57.6, 0.0]);
+    open_the_door_at_the_doorstep(&mut game);
     frame(&mut game, Controls { push: 1.0, ..Controls::default() });
     assert!(matches!(game.state, RunState::Finished(_)));
     assert_eq!(game.progress.best[0], Some(0.001));
@@ -239,40 +252,4 @@ fn restarting_resets_the_run_and_keeps_the_progress() {
     assert_eq!(game.state, RunState::Running);
     assert_eq!(game.progress.best[0], Some(9.0));
     assert!(logged(&game, &["RunStarted"]), "{:?}", game.log);
-}
-
-// The whole simulation, events included, is the same at 60 and 240 frames a
-// second: same positions, same log, same times on the log's clock.
-#[test]
-fn the_game_runs_the_same_at_any_frame_rate() {
-    let run = |rate: u32| {
-        let folder = save_folder(&format!("Rate{rate}"));
-        let _ = std::fs::remove_dir_all(&folder);
-        let levels = level::levels();
-        let mut game = Game::new(levels, Progress::new(2), folder.join("Save.json"));
-        let controls = Controls {
-            push: 1.0,
-            jump_held: true,
-            ..Controls::default()
-        };
-        let frames = 5 * rate;
-        for frame in 1..=frames {
-            // A jump pressed at the same wall times, a push all along: runs
-            // off the first ground, jumps, collects the first coin.
-            let pressed = frame == rate / 2 || frame == 2 * rate;
-            let controls = Controls {
-                jump_pressed: pressed,
-                ..controls
-            };
-            game.update(&controls, f64::from(frame) / f64::from(rate));
-        }
-        let _ = std::fs::remove_dir_all(folder);
-        (game.player.position, game.player.velocity, game.coins, game.lives, game.log.clone())
-    };
-    let slow = run(60);
-    let fast = run(240);
-    assert_eq!(slow.0, fast.0, "the same place");
-    assert_eq!(slow.1, fast.1, "the same velocity");
-    assert_eq!((slow.2, slow.3), (fast.2, fast.3));
-    assert_eq!(slow.4, fast.4, "the same events at the same times");
 }

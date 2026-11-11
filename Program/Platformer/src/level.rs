@@ -38,7 +38,7 @@ impl Zone {
 
 // A platform that patrols between where its zone is and `to`, there and back
 // over `period` seconds, carrying whoever stands on it. Its place is a pure
-// function of the simulation's time, so runs are the same at any frame rate.
+// function of the game's time, so it's where it should be at any frame rate.
 #[derive(Clone, Copy, Debug)]
 pub struct Patrol {
     pub zone: Zone,
@@ -112,9 +112,9 @@ fn first_steps() -> Level {
         checkpoints: vec![Zone::new(36.0, 0.0, 0.8, 1.6)],
         doors: vec![Zone::new(58.0, 0.0, 0.8, 3.0)],
         // The goal starts at the door's face: strictly behind it while the
-        // door is closed, and one step past it once the door opens, so the
-        // last coin at the doorstep can open the door and win the run in
-        // the same frame.
+        // door is closed, and right past it once the door opens, so a run
+        // that the closed door stopped at the doorstep, where the last coin
+        // opens it, reaches the goal on the next frame.
         goal: Zone::new(58.0, 0.0, 2.8, 3.0),
         patrols: vec![Patrol {
             zone: Zone::new(44.0, -0.5, 3.0, 0.5),

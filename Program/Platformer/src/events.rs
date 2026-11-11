@@ -1,6 +1,6 @@
 // Everything that happens in the game, as data: the simulation publishes
 // events as it discovers them, and Game::apply consumes each one, which may
-// publish more. The queue drains to quiescence inside the substep that
+// publish more. The queue drains to quiescence inside the frame that
 // started it, so however deep the graph goes - the last coin opening the
 // door, the goal ending the run, the record saving the file, the save
 // flashing its light - all of it has happened by the end of the frame.
