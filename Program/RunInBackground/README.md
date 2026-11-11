@@ -26,7 +26,10 @@ moment counts, and RunInBackground stops the program as soon as it does, so that
 as short a time as can be.
 
 A run's `--vsync` turns vertical sync on even if the program's Settings.json says
-`"VerticalSync": false`.
+`"VerticalSync": false`. A run also starts the program light and maximized, with `--theme Light`
+and `--window-mode Maximized`, whatever its `Theme` and `WindowMode` settings say, so that its
+scripts and screenshots start the same way whatever you set for yourself. `--arguments`, which
+come after these, can say otherwise, like `--arguments "--theme Dark"`.
 
 Scripts run on their own fixed clock, so their frames and expectations are the same with vertical
 sync or without. `--no-vsync` runs the program with `--no-vsync`, as fast as it can draw, like for

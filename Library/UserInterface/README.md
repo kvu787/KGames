@@ -321,8 +321,10 @@ soon as one can. `F10` switches it on and off while the program runs. With it of
 as soon as they're drawn, and may tear, and the loop spins, so that the input that reaches the
 screen is as fresh as it can be.
 
-RunInBackground's test runs use `--no-activate`, `--vsync` and `--no-input`, so that they share the
-computer lightly with someone using it, like playing a game: the window opens beneath the others
+RunInBackground's test runs also start light and maximized, with `--theme Light` and
+`--window-mode Maximized`, whatever the program's settings say, so that scripts start the same way
+whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`, so that
+they share the computer lightly with someone using it, like playing a game: the window opens beneath the others
 and the process asks Windows for efficiency mode, where a window that someone uses asks for full
 execution speed; frames wait for vertical sync, whatever the program's settings say, at most one a
 refresh, and the loop waits on DXGI between them, instead of spinning; GameInput, with its helper

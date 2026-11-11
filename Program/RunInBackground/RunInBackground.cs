@@ -15,6 +15,9 @@
 //   - It opens with --no-input, so it doesn't start GameInput, or the helper
 //     process that GameInput starts to read keyboards and mice. Without
 //     focus, it would ignore all input anyway.
+//   - It opens with --theme Light and --window-mode Maximized, whatever its
+//     settings say, so that its scripts and screenshots start the same way
+//     whatever someone set for themselves. --arguments can say otherwise.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //   - It runs in a job that ends it if this program stops partway.
@@ -196,16 +199,19 @@ static void Run(string[] arguments) {
         exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{package}.exe");
     }
     var sync = verticalSync ? " --vsync" : " --no-vsync";
+    // Light and maximized, whatever the program's settings say, so that every run starts the
+    // same way. --arguments come after these, so they can say otherwise.
+    const string LightAndMaximized = " --theme Light --window-mode Maximized";
 
     if (scripts.Count > 0) {
-        RunScripts(program, exe, display, sync + extraArguments, scripts, Path.Combine(output, program), timeout);
+        RunScripts(program, exe, display, sync + LightAndMaximized + extraArguments, scripts, Path.Combine(output, program), timeout);
         return;
     }
 
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    var options = winUi ? "" : $" --no-input{sync}";
+    var options = winUi ? "" : $" --no-input{sync}{LightAndMaximized}";
     using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate{options}{extraArguments}", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process);
@@ -296,7 +302,7 @@ static void Run(string[] arguments) {
 // Runs each script, one at a time, and says which passed. A script fails if
 // the program exits with an error, which includes expectations it didn't
 // meet, if it runs past the timeout, or if its window takes focus.
-static void RunScripts(string program, string exe, string display, string sync, List<string> scripts, string output, double timeout) {
+static void RunScripts(string program, string exe, string display, string options, List<string> scripts, string output, double timeout) {
     var failed = new List<string>();
     foreach (var script in scripts) {
         var name = Path.GetFileNameWithoutExtension(script);
@@ -308,7 +314,7 @@ static void RunScripts(string program, string exe, string display, string sync, 
         var outputLog = Path.Combine(folder, "Output.log");
         var errorLog = Path.Combine(folder, "Errors.log");
         string? failure = null;
-        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input{sync} --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
+        using (var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate --no-input{options} --script \"{script}\" --output \"{folder}\"", outputLog, errorLog, false)) {
             var watch = new FocusWatch(process);
             using (watch) {
                 if (!process.WaitForExit(TimeSpan.FromSeconds(timeout))) {
