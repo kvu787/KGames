@@ -215,7 +215,7 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     startup.settings.boolean("Own", false);
     startup.settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    let expected = "{\n    \"Display\": \"Primary\",\n    \"WindowMode\": \"WindowedMaximized\",\n    \"VerticalSync\": true,\n    \"Theme\": \"Light\",\n    \"Own\": false\n}\n";
+    let expected = "{\n  \"Display\": \"Primary\",\n  \"WindowMode\": \"WindowedMaximized\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }

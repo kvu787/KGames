@@ -40,7 +40,7 @@ impl Value {
     }
 
     // As JSON text, with each object member on its own line, indented by
-    // four spaces a level. Arrays of numbers, strings and the like stay on
+    // two spaces a level. Arrays of numbers, strings and the like stay on
     // one line, unless it would be longer than LINE_LENGTH, when each item
     // gets its own. Numbers are written so that they parse back exactly. JSON
     // has no infinities or NaN, so those are written as null.
@@ -114,7 +114,7 @@ pub const LINE_LENGTH: usize = 100;
 fn newline(text: &mut String, depth: usize) {
     text.push('\n');
     for _ in 0..depth {
-        text.push_str("    ");
+        text.push_str("  ");
     }
 }
 

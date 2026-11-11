@@ -52,10 +52,10 @@ fn the_text_nests_by_indenting_the_lines_after_the_first() {
     let material = Parameters::default();
     let flat = format(&material, 0);
     assert_eq!(flat, text(&material));
-    assert!(flat.starts_with("{\n    \"BaseColor\": ["), "{flat}");
+    assert!(flat.starts_with("{\n  \"BaseColor\": ["), "{flat}");
     assert!(flat.ends_with("\n}"), "{flat}");
-    let nested = format(&material, 4);
-    assert_eq!(nested, flat.replace('\n', "\n    "));
+    let nested = format(&material, 2);
+    assert_eq!(nested, flat.replace('\n', "\n  "));
     let value = json::parse(&format!("{{ \"Paint\": {nested} }}")).unwrap();
     assert_eq!(parse(value.get("Paint").unwrap(), &Parameters::default()).unwrap(), material);
 }

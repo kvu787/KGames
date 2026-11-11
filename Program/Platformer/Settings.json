@@ -1,6 +1,6 @@
 {
-    "Display": "Primary",
-    "WindowMode": "WindowedMaximized",
-    "VerticalSync": true,
-    "Theme": "Light"
+  "Display": "Primary",
+  "WindowMode": "WindowedMaximized",
+  "VerticalSync": true,
+  "Theme": "Light"
 }

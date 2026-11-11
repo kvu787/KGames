@@ -76,7 +76,7 @@ fn writes_one_member_a_line() {
     let value = object([("Color", [0.5, 0.25].into()), ("Name", "Body".into())]);
     assert_eq!(
         value.to_json(),
-        "{\n    \"Color\": [0.5, 0.25],\n    \"Name\": \"Body\"\n}"
+        "{\n  \"Color\": [0.5, 0.25],\n  \"Name\": \"Body\"\n}"
     );
 }
 

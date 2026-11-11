@@ -1,13 +1,13 @@
 {
-    "Display": "Primary",
-    "WindowMode": "WindowedMaximized",
-    "VerticalSync": true,
-    "Theme": "Light",
-    "Scene": "Ribeye",
-    "Vehicle": "Yellow",
-    "Camera": "Fixed",
-    "DeadZones": {
-        "Sideways": [0.1, 0.95],
-        "ForwardAndBack": [0.05, 0.95]
-    }
+  "Display": "Primary",
+  "WindowMode": "WindowedMaximized",
+  "VerticalSync": true,
+  "Theme": "Light",
+  "Scene": "Ribeye",
+  "Vehicle": "Yellow",
+  "Camera": "Fixed",
+  "DeadZones": {
+    "Sideways": [0.1, 0.95],
+    "ForwardAndBack": [0.05, 0.95]
+  }
 }

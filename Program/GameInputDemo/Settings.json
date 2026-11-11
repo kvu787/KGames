@@ -1,7 +1,7 @@
 {
-    "Display": "CVVNY2",
-    "WindowMode": "WindowedMaximized",
-    "VerticalSync": true,
-    "Theme": "Light",
-    "RumbleTestInnerDeadZone": 0.1
+  "Display": "CVVNY2",
+  "WindowMode": "WindowedMaximized",
+  "VerticalSync": true,
+  "Theme": "Light",
+  "RumbleTestInnerDeadZone": 0.1
 }

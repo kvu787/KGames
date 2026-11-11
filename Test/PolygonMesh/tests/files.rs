@@ -34,24 +34,24 @@ fn json_reads_back_exactly() {
 #[test]
 fn json_has_a_line_for_each_position_face_and_crease() {
     let expected = r#"{
-    "Positions": [
-        [0, 0, 0],
-        [1, 0, 0],
-        [0, 1, 0.5]
-    ],
-    "Faces": [
-        [0, 1, 2]
-    ],
-    "Materials": [2],
-    "Creases": [
-        [0, 1, 2.5]
-    ]
+  "Positions": [
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 1, 0.5]
+  ],
+  "Faces": [
+    [0, 1, 2]
+  ],
+  "Materials": [2],
+  "Creases": [
+    [0, 1, 2.5]
+  ]
 }
 "#;
     assert_eq!(triangle().to_json(), expected);
     assert_eq!(
         Mesh::new().to_json(),
-        "{\n    \"Positions\": [],\n    \"Faces\": [],\n    \"Materials\": [],\n    \"Creases\": []\n}\n"
+        "{\n  \"Positions\": [],\n  \"Faces\": [],\n  \"Materials\": [],\n  \"Creases\": []\n}\n"
     );
     // Materials that don't fit on a line wrap.
     let mut grid = primitives::plane([10.0, 10.0], [10, 10]);
@@ -64,7 +64,7 @@ fn json_has_a_line_for_each_position_face_and_crease() {
         .collect();
     assert!(materials.len() > 3);
     assert!(materials.iter().all(|line| line.len() <= 100));
-    assert_eq!(materials[1], format!("        {},", vec!["0"; 31].join(", ")));
+    assert_eq!(materials[1], format!("    {},", vec!["0"; 32].join(", ")));
     assert_eq!(Mesh::from_json(&text).unwrap(), grid);
 }
 

@@ -3,19 +3,19 @@
 // programs, which keeps the faces and their materials:
 //
 //     {
-//         "Positions": [
-//             [-1, -1, -1],
-//             [1, -1, -1],
-//             ...
-//         ],
-//         "Faces": [
-//             [0, 3, 2, 1],
-//             ...
-//         ],
-//         "Materials": [0, 0, 0, 0, 0, 0],
-//         "Creases": [
-//             [2, 3, 2.5]
-//         ]
+//       "Positions": [
+//         [-1, -1, -1],
+//         [1, -1, -1],
+//         ...
+//       ],
+//       "Faces": [
+//         [0, 3, 2, 1],
+//         ...
+//       ],
+//       "Materials": [0, 0, 0, 0, 0, 0],
+//       "Creases": [
+//         [2, 3, 2.5]
+//       ]
 //     }
 //
 // Faces are lists of positions' numbers, from 0, counterclockwise when seen
@@ -212,15 +212,15 @@ fn join(numbers: &[u32], separator: &str) -> String {
 // A member that's a list with an item on each line.
 fn nested(name: &str, items: Vec<String>) -> String {
     if items.is_empty() {
-        return format!("    \"{name}\": []");
+        return format!("  \"{name}\": []");
     }
-    format!("    \"{name}\": [\n        {}\n    ]", items.join(",\n        "))
+    format!("  \"{name}\": [\n    {}\n  ]", items.join(",\n    "))
 }
 
 // A member that's a list of numbers, on one line if it fits, and wrapped
 // otherwise.
 fn wrapped(name: &str, numbers: &[u32]) -> String {
-    let line = format!("    \"{name}\": [{}]", join(numbers, ", "));
+    let line = format!("  \"{name}\": [{}]", join(numbers, ", "));
     if line.len() <= LINE_LENGTH {
         return line;
     }
@@ -230,14 +230,14 @@ fn wrapped(name: &str, numbers: &[u32]) -> String {
         match lines.last_mut() {
             // The indent, the line so far, a comma and a space, and the number,
             // with room for the comma after it.
-            Some(last) if 8 + last.len() + 2 + item.len() < LINE_LENGTH => {
+            Some(last) if 4 + last.len() + 2 + item.len() < LINE_LENGTH => {
                 last.push_str(", ");
                 last.push_str(&item);
             }
             _ => lines.push(item),
         }
     }
-    format!("    \"{name}\": [\n        {}\n    ]", lines.join(",\n        "))
+    format!("  \"{name}\": [\n    {}\n  ]", lines.join(",\n    "))
 }
 
 // A coordinate, if it's a number that a float can hold.

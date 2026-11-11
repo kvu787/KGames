@@ -1,44 +1,44 @@
 {
-    "Paint": {
-        "SlopeCarAxles": {
-            "BaseColor": [0.2159, 0.2159, 0.2159],
-            "Brightness": 0.5,
-            "Shift": 0.0,
-            "RotationDegrees": 0.0,
-            "DarkPoint": 0.0,
-            "LightPoint": 1.0
-        },
-        "SlopeCarBodyBlue": {
-            "BaseColor": [0.104, 0.3592, 0.8],
-            "Brightness": 0.20996094,
-            "Shift": 0.4140625,
-            "RotationDegrees": 35.600586,
-            "DarkPoint": 0.0,
-            "LightPoint": 1.0
-        },
-        "SlopeCarCabinBlue": {
-            "BaseColor": [0.376, 0.5315, 0.8],
-            "Brightness": 0.26464844,
-            "Shift": 0.36132813,
-            "RotationDegrees": 28.935547,
-            "DarkPoint": 0.2,
-            "LightPoint": 1.0
-        },
-        "SlopeCarHeadlights": {
-            "BaseColor": [0.98, 0.7468, 0.1568],
-            "Brightness": 0.48242188,
-            "Shift": 0.6484375,
-            "RotationDegrees": 49.7666,
-            "DarkPoint": 0.0,
-            "LightPoint": 0.8999766
-        },
-        "SlopeCarWheels": {
-            "BaseColor": [0.2702, 0.2702, 0.2702],
-            "Brightness": 0.41796875,
-            "Shift": 0.2841797,
-            "RotationDegrees": 224.49902,
-            "DarkPoint": 0.12890625,
-            "LightPoint": 0.78222656
-        }
+  "Paint": {
+    "SlopeCarAxles": {
+      "BaseColor": [0.2159, 0.2159, 0.2159],
+      "Brightness": 0.5,
+      "Shift": 0.0,
+      "RotationDegrees": 0.0,
+      "DarkPoint": 0.0,
+      "LightPoint": 1.0
+    },
+    "SlopeCarBodyBlue": {
+      "BaseColor": [0.104, 0.3592, 0.8],
+      "Brightness": 0.20996094,
+      "Shift": 0.4140625,
+      "RotationDegrees": 35.600586,
+      "DarkPoint": 0.0,
+      "LightPoint": 1.0
+    },
+    "SlopeCarCabinBlue": {
+      "BaseColor": [0.376, 0.5315, 0.8],
+      "Brightness": 0.26464844,
+      "Shift": 0.36132813,
+      "RotationDegrees": 28.935547,
+      "DarkPoint": 0.2,
+      "LightPoint": 1.0
+    },
+    "SlopeCarHeadlights": {
+      "BaseColor": [0.98, 0.7468, 0.1568],
+      "Brightness": 0.48242188,
+      "Shift": 0.6484375,
+      "RotationDegrees": 49.7666,
+      "DarkPoint": 0.0,
+      "LightPoint": 0.8999766
+    },
+    "SlopeCarWheels": {
+      "BaseColor": [0.2702, 0.2702, 0.2702],
+      "Brightness": 0.41796875,
+      "Shift": 0.2841797,
+      "RotationDegrees": 224.49902,
+      "DarkPoint": 0.12890625,
+      "LightPoint": 0.78222656
     }
+  }
 }
