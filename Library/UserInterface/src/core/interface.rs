@@ -39,9 +39,8 @@ pub struct Environment {
     // The display's identifier, like "CVVNY2", and its model.
     pub display: String,
     pub display_name: String,
-    // Whether frames may tear, and whether they wait for the screen, which
-    // F10 switches.
-    pub tearing: bool,
+    // Whether frames wait for the screen, and never tear, or present at
+    // once, and may tear, which F10 switches.
     pub vertical_sync: bool,
     // Whether input comes from a script instead of the user.
     pub scripted: bool,

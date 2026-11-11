@@ -21,7 +21,7 @@ event log. In any other setup, the window shows what's wrong instead of the card
 
 ## What it shows
 
-- **Title bar**: the GPU that draws, and whether frames may tear (see [Input latency](#input-latency)).
+- **Title bar**: the GPU that draws.
 - **App bar**: whether the window has focus, which the demo needs to read input, and the frame rate
   with the time per frame. Under it, anything wrong with the [settings file](#settings-file), or
   GameInput not being available, as info bars that close.

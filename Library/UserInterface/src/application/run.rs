@@ -170,7 +170,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         gpu: gpu.name.clone(),
         display: display.identifier.clone(),
         display_name: display.name.clone(),
-        tearing: !vertical_sync,
         vertical_sync,
         scripted,
     };
@@ -275,7 +274,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
-                    ui.environment.tearing = !presenter.vsync();
                 }
                 Request::Close => break 'frames,
             }

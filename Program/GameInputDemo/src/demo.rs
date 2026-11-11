@@ -31,11 +31,8 @@ pub enum Message {
 pub struct Demo {
     // The input, or why GameInput isn't available.
     pub input: Result<Input, String>,
-    // The window's title, with the GPU that draws, and whether frames may
-    // tear, once a frame knows them. F10 changes whether they may, so the
-    // title follows it: `title_tearing` is what the title says.
+    // The window's title, with the GPU that draws, once a frame knows it.
     title: String,
-    title_tearing: Option<bool>,
     // The last frame's time, and the time between it and the one before, in
     // seconds, which give a script's readings the time of the frame that
     // they're for.
@@ -64,7 +61,6 @@ impl Demo {
         Demo {
             input,
             title: NAME.to_string(),
-            title_tearing: None,
             last_time: 0.0,
             last_delta: 0.0,
         }
@@ -102,11 +98,9 @@ impl Program for Demo {
             Message::Tick => {
                 self.last_time = ui.time();
                 self.last_delta = ui.delta() as f64;
-                let environment = ui.environment();
-                if !environment.gpu.is_empty() && self.title_tearing != Some(environment.tearing) {
-                    self.title_tearing = Some(environment.tearing);
-                    let tearing = if environment.tearing { "frames may tear" } else { "frames don't tear" };
-                    self.title = format!("{NAME} - {} - {tearing}", environment.gpu);
+                let gpu = &ui.environment().gpu;
+                if self.title == NAME && !gpu.is_empty() {
+                    self.title = format!("{NAME} - {gpu}");
                 }
                 if let Ok(input) = &mut self.input {
                     if let Some(scripted) = input.scripted() {
