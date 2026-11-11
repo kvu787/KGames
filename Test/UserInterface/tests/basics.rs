@@ -4,6 +4,7 @@
 
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
+use user_interface::json::{self, Value};
 use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Startup, Theme, ThemeKind, WindowMode};
 
 #[test]
@@ -213,6 +214,31 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     let expected = "{\n    \"Display\": \"Primary\",\n    \"WindowMode\": \"Maximized\",\n    \"VerticalSync\": true,\n    \"Theme\": \"Light\",\n    \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
+}
+
+// Every program's Settings.json lists the settings that every program has,
+// each valid, so that each can be seen and changed there.
+#[test]
+fn every_programs_settings_file_has_the_settings_every_program_has() {
+    let programs = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Program");
+    let mut files = 0;
+    for entry in std::fs::read_dir(&programs).unwrap() {
+        let path = entry.unwrap().path().join("Settings.json");
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        files += 1;
+        let Ok(Value::Object(members)) = json::parse(&text) else {
+            panic!("{} isn't a JSON object", path.display());
+        };
+        let mut settings = Settings::from_text(&text);
+        CommonSettings::read(&mut settings);
+        assert!(settings.problems().is_empty(), "{}: {:?}", path.display(), settings.problems());
+        for name in ["Display", "WindowMode", "VerticalSync", "Theme"] {
+            assert!(members.iter().any(|(member, _)| member == name), "{} doesn't have {name}", path.display());
+        }
+    }
+    assert!(files >= 8, "found only {files} programs' Settings.json in {}", programs.display());
 }
 
 #[test]

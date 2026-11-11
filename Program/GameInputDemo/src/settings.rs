@@ -5,6 +5,7 @@
 //         "Display": "Primary",
 //         "WindowMode": "Maximized",
 //         "VerticalSync": true,
+//         "Theme": "Light",
 //         "RumbleTestInnerDeadZone": 0.1
 //     }
 

@@ -1,5 +1,6 @@
 {
     "Display": "Primary",
     "WindowMode": "Maximized",
-    "VerticalSync": true
+    "VerticalSync": true,
+    "Theme": "Light"
 }

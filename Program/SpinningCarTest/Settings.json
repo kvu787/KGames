@@ -2,6 +2,7 @@
     "Display": "Primary",
     "WindowMode": "Maximized",
     "VerticalSync": true,
+    "Theme": "Light",
     "SimplePaintShader_Axles": {
         "BaseColor": [0.2159017, 0.21590173, 0.2159017],
         "Brightness": 0.5,

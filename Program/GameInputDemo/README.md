@@ -206,6 +206,7 @@ it doesn't exist, the demo writes it with the defaults:
     "Display": "Primary",
     "WindowMode": "Maximized",
     "VerticalSync": true,
+    "Theme": "Light",
     "RumbleTestInnerDeadZone": 0.1
 }
 ```
@@ -216,9 +217,10 @@ it doesn't exist, the demo writes it with the defaults:
 | `WindowMode`              | `"Maximized"` or `"BorderlessFullscreen"`, the two supported setups         |
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
+| `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first three are the settings that every KGames program has, which
+The first four are the settings that every KGames program has, which
 [Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 

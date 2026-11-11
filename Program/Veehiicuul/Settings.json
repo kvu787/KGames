@@ -2,6 +2,7 @@
     "Display": "Primary",
     "WindowMode": "Maximized",
     "VerticalSync": true,
+    "Theme": "Light",
     "Scene": "Ribeye",
     "Vehicle": "Yellow",
     "Camera": "Fixed",

@@ -276,7 +276,8 @@ they differ by 71 pixels of height. A 3D view may still fill the window, under t
 reads first, into `startup.common`, then the program's own, which it reads from `startup.settings`
 with their defaults. A missing file is written with every default; a wrong setting keeps its
 default, and a notice under the app bar says what's wrong. `Headless::start` starts a program in
-the theme that its `Startup`'s settings say, as a run does.
+the theme that its `Startup`'s settings say, as a run does. Every program's `Settings.json` lists
+every one of the settings that every program has, which `Test/UserInterface` checks.
 
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
