@@ -91,10 +91,13 @@ impl<M: Clone + 'static> ListView<M> {
         }
     }
 
-    // Rows can be selected, one at a time, and this one is.
+    // Rows can be selected, one at a time, and this one is. A selection
+    // past the rows, like one that a program keeps of a list that got
+    // shorter, is none: the list never draws it, moves from it, or gives it
+    // to what the program set with on_activate, labels or tooltips.
     pub fn selection(mut self, selected: Option<usize>) -> Self {
         self.selectable = true;
-        self.selected = selected;
+        self.selected = selected.filter(|index| *index < self.count);
         self
     }
 

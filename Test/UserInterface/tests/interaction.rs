@@ -931,3 +931,77 @@ fn a_view_that_sends_nothing_applies_no_messages() {
     assert_eq!(app.messages_applied(), 0);
     let _ = Sense::NONE;
 }
+
+// A list of the names that a program has, which may get fewer while one of
+// the later ones is still what the program has selected.
+struct Names {
+    names: Vec<String>,
+    selected: Option<usize>,
+    activated: Vec<usize>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum NamesMsg {
+    Select(usize),
+    Activate(usize),
+}
+
+impl Program for Names {
+    type Message = NamesMsg;
+
+    fn title(&self) -> String {
+        "Names".to_string()
+    }
+
+    fn update(&mut self, message: NamesMsg, _ui: &mut Context<NamesMsg>) {
+        match message {
+            NamesMsg::Select(row) => self.selected = Some(row),
+            NamesMsg::Activate(row) => self.activated.push(row),
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<NamesMsg> {
+        let mut tree = Tree::new();
+        let rect = Rect::new(10.0, ui.content_top() + 10.0, 200.0, 100.0);
+        let names = self.names.clone();
+        // Indexing, as a program's labels do: a row past the names stops
+        // the program.
+        let list = ListView::new(self.names.len(), 20.0)
+            .selection(self.selected)
+            .on_select(NamesMsg::Select)
+            .on_activate(NamesMsg::Activate)
+            .labels(move |index| names[index].clone());
+        let shown = list.rows(ui, "Names", rect);
+        tree.container(Some("Names"), rect, list, |list| {
+            for index in shown.indices() {
+                list.draw(shown.content(index), Text::label(&self.names[index]));
+            }
+        });
+        tree
+    }
+}
+
+// A program's selection may be past its list's rows, when the list got
+// shorter and the selection wasn't moved. The list takes it as no selection:
+// it asks for no label of it, doesn't activate it, and the keys move from the
+// top.
+#[test]
+fn a_list_takes_a_selection_past_its_rows_as_none() {
+    let names = |count: usize| (0..count).map(|index| format!("Name {index}")).collect::<Vec<_>>();
+    let mut app = Headless::new(Names { names: names(3), selected: None, activated: Vec::new() });
+    app.click("Names/2");
+    assert_eq!(app.program.selected, Some(2));
+    app.program.names = names(1);
+    // The frame asks the list for its label, which is its selected row's.
+    app.frame();
+    assert_eq!(app.program.selected, Some(2), "the program's selection is the program's to move");
+    // Enter activates the selected row, and there is none.
+    app.key(Key::ENTER);
+    assert_eq!(app.program.activated, Vec::<usize>::new());
+    // Up from no selection is the first row, not the row before one that
+    // isn't there.
+    app.program.names = names(2);
+    app.program.selected = Some(5);
+    app.key(Key::UP);
+    assert_eq!(app.program.selected, Some(0));
+}
