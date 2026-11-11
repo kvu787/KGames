@@ -1,6 +1,6 @@
 <Project>
   <!--
-    Restores NuGetPackages.proj into the target folder at the root of the repository, like the
+    Restores NuGetPackages.csproj into the target folder at the root of the repository, like the
     Cargo workspace builds, which .gitignore leaves out, instead of into an obj folder here.
   -->
   <PropertyGroup>

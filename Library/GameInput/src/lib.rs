@@ -1,6 +1,6 @@
 // Hand-written bindings for the GameInput v4 API, transcribed from
 // native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package that
-// NuGetPackages.proj declares, and create, which starts GameInput with the
+// NuGetPackages.csproj declares, and create, which starts GameInput with the
 // package's GameInput.lib. GameInput isn't in the Windows
 // metadata that windows-bindgen reads, so this file copies the shape of its
 // output instead, and keeps GameInput's native names.

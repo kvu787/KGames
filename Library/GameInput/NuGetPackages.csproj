@@ -1,8 +1,8 @@
 <!--
   The NuGet packages that Library/GameInput needs, declared the way a .NET project declares its own.
-  build.rs restores them with dotnet, in locked mode, into NuGet's global packages folder, and
-  packages.lock.json pins each one's content by its hash, as Cargo.lock does for crates. Nothing
-  builds this project: it only lists packages.
+  It's a C# project only so that developers and tools know it as one: it has no C#, and nothing
+  builds it. build.rs restores it with dotnet, in locked mode, into NuGet's global packages folder,
+  and packages.lock.json pins each package's content by its hash, as Cargo.lock does for crates.
 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>

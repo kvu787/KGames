@@ -2,7 +2,7 @@
 // System32, which every program needs to start (see src/installation.rs).
 // The user installs it, once. The build never does.
 //
-// And restores the NuGet packages that NuGetPackages.proj declares, with
+// And restores the NuGet packages that NuGetPackages.csproj declares, with
 // dotnet, as packages.lock.json pins them: Microsoft.GameInput, whose
 // GameInput.lib this links, for its loader, GameInputInitialize, which
 // game_input::create starts GameInput with (see README.md).
@@ -16,7 +16,7 @@ use std::process::Command;
 
 // What a build says when there's no dotnet to restore the packages with.
 const NO_DOTNET_MESSAGE: &str = "Building KGames needs the .NET SDK, 10 or later, whose dotnet restores \
-    the Microsoft.GameInput NuGet package that Library/GameInput/NuGetPackages.proj declares. Visual Studio \
+    the Microsoft.GameInput NuGet package that Library/GameInput/NuGetPackages.csproj declares. Visual Studio \
     installs it with its .NET desktop development workload, or get it from https://dotnet.microsoft.com/download";
 
 fn main() {
@@ -52,8 +52,8 @@ const LIBRARY: &str = r"native\lib\x64\GameInput.lib";
 // Restores the packages, and returns Microsoft.GameInput's folder.
 fn restore() -> Result<PathBuf, String> {
     let directory = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    let project = directory.join("NuGetPackages.proj");
-    for file in ["NuGetPackages.proj", "packages.lock.json", "Directory.Build.props", r"..\..\nuget.config", r"..\..\global.json"] {
+    let project = directory.join("NuGetPackages.csproj");
+    for file in ["NuGetPackages.csproj", "packages.lock.json", "Directory.Build.props", r"..\..\nuget.config", r"..\..\global.json"] {
         println!("cargo::rerun-if-changed={}", directory.join(file).display());
     }
 

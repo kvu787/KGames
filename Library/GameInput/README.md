@@ -21,10 +21,12 @@ installs it with its .NET desktop development workload, or get it from
 GameInput comes in two parts: the `Microsoft.GameInput` NuGet package, which a game builds with,
 and a runtime DLL, which the user installs.
 
-**The package.** `NuGetPackages.proj` declares the NuGet packages that this crate needs, the way a
-.NET project declares its own: `Microsoft.GameInput`, exactly 4.0.306. `packages.lock.json` pins its
-content by its hash, as `Cargo.lock` does for crates. At the root of the repository, `nuget.config`
-makes nuget.org the only package source, and `global.json` asks for the .NET SDK 10 or later.
+**The package.** `NuGetPackages.csproj` declares the NuGet packages that this crate needs, the way
+a .NET project declares its own: `Microsoft.GameInput`, exactly 4.0.306. It's a C# project only
+because developers and tools know `.csproj` files best: it has no C#, and it's there only to get
+the package. `packages.lock.json` pins its content by its hash, as `Cargo.lock` does for crates. At
+the root of the repository, `nuget.config` makes nuget.org the only package source, and
+`global.json` asks for the .NET SDK 10 or later.
 
 `build.rs` restores it with `dotnet restore --locked-mode`, which fails when the project asks for
 other packages than the lock file pins, or a package that it downloads has another hash. NuGet puts
@@ -100,10 +102,10 @@ repository.
 # Updating GameInput
 
 1. Set `VERSION` and `INSTALL_COMMAND` in `src/installation.rs`, the version in
-   `NuGetPackages.proj`, and the command in [AGENTS.md](../../AGENTS.md), the root
+   `NuGetPackages.csproj`, and the command in [AGENTS.md](../../AGENTS.md), the root
    [README](../../README.md), this file and [GameInputDemo](../../Program/GameInputDemo/README.md)'s.
    Then update the lock file with
-   `dotnet restore Library\GameInput\NuGetPackages.proj --force-evaluate`. `Test/GameInput` checks
+   `dotnet restore Library\GameInput\NuGetPackages.csproj --force-evaluate`. `Test/GameInput` checks
    that they all give the same version.
 2. If the package has a new API version, compare its header, in the package's folder, with
    `src/lib.rs`, change the interface IDs and vtables to match, and update this file.
@@ -120,6 +122,6 @@ Add GameInput APIs to `src/lib.rs` by hand: replace the method's
 | `src/lib.rs`            | Hand-written GameInput v4 bindings, and `create`, which starts GameInput |
 | `src/installation.rs`   | Where the runtime DLL is installed, and the check of it and its version  |
 | `build.rs`              | Checks the runtime DLL, restores the packages, and links `GameInput.lib` |
-| `NuGetPackages.proj`    | The NuGet packages that this crate needs: `Microsoft.GameInput` 4.0.306  |
+| `NuGetPackages.csproj`  | The NuGet packages that this crate needs: `Microsoft.GameInput` 4.0.306  |
 | `packages.lock.json`    | The hash of each package's content, which a restore checks               |
 | `Directory.Build.props` | Sends what a restore writes to `target\DotNet`                           |
