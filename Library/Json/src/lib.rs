@@ -2,6 +2,8 @@
 // depends on no crates besides windows-core. The parser follows RFC 8259, and
 // says where in the text a mistake is.
 
+use std::fmt::Write;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
@@ -52,7 +54,8 @@ impl Value {
         match self {
             Value::Null => text.push_str("null"),
             Value::Bool(value) => text.push_str(if *value { "true" } else { "false" }),
-            Value::Number(value) if value.is_finite() => text.push_str(&format!("{value:?}")),
+            // Into the text itself: format! would allocate a String a number.
+            Value::Number(value) if value.is_finite() => _ = write!(text, "{value:?}"),
             Value::Number(_) => text.push_str("null"),
             Value::String(value) => write_string(text, value),
             Value::Array(values) if values.is_empty() => text.push_str("[]"),
@@ -110,21 +113,38 @@ pub const LINE_LENGTH: usize = 100;
 
 fn newline(text: &mut String, depth: usize) {
     text.push('\n');
-    text.push_str(&"    ".repeat(depth));
+    for _ in 0..depth {
+        text.push_str("    ");
+    }
+}
+
+// Whether a byte of a string is written, and read, as it is: all but the
+// quote, the backslash and the control characters. The bytes of a character
+// past ASCII are all 0x80 or more, so they are.
+fn plain(byte: u8) -> bool {
+    byte >= 0x20 && byte != b'"' && byte != b'\\'
 }
 
 fn write_string(text: &mut String, value: &str) {
     text.push('"');
-    for character in value.chars() {
-        match character {
-            '"' => text.push_str("\\\""),
-            '\\' => text.push_str("\\\\"),
-            '\n' => text.push_str("\\n"),
-            '\r' => text.push_str("\\r"),
-            '\t' => text.push_str("\\t"),
-            '\0'..='\u{1F}' => text.push_str(&format!("\\u{:04X}", character as u32)),
-            _ => text.push(character),
+    let bytes = value.as_bytes();
+    let mut position = 0;
+    while position < bytes.len() {
+        // A run of plain bytes goes in at once, which is most of any string.
+        // It ends at an ASCII byte or at the end, so it's whole characters.
+        let run = bytes[position..].iter().position(|byte| !plain(*byte)).unwrap_or(bytes.len() - position);
+        text.push_str(&value[position..position + run]);
+        position += run;
+        let Some(&byte) = bytes.get(position) else { break };
+        match byte {
+            b'"' => text.push_str("\\\""),
+            b'\\' => text.push_str("\\\\"),
+            b'\n' => text.push_str("\\n"),
+            b'\r' => text.push_str("\\r"),
+            b'\t' => text.push_str("\\t"),
+            _ => _ = write!(text, "\\u{byte:04X}"),
         }
+        position += 1;
     }
     text.push('"');
 }
@@ -367,6 +387,13 @@ impl Parser<'_> {
         self.position += 1;
         let mut string = String::new();
         loop {
+            // A run of plain bytes goes in at once, which is most of any
+            // string. It ends at an ASCII byte or at the end, so it's whole
+            // characters.
+            let rest = &self.text.as_bytes()[self.position..];
+            let run = rest.iter().position(|byte| !plain(*byte)).unwrap_or(rest.len());
+            string.push_str(&self.text[self.position..self.position + run]);
+            self.position += run;
             let start = self.position;
             let Some(character) = self.peek() else {
                 return Err(self.error("expected '\"' to end the string"));
