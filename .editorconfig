@@ -7,10 +7,16 @@ end_of_line = lf
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-[*.{json,xml,slnx,csproj,py,rs,toml,hlsl}]
+[*.{json,py,rs,toml,hlsl}]
 
 indent_style = space
 indent_size = 4
+
+# XML, and MSBuild's projects and props, indent by 2, as dotnet writes them.
+[*.{xml,slnx,csproj,props,targets,manifest}]
+
+indent_style = space
+indent_size = 2
 
 [*.md]
 
