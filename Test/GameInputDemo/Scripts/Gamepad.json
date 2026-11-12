@@ -18,7 +18,8 @@
           "RightStick": [-0.7, 0.7],
           "LeftTrigger": 0.25,
           "RightTrigger": 0.75,
-          "Buttons": ["A", "LB"]
+          "Buttons": ["A", "LB"],
+          "ReadingsPerSecond": 0.5
         },
         "Latest": [
           "A pressed",
@@ -37,7 +38,7 @@
       "Frame": 5,
       "Expect": {
         "ReadingCount": 2,
-        "Gamepad": { "LeftStick": [0.0, 0.0], "RightStick": [0.0, 0.0], "LeftTrigger": 0.0, "RightTrigger": 0.0, "Buttons": [] },
+        "Gamepad": { "LeftStick": [0.0, 0.0], "RightStick": [0.0, 0.0], "LeftTrigger": 0.0, "RightTrigger": 0.0, "Buttons": [], "ReadingsPerSecond": 1.0 },
         "Latest": [
           "A released",
           "LB released",

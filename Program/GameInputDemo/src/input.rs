@@ -125,6 +125,37 @@ impl RateCounter {
     }
 }
 
+// How many readings a second a gamepad gives, on average over the last two
+// seconds: the readings of it that the demo handled in that time, divided by
+// two. A reading is in them until two seconds after its own time, by the
+// source's clock, so the average moves on every frame, not once a second.
+#[derive(Default)]
+pub struct AverageRate {
+    // The handled readings' times, in the source's microseconds, oldest first.
+    timestamps: VecDeque<u64>,
+}
+
+impl AverageRate {
+    // How far back the average looks, in microseconds.
+    pub const LOOKBACK: u64 = 2_000_000;
+
+    fn add(&mut self, timestamp: u64) {
+        self.timestamps.push_back(timestamp);
+    }
+
+    // Forgets the readings that are two seconds old or older at `now`.
+    fn tick(&mut self, now: u64) {
+        while self.timestamps.front().is_some_and(|&timestamp| now.saturating_sub(timestamp) >= Self::LOOKBACK) {
+            self.timestamps.pop_front();
+        }
+    }
+
+    // Readings a second, over the last two seconds.
+    pub fn per_second(&self) -> f64 {
+        self.timestamps.len() as f64 * 1_000_000.0 / Self::LOOKBACK as f64
+    }
+}
+
 #[derive(Default)]
 pub struct GamepadView {
     // The device's ID. See Device.
@@ -132,7 +163,9 @@ pub struct GamepadView {
     pub layout: Option<GameInputGamepadButtons>,
     pub rumble_motors: GameInputRumbleMotors,
     pub state: GameInputGamepadState,
-    pub rate: RateCounter,
+    // Its readings that the demo handled in the last two seconds, since the
+    // card started showing it.
+    pub rate: AverageRate,
 }
 
 // How far a gamepad's left and right sticks last were from their centers,
@@ -417,7 +450,7 @@ impl Input {
             self.take_reading(source, kind, reading);
         }
 
-        self.gamepad.rate.tick(self.now);
+        self.gamepad.rate.tick(now);
         self.keyboard.rate.tick(self.now);
         self.mouse.rate.tick(self.now);
         // Without focus, the sticks don't drive the motors.
@@ -689,7 +722,7 @@ impl Input {
             Source::Gamepad => {
                 let state = masked.gamepad(reading.gamepad);
                 let old = previous.map(|previous| masked_before.gamepad(previous.gamepad));
-                self.handle_gamepad(time, state, old.unwrap_or_default(), id)
+                self.handle_gamepad(reading.timestamp, state, old.unwrap_or_default(), id)
             }
             Source::Keyboard => {
                 let keys = masked.keys(&reading.keys);
@@ -738,15 +771,15 @@ impl Input {
         }
     }
 
-    // `old` is the state of the device's previous reading, or idle.
+    // `timestamp` is the reading's, and `old` the state of the device's
+    // previous reading, or idle.
     fn handle_gamepad(
         &mut self,
-        time: f64,
+        timestamp: u64,
         state: GameInputGamepadState,
         old: GameInputGamepadState,
         device: Option<usize>,
     ) -> (Vec<String>, Vec<String>, bool) {
-        self.gamepad.rate.add(time);
         if let Some(device) = device {
             let sticks = [
                 deflection(state.leftThumbstickX, state.leftThumbstickY),
@@ -769,6 +802,8 @@ impl Input {
         }
         let view = &mut self.gamepad;
         view.state = state;
+        // After the view is set up, so the reading that sets it up counts.
+        view.rate.add(timestamp);
 
         let mut changes = Vec::new();
         for &(button, name) in GAMEPAD_BUTTONS {
@@ -1078,6 +1113,7 @@ impl Input {
                     ("LeftTrigger", state.leftTrigger.into()),
                     ("RightTrigger", state.rightTrigger.into()),
                     ("Buttons", names(state.buttons, GAMEPAD_BUTTONS).into()),
+                    ("ReadingsPerSecond", gamepad.rate.per_second().into()),
                 ]),
             ),
             (

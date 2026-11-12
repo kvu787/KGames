@@ -28,8 +28,10 @@ event log. In any other setup, the window shows what's wrong instead of the card
 - **Gamepad**: an XY graph for each stick, with the unit circle, a ring half way, and the dead zone
   of the [rumble test](#rumble-test), the only part of the demo that applies one. Everywhere else,
   the demo shows the sticks' and triggers' raw values. A bar for each trigger. A chip for every
-  button, in the accent color while it's held, and faint if the gamepad says it lacks it. A combo
-  box after the card's title picks which [gamepad the demo listens to](#choosing-a-gamepad), if any.
+  button, in the accent color while it's held, and faint if the gamepad says it lacks it. Under
+  them, [how many readings a second](#readings-a-second) the gamepad gives, on average over the
+  last two seconds. A combo box after the card's title picks which
+  [gamepad the demo listens to](#choosing-a-gamepad), if any.
 - **Latest input event**: the newest reading that changed something: its device, what changed, how
   long after that device's previous reading it came, and the device's whole state. If that doesn't
   all fit, the card's details scroll.
@@ -288,6 +290,24 @@ Keys and buttons that are still held when the window gets focus, like the button
 gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go of: they
 don't show as held, and neither their press nor their release is logged. After that, they work as
 usual. Sticks, triggers and mouse motion show as usual right away.
+
+### Readings a second
+
+The Gamepad card says how many readings a second its gamepad gives, on average over the last two
+seconds: the readings of it that the demo handled in that time, divided by two, on every frame.
+It starts over when the card starts showing a gamepad, when that gamepad reconnects, and when the
+window loses focus, as readings without focus aren't handled, and then takes two seconds to settle.
+
+A reading isn't always one of the gamepad's own reports. GameInput reads a gamepad in Xbox 360
+mode, which Windows' XUSB driver runs, by polling it on a timer, at most once a millisecond, so
+it gives at most about 1,000 readings a second, however often the gamepad reports. On the
+development machine, a GameSir controller in Xbox 360 mode that reports 8,000 times a second gave
+about 950. It gives that many only because the demo holds 1 ms timers, as every KGames program
+that reads the gamepad does (see [Library/UserInterface](../../Library/UserInterface/README.md#input)).
+With Windows' default timers, it gave 64 a second, 15.6 ms apart, so a stick's graph moved only 64
+times a second, less smoothly than the mouse's pad. When another program starts reading GameInput
+while the demo runs, the demo's readings of such a gamepad can drop back to 64 a second. How many a
+gamepad in another mode gives wasn't measured.
 
 ## Input latency
 

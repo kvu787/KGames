@@ -228,8 +228,8 @@ fn gamepad(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, rect: Rect) {
     let rumble_dead_zone = input.rumble_dead_zone;
     let rumble = if input.rumble_enabled { "on" } else { "off" };
     let status_line = format!(
-        "Readings: {}/s   ·   Rumble test: {rumble} (F1)   ·   Motors: {}",
-        view.rate.per_second,
+        "Readings: {:.0}/s over the last 2 s   ·   Rumble test: {rumble} (F1)   ·   Motors: {}",
+        view.rate.per_second(),
         rumble_motor_names(view.rumble_motors)
     );
     let chips: Vec<Chip> = GAMEPAD_BUTTONS

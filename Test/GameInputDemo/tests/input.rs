@@ -585,6 +585,143 @@ fn readings_are_handled_in_the_order_they_came() {
     expect(&input, r#"{ "ReadingCount": 3, "Latest": ["A up"] }"#);
 }
 
+// The Gamepad card's readings a second, from the demo's state.
+fn readings_per_second(input: &Input) -> f64 {
+    match input.state().get("Gamepad").and_then(|gamepad| gamepad.get("ReadingsPerSecond")) {
+        Some(json::Value::Number(rate)) => *rate,
+        other => panic!("no ReadingsPerSecond: {other:?}"),
+    }
+}
+
+// Moves the clock on by `length` microseconds, with a reading of the gamepad
+// every `spacing` microseconds, each at its own time, and adds their times
+// to `times`.
+fn read_for(input: &mut Input, id: usize, length: u64, spacing: u64, times: &mut Vec<u64>) {
+    let start = source(input).now;
+    let end = start + length;
+    let mut next = start + spacing;
+    while next <= end {
+        source(input).now = next;
+        // The stick moves, as a real one's noise does.
+        let x = (next % 1000) as f64 / 1000.0;
+        step(input, &format!(r#"{{ "Gamepad": {{ "Id": {id}, "LeftStick": [{x}, 0] }} }}"#));
+        times.push(next);
+        next += spacing;
+    }
+    source(input).now = end;
+}
+
+// A frame with focus, `length` microseconds long, with the gamepad's
+// readings every `spacing` microseconds, if any.
+fn frame_of_readings(input: &mut Input, id: usize, length: u64, spacing: Option<u64>, times: &mut Vec<u64>) {
+    match spacing {
+        Some(spacing) => read_for(input, id, length, spacing, times),
+        None => source(input).now += length,
+    }
+    input.update(true);
+}
+
+// The time of the demo's last update, in the source's microseconds, which
+// start at 0.
+fn now(input: &Input) -> u64 {
+    (input.now * 1_000_000.0).round() as u64
+}
+
+#[test]
+fn the_gamepad_s_readings_a_second_are_averaged_over_the_last_two_seconds() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    assert_eq!(readings_per_second(&input), 0.0);
+
+    // 100 frames a second, of uneven lengths, and a reading every
+    // millisecond, like a gamepad that GameInput polls every millisecond.
+    // On every frame, the average is the readings of the last two seconds,
+    // that frame's too, divided by two.
+    let lengths = [7_000, 13_000, 10_000, 4_000, 16_000];
+    let mut times = Vec::new();
+    let check = |input: &Input, times: &[u64]| {
+        let now = now(input);
+        let recent = times.iter().filter(|&&time| now - time < 2_000_000).count();
+        assert_eq!(readings_per_second(input), recent as f64 / 2.0, "at {now} microseconds");
+    };
+    for frame in 0..300 {
+        frame_of_readings(&mut input, 1, lengths[frame % lengths.len()], Some(1_000), &mut times);
+        check(&input, &times);
+        if now(&input) == 1_000_000 {
+            // A second in, a second's readings over two seconds.
+            assert_eq!(readings_per_second(&input), 500.0);
+        }
+    }
+    // Three seconds in: a reading every millisecond is 1,000 a second.
+    assert_eq!(now(&input), 3_000_000);
+    assert_eq!(readings_per_second(&input), 1_000.0);
+
+    // Once the readings stop, they leave the average as they turn two
+    // seconds old: half of them a second later, all of them two.
+    for frame in 0..200 {
+        frame_of_readings(&mut input, 1, lengths[frame % lengths.len()], None, &mut times);
+        check(&input, &times);
+        if now(&input) == 4_000_000 {
+            assert_eq!(readings_per_second(&input), 500.0);
+        }
+    }
+    assert_eq!(now(&input), 5_000_000);
+    assert_eq!(readings_per_second(&input), 0.0);
+}
+
+#[test]
+fn the_gamepad_s_average_counts_only_the_gamepad_the_card_shows() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    step(&mut input, PAD_TWO);
+    input.update(true);
+    let mut one = Vec::new();
+    // The first reading counts, on its own frame.
+    frame_of_readings(&mut input, 1, 1_000, Some(1_000), &mut one);
+    assert_eq!(readings_per_second(&input), 0.5);
+    for _ in 0..99 {
+        // Pad Two reads too, but the card shows Pad One.
+        step(&mut input, r#"{ "Gamepad": { "Id": 2, "LeftStick": [0.5, 0] } }"#);
+        frame_of_readings(&mut input, 1, 10_000, Some(1_000), &mut one);
+    }
+    // A second of Pad One's readings, and none of Pad Two's.
+    assert_eq!(readings_per_second(&input), 495.5);
+
+    // Picking another gamepad starts over, with that one's readings.
+    input.pick_listen(gamepad(&input, "Pad Two"));
+    frame_of_readings(&mut input, 1, 10_000, Some(1_000), &mut one);
+    assert_eq!(readings_per_second(&input), 0.0);
+    let mut two = Vec::new();
+    frame_of_readings(&mut input, 2, 10_000, Some(500), &mut two);
+    assert_eq!(readings_per_second(&input), 10.0);
+
+    // A gamepad that disconnects and reconnects starts over too, and the
+    // reading that shows it again counts.
+    step(&mut input, r#"{ "Disconnect": 2 }"#);
+    input.update(true);
+    assert_eq!(readings_per_second(&input), 0.0);
+    step(&mut input, PAD_TWO);
+    frame_of_readings(&mut input, 2, 500, Some(500), &mut two);
+    expect(&input, r#"{ "Gamepad": { "Device": "Pad Two", "ReadingsPerSecond": 0.5 } }"#);
+
+    // Losing focus starts over, and readings without focus aren't handled.
+    frame_of_readings(&mut input, 2, 10_000, Some(500), &mut two);
+    assert_eq!(readings_per_second(&input), 10.5);
+    input.update(false);
+    assert_eq!(readings_per_second(&input), 0.0);
+    read_for(&mut input, 2, 10_000, 500, &mut two);
+    input.update(false);
+    assert_eq!(readings_per_second(&input), 0.0);
+    // Nor are the ones from before the frame that gets focus back.
+    read_for(&mut input, 2, 10_000, 500, &mut two);
+    source(&mut input).now += 1;
+    input.update(true);
+    assert_eq!(readings_per_second(&input), 0.0);
+    frame_of_readings(&mut input, 2, 10_000, Some(500), &mut two);
+    assert_eq!(readings_per_second(&input), 10.0);
+}
+
 #[test]
 fn scripted_readings_are_whole_states() {
     let mut source = ScriptedSource::default();
