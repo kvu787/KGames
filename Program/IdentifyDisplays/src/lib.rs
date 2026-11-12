@@ -2,6 +2,8 @@
 // identifier, its model and its mode, and whether a click or Esc closes the
 // boxes, as a library that Test/IdentifyDisplays tests without a window.
 
+use std::rc::Rc;
+
 use displays::Display;
 use user_interface::tokens::{BODY, BODY_LARGE, ICON, SPACE_S, SPACE_XXXL, TITLE};
 use user_interface::{Align, Border, Color, Corners, Draw, Font, Fonts, Point, Rect, Severity, TextStyle, Weight, Widget, status_icon};
@@ -34,10 +36,11 @@ enum Kind {
 }
 
 // One box: for one monitor, which shows one display, or more if monitors
-// clone each other. It's a widget, drawn over its overlay's whole window.
+// clone each other. It's a widget, drawn over its overlay's whole window. Its
+// lines are shared, so the copy that each frame draws is cheap.
 #[derive(Clone)]
 pub struct Identity {
-    lines: Vec<Line>,
+    lines: Rc<[Line]>,
     // Displays at other scales get a box as big as it would look at 100%.
     scale: f32,
     // Whether one of the boxes has focus.
@@ -81,7 +84,7 @@ impl Identity {
             kind: Kind::Gap,
         });
         Identity {
-            lines,
+            lines: lines.into(),
             scale: displays[0].dpi as f32 / 96.0,
             focused: true,
         }
@@ -98,8 +101,8 @@ impl Identity {
         if self.focused { (Severity::Success, FOCUSED_HINT) } else { (Severity::Warning, UNFOCUSED_HINT) }
     }
 
-    // How wide the status line is, its icon and text, in physical pixels.
-    fn hint_width(&self, text: &str, fonts: &mut Fonts) -> f32 {
+    // How wide a status line is, its icon and text, in physical pixels.
+    pub fn hint_width(&self, text: &str, fonts: &mut Fonts) -> f32 {
         ((ICON + SPACE_S) * self.scale).round() + fonts.measure(text, self.style(BODY)).width.ceil()
     }
 
@@ -116,7 +119,7 @@ impl Identity {
     pub fn size(&self, fonts: &mut Fonts) -> (f32, f32) {
         let mut width = MINIMUM_WIDTH * self.scale;
         let mut height = 0.0;
-        for line in &self.lines {
+        for line in self.lines.iter() {
             let style = self.style(line.style);
             width = width.max(fonts.measure(&line.text, style).width.ceil());
             height += style.line_height;
@@ -145,7 +148,7 @@ impl<M: 'static> Widget<M> for Identity {
         painter.shape(bounds, Corners::ZERO, Color::TRANSPARENT, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
         let padding = self.padding();
         let mut y = ACCENT_BAR * self.scale + padding;
-        for line in &self.lines {
+        for line in self.lines.iter() {
             let style = self.style(line.style);
             let color = match line.kind {
                 Kind::Identifier | Kind::Name => theme.text_primary,

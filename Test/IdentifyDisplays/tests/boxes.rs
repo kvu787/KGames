@@ -2,9 +2,9 @@
 // windows on the displays, and checks it: its size fits its text, its accent
 // bar and identifier draw, and its last line says whether a box has focus.
 
-use identify_displays::{Identity, UNFOCUSED_HINT};
+use identify_displays::{FOCUSED_HINT, Identity, UNFOCUSED_HINT};
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::tokens::{BODY, ICON, SPACE_S, SPACE_XXXL};
+use user_interface::tokens::{BODY, SPACE_XXXL};
 use user_interface::{Context, Fonts, Headless, Program, Size, Theme, ThemeKind, Tree, Ui};
 
 struct Shown(Identity);
@@ -71,8 +71,10 @@ fn each_box_says_whether_a_click_or_esc_closes_them() {
         let (width, height) = identity.size(&mut fonts);
         let padding = (SPACE_XXXL * scale).round();
         let line = (BODY.line_height * scale).round();
-        let hint_width = ((ICON + SPACE_S) * scale).round() + fonts.measure(UNFOCUSED_HINT, BODY).width * scale;
-        assert!(hint_width <= width - padding * 2.0 + 1.0, "{hint_width} doesn't fit {width}");
+        for hint in [FOCUSED_HINT, UNFOCUSED_HINT] {
+            let hint_width = identity.hint_width(hint, &mut fonts);
+            assert!(hint_width <= width - padding * 2.0, "{hint}: {hint_width} doesn't fit {width}");
+        }
         for (focused, shown, hidden) in [(true, theme.success, theme.caution), (false, theme.caution, theme.success)] {
             let mut app = Headless::with_size(Shown(identity.clone().focused(focused)), ThemeKind::Light, Size::new(width, height));
             let image = app.render(&mut gpu).unwrap();
