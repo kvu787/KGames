@@ -4,12 +4,13 @@
 // The counters are the whole process's, so these tests run without the test
 // harness, one after another on the main thread, where nothing else allocates
 // while they count, but the threads that a test starts itself. Under libtest,
-// other tests run on threads of their own,
-// and its main thread allocates as it starts and finishes them, which the
-// counts would take in. Every allocation goes through `black_box`, so that
-// the optimizer can't drop one whose block is never read.
+// other tests run on threads of their own, and its main thread allocates as
+// it starts and finishes them, which the counts would take in. Every
+// allocation goes through `black_box`, so that the optimizer can't drop one
+// whose block is never read.
 
-use std::io::Write;
+mod common;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -24,17 +25,8 @@ const TESTS: [(&str, fn()); 5] = [
     ("the_peak_is_never_less_than_what_is_held_while_other_threads_allocate", the_peak_is_never_less_than_what_is_held_while_other_threads_allocate),
 ];
 
-// Runs every test, and stops at the first that fails, whose panic fails the
-// run. Counting is off between them, so what this prints isn't counted.
 fn main() {
-    println!("running {} tests", TESTS.len());
-    for (name, test) in TESTS {
-        print!("test {name} ... ");
-        std::io::stdout().flush().unwrap();
-        test();
-        println!("ok");
-    }
-    println!("test result: ok. {} passed", TESTS.len());
+    common::run(&TESTS);
 }
 
 fn the_allocator_counts_the_bytes_it_hands_out_and_takes_back() {

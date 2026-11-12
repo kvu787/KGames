@@ -6,18 +6,12 @@
 // other tests run on threads of their own, and its main thread allocates as
 // it starts and finishes them, which a group's counts would take in.
 
-use std::io::Write;
+mod common;
 
 use benchmarks::{Budget, MEMORY_GROUPS};
 
 fn main() {
-    let name = "every_memory_group_runs_once_and_counts_something";
-    println!("running 1 test");
-    print!("test {name} ... ");
-    std::io::stdout().flush().unwrap();
-    every_memory_group_runs_once_and_counts_something();
-    println!("ok");
-    println!("test result: ok. 1 passed");
+    common::run(&[("every_memory_group_runs_once_and_counts_something", every_memory_group_runs_once_and_counts_something)]);
 }
 
 fn every_memory_group_runs_once_and_counts_something() {
