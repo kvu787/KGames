@@ -624,6 +624,33 @@ fn runs_of_motion_share_a_log_line() {
     expect(&input, r#"{ "Mouse": { "Delta": [0, 0], "Wheel": [0, -120] } }"#);
 }
 
+// At thousands of readings a second, a run of motion is described once, from
+// its last reading, when the run ends or the update does: the log's line and
+// the Latest card are that reading's, as if each reading had been described,
+// and a run that goes on in the next update stays on the same line.
+#[test]
+fn a_run_of_motion_is_described_from_its_last_reading() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(true);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.25, 0] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "RightTrigger": 0.5 } }"#);
+    input.update(true);
+    assert_eq!(log(&input)[0], "Pad One: right trigger 0.500");
+    assert_eq!(input.log[0].count, 3);
+    let latest = input.latest.as_ref().unwrap();
+    assert_eq!((latest.number, latest.device.as_str()), (3, "Pad One"));
+    assert_eq!(latest.changes, ["right trigger 0.500"]);
+    assert_eq!(latest.state[..2], ["Left stick (+0.500, +0.000)   Right stick (+0.000, +0.000)", "Left trigger 0.000   Right trigger 0.500"]);
+
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.75, 0], "RightTrigger": 0.5 } }"#);
+    input.update(true);
+    assert_eq!(log(&input)[..2], ["Pad One: left stick (+0.750, +0.000)", "Listening to Pad One only"]);
+    assert_eq!(input.log[0].count, 4);
+    assert_eq!(input.latest.as_ref().unwrap().number, 4);
+}
+
 #[test]
 fn readings_are_handled_in_the_order_they_came() {
     let mut input = input();

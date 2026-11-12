@@ -269,6 +269,10 @@ Then the demo:
    every device's last reading itself for that, including the ones it drops without focus.
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
    pause a held key would show as pressed again.
+4. Logs what changed, and shows the newest reading that changed something on the Latest card. A
+   run of readings from one device that only move sticks, triggers or the mouse shares one line of
+   the log, and only the run's last reading is described, for the log and the card, once the run
+   ends or the frame does, as a gamepad can give thousands of readings a second.
 
 `src/game_input_source.rs` takes the library's devices and readings, once each a frame, as plain
 data, so that the rest of the demo also runs on input from tests and scripts (see
@@ -282,9 +286,9 @@ says whether it has focus. The library leaves GameInput's background input off (
 no readings while its window doesn't have focus: as the window loses focus, a reading of each
 device at rest, and nothing after that until focus comes back. The demo also drops what comes
 without focus itself, by the window's own focus changes: readings that come while the window
-doesn't have focus, including while it's minimized, and from before it got focus, like the reading
-of a gamepad that GameInput gives as focus comes, which came before the frame that saw the focus on
-the development machine. When the window loses focus, the cards stop showing keys, buttons and
+doesn't have focus, including while it's minimized, and from before it got focus by their
+timestamps, whichever frame they come in, like the reading of a gamepad that GameInput gives as
+focus comes, which came before the frame that saw the focus on the development machine. When the window loses focus, the cards stop showing keys, buttons and
 sticks as held, and a gamepad that the demo switches to then shows at rest. The frame that restores
 a minimized window counts as the window getting focus, after losing it.
 

@@ -357,11 +357,203 @@ pub struct Input {
     pub listen_picked: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
+    // The run of motion-only readings from one device that's going, which
+    // the log and the Latest card show once it ends.
+    motion: Option<MotionRun>,
     // Whether the window had focus at the last update, so input was handled.
     focused: bool,
     // When the window last got focus, in the source's clock. Readings from
     // before then are input without focus too, like the click that gave it.
     focus_timestamp: u64,
+}
+
+// A reading that changed something, to log and show on the Latest card.
+struct Report {
+    number: u64,
+    time: f64,
+    source: Source,
+    device: Option<usize>,
+    kinds: GameInputKind,
+    timestamp: u64,
+    interval: Option<f64>,
+    change: Change,
+}
+
+// Motion-only readings in a row from one device, of which the last is
+// described.
+struct MotionRun {
+    report: Report,
+    count: u32,
+}
+
+// What a reading changed, without what's masked. A keyboard's changes are
+// described as it's read, and a gamepad's and a mouse's only once they're
+// shown, as their motion can come thousands of times a second.
+enum Change {
+    Gamepad {
+        state: GameInputGamepadState,
+        old: GameInputGamepadState,
+    },
+    Keyboard {
+        changes: Vec<String>,
+        summary: Vec<String>,
+    },
+    Mouse {
+        state: GameInputMouseState,
+        old: Option<GameInputMouseState>,
+    },
+}
+
+impl Change {
+    // None if the reading changed nothing, or else whether it changed only
+    // motion: sticks, triggers, the mouse's position or its wheels, and no
+    // keys or buttons.
+    fn motion_only(&self) -> Option<bool> {
+        match self {
+            Change::Gamepad { state, old } => {
+                let buttons = GAMEPAD_BUTTONS.iter().any(|&(button, _)| (state.buttons ^ old.buttons) & button != 0);
+                let motion = (state.leftThumbstickX, state.leftThumbstickY) != (old.leftThumbstickX, old.leftThumbstickY)
+                    || (state.rightThumbstickX, state.rightThumbstickY) != (old.rightThumbstickX, old.rightThumbstickY)
+                    || state.leftTrigger != old.leftTrigger
+                    || state.rightTrigger != old.rightTrigger;
+                (buttons || motion).then_some(!buttons)
+            }
+            Change::Keyboard { changes, .. } => (!changes.is_empty()).then_some(false),
+            Change::Mouse { state, old } => mouse_motion_only(state, old.as_ref()),
+        }
+    }
+
+    // The changes, as the log and the Latest card list them, and the state,
+    // as the Latest card shows it.
+    fn describe(self) -> (Vec<String>, Vec<String>) {
+        match self {
+            Change::Gamepad { state, old } => (gamepad_changes(&state, &old), gamepad_summary(&state)),
+            Change::Keyboard { changes, summary } => (changes, summary),
+            Change::Mouse { state, old } => (mouse_changes(&state, old.as_ref()), mouse_summary(&state)),
+        }
+    }
+}
+
+// What changed since `old`, the previous reading's state, or idle.
+fn gamepad_changes(state: &GameInputGamepadState, old: &GameInputGamepadState) -> Vec<String> {
+    let mut changes = Vec::new();
+    for &(button, name) in GAMEPAD_BUTTONS {
+        let (now, before) = (state.buttons & button != 0, old.buttons & button != 0);
+        if now && !before {
+            changes.push(format!("{name} pressed"));
+        } else if before && !now {
+            changes.push(format!("{name} released"));
+        }
+    }
+    if (state.leftThumbstickX, state.leftThumbstickY) != (old.leftThumbstickX, old.leftThumbstickY) {
+        changes.push(format!("left stick {}", pair(state.leftThumbstickX, state.leftThumbstickY)));
+    }
+    if (state.rightThumbstickX, state.rightThumbstickY) != (old.rightThumbstickX, old.rightThumbstickY) {
+        changes.push(format!("right stick {}", pair(state.rightThumbstickX, state.rightThumbstickY)));
+    }
+    if state.leftTrigger != old.leftTrigger {
+        changes.push(format!("left trigger {:.3}", state.leftTrigger));
+    }
+    if state.rightTrigger != old.rightTrigger {
+        changes.push(format!("right trigger {:.3}", state.rightTrigger));
+    }
+    changes
+}
+
+fn gamepad_summary(state: &GameInputGamepadState) -> Vec<String> {
+    let held: Vec<&str> = GAMEPAD_BUTTONS
+        .iter()
+        .filter(|(button, _)| state.buttons & button != 0)
+        .map(|(_, name)| *name)
+        .collect();
+    vec![
+        format!(
+            "Left stick {}   Right stick {}",
+            pair(state.leftThumbstickX, state.leftThumbstickY),
+            pair(state.rightThumbstickX, state.rightThumbstickY)
+        ),
+        format!("Left trigger {:.3}   Right trigger {:.3}", state.leftTrigger, state.rightTrigger),
+        format!("Buttons held: {}", if held.is_empty() { "none".to_string() } else { held.join(" ") }),
+        format!("buttons = 0x{:08X}", state.buttons),
+    ]
+}
+
+// How far the mouse moved since `old`, the previous reading's state: position
+// is a running total, so the change is the motion, which goes around an
+// i64's ends with it. The positions flags say which of relative and absolute
+// position the device reports.
+fn mouse_delta(state: &GameInputMouseState, old: Option<&GameInputMouseState>) -> [i64; 2] {
+    let relative = GameInputMouseRelativePosition;
+    match old {
+        Some(old) if state.positions & relative != 0 && old.positions & relative != 0 => [
+            state.positionX.wrapping_sub(old.positionX),
+            state.positionY.wrapping_sub(old.positionY),
+        ],
+        _ => [0, 0],
+    }
+}
+
+// Whether the absolute position that the device reports changed.
+fn absolute_moved(state: &GameInputMouseState, old: &GameInputMouseState) -> bool {
+    state.positions & GameInputMouseAbsolutePosition != 0
+        && (state.absolutePositionX, state.absolutePositionY) != (old.absolutePositionX, old.absolutePositionY)
+}
+
+// As Change::motion_only, for a mouse. Without a previous reading, only its
+// buttons count, as they're held from idle.
+fn mouse_motion_only(state: &GameInputMouseState, old: Option<&GameInputMouseState>) -> Option<bool> {
+    let old_buttons = old.map_or(0, |old| old.buttons);
+    let buttons = MOUSE_BUTTONS.iter().any(|&(button, _)| (state.buttons ^ old_buttons) & button != 0);
+    let motion = old.is_some_and(|old| {
+        mouse_delta(state, Some(old)) != [0, 0] || (state.wheelX, state.wheelY) != (old.wheelX, old.wheelY) || absolute_moved(state, old)
+    });
+    (buttons || motion).then_some(!buttons)
+}
+
+fn mouse_changes(state: &GameInputMouseState, old: Option<&GameInputMouseState>) -> Vec<String> {
+    let mut changes = Vec::new();
+    let old_buttons = old.map_or(0, |old| old.buttons);
+    for &(button, name) in MOUSE_BUTTONS {
+        let (now, before) = (state.buttons & button != 0, old_buttons & button != 0);
+        if now && !before {
+            changes.push(format!("{name} pressed"));
+        } else if before && !now {
+            changes.push(format!("{name} released"));
+        }
+    }
+    if let Some(old) = old {
+        let delta = mouse_delta(state, Some(old));
+        if delta != [0, 0] {
+            changes.push(format!("moved ({:+}, {:+})", delta[0], delta[1]));
+        }
+        let wheel = [state.wheelX.wrapping_sub(old.wheelX), state.wheelY.wrapping_sub(old.wheelY)];
+        if wheel[1] != 0 {
+            changes.push(format!("wheel {:+}", wheel[1]));
+        }
+        if wheel[0] != 0 {
+            changes.push(format!("horizontal wheel {:+}", wheel[0]));
+        }
+        if absolute_moved(state, old) {
+            changes.push(format!("absolute position ({}, {})", state.absolutePositionX, state.absolutePositionY));
+        }
+    }
+    changes
+}
+
+fn mouse_summary(state: &GameInputMouseState) -> Vec<String> {
+    let held: Vec<&str> = MOUSE_BUTTONS
+        .iter()
+        .filter(|(button, _)| state.buttons & button != 0)
+        .map(|(_, name)| *name)
+        .collect();
+    let mut summary = vec![
+        format!("Total motion ({}, {})   wheel ({}, {})", state.positionX, state.positionY, state.wheelX, state.wheelY),
+        format!("Buttons held: {}", if held.is_empty() { "none".to_string() } else { held.join(", ") }),
+    ];
+    if state.positions & GameInputMouseAbsolutePosition != 0 {
+        summary.push(format!("Absolute position ({}, {})", state.absolutePositionX, state.absolutePositionY));
+    }
+    summary
 }
 
 impl Input {
@@ -385,6 +577,7 @@ impl Input {
             listen: Listen::NoGamepad,
             listen_picked: false,
             shortcuts: Vec::new(),
+            motion: None,
             focused: false,
             focus_timestamp: u64::MAX,
         }
@@ -449,6 +642,7 @@ impl Input {
         for (source, kind, reading) in readings {
             self.take_reading(source, kind, reading);
         }
+        self.end_motion();
 
         self.gamepad.rate.tick(now);
         self.keyboard.rate.tick(self.now);
@@ -707,7 +901,6 @@ impl Input {
         {
             return;
         }
-        let label = device.map_or_else(|| "Unknown device".to_string(), |device| device.label.clone());
         // A reading with several kinds of input comes up once for each, so
         // it's counted only for the first.
         let first_kind = READING_KINDS
@@ -722,48 +915,68 @@ impl Input {
 
         // Both readings without what's masked, so it's neither reported nor
         // shown.
-        let (changes, state, motion_only) = match source {
+        let change = match source {
             Source::Gamepad => {
                 let state = masked.gamepad(reading.gamepad);
                 let old = previous.map(|previous| masked_before.gamepad(previous.gamepad));
-                self.handle_gamepad(reading.timestamp, state, old.unwrap_or_default(), id)
+                self.handle_gamepad(reading.timestamp, state, id);
+                Change::Gamepad {
+                    state,
+                    old: old.unwrap_or_default(),
+                }
             }
             Source::Keyboard => {
                 let keys = masked.keys(&reading.keys);
                 let old = previous.map(|previous| masked_before.keys(&previous.keys));
-                self.handle_keyboard(time, keys, old.unwrap_or_default(), id, &label)
+                let label = self.label(id);
+                let (changes, summary) = self.handle_keyboard(time, keys, old.unwrap_or_default(), id, label);
+                Change::Keyboard { changes, summary }
             }
             _ => {
                 let state = masked.mouse(reading.mouse);
                 let old = previous.map(|previous| masked_before.mouse(previous.mouse));
-                self.handle_mouse(time, state, old, id, &label)
+                self.handle_mouse(time, state, old, id);
+                Change::Mouse { state, old }
             }
         };
         // A reading can repeat the previous state, or change only another
         // kind of input on a device with several kinds. Those are counted but
         // not reported.
-        if changes.is_empty() {
+        let Some(motion_only) = change.motion_only() else {
             return;
-        }
-
-        // Analog motion arrives up to thousands of times a second, so a run
-        // of motion-only readings from one device shares one log entry.
-        let merge_key = motion_only.then(|| (source, id.unwrap_or(0)));
-        self.log(time, source, format!("{label}: {}", changes.join(", ")), merge_key);
-
-        self.latest = Some(LatestEvent {
+        };
+        let report = Report {
             number: self.reading_count,
             time,
             source,
-            device: label,
-            kinds: kind_names(reading.kinds),
-            changes,
-            state,
+            device: id,
+            kinds: reading.kinds,
             timestamp: reading.timestamp,
             interval: previous.map(|previous| {
                 reading.timestamp.saturating_sub(previous.timestamp) as f64 / 1000.0
             }),
-        });
+            change,
+        };
+
+        // Analog motion arrives up to thousands of times a second, so a run
+        // of motion-only readings from one device shares one log entry, and
+        // only the run's last reading is described, once the run ends or the
+        // update does.
+        if motion_only {
+            match &mut self.motion {
+                Some(run) if run.report.source == source && run.report.device == id => {
+                    run.count += 1;
+                    run.report = report;
+                }
+                _ => {
+                    self.end_motion();
+                    self.motion = Some(MotionRun { report, count: 1 });
+                }
+            }
+            return;
+        }
+        self.end_motion();
+        self.report(report, 1, false);
 
         // After logging the key press, so the log shows cause before effect.
         for key in std::mem::take(&mut self.shortcuts) {
@@ -775,15 +988,45 @@ impl Input {
         }
     }
 
-    // `timestamp` is the reading's, and `old` the state of the device's
-    // previous reading, or idle.
-    fn handle_gamepad(
-        &mut self,
-        timestamp: u64,
-        state: GameInputGamepadState,
-        old: GameInputGamepadState,
-        device: Option<usize>,
-    ) -> (Vec<String>, Vec<String>, bool) {
+    // Logs the run of motion-only readings that's going, if one is, and
+    // shows its last reading on the Latest card.
+    fn end_motion(&mut self) {
+        if let Some(run) = self.motion.take() {
+            self.report(run.report, run.count, true);
+        }
+    }
+
+    // Logs a reading's changes as one entry for `count` readings, which is
+    // merged with the log's newest entry if both are the same device's
+    // motion, and shows the reading on the Latest card.
+    fn report(&mut self, report: Report, count: u32, motion: bool) {
+        let label = self.label(report.device);
+        let (changes, state) = report.change.describe();
+        let merge_key = motion.then(|| (report.source, report.device.unwrap_or(0)));
+        self.log_readings(report.time, report.source, format!("{label}: {}", changes.join(", ")), merge_key, count);
+        self.latest = Some(LatestEvent {
+            number: report.number,
+            time: report.time,
+            source: report.source,
+            device: label,
+            kinds: kind_names(report.kinds),
+            changes,
+            state,
+            timestamp: report.timestamp,
+            interval: report.interval,
+        });
+    }
+
+    // A device's label, by its ID.
+    fn label(&self, device: Option<usize>) -> String {
+        device
+            .and_then(|id| self.devices.iter().find(|info| info.id == id))
+            .map_or_else(|| "Unknown device".to_string(), |device| device.label.clone())
+    }
+
+    // Shows the reading on the Gamepad card, if its device is listened to,
+    // and keeps its sticks for the rumble test. `timestamp` is the reading's.
+    fn handle_gamepad(&mut self, timestamp: u64, state: GameInputGamepadState, device: Option<usize>) {
         if let Some(device) = device {
             let sticks = [
                 deflection(state.leftThumbstickX, state.leftThumbstickY),
@@ -808,66 +1051,6 @@ impl Input {
         view.state = state;
         // After the view is set up, so the reading that sets it up counts.
         view.rate.add(timestamp);
-
-        let mut changes = Vec::new();
-        for &(button, name) in GAMEPAD_BUTTONS {
-            let (now, before) = (state.buttons & button != 0, old.buttons & button != 0);
-            if now && !before {
-                changes.push(format!("{name} pressed"));
-            } else if before && !now {
-                changes.push(format!("{name} released"));
-            }
-        }
-        let motion_only = changes.is_empty();
-        if (state.leftThumbstickX, state.leftThumbstickY)
-            != (old.leftThumbstickX, old.leftThumbstickY)
-        {
-            changes.push(format!(
-                "left stick {}",
-                pair(state.leftThumbstickX, state.leftThumbstickY)
-            ));
-        }
-        if (state.rightThumbstickX, state.rightThumbstickY)
-            != (old.rightThumbstickX, old.rightThumbstickY)
-        {
-            changes.push(format!(
-                "right stick {}",
-                pair(state.rightThumbstickX, state.rightThumbstickY)
-            ));
-        }
-        if state.leftTrigger != old.leftTrigger {
-            changes.push(format!("left trigger {:.3}", state.leftTrigger));
-        }
-        if state.rightTrigger != old.rightTrigger {
-            changes.push(format!("right trigger {:.3}", state.rightTrigger));
-        }
-
-        let held: Vec<&str> = GAMEPAD_BUTTONS
-            .iter()
-            .filter(|(button, _)| state.buttons & button != 0)
-            .map(|(_, name)| *name)
-            .collect();
-        let summary = vec![
-            format!(
-                "Left stick {}   Right stick {}",
-                pair(state.leftThumbstickX, state.leftThumbstickY),
-                pair(state.rightThumbstickX, state.rightThumbstickY)
-            ),
-            format!(
-                "Left trigger {:.3}   Right trigger {:.3}",
-                state.leftTrigger, state.rightTrigger
-            ),
-            format!(
-                "Buttons held: {}",
-                if held.is_empty() {
-                    "none".to_string()
-                } else {
-                    held.join(" ")
-                }
-            ),
-            format!("buttons = 0x{:08X}", state.buttons),
-        ];
-        (changes, summary, motion_only)
     }
 
     // `old` is the keys of the device's previous reading, or none.
@@ -877,8 +1060,8 @@ impl Input {
         keys: Vec<GameInputKeyState>,
         old: Vec<GameInputKeyState>,
         device: Option<usize>,
-        label: &str,
-    ) -> (Vec<String>, Vec<String>, bool) {
+        label: String,
+    ) -> (Vec<String>, Vec<String>) {
         let mut changes = Vec::new();
         for key in &keys {
             if !old.iter().any(|old| old.scanCode == key.scanCode) {
@@ -903,123 +1086,56 @@ impl Input {
         if !changes.is_empty() || view.device == device {
             view.rate.add(time);
             view.device = device;
-            view.label = label.to_string();
+            view.label = label;
             view.keys = keys;
             view.descriptions = descriptions;
         }
-        (changes, summary, false)
+        (changes, summary)
     }
 
-    // `old` is the state of the device's previous reading, if there was one.
-    fn handle_mouse(
-        &mut self,
-        time: f64,
-        state: GameInputMouseState,
-        old: Option<GameInputMouseState>,
-        device: Option<usize>,
-        label: &str,
-    ) -> (Vec<String>, Vec<String>, bool) {
-        let mut changes = Vec::new();
-        let old_buttons = old.map_or(0, |old| old.buttons);
-        for &(button, name) in MOUSE_BUTTONS {
-            let (now, before) = (state.buttons & button != 0, old_buttons & button != 0);
-            if now && !before {
-                changes.push(format!("{name} pressed"));
-            } else if before && !now {
-                changes.push(format!("{name} released"));
-            }
+    // Shows the reading on the Mouse card, if it changed something or its
+    // device is the one shown. `old` is the state of the device's previous
+    // reading, if there was one.
+    fn handle_mouse(&mut self, time: f64, state: GameInputMouseState, old: Option<GameInputMouseState>, device: Option<usize>) {
+        let changed = mouse_motion_only(&state, old.as_ref()).is_some();
+        if !changed && self.mouse.device != device {
+            return;
         }
-        let motion_only = changes.is_empty();
-
-        // Position and wheel are running totals, so the change since the
-        // previous reading is the motion, which goes around an i64's ends
-        // with them. The positions flags say which of relative and absolute
-        // position the device reports.
-        let mut delta = [0, 0];
-        if let Some(old) = old {
-            let relative = GameInputMouseRelativePosition;
-            if state.positions & relative != 0 && old.positions & relative != 0 {
-                delta = [
-                    state.positionX.wrapping_sub(old.positionX),
-                    state.positionY.wrapping_sub(old.positionY),
-                ];
-            }
-            if delta != [0, 0] {
-                changes.push(format!("moved ({:+}, {:+})", delta[0], delta[1]));
-            }
-            let wheel = [state.wheelX.wrapping_sub(old.wheelX), state.wheelY.wrapping_sub(old.wheelY)];
-            if wheel[1] != 0 {
-                changes.push(format!("wheel {:+}", wheel[1]));
-            }
-            if wheel[0] != 0 {
-                changes.push(format!("horizontal wheel {:+}", wheel[0]));
-            }
-            if state.positions & GameInputMouseAbsolutePosition != 0
-                && (state.absolutePositionX, state.absolutePositionY)
-                    != (old.absolutePositionX, old.absolutePositionY)
-            {
-                changes.push(format!(
-                    "absolute position ({}, {})",
-                    state.absolutePositionX, state.absolutePositionY
-                ));
-            }
+        let info = device.and_then(|id| self.devices.iter().find(|info| info.id == id));
+        let sample_rate = info.and_then(|info| info.mouse_sample_rate());
+        // Copied only when it changes, as a mouse can read thousands of times
+        // a second.
+        let label = info.map_or("Unknown device", |info| info.label.as_str());
+        if self.mouse.label != label {
+            self.mouse.label = label.to_string();
         }
-
-        let sample_rate = self
-            .devices
-            .iter()
-            .find(|info| Some(info.id) == device)
-            .and_then(|info| info.mouse_sample_rate());
+        let delta = mouse_delta(&state, old.as_ref());
         let view = &mut self.mouse;
-        if !changes.is_empty() || view.device == device {
-            view.rate.add(time);
-            view.device = device;
-            view.label = label.to_string();
-            view.state = state;
-            view.delta = delta;
-            view.sample_rate = sample_rate;
-            // 400 counts cross half the pad. Raw counts have no pointer
-            // acceleration, unlike the cursor.
-            for (pad, delta) in view.pad.iter_mut().zip(delta) {
-                *pad = (*pad + delta as f32 / 400.0).clamp(-1.0, 1.0);
-            }
+        view.rate.add(time);
+        view.device = device;
+        view.state = state;
+        view.delta = delta;
+        view.sample_rate = sample_rate;
+        // 400 counts cross half the pad. Raw counts have no pointer
+        // acceleration, unlike the cursor.
+        for (pad, delta) in view.pad.iter_mut().zip(delta) {
+            *pad = (*pad + delta as f32 / 400.0).clamp(-1.0, 1.0);
         }
-
-        let held: Vec<&str> = MOUSE_BUTTONS
-            .iter()
-            .filter(|(button, _)| state.buttons & button != 0)
-            .map(|(_, name)| *name)
-            .collect();
-        let mut summary = vec![
-            format!(
-                "Total motion ({}, {})   wheel ({}, {})",
-                state.positionX, state.positionY, state.wheelX, state.wheelY
-            ),
-            format!(
-                "Buttons held: {}",
-                if held.is_empty() {
-                    "none".to_string()
-                } else {
-                    held.join(", ")
-                }
-            ),
-        ];
-        if state.positions & GameInputMouseAbsolutePosition != 0 {
-            summary.push(format!(
-                "Absolute position ({}, {})",
-                state.absolutePositionX, state.absolutePositionY
-            ));
-        }
-        (changes, summary, motion_only)
     }
 
     fn log(&mut self, time: f64, source: Source, text: String, merge_key: Option<(Source, usize)>) {
+        self.log_readings(time, source, text, merge_key, 1);
+    }
+
+    // Logs an entry for `count` readings, merged with the newest entry if
+    // both have the same merge key.
+    fn log_readings(&mut self, time: f64, source: Source, text: String, merge_key: Option<(Source, usize)>, count: u32) {
         if let (Some(key), Some(last)) = (merge_key, self.log.front_mut())
             && last.merge_key == Some(key)
         {
             last.time = time;
             last.text = text;
-            last.count += 1;
+            last.count += count;
             last.format_line();
             return;
         }
@@ -1027,7 +1143,7 @@ impl Input {
             time,
             source,
             text,
-            count: 1,
+            count,
             line: String::new(),
             source_at: 0,
             text_at: 0,
