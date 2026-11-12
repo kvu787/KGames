@@ -10,9 +10,13 @@
 //   is where Windows' cursor is, so that it moves as Windows moves it.
 // - The gamepad is the newest reading of any gamepad.
 //
-// Without focus, the window gets no input, though its devices' state is
-// still followed. Keys and buttons held when focus comes count once they're
-// let go of, like the click that gives the window focus, and a press while
+// Without focus, the window gets no input, and GameInput gives none, as the
+// library leaves its background input off (see platform/input_devices.rs):
+// as focus goes, it gives each device a reading at rest, which lets go of
+// everything held. Keys and buttons held when focus comes count once they're
+// let go of. GameInput doesn't report keys and mouse buttons held from before
+// focus at all, like the click that gives the window focus, and the
+// interface ignores the gamepad's held then (input/events.rs). A press while
 // the pointer isn't on the window is another window's.
 
 use game_input::*;

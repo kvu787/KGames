@@ -277,19 +277,23 @@ its frames take, for the [input latency](../../Library/UserInterface/README.md) 
 measures.
 
 Like every KGames program, the demo only handles input while its window has focus, and the app bar
-says whether it has focus. The library turns on GameInput's background input, so that it follows
-the devices without focus too, and sees what's already held when focus comes. So the demo drops
-what comes without focus itself, by the window's own focus changes: readings that come while the
-window doesn't have focus, including while it's minimized, and from before it got focus. Otherwise it would show and log what's typed into
-other windows, and its shortcuts would run when they're pressed in other apps. When the window loses
-focus, the cards stop showing keys, buttons and sticks as held, and a gamepad that the demo switches
-to then shows at rest. The frame that restores a minimized window counts as the window getting
-focus, after losing it.
+says whether it has focus. The library leaves GameInput's background input off (see
+[Library/UserInterface](../../Library/UserInterface/README.md#input)), so GameInput gives the demo
+no readings while its window doesn't have focus: as the window loses focus, a reading of each
+device at rest, and nothing after that until focus comes back. The demo also drops what comes
+without focus itself, by the window's own focus changes: readings that come while the window
+doesn't have focus, including while it's minimized, and from before it got focus, like the reading
+of a gamepad that GameInput gives as focus comes, which came before the frame that saw the focus on
+the development machine. When the window loses focus, the cards stop showing keys, buttons and
+sticks as held, and a gamepad that the demo switches to then shows at rest. The frame that restores
+a minimized window counts as the window getting focus, after losing it.
 
 Keys and buttons that are still held when the window gets focus, like the button of the click that
-gave it, or the Alt of the Alt+Tab that switched to it, are ignored until they're let go of: they
-don't show as held, and neither their press nor their release is logged. After that, they work as
-usual. Sticks, triggers and mouse motion show as usual right away.
+gave it, or a key held down while clicking into it, are ignored until they're let go of: they don't
+show as held, and neither their press nor their release is logged. GameInput doesn't report keys
+and mouse buttons held from before at all. It does report a gamepad's held buttons, which the demo
+masks itself. After that, they work as usual. Sticks, triggers and mouse motion show as usual right
+away.
 
 ### Readings a second
 
@@ -298,16 +302,11 @@ seconds: the readings of it that the demo handled in that time, divided by two, 
 It starts over when the card starts showing a gamepad, when that gamepad reconnects, and when the
 window loses focus, as readings without focus aren't handled, and then takes two seconds to settle.
 
-A reading isn't always one of the gamepad's own reports. GameInput reads a gamepad in Xbox 360
-mode, which Windows' XUSB driver runs, by polling it on a timer, at most once a millisecond, so
-it gives at most about 1,000 readings a second, however often the gamepad reports. On the
-development machine, a GameSir controller in Xbox 360 mode that reports 8,000 times a second gave
-about 950. It gives that many only because the demo holds 1 ms timers, as every KGames program
-that reads the gamepad does (see [Library/UserInterface](../../Library/UserInterface/README.md#input)).
-With Windows' default timers, it gave 64 a second, 15.6 ms apart, so a stick's graph moved only 64
-times a second, less smoothly than the mouse's pad. When another program starts reading GameInput
-while the demo runs, the demo's readings of such a gamepad can drop back to 64 a second. How many a
-gamepad in another mode gives wasn't measured.
+While the demo has focus, GameInput gives it nearly every one of a gamepad's reports. On the
+development machine, two GameSir controllers in Xbox 360 mode, set to report 8,000 times a second,
+gave about 7,500 to 7,700 readings a second. That's with GameInput's background input off, as the
+library leaves it. With it on, GameInput read them on a timer instead, 64 times a second, 15.6 ms
+apart, and a stick's graph moved visibly less smoothly than the mouse's pad.
 
 ## Input latency
 

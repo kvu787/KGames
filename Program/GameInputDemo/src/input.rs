@@ -662,11 +662,14 @@ impl Input {
             None => (None, Masked::default()),
         };
         // KGames programs ignore all input while their window doesn't have
-        // focus. The library turns on GameInput's background input, so that
-        // it follows the devices without focus too, so the demo drops what
-        // came without focus itself, along with input from before the window
-        // got focus. Otherwise it would show and log what is typed
-        // into other windows, and run its shortcuts for them.
+        // focus. The library leaves GameInput's background input off, so
+        // GameInput gives none then, but for a reading of each device at
+        // rest as focus goes, and a gamepad's whole state as focus comes,
+        // which came before the frame that saw the window get focus on the
+        // development machine. The demo
+        // drops what came without focus itself, along with input from before
+        // the window got focus, and keeps it as the device's last reading,
+        // with what it holds masked until it's let go of.
         let focused = self.focused && reading.timestamp >= self.focus_timestamp;
         let masked = if focused {
             masked_before.still_held(kind, &reading)

@@ -137,13 +137,14 @@ impl Devices {
                 return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
             }
         };
-        // By default, GameInput gives a process input only while it has
-        // focus, on GameInput's own timing. The reader follows the devices'
-        // state without focus too, so that keys and buttons already held when
-        // the window gets focus, like the click that gives it focus, count
-        // only once they're let go of, and it drops what came without focus
-        // itself, by the window's own focus changes (input/reader.rs).
-        unsafe { game_input.EnableBackgroundInput(true) };
+        // GameInput's background input stays off, as it is by default, so
+        // GameInput gives the process input only while it has focus. On, it
+        // would give input without focus too, but GameInput then reads a
+        // gamepad in Xbox 360 mode on a timer instead of as it reports. On the
+        // development machine, with GameInput 4.0.306, two GameSir controllers
+        // in Xbox 360 mode that report 8,000 times a second gave a focused
+        // window 64 readings a second with background input on, 15.6 ms
+        // apart, and about 7,500 with it off.
         let mut devices = Devices {
             game_input,
             runtime,

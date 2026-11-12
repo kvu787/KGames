@@ -2,10 +2,12 @@
 // boxes, one on each display. Each has its own interface, drawn with one
 // GPU, and they draw only until their contents show: they don't change, so
 // the loop then only checks the input, every 4 ms or so, or as often as the
-// system clock ticks, which is every 15.6 ms unless a process asked for a
-// finer timer resolution, as waits time out on its ticks. A
+// process's timers fire, which is every 15.6 ms unless the process asks for
+// a finer timer resolution, which this one doesn't, as waits time out on its
+// timers. Other processes' requests don't change it. A
 // click on any of them, or Esc while one has focus, closes them all. The
-// input comes from GameInput, like every program's.
+// input comes from GameInput, like every program's, so only while one of
+// them has focus: GameInput doesn't report the click that gives it focus.
 
 use game_input::{GameInputKindKeyboard, GameInputKindMouse, GameInputMouseLeftButton};
 use graphics::{AdapterChoice, Gpu, Presenter};

@@ -12,7 +12,9 @@ cargo run --release --bin identify_displays -- --list
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
 `KXGR16`, in Cascadia Mono, whose 0 has a slash through it, its model and its mode. It writes the
 same to the console, with each monitor's device path. Click a box, or press `Esc` while one has
-focus, to close them. With `--list`, it only writes to the console.
+focus, to close them. They open with focus. If another window takes it, the click that gives a box
+focus back only does that, as GameInput doesn't report it, and the next click closes them. With
+`--list`, it only writes to the console.
 
 The boxes are windows without a frame that float over the others, drawn with
 [Library/UserInterface](../../Library/UserInterface/README.md)'s overlays, in its light theme. A

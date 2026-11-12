@@ -365,9 +365,6 @@ impl IGameInput {
             (Interface::vtable(self).UnregisterCallback)(Interface::as_raw(self), callbacktoken)
         }
     }
-    pub unsafe fn EnableBackgroundInput(&self, enable: bool) {
-        unsafe { (Interface::vtable(self).EnableBackgroundInput)(Interface::as_raw(self), enable) }
-    }
 }
 #[repr(C)]
 pub struct IGameInput_Vtbl {
@@ -406,7 +403,11 @@ pub struct IGameInput_Vtbl {
     CreateDispatcher: usize,
     FindDeviceFromId: usize,
     FindDeviceFromPlatformString: usize,
-    pub EnableBackgroundInput: unsafe extern "system" fn(*mut c_void, bool),
+    // Deliberately not bound: background input makes GameInput read
+    // gamepads in Xbox 360 mode on a timer, as seldom as 64 times a second,
+    // instead of as they report, so KGames leaves it off (see
+    // Library/UserInterface's platform/input_devices.rs).
+    EnableBackgroundInput: usize,
     CreateAggregateDevice: usize,
     DisableAggregateDevice: usize,
 }
