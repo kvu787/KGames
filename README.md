@@ -115,7 +115,8 @@ programs start it.
 [Benchmarks](Program/Benchmarks/README.md): [Performance](Documentation/Performance.md), where the
 programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
 [BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
-derived from Blender's, as tasks with their status.
+derived from Blender's, as tasks with their status. [GameInput](Documentation/GameInput.md) has
+what was measured of how GameInput reads gamepads, and why KGames leaves its background input off.
 
 ## Test
 
