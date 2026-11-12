@@ -172,10 +172,23 @@ impl Presenter {
     // begin before the last one has gone to the screen anyway, so waiting
     // instead of polling costs only the thread's wake-up.
     pub fn wait_ready(&mut self, gpu: &Gpu, milliseconds: u32) -> Result<()> {
-        gpu.wait_for(self.last_frame)?;
-        if !self.waitable_signaled {
-            let result = unsafe { MsgWaitForMultipleObjects(Some(&[self.waitable]), false, milliseconds, QS_ALLINPUT as u32) };
-            self.waitable_signaled = result == WAIT_OBJECT_0 as u32;
+        Self::wait_any_ready(&mut [self], gpu, milliseconds)
+    }
+
+    // Waits like `wait_ready`, until any of the presenters can begin a frame.
+    // Each display takes frames at its own refresh, and one that stops taking
+    // them, like one that's asleep, holds up none of the others.
+    pub fn wait_any_ready(presenters: &mut [&mut Presenter], gpu: &Gpu, milliseconds: u32) -> Result<()> {
+        let Some(last_frame) = presenters.iter().map(|presenter| presenter.last_frame).max() else {
+            return Ok(());
+        };
+        gpu.wait_for(last_frame)?;
+        if presenters.iter().any(|presenter| presenter.waitable_signaled) {
+            return Ok(());
+        }
+        let waitables: Vec<HANDLE> = presenters.iter().map(|presenter| presenter.waitable).collect();
+        if let Some(index) = wait_any(&waitables, milliseconds) {
+            presenters[index].waitable_signaled = true;
         }
         Ok(())
     }
@@ -233,6 +246,16 @@ impl Presenter {
             present_then_signal(&mut self.last_frame, present, || gpu.signal()).map_err(|error| with_removed_reason(gpu, error))
         }
     }
+}
+
+// Waits, without spinning, until one of the handles is signaled, a window
+// message comes, or the milliseconds pass, and returns the index of the
+// handle that ended the wait, whose signal it took, if one did. Up to 63
+// handles, as MsgWaitForMultipleObjects takes.
+pub fn wait_any(handles: &[HANDLE], milliseconds: u32) -> Option<usize> {
+    let result = unsafe { MsgWaitForMultipleObjects(Some(handles), false, milliseconds, QS_ALLINPUT as u32) };
+    let index = result.wrapping_sub(WAIT_OBJECT_0 as u32) as usize;
+    (index < handles.len()).then_some(index)
 }
 
 // Present's sync interval and flags: with vertical sync, the frame waits for

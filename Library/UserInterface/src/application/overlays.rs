@@ -5,9 +5,10 @@
 // display with a variable refresh rate then sees the overlays present like
 // any other program, instead of a frame or two and then none. Each frame's
 // `view` is told whether one of the overlays has focus. The loop reads the
-// input once a frame, and waits for the first overlay's display between
-// frames. A click on any of them, or Esc, while one has focus, closes them
-// all. The input comes from GameInput, like every program's, so only while
+// input once a frame, and waits between frames for any of the displays to
+// take another, so one that stops taking them, like one that's asleep, holds
+// up none of the others. A click on any of them, or Esc, while one has focus,
+// closes them all. The input comes from GameInput, like every program's, so only while
 // one of them has focus: GameInput doesn't report the click that gives it
 // focus, so that click only does that.
 
@@ -40,8 +41,8 @@ struct Shown {
     ui: Interface,
 }
 
-// How long the loop waits at most for the first overlay's display to take
-// another frame, or for a message, in milliseconds.
+// How long the loop waits at most for a display to take another frame, or
+// for a message, in milliseconds.
 const WAIT_MILLISECONDS: u32 = 100;
 
 // Whether a left click or Esc came since the last check. Each device's first
@@ -140,10 +141,11 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut
             gpu.report_messages();
             drew = true;
         }
-        // Waits, without spinning, for the first overlay's display to take
-        // another frame, or for a message.
-        if !drew && let Some(first) = shown.first_mut() {
-            first.presenter.wait_ready(&gpu, WAIT_MILLISECONDS).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
+        // Waits, without spinning, for any of the displays to take another
+        // frame, or for a message.
+        if !drew {
+            let mut presenters: Vec<&mut Presenter> = shown.iter_mut().map(|overlay| &mut overlay.presenter).collect();
+            Presenter::wait_any_ready(&mut presenters, &gpu, WAIT_MILLISECONDS).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
         }
     }
 }

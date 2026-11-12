@@ -3,10 +3,14 @@
 // it lets go of the frame's buffers, whether Present succeeds or not. A
 // failed Present returns its error, and the main loop ends, so the value
 // must be kept before then, or the buffers would go while the GPU still
-// draws into them. And how it presents, with vertical sync or without.
+// draws into them. How it presents, with vertical sync or without. And how
+// it waits on several presenters at once.
 
-use graphics::{present_arguments, present_then_signal};
-use windows_core::{Error, HRESULT};
+use std::time::{Duration, Instant};
+
+use graphics::{present_arguments, present_then_signal, wait_any};
+use windows_api::{CloseHandle, CreateEventW, HANDLE};
+use windows_core::{Error, HRESULT, PCWSTR};
 
 const FAILED: HRESULT = HRESULT(0x887A0001_u32 as i32);
 
@@ -53,4 +57,34 @@ fn the_fence_is_signaled_after_the_present() {
     )
     .unwrap();
     assert_eq!(*order.borrow(), ["present", "signal"]);
+}
+
+// An event that resets as a wait takes its signal, like a swap chain's frame
+// latency waitable object, which is a semaphore.
+fn event(signaled: bool) -> HANDLE {
+    let event = unsafe { CreateEventW(None, false, signaled, PCWSTR::null()) };
+    assert!(!event.0.is_null());
+    event
+}
+
+// The overlays wait on each display's presenter at once: a display that
+// stops taking frames, like one that's asleep, never signals its waitable,
+// and holds up none of the others, wherever it is in the list.
+#[test]
+fn a_wait_on_several_presenters_ends_with_whichever_is_ready() {
+    let asleep = event(false);
+    let ready = event(true);
+    let start = Instant::now();
+    assert_eq!(wait_any(&[asleep, ready], 5_000), Some(1));
+    assert!(start.elapsed() < Duration::from_secs(1), "{:?}", start.elapsed());
+    // The wait took the signal, which the presenter keeps until its frame.
+    assert_eq!(wait_any(&[asleep, ready], 0), None);
+    // Nothing ready ends the wait when the time passes.
+    let start = Instant::now();
+    assert_eq!(wait_any(&[asleep], 20), None);
+    assert!(start.elapsed() >= Duration::from_millis(15), "{:?}", start.elapsed());
+    unsafe {
+        let _ = CloseHandle(asleep);
+        let _ = CloseHandle(ready);
+    }
 }
