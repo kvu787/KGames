@@ -4,9 +4,10 @@
 // open it on that display.
 //
 // Each display gets a box in its middle, drawn with Library/UserInterface:
-// its identifier, its model and its mode. The boxes close when one is
-// clicked, or when Esc is pressed while one has focus. With --list, it only
-// writes to the console.
+// its identifier, its model and its mode, and whether one of the boxes has
+// focus. The boxes close when one is clicked, or when Esc is pressed, while
+// one has focus. Without it, a click on a box only gives it focus. With
+// --list, it only writes to the console.
 
 use std::process::ExitCode;
 
@@ -32,7 +33,8 @@ fn print(displays: &[Display], boxes: bool) {
     println!("folder to the display's identifier, or run it with --display and the identifier.");
     if boxes {
         println!();
-        println!("Click an identifier on screen, or press Esc, to close them.");
+        println!("Click an identifier on screen, or press Esc, to close them. If another window");
+        println!("has focus, click one first.");
     }
 }
 
@@ -80,9 +82,9 @@ fn run() -> Result<(), String> {
         });
         contents.push(content);
     }
-    run_overlays(&overlays, ThemeKind::Light, |ui, index| {
+    run_overlays(&overlays, ThemeKind::Light, |ui, index, focused| {
         let mut tree = Tree::new();
-        tree.draw(ui.bounds(), contents[index].clone());
+        tree.draw(ui.bounds(), contents[index].clone().focused(focused));
         tree
     })
 }

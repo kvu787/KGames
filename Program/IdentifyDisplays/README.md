@@ -11,14 +11,23 @@ cargo run --release --bin identify_displays -- --list
 
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
 `KXGR16`, in Cascadia Mono, whose 0 has a slash through it, its model and its mode. It writes the
-same to the console, with each monitor's device path. Click a box, or press `Esc` while one has
+same to the console, with each monitor's device path. Click a box, or press `Esc`, while one has
 focus, to close them. They open with focus. If another window takes it, the click that gives a box
-focus back only does that, as GameInput doesn't report it, and the next click closes them. With
-`--list`, it only writes to the console.
+focus back only does that, as GameInput doesn't report it, and the next click closes them. Each
+box's last line says which applies, after a status icon:
+
+| Focus                 | Icon    | Last line                                        |
+| --------------------- | ------- | ------------------------------------------------ |
+| A box has it          | Success | Click or press Esc to close                      |
+| Another window has it | Warning | Click to focus, then click or press Esc to close |
+
+With `--list`, it only writes to the console.
 
 The boxes are windows without a frame that float over the others, drawn with
-[Library/UserInterface](../../Library/UserInterface/README.md)'s overlays, in its light theme. A
-display at another scale than 100% gets a box as big as it would look at 100%.
+[Library/UserInterface](../../Library/UserInterface/README.md)'s overlays, in its light theme. Each
+draws a frame at every refresh of its display, with vertical sync, like any program, so a display
+with a variable refresh rate sees them present steadily. A display at another scale than 100% gets
+a box as big as it would look at 100%.
 
 An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
 which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an

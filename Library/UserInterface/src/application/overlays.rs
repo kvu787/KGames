@@ -1,13 +1,15 @@
 // Windows without a frame that float over the others, like IdentifyDisplays'
 // boxes, one on each display. Each has its own interface, drawn with one
-// GPU, and they draw only until their contents show: they don't change, so
-// the loop then only checks the input, every 4 ms or so, or as often as the
-// process's timers fire, which is every 15.6 ms unless the process asks for
-// a finer timer resolution, which this one doesn't, as waits time out on its
-// timers. Other processes' requests don't change it. A
-// click on any of them, or Esc while one has focus, closes them all. The
-// input comes from GameInput, like every program's, so only while one of
-// them has focus: GameInput doesn't report the click that gives it focus.
+// GPU, and draws a frame at every refresh of its display, with vertical sync,
+// like a program's main loop does, even though its contents rarely change: a
+// display with a variable refresh rate then sees the overlays present like
+// any other program, instead of a frame or two and then none. Each frame's
+// `view` is told whether one of the overlays has focus. The loop reads the
+// input once a frame, and waits for the first overlay's display between
+// frames. A click on any of them, or Esc, while one has focus, closes them
+// all. The input comes from GameInput, like every program's, so only while
+// one of them has focus: GameInput doesn't report the click that gives it
+// focus, so that click only does that.
 
 use game_input::{GameInputKindKeyboard, GameInputKindMouse, GameInputMouseLeftButton};
 use graphics::{AdapterChoice, Gpu, Presenter};
@@ -36,16 +38,11 @@ struct Shown {
     presenter: Presenter,
     renderer: Renderer,
     ui: Interface,
-    frames: u32,
 }
 
-// Frames that an overlay draws before the loop waits: the second makes sure
-// the first reached the screen.
-const FRAMES: u32 = 2;
-
-// How long the loop waits for messages between checks of the input, once
-// the overlays have drawn.
-const WAIT_MILLISECONDS: u32 = 4;
+// How long the loop waits at most for the first overlay's display to take
+// another frame, or for a message, in milliseconds.
+const WAIT_MILLISECONDS: u32 = 100;
 
 // Whether a left click or Esc came since the last check. Each device's first
 // reading only says what's held already.
@@ -86,8 +83,9 @@ fn went_down(devices: &mut Vec<(Option<usize>, bool)>, device: Option<usize>, do
 }
 
 // Shows the overlays, with focus, and draws each with the tree that `view`
-// describes, given its index, until one closes.
-pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut(&mut Ui, usize) -> Tree<()>) -> Result<(), String> {
+// describes, given its index and whether one of the overlays has focus, until
+// one closes.
+pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut(&mut Ui, usize, bool) -> Tree<()>) -> Result<(), String> {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let mut devices = Devices::new().map_err(|error| format!("Couldn't start GameInput, which reads the click or Esc that closes the overlays: {error}"))?;
     let mut presses = Presses::default();
@@ -103,7 +101,6 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut
             presenter,
             renderer,
             ui: Interface::new(fonts, theme, Clipboard::Own(String::new())),
-            frames: 0,
         });
     }
     for overlay in &mut shown {
@@ -121,17 +118,16 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut
             gpu.flush().map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             return Ok(());
         }
-        let mut waiting = false;
+        let focused = shown.iter().any(|overlay| overlay.window.focused());
+        let mut drew = false;
         for (index, overlay) in shown.iter_mut().enumerate() {
-            if overlay.frames >= FRAMES {
-                continue;
-            }
+            // An overlay whose display hasn't taken its last frame yet draws
+            // on a later turn of the loop.
             if !overlay.presenter.poll_ready(&gpu) {
-                waiting = true;
                 continue;
             }
             let (width, height) = overlay.presenter.size();
-            let tree = view(&mut Ui { inner: &mut overlay.ui }, index);
+            let tree = view(&mut Ui { inner: &mut overlay.ui }, index, focused);
             overlay.ui.frame_of(&tree, &[], start.elapsed().as_secs_f64(), Size::new(width as f32, height as f32), false);
             let frame = overlay.presenter.begin().map_err(|error| format!("Couldn't begin a frame: {error}"))?;
             let background = overlay.ui.theme().background;
@@ -142,11 +138,12 @@ pub fn run_overlays(overlays: &[Overlay], theme: ThemeKind, mut view: impl FnMut
                 .map_err(|error| format!("Couldn't draw: {error}"))?;
             overlay.presenter.present(&mut gpu, frame).map_err(|error| format!("Couldn't present: {error}"))?;
             gpu.report_messages();
-            overlay.frames += 1;
-            waiting |= overlay.frames < FRAMES;
+            drew = true;
         }
-        if !waiting && let Some(first) = shown.first() {
-            first.window.wait_for(WAIT_MILLISECONDS);
+        // Waits, without spinning, for the first overlay's display to take
+        // another frame, or for a message.
+        if !drew && let Some(first) = shown.first_mut() {
+            first.presenter.wait_ready(&gpu, WAIT_MILLISECONDS).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
         }
     }
 }

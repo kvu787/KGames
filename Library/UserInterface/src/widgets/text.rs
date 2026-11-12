@@ -312,7 +312,9 @@ impl StatusIcon {
     }
 }
 
-pub(crate) fn status_icon(painter: &mut Painter, center: Point, severity: Severity, size: f32) {
+// The icon itself, for widgets that draw their own, like IdentifyDisplays'
+// boxes.
+pub fn status_icon(painter: &mut Painter, center: Point, severity: Severity, size: f32) {
     let theme = painter.theme();
     let mark = match severity {
         Severity::Informational => Icon::StatusInfo,

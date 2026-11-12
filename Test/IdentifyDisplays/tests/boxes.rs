@@ -1,9 +1,10 @@
 // Draws IdentifyDisplays' box for each display offscreen, without putting
-// windows on the displays, and checks it: its size fits its text, and its
-// accent bar and identifier draw.
+// windows on the displays, and checks it: its size fits its text, its accent
+// bar and identifier draw, and its last line says whether a box has focus.
 
-use identify_displays::Identity;
+use identify_displays::{Identity, UNFOCUSED_HINT};
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
+use user_interface::tokens::{BODY, ICON, SPACE_S, SPACE_XXXL};
 use user_interface::{Context, Fonts, Headless, Program, Size, Theme, ThemeKind, Tree, Ui};
 
 struct Shown(Identity);
@@ -50,5 +51,42 @@ fn each_display_gets_a_box_that_fits_its_identifier() {
             .flat_map(|y| (0..image.width).map(move |x| (x, y)))
             .any(|(x, y)| image.pixel(x, y)[0] < 64);
         assert!(dark, "the identifier didn't draw");
+    }
+}
+
+// The last line says whether one of the boxes has focus, with a status icon:
+// a click or Esc closes the boxes only then. Each display's box fits the
+// longer of the two, as an overlay's window keeps its size.
+#[test]
+fn each_box_says_whether_a_click_or_esc_closes_them() {
+    let displays = displays::enumerate().unwrap();
+    let mut fonts = Fonts::new().unwrap();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
+    std::fs::create_dir_all(&folder).unwrap();
+    let theme = Theme::light();
+    for display in &displays {
+        let scale = display.dpi as f32 / 96.0;
+        let identity = Identity::new(&[display]);
+        let (width, height) = identity.size(&mut fonts);
+        let padding = (SPACE_XXXL * scale).round();
+        let line = (BODY.line_height * scale).round();
+        let hint_width = ((ICON + SPACE_S) * scale).round() + fonts.measure(UNFOCUSED_HINT, BODY).width * scale;
+        assert!(hint_width <= width - padding * 2.0 + 1.0, "{hint_width} doesn't fit {width}");
+        for (focused, shown, hidden) in [(true, theme.success, theme.caution), (false, theme.caution, theme.success)] {
+            let mut app = Headless::with_size(Shown(identity.clone().focused(focused)), ThemeKind::Light, Size::new(width, height));
+            let image = app.render(&mut gpu).unwrap();
+            let name = if focused { "Focused" } else { "NotFocused" };
+            write_png(&folder.join(format!("IdentifyDisplays{}{name}.png", display.identifier)), &image).unwrap();
+            let last = ((height - padding - line) as u32)..((height - padding) as u32);
+            let has = |color: user_interface::Color| {
+                let color = color.to_bytes();
+                last.clone()
+                    .flat_map(|y| (0..image.width).map(move |x| (x, y)))
+                    .any(|(x, y)| image.pixel(x, y).iter().zip(color).take(3).all(|(a, b)| (*a as i32 - b as i32).abs() <= 2))
+            };
+            assert!(has(shown), "{name}: the status icon's color isn't on the last line");
+            assert!(!has(hidden), "{name}: the other status's color is on the last line");
+        }
     }
 }

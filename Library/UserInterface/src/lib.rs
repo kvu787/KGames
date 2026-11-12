@@ -131,7 +131,7 @@ pub use widgets::progress::{ProgressBar, ProgressRing};
 pub use widgets::scrolling::{ScrollArea, ScrollBar, Scrolled, WHEEL_SCROLL};
 pub use widgets::shell::{AppBar, MenuRow, Shell, Status, StatusBar, unsupported_setup};
 pub use widgets::slider::{Slider, slider_rail};
-pub use widgets::text::{Badge, Canvas, Divider, Field, IconView, KEYCAP_HEIGHT, Keycaps, Run, Spans, StatusIcon, Swatch, Text, TextColor};
+pub use widgets::text::{Badge, Canvas, Divider, Field, IconView, KEYCAP_HEIGHT, Keycaps, Run, Spans, StatusIcon, Swatch, Text, TextColor, status_icon};
 pub use widgets::text_box::TextBox;
 pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
 pub use widgets::widget::{Elevation, Reaction, StateColors, focus_visual};
