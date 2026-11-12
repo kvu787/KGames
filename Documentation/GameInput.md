@@ -289,6 +289,22 @@ the demo without focus, with background input on and the G7 at 8 kHz:
 
 This wasn't measured with background input off.
 
+## GameInput's history of readings
+
+GameInput keeps a history of readings, which `GetNextReading` and `GetPreviousReading` walk. A
+probe that walked it back from the newest gamepad reading, with background input on, found 513
+gamepad readings every time it looked, which went back 0.54 s with a controller reading about 925
+times a second, and 1.6 s and 3.6 s with fewer. So the history is a
+number of readings, not a time: at the 7,500 a second that background input off gives, it holds
+about 70 ms. A frame that took longer, like one that waited on the GPU, would miss the readings
+that left the history, a button's tap among them.
+
+So the library also registers GameInput's reading callback, which GameInput calls for every
+reading as it comes, on its own thread, and which queues them. Each frame still walks the history
+right before the frame, as how promptly the callback comes wasn't measured, and hands out the
+readings of both, each once, oldest first. `Test/UserInterface/tests/reader.rs` pins how the two
+are merged.
+
 ## What changed in KGames
 
 | Commit    | What                                                                                                 |
@@ -302,6 +318,10 @@ This wasn't measured with background input off.
 | `fc02159` | GameInputDemo's README says that only gamepads in Xbox 360 mode were measured                        |
 | `748eee9` | Overlays draw at every refresh with vertical sync, and IdentifyDisplays says whether it has focus    |
 | `4b11fbd` | A flaky benchmark test, found along the way: a heap snapshot's peak is never less than what it holds |
+| `672aa53` | Overlays wait on every display's presenter, so a display that sleeps holds up none of the others     |
+| `1dff548` | Keys are released as focus goes, and readings from before focus count as without it, if late too     |
+| `403e053` | GameInputDemo describes a run of motion once, from its last reading, not every reading               |
+| `0242783` | A reading callback queues every reading, as the history held only 513 of a gamepad's                 |
 
 What was considered and not done:
 
@@ -336,6 +356,8 @@ What was considered and not done:
   count as a press.
 - **The Android mode**, which wasn't measured.
 - **How fresh readings are with background input off**, which wasn't measured.
+- **How promptly GameInput's reading callback comes** after a reading reaches the history, which
+  wasn't measured, so the library walks the history too.
 - **What GameInput does with keys held as focus comes on other keyboards**, which only one keyboard
   showed.
 
