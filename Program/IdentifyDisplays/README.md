@@ -9,6 +9,10 @@ cargo run --release --bin identify_displays
 cargo run --release --bin identify_displays -- --list
 ```
 
+Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people, not for
+coding agents, which run `--list` instead. It runs `HumanRun.ps1`, which does the same as the first
+command above. Other arguments go to IdentifyDisplays, like `--list`.
+
 IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
 `KXGR16`, in Cascadia Mono, whose 0 has a slash through it, its model and its mode. It writes the
 same to the console, with each monitor's device path. Click a box, or press `Esc`, while one has
@@ -61,8 +65,10 @@ the displays, saves it in `target\TestOutput`, and checks that its text fits and
 
 ## Layout
 
-| Path          | Contents                                                        |
-| ------------- | --------------------------------------------------------------- |
-| `src/main.rs` | Finds the displays, writes them to the console, and shows a box |
-|               | on each                                                         |
-| `src/lib.rs`  | Lays out and draws a box, as a library that the test draws      |
+| Path           | Contents                                                        |
+| -------------- | --------------------------------------------------------------- |
+| `src/main.rs`  | Finds the displays, writes them to the console, and shows a box |
+|                | on each                                                         |
+| `src/lib.rs`   | Lays out and draws a box, as a library that the test draws      |
+| `HumanRun.ps1` | Builds IdentifyDisplays and runs it, for people to use it       |
+| `HumanRun.cmd` | Runs `HumanRun.ps1`, for double-clicking in File Explorer       |
