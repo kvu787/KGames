@@ -2,7 +2,9 @@
 // made up by a script or a test, gathered into what happened this frame and
 // what's held. Programs and widgets read it the same way whatever made it.
 //
-// Without window focus there's no input at all. Keys and gamepad buttons
+// Without window focus there's no input at all. As focus goes, everything
+// held is let go of on that frame: keys and mouse buttons are released, the
+// gamepad goes to rest, and `focus_lost` says why. Keys and gamepad buttons
 // held when focus comes count only once they're let go of, so that the Alt
 // of an Alt+Tab, or a button pressed in another program, does nothing here.
 
@@ -138,7 +140,11 @@ impl Input {
                         button.released = true;
                     }
                 }
-                self.keys_down = [false; 256];
+                for code in 0..=255u8 {
+                    if std::mem::replace(&mut self.keys_down[code as usize], false) {
+                        self.keys_released.push(Key(code));
+                    }
+                }
                 self.ignored_keys = [false; 256];
                 self.pointer = None;
                 self.gamepad = Gamepad {
@@ -247,6 +253,11 @@ impl Input {
 
     pub fn key_released(&self, key: Key) -> bool {
         self.keys_released.contains(&key)
+    }
+
+    // This frame's releases, in order.
+    pub fn keys_released(&self) -> &[Key] {
+        &self.keys_released
     }
 
     // This frame's presses, with whether each is a repeat.

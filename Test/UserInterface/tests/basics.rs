@@ -125,9 +125,11 @@ fn events_fold_into_a_frame_of_input() {
     // A second press, soon and close by, is a double-click.
     input.begin(0.2, &[Event::ButtonPressed(MouseButton::Left)]);
     assert_eq!(input.clicks(MouseButton::Left), 2);
-    // Without focus there's no input, and losing it lets go of everything.
+    // Without focus there's no input, and losing it lets go of everything,
+    // with a release.
     input.begin(0.3, &[Event::KeyPressed { key: Key::W, repeat: false }, Event::FocusLost, Event::KeyPressed { key: Key::A, repeat: false }]);
     assert!(input.focus_lost && !input.key_down(Key::W) && !input.key_down(Key::A) && !input.button_down(MouseButton::Left));
+    assert!(input.key_released(Key::W) && input.button_released(MouseButton::Left));
     // Keys held when focus comes count once they're let go of.
     input.begin(0.4, &[Event::FocusGained(vec![Key::ALT]), Event::KeyPressed { key: Key::ALT, repeat: true }]);
     assert!(!input.key_down(Key::ALT));

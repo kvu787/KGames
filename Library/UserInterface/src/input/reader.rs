@@ -15,9 +15,12 @@
 // as focus goes, it gives each device a reading at rest, which lets go of
 // everything held. Keys and buttons held when focus comes count once they're
 // let go of. GameInput doesn't report keys and mouse buttons held from before
-// focus at all, like the click that gives the window focus, and the
-// interface ignores the gamepad's held then (input/events.rs). A press while
-// the pointer isn't on the window is another window's.
+// focus at all, like the click that gives the window focus, but reports a
+// gamepad's whole state, whose held buttons the reader ignores until they're
+// let go of. A reading from before the window got focus is input without it
+// even when it comes in a later frame than the focus change, like that
+// reading of a gamepad if GameInput is late with it. A press while the
+// pointer isn't on the window is another window's.
 
 use game_input::*;
 use windows_api::*;
@@ -52,6 +55,8 @@ pub struct InputReader {
     // Whether the gamepad goes to the interface, as Options::gamepad says.
     gamepad: bool,
     focused: bool,
+    // When the window last got focus, as the counter's ticks.
+    focus_time: i64,
     // Each keyboard's held keys, with their scan codes, by device.
     keyboards: Vec<(Option<usize>, HeldKeys)>,
     keys_down: [bool; 256],
@@ -65,6 +70,9 @@ pub struct InputReader {
     ignored_buttons: u32,
     gamepad_state: Gamepad,
     gamepad_device: Option<usize>,
+    // The gamepad's buttons held without focus, which the interface doesn't
+    // get until they're let go of.
+    gamepad_ignored: u32,
     repeat: Option<Repeat>,
     repeat_delay: i64,
     repeat_interval: i64,
@@ -94,6 +102,7 @@ impl InputReader {
         Self {
             gamepad,
             focused: false,
+            focus_time: i64::MIN,
             keyboards: Vec::new(),
             keys_down: [false; 256],
             scan_codes: [0; 256],
@@ -102,6 +111,7 @@ impl InputReader {
             ignored_buttons: 0,
             gamepad_state: Gamepad::default(),
             gamepad_device: None,
+            gamepad_ignored: 0,
             repeat: None,
             repeat_delay: (delay * clock::frequency() as f64) as i64,
             repeat_interval: (clock::frequency() as f64 / rate) as i64,
@@ -160,6 +170,7 @@ impl InputReader {
         if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
             self.gamepad_state = Gamepad::default();
             self.gamepad_device = None;
+            self.gamepad_ignored = 0;
         }
         let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
         if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
@@ -182,9 +193,11 @@ impl InputReader {
                 Item::Focus(true) => {
                     if !self.focused {
                         self.focused = true;
+                        self.focus_time = time;
                         let held = (0..=255u8).filter(|code| self.keys_down[*code as usize]).map(Key).collect();
                         frame.events.push(Event::FocusGained(held));
                         self.ignored_buttons = self.buttons_down;
+                        self.gamepad_ignored = self.gamepad_state.buttons.0;
                         self.pointer = None;
                     }
                 }
@@ -197,17 +210,24 @@ impl InputReader {
                     }
                 }
                 Item::Reading(kind, reading) => {
+                    // A reading from before the window got focus is handled
+                    // as input without focus, whenever it comes.
+                    let focused = self.focused;
+                    self.focused = focused && time >= self.focus_time;
                     match kind {
                         GameInputKindKeyboard => self.keyboard(reading, time, &mut frame.events),
                         GameInputKindMouse => self.mouse(reading, cursor, inside, &mut frame.events),
                         _ => {
                             self.gamepad_state = gamepad(&reading.gamepad);
                             self.gamepad_device = reading.device;
+                            let held = self.gamepad_state.buttons.0;
+                            self.gamepad_ignored = if self.focused { self.gamepad_ignored & held } else { held };
                         }
                     }
                     if self.focused && (kind != GameInputKindGamepad || self.gamepad) {
                         frame.input_time = Some(time);
                     }
+                    self.focused = focused;
                 }
             }
         }
@@ -229,7 +249,9 @@ impl InputReader {
         }
         self.point(cursor, inside, &mut frame.events);
         if self.gamepad {
-            frame.events.push(Event::Gamepad(self.gamepad_state));
+            let mut state = self.gamepad_state;
+            state.buttons.0 &= !self.gamepad_ignored;
+            frame.events.push(Event::Gamepad(state));
         }
         frame
     }

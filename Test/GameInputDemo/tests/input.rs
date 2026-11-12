@@ -380,6 +380,32 @@ fn gamepad_buttons_held_when_the_window_gets_focus_are_ignored_until_let_go_of()
     expect(&input, r#"{ "Gamepad": { "Buttons": ["A"] }, "Latest": ["A pressed"] }"#);
 }
 
+// If GameInput's reading of a gamepad as focus comes is late, and comes in an
+// update after the one that saw the window get focus, its timestamp still
+// says that it's from before focus came: a button held in it is masked until
+// it's let go of, and never shows as a press.
+#[test]
+fn a_gamepad_reading_from_before_focus_is_masked_even_when_it_comes_late() {
+    let mut input = input();
+    step(&mut input, PAD_ONE);
+    input.update(false);
+    wait(&mut input, 2000);
+    input.update(true);
+    // GameInput's reading, from 1 ms before focus came.
+    source(&mut input).now -= 1000;
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#);
+    wait(&mut input, 2000);
+    input.update(true);
+    expect(&input, r#"{ "ReadingCount": 0, "Gamepad": { "Buttons": [] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1 } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": [] } }"#);
+    assert!(!log(&input).iter().any(|line| line.contains("A released")), "{:?}", log(&input));
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Gamepad": { "Buttons": ["A"] }, "Latest": ["A pressed"] }"#);
+}
+
 #[test]
 fn a_gamepad_listened_to_shows_none_of_its_input_from_without_focus() {
     let mut input = input();

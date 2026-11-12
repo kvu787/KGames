@@ -238,10 +238,13 @@ before, but reports gamepads' whole state, their held buttons too.
   arrows, or any while a dialog is open - from the very frame it opens, for checks after it.
   `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
   driving.
-- Without focus, the window has no input at all, including the gamepad's. The click that gives it
-  focus does only that, and keys and gamepad buttons held when it gets focus count once they're let
-  go of: GameInput doesn't report the keys and the click, and the interface ignores the gamepad's
-  held buttons until they're let go of.
+- Without focus, the window has no input at all, including the gamepad's. As focus goes,
+  everything held is let go of on that frame: keys and mouse buttons are released, the gamepad
+  goes to rest, and `ui.input().focus_lost` says why. The click that gives it focus does only
+  that, and keys and gamepad buttons held when it gets focus count once they're let go of:
+  GameInput doesn't report the keys and the click, and the interface ignores the gamepad's held
+  buttons until they're let go of. A reading from before the window got focus is input without
+  it, even if GameInput is late with it and it comes in a later frame.
 - `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
   The frame that `F9` is pressed in is all in the new theme, and the title bar asks for it too,
   which DWM draws, as its documentation promises while Windows' own dark mode is on. A program's
