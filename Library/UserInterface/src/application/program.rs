@@ -86,7 +86,10 @@ pub struct Options {
     // The program's folder, which has its Settings.json: env!("CARGO_MANIFEST_DIR").
     pub folder: &'static str,
     // Whether the program reads the gamepad: its newest reading goes to
-    // Ui::gamepad, and its readings count as input for input latency.
+    // Ui::gamepad, its readings count as input for input latency, and the
+    // process holds 1 ms timers while it reads input, for GameInput to read
+    // gamepads in Xbox 360 mode every millisecond instead of every 15.6 (see
+    // platform/timer_resolution.rs).
     pub gamepad: bool,
     // Arguments of the program's own, which it reads from Startup.
     pub arguments: &'static [&'static str],

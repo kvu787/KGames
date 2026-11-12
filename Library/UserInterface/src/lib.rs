@@ -4,7 +4,8 @@
 //
 // - application: what a program is, its settings, the main loop, and its
 //   PerfBar's stats.
-// - platform: the window, the clipboard, the clock, and GameInput's devices.
+// - platform: the window, the clipboard, the clock, the timers' resolution,
+//   and GameInput's devices.
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
@@ -25,6 +26,7 @@ mod platform {
     pub mod clipboard;
     pub mod clock;
     pub mod input_devices;
+    pub mod timer_resolution;
     pub mod window;
 }
 
@@ -110,6 +112,9 @@ pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, S
 pub use input::events::{Event, Input};
 pub use platform::clipboard::Clipboard;
 pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed};
+// The 1 ms timers that a program that reads the gamepad holds, for GameInput
+// to poll gamepads in Xbox 360 mode every millisecond.
+pub use platform::timer_resolution::TimerResolution;
 pub use platform::window::FocusChange;
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};

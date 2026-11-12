@@ -41,6 +41,7 @@ use crate::input::reader::InputReader;
 use crate::platform::clipboard::Clipboard;
 use crate::platform::clock;
 use crate::platform::input_devices::Devices;
+use crate::platform::timer_resolution::TimerResolution;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptRunner};
 use crate::widgets::info_bar::Severity;
@@ -93,8 +94,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     // All input comes from GameInput, except in a scripted run, which the
     // user's input never reaches, and with --no-input. Every program needs
     // GameInput 4.0.306 installed, though, and doesn't start without it, even
-    // when it doesn't read it (see Library/GameInput).
-    let devices = if scripted || arguments.no_input {
+    // when it doesn't read it (see Library/GameInput). A program that reads
+    // the gamepad holds 1 ms timers from before GameInput starts until it
+    // ends, as GameInput polls gamepads in Xbox 360 mode on a timer, which
+    // Windows' default resolution stretches to 15.6 ms.
+    let reads_input = !(scripted || arguments.no_input);
+    let _timer_resolution = if reads_input { TimerResolution::for_program(options) } else { None };
+    let devices = if !reads_input {
         game_input::installation::installed_runtime()?;
         None
     } else {
