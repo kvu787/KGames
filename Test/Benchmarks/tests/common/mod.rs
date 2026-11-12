@@ -20,7 +20,7 @@ pub fn run(tests: &[(&str, fn())]) {
         }
         return;
     }
-    println!("running {} tests", to_run.len());
+    println!("running {} test{}", to_run.len(), if to_run.len() == 1 { "" } else { "s" });
     // Stops at the first that fails, whose panic fails the run. Counting is
     // off between tests, so what this prints isn't counted.
     for (name, test) in &to_run {
