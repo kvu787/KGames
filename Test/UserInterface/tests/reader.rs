@@ -7,7 +7,7 @@
 use user_interface::game_input::*;
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::FocusChange;
-use user_interface::{Event, Key, MouseButton, Point, Reading};
+use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading};
 
 const KEYBOARD: usize = 1;
 const MOUSE: usize = 2;
@@ -151,6 +151,63 @@ fn readings_and_focus_changes_happen_in_the_order_of_their_times() {
     assert!(frame.events.contains(&Event::FocusGained(vec![Key::A])));
     assert!(!frame.events.contains(&Event::KeyPressed { key: Key::A, repeat: false }));
     assert!(frame.events.contains(&Event::KeyReleased(Key::A)));
+}
+
+// Without background input, which the library leaves off, GameInput gives no
+// readings while the window doesn't have focus. As focus goes, it gives each
+// device a reading at rest, so nothing stays held. On the development
+// machine, with GameInput 4.0.306, those readings came a few milliseconds
+// before the frame that saw the window lose focus, but either order works. A
+// key held as focus went, like the Alt of an Alt+Tab away, then counts again
+// once it's pressed with focus back, like for an Alt+F4.
+#[test]
+fn a_key_held_as_focus_goes_counts_again_once_pressed_with_focus_back() {
+    const ALT: (u8, u32) = (0xA4, 0x38);
+    const F4: (u8, u32) = (0x73, 0x3E);
+    for at_rest in [19, 21] {
+        let mut reader = focused();
+        let frame = reader.read(&[keyboard(10, &[ALT])], &[], &window(None), 10);
+        assert_eq!(keys(&frame.events), vec![Event::KeyPressed { key: Key::ALT, repeat: false }]);
+        // GameInput's reading at rest, and the window losing focus.
+        reader.read(&[keyboard(at_rest, &[])], &[], &window(Some((20, false))), 30);
+        // GameInput doesn't report keys that are held as focus comes back.
+        let frame = reader.read(&[], &[], &window(Some((40, true))), 40);
+        assert!(frame.events.contains(&Event::FocusGained(Vec::new())));
+        let frame = reader.read(&[keyboard(50, &[ALT, F4])], &[], &window(None), 50);
+        assert_eq!(
+            keys(&frame.events),
+            vec![Event::KeyPressed { key: Key::ALT, repeat: false }, Event::KeyPressed { key: Key::F4, repeat: false }],
+            "with GameInput's reading at rest at {at_rest}"
+        );
+    }
+}
+
+// As focus comes, GameInput reports a gamepad's whole state, buttons held
+// too, unlike keyboards' keys and mice's buttons held from before focus came,
+// which it doesn't report at all, held or let go of. On the development
+// machine, with GameInput 4.0.306, that reading came
+// before the frame that saw the window get focus. The interface ignores a
+// button held then until it's let go of, as the library promises.
+#[test]
+fn a_gamepad_button_held_as_focus_comes_counts_once_let_go_of() {
+    let mut reader = focused();
+    let mut input = Input::default();
+    let frame = |reader: &mut InputReader, input: &mut Input, readings: &[(i64, GameInputKind, Reading)], focus: Option<(i64, bool)>, now: i64| {
+        let frame = reader.read(readings, &[], &window(focus), now);
+        input.begin(now as f64 / 1000.0, &frame.events);
+    };
+    frame(&mut reader, &mut input, &[], None, 5);
+    // GameInput's reading at rest as focus goes, then its reading with A
+    // held as focus comes back.
+    frame(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
+    frame(&mut reader, &mut input, &[gamepad(39, GameInputGamepadA)], Some((40, true)), 40);
+    assert!(input.focused);
+    assert!(!input.gamepad.buttons.contains(GamepadButtons::A));
+    // Let go of, then pressed: it counts.
+    frame(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
+    assert!(!input.gamepad_released(GamepadButtons::A));
+    frame(&mut reader, &mut input, &[gamepad(60, GameInputGamepadA)], None, 60);
+    assert!(input.gamepad_pressed(GamepadButtons::A));
 }
 
 #[test]

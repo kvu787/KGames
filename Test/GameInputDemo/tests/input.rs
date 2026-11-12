@@ -326,6 +326,33 @@ fn keys_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
     expect(&input, r#"{ "Keyboard": { "Keys": ["F1"] }, "Latest": ["F1 down"], "RumbleTest": true }"#);
 }
 
+// Without background input, which the library leaves off, GameInput gives no
+// readings while the window doesn't have focus, and as focus goes, a reading
+// of each device at rest. So a key held as focus went, like the Alt of an
+// Alt+Tab away, counts again once it's pressed with focus back.
+#[test]
+fn a_key_held_as_focus_goes_counts_again_once_pressed_with_focus_back() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    input.update(true);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Alt"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["Alt"] }, "Latest": ["Alt down"] }"#);
+
+    // GameInput's reading at rest as the window loses focus.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    input.update(false);
+    wait(&mut input, 1000);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": [] } }"#);
+
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Alt", "F4"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["Alt", "F4"] }, "Latest": ["Alt down", "F4 down"] }"#);
+}
+
 #[test]
 fn gamepad_buttons_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
     let mut input = input();
