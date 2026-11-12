@@ -302,9 +302,9 @@ seconds: the readings of it that the demo handled in that time, divided by two, 
 It starts over when the card starts showing a gamepad, when that gamepad reconnects, and when the
 window loses focus, as readings without focus aren't handled, and then takes two seconds to settle.
 
-While the demo has focus, GameInput gives it nearly every one of a gamepad's reports. On the
-development machine, two GameSir controllers in Xbox 360 mode, set to report 8,000 times a second,
-gave about 7,500 to 7,700 readings a second. That's with GameInput's background input off, as the
+While the demo has focus, GameInput gives it nearly every report of a gamepad in Xbox 360 mode. On
+the development machine, two GameSir controllers in Xbox 360 mode, set to report 8,000 times a
+second, gave about 7,500 to 7,700 readings a second. That's with GameInput's background input off, as the
 library leaves it. With it on, GameInput read them on a timer instead, 64 times a second, 15.6 ms
 apart, and a stick's graph moved visibly less smoothly than the mouse's pad.
 
