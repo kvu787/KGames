@@ -106,6 +106,12 @@ WM_KILLFOCUS
 QueryPerformanceCounter
 QueryPerformanceFrequency
 
+// 1 ms timers for programs that read the gamepad, as GameInput polls gamepads
+// in Xbox 360 mode on a timer
+timeBeginPeriod
+timeEndPeriod
+TIMERR_NOERROR
+
 // Waiting for messages for a while, like overlays between checks of the input,
 // or for messages and the swap chain together, like with vertical sync
 MsgWaitForMultipleObjects

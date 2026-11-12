@@ -886,6 +886,16 @@ pub unsafe fn WindowFromPoint(point: POINT) -> HWND {
     windows_core::link!("user32.dll" "system" fn WindowFromPoint(point : POINT) -> HWND);
     unsafe { WindowFromPoint(point) }
 }
+#[inline]
+pub unsafe fn timeBeginPeriod(uperiod: u32) -> MMRESULT {
+    windows_core::link!("winmm.dll" "system" fn timeBeginPeriod(uperiod : u32) -> MMRESULT);
+    unsafe { timeBeginPeriod(uperiod) }
+}
+#[inline]
+pub unsafe fn timeEndPeriod(uperiod: u32) -> MMRESULT {
+    windows_core::link!("winmm.dll" "system" fn timeEndPeriod(uperiod : u32) -> MMRESULT);
+    unsafe { timeEndPeriod(uperiod) }
+}
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ATOM(pub u16);
@@ -8856,6 +8866,9 @@ pub const MDT_ANGULAR_DPI: MONITOR_DPI_TYPE = 1;
 pub const MDT_DEFAULT: MONITOR_DPI_TYPE = 0;
 pub const MDT_EFFECTIVE_DPI: MONITOR_DPI_TYPE = 0;
 pub const MDT_RAW_DPI: MONITOR_DPI_TYPE = 2;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct MMRESULT(pub u32);
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MODULEENTRY32W {
@@ -9114,6 +9127,7 @@ pub const TDH_INTYPE_WBEMSID: _TDH_IN_TYPE = 310;
 pub type TEMPLATE_FLAGS = i32;
 pub const TH32CS_SNAPMODULE: i32 = 8;
 pub const TH32CS_SNAPPROCESS: i32 = 2;
+pub const TIMERR_NOERROR: i32 = 0;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TIME_ZONE_INFORMATION {
