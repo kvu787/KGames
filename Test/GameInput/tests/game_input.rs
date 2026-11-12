@@ -139,6 +139,27 @@ fn one_copy_of_the_runtime_runs() {
     assert!(modules::same(&loaded[0], Path::new(RUNTIME)), "{loaded:?}");
 }
 
+// The reading callback, which Library/UserInterface queues every reading
+// with, registers with GameInput 4.0.306's signature, in its slot, and
+// unregisters. A test doesn't have focus, so with background input off it
+// may get no readings, but the callback is only ever given one.
+#[test]
+fn a_reading_callback_registers_and_unregisters() {
+    static NULL_READING: AtomicBool = AtomicBool::new(false);
+    unsafe extern "system" fn read(_: GameInputCallbackToken, _: *mut c_void, reading: *mut c_void) {
+        if reading.is_null() {
+            NULL_READING.store(true, Ordering::Release);
+        }
+    }
+    let (game_input, _runtime) = game_input::create().unwrap();
+    let kinds = GameInputKindGamepad | GameInputKindKeyboard | GameInputKindMouse;
+    let token = unsafe { game_input.RegisterReadingCallback(None, kinds, None, Some(read)).unwrap() };
+    assert_ne!(token, 0);
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(unsafe { game_input.UnregisterCallback(token) });
+    assert!(!NULL_READING.load(Ordering::Acquire));
+}
+
 // GameInput 4.0.306's runtime crashes the process when one thread releases
 // the last IGameInput while another creates one. create keeps the first one
 // that it creates, so threads can create and release them at once.

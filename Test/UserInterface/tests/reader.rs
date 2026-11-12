@@ -357,6 +357,48 @@ fn keys_and_buttons_held_on_a_device_that_is_unplugged_are_let_go_of() {
     assert!(frame.events.contains(&Event::KeyPressed { key: Key::A, repeat: false }));
 }
 
+// A frame hands out the readings that GameInput's reading callback queued
+// and those that the walk of its history found, each once, oldest first. The
+// history keeps only about 512 readings, under a tenth of a second of a
+// gamepad's, so after a long frame the walk finds only the newest, and the
+// queue has the rest. The callback may be later than the history with the
+// newest, which the walk finds first, and which the next frame then doesn't
+// hand out again.
+#[test]
+fn a_frame_hands_out_the_queued_and_the_walked_readings_once_each_oldest_first() {
+    use user_interface::frame_readings;
+    const PAD: usize = 7;
+    const OTHER_PAD: usize = 9;
+    let reading = |timestamp: u64, device: usize| (timestamp, device, format!("{device}@{timestamp}"));
+    let names = |readings: Vec<(u64, usize, String)>| readings.into_iter().map(|(_, _, name)| name).collect::<Vec<_>>();
+    // After a long frame: the walk lost 20 and 30, which the queue has.
+    let queued = [reading(10, PAD), reading(20, PAD), reading(30, PAD), reading(40, PAD)];
+    let walked = [reading(40, PAD), reading(50, PAD)];
+    assert_eq!(names(frame_readings(queued, walked, Some((5, PAD)))), ["7@10", "7@20", "7@30", "7@40", "7@50"]);
+    // The next frame: the callback catches up with 50, which went already.
+    let queued = [reading(50, PAD), reading(60, PAD)];
+    assert_eq!(names(frame_readings(queued, [], Some((50, PAD)))), ["7@60"]);
+    // Two devices' readings at the same time are both handed out.
+    let queued = [reading(70, OTHER_PAD)];
+    let walked = [reading(70, PAD), reading(70, OTHER_PAD)];
+    assert_eq!(names(frame_readings(queued, walked, Some((60, PAD)))), ["7@70", "9@70"]);
+    // The first frame hands out everything.
+    assert_eq!(names(frame_readings([reading(1, PAD)], [], None)), ["7@1"]);
+}
+
+// GameInput starts with its device and reading callbacks, reads frames, and
+// stops, unregistering both. A test doesn't have focus, so with background
+// input off it may get no readings.
+#[test]
+fn the_devices_start_read_frames_and_stop() {
+    let mut devices = user_interface::Devices::new().unwrap();
+    for _ in 0..3 {
+        devices.read();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(devices.frame(), 3);
+}
+
 // Only "no reading after this one" means that there's nothing new. Any other
 // failure of GetNextReading starts over from the newest reading, so that a
 // failure that keeps coming can't stop a kind of input for good.

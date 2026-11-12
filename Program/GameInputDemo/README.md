@@ -258,18 +258,23 @@ library makes its events from, from `startup.devices`. Every frame, the library:
    runs on one of GameInput's threads, and also reports the devices that were already connected when
    the program started.
 2. For each of gamepad, keyboard and mouse input, walks the history from the last reading it handled
-   with `GetNextReading`, so no reading is missed between frames. GameInput keeps readings for only
-   a short time, so after a pause in input the last reading handled has left the history, and
-   `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The library then walks back
-   from the newest reading with `GetPreviousReading` to find the ones it hasn't handled.
+   with `GetNextReading`, right before the frame. GameInput keeps readings for only a short time,
+   and only about 512 of a gamepad's, under a tenth of a second at thousands a second, so after a
+   pause in input, or a frame that took longer than that, the last reading handled has left the
+   history, and `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The library
+   then walks back from the newest reading with `GetPreviousReading`, as far as the history goes.
+3. Takes the readings that its `RegisterReadingCallback` callback queued since the last frame. The
+   callback runs on one of GameInput's threads, for every reading as it comes, so the queue has the
+   readings that left the history too. The frame hands out the readings of both, each once, oldest
+   first, so that none is missed between frames, and the newest are as fresh as the history's.
 
 Then the demo:
 
-3. Compares each reading with the same device's previous one to work out what changed. It keeps
+4. Compares each reading with the same device's previous one to work out what changed. It keeps
    every device's last reading itself for that, including the ones it drops without focus.
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
    pause a held key would show as pressed again.
-4. Logs what changed, and shows the newest reading that changed something on the Latest card. A
+5. Logs what changed, and shows the newest reading that changed something on the Latest card. A
    run of readings from one device that only move sticks, triggers or the mouse shares one line of
    the log, and only the run's last reading is described, for the log and the card, once the run
    ends or the frame does, as a gamepad can give thousands of readings a second.

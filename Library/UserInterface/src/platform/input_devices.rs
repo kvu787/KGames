@@ -6,13 +6,20 @@
 // events from here, through Startup::devices, and run gamepads' motors.
 //
 // GameInput's input is readings, not presses and releases: each reading is a
-// snapshot of one device's whole state, with the time that it came, and
-// GameInput keeps half a second of them. This polls that history once a
-// frame and walks it with GetNextReading, so that no reading is missed
-// between frames. Readings' times are GameInput's
-// microseconds, which `qpc` turns into the performance counter's ticks, on
-// the clock that frames and the display's flips are timed on.
+// snapshot of one device's whole state, with the time that it came. GameInput
+// keeps a history of them, which held about 512 of a gamepad's on the
+// development machine, with GameInput 4.0.306: under a tenth of a second at
+// thousands a second. Each frame walks the history from
+// the last reading that it handed out with GetNextReading, right before the
+// frame, so that the newest readings are as fresh as they can be. A frame
+// that took longer than the history lasts would miss the readings that left
+// it, so GameInput's reading callback also queues every reading as it comes,
+// on one of GameInput's threads, and each frame hands out the readings of
+// both, each once, oldest first (see `frame_readings`). Readings' times are
+// GameInput's microseconds, which `qpc` turns into the performance counter's
+// ticks, on the clock that frames and the display's flips are timed on.
 
+use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
@@ -90,14 +97,42 @@ unsafe extern "system" fn on_device_event(
     }
 }
 
+type ReadingQueue = Mutex<VecDeque<IGameInputReading>>;
+
+// The most readings that the reading queue keeps between frames, the oldest
+// going first: a second of two gamepads at 8,000 reports a second, for a
+// frame that's that late, like one that waited on a window being moved.
+const READING_QUEUE_CAPACITY: usize = 16_384;
+
+// GameInput's reading callback runs on one of its threads, for each reading
+// in the order that they came, one at a time. It only queues the reading,
+// and the main thread takes it in `read`.
+unsafe extern "system" fn on_reading(_token: GameInputCallbackToken, context: *mut c_void, reading: *mut c_void) {
+    let queue = unsafe { &*(context as *const ReadingQueue) };
+    if let Some(reading) = unsafe { IGameInputReading::from_raw_borrowed(&reading) } {
+        let mut queue = queue.lock().unwrap();
+        if queue.len() >= READING_QUEUE_CAPACITY {
+            queue.pop_front();
+        }
+        queue.push_back(reading.clone());
+    }
+}
+
 pub struct Devices {
     game_input: IGameInput,
     runtime: Runtime,
     callback_token: GameInputCallbackToken,
     // The queue that the callback fills, which it holds a reference to.
     queue: *const DeviceQueue,
-    // The last reading handed out, for each kind of input.
+    reading_callback_token: GameInputCallbackToken,
+    // The queue that the reading callback fills, which it holds a reference
+    // to.
+    reading_queue: *const ReadingQueue,
+    // The last reading that the walk of the history got to, for each kind of
+    // input.
     last_readings: Vec<(GameInputKind, IGameInputReading)>,
+    // The newest reading handed out, of each kind, by its time and device.
+    handed_out: [Option<(u64, usize)>; 3],
     // Every device seen, as GameInput's object and as data. GameInput keeps
     // one object per device, so the object's address tells devices apart.
     known: Vec<(IGameInputDevice, Device)>,
@@ -137,6 +172,21 @@ impl Devices {
                 return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
             }
         };
+        let reading_queue = Arc::into_raw(Arc::new(ReadingQueue::default()));
+        let reading_callback_token = unsafe {
+            game_input.RegisterReadingCallback(None, KINDS[0] | KINDS[1] | KINDS[2], Some(reading_queue as *const c_void), Some(on_reading))
+        };
+        let reading_callback_token = match reading_callback_token {
+            Ok(token) => token,
+            Err(error) => {
+                unsafe {
+                    game_input.UnregisterCallback(callback_token);
+                    drop(Arc::from_raw(queue));
+                    drop(Arc::from_raw(reading_queue));
+                }
+                return Err(format!("GameInput couldn't listen for readings: {} ({})", error.message(), error.code()));
+            }
+        };
         // GameInput's background input stays off, as it is by default, so
         // GameInput gives the process input only while it has focus. On, it
         // would give input without focus too, but GameInput then reads a
@@ -150,7 +200,10 @@ impl Devices {
             runtime,
             callback_token,
             queue,
+            reading_callback_token,
+            reading_queue,
             last_readings: Vec::new(),
+            handed_out: [None; 3],
             known: Vec::new(),
             epoch: 0,
             calibrated: 0,
@@ -216,9 +269,17 @@ impl Devices {
             let device = unsafe { self.device(&object) };
             self.device_events.push((event, device));
         }
+        let queued: Vec<IGameInputReading> = unsafe { (*self.reading_queue).lock().unwrap().drain(..).collect() };
+        let queued: Vec<(u64, usize, IGameInputReading)> = queued.into_iter().map(|reading| unsafe { keyed(reading) }).collect();
         for (index, kind) in KINDS.into_iter().enumerate() {
-            let objects = unsafe { self.new_readings(kind) };
-            let readings = objects.iter().map(|reading| unsafe { self.reading(reading) }).collect();
+            let walked = unsafe { self.new_readings(kind) };
+            let walked = walked.into_iter().map(|reading| unsafe { keyed(reading) });
+            let of_kind = queued.iter().filter(|(_, _, reading)| unsafe { reading.GetInputKind() } & kind != 0).cloned();
+            let objects = frame_readings(of_kind, walked, self.handed_out[index]);
+            if let Some((timestamp, device, _)) = objects.last() {
+                self.handed_out[index] = Some((*timestamp, *device));
+            }
+            let readings = objects.iter().map(|(_, _, reading)| unsafe { self.reading(reading) }).collect();
             self.readings[index] = readings;
         }
     }
@@ -385,10 +446,10 @@ pub enum NextReadingFailure {
 
 // Only GAMEINPUT_E_READING_NOT_FOUND says that there's nothing newer. Any
 // other failure, like GAMEINPUT_E_REFERENCE_READING_TOO_OLD after a pause in
-// input, when the last reading handled has left GameInput's half second of
-// history, starts over from the newest reading, as Microsoft's sample for
-// GetNextReading does. Otherwise a failure that kept coming would stop that
-// kind of input for good.
+// input, or a frame that took longer than the history lasts, when the last
+// reading handled has left GameInput's history, starts over from the newest
+// reading, as Microsoft's sample for GetNextReading does. Otherwise a failure
+// that kept coming would stop that kind of input for good.
 pub fn after_next_reading_failed(code: HRESULT) -> NextReadingFailure {
     if code == GAMEINPUT_E_READING_NOT_FOUND {
         NextReadingFailure::NothingNewer
@@ -397,13 +458,44 @@ pub fn after_next_reading_failed(code: HRESULT) -> NextReadingFailure {
     }
 }
 
+// The readings of one kind for a frame, oldest first: those that the reading
+// callback queued, and those that the walk of the history found, each once,
+// and only those newer than `handed_out`, the newest that an earlier frame
+// handed out. Each is known by its time, in GameInput's microseconds, and its
+// device: no two of a device's readings have the same time.
+pub fn frame_readings<T>(
+    queued: impl IntoIterator<Item = (u64, usize, T)>,
+    walked: impl IntoIterator<Item = (u64, usize, T)>,
+    handed_out: Option<(u64, usize)>,
+) -> Vec<(u64, usize, T)> {
+    let mut readings: Vec<(u64, usize, T)> = queued
+        .into_iter()
+        .chain(walked)
+        .filter(|(timestamp, device, _)| handed_out.is_none_or(|newest| (*timestamp, *device) > newest))
+        .collect();
+    readings.sort_by_key(|(timestamp, device, _)| (*timestamp, *device));
+    readings.dedup_by_key(|(timestamp, device, _)| (*timestamp, *device));
+    readings
+}
+
+// A reading with its time and its device's address, which tells devices
+// apart, or 0 when GameInput doesn't say.
+unsafe fn keyed(reading: IGameInputReading) -> (u64, usize, IGameInputReading) {
+    unsafe {
+        let device = reading.GetDevice().map_or(0, |device| device.as_raw() as usize);
+        (reading.GetTimestamp(), device, reading)
+    }
+}
+
 impl Drop for Devices {
     fn drop(&mut self) {
         unsafe {
-            // Once it returns, the callback doesn't run again, so its queue
-            // can go.
+            // Once they return, the callbacks don't run again, so their
+            // queues can go.
             self.game_input.UnregisterCallback(self.callback_token);
             drop(Arc::from_raw(self.queue));
+            self.game_input.UnregisterCallback(self.reading_callback_token);
+            drop(Arc::from_raw(self.reading_queue));
         }
     }
 }

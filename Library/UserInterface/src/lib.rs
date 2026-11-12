@@ -109,7 +109,7 @@ pub use drawing::text::{Font, Fonts, TextStyle, Weight};
 pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 pub use input::events::{Event, Input};
 pub use platform::clipboard::Clipboard;
-pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed};
+pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed, frame_readings};
 pub use platform::window::FocusChange;
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};

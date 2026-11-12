@@ -202,7 +202,10 @@ program needs GameInput 4.0.306 installed, as that README says, and doesn't star
 even in a scripted run or with `--no-input`, which don't read it. `platform/input_devices.rs`
 reads every device's readings once a frame, right before the frame, and `input/reader.rs` turns
 them into the interface's events, in the order they happened, with the window's focus changes
-between them. The window's messages bring none of it.
+between them. The window's messages bring none of it. Each frame walks GameInput's history of
+readings, for the freshest, and takes the ones that GameInput's reading callback queued, as the
+history keeps only about 512 readings, under a tenth of a second of a gamepad's, so that a long
+frame misses none.
 
 The library leaves GameInput's background input off, as it is by default, so GameInput gives a
 program input only while it has focus. On, it would give input without focus too, but GameInput
