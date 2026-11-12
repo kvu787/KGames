@@ -3,21 +3,25 @@
 //
 // The counters are the whole process's, so these tests run without the test
 // harness, one after another on the main thread, where nothing else allocates
-// while they count. Under libtest, other tests run on threads of their own,
+// while they count, but the threads that a test starts itself. Under libtest,
+// other tests run on threads of their own,
 // and its main thread allocates as it starts and finishes them, which the
 // counts would take in. Every allocation goes through `black_box`, so that
 // the optimizer can't drop one whose block is never read.
 
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use benchmarks::Budget;
 use benchmarks::memory::{counts, held, measure, start, stop};
 
-const TESTS: [(&str, fn()); 4] = [
+const TESTS: [(&str, fn()); 5] = [
     ("the_allocator_counts_the_bytes_it_hands_out_and_takes_back", the_allocator_counts_the_bytes_it_hands_out_and_takes_back),
     ("it_counts_nothing_until_a_benchmark_turns_it_on", it_counts_nothing_until_a_benchmark_turns_it_on),
     ("a_measurement_is_of_one_run_of_the_work", a_measurement_is_of_one_run_of_the_work),
     ("what_is_held_is_counted_while_it_is_alive", what_is_held_is_counted_while_it_is_alive),
+    ("the_peak_is_never_less_than_what_is_held_while_other_threads_allocate", the_peak_is_never_less_than_what_is_held_while_other_threads_allocate),
 ];
 
 // Runs every test, and stops at the first that fails, whose panic fails the
@@ -83,4 +87,39 @@ fn what_is_held_is_counted_while_it_is_alive() {
     let before = counts();
     drop(held_block);
     assert_eq!(counts(), before);
+}
+
+// The counters are the whole process's, so other threads' allocations count
+// too, like those of work that spreads over threads. Each allocation adds to
+// what's held, then raises the peak, so a snapshot between the two would hold
+// more than its peak. Here other threads keep what they allocate, so that each
+// allocation is a new peak, while this one takes snapshots.
+fn the_peak_is_never_less_than_what_is_held_while_other_threads_allocate() {
+    const THREADS: usize = 4;
+    const BLOCKS: usize = 200_000;
+    start();
+    let finished = Arc::new(AtomicUsize::new(0));
+    let threads: Vec<_> = (0..THREADS)
+        .map(|_| {
+            let finished = finished.clone();
+            std::thread::spawn(move || {
+                let mut kept = Vec::with_capacity(BLOCKS);
+                for _ in 0..BLOCKS {
+                    kept.push(std::hint::black_box(Box::new([0u8; 64])));
+                }
+                finished.fetch_add(1, Ordering::Relaxed);
+                kept
+            })
+        })
+        .collect();
+    let mut snapshots = 0u64;
+    while finished.load(Ordering::Relaxed) < THREADS {
+        let snapshot = counts();
+        assert!(snapshot.peak >= snapshot.live, "after {snapshots} snapshots: {snapshot:?}");
+        snapshots += 1;
+    }
+    let kept: Vec<_> = threads.into_iter().map(|thread| thread.join().unwrap()).collect();
+    let done = stop();
+    assert!(done.peak >= done.live && done.live >= (THREADS * BLOCKS * 64) as i64, "{done:?}");
+    drop(kept);
 }

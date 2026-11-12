@@ -88,7 +88,7 @@ pub struct Counts {
     // Bytes allocated and not yet freed, from where counting started, so it
     // can be negative when work frees what was there before it.
     pub live: i64,
-    // The most that `live` ever was.
+    // The most that `live` ever was, so never less than it.
     pub peak: i64,
 }
 
@@ -111,13 +111,18 @@ pub fn stop() -> Counts {
     counts
 }
 
+// The counts now. An allocation adds to `LIVE` before it raises `PEAK`, and
+// the counts are the whole process's, so while another thread allocates, the
+// peak can lag behind what's held for a moment. The heap held that much, so
+// the peak is never less than it.
 pub fn counts() -> Counts {
+    let live = LIVE.load(Relaxed);
     Counts {
         allocations: ALLOCATIONS.load(Relaxed),
         frees: FREES.load(Relaxed),
         bytes: BYTES.load(Relaxed),
-        live: LIVE.load(Relaxed),
-        peak: PEAK.load(Relaxed),
+        live,
+        peak: PEAK.load(Relaxed).max(live),
     }
 }
 

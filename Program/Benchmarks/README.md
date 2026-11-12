@@ -88,9 +88,10 @@ Program\RunLightly\RunLightly.ps1 cargo test -p benchmarks_tests
 
 The tests in `Test/Benchmarks` check the harness's statistics, budget, table, JSON and command
 line, the counting allocator and what it measures, and run every group once. The allocator's
-counts are the whole process's, so its tests, in `counting.rs`, run without the test harness,
-one after another on the main thread, where no other test or harness thread allocates while
-they count.
+counts are the whole process's, so its tests, in `counting.rs`, and the one that runs every memory
+group once, in `memory_groups.rs`, run without the test harness, one after another on the main
+thread, where no other test or harness thread allocates while they count. A snapshot's peak is
+never less than what it says is held, even while other threads allocate.
 
 ## Layout
 

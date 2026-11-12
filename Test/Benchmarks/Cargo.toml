@@ -5,10 +5,14 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-# Counts the whole process's heap, so it runs without libtest, whose other
-# threads would allocate while it counts.
+# These count the whole process's heap, so they run without libtest, whose
+# other threads would allocate while they count.
 [[test]]
 name = "counting"
+harness = false
+
+[[test]]
+name = "memory_groups"
 harness = false
 
 [dependencies]
