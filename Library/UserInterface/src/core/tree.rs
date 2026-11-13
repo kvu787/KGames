@@ -13,14 +13,14 @@
 // its targets are, what the input on them means, and how it draws. The
 // interface's own widgets are in Widgets/; a program may add its own.
 
+use std::ops::Deref;
+
 use crate::core::interaction::{Hit, Id, Interaction, Part, Sense, id};
 use crate::core::interface::Interface;
-use crate::design::theme::Theme;
-use crate::drawing::geometry::{Point, Rect, Size};
+use crate::drawing::geometry::{Rect, Size};
 use crate::drawing::painter::{Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
-use crate::input::devices::{Key, Modifiers, MouseButton};
-use crate::input::events::Input;
+use crate::input::devices::MouseButton;
 use crate::widgets::menu::MenuItem;
 
 // A line of a tooltip with more than a sentence in it.
@@ -395,7 +395,8 @@ impl Look {
 }
 
 // What a widget's `parts` works with: its element, the fonts to measure
-// with, what it keeps between frames, and the interface's state.
+// with, and what it keeps between frames. It reads the interface's state
+// through Interface's getters, as every context does.
 pub struct Parts<'a> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) id: Id,
@@ -404,6 +405,14 @@ pub struct Parts<'a> {
     pub(crate) enabled: bool,
     pub(crate) layer: Layer,
     pub(crate) clip: Rect,
+}
+
+impl Deref for Parts<'_> {
+    type Target = Interface;
+
+    fn deref(&self) -> &Interface {
+        self.ui
+    }
 }
 
 impl Parts<'_> {
@@ -431,18 +440,6 @@ impl Parts<'_> {
         self.ui.fonts.measure(text, style)
     }
 
-    pub fn theme(&self) -> &Theme {
-        &self.ui.theme
-    }
-
-    pub fn time(&self) -> f64 {
-        self.ui.input.time
-    }
-
-    pub fn bounds(&self) -> Rect {
-        self.ui.bounds()
-    }
-
     // What the widget keeps between frames, by its id.
     pub fn memory<T: Default + 'static>(&mut self) -> &mut T {
         let id = self.id;
@@ -463,10 +460,6 @@ impl Parts<'_> {
 
     pub fn is_focused(&self) -> bool {
         self.ui.focused == Some(self.id)
-    }
-
-    pub fn input(&self) -> &Input {
-        &self.ui.input
     }
 
     // Registers a part of the widget as a target, named "<widget>/<suffix>".
@@ -510,8 +503,8 @@ impl Parts<'_> {
     }
 }
 
-// What a widget's `interact` works with: the frame's input, what it keeps
-// between frames, the interface's state, and where its messages go.
+// What a widget's `interact` works with: what it keeps between frames, its
+// popups, and where its messages go.
 pub struct Dispatch<'a, M> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) messages: &'a mut Vec<M>,
@@ -519,6 +512,14 @@ pub struct Dispatch<'a, M> {
     pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
+}
+
+impl<M> Deref for Dispatch<'_, M> {
+    type Target = Interface;
+
+    fn deref(&self) -> &Interface {
+        self.ui
+    }
 }
 
 impl<M> Dispatch<'_, M> {
@@ -542,22 +543,6 @@ impl<M> Dispatch<'_, M> {
         self.enabled
     }
 
-    pub fn input(&self) -> &Input {
-        &self.ui.input
-    }
-
-    pub fn modifiers(&self) -> Modifiers {
-        self.ui.input.modifiers()
-    }
-
-    pub fn time(&self) -> f64 {
-        self.ui.input.time
-    }
-
-    pub fn pointer(&self) -> Option<Point> {
-        self.ui.input.pointer
-    }
-
     pub fn fonts(&mut self) -> &mut Fonts {
         &mut self.ui.fonts
     }
@@ -573,12 +558,6 @@ impl<M> Dispatch<'_, M> {
 
     pub fn memory_of<T: Default + 'static>(&mut self, id: Id) -> &mut T {
         self.ui.memory(id)
-    }
-
-    // Whether the key is down, unless a text field with keyboard focus
-    // takes it, or a dialog is open.
-    pub fn key_down(&self, key: Key) -> bool {
-        self.ui.key_down(key)
     }
 
     // Opens the widget's popup, named `name`, like a combo box's list. A
@@ -614,10 +593,6 @@ impl<M> Dispatch<'_, M> {
         self.ui.popup_open(owner)
     }
 
-    pub fn any_popup(&self) -> bool {
-        !self.ui.popups.is_empty()
-    }
-
     pub fn is_focused(&self) -> bool {
         self.ui.focused == Some(self.id)
     }
@@ -626,34 +601,14 @@ impl<M> Dispatch<'_, M> {
         self.ui.cursor = cursor;
     }
 
-    // The name of the target under the pointer, as of the frame the user
-    // saw.
-    pub fn hovered_name(&self) -> Option<&str> {
-        self.ui.hovered_name()
-    }
-
-    pub fn hovered_id(&self) -> Option<Id> {
-        self.ui.hovered
-    }
-
-    // The name of the target with keyboard focus, as this frame's input
-    // leaves it.
-    pub fn focused_name(&self) -> Option<&str> {
-        self.ui.focused_name()
-    }
-
-    pub fn bounds(&self) -> Rect {
-        self.ui.bounds()
-    }
-
     // The notices under the app bar, for the bar that shows them.
     pub(crate) fn notices_mut(&mut self) -> &mut Vec<crate::application::program::Notice> {
         &mut self.ui.notices
     }
 }
 
-// What a widget's `draw` works with: the painter, the theme, how the
-// element looks, and what it keeps between frames.
+// What a widget's `draw` works with: the painter, how the element looks,
+// and what it keeps between frames.
 pub struct Draw<'a> {
     pub(crate) ui: &'a mut Interface,
     pub(crate) id: Id,
@@ -663,6 +618,14 @@ pub struct Draw<'a> {
     pub(crate) layer: Layer,
 }
 
+impl Deref for Draw<'_> {
+    type Target = Interface;
+
+    fn deref(&self) -> &Interface {
+        self.ui
+    }
+}
+
 impl Draw<'_> {
     pub fn painter(&mut self) -> Painter<'_> {
         Painter {
@@ -670,10 +633,6 @@ impl Draw<'_> {
             fonts: &mut self.ui.fonts,
             theme: &self.ui.theme,
         }
-    }
-
-    pub fn theme(&self) -> &Theme {
-        &self.ui.theme
     }
 
     pub fn look(&self) -> &Look {
@@ -709,18 +668,6 @@ impl Draw<'_> {
         self.layer
     }
 
-    pub fn time(&self) -> f64 {
-        self.ui.input.time
-    }
-
-    pub fn bounds(&self) -> Rect {
-        self.ui.bounds()
-    }
-
-    pub fn input(&self) -> &Input {
-        &self.ui.input
-    }
-
     pub fn fonts(&mut self) -> &mut Fonts {
         &mut self.ui.fonts
     }
@@ -744,32 +691,6 @@ impl Draw<'_> {
 
     pub fn popup_open_of(&self, id: Id) -> bool {
         self.ui.popup_open(id)
-    }
-
-    // The part of another widget that the pointer is on, by that widget's
-    // id, for widgets built of others.
-    pub fn hovered_target(&self) -> Option<&crate::core::interaction::Target> {
-        self.ui.hovered_target()
-    }
-
-    pub fn held_target(&self) -> Option<&crate::core::interaction::Target> {
-        self.ui.held_target()
-    }
-
-    pub fn environment(&self) -> &crate::core::interface::Environment {
-        &self.ui.environment
-    }
-
-    pub fn window_focused(&self) -> bool {
-        self.ui.input.focused
-    }
-
-    pub fn stats(&self) -> crate::core::interface::FrameStats {
-        self.ui.stats()
-    }
-
-    pub fn notices(&self) -> &[crate::application::program::Notice] {
-        &self.ui.notices
     }
 
     // Where the painter's instances are in its layer, to mark a place in

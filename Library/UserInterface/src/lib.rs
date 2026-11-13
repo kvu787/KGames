@@ -80,6 +80,7 @@ mod widgets {
 }
 
 pub mod testing {
+    mod gestures;
     pub mod headless;
     pub mod script;
 }

@@ -176,8 +176,8 @@ impl<M: Clone + 'static> Widget<M> for ColorPicker<M> {
 }
 
 // A text field for a color's hex code, like "#1E90FF", with a swatch of the
-// color in it. What's typed takes effect with Enter or when the field loses
-// focus, if it's a color.
+// color in it. What's typed takes effect with Enter, if it's a color, and
+// goes if the field loses focus first.
 pub struct ColorField<M> {
     color: Color,
     on_change: Option<Reaction<Color, M>>,
@@ -235,14 +235,17 @@ impl<M: Clone + 'static> Widget<M> for ColorField<M> {
     }
 
     fn parts(&self, ctx: &mut Parts) {
+        // What's typed and not taken with Enter goes as the field loses
+        // focus.
+        if !ctx.is_focused() {
+            *ctx.memory::<ColorDraft>() = ColorDraft::default();
+        }
         let text = self.shown_text(ctx.memory::<ColorDraft>());
         field_parts(ctx, &text, &settings());
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let mut draft = std::mem::take(ctx.memory::<ColorDraft>());
-        // What's typed stays until it's taken or left, even as the field
-        // loses focus, when it's taken.
         if !draft.editing {
             draft.text = self.color.to_hex();
         }
@@ -251,7 +254,7 @@ impl<M: Clone + 'static> Widget<M> for ColorField<M> {
             draft.text = text;
             draft.editing = true;
         }
-        if edited.submitted || (draft.editing && !ctx.is_focused()) {
+        if edited.submitted {
             if let Some(color) = Color::parse(&draft.text)
                 && color != self.color
                 && let Some(reaction) = &self.on_change

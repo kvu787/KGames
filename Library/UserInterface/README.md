@@ -141,7 +141,9 @@ looked at, like text. What it does is a reaction given where it's built: a messa
 tests point at. Each named widget is a target, whose area, kind and label the interface's state
 lists. A widget of a program's own implements `Widget<M>`: its `kind`, `sense` and `parts` say what
 it is to the input, `interact` turns what happened to it into messages through `Dispatch`, and
-`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus.
+`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus. Every
+context, the program's `Ui` and `Context` and a widget's `Parts`, `Dispatch` and `Draw`, reads the
+frame's state through `Interface`'s getters, like `theme()`, `time()`, `input()` and `bounds()`.
 
 | Widget                             | WinUI's                   | Notes                                                           |
 | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
@@ -231,7 +233,8 @@ before, but reports gamepads' whole state, their held buttons too.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
   and a press anywhere else takes it away, once the field has taken what was typed in that frame.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
-  it, and Enter takes what's typed in a number box or a color field.
+  it, and Enter takes what's typed in a number box or a color field, which goes if the field loses
+  focus first.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.
@@ -514,5 +517,7 @@ writes its files in its output folder, through `startup.data_folder`.
 | `Shaders/Interface.hlsl`         | The shapes' and glyphs' shader                                             |
 | `src/widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                    |
 | `src/testing/script.rs`          | Scripts                                                                    |
+| `src/testing/gestures.rs`        | The input of a click, a drag or a key, frame by frame, for scripts and     |
+|                                  | `Headless`                                                                 |
 | `src/testing/headless.rs`        | Runs a program's frames without a window, for tests                        |
 | `build.rs`                       | Compiles the shader at build time                                          |
