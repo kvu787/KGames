@@ -12,7 +12,7 @@
 //   Enter keeps it, or a right-click or Esc takes it back. X, Y and Z limit it
 //   to an axis, N to the selection's normal, and Ctrl snaps it.
 //
-// `messages` turns the frame's keys into messages; `view` and `operation`
+// `messages` turns a step's keys into messages; `view` and `operation`
 // apply the pointer's input, as update runs them.
 
 use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
@@ -20,9 +20,9 @@ use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
 use crate::editing::{Axis, Drawn, Element, Tool};
 use crate::modeler::{COMMANDS, Command, Message, Modeler};
 
-// The frame's messages from the keys: the modal edit's, or the commands
-// whose shortcuts were pressed, without repeats, unless something else has
-// the keys. Prepare goes last, after everything the frame does.
+// A step's messages from the keys: the modal edit's, or the commands whose
+// shortcuts were pressed, without repeats, unless something else has the
+// keys. Prepare goes last, after everything the step does.
 pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     let mut messages = Vec::new();
     // A paint's edit ends once the pointer lets go and its name has no focus.
@@ -67,7 +67,7 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     messages
 }
 
-// What the pointer did in the view this frame.
+// What the pointer did in the view in a step.
 pub fn view(modeler: &mut Modeler, input: ViewInput) {
     let view = modeler.view;
     let modifiers = input.modifiers;

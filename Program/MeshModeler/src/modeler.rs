@@ -217,7 +217,9 @@ pub enum Message {
     Unsaved(DialogResult),
     SaveAsResult(DialogResult),
     OpenResult(DialogResult),
-    // Once a frame, after everything else: remakes what the view draws.
+    // Once a step of a frame's input, after everything else in it: remakes
+    // what the view draws, so that the next step's input finds it as the
+    // steps before left it.
     Prepare,
 }
 
@@ -859,8 +861,8 @@ impl Program for Modeler {
             Message::ConfirmOperation => self.editor.confirm(&mut self.document),
             Message::CancelOperation => self.editor.cancel(&mut self.document),
             Message::PickPaint(index) => {
-                // The row is of the frame that the user saw. An Undo before
-                // it in this frame may have taken its paint away.
+                // The row is of the tree that the press was on. An Undo
+                // before it in this step may have taken its paint away.
                 self.editor.active_paint = index;
                 self.keep_paint_picked();
             }

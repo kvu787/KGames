@@ -313,9 +313,9 @@ pub trait Widget<M>: 'static {
         false
     }
 
-    // Whether `interact` is called every frame, even when nothing happened
-    // to its targets, like a 3D view that clears what was under the pointer
-    // once it leaves.
+    // Whether `interact` is called in every step of every frame, even when
+    // nothing happened to its targets, like a 3D view that clears what was
+    // under the pointer once it leaves.
     fn always_interacts(&self) -> bool {
         false
     }

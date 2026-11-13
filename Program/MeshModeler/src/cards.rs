@@ -64,7 +64,7 @@ pub fn view(modeler: &Modeler, ui: &mut Ui) -> Tree<Message> {
     right_column(modeler, ui, &mut tree, right);
 
     // A modal edit: a cover over the whole window takes the pointer from
-    // everything else while it's under way, and hears it every frame.
+    // everything else while it's under way, and hears it every step.
     if modeler.editor.operation.is_some() {
         tree.add("Operation", ui.bounds(), View::new().cursor(Cursor::Move).every_frame().on_input(Message::Operation));
     }

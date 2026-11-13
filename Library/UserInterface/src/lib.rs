@@ -5,11 +5,13 @@
 // - application: what a program is, its settings, the main loop, and its
 //   PerfBar's stats.
 // - platform: the window, the clock, and GameInput's devices.
-// - input: keys, buttons and the gamepad, and a frame's input from GameInput.
+// - input: keys, buttons and the gamepad, and a frame's input from GameInput,
+//   in steps.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
-// - core: a frame: the view's tree, its widgets' targets, the input on the
-//   tree the user saw, the messages, focus, popups and tooltips.
+// - core: a frame, in steps: the view's tree, its widgets' targets, each
+//   step's input on the tree the step before left, the messages, focus,
+//   popups and tooltips.
 // - widgets: WinUI's controls, cards, and the page's bars.
 // - testing: scripts, and running a program without a window.
 

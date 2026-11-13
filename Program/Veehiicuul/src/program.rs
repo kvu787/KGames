@@ -81,11 +81,13 @@ pub enum Message {
     Terrain(TerrainMsg),
     Track(TrackMsg),
     Vehicle(VehicleMsg),
-    // Once a frame in Play: the controls drive the car.
+    // Once a step of a frame's input in Play: the controls drive the car,
+    // by the time since the step before, which only a frame's last step has.
     Tick(Controls),
-    // Once a frame, after everything else: keeps the game in the document,
-    // commits a change once the button is up, shapes the track, and rebuilds
-    // what the 3D view shows.
+    // Once a step, after everything else in it: keeps the game in the
+    // document, commits a change once the button is up, shapes the track,
+    // and rebuilds what the 3D view shows, so that the next step's input
+    // finds them as the steps before left them.
     Prepare,
 }
 
