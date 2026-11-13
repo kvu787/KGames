@@ -2,7 +2,7 @@
 
 SimplePaint makes it easy to color 3D models in a way that looks good from any angle.
 
-SimplePaint is an unlit, opaque, orthographic-only surface shader. It colors a surface from its normal relative to the camera. Lights, shadows, distance from the camera, and world position do not enter the paint calculation. Rotating a model changes which surfaces face the camera; moving it sideways does not change its paint.
+SimplePaint is an opaque, orthographic-only surface shader, without lights. It colors a surface from its normal relative to the camera. Lights, shadows, distance from the camera, and world position do not enter the paint calculation. Rotating a model changes which surfaces face the camera; moving it sideways does not change its paint.
 
 This guide describes the module in this folder. [Specification.md](Specification.md) defines its contract; [README.md](README.md) provides a short integration checklist. The supported development and target platform is Windows 11 x64.
 
@@ -54,6 +54,8 @@ simple_paint = { path = "../../Library/SimplePaint" }
   with [Library/Graphics](../Graphics/README.md).
 - `Shaders/SimplePaintCore.hlsli`: the binding-independent HLSL functions.
 - `Shaders/SimplePaint.hlsl`: the configurable DX12 vertex and pixel shader adapter.
+- `Shaders/Unlit.hlsl`: the unlit shader, for the models that aren't painted, as
+  [below](#unlit-models).
 
 Compile each material once when its settings change:
 
@@ -116,6 +118,17 @@ Embed the DXIL with `include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex
 
 The shader returns **linear RGB**, with alpha 1 supplied by the adapter. Encode it to sRGB once for display, for example with an `R8G8B8A8_UNORM_SRGB` render-target view. Do not apply a second gamma function in the pixel shader. For HDR or a later composite pass, retain linear values and let that pipeline perform the final display conversion.
 
+## Unlit models
+
+Every 3D model that isn't painted with SimplePaint is drawn with `Shaders/Unlit.hlsl`, as the [AGENTS.md](../../AGENTS.md) at the root of the repository says. Its pixel shader returns one value per material: each triangle is its material's color, as the host gives it, and no light, normal, position or view changes it.
+
+It takes `simple_paint::Vertex`, `b0` and the embedded root signature as the adapter does, so `direct3d12::Pipeline` and `direct3d12::Mesh` draw with it, and `validate_mesh` checks its meshes. At `b1`, it takes a tightly packed array of `direct3d12::UnlitColor`, 16 bytes each, whose fourth float it doesn't read, in a buffer that `direct3d12::unlit_colors_size` rounds up to 256 bytes. Define `UNLIT_COLOR_COUNT` when compiling both stages, and upload that many colors; it defaults to one. Give the colors as the render-target view takes them: linear for an sRGB view, which encodes them, or sRGB for a view that stores them as they are.
+
+```rust
+let shaders = PathBuf::from(std::env::var("DEP_SIMPLE_PAINT_SHADERS").unwrap());
+shader_compiler::build_vertex_and_pixel(&shaders.join("Unlit.hlsl"), &["-O3", "-WX", "-D", "UNLIT_COLOR_COUNT=2"], "Unlit");
+```
+
 ## Build and verify
 
 The tests are in [Test/SimplePaint](../../Test/SimplePaint), apart from the module, like every test in KGames. From the root of the repository:
@@ -128,4 +141,6 @@ They require Windows 11 x64, DXC from the Windows SDK, and Shader Model 6.0 runt
 
 The tests include 81,940 curve comparisons, 20,000 comparisons between the specification's slice/Schlick and rational facing equations, parameter, transform and mesh validation checks, and 30,208 production VS/PS samples on each of the preferred adapter and WARP. The GPU tests include 4,096 interpolated-normal cases and check both linear and sRGB error against an independent binary64 evaluation of the specification. [Specification.md](Specification.md#verification) defines the coverage and acceptance criteria.
 
-The `shader_compilation` test compiles both shader stages with the default count of one and an explicit count of three. A zero material count must fail shader compilation.
+The `shader_compilation` test compiles both shader stages of SimplePaint.hlsl and of Unlit.hlsl with the default count of one and an explicit count of three. A count of zero must fail shader compilation.
+
+The `unlit` test draws a sphere and a turned cube with Unlit.hlsl, on the preferred adapter and on WARP, through a view that stores colors as they are and through an sRGB one, and checks that every pixel they cover is exactly its material's color.

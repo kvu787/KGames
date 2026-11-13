@@ -22,9 +22,14 @@ harness = false
 name = "shader_compilation"
 harness = false
 
+[[test]]
+name = "unlit"
+harness = false
+
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
 math = { path = "../../Library/Math" }
+meshes = { path = "../../Library/Meshes" }
 shader_compiler = { path = "../../Library/ShaderCompiler" }
 simple_paint = { path = "../../Library/SimplePaint" }
 windows_api = { path = "../../Library/WindowsApi" }

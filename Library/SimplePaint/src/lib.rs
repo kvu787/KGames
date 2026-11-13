@@ -1,12 +1,14 @@
 // SimplePaint colors 3D models in a way that looks good from any angle. It's
-// an unlit, opaque, orthographic-only surface shader that paints a surface
-// from its normal relative to the camera. Specification.md defines it, and
-// Usage.md explains its controls and how to use it.
+// an opaque, orthographic-only surface shader, without lights, that paints a
+// surface from its normal relative to the camera. Specification.md defines
+// it, and Usage.md explains its controls and how to use it. A model that
+// isn't painted with it is drawn with Unlit.hlsl, beside it, in its
+// materials' colors.
 //
 // - material: the parameters, their validation, and the GPU constants.
 // - geometry: validation of meshes before they're uploaded.
 // - orthographic: validated transforms for the shader's vertex stage.
-// - direct3d12: the shader's pipeline and meshes on the GPU, for hosts that
+// - direct3d12: the shaders' pipelines and meshes on the GPU, for hosts that
 //   draw with Library/Graphics.
 // - Shaders: the HLSL, which hosts compile with their own material count.
 //
@@ -34,7 +36,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-// The folder of SimplePaint.hlsl and SimplePaintCore.hlsli, for compiling
-// them at run time, like the tests do. Build scripts get it from
+// The folder of SimplePaint.hlsl, SimplePaintCore.hlsli and Unlit.hlsl, for
+// compiling them at run time, like the tests do. Build scripts get it from
 // DEP_SIMPLE_PAINT_SHADERS instead.
 pub const SHADER_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), r"\Shaders");

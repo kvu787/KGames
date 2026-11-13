@@ -2,9 +2,9 @@
 // pipeline of SimplePaint.hlsl's adapter, meshes in GPU memory, and the
 // sizes of the constant buffers that the adapter binds. The host compiles
 // the adapter with its material count (see Usage.md), owns the constant
-// buffers, and keeps them from changing while the GPU reads them. A host's
-// own shader that takes the same vertices and binds b0 and b1 the same way,
-// like SpinningCarTest's FlatShading.hlsl, draws with them too.
+// buffers, and keeps them from changing while the GPU reads them. Unlit.hlsl,
+// beside the adapter, takes the same vertices and binds b0 and b1 the same
+// way, so they draw with it too, with its colors at b1.
 
 use graphics::{Gpu, UploadBuffer, bytecode, create_buffer, transition};
 use windows_api::*;
@@ -25,10 +25,22 @@ pub const fn materials_size(count: usize) -> usize {
     (count * size_of::<GpuMaterial>()).next_multiple_of(CONSTANT_BUFFER_ALIGNMENT)
 }
 
+// The bytes that `count` colors take at b1 for Unlit.hlsl. They're 16 bytes
+// apart, as UnlitColor, and the buffer is rounded up to a whole constant
+// buffer.
+pub const fn unlit_colors_size(count: usize) -> usize {
+    (count * size_of::<UnlitColor>()).next_multiple_of(CONSTANT_BUFFER_ALIGNMENT)
+}
+
+// A material's color for Unlit.hlsl: red, green and blue, as the view takes
+// them, and a fourth float that the shader doesn't read.
+pub type UnlitColor = [f32; 4];
+
 // What a pipeline draws into, and how.
 pub struct Target {
     // SimplePaint's shader outputs linear colors, so for it, this should be
-    // an sRGB format, which encodes them once for display.
+    // an sRGB format, which encodes them once for display. Unlit.hlsl outputs
+    // its colors as they're given, for either kind of format.
     pub format: DXGI_FORMAT,
     // With a depth buffer, nearer surfaces hide farther ones.
     pub depth_format: Option<DXGI_FORMAT>,
@@ -45,8 +57,8 @@ pub struct Pipeline {
 
 impl Pipeline {
     // From the adapter's two stages, compiled with the same material count,
-    // or another shader's that binds like it. The vertex stage holds the
-    // root signature.
+    // or Unlit.hlsl's, compiled with the same color count. The vertex stage
+    // holds the root signature.
     pub unsafe fn new(
         device: &ID3D12Device,
         vertex_shader: &[u8],
