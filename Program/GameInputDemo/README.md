@@ -108,10 +108,11 @@ device. A GameSir controller in Xbox 360 mode, for example, is one device with a
 and a mouse.
 
 The choice isn't saved. Until one is picked, the demo chooses for itself: the first gamepad it finds
-connected. If that one disconnects, it switches to another that's still connected, or else to the
-next one that connects. Before any gamepad connects, the combo box shows `None`, and a note after it
-says that no gamepad is connected. The combo box is the library's, which reads the mouse's buttons
-from GameInput too, and the pointer from where Windows' cursor is in the window.
+connected. If that one disconnects, it switches to another that's still connected. While no gamepad
+is connected, before any connects or once they've all disconnected, the combo box shows `None`, and
+a note after it says that no gamepad is connected, until one connects, which the demo then listens
+to. The combo box is the library's, which reads the mouse's buttons from GameInput too, and the
+pointer from where Windows' cursor is in the window.
 
 ### Device tooltips
 

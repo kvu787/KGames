@@ -329,10 +329,10 @@ fn gamepad_combo_box(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, heade
     tree.add(GAMEPAD_COMBO_BOX, rect, combo);
 
     // Until a choice is picked, the demo switches to a gamepad as soon as one
-    // connects.
+    // connects, and to none once none is connected, so only a picked one is
+    // ever disconnected.
     let (note, caution) = match &input.listen {
-        Listen::Gamepad(_) if !connected && input.listen_picked => ("Disconnected: waiting for it to reconnect", true),
-        Listen::Gamepad(_) if !connected => ("Disconnected: waiting for a gamepad to connect", true),
+        Listen::Gamepad(_) if !connected => ("Disconnected: waiting for it to reconnect", true),
         Listen::Gamepad(_) => ("", false),
         Listen::NoGamepad if !input.listen_picked => ("No gamepad connected", true),
         Listen::NoGamepad => ("Gamepad input is ignored", false),

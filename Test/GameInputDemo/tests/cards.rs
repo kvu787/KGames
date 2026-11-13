@@ -146,6 +146,25 @@ fn without_gamepads_the_list_offers_none() {
     assert_eq!(choices(&app), ["None"]);
 }
 
+// Until one is picked, a gamepad that the demo chose for itself leaves the
+// combo box and its list on the frame that it disconnects, if it was the last
+// one connected.
+#[test]
+fn once_every_gamepad_disconnects_the_box_shows_none_unless_one_was_picked() {
+    let mut app = demo(&["Pad One", "Pad Two"]);
+    step(&mut app, r#"{ "Disconnect": 1 }"#);
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Two"));
+    step(&mut app, r#"{ "Disconnect": 2 }"#);
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("None"));
+    open(&mut app);
+    assert_eq!(choices(&app), ["None"]);
+    app.key(Key::ESCAPE);
+
+    // The next one to connect is listened to.
+    step(&mut app, r#"{ "Connect": { "Id": 3, "Name": "Pad Three", "Input": ["Gamepad"] } }"#);
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Three"));
+}
+
 #[test]
 fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
     let mut app = demo(&["Pad One", "Pad Two"]);

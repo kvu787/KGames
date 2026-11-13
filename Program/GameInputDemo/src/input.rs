@@ -745,6 +745,8 @@ impl Input {
 
     // Until a choice is picked, the demo listens to a connected gamepad if
     // there is one: the one it has while that's connected, or else the first.
+    // Without one, it has none, as before any gamepad connected, so a gamepad
+    // that it chose for itself isn't kept once it's gone.
     fn listen_by_default(&mut self) {
         if self.listen_picked {
             return;
@@ -755,8 +757,12 @@ impl Input {
             return;
         }
         let first = self.gamepads().next().cloned();
-        if let Some(device) = first {
-            self.set_listen(Listen::Gamepad(device));
+        match first {
+            Some(device) => self.set_listen(Listen::Gamepad(device)),
+            // Not set_listen, whose log line would say that gamepads are
+            // ignored, while the next one to connect is listened to. The
+            // gamepad's disconnect already stopped its motors and its view.
+            None => self.listen = Listen::NoGamepad,
         }
     }
 

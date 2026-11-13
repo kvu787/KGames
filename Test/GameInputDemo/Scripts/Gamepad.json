@@ -50,7 +50,10 @@
       }
     },
     { "Frame": 6, "Program": { "Disconnect": 1 } },
-    { "Frame": 7, "Expect": { "Listen": "Pad", "Devices": [], "Gamepad": { "Device": null } } },
+    {
+      "Frame": 7,
+      "Expect": { "Listen": "None", "Devices": [], "Gamepad": { "Device": null }, "Interface": { "Targets": { "Gamepad": { "Label": "None" } } } }
+    },
     { "Frame": 7, "Capture": "Disconnected" }
   ]
 }
