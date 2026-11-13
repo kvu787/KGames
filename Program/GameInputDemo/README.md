@@ -266,19 +266,19 @@ library makes its events from, from `startup.devices`. Every frame, the library:
 1. Drains the queue of device events that its `RegisterDeviceCallback` callback fills. That callback
    runs on one of GameInput's threads, and also reports the devices that were already connected when
    the program started.
-2. For each of gamepad, keyboard and mouse input, walks the history from the last reading it handled
-   with `GetNextReading`, right before the frame. GameInput keeps readings for only a short time,
-   and only about 512 of a gamepad's, under a tenth of a second at thousands a second, so after a
-   pause in input, or a frame that took longer than that, the last reading handled has left the
-   history, and `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The library
-   then walks back from the newest reading with `GetPreviousReading`, as far as the history goes.
-3. Takes the readings that its `RegisterReadingCallback` callback queued since the last frame. The
-   callback runs on one of GameInput's threads, for every reading as it comes, so the queue has the
-   readings that left the history too. The frame hands out the readings of both, each once, oldest
-   first, so that none is missed between frames, and the newest are as fresh as the history's.
+2. Walks GameInput's stream of readings, which has every device's in the order the input happened
+   in, from the last reading it handed out, with `GetNextReading`, right before the frame, until
+   there's nothing newer, as Microsoft's GameInputSequential sample does. The frame hands out
+   every reading since the last frame once, in the stream's order. GameInput keeps only about 513
+   readings, under a tenth of a second of a gamepad's at thousands a second, so after a frame that
+   took longer than that, the last reading handed out has left the history, and `GetNextReading`
+   fails. The library then starts over from the newest reading, as Microsoft's sample does, and the
+   readings in between are lost.
 
 Then the demo:
 
+3. Takes the readings in that order, so its log interleaves devices as they were used. A reading
+   with more than one kind of input, like a keyboard's with a trackball's, is each.
 4. Compares each reading with the same device's previous one to work out what changed. It keeps
    every device's last reading itself for that, including the ones it drops without focus.
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a

@@ -298,11 +298,17 @@ number of readings, not a time: at the 7,500 a second that background input off 
 about 70 ms. A frame that took longer, like one that waited on the GPU, would miss the readings
 that left the history, a button's tap among them.
 
-So the library also registers GameInput's reading callback, which GameInput calls for every
-reading as it comes, on its own thread, and which queues them. Each frame still walks the history
-right before the frame, as how promptly the callback comes wasn't measured, and hands out the
-readings of both, each once, oldest first. `Test/UserInterface/tests/reader.rs` pins how the two
-are merged.
+The library walks GameInput's stream as Microsoft's documentation and its GameInputSequential
+sample do, and keeps the stream's order, which is the order the input happened in. Each frame
+walks it once, filtered to gamepad, keyboard and mouse input together, from the last reading it
+handed out, with `GetNextReading`, until `GAMEINPUT_E_READING_NOT_FOUND` says there's nothing
+newer. The reading objects are where the walk is: GameInput's readings are singletons, which
+compare by pointer, while two readings can have the same timestamp. A frame that took longer than
+the history lasts loses its place, and starts over from the newest reading, as Microsoft's sample
+does, and the readings in between are lost. KGames accepts that loss, for keeping GameInput's own
+order, and doesn't register a reading callback, which Microsoft's documentation offers for
+event-driven input, like a menu, without promising that it gets every reading.
+`Test/UserInterface/tests/reader.rs` pins the walk.
 
 ## What changed in KGames
 
@@ -355,8 +361,6 @@ What was considered and not done:
   count as a press.
 - **The Android mode**, which wasn't measured.
 - **How fresh readings are with background input off**, which wasn't measured.
-- **How promptly GameInput's reading callback comes** after a reading reaches the history, which
-  wasn't measured, so the library walks the history too.
 - **What GameInput does with keys held as focus comes on other keyboards**, which only one keyboard
   showed.
 

@@ -212,11 +212,16 @@ All input comes from [GameInput](../GameInput/README.md): keyboards, mice and ga
 program needs GameInput 4.0.306 installed, as that README says, and doesn't start without it, not
 even in a scripted run or with `--no-input`, which don't read it. `platform/input_devices.rs`
 reads every device's readings once a frame, right before the frame, and `input/reader.rs` turns
-them into the interface's events, in the order they happened, with the window's focus changes
-between them. The window's messages bring none of it. Each frame walks GameInput's history of
-readings, for the freshest, and takes the ones that GameInput's reading callback queued, as the
-history keeps only about 512 readings, under a tenth of a second of a gamepad's, so that a long
-frame misses none.
+them into the interface's events, with the window's focus changes among them. The window's
+messages bring none of it. GameInput puts every device's readings in one stream, in the order the
+input happened in, and each frame walks it as Microsoft's documentation and its GameInputSequential
+sample do: from the last reading it handed out, with `GetNextReading`, until there's nothing newer.
+So a frame hands out every reading since the last one once, in the stream's order, which nothing
+after it changes: the readings aren't sorted, merged or told apart by their times, which GameInput
+says can't tell readings apart. GameInput's history is short, about 513 readings, about 70 ms of a
+gamepad that reads thousands of times a second, so a frame that takes longer than that loses its
+place, starts over from the newest reading, as Microsoft's sample does, and loses the readings in
+between.
 
 The library leaves GameInput's background input off, as it is by default, so GameInput gives a
 program input only while it has focus. On, it would give input without focus too, but GameInput
@@ -285,10 +290,11 @@ before, but reports gamepads' whole state, their held buttons too.
   `ui.toggle_fullscreen()`.
 - `F9`, `F10` and `F11` are the library's in every program, even while a text field has focus or a
   dialog is open, so a program mustn't also use them for something else.
-- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`, and each
-  change of its buttons is an event at its time, so that a button pressed and let go of within a
-  frame is a step with the press and one with the release, which `ui.input().gamepad_pressed` and
-  `gamepad_released` see.
+- With `Options::gamepad`, `ui.gamepad()` is every gamepad at once: a button is held while any
+  gamepad holds it, a trigger is pulled as far as any pulls it, and each stick is the one pushed
+  furthest, so a gamepad at rest never covers the one in use. Each change of its buttons is an
+  event at its reading, so that a button pressed and let go of within a frame is a step with the
+  press and one with the release, which `ui.input().gamepad_pressed` and `gamepad_released` see.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
   frame's readings and device events from `startup.devices`, which the interface reads them with.
 
