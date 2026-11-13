@@ -517,5 +517,7 @@ writes its files in its output folder, through `startup.data_folder`.
 | `Shaders/Interface.hlsl`         | The shapes' and glyphs' shader                                             |
 | `src/widgets/*.rs`               | The widgets, cards, menus, dialogs, and the page's bars                    |
 | `src/testing/script.rs`          | Scripts                                                                    |
+| `src/testing/gestures.rs`        | The input of a click, a drag or a key, frame by frame, for scripts and     |
+|                                  | `Headless`                                                                 |
 | `src/testing/headless.rs`        | Runs a program's frames without a window, for tests                        |
 | `build.rs`                       | Compiles the shader at build time                                          |

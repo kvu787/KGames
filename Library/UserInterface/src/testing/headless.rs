@@ -29,6 +29,7 @@ use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
 use crate::input::events::Event;
+use crate::testing::gestures::{self, Frames};
 use crate::testing::script::DEFAULT_FRAME_TIME;
 
 pub struct Headless<P: Program> {
@@ -41,7 +42,6 @@ pub struct Headless<P: Program> {
     pending: Vec<Event>,
     // Messages a test sends, applied in the next frame before the input's.
     sent: Vec<P::Message>,
-    pointer: Point,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
     // A window of a size other than the supported setups', like a test's of
@@ -66,7 +66,6 @@ impl<P: Program> Headless<P> {
             fullscreen: false,
             pending: vec![Event::FocusGained(Vec::new())],
             sent: Vec::new(),
-            pointer: Point::ZERO,
             gamepad: Gamepad::default(),
             renderer: None,
             custom_size: None,
@@ -220,8 +219,18 @@ impl<P: Program> Headless<P> {
         crate::application::run::state(&self.program, &self.ui)
     }
 
+    // Where the pointer is, as the last frame's input left it.
     pub fn pointer(&self) -> Point {
-        self.pointer
+        self.ui.pointer().unwrap_or(Point::ZERO)
+    }
+
+    // Runs a frame for each of a gesture's frames, with its events.
+    fn play(&mut self, gesture: Frames) -> &mut Self {
+        for events in gesture {
+            self.pending.extend(events);
+            self.run_frame();
+        }
+        self
     }
 
     // Moves the pointer to the middle of the widget.
@@ -231,9 +240,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn move_point(&mut self, point: Point) -> &mut Self {
-        self.pointer = point;
-        self.pending.push(Event::PointerMoved(point));
-        self.run_frame()
+        self.send(&[Event::PointerMoved(point)])
     }
 
     // Presses the left button on the widget, and holds it.
@@ -247,10 +254,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn press_button(&mut self, point: Point, button: MouseButton) -> &mut Self {
-        self.pointer = point;
-        self.pending.push(Event::PointerMoved(point));
-        self.pending.push(Event::ButtonPressed(button));
-        self.run_frame()
+        self.play(gestures::press(point, button))
     }
 
     pub fn release(&mut self) -> &mut Self {
@@ -258,35 +262,28 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn release_button(&mut self, button: MouseButton) -> &mut Self {
-        self.pending.push(Event::ButtonReleased(button));
-        self.run_frame()
+        self.send(&[Event::ButtonReleased(button)])
     }
 
     // A press on the widget, and its release the next frame.
     pub fn click(&mut self, name: &str) -> &mut Self {
-        self.press(name).release()
+        let point = self.target(name).center();
+        self.click_point(point)
     }
 
     pub fn click_point(&mut self, point: Point) -> &mut Self {
-        self.press_point(point).release()
+        self.play(gestures::click(point, MouseButton::Left))
     }
 
     // A right press and its release, which asks for a context menu.
     pub fn right_click(&mut self, name: &str) -> &mut Self {
         let point = self.target(name).center();
-        self.press_button(point, MouseButton::Right).release_button(MouseButton::Right)
+        self.play(gestures::click(point, MouseButton::Right))
     }
 
     pub fn double_click(&mut self, name: &str) -> &mut Self {
         let point = self.target(name).center();
-        self.pointer = point;
-        self.pending.push(Event::PointerMoved(point));
-        self.pending.push(Event::ButtonPressed(MouseButton::Left));
-        self.pending.push(Event::ButtonReleased(MouseButton::Left));
-        self.run_frame();
-        self.pending.push(Event::ButtonPressed(MouseButton::Left));
-        self.pending.push(Event::ButtonReleased(MouseButton::Left));
-        self.run_frame()
+        self.play(gestures::double_click(point))
     }
 
     // Presses at one point, moves to the other over `steps` frames, and lets
@@ -296,12 +293,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn drag_button(&mut self, from: Point, to: Point, steps: usize, button: MouseButton) -> &mut Self {
-        self.press_button(from, button);
-        let steps = steps.max(1);
-        for step in 1..=steps {
-            self.move_point(from.lerp(to, step as f32 / steps as f32));
-        }
-        self.release_button(button)
+        self.play(gestures::drag(from, to, steps, button))
     }
 
     // Turns the wheel over the widget, by notches, up for more than 0.
@@ -311,10 +303,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn scroll_point(&mut self, point: Point, notches: f32) -> &mut Self {
-        self.pointer = point;
-        self.pending.push(Event::PointerMoved(point));
-        self.pending.push(Event::Wheel(Point::new(0.0, notches)));
-        self.run_frame()
+        self.play(gestures::scroll(point, notches))
     }
 
     // Presses the key, and lets go of it the next frame.
@@ -324,34 +313,21 @@ impl<P: Program> Headless<P> {
 
     // Presses the key with the modifiers, like Ctrl+S, and lets go of them.
     pub fn key_with(&mut self, modifiers: Modifiers, key: Key) -> &mut Self {
-        let mut keys = Vec::new();
-        for (held, modifier) in [(modifiers.control, Key::CONTROL), (modifiers.shift, Key::SHIFT), (modifiers.alt, Key::ALT)] {
-            if held {
-                keys.push(modifier);
-            }
-        }
-        keys.push(key);
-        self.pending.extend(keys.iter().map(|key| Event::KeyPressed { key: *key, repeat: false }));
-        self.run_frame();
-        self.pending.extend(keys.iter().rev().map(|key| Event::KeyReleased(*key)));
-        self.run_frame()
+        self.play(gestures::key(modifiers, key, &[]))
     }
 
     // Presses the key and holds it, until release_key.
     pub fn hold(&mut self, key: Key) -> &mut Self {
-        self.pending.push(Event::KeyPressed { key, repeat: false });
-        self.run_frame()
+        self.send(&[Event::KeyPressed { key, repeat: false }])
     }
 
     pub fn release_key(&mut self, key: Key) -> &mut Self {
-        self.pending.push(Event::KeyReleased(key));
-        self.run_frame()
+        self.send(&[Event::KeyReleased(key)])
     }
 
     // A held key's repeat, as Windows sends while it stays down.
     pub fn repeat(&mut self, key: Key) -> &mut Self {
-        self.pending.push(Event::KeyPressed { key, repeat: true });
-        self.run_frame()
+        self.send(&[Event::KeyPressed { key, repeat: true }])
     }
 
     // Sends the events as they are, all in one frame.
@@ -370,8 +346,8 @@ impl<P: Program> Headless<P> {
 
     // Types the text, all in one frame.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
-        self.pending.extend(text.chars().map(Event::Text));
-        self.run_frame()
+        let typed: Vec<Event> = text.chars().map(Event::Text).collect();
+        self.send(&typed)
     }
 
     pub fn set_gamepad(&mut self, gamepad: Gamepad) -> &mut Self {
@@ -381,8 +357,7 @@ impl<P: Program> Headless<P> {
 
     // Gives the window focus, or takes it away.
     pub fn focus(&mut self, focused: bool) -> &mut Self {
-        self.pending.push(if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost });
-        self.run_frame()
+        self.send(&[if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost }])
     }
 
     // Draws the last frame offscreen, as the window would, with the
