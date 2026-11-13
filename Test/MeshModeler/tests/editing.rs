@@ -11,7 +11,7 @@ use math::Vector3;
 use mesh_modeler::modeler::{Command, Message, Modeler, PaintEdit};
 use polygon_mesh::Edge;
 use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
+use user_interface::{Event, Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
 
 fn folder(test: &str) -> PathBuf {
     let folder = Path::new(env!("CARGO_TARGET_TMPDIR")).join("MeshModeler").join(test);
@@ -223,6 +223,26 @@ fn keys_select_all_none_and_the_inverse_in_each_mode() {
     app.key(Key::DIGIT_2);
     assert_eq!(app.program.document.selection.edges.len(), 12);
     assert_eq!(app.program.document.selection.faces.len(), 6);
+}
+
+// The modal edit hears the pointer in every step of a frame's input, while
+// the pointer is read once a frame, so the edit isn't applied again for the
+// same pointer: the document gets no new version, which would remake the
+// subdivided surface that the view draws, in every step.
+#[test]
+fn a_modal_edit_is_applied_once_for_a_pointer_however_many_steps_a_frame_has() {
+    let mut app = modeler("MoveSteps");
+    app.key(Key::A);
+    let start = app.program.view.center() + Point::new(-200.0, 100.0);
+    app.move_point(start);
+    app.key(Key::G);
+    app.move_point(start + Point::new(50.0, 0.0));
+    let version = app.program.document.version;
+    app.send(&vec![Event::KeyReleased(Key::F12); 5]);
+    assert_eq!(app.program.document.version, version);
+    // A move of the pointer applies it again.
+    app.move_point(start + Point::new(80.0, 0.0));
+    assert!(app.program.document.version > version);
 }
 
 #[test]
