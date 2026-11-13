@@ -99,7 +99,7 @@ keyboard focus, so the keys that you press to try the Keyboard card leave it alo
 
 | Choice    | What the demo listens to                                                        |
 | --------- | ------------------------------------------------------------------------------- |
-| A gamepad | Only that one, while it's connected. Then the demo chooses for itself again     |
+| A gamepad | Only that one                                                                   |
 | `None`    | No gamepad                                                                      |
 
 The demo ignores a gamepad it doesn't listen to: its readings aren't shown, logged or counted, and
@@ -107,14 +107,21 @@ the rumble test leaves its motors off. That includes any keyboard or mouse input
 device. A GameSir controller in Xbox 360 mode, for example, is one device with a gamepad, a keyboard
 and a mouse.
 
-The choice isn't saved. The combo box only ever shows and lists gamepads that are connected. Until
-one is picked, or once a picked one disconnects, the demo chooses for itself: the first gamepad it
-finds connected. If that one disconnects, it switches to another that's still connected. While no
-gamepad is connected, before any connects or once they've all disconnected, the combo box shows
-`None`, and a note after it says that no gamepad is connected, until one connects, which the demo
-then listens to. A pick of `None` lasts, whatever connects. The combo box is the library's, which
-reads the mouse's buttons from GameInput too, and the pointer from where Windows' cursor is in the
-window.
+The choice isn't saved, and connecting and disconnecting gamepads change it, on the frame that
+GameInput reports them:
+
+| Event                                       | What the demo listens to then                       |
+| ------------------------------------------- | --------------------------------------------------- |
+| A gamepad connects                          | That one, whatever was chosen                       |
+| The gamepad it listens to disconnects       | The first other gamepad connected, or else `None`   |
+| A gamepad it doesn't listen to disconnects  | The same as before                                  |
+
+GameInput reports the devices that are already connected when the demo starts as connecting, so it
+starts on the last gamepad of those. The combo box only ever shows and lists gamepads that are
+connected. While none is, the combo box shows `None`, and a note after it says that no gamepad is
+connected. While `None` is picked with gamepads connected, the note says that gamepad input is
+ignored. The combo box is the library's, which reads the mouse's buttons from GameInput too, and the
+pointer from where Windows' cursor is in the window.
 
 ### Device tooltips
 

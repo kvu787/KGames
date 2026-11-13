@@ -319,11 +319,10 @@ fn gamepad_combo_box(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, heade
     });
     tree.add(GAMEPAD_COMBO_BOX, rect, combo);
 
-    // Unless none is picked, the demo switches to a gamepad as soon as one
-    // connects, so it has none only while none is connected.
+    // With gamepads connected, the demo has none only if None was picked.
     let (note, caution) = match &input.listen {
         Listen::Gamepad(_) => ("", false),
-        Listen::NoGamepad if !input.listen_picked => ("No gamepad connected", true),
+        Listen::NoGamepad if input.gamepads().next().is_none() => ("No gamepad connected", true),
         Listen::NoGamepad => ("Gamepad input is ignored", false),
     };
     let mut area = Rect::new(rect.right() + SPACE_M, header.y, (header.right() - rect.right() - SPACE_M).max(0.0), header.height);

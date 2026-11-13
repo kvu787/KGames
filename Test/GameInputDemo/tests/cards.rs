@@ -98,7 +98,8 @@ fn rest(app: &mut Headless<Demo>, point: Point) -> Option<(String, Rect)> {
 fn the_combo_box_and_the_device_list_are_the_only_widgets() {
     let app = demo(&["Pad One", "Pad Two"]);
     assert_eq!(names(&app), [GAMEPAD_COMBO_BOX, DEVICE_ROWS, "Devices/0", "Devices/1"]);
-    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
+    // The gamepad that connected last.
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Two"));
     // In the Gamepad card's header, after its title.
     let combo_box = app.target(GAMEPAD_COMBO_BOX);
     let header_y = PERF_BAR_HEIGHT + APP_BAR_HEIGHT + PAGE_PADDING + CARD_PADDING;
@@ -115,11 +116,10 @@ fn the_open_list_offers_each_gamepad_and_none() {
     assert_eq!(choices(&app), ["Pad One", "Pad Two", "None"]);
 
     // A click on a choice picks it, and closes the list.
-    app.click("Gamepad/1");
-    assert_eq!(listen(&app), "Pad Two");
-    assert!(input(&app).listen_picked);
+    app.click("Gamepad/0");
+    assert_eq!(listen(&app), "Pad One");
     assert_eq!(app.ui.popup_name(), None);
-    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Two"));
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
     open(&mut app);
     app.click("Gamepad/2");
     assert_eq!(input(&app).listen, Listen::NoGamepad);
@@ -127,7 +127,8 @@ fn the_open_list_offers_each_gamepad_and_none() {
 }
 
 // The box only ever shows and offers gamepads that are connected. A picked
-// one that disconnects leaves it on that frame, for another that's connected.
+// one that disconnects leaves it on that frame, for another that's connected,
+// whichever connected last.
 #[test]
 fn a_picked_gamepad_leaves_the_box_when_it_disconnects() {
     let mut app = demo(&["Pad One", "Pad Two", "Pad Three"]);
@@ -155,8 +156,8 @@ fn without_gamepads_the_list_offers_none() {
 fn once_every_gamepad_disconnects_the_box_shows_none() {
     let mut app = demo(&["Pad One", "Pad Two"]);
     open(&mut app);
-    app.click("Gamepad/1");
-    assert!(input(&app).listen_picked);
+    app.click("Gamepad/0");
+    assert_eq!(listen(&app), "Pad One");
     step(&mut app, r#"{ "Disconnect": 1 }"#);
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Two"));
     step(&mut app, r#"{ "Disconnect": 2 }"#);
@@ -179,7 +180,7 @@ fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
     open(&mut app);
     app.click_point(Point::new(1300.0, 300.0));
     assert_eq!(app.ui.popup_name(), None);
-    assert_eq!(listen(&app), "Pad One");
+    assert_eq!(listen(&app), "Pad Two");
 
     // Neither a press on the box nor one on a choice gives it keyboard
     // focus, so once the list is closed, the keys that the user presses to
@@ -199,8 +200,8 @@ fn while_the_list_is_open_the_arrows_move_to_a_choice_and_enter_picks_it() {
     let mut app = demo(&["Pad One", "Pad Two"]);
     open(&mut app);
     assert_eq!(app.ui.popup_name(), Some(GAMEPAD_COMBO_BOX));
-    app.key(Key::DOWN);
-    assert_eq!(listen(&app), "Pad One");
+    app.key(Key::UP);
+    assert_eq!(listen(&app), "Pad Two");
     app.key(Key::END).key(Key::ENTER);
     assert_eq!(input(&app).listen, Listen::NoGamepad);
     assert_eq!(app.ui.popup_name(), None);

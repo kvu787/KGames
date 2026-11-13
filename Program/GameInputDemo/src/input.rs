@@ -256,10 +256,11 @@ fn buttons(kind: GameInputKind, reading: &Reading) -> i32 {
 }
 
 // Which gamepad the demo listens to, if any, chosen in the Gamepad card's
-// combo box. The others are ignored, along with any keyboard or mouse input
-// they have: a GameSir in Xbox 360 mode is one device with a gamepad, a
-// keyboard and a mouse. There's only one choice at a time, so its device's
-// data isn't boxed.
+// combo box, or by gamepads connecting and disconnecting, as
+// handle_device_event says. The others are ignored, along with any keyboard
+// or mouse input they have: a GameSir in Xbox 360 mode is one device with a
+// gamepad, a keyboard and a mouse. There's only one choice at a time, so its
+// device's data isn't boxed.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Listen {
@@ -350,12 +351,9 @@ pub struct Input {
     // are dropped when it disconnects, so one that reconnects starts from an
     // idle state.
     last_readings: Vec<LastReading>,
-    // Changed with pick_listen, and by listen_by_default, which keeps it to
-    // connected gamepads, and chooses one while nothing's picked.
+    // Changed with pick_listen, and by handle_device_event, as gamepads
+    // connect and disconnect.
     pub listen: Listen,
-    // Whether listen was picked in the combo box. A pick of a gamepad lasts
-    // until it disconnects.
-    pub listen_picked: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
     // The run of motion-only readings from one device that's going, which
@@ -576,7 +574,6 @@ impl Input {
             rumbles: Vec::new(),
             last_readings: Vec::new(),
             listen: Listen::NoGamepad,
-            listen_picked: false,
             shortcuts: Vec::new(),
             motion: None,
             focused: false,
@@ -629,7 +626,6 @@ impl Input {
         for (event, device) in self.source.device_events() {
             self.handle_device_event(event, device);
         }
-        self.listen_by_default();
 
         // Gather every new reading of each kind, then handle them all in
         // timestamp order, so the log interleaves devices correctly.
@@ -656,10 +652,17 @@ impl Input {
         }
     }
 
+    // The demo listens to the gamepad that connected last, from the first
+    // frame, as GameInput reports the devices that are already connected as
+    // connecting then. Once the one it listens to disconnects, it listens to
+    // another that's connected, or else none. The combo box picks another in
+    // between, which lasts until the next of these.
     #[allow(non_upper_case_globals)]
     fn handle_device_event(&mut self, event: GameInputDeviceEvent, device: Device) {
         let existing = self.devices.iter().position(|info| info.id == device.id);
         let label = device.label.clone();
+        let connected_gamepad = (event == GameInputDeviceEventConnected && device.is_gamepad()).then(|| device.clone());
+        let id = device.id;
         let text = match event {
             GameInputDeviceEventConnected => {
                 let text = format!("Connected: {} [{}]", device.label, device.kinds());
@@ -713,6 +716,22 @@ impl Input {
             other => format!("Device event {other}: {label}"),
         };
         self.log(self.now, Source::Device, text, None);
+
+        if let Some(device) = connected_gamepad {
+            self.set_listen(Listen::Gamepad(device));
+        } else if event == GameInputDeviceEventDisconnected
+            && matches!(&self.listen, Listen::Gamepad(listened) if listened.id == id)
+        {
+            let other = self.gamepads().next().cloned();
+            match other {
+                Some(other) => self.set_listen(Listen::Gamepad(other)),
+                // Not set_listen, whose log line would say that gamepads are
+                // ignored, while the next one to connect is listened to. The
+                // disconnect already stopped the gamepad's motors and its
+                // view.
+                None => self.listen = Listen::NoGamepad,
+            }
+        }
     }
 
     // Shows another gamepad in the card, starting from an idle state.
@@ -738,36 +757,10 @@ impl Input {
         self.listen.includes(info)
     }
 
-    // For a choice picked in the combo box. The demo keeps to it from then on.
+    // For a choice picked in the combo box, which lasts until a gamepad
+    // connects, or the picked one disconnects.
     pub fn pick_listen(&mut self, listen: Listen) {
-        self.listen_picked = true;
         self.set_listen(listen);
-    }
-
-    // The demo only ever listens to a gamepad that's connected. A gamepad
-    // that's picked is kept while it's connected, and once it disconnects,
-    // the pick is over. Until another is picked, the demo listens to a
-    // connected gamepad if there is one: the one it has while that's
-    // connected, or else the first. Without one, it has none, as before any
-    // gamepad connected, until one connects. A pick of none lasts.
-    fn listen_by_default(&mut self) {
-        if let Listen::Gamepad(device) = &self.listen {
-            if self.gamepads().any(|info| info.id == device.id) {
-                return;
-            }
-            self.listen_picked = false;
-        }
-        if self.listen_picked {
-            return;
-        }
-        let first = self.gamepads().next().cloned();
-        match first {
-            Some(device) => self.set_listen(Listen::Gamepad(device)),
-            // Not set_listen, whose log line would say that gamepads are
-            // ignored, while the next one to connect is listened to. The
-            // gamepad's disconnect already stopped its motors and its view.
-            None => self.listen = Listen::NoGamepad,
-        }
     }
 
     // Brings the log's clock up to a moment, in seconds, for an entry made

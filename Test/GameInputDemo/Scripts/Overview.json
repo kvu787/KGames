@@ -2,6 +2,10 @@
   "Steps": [
     {
       "Frame": 1,
+      "Program": { "Connect": { "Id": 2, "Name": "Wireless Controller (054C:0CE6)", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } }
+    },
+    {
+      "Frame": 1,
       "Program": {
         "Connect": {
           "Id": 1,
@@ -10,10 +14,6 @@
           "Motors": ["LowFrequency", "HighFrequency", "LeftTrigger", "RightTrigger"]
         }
       }
-    },
-    {
-      "Frame": 1,
-      "Program": { "Connect": { "Id": 2, "Name": "Wireless Controller (054C:0CE6)", "Input": ["Gamepad"], "Motors": ["LowFrequency", "HighFrequency"] } }
     },
     { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "HID Keyboard Device (29EA:0360)", "Input": ["Keyboard", "Mouse"] } } },
     { "Frame": 1, "Program": { "Connect": { "Id": 4, "Name": "Razer DeathAdder V4 Pro (1532:00BF)", "Input": ["Mouse"] } } },

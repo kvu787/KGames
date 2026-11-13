@@ -52,118 +52,118 @@ fn gamepad(input: &Input, label: &str) -> Listen {
     Listen::Gamepad(device.clone())
 }
 
+// GameInput reports each device that's already connected as connecting, so
+// the demo listens to the last gamepad of those from the first frame, and
+// switches to each gamepad that connects later. Two that connect in one
+// frame each switch it, in turn.
 #[test]
-fn listens_to_the_first_gamepad_until_one_is_picked() {
+fn listens_to_the_gamepad_that_connected_last() {
     let mut input = input();
     for device in [KEYS, PAD_ONE, PAD_TWO] {
         step(&mut input, device);
     }
     input.update(true);
     // Gamepads come first.
-    expect(&input, r#"{ "Devices": ["Pad One", "Pad Two", "Keys"], "Listen": "Pad One" }"#);
-    assert!(!input.listen_picked);
-    assert_eq!(log(&input)[0], "Listening to Pad One only");
+    expect(&input, r#"{ "Devices": ["Pad One", "Pad Two", "Keys"], "Listen": "Pad Two" }"#);
+    assert_eq!(
+        log(&input)[..4],
+        ["Listening to Pad Two only", "Connected: Pad Two [gamepad]", "Listening to Pad One only", "Connected: Pad One [gamepad]"]
+    );
 
-    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    // A mouse that connects changes nothing.
+    step(&mut input, RODENT);
     input.update(true);
     expect(&input, r#"{ "Listen": "Pad Two" }"#);
+
+    // A gamepad that connects is listened to, with its reading in the same
+    // frame, and the one before isn't.
+    step(&mut input, r#"{ "Connect": { "Id": 5, "Name": "Pad Five", "Input": ["Gamepad"] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 5, "Buttons": ["A"] } }"#);
+    step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["B"] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Listen": "Pad Five", "ReadingCount": 1, "Gamepad": { "Device": "Pad Five", "Buttons": ["A"] } }"#);
 }
 
-// With no gamepad connected, the demo has none, as before any connected,
-// until the next one connects, on the frame of each.
+// Once the gamepad that the demo listens to disconnects, it listens to
+// another that's connected, or else none, as before any connected, until the
+// next one connects, on the frame of each.
 #[test]
-fn a_gamepad_that_it_chose_is_dropped_once_no_gamepad_is_connected() {
-    let mut input = input();
-    step(&mut input, PAD_ONE);
-    input.update(true);
-    expect(&input, r#"{ "Listen": "Pad One" }"#);
-
-    step(&mut input, r#"{ "Disconnect": 1 }"#);
-    input.update(true);
-    expect(&input, r#"{ "Listen": "None", "Devices": [], "Gamepad": { "Device": null } }"#);
-    assert_eq!(input.listen, Listen::NoGamepad);
-    assert!(!input.listen_picked);
-    // The demo doesn't ignore gamepads, so the log doesn't say it does.
-    assert_eq!(log(&input)[..2], ["Disconnected: Pad One", "Listening to Pad One only"]);
-
-    // Another connects, with a reading in the same frame, which is taken.
-    step(&mut input, PAD_TWO);
-    step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["A"] } }"#);
-    input.update(true);
-    expect(&input, r#"{ "Listen": "Pad Two", "ReadingCount": 1, "Gamepad": { "Device": "Pad Two", "Buttons": ["A"] } }"#);
-    assert!(!input.listen_picked);
-}
-
-// A picked gamepad isn't kept once it's gone: the pick is over, on the frame
-// of its disconnect, and the demo chooses for itself again, another gamepad
-// that's connected, or else none, until one connects.
-#[test]
-fn a_pick_of_a_gamepad_lasts_until_it_disconnects() {
+fn once_its_gamepad_disconnects_it_listens_to_another_or_none() {
     let mut input = input();
     step(&mut input, PAD_ONE);
     step(&mut input, PAD_TWO);
     input.update(true);
-    input.pick_listen(gamepad(&input, "Pad Two"));
     step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["A"] } }"#);
     input.update(true);
-    expect(&input, r#"{ "Gamepad": { "Device": "Pad Two", "Buttons": ["A"] } }"#);
+    expect(&input, r#"{ "Listen": "Pad Two", "Gamepad": { "Device": "Pad Two", "Buttons": ["A"] } }"#);
+
+    // Pad One's reading in the frame of Pad Two's disconnect is taken.
     step(&mut input, r#"{ "Disconnect": 2 }"#);
     step(&mut input, r#"{ "Gamepad": { "Id": 1, "Buttons": ["X"] } }"#);
     input.update(true);
-    // Pad One's reading in that frame is taken.
     expect(&input, r#"{ "Listen": "Pad One", "Gamepad": { "Device": "Pad One", "Buttons": ["X"] } }"#);
-    assert!(!input.listen_picked);
     assert_eq!(log(&input)[..3], ["Pad One: X pressed", "Listening to Pad One only", "Disconnected: Pad Two"]);
 
-    // Pad Two reconnecting leaves Pad One listened to.
-    step(&mut input, PAD_TWO);
-    input.update(true);
-    expect(&input, r#"{ "Listen": "Pad One" }"#);
-
-    // Picked when it's the only one connected, it leaves none.
-    input.pick_listen(gamepad(&input, "Pad Two"));
     step(&mut input, r#"{ "Disconnect": 1 }"#);
     input.update(true);
-    expect(&input, r#"{ "Listen": "Pad Two" }"#);
-    assert!(input.listen_picked);
-    step(&mut input, r#"{ "Disconnect": 2 }"#);
+    expect(&input, r#"{ "Listen": "None", "Devices": [], "Gamepad": { "Device": null, "Buttons": [] } }"#);
+    assert_eq!(input.listen, Listen::NoGamepad);
+    // The demo doesn't ignore gamepads, so the log doesn't say it does.
+    assert_eq!(log(&input)[..2], ["Disconnected: Pad One", "Pad One: X pressed"]);
+
+    step(&mut input, PAD_TWO);
+    step(&mut input, r#"{ "Gamepad": { "Id": 2, "Buttons": ["B"] } }"#);
     input.update(true);
-    expect(&input, r#"{ "Listen": "None", "Gamepad": { "Device": null, "Buttons": [] } }"#);
-    assert!(!input.listen_picked);
-    step(&mut input, PAD_ONE);
-    input.update(true);
-    expect(&input, r#"{ "Listen": "Pad One", "Gamepad": { "Device": "Pad One" } }"#);
+    expect(&input, r#"{ "Listen": "Pad Two", "Gamepad": { "Device": "Pad Two", "Buttons": ["B"] } }"#);
 }
 
-// A pick of none isn't over when a gamepad connects.
+// A pick in the combo box lasts until a gamepad connects, or the picked one
+// disconnects. A gamepad that isn't listened to disconnecting changes
+// nothing.
 #[test]
-fn a_pick_of_none_lasts() {
+fn a_pick_lasts_until_a_gamepad_connects_or_the_picked_one_disconnects() {
     let mut input = input();
     step(&mut input, PAD_ONE);
+    step(&mut input, PAD_TWO);
     input.update(true);
+    input.pick_listen(gamepad(&input, "Pad One"));
+    step(&mut input, r#"{ "Disconnect": 2 }"#);
+    input.update(true);
+    expect(&input, r#"{ "Listen": "Pad One" }"#);
+    step(&mut input, PAD_TWO);
+    input.update(true);
+    expect(&input, r#"{ "Listen": "Pad Two" }"#);
+
+    // A pick of none too.
     input.pick_listen(Listen::NoGamepad);
     step(&mut input, r#"{ "Disconnect": 1 }"#);
     input.update(true);
-    step(&mut input, PAD_TWO);
+    expect(&input, r#"{ "Listen": "None" }"#);
+    step(&mut input, PAD_ONE);
     input.update(true);
-    expect(&input, r#"{ "Listen": "None", "Gamepad": { "Device": null } }"#);
-    assert!(input.listen_picked);
+    expect(&input, r#"{ "Listen": "Pad One", "Gamepad": { "Device": "Pad One" } }"#);
+
+    // A picked gamepad that disconnects leaves another.
+    input.pick_listen(gamepad(&input, "Pad Two"));
+    step(&mut input, r#"{ "Disconnect": 2 }"#);
+    input.update(true);
+    expect(&input, r#"{ "Listen": "Pad One" }"#);
 }
 
 // A pick and its gamepad's disconnect in the same frame: the pick applies,
-// and is over by the frame's end.
+// and the disconnect moves the demo on to another gamepad by the frame's end.
 #[test]
 fn a_pick_of_a_gamepad_that_disconnects_in_its_frame_is_over_in_that_frame() {
     let mut input = input();
     step(&mut input, PAD_ONE);
     step(&mut input, PAD_TWO);
     input.update(true);
-    let two = gamepad(&input, "Pad Two");
-    step(&mut input, r#"{ "Disconnect": 2 }"#);
-    input.pick_listen(two);
+    let one = gamepad(&input, "Pad One");
+    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    input.pick_listen(one);
     input.update(true);
-    expect(&input, r#"{ "Listen": "Pad One", "Gamepad": { "Device": "Pad One" } }"#);
-    assert!(!input.listen_picked);
+    expect(&input, r#"{ "Listen": "Pad Two", "Gamepad": { "Device": "Pad Two" } }"#);
+    assert_eq!(log(&input)[..3], ["Listening to Pad Two only", "Disconnected: Pad One", "Listening to Pad One only"]);
 }
 
 #[test]
@@ -618,8 +618,9 @@ fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
 #[test]
 fn gamepads_no_longer_listened_to_stop_rumbling() {
     let mut input = input();
-    step(&mut input, PAD_ONE);
+    // Pad One connects last, so it's listened to.
     step(&mut input, PAD_TWO);
+    step(&mut input, PAD_ONE);
     step(&mut input, KEYS);
     input.update(true);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
@@ -835,8 +836,9 @@ fn the_gamepad_s_readings_a_second_are_averaged_over_the_last_two_seconds() {
 #[test]
 fn the_gamepad_s_average_counts_only_the_gamepad_the_card_shows() {
     let mut input = input();
-    step(&mut input, PAD_ONE);
+    // Pad One connects last, so the card shows it.
     step(&mut input, PAD_TWO);
+    step(&mut input, PAD_ONE);
     input.update(true);
     let mut one = Vec::new();
     // The first reading counts, on its own frame.
@@ -859,9 +861,7 @@ fn the_gamepad_s_average_counts_only_the_gamepad_the_card_shows() {
     assert_eq!(readings_per_second(&input), 10.0);
 
     // A gamepad that disconnects and reconnects starts over too, and the
-    // reading that shows it again counts. Pad One goes as well, so that the
-    // demo listens to Pad Two again once it's back.
-    step(&mut input, r#"{ "Disconnect": 1 }"#);
+    // reading that shows it again counts.
     step(&mut input, r#"{ "Disconnect": 2 }"#);
     input.update(true);
     assert_eq!(readings_per_second(&input), 0.0);
