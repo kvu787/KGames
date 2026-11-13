@@ -627,17 +627,16 @@ impl Input {
             self.handle_device_event(event, device);
         }
 
-        // Gather every new reading of each kind, then handle them all in
-        // timestamp order, so the log interleaves devices correctly.
-        let mut readings = Vec::new();
-        for &(source, kind) in READING_KINDS.iter() {
-            for reading in self.source.readings(kind) {
-                readings.push((source, kind, reading));
+        // Every new reading, in the order the input happened in, as
+        // GameInput's stream has them, so the log interleaves devices as
+        // they were used. A reading with more than one kind of input, like a
+        // keyboard's with a trackball's, is taken as each.
+        for reading in self.source.readings() {
+            for &(source, kind) in READING_KINDS.iter() {
+                if reading.kinds & kind != 0 {
+                    self.take_reading(source, kind, reading.clone());
+                }
             }
-        }
-        readings.sort_by_key(|(_, _, reading)| reading.timestamp);
-        for (source, kind, reading) in readings {
-            self.take_reading(source, kind, reading);
         }
         self.end_motion();
 

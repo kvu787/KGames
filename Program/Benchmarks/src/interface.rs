@@ -284,7 +284,6 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
         time += tick;
         readings.push((
             time,
-            GameInputKindMouse,
             Reading {
                 device: Some(2),
                 kinds: GameInputKindMouse,
@@ -299,7 +298,6 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     }
     readings.push((
         time,
-        GameInputKindKeyboard,
         Reading {
             device: Some(1),
             kinds: GameInputKindKeyboard,

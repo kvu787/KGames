@@ -369,10 +369,10 @@ pub trait InputSource {
     // connected, disconnected, or changed.
     fn device_events(&mut self) -> Vec<(GameInputDeviceEvent, Device)>;
 
-    // The readings with this kind of input since the last call, oldest
-    // first. input.rs compares each with the same device's reading before
-    // it, which it keeps itself.
-    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading>;
+    // The readings since the last call, of every kind, in the order the
+    // input happened in. input.rs compares each with the same device's
+    // reading before it, which it keeps itself.
+    fn readings(&mut self) -> Vec<Reading>;
 
     // Runs a gamepad's motors, or stops them with None.
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>);

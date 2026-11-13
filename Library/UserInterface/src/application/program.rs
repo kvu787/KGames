@@ -95,7 +95,7 @@ pub struct Options {
     pub name: &'static str,
     // The program's folder, which has its Settings.json: env!("CARGO_MANIFEST_DIR").
     pub folder: &'static str,
-    // Whether the program reads the gamepad: its newest reading goes to
+    // Whether the program reads the gamepads: all of them at once go to
     // Ui::gamepad, each change of its buttons is an event of its own, and
     // its readings count as input for input latency.
     pub gamepad: bool,

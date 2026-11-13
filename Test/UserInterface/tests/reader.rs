@@ -18,7 +18,7 @@ const RIGHT_SHIFT: (u8, u32) = (0xA1, 0x36);
 const LEFT_CONTROL: (u8, u32) = (0xA2, 0x1D);
 const BACKSPACE: (u8, u32) = (0x08, 0x0E);
 
-fn keyboard(time: i64, keys: &[(u8, u32)]) -> (i64, GameInputKind, Reading) {
+fn keyboard(time: i64, keys: &[(u8, u32)]) -> (i64, Reading) {
     let keys = keys
         .iter()
         .map(|(virtual_key, scan_code)| GameInputKeyState {
@@ -34,10 +34,10 @@ fn keyboard(time: i64, keys: &[(u8, u32)]) -> (i64, GameInputKind, Reading) {
         keys,
         ..Default::default()
     };
-    (time, GameInputKindKeyboard, reading)
+    (time, reading)
 }
 
-fn mouse(time: i64, buttons: GameInputMouseButtons, wheel: i64) -> (i64, GameInputKind, Reading) {
+fn mouse(time: i64, buttons: GameInputMouseButtons, wheel: i64) -> (i64, Reading) {
     let reading = Reading {
         device: Some(MOUSE),
         kinds: GameInputKindMouse,
@@ -48,10 +48,10 @@ fn mouse(time: i64, buttons: GameInputMouseButtons, wheel: i64) -> (i64, GameInp
         },
         ..Default::default()
     };
-    (time, GameInputKindMouse, reading)
+    (time, reading)
 }
 
-fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, GameInputKind, Reading) {
+fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
     let reading = Reading {
         device: Some(GAMEPAD),
         kinds: GameInputKindGamepad,
@@ -61,7 +61,7 @@ fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, GameInputKind, 
         },
         ..Default::default()
     };
-    (time, GameInputKindGamepad, reading)
+    (time, reading)
 }
 
 // The window with the cursor on it, which may get or lose focus at a time.
@@ -87,7 +87,7 @@ fn focused() -> InputReader {
 // A frame of readings, which may come with a focus change, through the
 // reader and into the interface's input, at a time that's both the counter's
 // ticks and milliseconds.
-fn step(reader: &mut InputReader, input: &mut Input, readings: &[(i64, GameInputKind, Reading)], focus: Option<(i64, bool)>, now: i64) {
+fn step(reader: &mut InputReader, input: &mut Input, readings: &[(i64, Reading)], focus: Option<(i64, bool)>, now: i64) {
     let frame = reader.read(readings, &[], &window(focus), now);
     input.begin(now as f64 / 1000.0, &frame.events);
 }
@@ -440,38 +440,162 @@ fn keys_and_buttons_held_on_a_device_that_is_unplugged_are_let_go_of() {
     assert!(frame.events.contains(&Event::KeyPressed { key: Key::A, repeat: false }));
 }
 
-// A frame hands out the readings that GameInput's reading callback queued
-// and those that the walk of its history found, each once, oldest first. The
-// history keeps only about 512 readings, under a tenth of a second of a
-// gamepad's, so after a long frame the walk finds only the newest, and the
-// queue has the rest. The callback may be later than the history with the
-// newest, which the walk finds first, and which the next frame then doesn't
-// hand out again.
-#[test]
-fn a_frame_hands_out_the_queued_and_the_walked_readings_once_each_oldest_first() {
-    use user_interface::frame_readings;
-    const PAD: usize = 7;
-    const OTHER_PAD: usize = 9;
-    let reading = |timestamp: u64, device: usize| (timestamp, device, format!("{device}@{timestamp}"));
-    let names = |readings: Vec<(u64, usize, String)>| readings.into_iter().map(|(_, _, name)| name).collect::<Vec<_>>();
-    // After a long frame: the walk lost 20 and 30, which the queue has.
-    let queued = [reading(10, PAD), reading(20, PAD), reading(30, PAD), reading(40, PAD)];
-    let walked = [reading(40, PAD), reading(50, PAD)];
-    assert_eq!(names(frame_readings(queued, walked, Some((5, PAD)))), ["7@10", "7@20", "7@30", "7@40", "7@50"]);
-    // The next frame: the callback catches up with 50, which went already.
-    let queued = [reading(50, PAD), reading(60, PAD)];
-    assert_eq!(names(frame_readings(queued, [], Some((50, PAD)))), ["7@60"]);
-    // Two devices' readings at the same time are both handed out.
-    let queued = [reading(70, OTHER_PAD)];
-    let walked = [reading(70, PAD), reading(70, OTHER_PAD)];
-    assert_eq!(names(frame_readings(queued, walked, Some((60, PAD)))), ["7@70", "9@70"]);
-    // The first frame hands out everything.
-    assert_eq!(names(frame_readings([reading(1, PAD)], [], None)), ["7@1"]);
+// GameInput's stream, made up, for walking: readings are numbers, in the
+// stream's order, which keeps the newest `kept` of them, as GameInput's
+// history does. Two readings can be the same number, as two of GameInput's
+// readings can have the same timestamp, and are still two readings: each is
+// known by where it is, as GameInput's are by their objects.
+struct Stream {
+    readings: Vec<u32>,
+    kept: usize,
 }
 
-// GameInput starts with its device and reading callbacks, reads frames, and
-// stops, unregistering both. A test doesn't have focus, so with background
-// input off it may get no readings.
+impl Stream {
+    // The newest reading, as GetCurrentReading gives it.
+    fn current(&self) -> Result<usize, windows_core::HRESULT> {
+        self.readings.len().checked_sub(1).ok_or(GAMEINPUT_E_READING_NOT_FOUND)
+    }
+
+    // The reading after `last`, as GetNextReading gives it: none yet, or
+    // a failure once `last` has left the history.
+    fn next(&self, last: &usize) -> Result<usize, windows_core::HRESULT> {
+        if *last + self.kept < self.readings.len() {
+            Err(GAMEINPUT_E_REFERENCE_READING_TOO_OLD)
+        } else if *last + 1 < self.readings.len() {
+            Ok(*last + 1)
+        } else {
+            Err(GAMEINPUT_E_READING_NOT_FOUND)
+        }
+    }
+
+    fn walk(&self, last: &mut Option<usize>) -> (Vec<u32>, bool) {
+        let walked = user_interface::walk_stream(last, || self.current(), |last| self.next(last));
+        (walked.readings.iter().map(|index| self.readings[*index]).collect(), walked.restarted)
+    }
+}
+
+// Each frame walks GameInput's stream from the last reading it handed out,
+// as Microsoft's GameInputSequential sample does, and hands out every reading
+// after it once, in the stream's order, whatever their times: nothing is
+// sorted, merged or told apart by its time.
+#[test]
+fn a_frame_hands_out_every_reading_after_the_last_once_in_the_stream_s_order() {
+    let mut stream = Stream { readings: vec![5], kept: 100 };
+    let mut last = None;
+    // The first frame starts from the newest reading.
+    assert_eq!(stream.walk(&mut last), (vec![5], false));
+    // Readings whose times go back, and two the same, keep their order.
+    stream.readings.extend([30, 20, 20, 40]);
+    assert_eq!(stream.walk(&mut last), (vec![30, 20, 20, 40], false));
+    // Nothing new: nothing again.
+    assert_eq!(stream.walk(&mut last), (vec![], false));
+    stream.readings.push(50);
+    assert_eq!(stream.walk(&mut last), (vec![50], false));
+}
+
+// A frame that took longer than GameInput's history lasts loses its place in
+// the stream, as the reading it starts from has left the history. It starts
+// over from the newest reading, as Microsoft's sample does, and the readings
+// in between are lost. If the newest reading is the one it last handed out,
+// it isn't handed out again.
+#[test]
+fn a_frame_that_loses_its_place_starts_over_from_the_newest_reading() {
+    let mut stream = Stream { readings: vec![1, 2], kept: 3 };
+    let mut last = None;
+    assert_eq!(stream.walk(&mut last), (vec![2], false));
+    stream.readings.extend([3, 4, 5, 6, 7]);
+    assert_eq!(stream.walk(&mut last), (vec![7], true));
+    stream.readings.push(8);
+    assert_eq!(stream.walk(&mut last), (vec![8], false));
+    // A failure with the newest reading the last one handed out.
+    let failing = |_: &usize| Err(GAMEINPUT_E_DEVICE_DISCONNECTED);
+    let walked = user_interface::walk_stream(&mut last, || stream.current(), failing);
+    assert_eq!((walked.readings, walked.restarted, last), (vec![], true, Some(7)));
+    // And without a newest reading at all, the next frame starts as the
+    // first did.
+    let walked = user_interface::walk_stream(&mut last, || Err(GAMEINPUT_E_READING_NOT_FOUND), failing);
+    assert_eq!((walked.readings, last), (vec![], None));
+    assert_eq!(stream.walk(&mut last), (vec![8], false));
+}
+
+// A frame's readings keep the stream's order, whatever their times: a key
+// pressed, and a button pressed after it in the stream, with an earlier
+// time, as two devices' readings may have, are a key and then a button.
+#[test]
+fn a_frame_s_events_are_in_the_stream_s_order_not_its_times() {
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(30, &[A]), mouse(20, GameInputMouseLeftButton, 0)], &[], &window(None), 40);
+    let key = frame.events.iter().position(|event| *event == Event::KeyPressed { key: Key::A, repeat: false });
+    let button = frame.events.iter().position(|event| *event == Event::ButtonPressed(MouseButton::Left));
+    assert!(key.is_some() && button.is_some() && key < button, "{:?}", frame.events);
+}
+
+// A focus change goes among the readings before the first one that's later,
+// and the readings keep their order around it.
+#[test]
+fn a_focus_change_goes_before_the_first_later_reading() {
+    let mut reader = reader();
+    let frame = reader.read(&[keyboard(10, &[A]), keyboard(30, &[]), keyboard(40, &[A])], &[], &window(Some((20, true))), 40);
+    let gained = frame.events.iter().position(|event| matches!(event, Event::FocusGained(_)));
+    let released = frame.events.iter().position(|event| *event == Event::KeyReleased(Key::A));
+    let pressed = frame.events.iter().position(|event| *event == Event::KeyPressed { key: Key::A, repeat: false });
+    assert!(gained.is_some() && gained < released && released < pressed, "{:?}", frame.events);
+}
+
+// A reading of a device with more than one kind of input, like a keyboard
+// with a trackball, is each of them, once.
+#[test]
+fn a_reading_with_a_keyboard_and_a_mouse_is_both() {
+    let mut reader = focused();
+    let (time, mut reading) = keyboard(10, &[A]);
+    reading.kinds |= GameInputKindMouse;
+    reading.mouse.buttons = GameInputMouseLeftButton;
+    let frame = reader.read(&[(time, reading)], &[], &window(None), 10);
+    assert_eq!(frame.events.iter().filter(|event| **event == Event::KeyPressed { key: Key::A, repeat: false }).count(), 1);
+    assert_eq!(frame.events.iter().filter(|event| **event == Event::ButtonPressed(MouseButton::Left)).count(), 1);
+}
+
+// Each gamepad keeps its own state, and the interface's gamepad is all of
+// them at once. A button held on one gamepad stays held while another, at
+// rest, reads thousands of times a second, as one whose sticks have no dead
+// zone does: no reading of one covers the other.
+#[test]
+fn a_gamepad_at_rest_never_covers_another_in_use() {
+    const OTHER: usize = 4;
+    let other = |time: i64, buttons: GameInputGamepadButtons, stick: f32| {
+        let (time, mut reading) = gamepad(time, buttons);
+        reading.device = Some(OTHER);
+        reading.gamepad.leftThumbstickX = stick;
+        (time, reading)
+    };
+    let mut reader = focused();
+    let mut readings = vec![gamepad(10, GameInputGamepadA)];
+    for time in 11..40 {
+        readings.push(other(time, GameInputGamepadNone, 0.01 * (time % 3) as f32));
+    }
+    let frame = reader.read(&readings, &[], &window(None), 40);
+    let states: Vec<_> = frame.events.iter().filter_map(|event| if let Event::Gamepad(state) = event { Some(*state) } else { None }).collect();
+    // One change, the press, then the frame's last event: no release.
+    assert_eq!(states.iter().map(|state| state.buttons.names()).collect::<Vec<_>>(), [vec!["A"], vec!["A"]]);
+    // Each stick is the one pushed furthest, and a trigger the one pulled
+    // furthest.
+    let mut pushed = other(50, GameInputGamepadB, 0.8);
+    pushed.1.gamepad.rightTrigger = 0.5;
+    let frame = reader.read(&[gamepad(45, GameInputGamepadA), pushed], &[], &window(None), 50);
+    let Some(Event::Gamepad(state)) = frame.events.last() else { panic!("no gamepad") };
+    assert_eq!((state.buttons.names(), state.left_stick.x, state.right_trigger), (vec!["A", "B"], 0.8, 0.5));
+    // One that's unplugged lets go of what only it held.
+    let frame = reader.read(&[], &[OTHER], &window(None), 60);
+    let Some(Event::Gamepad(state)) = frame.events.last() else { panic!("no gamepad") };
+    assert_eq!((state.buttons.names(), state.left_stick.x, state.connected), (vec!["A"], 0.0, true));
+    let frame = reader.read(&[], &[GAMEPAD], &window(None), 70);
+    assert_eq!(frame.events.last(), Some(&Event::Gamepad(Default::default())));
+}
+
+// GameInput starts with its device callback, reads frames, and stops,
+// unregistering it. A test doesn't have focus, so with background input off
+// it may get no readings.
+
 #[test]
 fn the_devices_start_read_frames_and_stop() {
     let mut devices = user_interface::Devices::new().unwrap();
@@ -480,16 +604,4 @@ fn the_devices_start_read_frames_and_stop() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert_eq!(devices.frame(), 3);
-}
-
-// Only "no reading after this one" means that there's nothing new. Any other
-// failure of GetNextReading starts over from the newest reading, so that a
-// failure that keeps coming can't stop a kind of input for good.
-#[test]
-fn only_reading_not_found_means_nothing_newer() {
-    use user_interface::{NextReadingFailure, after_next_reading_failed};
-    assert_eq!(after_next_reading_failed(GAMEINPUT_E_READING_NOT_FOUND), NextReadingFailure::NothingNewer);
-    for code in [GAMEINPUT_E_REFERENCE_READING_TOO_OLD, GAMEINPUT_E_OBJECT_NO_LONGER_EXISTS, GAMEINPUT_E_DEVICE_DISCONNECTED] {
-        assert_eq!(after_next_reading_failed(code), NextReadingFailure::FindFromNewest);
-    }
 }

@@ -895,18 +895,18 @@ fn scripted_readings_are_whole_states() {
     // What a step leaves out is at rest.
     step(&mut source, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } }"#);
     step(&mut source, r#"{ "Gamepad": { "Id": 1, "RightTrigger": 1 } }"#);
-    let state = source.readings(GameInputKindGamepad)[1].gamepad;
+    let state = source.readings()[1].gamepad;
     assert_eq!((state.leftThumbstickX, state.buttons, state.rightTrigger), (0.0, 0, 1.0));
 
     // A mouse's motion adds up.
     step(&mut source, r#"{ "Mouse": { "Id": 4, "Motion": [10, 0] } }"#);
     step(&mut source, r#"{ "Mouse": { "Id": 4, "Motion": [10, 0] } }"#);
-    let readings = source.readings(GameInputKindMouse);
+    let readings = source.readings();
     let totals: Vec<_> = readings.iter().map(|reading| (reading.device, reading.mouse.positionX)).collect();
     assert_eq!(totals, [(Some(4), 10), (Some(4), 20)]);
     // Later readings have later timestamps, even at the same time.
     assert!(readings[1].timestamp > readings[0].timestamp);
-    assert!(source.readings(GameInputKindMouse).is_empty());
+    assert!(source.readings().is_empty());
 
     let events = source.device_events();
     assert_eq!(events.len(), 2);
@@ -926,7 +926,7 @@ fn a_scripted_mouse_s_totals_go_around_an_i64_s_ends() {
         source.apply(&json::parse(step).unwrap()).unwrap();
     }
     let totals: Vec<_> = source
-        .readings(GameInputKindMouse)
+        .readings()
         .iter()
         .map(|reading| (reading.mouse.positionX, reading.mouse.positionY, reading.mouse.wheelX, reading.mouse.wheelY))
         .collect();

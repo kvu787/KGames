@@ -36,8 +36,9 @@ pub struct ScriptedSource {
     pub now: u64,
     connected: Vec<Device>,
     events: Vec<(GameInputDeviceEvent, Device)>,
-    // Readings not handed out yet, by kind of input, oldest first.
-    queues: Vec<(GameInputKind, Vec<Reading>)>,
+    // Readings not handed out yet, oldest first, as GameInput's stream has
+    // them.
+    queue: Vec<Reading>,
     // Each device's newest reading, which the next one starts from.
     latest: Vec<Reading>,
     // Each gamepad's rumble, as the demo last set it.
@@ -81,15 +82,7 @@ impl ScriptedSource {
         change(&mut reading);
         self.latest.retain(|known| known.device != Some(id));
         self.latest.push(reading.clone());
-        for kind in [GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse] {
-            if reading.kinds & kind == 0 {
-                continue;
-            }
-            match self.queues.iter_mut().find(|(queued, _)| *queued == kind) {
-                Some((_, queue)) => queue.push(reading.clone()),
-                None => self.queues.push((kind, vec![reading.clone()])),
-            }
-        }
+        self.queue.push(reading);
         Ok(())
     }
 
@@ -216,12 +209,8 @@ impl InputSource for ScriptedSource {
         std::mem::take(&mut self.events)
     }
 
-    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading> {
-        self.queues
-            .iter_mut()
-            .find(|(queued, _)| *queued == kind)
-            .map(|(_, queue)| std::mem::take(queue))
-            .unwrap_or_default()
+    fn readings(&mut self) -> Vec<Reading> {
+        std::mem::take(&mut self.queue)
     }
 
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {

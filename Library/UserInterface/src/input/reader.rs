@@ -1,6 +1,8 @@
 // Turns a frame's GameInput readings (platform/input_devices.rs) into the
-// interface's events (input/events.rs), in the order that they happened,
-// with the window's focus changes between them:
+// interface's events (input/events.rs), in the order of GameInput's stream,
+// which is the order the input happened in, with the window's focus changes,
+// which come from the window and not from GameInput, put among them by their
+// times. Nothing here reorders the readings:
 //
 // - Keys come from keyboards' readings, which are the keys held down. Shift,
 //   Ctrl and Alt are the same keys on the left and the right. Typed text is
@@ -11,9 +13,14 @@
 //   is where Windows' cursor is, so that it moves as Windows moves it. It's
 //   read once a frame, as Windows has no cursor on GameInput's clock, so a
 //   press happens where the cursor is as the frame reads its input.
-// - The gamepad is the newest reading of any gamepad, as the frame's last
-//   event, and each change of its buttons is an event at its time too, so
-//   that a button pressed and let go of within a frame counts.
+// - Each gamepad keeps its own state, from its own readings, and the
+//   interface's gamepad is all of them at once: a button is held while any
+//   gamepad holds it, a trigger is pulled as far as any gamepad pulls it, and
+//   each stick is the one that's pushed furthest, so that a gamepad at rest,
+//   whose sticks may read thousands of times a second, never covers the one
+//   in use. Each change of its buttons is an event at its reading, so that a
+//   button pressed and let go of within a frame counts, and the frame's last
+//   event is its state as the frame leaves it.
 // - A device that's unplugged lets go of what it held after the frame's
 //   readings, as GameInput doesn't say when it went.
 //
@@ -36,7 +43,7 @@ use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
 use crate::platform::clock;
-use crate::platform::input_devices::{Devices, KINDS, Reading};
+use crate::platform::input_devices::{Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
 
 // What a frame read.
@@ -75,9 +82,9 @@ pub struct InputReader {
     // Buttons whose presses the interface didn't get, whose releases it
     // doesn't either.
     ignored_buttons: u32,
-    gamepad_state: Gamepad,
-    gamepad_device: Option<usize>,
-    // The gamepad's buttons held without focus, which the interface doesn't
+    // Each gamepad's state, by device.
+    gamepads: Vec<(Option<usize>, Gamepad)>,
+    // The gamepads' buttons held without focus, which the interface doesn't
     // get until they're let go of.
     gamepad_ignored: u32,
     // The buttons that the last Gamepad event told the interface of.
@@ -118,8 +125,7 @@ impl InputReader {
             mice: Vec::new(),
             buttons_down: 0,
             ignored_buttons: 0,
-            gamepad_state: Gamepad::default(),
-            gamepad_device: None,
+            gamepads: Vec::new(),
             gamepad_ignored: 0,
             gamepad_sent: 0,
             repeat: None,
@@ -129,9 +135,9 @@ impl InputReader {
         }
     }
 
-    // The frame's events, from the devices' readings since the last frame and
-    // the window's focus changes, in time order. Captures the mouse while a
-    // press that the interface got is held.
+    // The frame's events, from the devices' readings since the last frame, in
+    // the stream's order, and the window's focus changes. Captures the mouse
+    // while a press that the interface got is held.
     pub fn frame(&mut self, devices: Option<&Devices>, window: &mut Window, focus_changes: &[FocusChange]) -> FrameInput {
         let (cursor, inside) = window.cursor();
         let state = WindowState {
@@ -147,10 +153,8 @@ impl InputReader {
                     disconnected.push(device.id);
                 }
             }
-            for kind in KINDS {
-                for reading in devices.readings(kind) {
-                    readings.push((devices.qpc(reading.timestamp), kind, reading.clone()));
-                }
+            for reading in devices.readings() {
+                readings.push((devices.qpc(reading.timestamp), reading.clone()));
             }
         }
         let frame = self.read(&readings, &disconnected, &state, clock::now());
@@ -163,89 +167,42 @@ impl InputReader {
         self.focused && self.buttons_down & !self.ignored_buttons != 0
     }
 
-    // The frame's events from readings, each with its time on the counter and
-    // its kind of input, from the devices that disconnected, and from what the
-    // window says, at a time on the counter.
-    #[allow(non_upper_case_globals)]
-    pub fn read(&mut self, readings: &[(i64, GameInputKind, Reading)], disconnected: &[usize], window: &WindowState, now: i64) -> FrameInput {
-        enum Item<'a> {
-            Focus(bool),
-            Reading(GameInputKind, &'a Reading),
-        }
+    // The frame's events from its readings, in the stream's order, each with
+    // its time on the counter, from the devices that disconnected, and from
+    // what the window says, at a time on the counter.
+    pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState, now: i64) -> FrameInput {
         let (cursor, inside) = (window.cursor, window.inside);
         let mut frame = FrameInput::default();
-        let mut items: Vec<(i64, Item)> = window.focus_changes.iter().map(|change| (change.time, Item::Focus(change.gained))).collect();
-        for (time, kind, reading) in readings {
-            items.push((*time, Item::Reading(*kind, reading)));
-        }
-        // Stable, so that a reading with two kinds of input keeps its order.
-        items.sort_by_key(|(time, _)| *time);
-
-        for (time, item) in items {
+        // The window's focus changes go before the first reading that's
+        // later, and the readings keep the stream's order, whatever their
+        // times.
+        let mut changes = window.focus_changes.clone();
+        changes.sort_by_key(|change| change.time);
+        let mut changes = changes.into_iter().peekable();
+        for (time, reading) in readings {
+            while let Some(change) = changes.next_if(|change| change.time <= *time) {
+                self.focus_change(change, &mut frame.events);
+            }
             // A held key's repeats that came before this, at their times.
             self.repeat_until(time - 1, &mut frame.events);
-            match item {
-                Item::Focus(true) => {
-                    if !self.focused {
-                        self.focused = true;
-                        self.focus_time = time;
-                        let held = (0..=255u8).filter(|code| self.keys_down[*code as usize]).map(Key).collect();
-                        frame.events.push(Event::FocusGained(held));
-                        self.ignored_buttons = self.buttons_down;
-                        self.gamepad_ignored = self.gamepad_state.buttons.0;
-                        self.pointer = None;
-                    }
-                }
-                Item::Focus(false) => {
-                    if self.focused {
-                        self.focused = false;
-                        frame.events.push(Event::FocusLost);
-                        self.repeat = None;
-                        self.pointer = None;
-                    }
-                }
-                Item::Reading(kind, reading) => {
-                    // A reading from before the window got focus is handled
-                    // as input without focus, whenever it comes.
-                    let focused = self.focused;
-                    self.focused = focused && time >= self.focus_time;
-                    match kind {
-                        GameInputKindKeyboard => self.keyboard(reading, time, &mut frame.events),
-                        GameInputKindMouse => self.mouse(reading, cursor, inside, &mut frame.events),
-                        _ => {
-                            self.gamepad_state = gamepad(&reading.gamepad);
-                            self.gamepad_device = reading.device;
-                            let held = self.gamepad_state.buttons.0;
-                            self.gamepad_ignored = if self.focused { self.gamepad_ignored & held } else { held };
-                            // A change of the buttons is an event at its
-                            // time, so that a button pressed and let go of
-                            // within a frame is a press and a release.
-                            if self.gamepad && self.gamepad_buttons() != self.gamepad_sent {
-                                self.send_gamepad(&mut frame.events);
-                            }
-                        }
-                    }
-                    if self.focused && (kind != GameInputKindGamepad || self.gamepad) {
-                        frame.input_time = Some(time);
-                    }
-                    self.focused = focused;
-                }
-            }
+            self.reading(*time, reading, cursor, inside, &mut frame);
+        }
+        for change in changes {
+            self.focus_change(change, &mut frame.events);
         }
 
         // A device that's unplugged lets go of what it held: a gamepad's
         // state goes, and a keyboard's keys and a mouse's buttons are
-        // released, unless another keyboard or mouse holds them. GameInput's
-        // device events have no times, so this comes after the frame's
-        // readings, which are all from before the device went: a reading of
-        // its that came in the same frame mustn't bring it back, with what
-        // it held stuck down.
-        if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
-            self.gamepad_state = Gamepad::default();
-            self.gamepad_device = None;
-            self.gamepad_ignored = 0;
-        }
+        // released, unless another device holds them. GameInput's device
+        // events have no times, so this comes after the frame's readings,
+        // which are all from before the device went: a reading of its that
+        // came in the same frame mustn't bring it back, with what it held
+        // stuck down.
         let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
+        if self.gamepads.iter().any(|(device, _)| unplugged(device)) {
+            self.gamepads.retain(|(device, _)| !unplugged(device));
+            self.gamepads_changed(&mut frame.events);
+        }
         if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
             self.keyboards.retain(|(device, _)| !unplugged(device));
             self.update_keys(now, &mut frame.events);
@@ -284,14 +241,99 @@ impl InputReader {
         }
     }
 
-    // The gamepad's buttons that count: those held but not ignored.
-    fn gamepad_buttons(&self) -> u32 {
-        self.gamepad_state.buttons.0 & !self.gamepad_ignored
+    // The window got or lost focus, at a time on the counter.
+    fn focus_change(&mut self, change: FocusChange, events: &mut Vec<Event>) {
+        self.repeat_until(change.time - 1, events);
+        if change.gained {
+            if !self.focused {
+                self.focused = true;
+                self.focus_time = change.time;
+                let held = (0..=255u8).filter(|code| self.keys_down[*code as usize]).map(Key).collect();
+                events.push(Event::FocusGained(held));
+                self.ignored_buttons = self.buttons_down;
+                self.gamepad_ignored = self.combined_gamepad().buttons.0;
+                self.pointer = None;
+            }
+        } else if self.focused {
+            self.focused = false;
+            events.push(Event::FocusLost);
+            self.repeat = None;
+            self.pointer = None;
+        }
     }
 
-    // Tells the interface the gamepad's state, with the buttons that count.
+    // A reading, at its time on the counter: a keyboard's, a mouse's or a
+    // gamepad's, or a device's with more than one of them, like a keyboard
+    // with a trackball, which is each.
+    fn reading(&mut self, time: i64, reading: &Reading, cursor: Point, inside: bool, frame: &mut FrameInput) {
+        // A reading from before the window got focus is handled as input
+        // without focus, whenever it comes.
+        let focused = self.focused;
+        self.focused = focused && time >= self.focus_time;
+        let kinds = reading.kinds;
+        if kinds & GameInputKindKeyboard != 0 {
+            self.keyboard(reading, time, &mut frame.events);
+        }
+        if kinds & GameInputKindMouse != 0 {
+            self.mouse(reading, cursor, inside, &mut frame.events);
+        }
+        if kinds & GameInputKindGamepad != 0 {
+            let state = gamepad(&reading.gamepad);
+            match self.gamepads.iter_mut().find(|(device, _)| *device == reading.device) {
+                Some((_, known)) => *known = state,
+                None => self.gamepads.push((reading.device, state)),
+            }
+            self.gamepads_changed(&mut frame.events);
+        }
+        let counts = kinds & (GameInputKindKeyboard | GameInputKindMouse) != 0 || (self.gamepad && kinds & GameInputKindGamepad != 0);
+        if self.focused && counts {
+            frame.input_time = Some(frame.input_time.map_or(time, |newest| newest.max(time)));
+        }
+        self.focused = focused;
+    }
+
+    // All the gamepads at once: a button is held while any holds it, a
+    // trigger is pulled as far as any pulls it, and each stick is the one
+    // that's pushed furthest. At rest, and not connected, without any.
+    fn combined_gamepad(&self) -> Gamepad {
+        let mut combined = Gamepad {
+            connected: !self.gamepads.is_empty(),
+            ..Gamepad::default()
+        };
+        let pushed = |stick: Point| stick.x * stick.x + stick.y * stick.y;
+        for (_, pad) in &self.gamepads {
+            combined.buttons.0 |= pad.buttons.0;
+            combined.left_trigger = combined.left_trigger.max(pad.left_trigger);
+            combined.right_trigger = combined.right_trigger.max(pad.right_trigger);
+            if pushed(pad.left_stick) > pushed(combined.left_stick) {
+                combined.left_stick = pad.left_stick;
+            }
+            if pushed(pad.right_stick) > pushed(combined.right_stick) {
+                combined.right_stick = pad.right_stick;
+            }
+        }
+        combined
+    }
+
+    // After a gamepad's state changed, or one went: buttons held without
+    // focus stay ignored until they're let go of, and a change of the
+    // buttons that count is an event, at its reading.
+    fn gamepads_changed(&mut self, events: &mut Vec<Event>) {
+        let held = self.combined_gamepad().buttons.0;
+        self.gamepad_ignored = if self.focused { self.gamepad_ignored & held } else { held };
+        if self.gamepad && self.gamepad_buttons() != self.gamepad_sent {
+            self.send_gamepad(events);
+        }
+    }
+
+    // The gamepads' buttons that count: those held but not ignored.
+    fn gamepad_buttons(&self) -> u32 {
+        self.combined_gamepad().buttons.0 & !self.gamepad_ignored
+    }
+
+    // Tells the interface the gamepads' state, with the buttons that count.
     fn send_gamepad(&mut self, events: &mut Vec<Event>) {
-        let mut state = self.gamepad_state;
+        let mut state = self.combined_gamepad();
         state.buttons.0 = self.gamepad_buttons();
         self.gamepad_sent = state.buttons.0;
         events.push(Event::Gamepad(state));
