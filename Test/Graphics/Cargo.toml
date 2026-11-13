@@ -7,7 +7,6 @@ publish = false
 
 [dependencies]
 graphics = { path = "../../Library/Graphics" }
-windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]
 version = "0.100"

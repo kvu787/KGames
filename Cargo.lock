@@ -123,7 +123,6 @@ version = "0.1.0"
 dependencies = [
  "graphics",
  "windows-core",
- "windows_api",
 ]
 
 [[package]]

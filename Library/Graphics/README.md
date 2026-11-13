@@ -44,8 +44,7 @@ of frames that don't wait and don't tear either, and `Presenter::new` fails wher
 present frames that tear. `Presenter::set_vsync` switches between the two from the next frame on,
 as `F10` does in every program. DXGI's Alt+Enter, which would switch the display's mode, is off.
 `Presenter::wait_ready` waits for a frame to be able to start, or a window message, without
-spinning, and `Presenter::wait_any_ready` for any of several presenters', like overlays' on several
-displays, so that one display that stops taking frames holds up none of the others.
+spinning.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.
