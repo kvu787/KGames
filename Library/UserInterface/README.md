@@ -231,7 +231,8 @@ before, but reports gamepads' whole state, their held buttons too.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
   and a press anywhere else takes it away, once the field has taken what was typed in that frame.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
-  it, and Enter takes what's typed in a number box or a color field.
+  it, and Enter takes what's typed in a number box or a color field, which goes if the field loses
+  focus first.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.

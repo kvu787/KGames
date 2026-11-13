@@ -692,35 +692,35 @@ fn segments_take_no_focus() {
 }
 
 #[test]
-fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
+fn a_color_field_takes_what_was_typed_with_enter_only() {
     let mut app = Headless::new(Ported::default());
     app.frame();
     app.click("Hex").click("Hex/Clear");
     app.type_text("#FF8000");
     assert_eq!(app.program.color, Color::default());
+    // Leaving it drops what was typed.
     app.click("Other");
+    assert_eq!(app.program.color, Color::default());
+    app.click("Hex").click("Hex/Clear").type_text("#FF8000").key(Key::ENTER);
     assert_eq!(app.program.color.to_hex(), "#FF8000");
 }
 
-// However focus leaves a number box - a press on a button, or on a view -
-// the typed draft commits on that very frame, and no stale draft revives on
-// the next edit.
+// A number box takes what's typed with Enter only. However focus leaves it
+// first - a press on a button, or on a view - what's typed goes, and the
+// next edit starts from the value, not from what was left.
 #[test]
-fn a_number_box_commits_its_draft_however_focus_leaves() {
+fn a_number_box_takes_what_was_typed_with_enter_only() {
     let mut app = Headless::new(Test::default());
     app.frame();
-    app.click("Number").key(Key::BACKSPACE);
-    app.type_text("7");
-    assert_eq!(app.program.number, 0, "not before it commits");
-    app.press("Button");
-    assert_eq!(app.program.number, 7, "the button's press committed the draft on its frame");
-    app.release();
-    // A fresh edit starts from the value, not a revived draft.
-    app.click("Number").key(Key::BACKSPACE);
-    app.type_text("3");
-    app.press("Area");
-    assert_eq!(app.program.number, 3, "the view's press committed the draft on its frame");
-    app.release();
+    app.click("Number").key(Key::BACKSPACE).type_text("7");
+    app.press("Button").release();
+    assert_eq!(app.program.number, 0, "leaving it dropped the 7");
+    // The caret goes after the value's 0, and the 7 doesn't come back.
+    app.click("Number").type_text("5");
+    app.press("Area").release();
+    assert_eq!(app.program.number, 0);
+    app.click("Number").type_text("5").key(Key::ENTER);
+    assert_eq!(app.program.number, 5, "05 is 5, without the 7 that was left");
 }
 
 // F10's very frame already says the new setting, PerfBar and state alike.

@@ -1,8 +1,8 @@
 // WinUI's NumberBox: a text field for a number, with its spin buttons inline.
-// What's typed takes effect with Enter or when the field loses focus, inside
-// its range; the spin buttons, and the wheel while it has focus, step it.
-// The value is the program's; what's typed, until it takes effect, is the
-// box's own.
+// What's typed takes effect with Enter, inside its range, and goes if the
+// field loses focus first; the spin buttons, and the wheel while it has
+// focus, step it. The value is the program's; what's typed, until it takes
+// effect, is the box's own.
 
 use crate::core::interaction::{Interaction, Part, Sense};
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
@@ -92,8 +92,8 @@ impl<M: Clone + 'static> NumberBox<M> {
     }
 
     // The text the field shows: what's typed, or the value.
-    fn shown_text(&self, draft: &Draft, focused: bool) -> String {
-        if focused && draft.editing { draft.text.clone() } else { self.format(self.value) }
+    fn shown_text(&self, draft: &Draft) -> String {
+        if draft.editing { draft.text.clone() } else { self.format(self.value) }
     }
 
     // The spin buttons, inside the field's right end.
@@ -118,8 +118,12 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
     }
 
     fn parts(&self, ctx: &mut Parts) {
-        let focused = ctx.is_focused();
-        let text = self.shown_text(ctx.memory::<Draft>(), focused);
+        // What's typed and not taken with Enter goes as the field loses
+        // focus.
+        if !ctx.is_focused() {
+            *ctx.memory::<Draft>() = Draft::default();
+        }
+        let text = self.shown_text(ctx.memory::<Draft>());
         field_parts(ctx, &text, &self.settings());
         let (up, down) = Self::spin_buttons(ctx.rect());
         ctx.part(Part::Named("Up".to_string()), "Up", up, Sense::CLICK, "Button", None);
@@ -130,8 +134,6 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
         let focused = interaction.focused;
         let mut draft = std::mem::take(ctx.memory::<Draft>());
         let current = self.value;
-        // What's typed stays until it's taken or left, even as the field
-        // loses focus, when it's taken - never thrown away.
         if !draft.editing {
             draft.text = self.format(current);
         }
@@ -141,8 +143,7 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
             draft.text = text;
             draft.editing = true;
         }
-        let commit = edited.submitted || (draft.editing && !ctx.is_focused());
-        if commit {
+        if edited.submitted {
             if let Ok(typed) = draft.text.trim().parse::<f64>() {
                 value = self.clamp(typed);
             }
@@ -179,8 +180,7 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
     }
 
     fn draw(&self, ctx: &mut Draw) {
-        let focused = ctx.focused();
-        let text = self.shown_text(ctx.memory::<Draft>(), focused);
+        let text = self.shown_text(ctx.memory::<Draft>());
         field_draw(ctx, &text, &self.settings());
         let (up, down) = Self::spin_buttons(ctx.rect());
         draw_text_control_button(ctx, &Part::Named("Up".to_string()), up, Icon::ChevronUp, NUMBER_BOX_SPIN_GLYPH);

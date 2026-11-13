@@ -185,9 +185,6 @@ pub struct Interface {
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, and whether it hit the cap.
     pub(crate) messages_applied: usize,
-    // Widgets that lost keyboard focus and haven't been told, so a number
-    // box commits its draft whoever took the focus, and in the same frame.
-    pub(crate) focus_leavers: Vec<Id>,
     phases: FramePhases,
 }
 
@@ -221,7 +218,6 @@ impl Interface {
             notices: Vec::new(),
             performance: None,
             messages_applied: 0,
-            focus_leavers: Vec::new(),
             phases: FramePhases::default(),
         }
     }
@@ -385,11 +381,8 @@ impl Interface {
         self.targets = shown;
 
         // The text field with keyboard focus hears the keys, if no dialog
-        // over it takes them, re-found whenever a widget in the loop moves
-        // the focus; and every field that lost focus hears that, like a
-        // number box that takes what was typed, however it lost it.
-        let mut known_focus = self.focused;
-        let mut focused_owner = owner_of_focus(&self.targets, self.modal_shown, known_focus);
+        // over it takes them.
+        let focused_owner = owner_of_focus(&self.targets, self.modal_shown, self.focused);
 
         let pointer = self.input.pointer;
         let pointer_delta = self.input.pointer_delta;
@@ -416,15 +409,10 @@ impl Interface {
             let Some(element_id) = element.id else {
                 continue;
             };
-            if self.focused != known_focus {
-                known_focus = self.focused;
-                focused_owner = owner_of_focus(&self.targets, self.modal_shown, known_focus);
-            }
             let mut interaction = interactions.remove(&element_id).unwrap_or_default();
             let focused = matches!(focused_owner, Some((owner, true)) if owner == element_id);
             let wheel_over = wheel_target == Some(element_id);
-            let leaving = self.focus_leavers.contains(&element_id);
-            if interaction.hits.is_empty() && !focused && !wheel_over && !leaving && !element.widget.always_interacts() {
+            if interaction.hits.is_empty() && !focused && !wheel_over && !element.widget.always_interacts() {
                 continue;
             }
             interaction.enabled = enabled;
@@ -447,44 +435,8 @@ impl Interface {
             if let Some(items) = &element.context_menu {
                 crate::widgets::menu::interact_context_menu(&interaction, &mut dispatch, items);
             }
-            if leaving {
-                self.focus_leavers.retain(|&id| id != element_id);
-            }
         }
-
         self.take_focus_away();
-
-        // A widget whose focus was taken by one later in the loop, or by a
-        // press elsewhere, was passed before it lost it: tell it now, so its
-        // draft still commits this frame. A told widget may move focus again,
-        // so go around, a little.
-        let mut rounds = 0;
-        while !self.focus_leavers.is_empty() && rounds < 4 {
-            rounds += 1;
-            let pending = std::mem::take(&mut self.focus_leavers);
-            for &(element, enabled, _layer) in &elements {
-                let Some(element_id) = element.id else {
-                    continue;
-                };
-                if !pending.contains(&element_id) {
-                    continue;
-                }
-                let interaction = Interaction {
-                    enabled,
-                    ..Interaction::default()
-                };
-                let mut dispatch = Dispatch {
-                    ui: self,
-                    messages,
-                    id: element_id,
-                    name: element.name.as_deref().unwrap_or(""),
-                    rect: element.rect,
-                    enabled,
-                };
-                element.widget.interact(&interaction, &mut dispatch);
-            }
-        }
-        self.focus_leavers.clear();
     }
 
     // What the input did to a target this frame. A press acts on the frame
@@ -515,7 +467,7 @@ impl Interface {
                     hit.pressed = true;
                     hit.double_clicked = self.input.clicks(MouseButton::Left) >= 2;
                     if sense.text {
-                        self.set_focused(Some(id));
+                        self.focused = Some(id);
                     }
                 }
                 MouseButton::Right => hit.secondary_pressed = true,
@@ -552,21 +504,8 @@ impl Interface {
         if pressed && self.focused.is_some() {
             let on = self.hovered.and_then(|hovered| self.targets.iter().find(|target| target.id == hovered)).map(|target| target.owner);
             if on != self.focused {
-                self.set_focused(None);
+                self.focused = None;
             }
-        }
-    }
-
-    // Moves keyboard focus, remembering who lost it: dispatch tells the
-    // loser, in the same frame, so a draft commits whoever took the focus.
-    pub(crate) fn set_focused(&mut self, to: Option<Id>) {
-        if self.focused != to {
-            if let Some(leaver) = self.focused
-                && !self.focus_leavers.contains(&leaver)
-            {
-                self.focus_leavers.push(leaver);
-            }
-            self.focused = to;
         }
     }
 
@@ -606,7 +545,7 @@ impl Interface {
         if let Some(focused) = self.focused
             && !self.targets.iter().any(|target| target.id == focused && target.enabled && target.sense.text)
         {
-            self.set_focused(None);
+            self.focused = None;
         }
         if let Some((active, _)) = self.active
             && !self.targets.iter().any(|target| target.id == active)
