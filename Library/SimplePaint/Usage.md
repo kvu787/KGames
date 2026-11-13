@@ -144,3 +144,5 @@ The tests include 81,940 curve comparisons, 20,000 comparisons between the speci
 The `shader_compilation` test compiles both shader stages of SimplePaint.hlsl and of Unlit.hlsl with the default count of one and an explicit count of three. A count of zero must fail shader compilation.
 
 The `unlit` test draws a sphere and a turned cube with Unlit.hlsl, on the preferred adapter and on WARP, through a view that stores colors as they are and through an sRGB one, and checks that every pixel they cover is exactly its material's color.
+
+The `model_shaders` test lists every shader in the repository, with what it draws, and fails on one that isn't listed, or on HLSL written into Rust, so that a shader for models can't come in beside SimplePaint.hlsl and Unlit.hlsl without the rule in the root's AGENTS.md being read.

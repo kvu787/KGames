@@ -19,6 +19,10 @@ name = "gpu"
 harness = false
 
 [[test]]
+name = "model_shaders"
+harness = false
+
+[[test]]
 name = "shader_compilation"
 harness = false
 
