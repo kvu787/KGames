@@ -574,8 +574,8 @@ fn menus_run_commands() {
     assert_eq!(app.program.document.selection.faces.len(), 24 * 12);
     assert_eq!(app.program.document.undo_name(), Some("Add Torus"));
     app.click("Menu/View");
-    app.click("Menu/View/Menu/Flat shader");
-    assert_eq!(text(&app, "Shader").as_deref(), Some("Flat"));
+    app.click("Menu/View/Menu/Unlit shader");
+    assert_eq!(text(&app, "Shader").as_deref(), Some("Unlit"));
 }
 
 #[test]

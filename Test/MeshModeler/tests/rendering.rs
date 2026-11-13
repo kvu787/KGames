@@ -1,6 +1,6 @@
 // MeshModeler's frames, drawn offscreen with the GPU, as the window would
-// draw them: the mesh in the view's card, painted with SimplePaint or lit
-// flat, subdivided, and with what's selected tinted in the accent.
+// draw them: the mesh in the view's card, painted with SimplePaint or
+// unlit, subdivided, and with what's selected tinted in the accent.
 
 use std::path::Path;
 
@@ -37,12 +37,18 @@ fn the_view_draws_the_mesh_with_either_shader_subdivided_and_selected() {
     let painted = pixel(&image, center);
     assert!(painted[2] > painted[0] + 40 && painted[2] > painted[1], "{painted:?}");
 
-    // The flat shader colors it differently.
-    app.program.shader = Shader::Flat;
+    // The unlit shader draws each face in its paint's base color, the same
+    // whichever way the face faces: the +Z one and the top one.
+    app.program.shader = Shader::Unlit;
     app.frame();
-    let flat = pixel(&app.render(&mut gpu).unwrap(), center);
-    assert!(differs(flat, painted), "{flat:?} {painted:?}");
-    assert!(flat[2] > flat[0], "{flat:?}");
+    let image = app.render(&mut gpu).unwrap();
+    let [r, g, b, _] = app.program.document.paints[0].color().to_bytes();
+    let base = [r, g, b];
+    let top = app.program.camera.to_screen([0.4, 1.0, 0.3], view).0;
+    for point in [center, top] {
+        let unlit = pixel(&image, point);
+        assert!(unlit.iter().zip(base).all(|(a, b)| a.abs_diff(b) <= 1), "{unlit:?} at {point:?}, not {base:?}");
+    }
 
     // Subdivided, the cube rounds into a ball, so the top face's corner at
     // the back of the outline, away from the cage's edges, is no longer

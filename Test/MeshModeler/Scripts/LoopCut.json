@@ -12,7 +12,7 @@
     { "Frame": 14, "Move": { "Target": "View", "At": [0.8, 0.2] } },
     { "Frame": 20, "Capture": "Subdivided" },
     { "Frame": 21, "Key": "Shift+Z" },
-    { "Frame": 23, "Expect": { "Shader": "Flat" } },
-    { "Frame": 30, "Capture": "Flat" }
+    { "Frame": 23, "Expect": { "Shader": "Unlit" } },
+    { "Frame": 30, "Capture": "Unlit" }
   ]
 }
