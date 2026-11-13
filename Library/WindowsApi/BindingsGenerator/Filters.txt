@@ -416,3 +416,29 @@ IDXGIAdapter3::QueryVideoMemoryInfo
 DXGI_MEMORY_SEGMENT_GROUP
 GetProcessMemoryInfo
 PROCESS_MEMORY_COUNTERS_EX
+
+// A window's background before its first frame: Library/UserInterface fills
+// it with GDI when Windows asks the window to paint, which shows until the
+// first present of the window's flip-model swap chain, and Test/UserInterface
+// has the window print it into a bitmap to check it
+BeginPaint
+DC_BRUSH
+EndPaint
+FillRect
+GetStockObject
+SetDCBrushColor
+UpdateWindow
+CreateCompatibleBitmap
+CreateCompatibleDC
+DeleteDC
+DeleteObject
+GetDC
+GetPixel
+MONITOR_DEFAULTTOPRIMARY
+MonitorFromPoint
+PRF_CLIENT
+PRF_ERASEBKGND
+ReleaseDC
+SelectObject
+SendMessageW
+WM_PRINT

@@ -10,6 +10,11 @@ pub unsafe fn AdjustWindowRectExForDpi(
     unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
 }
 #[inline]
+pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
+    windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
+    unsafe { BeginPaint(hwnd, lppaint as _) }
+}
+#[inline]
 pub unsafe fn CM_Get_DevNode_PropertyW(
     dndevinst: DEVINST,
     propertykey: *const DEVPROPKEY,
@@ -143,6 +148,16 @@ where
             controlcode,
         )
     }
+}
+#[inline]
+pub unsafe fn CreateCompatibleBitmap(hdc: HDC, cx: i32, cy: i32) -> HBITMAP {
+    windows_core::link!("gdi32.dll" "system" fn CreateCompatibleBitmap(hdc : HDC, cx : i32, cy : i32) -> HBITMAP);
+    unsafe { CreateCompatibleBitmap(hdc, cx, cy) }
+}
+#[inline]
+pub unsafe fn CreateCompatibleDC(hdc: Option<HDC>) -> HDC {
+    windows_core::link!("gdi32.dll" "system" fn CreateCompatibleDC(hdc : HDC) -> HDC);
+    unsafe { CreateCompatibleDC(hdc.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn CreateDXGIFactory2<T>(flags: u32) -> windows_core::Result<T>
@@ -281,6 +296,16 @@ pub unsafe fn DefWindowProcW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARA
     unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
 }
 #[inline]
+pub unsafe fn DeleteDC(hdc: HDC) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn DeleteDC(hdc : HDC) -> windows_core::BOOL);
+    unsafe { DeleteDC(hdc) }
+}
+#[inline]
+pub unsafe fn DeleteObject(ho: HGDIOBJ) -> windows_core::BOOL {
+    windows_core::link!("gdi32.dll" "system" fn DeleteObject(ho : HGDIOBJ) -> windows_core::BOOL);
+    unsafe { DeleteObject(ho) }
+}
+#[inline]
 pub unsafe fn DestroyWindow(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn DestroyWindow(hwnd : HWND) -> windows_core::BOOL);
     unsafe { DestroyWindow(hwnd) }
@@ -338,6 +363,11 @@ pub unsafe fn EnableTraceEx2(
     }
 }
 #[inline]
+pub unsafe fn EndPaint(hwnd: HWND, lppaint: *const PAINTSTRUCT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn EndPaint(hwnd : HWND, lppaint : *const PAINTSTRUCT) -> windows_core::BOOL);
+    unsafe { EndPaint(hwnd, lppaint) }
+}
+#[inline]
 pub unsafe fn EnumDisplayMonitors(
     hdc: Option<HDC>,
     lprcclip: Option<*const RECT>,
@@ -353,6 +383,11 @@ pub unsafe fn EnumDisplayMonitors(
             dwdata,
         )
     }
+}
+#[inline]
+pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
+    windows_core::link!("user32.dll" "system" fn FillRect(hdc : HDC, lprc : *const RECT, hbr : HBRUSH) -> i32);
+    unsafe { FillRect(hdc, lprc, hbr) }
 }
 #[inline]
 pub unsafe fn GetCapture() -> HWND {
@@ -383,6 +418,11 @@ pub unsafe fn GetCurrentProcessId() -> u32 {
 pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetCursorPos(lppoint : *mut POINT) -> windows_core::BOOL);
     unsafe { GetCursorPos(lppoint as _) }
+}
+#[inline]
+pub unsafe fn GetDC(hwnd: Option<HWND>) -> HDC {
+    windows_core::link!("user32.dll" "system" fn GetDC(hwnd : HWND) -> HDC);
+    unsafe { GetDC(hwnd.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn GetDisplayConfigBufferSizes(
@@ -475,6 +515,11 @@ pub unsafe fn GetMonitorInfoW(hmonitor: HMONITOR, lpmi: *mut MONITORINFO) -> win
     unsafe { GetMonitorInfoW(hmonitor, lpmi as _) }
 }
 #[inline]
+pub unsafe fn GetPixel(hdc: HDC, x: i32, y: i32) -> COLORREF {
+    windows_core::link!("gdi32.dll" "system" fn GetPixel(hdc : HDC, x : i32, y : i32) -> COLORREF);
+    unsafe { GetPixel(hdc, x, y) }
+}
+#[inline]
 pub unsafe fn GetProcessMemoryInfo(
     process: HANDLE,
     ppsmemcounters: *mut PROCESS_MEMORY_COUNTERS,
@@ -482,6 +527,11 @@ pub unsafe fn GetProcessMemoryInfo(
 ) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" "K32GetProcessMemoryInfo" fn GetProcessMemoryInfo(process : HANDLE, ppsmemcounters : *mut PROCESS_MEMORY_COUNTERS, cb : u32) -> windows_core::BOOL);
     unsafe { GetProcessMemoryInfo(process, ppsmemcounters as _, cb) }
+}
+#[inline]
+pub unsafe fn GetStockObject(i: i32) -> HGDIOBJ {
+    windows_core::link!("gdi32.dll" "system" fn GetStockObject(i : i32) -> HGDIOBJ);
+    unsafe { GetStockObject(i) }
 }
 #[cfg(any(
     target_arch = "aarch64",
@@ -562,6 +612,11 @@ pub unsafe fn Module32FirstW(hsnapshot: HANDLE, lpme: *mut MODULEENTRY32W) -> wi
 pub unsafe fn Module32NextW(hsnapshot: HANDLE, lpme: *mut MODULEENTRY32W) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn Module32NextW(hsnapshot : HANDLE, lpme : *mut MODULEENTRY32W) -> windows_core::BOOL);
     unsafe { Module32NextW(hsnapshot, lpme as _) }
+}
+#[inline]
+pub unsafe fn MonitorFromPoint(pt: POINT, dwflags: u32) -> HMONITOR {
+    windows_core::link!("user32.dll" "system" fn MonitorFromPoint(pt : POINT, dwflags : u32) -> HMONITOR);
+    unsafe { MonitorFromPoint(pt, dwflags) }
 }
 #[inline]
 pub unsafe fn MonitorFromWindow(hwnd: HWND, dwflags: u32) -> HMONITOR {
@@ -697,9 +752,24 @@ pub unsafe fn ReleaseCapture() -> windows_core::BOOL {
     unsafe { ReleaseCapture() }
 }
 #[inline]
+pub unsafe fn ReleaseDC(hwnd: Option<HWND>, hdc: HDC) -> i32 {
+    windows_core::link!("user32.dll" "system" fn ReleaseDC(hwnd : HWND, hdc : HDC) -> i32);
+    unsafe { ReleaseDC(hwnd.unwrap_or(core::mem::zeroed()) as _, hdc) }
+}
+#[inline]
 pub unsafe fn ScreenToClient(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn ScreenToClient(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
     unsafe { ScreenToClient(hwnd, lppoint as _) }
+}
+#[inline]
+pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
+    windows_core::link!("gdi32.dll" "system" fn SelectObject(hdc : HDC, h : HGDIOBJ) -> HGDIOBJ);
+    unsafe { SelectObject(hdc, h) }
+}
+#[inline]
+pub unsafe fn SendMessageW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    windows_core::link!("user32.dll" "system" fn SendMessageW(hwnd : HWND, msg : u32, wparam : WPARAM, lparam : LPARAM) -> LRESULT);
+    unsafe { SendMessageW(hwnd, msg, wparam, lparam) }
 }
 #[inline]
 pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
@@ -715,6 +785,11 @@ pub unsafe fn SetClipboardData(uformat: u32, hmem: Option<HANDLE>) -> HANDLE {
 pub unsafe fn SetCursor(hcursor: Option<HCURSOR>) -> HCURSOR {
     windows_core::link!("user32.dll" "system" fn SetCursor(hcursor : HCURSOR) -> HCURSOR);
     unsafe { SetCursor(hcursor.unwrap_or(core::mem::zeroed()) as _) }
+}
+#[inline]
+pub unsafe fn SetDCBrushColor(hdc: HDC, color: COLORREF) -> COLORREF {
+    windows_core::link!("gdi32.dll" "system" fn SetDCBrushColor(hdc : HDC, color : COLORREF) -> COLORREF);
+    unsafe { SetDCBrushColor(hdc, color) }
 }
 #[inline]
 pub unsafe fn SetProcessDpiAwarenessContext(value: DPI_AWARENESS_CONTEXT) -> windows_core::BOOL {
@@ -862,6 +937,11 @@ pub unsafe fn ToUnicodeEx(
     }
 }
 #[inline]
+pub unsafe fn UpdateWindow(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn UpdateWindow(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { UpdateWindow(hwnd) }
+}
+#[inline]
 pub unsafe fn ValidateRect(hwnd: Option<HWND>, lprect: Option<*const RECT>) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn ValidateRect(hwnd : HWND, lprect : *const RECT) -> windows_core::BOOL);
     unsafe {
@@ -929,6 +1009,9 @@ pub const COINIT_APARTMENTTHREADED: COINIT = 2;
 pub const COINIT_DISABLE_OLE1DDE: COINIT = 4;
 pub const COINIT_MULTITHREADED: COINIT = 0;
 pub const COINIT_SPEED_OVER_MEMORY: COINIT = 8;
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct COLORREF(pub u32);
 pub type CONFIGRET = RETURN_TYPE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -2257,6 +2340,7 @@ pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ: D3D_PRIMITIVE_TOPOLOGY = 12;
 pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP: D3D_PRIMITIVE_TOPOLOGY = 5;
 pub const D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ: D3D_PRIMITIVE_TOPOLOGY = 13;
 pub const D3D_PRIMITIVE_TOPOLOGY_UNDEFINED: D3D_PRIMITIVE_TOPOLOGY = 0;
+pub const DC_BRUSH: i32 = 18;
 pub type DECODING_SOURCE = i32;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -3646,11 +3730,17 @@ pub const GWL_STYLE: i32 = -16;
 pub struct HANDLE(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HBITMAP(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HBRUSH(pub *mut core::ffi::c_void);
 pub type HCURSOR = HICON;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HDC(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HGDIOBJ(pub *mut core::ffi::c_void);
 pub type HGLOBAL = HANDLE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -8904,6 +8994,7 @@ impl Default for MONITORINFOEXW {
 }
 pub const MONITORINFOF_PRIMARY: i32 = 1;
 pub const MONITOR_DEFAULTTONEAREST: i32 = 2;
+pub const MONITOR_DEFAULTTOPRIMARY: i32 = 1;
 pub type MONITOR_DPI_TYPE = i32;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -8914,6 +9005,21 @@ pub struct MSG {
     pub lParam: LPARAM,
     pub time: u32,
     pub pt: POINT,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PAINTSTRUCT {
+    pub hdc: HDC,
+    pub fErase: windows_core::BOOL,
+    pub rcPaint: RECT,
+    pub fRestore: windows_core::BOOL,
+    pub fIncUpdate: windows_core::BOOL,
+    pub rgbReserved: [u8; 32],
+}
+impl Default for PAINTSTRUCT {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
 }
 pub type PEVENT_CALLBACK = Option<unsafe extern "system" fn(pevent: *mut EVENT_TRACE)>;
 pub type PEVENT_FILTER_DESCRIPTOR = *mut EVENT_FILTER_DESCRIPTOR;
@@ -8935,6 +9041,8 @@ pub struct POINTL {
     pub x: i32,
     pub y: i32,
 }
+pub const PRF_CLIENT: i32 = 4;
+pub const PRF_ERASEBKGND: i32 = 8;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PROCESSENTRY32W {
@@ -9292,6 +9400,7 @@ pub const WM_ERASEBKGND: i32 = 20;
 pub const WM_KILLFOCUS: i32 = 8;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
+pub const WM_PRINT: i32 = 791;
 pub const WM_QUIT: i32 = 18;
 pub const WM_SETCURSOR: i32 = 32;
 pub const WM_SETFOCUS: i32 = 7;
