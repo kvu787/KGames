@@ -363,7 +363,6 @@ impl Interface {
     // Starts on a step's input: where the pointer is, by the targets of the
     // tree it came on, and what the keys do before any widget hears them.
     fn begin_input(&mut self) {
-        self.cursor = Cursor::Arrow;
         self.press_consumed = [false; 3];
         if self.input.focus_lost {
             self.popups.clear();
@@ -621,6 +620,23 @@ impl Interface {
         let topmost = self.topmost(&self.targets, self.modal);
         self.hovered = self.under_pointer(topmost);
         self.modal_shown = self.modal;
+
+        // The pointer's look, from the widget it's on, or the one that holds
+        // its press, in this tree, so that a frame's cursor is its drawn
+        // tree's, like a text field's that a press put under the pointer.
+        let hovered = self.hovered.filter(|hovered| self.targets.iter().any(|target| target.id == *hovered && target.part == Part::Whole && target.enabled));
+        let held = self.active.map(|(active, _)| active);
+        let mut cursor = None;
+        let ui: &Interface = self;
+        tree.walk(|element| {
+            if cursor.is_none()
+                && let Some(id) = element.id
+                && (hovered == Some(id) || held == Some(id))
+            {
+                cursor = element.widget.cursor(ui, hovered == Some(id), held == Some(id));
+            }
+        });
+        self.cursor = cursor.unwrap_or(Cursor::Arrow);
 
         // Tooltips show once the pointer rests on a widget.
         if self.hovered != self.tooltip.candidate {

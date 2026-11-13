@@ -18,7 +18,7 @@ use simple_paint::Parameters;
 use user_interface::controls::TEXT_BOX_HEADER_GAP;
 use user_interface::tokens::{APP_BAR_HEIGHT, BODY, CONTROL_HEIGHT, PAGE_PADDING, SPACE_S, STATUS_BAR_HEIGHT};
 use user_interface::{
-    Color, ColorField, ComboBox, Cursor, Dispatch, Form, Interaction, Key, MouseButton, Painter, Point, Rect, Sense, Slider, Swatch,
+    Color, ColorField, ComboBox, Cursor, Dispatch, Form, Interaction, Interface, Key, MouseButton, Painter, Point, Rect, Sense, Slider, Swatch,
     Text, Tree, Ui, ViewInput, Widget,
 };
 
@@ -74,6 +74,11 @@ impl Widget<Message> for GroundView {
         "View"
     }
 
+    // A pan's, while Space is held, or a pan drag is under way.
+    fn cursor(&self, ui: &Interface, hovered: bool, held: bool) -> Option<Cursor> {
+        ((ui.key_down(Key::SPACE) || self.panning) && (hovered || held)).then_some(Cursor::Move)
+    }
+
     fn sense(&self) -> Option<Sense> {
         Some(Sense::VIEW)
     }
@@ -85,9 +90,6 @@ impl Widget<Message> for GroundView {
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<Message>) {
         let hit = interaction.whole();
         let space = ctx.key_down(Key::SPACE);
-        if (space || self.panning) && (hit.hovered || hit.held) {
-            ctx.set_cursor(Cursor::Move);
-        }
         let input = ViewInput {
             hovered: hit.hovered,
             pointer: interaction.pointer,

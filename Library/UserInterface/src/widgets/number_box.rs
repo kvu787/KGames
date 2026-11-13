@@ -4,7 +4,8 @@
 // focus, step it. The value is the program's; what's typed, until it takes
 // effect, is the box's own.
 
-use crate::core::interaction::{Interaction, Part, Sense};
+use crate::core::interaction::{Cursor, Interaction, Part, Sense};
+use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, NUMBER_BOX_SPIN_GLYPH, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
@@ -107,6 +108,11 @@ impl<M: Clone + 'static> NumberBox<M> {
 impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
     fn kind(&self) -> &'static str {
         "NumberBox"
+    }
+
+    // A text field's, while the pointer is on it.
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(Cursor::Text)
     }
 
     fn label(&self) -> Option<String> {

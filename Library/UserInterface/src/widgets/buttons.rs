@@ -5,7 +5,7 @@
 // states, without WinUI's BrushTransition.
 
 use crate::core::interaction::{ControlState, Cursor, Interaction, Part, Sense};
-use crate::core::interface::Ui;
+use crate::core::interface::{Interface, Ui};
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{BUTTON_ICON_GAP, BUTTON_ICON_ONLY_WIDTH, BUTTON_PADDING, DROP_DOWN_CHEVRON_GAP, DROP_DOWN_CHEVRON_SIZE, HYPERLINK_PADDING};
 use crate::design::icons::Icon;
@@ -319,6 +319,10 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
         "HyperlinkButton"
     }
 
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(Cursor::Hand)
+    }
+
     fn label(&self) -> Option<String> {
         Some(self.text.clone())
     }
@@ -329,9 +333,6 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let hit = interaction.whole();
-        if hit.hovered && interaction.enabled {
-            ctx.set_cursor(Cursor::Hand);
-        }
         if hit.pressed && let Some(message) = &self.on_press {
             ctx.send(message.clone());
         }

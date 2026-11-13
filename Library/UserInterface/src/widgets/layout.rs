@@ -9,7 +9,7 @@
 // used, and sends what the pointer does in it.
 
 use crate::core::interaction::{Cursor, Interaction, Sense};
-use crate::core::interface::Ui;
+use crate::core::interface::{Interface, Ui};
 use crate::core::tree::{Dispatch, Tree, Widget};
 use crate::design::controls::TEXT_BOX_HEADER_GAP;
 use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CARD_PADDING, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
@@ -283,6 +283,10 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
         self.kind
     }
 
+    fn cursor(&self, _ui: &Interface, hovered: bool, held: bool) -> Option<Cursor> {
+        self.cursor.filter(|_| hovered || held)
+    }
+
     fn sense(&self) -> Option<Sense> {
         Some(self.sense)
     }
@@ -293,11 +297,6 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let hit = interaction.whole();
-        if let Some(cursor) = self.cursor
-            && (hit.hovered || hit.held)
-        {
-            ctx.set_cursor(cursor);
-        }
         if let Some(reaction) = &self.on_input {
             let input = ViewInput {
                 hovered: hit.hovered,

@@ -320,6 +320,13 @@ pub trait Widget<M>: 'static {
         false
     }
 
+    // The pointer's look while it's on the widget, or the widget holds its
+    // press, as each step's tree is laid out, the last for the frame. Its
+    // whole area's, not its parts'.
+    fn cursor(&self, _ui: &Interface, _hovered: bool, _held: bool) -> Option<crate::core::interaction::Cursor> {
+        None
+    }
+
     // The layer it and its children draw on: a dialog's, or the base.
     fn layer(&self) -> Layer {
         Layer::Base
@@ -595,10 +602,6 @@ impl<M> Dispatch<'_, M> {
 
     pub fn is_focused(&self) -> bool {
         self.ui.focused == Some(self.id)
-    }
-
-    pub fn set_cursor(&mut self, cursor: crate::core::interaction::Cursor) {
-        self.ui.cursor = cursor;
     }
 
     // The notices under the app bar, for the bar that shows them.

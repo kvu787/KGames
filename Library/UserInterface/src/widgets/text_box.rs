@@ -14,6 +14,7 @@
 // which Enter takes what's typed.
 
 use crate::core::interaction::{ControlState, Cursor, Interaction, Part, Sense};
+use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{TEXT_BOX_BUTTON_GLYPH, TEXT_BOX_BUTTON_MARGIN, TEXT_BOX_BUTTON_WIDTH, TEXT_BOX_CARET_WIDTH, TEXT_BOX_PADDING, TEXT_BOX_QUERY_BUTTON_WIDTH};
 use crate::design::icons::Icon;
@@ -235,9 +236,6 @@ pub(crate) fn field_interact<M>(text: &str, settings: &FieldSettings, interactio
     editing.caret = boundary(&text, editing.caret);
 
     // A press puts the caret where it is.
-    if hit.hovered && interaction.enabled {
-        ctx.set_cursor(Cursor::Text);
-    }
     if hit.pressed && let Some(pointer) = interaction.pointer {
         let layout = ctx.fonts().layout(&text, BODY, None);
         editing.caret = layout.hit(Point::new(pointer.x - content.x + editing.scroll, BODY.line_height / 2.0));
@@ -351,6 +349,11 @@ pub(crate) fn field_draw(ctx: &mut Draw, text: &str, settings: &FieldSettings) {
 impl<M: Clone + 'static> Widget<M> for TextBox<M> {
     fn kind(&self) -> &'static str {
         "TextBox"
+    }
+
+    // A text field's, while the pointer is on it.
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(Cursor::Text)
     }
 
     fn label(&self) -> Option<String> {

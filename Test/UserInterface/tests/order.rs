@@ -8,7 +8,7 @@
 // on that frame.
 
 use user_interface::{
-    Button, ComboBox, Context, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point,
+    Button, ComboBox, Context, Cursor, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point,
     Program, Rect, TextBox, Tree, Ui,
 };
 
@@ -24,6 +24,7 @@ enum Msg {
     Pick(usize),
     // Sends itself, without end.
     Echo,
+    Swap,
     Ask,
     Answer(DialogResult),
 }
@@ -40,6 +41,7 @@ struct Order {
     ticks: Vec<(f32, f64, bool)>,
     number: f64,
     pick: usize,
+    swapped: bool,
     dialog: bool,
 }
 
@@ -73,6 +75,7 @@ impl Program for Order {
             Msg::Number(number) => self.number = number,
             Msg::Pick(pick) => self.pick = pick,
             Msg::Echo => ui.send(Msg::Echo),
+            Msg::Swap => self.swapped = true,
             Msg::Ask => self.dialog = true,
             Msg::Answer(_) => self.dialog = false,
         }
@@ -89,6 +92,12 @@ impl Program for Order {
         tree.add("Number", Rect::new(10.0, top + 210.0, 200.0, 32.0), NumberBox::new(self.number).range(0.0, 100.0).on_change(Msg::Number));
         let items: Vec<String> = (0..40).map(|index| format!("Item {index}")).collect();
         tree.add("Long", Rect::new(300.0, top + 10.0, 200.0, 32.0), ComboBox::new(self.pick, &items).on_select(Msg::Pick));
+        let swap = Rect::new(520.0, top + 10.0, 120.0, 32.0);
+        if self.swapped {
+            tree.add("Swapped", swap, TextBox::new(&self.text).on_change(Msg::Text));
+        } else {
+            tree.add("Swap", swap, Button::new("Swap").on_press(Msg::Swap));
+        }
         if self.dialog {
             let dialog = Dialog::new("Sure?", "Really.").primary("Yes").on_result(Msg::Answer);
             let area = dialog.area(ui);
@@ -307,4 +316,16 @@ fn a_press_in_a_field_lands_on_the_text_as_the_typing_before_it_scrolled_it() {
     together.send(&events).type_text("Z");
     assert_eq!(together.program.text, apart.program.text);
     assert_ne!(together.program.text.find('Z'), Some(0), "the field had scrolled");
+}
+
+// The pointer's look is the drawn tree's: a press that puts a text field
+// under the pointer shows the text cursor on its own frame, not the next.
+#[test]
+fn the_cursor_is_the_drawn_tree_s() {
+    let mut app = Headless::new(Order::default());
+    app.move_to("Swap");
+    assert_eq!(app.ui.cursor(), Cursor::Arrow);
+    app.press("Swap");
+    assert!(app.has_target("Swapped"));
+    assert_eq!(app.ui.cursor(), Cursor::Text);
 }
