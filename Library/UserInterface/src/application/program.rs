@@ -41,9 +41,10 @@ pub trait Program {
     fn title(&self) -> String;
 
     // The step's messages from what isn't a widget: the keys that no widget
-    // took, the time since the last frame, the gamepad, and the devices.
-    // Once a step, after the widgets' messages and before the messages are
-    // applied.
+    // took, the time since the step before, which is the time since the last
+    // frame in the frame's last step and 0 before it, the gamepad, and the
+    // devices. Once a step, after the widgets' messages and before the
+    // messages are applied.
     fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
         Vec::new()
     }

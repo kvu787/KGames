@@ -97,8 +97,10 @@ pub(crate) struct Popup {
     pub name: String,
 }
 
-// The most messages a frame applies, counting those that messages send in
-// turn, before it gives up on a chain that never ends.
+// The most messages a step of a frame's input applies, counting those that
+// messages send in turn, before it gives up on a chain that never ends. Per
+// step, as a frame can have any number of steps, like a held key's repeats
+// after a long stall, each with its own messages, which all settle.
 const MOST_MESSAGES: usize = 10_000;
 
 // The targets that decide how elements look this frame: the one the pointer
@@ -190,7 +192,7 @@ pub struct Interface {
     // program's window has, and a test's window of a size of its own
     // doesn't.
     pub(crate) performance: Option<crate::application::performance::Performance>,
-    // How many messages the last frame applied, and whether it hit the cap.
+    // How many messages the last frame applied, over all its steps.
     pub(crate) messages_applied: usize,
     // Whether the step running is its frame's last, in which the frame's
     // time passes.
@@ -303,8 +305,10 @@ impl Interface {
         // that doesn't settle is a bug, and stops the program rather than
         // hiding or dropping what's queued behind it.
         let mut queue: VecDeque<P::Message> = messages.into_iter().collect();
+        let mut step_applied = 0;
         while let Some(message) = queue.pop_front() {
-            assert!(*applied < MOST_MESSAGES, "the frame stopped after {MOST_MESSAGES} messages: a message sends messages without end");
+            assert!(step_applied < MOST_MESSAGES, "the step stopped after {MOST_MESSAGES} messages: a message sends messages without end");
+            step_applied += 1;
             *applied += 1;
             let mut context = Context { inner: self, queue: &mut queue };
             program.update(message, &mut context);

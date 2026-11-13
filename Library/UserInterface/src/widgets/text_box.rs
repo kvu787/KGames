@@ -183,7 +183,7 @@ fn field_layout(rect: Rect, settings: &FieldSettings, clear_shown: bool) -> Fiel
     FieldLayout { content, clear, button }
 }
 
-// What the frame's input did to a field.
+// What a step's input did to a field.
 #[derive(Default)]
 pub(crate) struct Edited {
     // The text as the typing leaves it, if it changed.
@@ -193,7 +193,9 @@ pub(crate) struct Edited {
 }
 
 // Registers a field's buttons as parts: its clear button while it has
-// text and focus, and its own button.
+// text and focus, and its own button. And scrolls the text to keep the caret
+// in sight, as each step's tree is laid out, so that a press in the next step
+// lands on the text where it is then, after typing in the same frame.
 pub(crate) fn field_parts(ctx: &mut Parts, text: &str, settings: &FieldSettings) {
     let clear_shown = settings.clear_button && ctx.is_focused() && !text.is_empty() && ctx.enabled();
     let layout = field_layout(ctx.rect(), settings, clear_shown);
@@ -203,6 +205,19 @@ pub(crate) fn field_parts(ctx: &mut Parts, text: &str, settings: &FieldSettings)
     if let Some(clear) = layout.clear {
         ctx.part(Part::Named("Clear".to_string()), "Clear", clear, Sense::CLICK, "Button", None);
     }
+    let content = layout.content;
+    let mut editing = std::mem::take(ctx.memory::<Editing>());
+    editing.caret = boundary(text, editing.caret);
+    let caret_x = ctx.fonts().layout(text, BODY, None).caret_x(editing.caret);
+    let text_width = ctx.measure(text, BODY).width;
+    if caret_x - editing.scroll > content.width - TEXT_BOX_CARET_WIDTH {
+        editing.scroll = caret_x - content.width + TEXT_BOX_CARET_WIDTH;
+    }
+    if caret_x - editing.scroll < 0.0 {
+        editing.scroll = caret_x;
+    }
+    editing.scroll = editing.scroll.clamp(0.0, (text_width - content.width + TEXT_BOX_CARET_WIDTH).max(0.0));
+    *ctx.memory::<Editing>() = editing;
 }
 
 // Does what the input did to a field with the text, and says how the text
@@ -281,18 +296,10 @@ pub(crate) fn field_draw(ctx: &mut Draw, text: &str, settings: &FieldSettings) {
     let content = layout.content;
     let text_y = (rect.center().y - BODY.line_height / 2.0).round();
 
-    // The text scrolls to keep the caret in sight.
+    // Scrolled as the tree was laid out (see field_parts).
     let mut editing = std::mem::take(ctx.memory::<Editing>());
     editing.caret = boundary(text, editing.caret);
     let caret_x = ctx.fonts().layout(text, BODY, None).caret_x(editing.caret);
-    let text_width = ctx.measure(text, BODY).width;
-    if caret_x - editing.scroll > content.width - TEXT_BOX_CARET_WIDTH {
-        editing.scroll = caret_x - content.width + TEXT_BOX_CARET_WIDTH;
-    }
-    if caret_x - editing.scroll < 0.0 {
-        editing.scroll = caret_x;
-    }
-    editing.scroll = editing.scroll.clamp(0.0, (text_width - content.width + TEXT_BOX_CARET_WIDTH).max(0.0));
 
     let theme = ctx.theme();
     let fill = if focused && enabled {

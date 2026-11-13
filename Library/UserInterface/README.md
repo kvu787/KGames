@@ -104,7 +104,8 @@ if a tick of no time moves nothing: a simulation skips its step when no time pas
 takes the step's one-off presses, like a jump, as Platformer does. `ui.last_step()` says whether a
 step is its frame's last, for what a program does once a frame, after all of its input, like
 reading the devices' readings itself, as GameInputDemo does. A frame without input, or with one
-event, is one step, like most frames.
+event that does something, like a press, is one step, like most frames; a key that types is two,
+its press and its text.
 
 ## The design system
 
@@ -270,7 +271,7 @@ before, but reports gamepads' whole state, their held buttons too.
   driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
   its presses in a frame are two.
 - Without focus, the window has no input at all, including the gamepad's. As focus goes,
-  everything held is let go of on that frame: keys and mouse buttons are released, the gamepad
+  everything held is let go of on that step: keys and mouse buttons are released, the gamepad
   goes to rest, and `ui.input().focus_lost` says why. The click that gives it focus does only
   that, and keys and gamepad buttons held when it gets focus count once they're let go of:
   GameInput doesn't report the keys and the click, and the interface ignores the gamepad's held

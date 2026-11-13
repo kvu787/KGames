@@ -35,7 +35,7 @@ impl InfoCard<'_> {
     pub const NAME: &'static str = "InfoCard";
     pub const WIDTH: f32 = 480.0;
 
-    // Whether F1 went down this frame, which shows or hides the card.
+    // Whether F1 went down in this step, which shows or hides the card.
     // Holding it down repeats it, which does nothing more.
     pub fn toggled(input: &Input) -> bool {
         input.key_pressed_once(Key::F1)

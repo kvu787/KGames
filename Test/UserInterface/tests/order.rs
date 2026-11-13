@@ -8,8 +8,8 @@
 // on that frame.
 
 use user_interface::{
-    Button, Context, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point, Program,
-    Rect, TextBox, Tree, Ui,
+    Button, ComboBox, Context, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point,
+    Program, Rect, TextBox, Tree, Ui,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +21,9 @@ enum Msg {
     Jump,
     Tick(f32, f64, bool),
     Number(f64),
+    Pick(usize),
+    // Sends itself, without end.
+    Echo,
     Ask,
     Answer(DialogResult),
 }
@@ -36,6 +39,7 @@ struct Order {
     // its frame's last, as `input` saw them.
     ticks: Vec<(f32, f64, bool)>,
     number: f64,
+    pick: usize,
     dialog: bool,
 }
 
@@ -58,7 +62,7 @@ impl Program for Order {
         messages
     }
 
-    fn update(&mut self, message: Msg, _ui: &mut Context<Msg>) {
+    fn update(&mut self, message: Msg, ui: &mut Context<Msg>) {
         match message {
             Msg::Add => self.clicks += 1,
             Msg::Text(text) => self.text = text,
@@ -67,6 +71,8 @@ impl Program for Order {
             Msg::Jump => self.jumps += 1,
             Msg::Tick(delta, time, last) => self.ticks.push((delta, time, last)),
             Msg::Number(number) => self.number = number,
+            Msg::Pick(pick) => self.pick = pick,
+            Msg::Echo => ui.send(Msg::Echo),
             Msg::Ask => self.dialog = true,
             Msg::Answer(_) => self.dialog = false,
         }
@@ -81,6 +87,8 @@ impl Program for Order {
         tree.add("Menu", Rect::new(10.0, top + 110.0, 100.0, 32.0), Button::new("Menu").menu(menu));
         tree.add("Ask", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Ask").on_press(Msg::Ask));
         tree.add("Number", Rect::new(10.0, top + 210.0, 200.0, 32.0), NumberBox::new(self.number).range(0.0, 100.0).on_change(Msg::Number));
+        let items: Vec<String> = (0..40).map(|index| format!("Item {index}")).collect();
+        tree.add("Long", Rect::new(300.0, top + 10.0, 200.0, 32.0), ComboBox::new(self.pick, &items).on_select(Msg::Pick));
         if self.dialog {
             let dialog = Dialog::new("Sure?", "Really.").primary("Yes").on_result(Msg::Answer);
             let area = dialog.area(ui);
@@ -236,4 +244,67 @@ fn a_frame_s_time_passes_once_after_its_events() {
     app.program.ticks.clear();
     app.frame();
     assert_eq!(app.program.ticks, [((app.time() - now) as f32, app.time(), true)]);
+}
+
+// A frame can have any number of steps, like a held key's repeats after a
+// long stall, each with its own messages, which all settle: the frame applies
+// them all. Only a chain of messages that never ends, in one step, stops the
+// program.
+#[test]
+fn a_frame_of_many_steps_applies_all_their_messages() {
+    let mut app = Headless::new(Order::default());
+    app.hold(Key::Q);
+    app.program.ticks.clear();
+    app.send(&vec![Event::KeyPressed { key: Key::Q, repeat: true }; 10_001]);
+    assert_eq!(app.program.ticks.len(), 10_001);
+}
+
+#[test]
+#[should_panic(expected = "messages without end")]
+fn a_chain_of_messages_that_never_ends_stops_the_program() {
+    let mut app = Headless::new(Order::default());
+    app.send_message(Msg::Echo);
+}
+
+// A wheel that turns by less than a notch at a time gives each turn in a step
+// of its own. A number box steps, and a combo box's list scrolls, once its
+// turns add up to a notch.
+#[test]
+fn a_wheel_s_turns_add_up_to_notches_across_steps() {
+    let mut app = Headless::new(Order::default());
+    app.click("Number").move_to("Number");
+    app.send(&vec![Event::Wheel(Point::new(0.0, 0.25)); 4]);
+    assert_eq!(app.program.number, 1.0);
+    app.send(&vec![Event::Wheel(Point::new(0.0, 0.25)); 3]);
+    assert_eq!(app.program.number, 1.0, "three quarters of a notch");
+    app.send(&[Event::Wheel(Point::new(0.0, 0.25))]);
+    assert_eq!(app.program.number, 2.0);
+    // The list shows its first items, and scrolls down by one.
+    app.click("Long");
+    assert!(app.has_target("Long/0"));
+    let list = app.target("Long/1").center();
+    app.move_point(list);
+    app.send(&vec![Event::Wheel(Point::new(0.0, -0.25)); 4]);
+    assert!(!app.has_target("Long/0") && app.has_target("Long/1"));
+}
+
+// A press in a text field puts the caret where the text is under it as the
+// steps before it left the text, scroll and all: typing that scrolls the
+// field, and a press in it, in one frame, put the caret where the same
+// press in the next frame does.
+#[test]
+fn a_press_in_a_field_lands_on_the_text_as_the_typing_before_it_scrolled_it() {
+    let typed = |count: usize| vec![Event::Text('w'); count];
+    let mut apart = Headless::new(Order::default());
+    apart.click("Field").send(&typed(60));
+    let field = apart.target("Field");
+    let near_left = Point::new(field.x + user_interface::controls::TEXT_BOX_PADDING.left + 3.0, field.center().y);
+    apart.send(&typed(10)).click_point(near_left).type_text("Z");
+    let mut together = Headless::new(Order::default());
+    together.click("Field").send(&typed(60));
+    let mut events = typed(10);
+    events.extend([Event::PointerMoved(near_left), Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
+    together.send(&events).type_text("Z");
+    assert_eq!(together.program.text, apart.program.text);
+    assert_ne!(together.program.text.find('Z'), Some(0), "the field had scrolled");
 }
