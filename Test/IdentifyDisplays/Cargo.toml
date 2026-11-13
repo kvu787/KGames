@@ -8,7 +8,6 @@ publish = false
 [dependencies]
 displays = { path = "../../Library/Displays" }
 identify_displays = { path = "../../Program/IdentifyDisplays" }
-user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]

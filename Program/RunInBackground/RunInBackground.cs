@@ -50,8 +50,8 @@ const string Usage = """
       <program>               The program to run, like GameInputDemo: the name
                               of its folder in Program
 
-      --display <identifier>  The display to open on, as IdentifyDisplays --list
-                              shows it. CVVNY2 by default
+      --display <identifier>  The display to open on, as IdentifyDisplays prints
+                              it. CVVNY2 by default
       --seconds <seconds>     How long the program runs before the screenshot. 3
                               by default
       --screenshot <path>     Where to save the screenshot of the window's

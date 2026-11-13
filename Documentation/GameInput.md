@@ -174,11 +174,10 @@ for them came 2.4 to 40 ms before the demo's frame that saw the change. That's a
 not a promise. The tests try the readings at rest both before and after the window loses focus,
 and both work.
 
-One thing changes for programs that close on a click: GameInput doesn't report the click that
-gives a window focus, so IdentifyDisplays' boxes need a second click if another window took
-focus. Each box now says so on its last line, with a status icon, and draws at every refresh with
-vertical sync, like any program, so that a display with a variable refresh rate sees it present
-steadily.
+One thing changed for IdentifyDisplays' boxes, which closed on a click: GameInput doesn't report
+the click that gives a window focus, so they needed a second click if another window took focus,
+and said so on their last lines. IdentifyDisplays has since become a console program that prints
+the identifiers instead.
 
 ## What Microsoft says
 

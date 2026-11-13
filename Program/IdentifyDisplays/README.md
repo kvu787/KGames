@@ -1,42 +1,45 @@
 # IdentifyDisplays
 
-Shows each display's identifier on that display, for choosing the display that a KGames
-program opens on. Put the identifier in the `"Display"` setting of the program's
-`Settings.json`, or pass it to the program with `--display`.
+Prints each display's identifier, for choosing the display that a KGames program opens on. Put the
+identifier in the `"Display"` setting of the program's `Settings.json`, or pass it to the program
+with `--display`. It's a console program, without a window, and takes no arguments.
 
 ```powershell
-cargo run --release --bin identify_displays
-cargo run --release --bin identify_displays -- --list
+cargo build --release --bin identify_displays
+target\release\identify_displays.exe
 ```
 
-Or run `HumanRun.cmd`, which you can also double-click in File Explorer. It's for people, not for
-coding agents, which run `--list` instead. It runs `HumanRun.ps1`, which does the same as the first
-command above. Other arguments go to IdentifyDisplays, like `--list`.
+Or `cargo run --release --bin identify_displays`. It prints something like:
 
-IdentifyDisplays puts a box in the middle of each display with the display's identifier, like
-`KXGR16`, in Cascadia Mono, whose 0 has a slash through it, its model and its mode. It writes the
-same to the console, with each monitor's device path. Click a box, or press `Esc`, while one has
-focus, to close them. They open with focus. If another window takes it, the click that gives a box
-focus back only does that, as GameInput doesn't report it, and the next click closes them. Each
-box's last line says which applies, after a status icon:
+```text
+3 displays, from left to right:
 
-| Focus                 | Icon    | Last line                                        |
-| --------------------- | ------- | ------------------------------------------------ |
-| A box has it          | Success | Click or press Esc to close                      |
-| Another window has it | Warning | Click to focus, then click or press Esc to close |
+  CVVNY2  PA278QGV
+          2560 x 1440, 120 Hz, 100% scale, HDMI
+          At -2560, 0 on the desktop
+          \\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8448#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
 
-With `--list`, it only writes to the console.
+  9XH36C  PA278QGV, the primary display
+          2560 x 1440, 120 Hz, 100% scale, DisplayPort
+          At 0, 0 on the desktop
+          \\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8454#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
 
-The boxes are windows without a frame that float over the others, drawn with
-[Library/UserInterface](../../Library/UserInterface/README.md)'s overlays, in its light theme. Each
-draws a frame at every refresh of its display, with vertical sync, like any program, so a display
-with a variable refresh rate sees them present steadily. A display at another scale than 100% gets
-a box as big as it would look at 100%.
+  KXGR16  PA278QGV
+          2560 x 1440, 120 Hz, 100% scale, DisplayPort
+          At 2560, 0 on the desktop
+          \\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8450#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+
+To open a program on a display, set "Display" in the Settings.json in its
+folder to the display's identifier, or run it with --display and the identifier.
+```
+
+Each display has its identifier, its model, its mode, where it is on the desktop, and its monitor's
+device path, which the identifier is made from.
 
 An identifier is 6 characters of [Crockford's Base32](https://www.crockford.com/base32.html),
 which has no I, L, O or U, so no two characters look alike. They're the top 30 bits of an
-FNV-1a hash of the monitor's device path, like
-`\\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8454#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
+FNV-1a hash of the monitor's device path, like `KXGR16`'s,
+`\\?\DISPLAY#AUSAA0F#5&16b35f9f&0&UID8450#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
 Windows makes that path from the monitor's model, from its EDID, and from the GPU output
 it's plugged into. So an identifier:
 
@@ -45,11 +48,10 @@ it's plugged into. So an identifier:
   ASUS PA278QGV monitors are `CVVNY2`, `9XH36C` and `KXGR16`.
 - Changes when the monitor is plugged into another output or GPU.
 
-Programs match identifiers without regard to case. Monitors that clone each other show
-the same part of the desktop, so IdentifyDisplays puts all of their identifiers in one
-box, and any of them opens a program there. Without a monitor device path, like over
-Remote Desktop, the identifier comes from the GDI device name, like `\\.\DISPLAY1`,
-which can change between restarts.
+Programs match identifiers without regard to case. Monitors that clone each other show the same
+part of the desktop, at the same place, and any of their identifiers opens a program there.
+Without a monitor device path, like over Remote Desktop, the identifier comes from the GDI device
+name, like `\\.\DISPLAY1`, which can change between restarts.
 
 [Library/Displays](../../Library/Displays/README.md) finds the displays and makes their identifiers,
 for this program and for the others.
@@ -60,15 +62,13 @@ for this program and for the others.
 cargo test -p identify_displays_tests
 ```
 
-The test in `Test/IdentifyDisplays` draws each display's box offscreen, without putting windows on
-the displays, saves it in `target\TestOutput`, and checks that its text fits and draws.
+The tests in `Test/IdentifyDisplays` check what it prints, for made-up displays and for the real
+ones, and that Library/Displays finds the displays as they are whatever DPI awareness the thread
+that asks has.
 
 ## Layout
 
-| Path           | Contents                                                        |
-| -------------- | --------------------------------------------------------------- |
-| `src/main.rs`  | Finds the displays, writes them to the console, and shows a box |
-|                | on each                                                         |
-| `src/lib.rs`   | Lays out and draws a box, as a library that the test draws      |
-| `HumanRun.ps1` | Builds IdentifyDisplays and runs it, for people to use it       |
-| `HumanRun.cmd` | Runs `HumanRun.ps1`, for double-clicking in File Explorer       |
+| Path          | Contents                                                     |
+| ------------- | ------------------------------------------------------------ |
+| `src/main.rs` | Finds the displays and prints them                           |
+| `src/lib.rs`  | What it prints, and its command line, as a library to test   |

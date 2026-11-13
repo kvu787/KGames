@@ -85,7 +85,7 @@ programs start it.
 | [WinUi3Sample](Program/WinUi3Sample/README.md)         | A real WinUI 3 app, in C# and XAML, to compare the UI framework with     |
 | [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
 | [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
-| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Shows each display's identifier, for the programs' `--display`           |
+| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Prints each display's identifier, for the programs' `--display`          |
 | [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it              |
 | [FrameTimes](Program/FrameTimes/README.md)             | Measures another process's frame times, like a game's while a build runs |
 | [Benchmarks](Program/Benchmarks/README.md)             | Times the hot paths: frames on the CPU and GPU, text, meshes, and more   |

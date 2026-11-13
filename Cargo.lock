@@ -131,9 +131,6 @@ name = "identify_displays"
 version = "0.1.0"
 dependencies = [
  "displays",
- "user_interface",
- "windows-core",
- "windows_api",
 ]
 
 [[package]]
@@ -142,7 +139,6 @@ version = "0.1.0"
 dependencies = [
  "displays",
  "identify_displays",
- "user_interface",
  "windows_api",
 ]
 

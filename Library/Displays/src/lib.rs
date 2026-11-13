@@ -1,7 +1,7 @@
 // Finds the displays that show part of the desktop, and gives each one an
 // identifier that stays the same from one run to the next, so a setting can
-// name the display to open on. IdentifyDisplays shows each display's
-// identifier on that display.
+// name the display to open on. IdentifyDisplays prints each display's
+// identifier.
 //
 // The identifier is a hash of the monitor's device path, like
 // \\?\DISPLAY#DEL40F2#5&2d3b6e3c&0&UID4352#{e6f07b5f-...}. Windows makes the

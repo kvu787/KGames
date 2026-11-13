@@ -8,7 +8,7 @@ public sealed record StartupOptions(string? Display, bool NoActivate, string? Pa
     public const string Usage = """
         Usage: WinUi3Sample.exe [options]
 
-          --display <identifier>  The display to open on, as IdentifyDisplays --list shows it,
+          --display <identifier>  The display to open on, as IdentifyDisplays prints it,
                                   or Primary
           --no-activate           Opens beneath the other windows, without taking focus
           --page <page>           The page to open on: Home, Notes, Controls or Settings

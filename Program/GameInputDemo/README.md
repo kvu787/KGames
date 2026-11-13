@@ -194,8 +194,8 @@ With `--all-scripts`, it runs the demo with the scripts in `Test/GameInputDemo/S
 
 ### Display identifiers
 
-[IdentifyDisplays](../IdentifyDisplays/README.md) shows each display's identifier, like `KXGR16`, on
-that display. The demo matches identifiers without regard to case.
+[IdentifyDisplays](../IdentifyDisplays/README.md) prints each display's identifier, like `KXGR16`.
+The demo matches identifiers without regard to case.
 
 ### Settings file
 

@@ -85,7 +85,7 @@ open `WinUi3Sample.csproj` to edit the XAML while the app runs, with XAML Hot Re
 
 | Argument                 | Value                                                                  |
 | ------------------------ | ---------------------------------------------------------------------- |
-| `--display <identifier>` | The display to open on, as `IdentifyDisplays --list` shows it, or      |
+| `--display <identifier>` | The display to open on, as `IdentifyDisplays` prints it, or            |
 |                          | `Primary`                                                              |
 | `--no-activate`          | Opens beneath the other windows, without taking focus, and keeps every |
 |                          | window of the app, like its menus, from taking it later                |
