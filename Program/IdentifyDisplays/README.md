@@ -9,7 +9,12 @@ cargo build --release --bin identify_displays
 target\release\identify_displays.exe
 ```
 
-Or `cargo run --release --bin identify_displays`. It prints something like:
+Or `cargo run --release --bin identify_displays`. Or run `HumanRun.cmd`, which you can also
+double-click in File Explorer. It's for people, not for coding agents, which run the exe instead. It
+runs `HumanRun.ps1`, which builds IdentifyDisplays, runs it, and waits for Enter before it closes,
+so that the console window stays open to read.
+
+It prints something like:
 
 ```text
 3 displays, from left to right:
@@ -68,7 +73,9 @@ that asks has.
 
 ## Layout
 
-| Path          | Contents                                                     |
-| ------------- | ------------------------------------------------------------ |
-| `src/main.rs` | Finds the displays and prints them                           |
-| `src/lib.rs`  | What it prints, and its command line, as a library to test   |
+| Path           | Contents                                                       |
+| -------------- | -------------------------------------------------------------- |
+| `src/main.rs`  | Finds the displays and prints them                             |
+| `src/lib.rs`   | What it prints, and its command line, as a library to test     |
+| `HumanRun.ps1` | Builds IdentifyDisplays, runs it, and waits for Enter          |
+| `HumanRun.cmd` | Runs `HumanRun.ps1`, for double-clicking in File Explorer      |
