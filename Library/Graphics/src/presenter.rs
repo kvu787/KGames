@@ -164,7 +164,7 @@ impl Presenter {
         if !self.waitable_signaled {
             self.waitable_signaled = unsafe { WaitForSingleObject(self.waitable, 0) } == WAIT_OBJECT_0 as u32;
         }
-        self.waitable_signaled && gpu.is_complete(self.last_frame)
+        frame_can_begin(self.waitable_signaled, gpu, self.last_frame)
     }
 
     // Waits, without spinning, until a frame can begin, a window message
@@ -233,6 +233,18 @@ impl Presenter {
             present_then_signal(&mut self.last_frame, present, || gpu.signal()).map_err(|error| with_removed_reason(gpu, error))
         }
     }
+}
+
+// Whether a frame can begin: DXGI's queue has room for it, and the GPU has
+// signaled `last_frame`, the fence value after the last frame's commands.
+// Room in DXGI's queue is DXGI's promise about presents; that the GPU has
+// finished the last frame's commands is the fence's. As soon as a frame
+// begins, its drawing rewrites what the last frame's commands read, like the
+// interface's upload buffer and the 3D views' constants, and lets go of what
+// it replaces, like a depth buffer of the old size, so it mustn't begin
+// before then.
+pub fn frame_can_begin(dxgi_ready: bool, gpu: &Gpu, last_frame: u64) -> bool {
+    dxgi_ready && gpu.is_complete(last_frame)
 }
 
 // Present's sync interval and flags: with vertical sync, the frame waits for
