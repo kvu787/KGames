@@ -136,3 +136,61 @@ test that pins it.
   own for a process's first `ShowWindow`. `HumanRun` starts programs without one. It was found
   while measuring the programs in their windows, and fixing it needs a run that takes the focus,
   which only a person may start.
+
+# What taking a frame's input in order found
+
+A frame's input used to be folded into flags and totals, all hit-tested on the tree the user saw,
+which lost the order it came in. It now comes in steps, one for each event that does something,
+each handled on the state that the steps before it left (`Input::steps` and `Interface::frame`),
+and the reader keeps the gamepad's changes, key repeats and unplugging in order. That change to
+the frame machinery ended with an adversarial review of the new code. Each fix has a test that
+pins it.
+
+## Found and fixed
+
+- Platformer was ticked in every step, and a step before a frame's last has no time. Its physics
+  step of no time forgot the platform that the player stood on, so the frame's last step didn't
+  carry them with it, and they slid off a moving platform in any frame of more than one step. A
+  step of no time now moves nothing, and AGENTS.md says that a tick of no time must move nothing.
+- The reader made a reading's key presses in the order of their virtual keys, so a Ctrl+Backspace
+  that one reading had was a Backspace and then a Ctrl, which deleted a character in a text field.
+  Shift, Ctrl and Alt now go down first and come up last.
+- GameInputDemo read the devices in every step, and they hand out a frame's readings once, so the
+  first step took them all with its focus: a frame with a key's press and then a loss of focus
+  showed readings that came without focus. `Ui::last_step` lets a program do what it does once a
+  frame in the frame's last step, and the demo reads the devices then.
+- `Input::steps` took any text after a key's press as the key's, so a script's Enter and then
+  typed text in one frame went together, and a number box took the text with the Enter. A key's
+  press and its text are two steps now, as Win32's `WM_KEYDOWN` and `WM_CHAR` are two messages.
+- Comments in the library and the programs still said "once a frame" or "the tree the user saw"
+  where it's now a step's.
+
+## Examined and sound
+
+`Input::steps`' edge cases: frames that are empty or only moves, moves after the last event, and
+the gamepad's repeated readings; focus lost and got back in one frame; which of the interface's
+state is reset once a frame and which once a step; F9, F10 and F11 pressed twice in a frame, which
+cancel; drags, whose moves add up over the steps to the frame's; the widgets, which keep nothing
+per call that steps would break; MinimalSceneTest, SpinningCarTest, Veehiicuul, SimplePaintDemo,
+UiShowcase and MeshModeler with steps of no time; Headless and scripts, which make the same steps
+as the window; and the reader's repeats, gamepad changes and unplugging.
+
+## Changed on purpose
+
+- A press after a letter typed in the same frame lands on the list as the letter filtered it. The
+  review after the move to MVU, above, made it land on the list the user saw. Each event now sees
+  what the events before it did, as a Win32 window's messages do, and the message still carries
+  the item that the row showed, in the tree that the press was on.
+
+## Still open, deliberately
+
+- Each step runs the program's `view` and the layout, and Veehiicuul's and MeshModeler's
+  `Prepare`, so a frame of many steps, like a burst of wheel readings or key repeats after a stall,
+  costs that many times as much. View and layout cost about 0.04 ms a step in UiShowcase, and most
+  frames are one step.
+- The steps before a frame's last are at the last frame's time, so a press in one of them records
+  its time up to a frame early, for a double-click and a tooltip's wait.
+- The cursor is read once a frame, as Windows keeps no cursor on GameInput's clock, so a press
+  lands where the cursor is as the frame reads its input, and not where it was as the button went
+  down. `GetMouseMovePointsEx`, which keeps the cursor's last 64 positions with their times in
+  milliseconds, could place it closer.
