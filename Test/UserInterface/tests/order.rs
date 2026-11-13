@@ -2,13 +2,14 @@
 // the state that the events before it left, as a Win32 window's messages do:
 // typing and Backspace, clicks, a click on a menu or a dialog that a click
 // before it opened, shortcuts and the modifiers held as their key went down,
-// a gamepad button tapped within a frame, and the frame's time, which passes
-// once, after its events. Each test puts all of its input in one frame, and
-// checks everything it caused on that frame.
+// a gamepad button tapped within a frame, text typed after a key, and the
+// frame's time, which passes once, after its events, in its last step. Each
+// test puts all of its input in one frame, and checks everything it caused
+// on that frame.
 
 use user_interface::{
-    Button, Context, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, Point, Program, Rect,
-    TextBox, Tree, Ui,
+    Button, Context, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point, Program,
+    Rect, TextBox, Tree, Ui,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -18,7 +19,8 @@ enum Msg {
     Chosen(String),
     Undo,
     Jump,
-    Tick(f32, f64),
+    Tick(f32, f64, bool),
+    Number(f64),
     Ask,
     Answer(DialogResult),
 }
@@ -30,8 +32,10 @@ struct Order {
     chosen: Vec<String>,
     undos: u32,
     jumps: u32,
-    // Each step's time since the step before, and time, as `input` saw them.
-    ticks: Vec<(f32, f64)>,
+    // Each step's time since the step before, its time, and whether it was
+    // its frame's last, as `input` saw them.
+    ticks: Vec<(f32, f64, bool)>,
+    number: f64,
     dialog: bool,
 }
 
@@ -50,7 +54,7 @@ impl Program for Order {
         if ui.input().gamepad_pressed(GamepadButtons::A) {
             messages.push(Msg::Jump);
         }
-        messages.push(Msg::Tick(ui.delta(), ui.time()));
+        messages.push(Msg::Tick(ui.delta(), ui.time(), ui.last_step()));
         messages
     }
 
@@ -61,7 +65,8 @@ impl Program for Order {
             Msg::Chosen(label) => self.chosen.push(label),
             Msg::Undo => self.undos += 1,
             Msg::Jump => self.jumps += 1,
-            Msg::Tick(delta, time) => self.ticks.push((delta, time)),
+            Msg::Tick(delta, time, last) => self.ticks.push((delta, time, last)),
+            Msg::Number(number) => self.number = number,
             Msg::Ask => self.dialog = true,
             Msg::Answer(_) => self.dialog = false,
         }
@@ -75,6 +80,7 @@ impl Program for Order {
         let menu = vec![MenuItem::new("Open").on_choose(Msg::Chosen("Open".into()))];
         tree.add("Menu", Rect::new(10.0, top + 110.0, 100.0, 32.0), Button::new("Menu").menu(menu));
         tree.add("Ask", Rect::new(10.0, top + 160.0, 100.0, 32.0), Button::new("Ask").on_press(Msg::Ask));
+        tree.add("Number", Rect::new(10.0, top + 210.0, 200.0, 32.0), NumberBox::new(self.number).range(0.0, 100.0).on_change(Msg::Number));
         if self.dialog {
             let dialog = Dialog::new("Sure?", "Really.").primary("Yes").on_result(Msg::Answer);
             let area = dialog.area(ui);
@@ -200,9 +206,24 @@ fn a_gamepad_button_tapped_within_a_frame_is_pressed() {
     assert!(!app.ui.gamepad().buttons.contains(GamepadButtons::A));
 }
 
+// Text typed after a key in one frame, like a script's Enter and then "2",
+// is a step after the key's: Enter takes what was typed before it, and the 2
+// waits for the next Enter.
+#[test]
+fn text_typed_after_a_key_in_one_frame_comes_after_it() {
+    let mut app = Headless::new(Order::default());
+    app.click("Number").key(Key::BACKSPACE);
+    app.send(&[Event::Text('4'), press(Key::ENTER), Event::Text('2'), Event::KeyReleased(Key::ENTER)]);
+    assert_eq!(app.program.number, 4.0);
+    app.key(Key::ENTER);
+    assert_eq!(app.program.number, 42.0);
+}
+
 // The frame's time passes once, in its last step, after its events: the
 // steps before it see no time pass, and the last frame's time, so that a
 // simulation that `input` ticks moves once a frame, by the frame's time.
+// `last_step` says which step is the last, for what a program does once a
+// frame.
 #[test]
 fn a_frame_s_time_passes_once_after_its_events() {
     let mut app = Headless::new(Order::default());
@@ -210,9 +231,9 @@ fn a_frame_s_time_passes_once_after_its_events() {
     app.program.ticks.clear();
     app.send(&[press(Key::Q), Event::KeyReleased(Key::Q), press(Key::W)]);
     let now = app.time();
-    assert_eq!(app.program.ticks, [(0.0, before), (0.0, before), ((now - before) as f32, now)]);
+    assert_eq!(app.program.ticks, [(0.0, before, false), (0.0, before, false), ((now - before) as f32, now, true)]);
     // A frame of one step: its time passes in it.
     app.program.ticks.clear();
     app.frame();
-    assert_eq!(app.program.ticks, [((app.time() - now) as f32, app.time())]);
+    assert_eq!(app.program.ticks, [((app.time() - now) as f32, app.time(), true)]);
 }

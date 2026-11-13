@@ -22,7 +22,9 @@ use crate::settings::DemoSettings;
 // What a frame means to the demo.
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Once a frame: the title, and the frame's readings.
+    // Once a frame, in its last step, after all of the frame's input, so
+    // with the window's focus as the frame leaves it: the title, and the
+    // frame's readings, which the devices hand out once a frame.
     Tick,
     // The combo box picked which gamepad to listen to.
     Listen(Listen),
@@ -80,8 +82,8 @@ impl Program for Demo {
         self.title.clone()
     }
 
-    fn input(&self, _ui: &Ui) -> Vec<Message> {
-        vec![Message::Tick]
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        if ui.last_step() { vec![Message::Tick] } else { Vec::new() }
     }
 
     fn update(&mut self, message: Message, ui: &mut Context<Message>) {
@@ -89,8 +91,9 @@ impl Program for Demo {
             Message::Listen(listen) => {
                 if let Ok(input) = &mut self.input {
                     // The pick applies before the frame's Tick advances the
-                    // clock, so bring the clock to the frame first, and the
-                    // log line carries this frame's time.
+                    // clock, so bring the clock to the step's time first,
+                    // and the log line carries it: the frame's in its last
+                    // step, and the last frame's in a step before it.
                     input.align_clock(ui.time());
                     input.pick_listen(listen);
                 }

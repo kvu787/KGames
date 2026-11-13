@@ -15,7 +15,7 @@ use user_interface::tokens::{
     APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING,
     PERF_BAR_HEIGHT, SPACE_S, STATUS_BAR_HEIGHT, WINDOW_WIDTH,
 };
-use user_interface::{Headless, Key, Point, Program, Rect, Theme, ThemeKind};
+use user_interface::{Event, Headless, Key, Point, Program, Rect, Theme, ThemeKind};
 
 // The demo, drawn once, with gamepads of these names connected, so that the
 // next frame's input has targets.
@@ -235,6 +235,21 @@ fn input_without_window_focus_is_dropped_and_stops_the_motors() {
     app.focus(true);
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.5], "Buttons": ["A"] } }"#);
     assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.5);
+    assert_eq!(input(&app).gamepad.state.buttons, 0);
+}
+
+// The demo reads the devices once a frame, in the frame's last step, with
+// the window's focus as the frame leaves it: in a frame with a key's press
+// and then the window losing focus, what the devices read came without
+// focus, and is dropped, as in a frame that only loses focus.
+#[test]
+fn a_frame_that_loses_focus_after_other_input_drops_what_the_devices_read() {
+    let mut app = demo(&[]);
+    step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
+    let count = input(&app).reading_count;
+    app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
+    app.send(&[Event::KeyPressed { key: Key::Q, repeat: false }, Event::FocusLost]);
+    assert_eq!(input(&app).reading_count, count);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }
 

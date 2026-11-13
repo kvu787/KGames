@@ -16,7 +16,9 @@
 // shows what every message did, on the frame of the input. The frame's time
 // passes in its last step, after its events: in the steps before it,
 // `Ui::delta` is 0 and `Ui::time` the last frame's, so that a simulation
-// that `input` ticks moves once a frame, by the frame's time.
+// that `input` ticks moves once a frame, by the frame's time, as long as a
+// tick of no time moves nothing. `Ui::last_step` says which step is the
+// frame's last, for what a program does once a frame.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};

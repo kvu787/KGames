@@ -99,8 +99,12 @@ committing an edit once the button is up, or rebuilding what a 3D view shows.
 
 A frame's time passes in its last step, after its events. In the steps before it, `ui.delta()` is
 0 and `ui.time()` is the last frame's, so a simulation that `input` ticks every step moves once a
-frame, by the frame's time, with every event of the frame applied before it moves. A frame without
-input, or with one event, is one step, like most frames.
+frame, by the frame's time, with every event of the frame applied before it moves. That holds only
+if a tick of no time moves nothing: a simulation skips its step when no time passed, and still
+takes the step's one-off presses, like a jump, as Platformer does. `ui.last_step()` says whether a
+step is its frame's last, for what a program does once a frame, after all of its input, like
+reading the devices' readings itself, as GameInputDemo does. A frame without input, or with one
+event, is one step, like most frames.
 
 ## The design system
 
@@ -255,7 +259,8 @@ before, but reports gamepads' whole state, their held buttons too.
   dialog gets no keys.
 - `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
   don't see the keys that a text field with focus takes - every key without Ctrl - or any while
-  a dialog is open - from the very frame it opens, for checks after it.
+  a dialog is open - from the very step after the one that opens it, so a key's press after the
+  click that opens a dialog, in the same frame, is the dialog's.
   `ui.input()` has all of the step's input, for programs that read keys themselves, like for
   driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
   its presses in a frame are two.

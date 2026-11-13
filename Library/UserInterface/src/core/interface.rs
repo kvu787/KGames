@@ -69,9 +69,9 @@ pub struct FrameStats {
     pub frame_time: f32,
 }
 
-// What the parts of the last frame cost the CPU, in milliseconds: the input
-// on the tree the user saw, the messages, the view, its layout, and its
-// drawing. For benchmarks.
+// What the parts of the last frame cost the CPU, in milliseconds, over all
+// of its steps: the input on the tree it came on, the messages, the view,
+// and its layout, and the drawing of the last step's tree. For benchmarks.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FramePhases {
     pub input: f64,
@@ -192,6 +192,9 @@ pub struct Interface {
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, and whether it hit the cap.
     pub(crate) messages_applied: usize,
+    // Whether the step running is its frame's last, in which the frame's
+    // time passes.
+    last_step: bool,
     phases: FramePhases,
 }
 
@@ -225,6 +228,7 @@ impl Interface {
             notices: Vec::new(),
             performance: None,
             messages_applied: 0,
+            last_step: true,
             phases: FramePhases::default(),
         }
     }
@@ -251,7 +255,8 @@ impl Interface {
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
-            let step_time = if index == last { time } else { self.input.time };
+            self.last_step = index == last;
+            let step_time = if self.last_step { time } else { self.input.time };
             let tree = self.step(program, shown.as_ref(), step, sent.take().unwrap_or_default(), step_time, &mut applied, &mut phases);
             *shown = Some(tree);
         }
@@ -338,7 +343,8 @@ impl Interface {
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
-            let step_time = if index == last { time } else { self.input.time };
+            self.last_step = index == last;
+            let step_time = if self.last_step { time } else { self.input.time };
             self.input.begin(step_time, step);
             self.begin_input();
             self.end_input();
@@ -395,9 +401,9 @@ impl Interface {
         }
     }
 
-    // Finds what the input did to each target the user saw, and tells each
-    // widget of the tree what the input did to it, which it turns into
-    // messages.
+    // Finds what the step's input did to each target of the tree it came
+    // on, and tells each widget of the tree what the input did to it, which
+    // it turns into messages.
     fn dispatch<M: Clone + 'static>(&mut self, tree: &Tree<M>, messages: &mut Vec<M>) {
         let shown = std::mem::take(&mut self.targets);
         let mut interactions: QuickMap<Id, Interaction> = QuickMap::default();
@@ -532,8 +538,7 @@ impl Interface {
 
     // A left press on a text field gives it keyboard focus, as its hit is
     // found, and any press anywhere else takes it away, here, once every
-    // widget has heard the step's input, so that the field still takes
-    // what was typed with the press. A press on the field itself, or on
+    // widget has heard the step's input. A press on the field itself, or on
     // its own parts, like its clear button, leaves it there.
     fn take_focus_away(&mut self) {
         let pressed = MouseButton::ALL.iter().any(|&button| self.input.button_pressed(button));
@@ -891,6 +896,14 @@ impl Interface {
     // steps before it: time passes once a frame, after its events.
     pub fn delta(&self) -> f32 {
         self.input.delta
+    }
+
+    // Whether this is the frame's last step, in which its time passes, after
+    // all of the frame's input: for what a program does once a frame, like
+    // reading the devices' readings itself (see Startup::devices), which
+    // come once a frame, with the window's focus as the frame leaves it.
+    pub fn last_step(&self) -> bool {
+        self.last_step
     }
 
     // Whether the window has focus. Without it there's no input at all.
