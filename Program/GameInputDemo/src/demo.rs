@@ -28,6 +28,9 @@ pub enum Message {
     Tick,
     // The combo box picked which gamepad to listen to.
     Listen(Listen),
+    // The window lost focus, in a step of the frame's input, which the
+    // frame's Tick takes even if the window got it back since.
+    FocusLost,
 }
 
 pub struct Demo {
@@ -83,7 +86,14 @@ impl Program for Demo {
     }
 
     fn input(&self, ui: &Ui) -> Vec<Message> {
-        if ui.last_step() { vec![Message::Tick] } else { Vec::new() }
+        let mut messages = Vec::new();
+        if ui.input().focus_lost {
+            messages.push(Message::FocusLost);
+        }
+        if ui.last_step() {
+            messages.push(Message::Tick);
+        }
+        messages
     }
 
     fn update(&mut self, message: Message, ui: &mut Context<Message>) {
@@ -109,16 +119,16 @@ impl Program for Demo {
                     if let Some(scripted) = input.scripted() {
                         scripted.now = scripted.now.max(microseconds(ui.time()));
                     }
-                    let focused = ui.window_focused();
-                    // A frame can both lose focus and get it back, like when
-                    // focus goes to another window and back between two
-                    // frames. Losing focus first drops what came meanwhile,
-                    // stops the motors, and makes getting it back count as
-                    // getting focus.
-                    if focused && ui.input().focus_lost {
-                        input.update(false);
-                    }
-                    input.update(focused);
+                    input.update(ui.window_focused());
+                }
+            }
+            // A frame can both lose focus and get it back, like when focus
+            // goes to another window and back between two frames. Losing it
+            // drops what came meanwhile, stops the motors, and makes getting
+            // it back count as getting focus.
+            Message::FocusLost => {
+                if let Ok(input) = &mut self.input {
+                    input.focus_lost();
                 }
             }
         }

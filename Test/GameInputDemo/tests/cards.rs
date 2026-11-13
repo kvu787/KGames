@@ -253,6 +253,21 @@ fn a_frame_that_loses_focus_after_other_input_drops_what_the_devices_read() {
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }
 
+// A frame that loses focus and gets it back, like when focus goes to another
+// window and back between two frames, drops what came meanwhile, and what's
+// held then counts only once it's let go of, whichever steps of the frame's
+// input the loss and the gain are in.
+#[test]
+fn a_frame_that_loses_focus_and_gets_it_back_drops_what_came_meanwhile() {
+    let mut app = demo(&[]);
+    step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
+    let count = input(&app).reading_count;
+    app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
+    app.send(&[Event::FocusLost, Event::FocusGained(Vec::new())]);
+    assert_eq!(input(&app).reading_count, count);
+    assert_eq!(input(&app).gamepad.state.buttons, 0);
+}
+
 #[test]
 fn each_device_has_a_row_under_the_one_before() {
     let app = demo(&["Pad One", "Pad Two", "Pad Three"]);

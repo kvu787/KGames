@@ -18,10 +18,11 @@ use crate::devices::{Device, InputSource, Reading};
 pub struct GameInputSource {
     devices: Rc<RefCell<Devices>>,
     runtime: Runtime,
-    // The last frame whose device events, and whose readings, were handed
-    // out, so that each is handed out once.
+    // The last frame whose device events, readings and focus changes were
+    // handed out, so that each is handed out once.
     events_frame: u64,
     readings_frame: u64,
+    focus_frame: u64,
     // Every device seen, with its node in Windows' device tree, which is
     // looked up once.
     described: Vec<Device>,
@@ -41,6 +42,7 @@ impl GameInputSource {
             runtime,
             events_frame: 0,
             readings_frame: 0,
+            focus_frame: 0,
             described: Vec::new(),
         }
     }
@@ -90,6 +92,15 @@ impl InputSource for GameInputSource {
                 (event, self.describe(&device, changed))
             })
             .collect()
+    }
+
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
+        let devices = self.devices.borrow();
+        if devices.frame() == self.focus_frame {
+            return Vec::new();
+        }
+        self.focus_frame = devices.frame();
+        devices.focus_changes().to_vec()
     }
 
     fn readings(&mut self) -> Vec<Reading> {

@@ -364,6 +364,8 @@ pub struct Input {
     // When the window last got focus, in the source's clock. Readings from
     // before then are input without focus too, like the click that gave it.
     focus_timestamp: u64,
+    // Whether the window lost focus in this frame, which the update takes.
+    lost: bool,
 }
 
 // A reading that changed something, to log and show on the Latest card.
@@ -578,6 +580,7 @@ impl Input {
             motion: None,
             focused: false,
             focus_timestamp: u64::MAX,
+            lost: false,
         }
     }
 
@@ -596,35 +599,31 @@ impl Input {
         timestamp.saturating_sub(self.start_timestamp) as f64 / 1_000_000.0
     }
 
-    // `focused` is whether the window has focus. Input is only handled while
-    // it does, see take_reading. A minimized window doesn't have it, so the
-    // demo calls this with false on the frame that restores the window, and
-    // restoring it counts as getting focus.
+    // Says that the window lost focus in this frame, which the next update
+    // takes, even if the window got it back in the same frame.
+    pub fn focus_lost(&mut self) {
+        self.lost = true;
+    }
+
+    // The frame's update, with `focused`, whether the window has focus as the
+    // frame leaves it. Input is only handled while it has focus, see
+    // take_reading. The window's focus changes go among the readings by their
+    // times, as the library's reader puts them, when the source says when
+    // they were. A source that doesn't, like a script's, changes focus at
+    // the frame's time: losing it before the frame's readings, and getting
+    // it after them. A minimized window doesn't have focus, so restoring one
+    // counts as getting it, after losing it.
     pub fn update(&mut self, focused: bool) {
-        if self.focused && !focused {
-            // Keys, buttons and sticks let go of after the window lost focus
-            // are never seen, so stop showing them as held.
-            self.keyboard.keys.clear();
-            self.keyboard.descriptions.clear();
-            self.mouse.state.buttons = 0;
-            let device = self.gamepad.device;
-            self.view_gamepad(device);
-            for rumble in &mut self.rumbles {
-                rumble.sticks = [0.0; 2];
-            }
-        }
+        let lost = std::mem::take(&mut self.lost);
         let now = self.source.now();
-        if !self.focused && focused {
-            self.focus_timestamp = now;
-            // What's held now was pressed without focus.
-            for last in &mut self.last_readings {
-                last.masked = Masked::held(last.kind, &last.reading);
-            }
-        }
-        self.focused = focused;
         self.now = self.seconds(now);
         for (event, device) in self.source.device_events() {
             self.handle_device_event(event, device);
+        }
+        let mut changes = self.source.focus_changes().into_iter().peekable();
+        let timed = changes.peek().is_some();
+        if !timed && (lost || !focused) {
+            self.focus_change(now, false);
         }
 
         // Every new reading, in the order the input happened in, as
@@ -632,11 +631,21 @@ impl Input {
         // they were used. A reading with more than one kind of input, like a
         // keyboard's with a trackball's, is taken as each.
         for reading in self.source.readings() {
+            while let Some((time, gained)) = changes.next_if(|(time, _)| *time <= reading.timestamp) {
+                self.focus_change(time, gained);
+            }
             for &(source, kind) in READING_KINDS.iter() {
                 if reading.kinds & kind != 0 {
                     self.take_reading(source, kind, reading.clone());
                 }
             }
+        }
+        for (time, gained) in changes {
+            self.focus_change(time, gained);
+        }
+        // As the frame leaves it, whatever the source said.
+        if self.focused != focused {
+            self.focus_change(now, focused);
         }
         self.end_motion();
 
@@ -817,6 +826,30 @@ impl Input {
             self.mouse = MouseView::default();
         }
         self.log(self.now, Source::Demo, text, None);
+    }
+
+    // The window got or lost focus, at a time on the readings' clock.
+    fn focus_change(&mut self, time: u64, gained: bool) {
+        if gained && !self.focused {
+            self.focused = true;
+            self.focus_timestamp = time;
+            // What's held now was pressed without focus.
+            for last in &mut self.last_readings {
+                last.masked = Masked::held(last.kind, &last.reading);
+            }
+        } else if !gained && self.focused {
+            self.focused = false;
+            // Keys, buttons and sticks let go of after the window lost focus
+            // are never seen, so stop showing them as held.
+            self.keyboard.keys.clear();
+            self.keyboard.descriptions.clear();
+            self.mouse.state.buttons = 0;
+            let device = self.gamepad.device;
+            self.view_gamepad(device);
+            for rumble in &mut self.rumbles {
+                rumble.sticks = [0.0; 2];
+            }
+        }
     }
 
     // A gamepad's state from its last reading, without what's masked, to

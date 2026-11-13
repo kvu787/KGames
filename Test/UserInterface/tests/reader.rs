@@ -716,7 +716,7 @@ fn a_gamepad_is_connected_from_when_it_connects() {
 fn the_devices_start_read_frames_and_stop() {
     let mut devices = user_interface::Devices::new().unwrap();
     for _ in 0..3 {
-        devices.read();
+        devices.read(&[]);
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert_eq!(devices.frame(), 3);

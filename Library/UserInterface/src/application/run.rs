@@ -355,7 +355,7 @@ impl Source {
         match self {
             Source::User { devices, reader, start } => {
                 if let Some(devices) = devices {
-                    devices.borrow_mut().read();
+                    devices.borrow_mut().read(&focus_changes);
                 }
                 let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), window, &focus_changes);
                 Ok(Input {

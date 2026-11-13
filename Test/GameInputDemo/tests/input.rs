@@ -339,6 +339,37 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
     assert!(source(&mut input).rumble(1).is_none());
 }
 
+// With the window's focus changes on the readings' clock, as the library's
+// devices give them, they go among the readings by their times: a key
+// pressed after focus came, in the frame that got it, counts, and so does one
+// pressed before focus went, in the frame that lost it, while one pressed
+// after it went doesn't.
+#[test]
+fn focus_changes_go_among_the_readings_by_their_times() {
+    let mut input = input();
+    step(&mut input, KEYS);
+    source(&mut input).now = 1_000;
+    input.update(false);
+    // Focus comes at 1,500, and F1 goes down at 2,000, before the frame.
+    source(&mut input).focus.push((1_500, true));
+    source(&mut input).now = 2_000;
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    source(&mut input).now = 3_000;
+    input.update(true);
+    assert_eq!(log(&input).iter().filter(|line| line.contains("F1 down")).count(), 1, "{:?}", log(&input));
+    // F1 goes up at 3,500, focus goes at 4,000, and F2 goes down at 4,500.
+    source(&mut input).now = 3_500;
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
+    source(&mut input).focus.push((4_000, false));
+    source(&mut input).now = 4_500;
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F2"] } }"#);
+    source(&mut input).now = 5_000;
+    input.update(false);
+    let lines = log(&input);
+    assert_eq!(lines.iter().filter(|line| line.contains("F1 up")).count(), 1, "{lines:?}");
+    assert!(!lines.iter().any(|line| line.contains("F2")), "{lines:?}");
+}
+
 #[test]
 fn the_click_that_gives_focus_does_only_that() {
     let mut input = input();

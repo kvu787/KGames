@@ -33,6 +33,7 @@ use game_input::*;
 use windows_core::{GUID, HRESULT, Interface};
 
 use crate::platform::clock;
+use crate::platform::window::FocusChange;
 
 // A gamepad, keyboard or mouse, with everything that GameInput says about it.
 #[derive(Clone, Debug, PartialEq)]
@@ -122,9 +123,11 @@ pub struct Devices {
     // clock is a fixed distance from. Checked again every few seconds.
     epoch: i64,
     calibrated: i64,
-    // This frame's readings, in the stream's order, and device events.
+    // This frame's readings, in the stream's order, device events, and the
+    // window's focus changes, on GameInput's clock.
     readings: Vec<Reading>,
     device_events: Vec<(GameInputDeviceEvent, Device)>,
+    focus_changes: Vec<(u64, bool)>,
     frame: u64,
 }
 
@@ -167,6 +170,7 @@ impl Devices {
             calibrated: 0,
             readings: Vec::new(),
             device_events: Vec::new(),
+            focus_changes: Vec::new(),
             frame: 0,
         };
         devices.calibrate();
@@ -185,6 +189,11 @@ impl Devices {
     // A time on GameInput's clock as the counter's ticks.
     pub fn qpc(&self, timestamp: u64) -> i64 {
         clock::ticks_from_microseconds(timestamp as i64 - self.epoch)
+    }
+
+    // A time on the counter as GameInput's microseconds.
+    pub fn microseconds(&self, ticks: i64) -> u64 {
+        (self.epoch + clock::microseconds_from_ticks(ticks)).max(0) as u64
     }
 
     // Finds where GameInput's clock is from the counter's, from the closest
@@ -206,13 +215,16 @@ impl Devices {
     }
 
     // Reads the frame's input: every reading since the last frame, in the
-    // stream's order, and what happened to devices.
+    // stream's order, and what happened to devices, with the window's focus
+    // changes since the last frame, which GameInput doesn't have, for
+    // programs that read the readings themselves.
     #[allow(non_upper_case_globals)]
-    pub fn read(&mut self) {
+    pub fn read(&mut self, focus_changes: &[FocusChange]) {
         self.frame += 1;
         if clock::seconds(clock::now() - self.calibrated) >= CALIBRATION_SECONDS {
             self.calibrate();
         }
+        self.focus_changes = focus_changes.iter().map(|change| (self.microseconds(change.time), change.gained)).collect();
         self.device_events.clear();
         let events: Vec<_> = unsafe { (*self.queue).lock().unwrap().drain(..).collect() };
         for (event, object) in events {
@@ -258,6 +270,12 @@ impl Devices {
     // disconnected, or changed.
     pub fn device_events(&self) -> &[(GameInputDeviceEvent, Device)] {
         &self.device_events
+    }
+
+    // When the window got or lost focus since the last frame, oldest first,
+    // on GameInput's clock, as its readings' timestamps are.
+    pub fn focus_changes(&self) -> &[(u64, bool)] {
+        &self.focus_changes
     }
 
     // Runs a gamepad's motors, or stops them with None.

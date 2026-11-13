@@ -42,3 +42,7 @@ pub fn seconds(ticks: i64) -> f64 {
 pub fn ticks_from_microseconds(microseconds: i64) -> i64 {
     (microseconds as i128 * frequency() as i128 / 1_000_000) as i64
 }
+
+pub fn microseconds_from_ticks(ticks: i64) -> i64 {
+    (ticks as i128 * 1_000_000 / frequency() as i128) as i64
+}

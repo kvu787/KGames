@@ -369,6 +369,14 @@ pub trait InputSource {
     // connected, disconnected, or changed.
     fn device_events(&mut self) -> Vec<(GameInputDeviceEvent, Device)>;
 
+    // When the window got or lost focus since the last call, on the readings'
+    // clock, oldest first, if the source says: GameInput's doesn't have the
+    // window's focus, but the library's devices do. None from a source that
+    // doesn't, like a script's.
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
+        Vec::new()
+    }
+
     // The readings since the last call, of every kind, in the order the
     // input happened in. input.rs compares each with the same device's
     // reading before it, which it keeps itself.

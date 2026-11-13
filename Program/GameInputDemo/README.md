@@ -300,12 +300,16 @@ says whether it has focus. The library leaves GameInput's background input off (
 [Library/UserInterface](../../Library/UserInterface/README.md#input)), so GameInput gives the demo
 no readings while its window doesn't have focus: as the window loses focus, a reading of each
 device at rest, and nothing after that until focus comes back. The demo also drops what comes
-without focus itself, by the window's own focus changes: readings that come while the window
-doesn't have focus, including while it's minimized, and from before it got focus by their
-timestamps, whichever frame they come in, like the reading of a gamepad that GameInput gives as
-focus comes, which came before the frame that saw the focus on the development machine. When the window loses focus, the cards stop showing keys, buttons and
-sticks as held, and a gamepad that the demo switches to then shows at rest. The frame that restores
-a minimized window counts as the window getting focus, after losing it.
+without focus itself, by the window's own focus changes, which the library's devices give on the
+readings' clock, and which the demo puts among the readings by their times: readings from while
+the window doesn't have focus, including while it's minimized, and from before it got focus, by
+their timestamps, whichever frame they come in, like the reading of a gamepad that GameInput gives
+as focus comes, which came before the frame that saw the focus on the development machine. A
+scripted run's focus changes have no times, so they're at the frame's time: a loss before the
+frame's readings, and a gain after them. When the window loses focus, the cards stop showing keys,
+buttons and sticks as held, and a gamepad that the demo switches to then shows at rest. The frame
+that restores a minimized window counts as the window getting focus, after losing it, and so does
+a frame that loses focus and gets it back.
 
 Keys and buttons that are still held when the window gets focus, like the button of the click that
 gave it, or a key held down while clicking into it, are ignored until they're let go of: they don't

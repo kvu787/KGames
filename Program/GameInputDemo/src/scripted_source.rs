@@ -43,6 +43,9 @@ pub struct ScriptedSource {
     latest: Vec<Reading>,
     // Each gamepad's rumble, as the demo last set it.
     rumble: Vec<(usize, Option<GameInputRumbleParams>)>,
+    // When the window got or lost focus, on the readings' clock, as a test
+    // says, not handed out yet. A script's focus changes have no times.
+    pub focus: Vec<(u64, bool)>,
 }
 
 impl ScriptedSource {
@@ -211,6 +214,10 @@ impl InputSource for ScriptedSource {
 
     fn readings(&mut self) -> Vec<Reading> {
         std::mem::take(&mut self.queue)
+    }
+
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
+        std::mem::take(&mut self.focus)
     }
 
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {
