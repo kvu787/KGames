@@ -187,3 +187,26 @@ fn the_view_draws_the_model_that_open_or_new_brings_on_its_frame() {
     assert_eq!(app.program.scene.triangles.indices.len(), cube);
     assert!(app.program.scene.version > drawn, "the GPU's copy is remade too");
 }
+
+// Ctrl+S while a paint's name is typed in records the rename as its step of
+// the history before it saves, so leaving the name afterwards records
+// nothing more, and the model stays saved.
+#[test]
+fn saving_while_a_paint_is_renamed_leaves_the_model_saved() {
+    let folder = folder("RenameThenSave");
+    let mut app = Headless::new(Modeler::new(folder.clone()));
+    app.frames(2);
+    app.program.document.name = "Named".to_string();
+    app.click("Paint/Name").type_text("x");
+    assert!(app.program.paint_edit.is_some(), "the rename is under way");
+    app.key_with(Modifiers::CONTROL, Key::S);
+    assert!(!app.program.document.dirty);
+    assert_eq!(app.program.document.undo_name(), Some("Edit paint"));
+    let renamed = app.program.document.paints[0].name.clone();
+    assert!(renamed.ends_with('x'), "{renamed}");
+    assert_eq!(Document::open(&folder, "Named").unwrap().paints[0].name, renamed);
+    // Leaving the name records nothing more.
+    app.click("Paint/Hex");
+    assert!(!app.program.document.dirty);
+    assert!(app.program.paint_edit.is_none());
+}
