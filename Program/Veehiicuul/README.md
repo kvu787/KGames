@@ -10,7 +10,8 @@ system, after Fluent 2, ignores input without focus, and supports the two window
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
 the camera's view of them. The car is the only thing that moves. The ground is flat colors, drawn
-in order without a depth buffer, each part over the ones before, so nothing on it z-fights: the
+with SimplePaint's [unlit shader](../../Library/SimplePaint/Usage.md#unlit-models), in order
+without a depth buffer, each part over the ones before, so nothing on it z-fights: the
 scene's background, the terrain's hexels, the road with its islands cut out of it, the barriers,
 and the start line. Models, like the car and the decorations, are painted with
 [SimplePaint](../../Library/SimplePaint/README.md). An orthographic camera looks down at 45
@@ -270,8 +271,8 @@ and how editing feels with a real mouse.
 | `src/vehicle_editor.rs` | The Vehicles tab, with the footprint creator                           |
 | `src/settings.rs`       | The game's own settings in `Settings.json`, and their defaults         |
 | `src/drawing.rs`        | Draws the ground and the models, under the interface                   |
-| `Shaders/Ground.hlsl`   | Draws the ground in flat colors, with SimplePaint's root signature     |
-| `build.rs`              | Compiles SimplePaint's shaders for 16 slots, and the ground's          |
+| `build.rs`              | Compiles SimplePaint's shaders for 16 slots, and its unlit one for the |
+|                         | ground's 72 colors                                                     |
 | `Models`, `Scenes`      | The models and their paint, and the scenes                             |
 | `Vehicles.json`         | The vehicles                                                           |
 | `Settings.json`         | The settings                                                           |
