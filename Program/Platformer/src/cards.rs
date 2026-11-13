@@ -36,8 +36,6 @@ pub fn view_area(ui: &Ui) -> Rect {
 
 pub fn view(game: &Game, ui: &mut Ui) -> Tree<Message> {
     let mut tree = Tree::new();
-    // Nothing takes keyboard focus, so the keys stay the game's.
-    tree.set_focusable(false);
     let view = view_area(ui);
     world(game, &mut tree, view);
 

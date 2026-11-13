@@ -10,13 +10,11 @@
     { "Frame": 25, "Release": "Right" },
     { "Frame": 40, "Capture": "ContextMenu" },
     { "Frame": 40, "Expect": { "Interface": { "Popup": "ContextArea/ContextMenu" } } },
-    { "Frame": 41, "Key": "Down" },
-    { "Frame": 43, "Key": "Down" },
-    { "Frame": 45, "Key": "Enter" },
-    { "Frame": 47, "Expect": { "MenuChoice": "Copy", "Interface": { "Popup": null } } },
+    { "Frame": 41, "Click": "ContextArea/ContextMenu/Copy" },
+    { "Frame": 43, "Expect": { "MenuChoice": "Copy", "Interface": { "Popup": null } } },
     { "Frame": 48, "Click": "More" },
     { "Frame": 60, "Capture": "Flyout" },
-    { "Frame": 61, "Key": "Esc" },
+    { "Frame": 61, "Click": [1200, 1000] },
     { "Frame": 63, "Expect": { "Interface": { "Popup": null } } }
   ]
 }

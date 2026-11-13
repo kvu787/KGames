@@ -66,12 +66,12 @@ fn the_first_checkbox_disables_the_options() {
 #[test]
 fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
-    // The press's own frame switches the theme, and logs it with the press
-    // and the focus it gave, newest first.
+    // The press's own frame switches the theme, and logs it with the press,
+    // newest first.
     app.press("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    let newest: Vec<&str> = app.program.log.iter().take(3).map(String::as_str).collect();
-    assert_eq!(newest, ["Press on DarkTheme", "Focus on DarkTheme", "Dark theme"]);
+    let newest: Vec<&str> = app.program.log.iter().take(2).map(String::as_str).collect();
+    assert_eq!(newest, ["Press on DarkTheme", "Dark theme"]);
     app.release();
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
@@ -152,11 +152,9 @@ fn radio_buttons_and_segments_pick_one() {
     let mut app = showcase();
     app.click("Size/Large").click("Alignment/Right").click("Tool/Pick");
     assert_eq!((app.program.size, app.program.alignment, app.program.tool), (2, 2, 3));
-    // A segmented control is one focus stop, whose arrows move it.
+    // They take no keyboard focus.
     app.click("Tool/Erase");
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Tool")));
-    app.key(Key::LEFT);
-    assert_eq!(app.program.tool, 1);
+    assert_eq!((app.program.tool, interface(&app, "Focused")), (2, Some(Value::Null)));
 }
 
 #[test]
@@ -172,14 +170,10 @@ fn a_press_on_a_slider_sets_it_and_a_drag_moves_it_past_its_ends() {
 }
 
 #[test]
-fn the_wheel_and_the_keys_move_a_slider_by_its_steps() {
+fn the_wheel_moves_a_slider_by_its_steps() {
     let mut app = showcase();
     app.scroll("Opacity", -3.0);
     assert!((app.program.opacity - 0.747).abs() < 1e-9, "{}", app.program.opacity);
-    app.click("Angle").key(Key::HOME).key(Key::RIGHT).key(Key::PAGE_UP);
-    assert!((app.program.angle - 15.1).abs() < 1e-3, "{}", app.program.angle);
-    app.key(Key::END);
-    assert_eq!(app.program.angle, 360.0);
 }
 
 #[test]
@@ -211,22 +205,17 @@ fn a_press_outside_a_combo_box_list_closes_it_and_does_nothing_else() {
 }
 
 #[test]
-fn a_text_field_takes_typing_and_enter_greets() {
+fn a_text_field_takes_typing_and_backspace() {
     let mut app = showcase();
-    app.click("Name").type_text("Ada Lovelace").key_with(Modifiers::CONTROL, Key::LEFT).key_with(Modifiers::SHIFT, Key::END).type_text("Byron");
-    app.key(Key::ENTER);
+    app.click("Name").type_text("Ada Lovelace");
+    for _ in 0.."Lovelace".len() {
+        app.key(Key::BACKSPACE);
+    }
+    app.type_text("Byron").click("Greet");
     assert_eq!(app.program.name, "Ada Byron");
     assert_eq!(app.program.greeting.as_deref(), Some("Hello, Ada Byron!"));
     app.click("Greeting/Close");
     assert_eq!(app.program.greeting, None);
-}
-
-#[test]
-fn a_double_click_selects_a_word() {
-    let mut app = showcase();
-    app.click("Name").type_text("one two");
-    app.double_click("Name").type_text("three");
-    assert!(app.program.name == "one three" || app.program.name == "three two", "{}", app.program.name);
 }
 
 #[test]
@@ -244,17 +233,17 @@ fn number_boxes_take_typing_and_their_spin_buttons() {
     let mut app = showcase();
     app.click("Quantity/Up").click("Quantity/Up");
     assert_eq!(app.program.quantity, 5);
-    app.click("Scale").key_with(Modifiers::CONTROL, Key::A).type_text("9").key(Key::ENTER);
+    app.click("Scale").click("Scale/Clear").type_text("9").key(Key::ENTER);
     assert_eq!(app.program.scale, 4.0);
-    app.key(Key::DOWN);
+    app.click("Scale/Down");
     assert_eq!(app.program.scale, 3.75);
 }
 
 #[test]
 fn the_list_selects_scrolls_and_opens() {
     let mut app = showcase();
-    app.click("Items/2").key(Key::DOWN);
-    assert_eq!(app.program.selected, Some(3));
+    app.click("Items/2");
+    assert_eq!(app.program.selected, Some(2));
     app.scroll("Items", -10.0);
     assert!(!app.has_target("Items/0"));
     let row = app.ui.targets().iter().filter(|target| target.name.starts_with("Items/") && target.listed).nth(2).unwrap().name.clone();
@@ -326,7 +315,7 @@ fn the_dialog_asks_and_takes_the_page_until_answered() {
     app.click("Question/Secondary");
     assert_eq!(app.program.dialog_result.as_deref(), Some("Don't save"));
     assert!(!app.program.dialog_open);
-    app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").key(Key::ESCAPE);
+    app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").click("Question/Close");
     assert_eq!(app.program.dialog_result.as_deref(), Some("Cancel"));
 }
 
@@ -336,7 +325,7 @@ fn the_color_picker_and_field_and_palette_agree() {
     app.click("Palette/3");
     assert_eq!(app.program.color.to_hex(), "#107C10");
     assert_eq!(app.label("Hex").as_deref(), Some("#107C10"));
-    app.click("Hex").key_with(Modifiers::CONTROL, Key::A).type_text("#FF0000").key(Key::ENTER);
+    app.click("Hex").click("Hex/Clear").type_text("#FF0000").key(Key::ENTER);
     assert_eq!(app.program.color.to_hex(), "#FF0000");
     // The spectrum's top left is red, at full saturation.
     let spectrum = app.target("Picker/Spectrum");
@@ -351,21 +340,6 @@ fn the_expander_shows_and_hides() {
     assert!(app.program.expanded);
     app.click("Expander");
     assert!(!app.program.expanded);
-}
-
-#[test]
-fn tab_moves_focus_through_the_widgets_and_esc_takes_it_away() {
-    let mut app = showcase();
-    for _ in 0..5 {
-        app.key(Key::TAB);
-    }
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Standard")));
-    app.key(Key::SPACE);
-    assert_eq!(app.program.presses[0], 1);
-    app.key_with(Modifiers::SHIFT, Key::TAB);
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Theme")));
-    app.key(Key::ESCAPE);
-    assert_eq!(interface(&app, "Focused"), Some(Value::Null));
 }
 
 #[test]

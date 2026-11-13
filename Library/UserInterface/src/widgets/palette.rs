@@ -81,12 +81,12 @@ impl<M: Clone + 'static> Widget<M> for Palette<M> {
     fn parts(&self, ctx: &mut Parts) {
         let rect = ctx.rect();
         for (index, color) in self.colors.iter().enumerate() {
-            ctx.part(Part::Index(index), &index.to_string(), self.swatch(rect, index), Sense::BUTTON, "Swatch", Some(color.to_hex()));
+            ctx.part(Part::Index(index), &index.to_string(), self.swatch(rect, index), Sense::CLICK, "Swatch", Some(color.to_hex()));
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(Part::Index(index)) = interaction.activated_part()
+        if let Some(Part::Index(index)) = interaction.pressed_part()
             && self.picked != Some(*index)
             && let Some(reaction) = &self.on_pick
         {
@@ -113,8 +113,6 @@ impl<M: Clone + 'static> Widget<M> for Palette<M> {
                     painter.shape(area, RADIUS_CONTROL, Color::TRANSPARENT, Some(Border::new(theme.control_strong_stroke, 1.0)));
                 }
             }
-            let focused = look.focused && look.focused_part.as_ref() == Some(&part);
-            ctx.focus_visual_if(focused, area, RADIUS_CONTROL);
         }
     }
 }

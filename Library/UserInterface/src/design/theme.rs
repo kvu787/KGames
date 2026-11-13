@@ -78,7 +78,6 @@ pub struct Theme {
     pub text_on_accent: Color,
     pub text_on_accent_secondary: Color,
     pub text_on_accent_disabled: Color,
-    pub text_on_accent_selected: Color,
 
     // Controls' fills: at rest, with the pointer over, pressed, and more.
     pub control_fill: Color,
@@ -118,8 +117,6 @@ pub struct Theme {
     pub accent_secondary: Color,
     pub accent_tertiary: Color,
     pub accent_disabled: Color,
-    // Behind selected text.
-    pub accent_selected_text_background: Color,
 
     // Strokes.
     pub control_stroke: Color,
@@ -138,9 +135,6 @@ pub struct Theme {
     pub surface_stroke_flyout: Color,
     pub surface_stroke_inverse: Color,
     pub divider: Color,
-    // The two strokes of the focus visual.
-    pub focus_outer: Color,
-    pub focus_inner: Color,
 
     // Surfaces, from the window's background up.
     pub background: Color,
@@ -231,7 +225,6 @@ impl Theme {
             text_on_accent: Color::WHITE,
             text_on_accent_secondary: Color::argb(0xB3FFFFFF),
             text_on_accent_disabled: Color::WHITE,
-            text_on_accent_selected: Color::WHITE,
             control_fill: Color::argb(0xB3FFFFFF),
             control_fill_secondary: Color::argb(0x80F9F9F9),
             control_fill_tertiary: Color::argb(0x4DF9F9F9),
@@ -259,7 +252,6 @@ impl Theme {
             accent_secondary: accent.fade(0.9),
             accent_tertiary: accent.fade(0.8),
             accent_disabled: Color::argb(0x37000000),
-            accent_selected_text_background: ramp.base,
             control_stroke: Color::argb(0x0F000000),
             control_stroke_secondary: Color::argb(0x29000000),
             control_stroke_on_accent: Color::argb(0x14FFFFFF),
@@ -275,8 +267,6 @@ impl Theme {
             surface_stroke_flyout: Color::argb(0x0F000000),
             surface_stroke_inverse: Color::argb(0x15FFFFFF),
             divider: Color::argb(0x0F000000),
-            focus_outer: Color::argb(0xE4000000),
-            focus_inner: Color::argb(0xB3FFFFFF),
             background: Color::hex(0xF3F3F3),
             background_secondary: Color::hex(0xEEEEEE),
             background_tertiary: Color::hex(0xF9F9F9),
@@ -340,7 +330,6 @@ impl Theme {
             text_on_accent: Color::BLACK,
             text_on_accent_secondary: Color::argb(0x80000000),
             text_on_accent_disabled: Color::argb(0x87FFFFFF),
-            text_on_accent_selected: Color::WHITE,
             control_fill: Color::argb(0x0FFFFFFF),
             control_fill_secondary: Color::argb(0x15FFFFFF),
             control_fill_tertiary: Color::argb(0x08FFFFFF),
@@ -368,7 +357,6 @@ impl Theme {
             accent_secondary: accent.fade(0.9),
             accent_tertiary: accent.fade(0.8),
             accent_disabled: Color::argb(0x28FFFFFF),
-            accent_selected_text_background: ramp.base,
             control_stroke: Color::argb(0x12FFFFFF),
             control_stroke_secondary: Color::argb(0x18FFFFFF),
             control_stroke_on_accent: Color::argb(0x14FFFFFF),
@@ -384,8 +372,6 @@ impl Theme {
             surface_stroke_flyout: Color::argb(0x33000000),
             surface_stroke_inverse: Color::argb(0x0F000000),
             divider: Color::argb(0x15FFFFFF),
-            focus_outer: Color::WHITE,
-            focus_inner: Color::argb(0xB3000000),
             background: Color::hex(0x202020),
             background_secondary: Color::hex(0x1C1C1C),
             background_tertiary: Color::hex(0x282828),
@@ -482,7 +468,6 @@ impl Theme {
             ("card_stroke", self.card_stroke),
             ("surface_stroke_flyout", self.surface_stroke_flyout),
             ("divider", self.divider),
-            ("focus_outer", self.focus_outer),
             ("background", self.background),
             ("background_secondary", self.background_secondary),
             ("background_tertiary", self.background_tertiary),

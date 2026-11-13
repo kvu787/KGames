@@ -126,12 +126,12 @@ impl<M: Clone + 'static> Widget<M> for InfoBar<M> {
 
     fn parts(&self, ctx: &mut Parts) {
         if self.closable {
-            ctx.part(Part::Named(CLOSE.to_string()), CLOSE, Self::close_rect(ctx.rect()), Sense::BUTTON, "Button", None);
+            ctx.part(Part::Named(CLOSE.to_string()), CLOSE, Self::close_rect(ctx.rect()), Sense::CLICK, "Button", None);
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.activated(&Part::Named(CLOSE.to_string()))
+        if interaction.pressed(&Part::Named(CLOSE.to_string()))
             && let Some(message) = &self.on_close
         {
             ctx.send(message.clone());
@@ -176,8 +176,6 @@ impl<M: Clone + 'static> Widget<M> for InfoBar<M> {
             let close = Self::close_rect(rect);
             let state = look.part_state(&part);
             draw_button(ctx, close, "", Some(Icon::Dismiss), ButtonStyle::Subtle, false, false, state);
-            let focused = look.focused && look.focused_part.as_ref() == Some(&part);
-            ctx.focus_visual_if(focused, close, RADIUS_CONTROL);
         }
     }
 }

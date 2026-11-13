@@ -12,7 +12,7 @@ use user_interface::tokens::{
 };
 use user_interface::{
     Align, AppBar, Badge, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, Expander,
-    ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Keycaps, Keys, ListView, MenuBar, MenuItem, NumberBox,
+    ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Keycaps, ListView, MenuBar, MenuItem, NumberBox,
     Palette, Point, ProgressBar, ProgressRing, RadioGroup, Rect, Run, Segmented, SelectorBar, Sense, Severity, Size, Slider, Spans, Status,
     Text, TextBox, TextColor, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Tree, Ui, View,
 };
@@ -84,7 +84,6 @@ pub fn view(showcase: &Showcase, ui: &mut Ui) -> Tree<Message> {
     let display = format!("{} {}", environment.display, environment.display_name);
     let status = vec![
         Status::shortcut("F1", "Tooltips"),
-        Status::shortcut("Tab", "Next widget"),
         Status::shortcut("Ctrl+R", "Reset"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
@@ -198,8 +197,8 @@ fn sliders(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rec
         let mut form = Form::new(area.content);
         let height = Slider::<Message>::height(true);
         card.add("Volume", form.take(height), Slider::new(showcase.volume, 0.0, 100.0).step(1.0).header("Volume").show_value(0).on_change(Message::Volume));
-        card.add("Opacity", form.take(height), Slider::new(showcase.opacity, 0.0, 1.0).step(0.001).large_step(0.1).header("Opacity").show_value(3).on_change(Message::Opacity));
-        card.add("Angle", form.take(height), Slider::new(showcase.angle, 0.0, 360.0).step(0.1).large_step(15.0).header("Angle").show_value(1).suffix("°").on_change(Message::Angle));
+        card.add("Opacity", form.take(height), Slider::new(showcase.opacity, 0.0, 1.0).step(0.001).header("Opacity").show_value(3).on_change(Message::Opacity));
+        card.add("Angle", form.take(height), Slider::new(showcase.angle, 0.0, 360.0).step(0.1).header("Angle").show_value(1).suffix("°").on_change(Message::Angle));
         card.add("DisabledSlider", form.take(height), Slider::<Message>::new(30.0, 0.0, 100.0).header("Disabled").show_value(0)).set_enabled(false);
         let fill = if showcase.filling { ((time - showcase.fill_started) % 4.0 / 4.0) as f32 } else { 0.78 };
         for (label, value) in [("At the volume", Some(showcase.volume / 100.0)), ("Fills every 4 seconds", Some(fill)), ("Of unknown length", None)] {
@@ -229,7 +228,7 @@ fn fields(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect
         form.caption(ui, card, ROLE_USES[showcase.role]);
         let mut row = form.control(card, "Your name");
         let greet = row.cut_right(96.0, SPACE_S);
-        card.add("Name", row, TextBox::new(&showcase.name).placeholder("Type a name").max_length(40).on_change(Message::Name).on_submit(Message::Greet));
+        card.add("Name", row, TextBox::new(&showcase.name).placeholder("Type a name").max_length(40).on_change(Message::Name));
         card.add("Greet", greet, Button::new("Greet").accent().on_press(Message::Greet));
         let row = form.control(card, "Search the list");
         card.add("Search", row, TextBox::new(&showcase.search).placeholder("Search").button(Icon::Search).on_change(Message::Search));
@@ -256,7 +255,7 @@ fn menus_card(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: 
         let area = form.take(64.0);
         card.draw(area, Canvas::new(move |painter, rect| painter.shape(rect, RADIUS_CONTROL, fill, Some(Border::new(stroke.fade(0.5), 1.0)))));
         card.draw(area, Text::label("Right-click here for a context menu").secondary().center());
-        card.add("ContextArea", area, View::new().sense(Sense::new(true, true, false, false, Keys::None)).kind("Area")).set_context_menu(context_menu());
+        card.add("ContextArea", area, View::new().sense(Sense::new(true, true, false)).kind("Area")).set_context_menu(context_menu());
         let chosen = showcase.menu_choice.clone().unwrap_or_else(|| "Nothing yet".to_string());
         card.draw(form.take(CAPTION.line_height), Text::caption(format!("Chose from a menu: {chosen}")));
         let header = form.take(48.0);

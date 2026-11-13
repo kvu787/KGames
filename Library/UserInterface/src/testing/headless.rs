@@ -29,7 +29,6 @@ use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
 use crate::input::events::Event;
-use crate::platform::clipboard::Clipboard;
 use crate::testing::script::DEFAULT_FRAME_TIME;
 
 pub struct Headless<P: Program> {
@@ -61,7 +60,7 @@ impl<P: Program> Headless<P> {
         let fonts = Fonts::new().expect("DirectWrite couldn't start");
         let mut headless = Self {
             program,
-            ui: Interface::new(fonts, theme, Clipboard::Own(String::new())),
+            ui: Interface::new(fonts, theme),
             shown: None,
             frame: 0,
             fullscreen: false,
@@ -100,17 +99,6 @@ impl<P: Program> Headless<P> {
         headless.ui.performance = None;
         headless.run_frame();
         headless
-    }
-
-    // Replaces the interface's own clipboard, like with one that's
-    // unavailable, as Windows' is while another program keeps it open.
-    pub fn set_clipboard(&mut self, clipboard: Clipboard) -> &mut Self {
-        self.ui.clipboard = clipboard;
-        self
-    }
-
-    pub fn clipboard_text(&self) -> Option<String> {
-        self.ui.clipboard.text()
     }
 
     pub fn size(&self) -> Size {

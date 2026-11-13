@@ -4,7 +4,7 @@
 //
 // - application: what a program is, its settings, the main loop, and its
 //   PerfBar's stats.
-// - platform: the window, the clipboard, the clock, and GameInput's devices.
+// - platform: the window, the clock, and GameInput's devices.
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
@@ -21,7 +21,6 @@ mod application {
 }
 
 mod platform {
-    pub mod clipboard;
     pub mod clock;
     pub mod input_devices;
     pub mod window;
@@ -95,7 +94,7 @@ pub use platform::clock;
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{CommonSettings, Settings, WindowMode};
-pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
+pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Part, Sense, Target, Wheel, id};
 pub use core::interface::{Context, Environment, FramePhases, FrameStats, Interface, Ui};
 pub use core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, TooltipLine, Tree, Widget};
 pub use design::icons::Icon;
@@ -106,7 +105,6 @@ pub use drawing::renderer::Renderer;
 pub use drawing::text::{Font, Fonts, TextStyle, Weight};
 pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 pub use input::events::{Event, Input};
-pub use platform::clipboard::Clipboard;
 pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed, frame_readings};
 pub use platform::window::{FocusChange, Window};
 pub use testing::headless::Headless;
@@ -132,7 +130,7 @@ pub use widgets::slider::{Slider, slider_rail};
 pub use widgets::text::{Badge, Canvas, Divider, Field, IconView, KEYCAP_HEIGHT, Keycaps, Run, Spans, StatusIcon, Swatch, Text, TextColor, status_icon};
 pub use widgets::text_box::TextBox;
 pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
-pub use widgets::widget::{Elevation, Reaction, StateColors, focus_visual};
+pub use widgets::widget::{Elevation, Reaction, StateColors};
 
 // The crates that programs use with the interface, so that they share them.
 pub use game_input;

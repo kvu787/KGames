@@ -518,9 +518,6 @@ impl Program for Veehiicuul {
 
     fn view(&self, ui: &mut Ui) -> Tree<Message> {
         let mut tree = Tree::new();
-        // Only text fields take keyboard focus, so that Space, the arrows
-        // and the other keys that drive and pan never go to a control.
-        tree.set_focusable(false);
         // The view first, under everything: the bars, the notices and the
         // cards cover it.
         let view = editing::view_area(ui);

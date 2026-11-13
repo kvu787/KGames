@@ -1,15 +1,14 @@
 // WinUI's NumberBox: a text field for a number, with its spin buttons inline.
 // What's typed takes effect with Enter or when the field loses focus, inside
-// its range and on its steps; the spin buttons, the arrows and Page Up and
-// Page Down, and the wheel while it has focus, step it. The value is the
-// program's; what's typed, until it takes effect, is the box's own.
+// its range; the spin buttons, and the wheel while it has focus, step it.
+// The value is the program's; what's typed, until it takes effect, is the
+// box's own.
 
 use crate::core::interaction::{Interaction, Part, Sense};
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, NUMBER_BOX_SPIN_GLYPH, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
 use crate::drawing::geometry::{Insets, Rect};
-use crate::input::devices::Key;
 use crate::widgets::buttons::draw_text_control_button;
 use crate::widgets::text_box::{FieldSettings, field_draw, field_interact, field_parts};
 use crate::widgets::widget::{Reaction, react};
@@ -19,7 +18,6 @@ pub struct NumberBox<M> {
     minimum: f64,
     maximum: f64,
     step: f64,
-    large_step: f64,
     decimals: usize,
     placeholder: String,
     on_change: Option<Reaction<f64, M>>,
@@ -43,7 +41,6 @@ impl<M: Clone + 'static> NumberBox<M> {
             minimum: f64::MIN,
             maximum: f64::MAX,
             step: 1.0,
-            large_step: 10.0,
             decimals: 0,
             placeholder: String::new(),
             on_change: None,
@@ -64,12 +61,6 @@ impl<M: Clone + 'static> NumberBox<M> {
 
     pub fn step(mut self, step: f64) -> Self {
         self.step = step;
-        self.large_step = step * 10.0;
-        self
-    }
-
-    pub fn large_step(mut self, step: f64) -> Self {
-        self.large_step = step;
         self
     }
 
@@ -159,26 +150,11 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
             draft.text = self.format(value);
         }
         let mut steps = 0.0;
-        if interaction.activated(&Part::Named("Up".to_string())) {
+        if interaction.pressed(&Part::Named("Up".to_string())) {
             steps += 1.0;
         }
-        if interaction.activated(&Part::Named("Down".to_string())) {
+        if interaction.pressed(&Part::Named("Down".to_string())) {
             steps -= 1.0;
-        }
-        if focused {
-            let input = ctx.input();
-            if input.key_pressed(Key::UP) {
-                steps += 1.0;
-            }
-            if input.key_pressed(Key::DOWN) {
-                steps -= 1.0;
-            }
-            if input.key_pressed(Key::PAGE_UP) {
-                steps += self.large_step / self.step;
-            }
-            if input.key_pressed(Key::PAGE_DOWN) {
-                steps -= self.large_step / self.step;
-            }
         }
         // The wheel steps it while it has focus and the pointer is on it, or
         // on one of its buttons, as WinUI's does; elsewhere, the wheel is for

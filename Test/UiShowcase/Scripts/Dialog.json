@@ -5,10 +5,7 @@
     { "Frame": 20, "Expect": { "DialogOpen": true, "Interface": { "Dialog": true } } },
     { "Frame": 21, "Click": "Standard" },
     { "Frame": 23, "Expect": { "Presses": { "Standard": 0 }, "DialogOpen": true } },
-    { "Frame": 24, "Key": "Tab" },
-    { "Frame": 26, "Expect": { "Interface": { "Focused": "Question/Primary" } } },
-    { "Frame": 26, "Capture": "DialogFocus" },
-    { "Frame": 27, "Key": "Enter" },
-    { "Frame": 29, "Expect": { "DialogOpen": false, "DialogResult": "Save", "Interface": { "Dialog": false } } }
+    { "Frame": 24, "Click": "Question/Primary" },
+    { "Frame": 26, "Expect": { "DialogOpen": false, "DialogResult": "Save", "Interface": { "Dialog": false } } }
   ]
 }

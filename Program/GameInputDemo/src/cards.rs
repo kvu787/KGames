@@ -106,10 +106,6 @@ impl Palette {
 // The app bar, the status bar and the cards, from what the demo read.
 pub fn view(ui: &mut Ui, input: &Result<Input, String>) -> Tree<Message> {
     let mut tree = Tree::new();
-    // No widget takes keyboard focus, so that the keys stay the user's, to
-    // try the Keyboard card with. The combo box's list still takes the
-    // arrow keys while it's open.
-    tree.set_focusable(false);
     let status = status_items(ui, input);
     let shell = tree.shell(
         ui,

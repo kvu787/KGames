@@ -21,7 +21,6 @@ use crate::drawing::painter::{Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Key, Modifiers, MouseButton};
 use crate::input::events::Input;
-use crate::platform::clipboard::Clipboard;
 use crate::widgets::menu::MenuItem;
 
 // A line of a tooltip with more than a sentence in it.
@@ -60,13 +59,9 @@ pub struct Tooltip {
     pub max_width: f32,
 }
 
-// The widgets of a frame, in the order they're drawn and that Tab goes
-// through them.
+// The widgets of a frame, in the order they're drawn.
 pub struct Tree<M> {
     pub(crate) elements: Vec<Element<M>>,
-    // What elements added from now on take keyboard focus by, unless they
-    // say otherwise.
-    focusable: bool,
     // Whether tooltips show this frame.
     pub(crate) tooltips: bool,
 }
@@ -81,7 +76,6 @@ impl<M: 'static> Tree<M> {
     pub fn new() -> Self {
         Self {
             elements: Vec::new(),
-            focusable: true,
             tooltips: true,
         }
     }
@@ -89,17 +83,13 @@ impl<M: 'static> Tree<M> {
     // Adds a widget under the name, in the rectangle, and returns it to
     // say more about, like its tooltip.
     pub fn add(&mut self, name: &str, rect: Rect, widget: impl Widget<M>) -> &mut Element<M> {
-        let focusable = self.focusable;
-        self.elements.push(Element::new(name, rect, widget).focusable(focusable));
-        self.elements.last_mut().unwrap()
+        self.push(Element::new(name, rect, widget))
     }
 
     // Adds a widget that's no target, like text or a drawing, in the
     // rectangle.
     pub fn draw(&mut self, rect: Rect, widget: impl Widget<M>) -> &mut Element<M> {
-        let focusable = self.focusable;
-        self.elements.push(Element::unnamed(rect, widget).focusable(focusable));
-        self.elements.last_mut().unwrap()
+        self.push(Element::unnamed(rect, widget))
     }
 
     pub fn push(&mut self, element: Element<M>) -> &mut Element<M> {
@@ -111,7 +101,6 @@ impl<M: 'static> Tree<M> {
     // the tree it's given, which inherit its enabling.
     pub fn container(&mut self, name: Option<&str>, rect: Rect, widget: impl Widget<M>, build: impl FnOnce(&mut Tree<M>)) -> &mut Element<M> {
         let mut children = Tree::new();
-        children.focusable = self.focusable;
         children.tooltips = self.tooltips;
         build(&mut children);
         let mut element = match name {
@@ -119,14 +108,7 @@ impl<M: 'static> Tree<M> {
             None => Element::unnamed(rect, widget),
         };
         element.children = children.elements;
-        self.push(element.focusable(self.focusable))
-    }
-
-    // Whether what's added from now on takes keyboard focus. A program that
-    // keeps focus off everything, like a game, opts its text fields back in
-    // with Element::focusable.
-    pub fn set_focusable(&mut self, focusable: bool) {
-        self.focusable = focusable;
+        self.push(element)
     }
 
     // Whether tooltips show this frame.
@@ -177,7 +159,6 @@ pub struct Element<M> {
     pub(crate) name: Option<String>,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
-    pub(crate) focusable: bool,
     // What it shows, for scripts, if the widget doesn't say.
     pub(crate) label: Option<String>,
     pub(crate) tooltip: Option<Tooltip>,
@@ -194,7 +175,6 @@ impl<M: 'static> Element<M> {
             name: Some(name.to_string()),
             rect,
             enabled: true,
-            focusable: true,
             label: None,
             tooltip: None,
             context_menu: None,
@@ -215,11 +195,6 @@ impl<M: 'static> Element<M> {
 
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
-        self
-    }
-
-    pub fn focusable(mut self, focusable: bool) -> Self {
-        self.focusable = focusable;
         self
     }
 
@@ -265,11 +240,6 @@ impl<M: 'static> Element<M> {
     // The same, on an element that's in a tree.
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
         self.enabled = enabled;
-        self
-    }
-
-    pub fn set_focusable(&mut self, focusable: bool) -> &mut Self {
-        self.focusable = focusable;
         self
     }
 
@@ -343,6 +313,13 @@ pub trait Widget<M>: 'static {
         false
     }
 
+    // Whether `interact` is called every frame, even when nothing happened
+    // to its targets, like a 3D view that clears what was under the pointer
+    // once it leaves.
+    fn always_interacts(&self) -> bool {
+        false
+    }
+
     // The layer it and its children draw on: a dialog's, or the base.
     fn layer(&self) -> Layer {
         Layer::Base
@@ -351,13 +328,6 @@ pub trait Widget<M>: 'static {
     // Registers its parts that are targets of their own, like a list's rows,
     // with `ctx.part`.
     fn parts(&self, _ctx: &mut Parts) {}
-
-    // Whether `interact` is called every frame, even when nothing happened
-    // to its targets, for a widget that hears keys without focus, like a
-    // dialog.
-    fn always_interacts(&self) -> bool {
-        false
-    }
 
     // Whether the wheel that nothing under the pointer takes scrolls this
     // widget, like a scroll area or a list. The deepest such widget under
@@ -395,11 +365,8 @@ pub struct Look {
     pub hovered_part: Option<Part>,
     pub held_part: Option<Part>,
     pub held_button: Option<MouseButton>,
-    // It has keyboard focus, and the keyboard put it there, so the focus
-    // visual shows; and which of its parts has it.
+    // It's a text field with keyboard focus.
     pub focused: bool,
-    pub focused_part: Option<Part>,
-    pub focus_visible: bool,
 }
 
 impl Look {
@@ -435,7 +402,6 @@ pub struct Parts<'a> {
     pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
-    pub(crate) focusable: bool,
     pub(crate) layer: Layer,
     pub(crate) clip: Rect,
 }
@@ -522,7 +488,6 @@ impl Parts<'_> {
     pub fn part_on_enabled(&mut self, layer: Layer, part: Part, name: &str, rect: Rect, sense: Sense, kind: &'static str, label: Option<String>, enabled: bool) {
         let clip = if layer > self.layer { self.ui.bounds() } else { self.clip };
         let enabled = enabled && self.enabled;
-        let focusable = self.focusable && sense.focusable;
         self.ui.targets.push(crate::core::interaction::Target {
             id: id(name),
             name: name.to_string(),
@@ -530,7 +495,6 @@ impl Parts<'_> {
             rect: rect.intersect(clip),
             layer,
             enabled,
-            focusable,
             sense,
             kind,
             listed: true,
@@ -555,7 +519,6 @@ pub struct Dispatch<'a, M> {
     pub(crate) name: &'a str,
     pub(crate) rect: Rect,
     pub(crate) enabled: bool,
-    pub(crate) focusable: bool,
 }
 
 impl<M> Dispatch<'_, M> {
@@ -577,10 +540,6 @@ impl<M> Dispatch<'_, M> {
 
     pub fn enabled(&self) -> bool {
         self.enabled
-    }
-
-    pub fn focusable(&self) -> bool {
-        self.focusable
     }
 
     pub fn input(&self) -> &Input {
@@ -607,10 +566,6 @@ impl<M> Dispatch<'_, M> {
         self.ui.fonts.measure(text, style)
     }
 
-    pub fn clipboard(&mut self) -> &mut Clipboard {
-        &mut self.ui.clipboard
-    }
-
     pub fn memory<T: Default + 'static>(&mut self) -> &mut T {
         let id = self.id;
         self.ui.memory(id)
@@ -620,18 +575,8 @@ impl<M> Dispatch<'_, M> {
         self.ui.memory(id)
     }
 
-    // Whether the key was pressed this frame, with the widget's own keys
-    // counted: what the interface doesn't take, like Esc for a popup.
-    pub fn key_pressed(&self, key: Key) -> bool {
-        self.ui.input.key_pressed(key) && !(key == Key::ESCAPE && self.ui.escape_consumed)
-    }
-
-    pub fn key_pressed_once(&self, key: Key) -> bool {
-        self.ui.input.key_pressed_once(key) && !(key == Key::ESCAPE && self.ui.escape_consumed)
-    }
-
-    // Whether the key is down, unless the widget with keyboard focus takes
-    // it, as a text field takes letters, or a dialog is open.
+    // Whether the key is down, unless a text field with keyboard focus
+    // takes it, or a dialog is open.
     pub fn key_down(&self, key: Key) -> bool {
         self.ui.key_down(key)
     }
@@ -669,72 +614,16 @@ impl<M> Dispatch<'_, M> {
         self.ui.popup_open(owner)
     }
 
-    pub fn popup_on_top(&self) -> bool {
-        self.ui.popup_on_top(self.id)
-    }
-
-    pub fn popup_on_top_of(&self, owner: Id) -> bool {
-        self.ui.popup_on_top(owner)
-    }
-
     pub fn any_popup(&self) -> bool {
         !self.ui.popups.is_empty()
-    }
-
-    // Takes keyboard focus for the widget, or for another by its id, as a
-    // press on one of its parts does.
-    pub fn focus(&mut self) {
-        let id = self.id;
-        self.ui.set_focused(Some(id));
-        self.ui.focus_visible = false;
-    }
-
-    pub fn focus_id(&mut self, id: Id) {
-        self.ui.set_focused(Some(id));
-    }
-
-    pub fn clear_focus(&mut self) {
-        self.ui.set_focused(None);
-    }
-
-    // Whether the widget with keyboard focus takes Enter, like a text box,
-    // a list or a button, so a dialog's default button leaves it alone. A
-    // focused widget the keys can't reach, like one under the dialog, takes
-    // nothing.
-    pub fn focused_takes_enter(&self) -> bool {
-        self.ui
-            .focused
-            .and_then(|focused| self.ui.targets.iter().find(|target| target.id == focused))
-            .is_some_and(|target| {
-                let keys_here = (self.ui.popups.is_empty() || target.layer >= Layer::Popup)
-                    && (!self.ui.modal_shown || target.layer >= Layer::Dialog);
-                keys_here && target.enabled && target.sense.keys != crate::core::interaction::Keys::None
-            })
     }
 
     pub fn is_focused(&self) -> bool {
         self.ui.focused == Some(self.id)
     }
 
-    pub fn is_focused_id(&self, id: Id) -> bool {
-        self.ui.focused == Some(id)
-    }
-
-    pub fn focus_visible(&self) -> bool {
-        self.ui.focus_visible
-    }
-
-    pub fn set_focus_visible(&mut self, visible: bool) {
-        self.ui.focus_visible = visible;
-    }
-
     pub fn set_cursor(&mut self, cursor: crate::core::interaction::Cursor) {
         self.ui.cursor = cursor;
-    }
-
-    // Takes this frame's Esc, so that nothing else hears it.
-    pub fn consume_escape(&mut self) {
-        self.ui.escape_consumed = true;
     }
 
     // The name of the target under the pointer, as of the frame the user
@@ -811,18 +700,9 @@ impl Draw<'_> {
         self.look.enabled
     }
 
+    // Whether it's a text field with keyboard focus.
     pub fn focused(&self) -> bool {
         self.look.focused
-    }
-
-    // Whether the focus visual shows: it has focus, and the keyboard moved
-    // focus there.
-    pub fn focus_shown(&self) -> bool {
-        self.look.focused && self.look.focus_visible
-    }
-
-    pub fn focus_visible(&self) -> bool {
-        self.ui.focus_visible
     }
 
     pub fn layer(&self) -> Layer {
@@ -866,14 +746,6 @@ impl Draw<'_> {
         self.ui.popup_open(id)
     }
 
-    pub fn popup_on_top_of(&self, id: Id) -> bool {
-        self.ui.popup_on_top(id)
-    }
-
-    pub fn is_focused_id(&self, id: Id) -> bool {
-        self.ui.focused == Some(id)
-    }
-
     // The part of another widget that the pointer is on, by that widget's
     // id, for widgets built of others.
     pub fn hovered_target(&self) -> Option<&crate::core::interaction::Target> {
@@ -898,20 +770,6 @@ impl Draw<'_> {
 
     pub fn notices(&self) -> &[crate::application::program::Notice] {
         &self.ui.notices
-    }
-
-    // Draws the focus visual around the rectangle, if the widget has focus
-    // and the keyboard moved it there.
-    pub fn focus_visual_if(&mut self, focused: bool, rect: Rect, radius: f32) {
-        self.focus_visual_around(focused, rect, radius, crate::design::controls::FOCUS_VISUAL_MARGIN);
-    }
-
-    pub fn focus_visual_around(&mut self, focused: bool, rect: Rect, radius: f32, margin: crate::drawing::geometry::Insets) {
-        if focused && self.ui.focus_visible {
-            let mut painter = self.painter();
-            let theme = painter.theme();
-            crate::widgets::widget::focus_visual(&mut painter, theme, rect, radius, margin);
-        }
     }
 
     // Where the painter's instances are in its layer, to mark a place in

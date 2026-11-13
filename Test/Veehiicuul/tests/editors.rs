@@ -127,7 +127,7 @@ fn only_text_fields_keep_keyboard_focus() {
 
     app.click("Mode/Terrain").click("Terrain/Color");
     assert_eq!(app.ui.state().get("Focused"), Some(&"Terrain/Color".into()));
-    app.key_with(Modifiers::CONTROL, Key::A).type_text("#123456");
+    app.click("Terrain/Color/Clear").type_text("#123456");
     assert_ne!(app.program.game.current_scene().terrain.palette[0], [0x12, 0x34, 0x56], "not before Enter");
     app.key(Key::ENTER);
     assert_eq!(app.program.game.current_scene().terrain.palette[0], [0x12, 0x34, 0x56]);

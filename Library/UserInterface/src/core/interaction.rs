@@ -19,21 +19,6 @@ pub fn id(name: &str) -> Id {
     hash
 }
 
-// The keys that a widget takes while it has keyboard focus, which the
-// program's shortcuts then don't see.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Keys {
-    #[default]
-    None,
-    // Space and Enter, like a button's.
-    Activate,
-    // The arrows, Home, End, Page Up and Page Down, and Space and Enter,
-    // like a slider's or a list's.
-    Navigate,
-    // Everything typed, and the keys that edit text.
-    Text,
-}
-
 // What a widget does with the wheel turned over it, which decides whether
 // what it's in may scroll instead.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -55,32 +40,32 @@ pub struct Sense {
     pub left: bool,
     pub right: bool,
     pub middle: bool,
-    // Whether it takes keyboard focus when pressed, and with Tab.
-    pub focusable: bool,
-    pub keys: Keys,
+    // Whether it's a text field: it takes keyboard focus when pressed, and
+    // the keys typed while it has it, which the program's keys then don't
+    // see. Nothing else takes keyboard focus.
+    pub text: bool,
     pub wheel: Wheel,
 }
 
 impl Sense {
     // Covers what's under it, and nothing else, like a card.
-    pub const NONE: Sense = Sense::new(false, false, false, false, Keys::None);
-    // Left presses, without taking focus.
-    pub const CLICK: Sense = Sense::new(true, false, false, false, Keys::None);
-    // Like a button: left presses, focus, and Space and Enter.
-    pub const BUTTON: Sense = Sense::new(true, false, false, true, Keys::Activate);
-    // Like a slider or a list: focus, and the keys that move.
-    pub const NAVIGATE: Sense = Sense::new(true, false, false, true, Keys::Navigate);
-    pub const TEXT: Sense = Sense::new(true, false, false, true, Keys::Text);
-    // Every button and the wheel, without focus, like a 3D view's.
-    pub const VIEW: Sense = Sense::new(true, true, true, false, Keys::None).takes_wheel();
+    pub const NONE: Sense = Sense::new(false, false, false);
+    // Left presses, like a button's.
+    pub const CLICK: Sense = Sense::new(true, false, false);
+    // A text field's: left presses, keyboard focus, and typing.
+    pub const TEXT: Sense = Sense {
+        text: true,
+        ..Sense::CLICK
+    };
+    // Every button and the wheel, like a 3D view's.
+    pub const VIEW: Sense = Sense::new(true, true, true).takes_wheel();
 
-    pub const fn new(left: bool, right: bool, middle: bool, focusable: bool, keys: Keys) -> Self {
+    pub const fn new(left: bool, right: bool, middle: bool) -> Self {
         Self {
             left,
             right,
             middle,
-            focusable,
-            keys,
+            text: false,
             wheel: Wheel::Ignored,
         }
     }
@@ -143,7 +128,6 @@ pub struct Target {
     pub rect: Rect,
     pub layer: Layer,
     pub enabled: bool,
-    pub focusable: bool,
     pub sense: Sense,
     // Like "Button" or "Slider", as WinUI names its controls.
     pub kind: &'static str,
@@ -179,9 +163,6 @@ pub struct Hit {
     // Its left press ended this frame, wherever the pointer was, which ends
     // a drag, like a slider's.
     pub released: bool,
-    // The left button went down on it, or Space or Enter went down while it
-    // had focus: what a button acts on.
-    pub activated: bool,
     // Its press was the second of a double-click.
     pub double_clicked: bool,
     // The right button went down on it, which opens its context menu.
@@ -222,11 +203,9 @@ pub struct Interaction {
     // What happened to each of its targets that something happened to, by
     // part. A part that nothing happened to isn't here.
     pub hits: Vec<(Part, Hit)>,
-    // It has keyboard focus, and the keys reach it: no popup or dialog over
-    // it takes them. The part with focus, if the widget has focus at all,
-    // whether or not the keys reach it.
+    // It's a text field with keyboard focus, and the keys reach it: no
+    // dialog over it takes them.
     pub focused: bool,
-    pub focused_part: Option<Part>,
     // The pointer, while it's on the widget or the widget is held.
     pub pointer: Option<Point>,
     // How far the pointer moved this frame while the widget was held.
@@ -258,14 +237,6 @@ impl Interaction {
 
     pub fn pressed_part(&self) -> Option<&Part> {
         self.hits.iter().find(|(_, hit)| hit.pressed).map(|(part, _)| part)
-    }
-
-    pub fn activated_part(&self) -> Option<&Part> {
-        self.hits.iter().find(|(_, hit)| hit.activated).map(|(part, _)| part)
-    }
-
-    pub fn activated(&self, part: &Part) -> bool {
-        self.hit(part).is_some_and(|hit| hit.activated)
     }
 
     pub fn pressed(&self, part: &Part) -> bool {

@@ -13,9 +13,7 @@
 //     });
 //
 // A row's backplate is inset from it by 4 and 2, with a subtle fill under the
-// pointer, and the selected row has the accent's pill at its left. With
-// focus, the arrows, Home, End, Page Up and Page Down move the selection,
-// and Enter activates the selected row, as a double-click does.
+// pointer, and the selected row has the accent's pill at its left.
 
 use std::ops::Range;
 
@@ -26,8 +24,7 @@ use crate::design::controls::{
     LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_PADDING, LIST_ITEM_RADIUS, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH, SELECTION_PILL_PRESSED_LENGTH,
     SELECTION_PILL_THICKNESS,
 };
-use crate::drawing::geometry::{Insets, Rect};
-use crate::input::devices::Key;
+use crate::drawing::geometry::Rect;
 use crate::widgets::scrolling::{Scrolled, bar_draw, bar_input, bar_part, scroll_bar_part};
 use crate::widgets::widget::{Reaction, react};
 
@@ -107,7 +104,7 @@ impl<M: Clone + 'static> ListView<M> {
         self
     }
 
-    // What a double-click on a row, or Enter on the selected one, sends.
+    // What a double-click on a row sends.
     pub fn on_activate(mut self, reaction: impl Fn(usize) -> M + 'static) -> Self {
         self.on_activate = Some(react(reaction));
         self
@@ -171,7 +168,7 @@ impl<M: Clone + 'static> Widget<M> for ListView<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(if self.selectable { Sense::NAVIGATE } else { Sense::NONE })
+        Some(if self.selectable { Sense::CLICK } else { Sense::NONE })
     }
 
     fn parts(&self, ctx: &mut Parts) {
@@ -195,59 +192,15 @@ impl<M: Clone + 'static> Widget<M> for ListView<M> {
         let mut offset = ctx.memory::<Scrolled>().offset;
         let rows = self.geometry(rect, offset);
         offset = rows.offset;
-        let row_height = rows.row_height;
         let mut selected = self.selected;
         let before = selected;
         let mut activated = None;
         let mut context = None;
-
-        if interaction.focused && self.selectable && self.count > 0 {
-            let page = ((rect.height / row_height).floor() as usize).max(1);
-            let input = ctx.input();
-            let last = self.count - 1;
-            let current = selected.unwrap_or(0);
-            let mut moved = None;
-            if input.key_pressed(Key::DOWN) {
-                moved = Some(if selected.is_none() { 0 } else { (current + 1).min(last) });
-            }
-            if input.key_pressed(Key::UP) {
-                moved = Some(current.saturating_sub(1));
-            }
-            if input.key_pressed(Key::PAGE_DOWN) {
-                moved = Some((current + page).min(last));
-            }
-            if input.key_pressed(Key::PAGE_UP) {
-                moved = Some(current.saturating_sub(page));
-            }
-            if input.key_pressed(Key::HOME) {
-                moved = Some(0);
-            }
-            if input.key_pressed(Key::END) {
-                moved = Some(last);
-            }
-            if input.key_pressed_once(Key::ENTER) && let Some(row) = selected {
-                activated = Some(row);
-            }
-            if let Some(row) = moved {
-                selected = Some(row);
-                // The selected row scrolls into sight.
-                let top = row as f32 * row_height;
-                if top < offset {
-                    offset = top;
-                } else if top + row_height > offset + rect.height {
-                    offset = top + row_height - rect.height;
-                }
-            }
-        }
-        offset -= interaction.wheel_over.y * WHEEL_ROWS * row_height;
+        offset -= interaction.wheel_over.y * WHEEL_ROWS * rows.row_height;
         for (part, hit) in &interaction.hits {
             let Part::Index(index) = part else { continue };
             if hit.pressed && self.selectable {
                 selected = Some(*index);
-                // A press on a row gives the list focus, as its one stop.
-                if ctx.focusable() {
-                    ctx.focus();
-                }
             }
             if hit.double_clicked {
                 activated = Some(*index);
@@ -287,7 +240,6 @@ impl<M: Clone + 'static> Widget<M> for ListView<M> {
         let offset = ctx.memory::<Scrolled>().offset;
         let rows = self.geometry(rect, offset);
         let enabled = ctx.enabled();
-        let mut focused_plate = None;
         {
             let mut painter = ctx.painter();
             let theme = painter.theme();
@@ -314,15 +266,9 @@ impl<M: Clone + 'static> Widget<M> for ListView<M> {
                 if is_selected {
                     let bar = Rect::new(plate.x, plate.center().y - pill / 2.0, SELECTION_PILL_THICKNESS, pill);
                     painter.rounded(bar, SELECTION_PILL_THICKNESS / 2.0, indicator);
-                    if look.focused {
-                        focused_plate = Some(plate);
-                    }
                 }
             }
             painter.pop_clip();
-        }
-        if let Some(plate) = focused_plate {
-            ctx.focus_visual_around(true, plate, LIST_ITEM_RADIUS, Insets::all(-1.0));
         }
         let part = bar_part();
         let over = look.hovered(&part) || look.held(&part);

@@ -183,11 +183,6 @@ impl Key {
     pub fn is_function(self) -> bool {
         (0x70..=0x87).contains(&self.0)
     }
-
-    // The arrows, Home, End, Page Up and Page Down.
-    pub fn is_navigation(self) -> bool {
-        matches!(self, Key::LEFT | Key::RIGHT | Key::UP | Key::DOWN | Key::HOME | Key::END | Key::PAGE_UP | Key::PAGE_DOWN)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

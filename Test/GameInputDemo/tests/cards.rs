@@ -164,7 +164,7 @@ fn once_every_gamepad_disconnects_the_box_shows_none() {
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("None"));
     open(&mut app);
     assert_eq!(choices(&app), ["None"]);
-    app.key(Key::ESCAPE);
+    app.click_point(Point::new(1300.0, 300.0));
 
     // The next one to connect is listened to.
     step(&mut app, r#"{ "Connect": { "Id": 3, "Name": "Pad Three", "Input": ["Gamepad"] } }"#);
@@ -172,11 +172,8 @@ fn once_every_gamepad_disconnects_the_box_shows_none() {
 }
 
 #[test]
-fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
+fn a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
     let mut app = demo(&["Pad One", "Pad Two"]);
-    open(&mut app);
-    app.key(Key::ESCAPE);
-    assert_eq!(app.ui.popup_name(), None);
     open(&mut app);
     app.click_point(Point::new(1300.0, 300.0));
     assert_eq!(app.ui.popup_name(), None);
@@ -193,18 +190,6 @@ fn esc_or_a_press_off_the_list_closes_it_and_keys_leave_the_gamepad_alone() {
         assert_eq!(app.ui.popup_name(), None);
     }
     assert_eq!(listen(&app), "Pad One");
-}
-
-#[test]
-fn while_the_list_is_open_the_arrows_move_to_a_choice_and_enter_picks_it() {
-    let mut app = demo(&["Pad One", "Pad Two"]);
-    open(&mut app);
-    assert_eq!(app.ui.popup_name(), Some(GAMEPAD_COMBO_BOX));
-    app.key(Key::UP);
-    assert_eq!(listen(&app), "Pad Two");
-    app.key(Key::END).key(Key::ENTER);
-    assert_eq!(input(&app).listen, Listen::NoGamepad);
-    assert_eq!(app.ui.popup_name(), None);
 }
 
 #[test]

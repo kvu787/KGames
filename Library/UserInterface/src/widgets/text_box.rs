@@ -1,17 +1,17 @@
 // WinUI's TextBox, one line: a field that takes typing while it has focus,
-// with a caret that blinks, a selection that the pointer and Shift make,
-// Ctrl's word moves, copy, cut and paste, a delete button while it has text
-// and focus, and a button of its own, like AutoSuggestBox's query button.
+// at a caret that blinks, which a press places and Backspace deletes
+// behind, with a delete button while it has text and focus, and a button of
+// its own, like AutoSuggestBox's query button.
 //
 // At rest its border is TextControlElevationBorderBrush, whose bottom edge is
 // the strong stroke; with focus its fill is ControlFillColorInputActive and
 // its bottom border is 2 pixels of the accent.
 //
 // The text is the program's: the field sends the text as the typing leaves
-// it, and the program keeps it. The caret, the selection and the scroll are
-// the field's own, kept between frames. The editing, the buttons and the
-// drawing are shared with the widgets built of a field, NumberBox and
-// ColorField.
+// it, and the program keeps it. The caret and the scroll are the field's
+// own, kept between frames. The editing, the buttons and the drawing are
+// shared with the widgets built of a field, NumberBox and ColorField, for
+// which Enter takes what's typed.
 
 use crate::core::interaction::{ControlState, Cursor, Interaction, Part, Sense};
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
@@ -20,7 +20,7 @@ use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, RADIUS_CONTROL};
 use crate::drawing::geometry::{Insets, Point, Rect};
 use crate::drawing::painter::Align;
-use crate::input::devices::{Key, Modifiers};
+use crate::input::devices::Key;
 use crate::widgets::buttons::draw_text_control_button;
 use crate::widgets::widget::{Elevation, Reaction, StateColors, react};
 
@@ -60,7 +60,6 @@ pub struct TextBox<M> {
     text: String,
     settings: FieldSettings,
     on_change: Option<Reaction<String, M>>,
-    on_submit: Option<M>,
     on_button: Option<M>,
 }
 
@@ -70,7 +69,6 @@ impl<M: Clone + 'static> TextBox<M> {
             text: text.into(),
             settings: FieldSettings::default(),
             on_change: None,
-            on_submit: None,
             on_button: None,
         }
     }
@@ -78,12 +76,6 @@ impl<M: Clone + 'static> TextBox<M> {
     // What typing sends, with the text as it is then.
     pub fn on_change(mut self, reaction: impl Fn(String) -> M + 'static) -> Self {
         self.on_change = Some(react(reaction));
-        self
-    }
-
-    // What Enter in the field sends.
-    pub fn on_submit(mut self, message: M) -> Self {
-        self.on_submit = Some(message);
         self
     }
 
@@ -124,63 +116,19 @@ impl<M: Clone + 'static> TextBox<M> {
     }
 }
 
-// What a field keeps between frames: its caret and the other end of its
-// selection, as byte indices, how far its text is scrolled, and when the
-// caret last moved, which restarts its blinking.
+// What a field keeps between frames: its caret, as a byte index, how far its
+// text is scrolled, and when the caret last moved, which restarts its
+// blinking.
 #[derive(Default)]
 pub(crate) struct Editing {
     caret: usize,
-    anchor: usize,
     scroll: f32,
     moved: f64,
-    selecting: bool,
 }
 
-impl Editing {
-    fn selection(&self) -> (usize, usize) {
-        (self.caret.min(self.anchor), self.caret.max(self.anchor))
-    }
-
-    fn has_selection(&self) -> bool {
-        self.caret != self.anchor
-    }
-}
-
+// The byte index of the character before the index.
 fn previous_boundary(text: &str, index: usize) -> usize {
     text[..index].char_indices().next_back().map_or(0, |(at, _)| at)
-}
-
-fn next_boundary(text: &str, index: usize) -> usize {
-    text[index..].chars().next().map_or(text.len(), |character| index + character.len_utf8())
-}
-
-fn is_word(character: char) -> bool {
-    character.is_alphanumeric() || character == '_'
-}
-
-// The start of the word before the index, past any spaces, as Ctrl+Left goes.
-fn previous_word(text: &str, index: usize) -> usize {
-    let mut at = index;
-    while at > 0 && !is_word(text[..at].chars().next_back().unwrap()) {
-        at = previous_boundary(text, at);
-    }
-    while at > 0 && is_word(text[..at].chars().next_back().unwrap()) {
-        at = previous_boundary(text, at);
-    }
-    at
-}
-
-// The start of the next word, past the rest of this one and spaces, as
-// Ctrl+Right goes.
-fn next_word(text: &str, index: usize) -> usize {
-    let mut at = index;
-    while at < text.len() && is_word(text[at..].chars().next().unwrap()) {
-        at = next_boundary(text, at);
-    }
-    while at < text.len() && !is_word(text[at..].chars().next().unwrap()) {
-        at = next_boundary(text, at);
-    }
-    at
 }
 
 // The byte index, or the start of the character it's in, if it's inside
@@ -193,34 +141,12 @@ fn boundary(text: &str, index: usize) -> usize {
     index
 }
 
-// The word around the index, for a double-click.
-fn word_at(text: &str, index: usize) -> (usize, usize) {
-    let mut start = index.min(text.len());
-    while start > 0 && is_word(text[..start].chars().next_back().unwrap()) {
-        start = previous_boundary(text, start);
-    }
-    let mut end = index.min(text.len());
-    while end < text.len() && is_word(text[end..].chars().next().unwrap()) {
-        end = next_boundary(text, end);
-    }
-    (start, end)
-}
-
-// The text, less what would make the field longer than its limit.
-fn limit(text: &str, editing: &Editing, insert: &str, max_length: Option<usize>) -> String {
+// What's typed, less what would make the field longer than its limit.
+fn limit(text: &str, typed: &str, max_length: Option<usize>) -> String {
     let Some(max) = max_length else {
-        return insert.to_string();
+        return typed.to_string();
     };
-    let (start, end) = editing.selection();
-    let kept = text.chars().count() - text[start..end].chars().count();
-    insert.chars().take(max.saturating_sub(kept)).collect()
-}
-
-fn replace_selection(text: &mut String, editing: &mut Editing, with: &str) {
-    let (start, end) = editing.selection();
-    text.replace_range(start..end, with);
-    editing.caret = start + with.len();
-    editing.anchor = editing.caret;
+    typed.chars().take(max.saturating_sub(text.chars().count())).collect()
 }
 
 // Where a field's content, clear button and own button are.
@@ -284,149 +210,57 @@ pub(crate) fn field_parts(ctx: &mut Parts, text: &str, settings: &FieldSettings)
 pub(crate) fn field_interact<M>(text: &str, settings: &FieldSettings, interaction: &Interaction, ctx: &mut Dispatch<M>) -> Edited {
     let mut edited = Edited::default();
     let hit = interaction.whole();
-    let focused = interaction.focused;
     let clear_shown = settings.clear_button && ctx.is_focused() && !text.is_empty() && ctx.enabled();
-    let layout = field_layout(ctx.rect(), settings, clear_shown);
-    let content = layout.content;
+    let content = field_layout(ctx.rect(), settings, clear_shown).content;
     let now = ctx.time();
     let mut text = text.to_string();
     let text_before = text.clone();
     let mut editing = std::mem::take(ctx.memory::<Editing>());
     // The program may have changed the text since the last frame.
     editing.caret = boundary(&text, editing.caret);
-    editing.anchor = boundary(&text, editing.anchor);
 
-    // The pointer puts the caret where it presses, selects as it drags,
-    // and selects a word with a double-click.
+    // A press puts the caret where it is.
     if hit.hovered && interaction.enabled {
         ctx.set_cursor(Cursor::Text);
     }
     if hit.pressed && let Some(pointer) = interaction.pointer {
-        let index = {
-            let layout = ctx.fonts().layout(&text, BODY, None);
-            layout.hit(Point::new(pointer.x - content.x + editing.scroll, BODY.line_height / 2.0))
-        };
-        if hit.double_clicked {
-            let (start, end) = word_at(&text, index);
-            editing.anchor = start;
-            editing.caret = end;
-        } else {
-            editing.caret = index;
-            if !ctx.modifiers().shift {
-                editing.anchor = index;
-            }
-            editing.selecting = true;
-        }
-        editing.moved = now;
-    } else if hit.held && editing.selecting && let Some(pointer) = interaction.pointer {
         let layout = ctx.fonts().layout(&text, BODY, None);
         editing.caret = layout.hit(Point::new(pointer.x - content.x + editing.scroll, BODY.line_height / 2.0));
-    }
-    if !hit.held {
-        editing.selecting = false;
+        editing.moved = now;
     }
 
-    if focused && interaction.enabled {
-        let modifiers = ctx.modifiers();
-        let keys: Vec<Key> = ctx.input().keys_pressed().iter().map(|(key, _)| *key).collect();
-        let text_typed = ctx.input().text.clone();
-        let control = modifiers.control;
-        let shift = modifiers.shift;
-        let mut moved = false;
-        for key in keys {
-            match key {
-                Key::LEFT => {
-                    if editing.has_selection() && !shift {
-                        editing.caret = editing.selection().0;
-                    } else {
-                        editing.caret = if control { previous_word(&text, editing.caret) } else { previous_boundary(&text, editing.caret) };
-                    }
-                    if !shift {
-                        editing.anchor = editing.caret;
-                    }
-                    moved = true;
-                }
-                Key::RIGHT => {
-                    if editing.has_selection() && !shift {
-                        editing.caret = editing.selection().1;
-                    } else {
-                        editing.caret = if control { next_word(&text, editing.caret) } else { next_boundary(&text, editing.caret) };
-                    }
-                    if !shift {
-                        editing.anchor = editing.caret;
-                    }
-                    moved = true;
-                }
-                Key::HOME | Key::END => {
-                    editing.caret = if key == Key::HOME { 0 } else { text.len() };
-                    if !shift {
-                        editing.anchor = editing.caret;
-                    }
-                    moved = true;
-                }
-                Key::BACKSPACE | Key::DELETE => {
-                    if !editing.has_selection() {
-                        editing.anchor = match (key, control) {
-                            (Key::BACKSPACE, true) => previous_word(&text, editing.caret),
-                            (Key::BACKSPACE, false) => previous_boundary(&text, editing.caret),
-                            (_, true) => next_word(&text, editing.caret),
-                            (_, false) => next_boundary(&text, editing.caret),
-                        };
-                    }
-                    replace_selection(&mut text, &mut editing, "");
-                    moved = true;
-                }
-                Key::A if modifiers == Modifiers::CONTROL => {
-                    editing.anchor = 0;
-                    editing.caret = text.len();
-                    moved = true;
-                }
-                Key::C | Key::X if modifiers == Modifiers::CONTROL && editing.has_selection() => {
-                    let (start, end) = editing.selection();
-                    let copied = text[start..end].to_string();
-                    // A cut takes the text away only once it's on the
-                    // clipboard, so that a clipboard that another program
-                    // holds open doesn't lose it.
-                    if ctx.clipboard().set_text(&copied) && key == Key::X {
-                        replace_selection(&mut text, &mut editing, "");
-                    }
-                    moved = true;
-                }
-                Key::V if modifiers == Modifiers::CONTROL => {
-                    if let Some(pasted) = ctx.clipboard().text() {
-                        let line: String = pasted.chars().filter(|character| !character.is_control()).filter(|character| settings.accept.is_none_or(|accept| accept(*character))).collect();
-                        let line = limit(&text, &editing, &line, settings.max_length);
-                        replace_selection(&mut text, &mut editing, &line);
-                    }
-                    moved = true;
+    // What's typed goes in at the caret, Backspace deletes the character
+    // before it, and Enter submits. Keys with Ctrl are the program's.
+    if interaction.focused && interaction.enabled && !ctx.modifiers().control {
+        let input = ctx.input();
+        for (key, _) in input.keys_pressed() {
+            match *key {
+                Key::BACKSPACE => {
+                    let start = previous_boundary(&text, editing.caret);
+                    text.replace_range(start..editing.caret, "");
+                    editing.caret = start;
+                    editing.moved = now;
                 }
                 Key::ENTER => edited.submitted = true,
                 _ => {}
             }
         }
-        if !control {
-            let typed: String = text_typed.chars().filter(|character| !character.is_control()).filter(|character| settings.accept.is_none_or(|accept| accept(*character))).collect();
-            if !typed.is_empty() {
-                let typed = limit(&text, &editing, &typed, settings.max_length);
-                replace_selection(&mut text, &mut editing, &typed);
-                moved = true;
-            }
-        }
-        if moved {
+        let typed: String = input.text.chars().filter(|character| !character.is_control()).filter(|character| settings.accept.is_none_or(|accept| accept(*character))).collect();
+        let typed = limit(&text, &typed, settings.max_length);
+        if !typed.is_empty() {
+            text.insert_str(editing.caret, &typed);
+            editing.caret += typed.len();
             editing.moved = now;
         }
-    } else if !focused {
-        editing.anchor = editing.caret;
     }
 
     // The buttons: delete, and the field's own.
-    if interaction.activated(&Part::Named("Button".to_string())) {
+    if interaction.pressed(&Part::Named("Button".to_string())) {
         edited.button_clicked = true;
     }
-    if interaction.activated(&Part::Named("Clear".to_string())) {
+    if interaction.pressed(&Part::Named("Clear".to_string())) {
         text.clear();
         editing.caret = 0;
-        editing.anchor = 0;
     }
     *ctx.memory::<Editing>() = editing;
     if text != text_before {
@@ -450,7 +284,6 @@ pub(crate) fn field_draw(ctx: &mut Draw, text: &str, settings: &FieldSettings) {
     // The text scrolls to keep the caret in sight.
     let mut editing = std::mem::take(ctx.memory::<Editing>());
     editing.caret = boundary(text, editing.caret);
-    editing.anchor = boundary(text, editing.anchor);
     let caret_x = ctx.fonts().layout(text, BODY, None).caret_x(editing.caret);
     let text_width = ctx.measure(text, BODY).width;
     if caret_x - editing.scroll > content.width - TEXT_BOX_CARET_WIDTH {
@@ -467,11 +300,9 @@ pub(crate) fn field_draw(ctx: &mut Draw, text: &str, settings: &FieldSettings) {
     } else {
         StateColors::new(theme.control_fill, theme.control_fill_secondary, theme.control_fill_secondary, theme.control_fill_disabled).get(state)
     };
-    let (placeholder_color, text_color, selection_fill, selected_text, caret_color) = (
+    let (placeholder_color, text_color, caret_color) = (
         if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary },
         if state == ControlState::Disabled { theme.text_disabled } else { theme.text_primary },
-        theme.accent_selected_text_background,
-        theme.text_on_accent_selected,
         theme.text_primary,
     );
     let border = if state == ControlState::Disabled {
@@ -492,18 +323,6 @@ pub(crate) fn field_draw(ctx: &mut Draw, text: &str, settings: &FieldSettings) {
             }
         } else {
             painter.text(origin, text, BODY, text_color);
-            if focused && editing.has_selection() {
-                let (start, end) = editing.selection();
-                let (left, right) = {
-                    let layout = painter.fonts().layout(text, BODY, None);
-                    (layout.caret_x(start), layout.caret_x(end))
-                };
-                let selected = Rect::new(origin.x + left, text_y, right - left, BODY.line_height);
-                painter.fill(selected, selection_fill);
-                painter.push_clip(selected);
-                painter.text(origin, text, BODY, selected_text);
-                painter.pop_clip();
-            }
         }
         if focused && enabled && (((now - editing.moved) / CARET_BLINK) as u64).is_multiple_of(2) {
             let caret = Rect::new((origin.x + caret_x).round(), text_y + 2.0, TEXT_BOX_CARET_WIDTH, BODY.line_height - 4.0);
@@ -545,9 +364,6 @@ impl<M: Clone + 'static> Widget<M> for TextBox<M> {
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(text));
-        }
-        if edited.submitted && let Some(message) = &self.on_submit {
-            ctx.send(message.clone());
         }
         if edited.button_clicked && let Some(message) = &self.on_button {
             ctx.send(message.clone());

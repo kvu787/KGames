@@ -384,7 +384,7 @@ impl<'a> Painter<'a> {
         );
     }
 
-    // An outline outside the rectangle, like a focus visual.
+    // An outline outside the rectangle.
     pub fn outline(&mut self, rect: Rect, radius: f32, width: f32, color: Color) {
         self.shape(rect.expand(width), radius + width, Color::TRANSPARENT, Some(Border::new(color, width)));
     }

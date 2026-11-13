@@ -180,9 +180,6 @@ fn the_sliders_take_no_keyboard_focus_so_the_arrows_stay_the_editor_s() {
     app.click_point(shift);
     assert_eq!(selected(&app), "Shift");
     assert_eq!(app.ui.focused_name(), None);
-    // Tab goes to the buttons, which don't take the arrows.
-    app.key(Key::TAB);
-    assert_eq!(app.ui.focused_name(), Some("Reset"));
     app.key(Key::RIGHT);
     assert_eq!(app.program.editor.parameters.shift, 0.501);
 }

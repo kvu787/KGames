@@ -279,8 +279,7 @@ impl VehicleEditor {
             let field = header(card, name_column, "Name");
             card.add("Vehicles/Name", field, TextBox::new(shown_name).placeholder("Name").max_length(40).on_change(|name| {
                 Message::Vehicle(VehicleMsg::Name(name))
-            }))
-            .set_focusable(true);
+            }));
             let model_names = models.names();
             let model = models.find(&current.model).unwrap_or(0);
             let model_area = header(card, model_column, "Model");

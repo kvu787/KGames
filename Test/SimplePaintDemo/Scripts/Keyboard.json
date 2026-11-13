@@ -15,11 +15,9 @@
     { "Frame": 8, "Key": "Ctrl+S" },
     { "Frame": 10, "Expect": { "Saved": true } },
     { "Frame": 10, "Capture": "Saved" },
-    { "Frame": 11, "Key": "Tab" },
-    { "Frame": 13, "Key": "Left" },
-    { "Frame": 15, "Expect": { "Parameters": { "Shift": 0.011 }, "Interface": { "Focused": "Reset" } } },
-    { "Frame": 15, "Capture": "ResetFocused" },
-    { "Frame": 16, "Key": "Space" },
-    { "Frame": 18, "Expect": { "Parameters": { "Shift": 0.0 }, "Selected": "Shift" } }
+    { "Frame": 11, "Key": "Left" },
+    { "Frame": 13, "Expect": { "Parameters": { "Shift": 0.011 }, "Interface": { "Focused": null } } },
+    { "Frame": 14, "Click": "Reset" },
+    { "Frame": 16, "Expect": { "Parameters": { "Shift": 0.0 }, "Selected": "Shift" } }
   ]
 }

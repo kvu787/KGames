@@ -84,9 +84,6 @@ impl Widget<Message> for GroundView {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<Message>) {
         let hit = interaction.whole();
-        if hit.pressed || hit.secondary_pressed || hit.middle_pressed {
-            ctx.clear_focus();
-        }
         let space = ctx.key_down(Key::SPACE);
         if (space || self.panning) && (hit.hovered || hit.held) {
             ctx.set_cursor(Cursor::Move);
@@ -319,14 +316,14 @@ pub fn header(tree: &mut Tree<Message>, column: Rect, label: &str) -> Rect {
 }
 
 // A field of one of the document's colors, like "#1CDA61", with a swatch of
-// it. What's typed takes effect with Enter. It takes keyboard focus, unlike
-// the editors' other controls, and what a change sends carries the color.
+// it. What's typed takes effect with Enter. It takes keyboard focus, as
+// only text fields do, and what a change sends carries the color.
 pub fn color_field(tree: &mut Tree<Message>, name: &str, rect: Rect, color: FileColor, to: impl Fn(FileColor) -> Message + 'static) {
     let field = ColorField::new(interface_color(color)).on_change(move |color| {
         let [red, green, blue, _] = color.to_bytes();
         to([red, green, blue])
     });
-    tree.add(name, rect, field).set_focusable(true);
+    tree.add(name, rect, field);
 }
 
 // The controls of a SimplePaint material, for one of a model's slots, which

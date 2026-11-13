@@ -23,16 +23,12 @@
     { "Frame": 30, "Expect": { "ReadingCount": 1, "Gamepad": { "Device": "Pad One", "Buttons": ["B"] } } },
     { "Frame": 31, "Click": "Gamepad" },
     { "Frame": 33, "Expect": { "Interface": { "Popup": "Gamepad" } } },
-    { "Frame": 34, "Key": "Esc" },
+    { "Frame": 34, "Click": [1300, 300] },
     { "Frame": 36, "Expect": { "Listen": "Pad One", "Interface": { "Popup": null } } },
     { "Frame": 37, "Click": "Gamepad" },
-    { "Frame": 39, "Click": [1300, 300] },
-    { "Frame": 41, "Expect": { "Listen": "Pad One", "Interface": { "Popup": null } } },
-    { "Frame": 42, "Click": "Gamepad" },
-    { "Frame": 45, "Key": "End" },
-    { "Frame": 46, "Expect": { "Listen": "Pad One", "Interface": { "Popup": "Gamepad" } } },
-    { "Frame": 47, "Key": "Enter" },
-    { "Frame": 49, "Expect": { "Listen": "None", "Interface": { "Popup": null, "Targets": { "Gamepad": { "Label": "None" } } } } },
-    { "Frame": 49, "Capture": "None" }
+    { "Frame": 39, "Expect": { "Listen": "Pad One", "Interface": { "Popup": "Gamepad" } } },
+    { "Frame": 40, "Click": "Gamepad/2" },
+    { "Frame": 42, "Expect": { "Listen": "None", "Interface": { "Popup": null, "Targets": { "Gamepad": { "Label": "None" } } } } },
+    { "Frame": 42, "Capture": "None" }
   ]
 }

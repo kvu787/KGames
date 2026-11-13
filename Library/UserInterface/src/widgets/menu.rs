@@ -6,8 +6,8 @@
 // it.
 //
 // Items are targets named "<menu>/<label>", and each carries the message
-// that choosing it sends. The arrows move a highlight, Right opens a submenu
-// and Left closes it, Enter chooses, and Esc closes the top menu. The
+// that choosing it sends. The pointer resting on an item with a submenu
+// opens it, a press chooses, and a press outside closes every menu. The
 // functions here are what every owner of a menu shares: a button, a menu
 // bar's item, and an element with a context menu.
 
@@ -24,7 +24,6 @@ use crate::design::tokens::{BODY, CAPTION, ELEVATION_FLYOUT, ELEVATION_SUBMENU, 
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::drawing::text::Fonts;
-use crate::input::devices::Key;
 
 pub struct MenuItem<M> {
     label: String,
@@ -103,11 +102,10 @@ impl<M: Clone + 'static> MenuItem<M> {
     }
 }
 
-// Where an open menu is, and which item the keyboard highlights.
+// Where an open menu is.
 #[derive(Default, Clone)]
 pub(crate) struct MenuState {
     origin: Point,
-    highlighted: Option<usize>,
     // The submenu open from one of its items.
     open_submenu: Option<usize>,
 }
@@ -175,7 +173,6 @@ pub(crate) fn open_menu<M>(ctx: &mut Dispatch<M>, owner: Id, name: &str, origin:
     ctx.open_popup_of(owner, name);
     let state = ctx.memory_of::<MenuState>(id(name));
     state.origin = origin;
-    state.highlighted = None;
     state.open_submenu = None;
 }
 
@@ -206,47 +203,16 @@ pub(crate) fn parts_menu<M: Clone + 'static>(ctx: &mut Parts, name: &str, owner:
     }
 }
 
-// Does what the input on an open menu means: the keys move its highlight
-// and choose, the pointer opens submenus, and a press chooses, which sends
-// the item's message and closes every menu.
-pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: &mut Dispatch<M>, name: &str, owner: Id, items: &[MenuItem<M>], level: u32) {
+// Does what the input on an open menu means: the pointer opens submenus,
+// and a press chooses, which sends the item's message and closes every
+// menu.
+pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: &mut Dispatch<M>, name: &str, owner: Id, items: &[MenuItem<M>]) {
     if !ctx.popup_open_of(owner) {
         return;
     }
     let menu_id = id(name);
     let mut state = std::mem::take(ctx.memory_of::<MenuState>(menu_id));
-    let on_top = ctx.popup_on_top_of(owner);
-    let selectable: Vec<usize> = (0..items.len()).filter(|index| items[*index].is_enabled()).collect();
-    // The item the keyboard chose, if any: its message, which an item may
-    // not have, in which case choosing it only closes the menus.
-    let mut chosen: Option<Option<M>> = None;
     let mut open_child: Option<usize> = state.open_submenu;
-    if on_top && !selectable.is_empty() {
-        let position = state.highlighted.and_then(|highlighted| selectable.iter().position(|index| *index == highlighted));
-        let (down, up) = (ctx.input().key_pressed(Key::DOWN), ctx.input().key_pressed(Key::UP));
-        if down {
-            state.highlighted = Some(selectable[position.map_or(0, |at| (at + 1) % selectable.len())]);
-        }
-        if up {
-            state.highlighted = Some(selectable[position.map_or(selectable.len() - 1, |at| (at + selectable.len() - 1) % selectable.len())]);
-        }
-        if down || up {
-            ctx.set_focus_visible(true);
-        }
-        if let Some(highlighted) = state.highlighted {
-            let item = &items[highlighted];
-            let opens = item.submenu.is_some();
-            let input = ctx.input();
-            if (input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE)) && !opens {
-                chosen = Some(item.message.clone());
-            } else if (input.key_pressed(Key::RIGHT) || input.key_pressed_once(Key::ENTER)) && opens {
-                open_child = Some(highlighted);
-            }
-        }
-        if level > 0 && ctx.input().key_pressed(Key::LEFT) {
-            ctx.close_popup_of(owner);
-        }
-    }
     let mut close_all = false;
     for (index, item) in items.iter().enumerate() {
         if item.separator {
@@ -257,14 +223,13 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
             continue;
         };
         if hit.hovered {
-            state.highlighted = Some(index);
             if item.submenu.is_some() {
                 open_child = Some(index);
             } else if open_child.is_some() {
                 open_child = None;
             }
         }
-        if hit.activated && item.is_enabled() {
+        if hit.pressed && item.is_enabled() {
             match item.submenu {
                 Some(_) => open_child = Some(index),
                 None => {
@@ -275,12 +240,6 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
                 }
             }
         }
-    }
-    if let Some(message) = chosen {
-        if let Some(message) = message {
-            ctx.send(message);
-        }
-        close_all = true;
     }
     state.open_submenu = open_child;
     *ctx.memory_of::<MenuState>(menu_id) = state;
@@ -302,10 +261,9 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
             ctx.open_popup_of(item_id, &child);
             let state = ctx.memory_of::<MenuState>(id(&child));
             state.origin = Point::new(rect.right() + MENU_ITEM_MARGIN.right, rect.y - MENU_FLYOUT_PADDING.top - MENU_ITEM_MARGIN.top);
-            state.highlighted = None;
             state.open_submenu = None;
         }
-        interact_menu(interaction, ctx, &child, item_id, children, level + 1);
+        interact_menu(interaction, ctx, &child, item_id, children);
     } else {
         // Any submenu that was open from this menu closes.
         for item in items.iter().filter(|item| item.submenu.is_some()) {
@@ -327,7 +285,6 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
     let bounds = ctx.bounds();
     let layout = layout(ctx.fonts(), bounds, state.origin, items);
     let panel = layout.panel;
-    let focus_visible = ctx.focus_visible();
     let look = ctx.look().clone();
     let theme = ctx.theme().clone();
     let mut painter = ctx.painter();
@@ -346,11 +303,10 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
         let part = Part::Named(item_name(name, item));
         let state_now = if item.enabled { look.part_state(&part) } else { ControlState::Disabled };
         let submenu_open = state.open_submenu == Some(index);
-        let highlighted = state.highlighted == Some(index) && focus_visible && !look.hovered(&part);
         let background = match state_now {
             ControlState::Pressed => theme.subtle_fill_tertiary,
             ControlState::PointerOver => theme.subtle_fill_secondary,
-            _ if submenu_open || highlighted => theme.subtle_fill_secondary,
+            _ if submenu_open => theme.subtle_fill_secondary,
             _ => theme.subtle_fill_transparent,
         };
         let foreground = if state_now == ControlState::Disabled { theme.text_disabled } else { theme.text_primary };
@@ -414,7 +370,7 @@ pub(crate) fn interact_context_menu<M: Clone + 'static>(interaction: &Interactio
     {
         open_menu(ctx, owner, &name, pointer);
     }
-    interact_menu(interaction, ctx, &name, owner, items, 0);
+    interact_menu(interaction, ctx, &name, owner, items);
 }
 
 pub(crate) fn draw_context_menu<M: Clone + 'static>(ctx: &mut Draw, items: &[MenuItem<M>]) {
@@ -476,7 +432,7 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
         let rects = self.items(ctx.fonts(), rect);
         for ((title, items), item) in self.menus.iter().zip(rects) {
             let item_name = Self::item_name(ctx.name(), title);
-            ctx.part(Part::Named(item_name.clone()), title, item, Sense::BUTTON, "MenuBarItem", Some(title.clone()));
+            ctx.part(Part::Named(item_name.clone()), title, item, Sense::CLICK, "MenuBarItem", Some(title.clone()));
             let menu_name = child_name(&item_name);
             parts_menu(ctx, &menu_name, id(&item_name), items);
         }
@@ -493,22 +449,15 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
             let part = Part::Named(item_name.clone());
             let hit = interaction.hit(&part).cloned().unwrap_or_default();
             let open = ctx.popup_open_of(item_id);
-            let mut activated = hit.activated;
-            if any_open && !open && hit.hovered {
-                // Moving across the bar while a menu is open opens this one.
-                activated = true;
-            }
-            if interaction.focused_part.as_ref() == Some(&part) && interaction.focused && ctx.input().key_pressed(Key::DOWN) && !open {
-                activated = true;
-            }
-            if activated {
+            // Moving across the bar while a menu is open opens this one.
+            if hit.pressed || (any_open && !open && hit.hovered) {
                 if open {
                     ctx.close_popup_of(item_id);
                 } else {
                     open_menu(ctx, item_id, &menu_name, Point::new(item.x, item.bottom() + 4.0));
                 }
             }
-            interact_menu(interaction, ctx, &menu_name, item_id, items, 0);
+            interact_menu(interaction, ctx, &menu_name, item_id, items);
         }
     }
 
@@ -533,8 +482,6 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
             let mut painter = ctx.painter();
             painter.rounded(item, RADIUS_CONTROL, background);
             painter.text_in(item, title, BODY, foreground, Align::Center);
-            let focused = look.focused && look.focused_part.as_ref() == Some(&part);
-            ctx.focus_visual_if(focused, item, RADIUS_CONTROL);
             draw_menu(ctx, &child_name(&item_name), item_id, items, 0);
         }
     }

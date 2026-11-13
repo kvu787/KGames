@@ -54,11 +54,11 @@ impl<M: Clone + 'static> Widget<M> for Expander<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().activated
+        if interaction.whole().pressed
             && let Some(reaction) = &self.on_toggle
         {
             ctx.send(reaction(!self.expanded));
@@ -98,8 +98,6 @@ impl<M: Clone + 'static> Widget<M> for Expander<M> {
                 }
             }
         }
-        let focused = ctx.focused();
-        ctx.focus_visual_if(focused, rect, RADIUS_CONTROL);
     }
 }
 
