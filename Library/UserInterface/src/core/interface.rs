@@ -29,7 +29,6 @@ use crate::drawing::painter::{DrawList, Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
 use crate::input::events::{Event, Input};
-use crate::platform::clipboard::Clipboard;
 
 // What the program runs on, for its bars and its title.
 #[derive(Clone, Debug, Default)]
@@ -174,7 +173,6 @@ pub struct Interface {
     // The tooltip that this frame showed: its widget's name, and its area.
     pub(crate) shown_tooltip: Option<(String, Rect)>,
     memory: QuickMap<(Id, TypeId), Box<dyn Any>>,
-    pub(crate) clipboard: Clipboard,
     pub(crate) cursor: Cursor,
     frame: u64,
     pub(crate) environment: Environment,
@@ -194,7 +192,7 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub fn new(fonts: Fonts, theme: ThemeKind, clipboard: Clipboard) -> Self {
+    pub fn new(fonts: Fonts, theme: ThemeKind) -> Self {
         Self {
             theme: Theme::new(theme),
             next_theme: None,
@@ -216,7 +214,6 @@ impl Interface {
             tooltips_enabled: true,
             shown_tooltip: None,
             memory: QuickMap::default(),
-            clipboard,
             cursor: Cursor::Arrow,
             frame: 0,
             environment: Environment::default(),

@@ -4,7 +4,7 @@
 //
 // - application: what a program is, its settings, the main loop, and its
 //   PerfBar's stats.
-// - platform: the window, the clipboard, the clock, and GameInput's devices.
+// - platform: the window, the clock, and GameInput's devices.
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.
 // - drawing: geometry, the painter, text, and the GPU renderer.
@@ -21,7 +21,6 @@ mod application {
 }
 
 mod platform {
-    pub mod clipboard;
     pub mod clock;
     pub mod input_devices;
     pub mod window;
@@ -106,7 +105,6 @@ pub use drawing::renderer::Renderer;
 pub use drawing::text::{Font, Fonts, TextStyle, Weight};
 pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 pub use input::events::{Event, Input};
-pub use platform::clipboard::Clipboard;
 pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed, frame_readings};
 pub use platform::window::{FocusChange, Window};
 pub use testing::headless::Headless;

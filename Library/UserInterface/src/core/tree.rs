@@ -21,7 +21,6 @@ use crate::drawing::painter::{Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Key, Modifiers, MouseButton};
 use crate::input::events::Input;
-use crate::platform::clipboard::Clipboard;
 use crate::widgets::menu::MenuItem;
 
 // A line of a tooltip with more than a sentence in it.
@@ -565,10 +564,6 @@ impl<M> Dispatch<'_, M> {
 
     pub fn measure(&mut self, text: &str, style: TextStyle) -> Size {
         self.ui.fonts.measure(text, style)
-    }
-
-    pub fn clipboard(&mut self) -> &mut Clipboard {
-        &mut self.ui.clipboard
     }
 
     pub fn memory<T: Default + 'static>(&mut self) -> &mut T {

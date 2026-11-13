@@ -478,9 +478,8 @@ The state is the program's, and the interface's as `Interface`: the `Theme`, `Si
 `VerticalSync`, `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
 `Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,
 `Enabled` and `Label`, by name. Menu items are named after their menu and label, like
-`Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. Scripts copy and paste on the
-interface's own clipboard, never Windows'. A scripted run reads and writes its files in its output
-folder, through `startup.data_folder`.
+`Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. A scripted run reads and
+writes its files in its output folder, through `startup.data_folder`.
 
 `Test/UserInterface` tests the library itself, with a GPU test that draws offscreen.
 
@@ -501,7 +500,6 @@ folder, through `startup.data_folder`.
 |                                  | and the theme's background that it shows until its first frame             |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
-| `src/platform/clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests          |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
 | `src/input/events.rs`            | A frame's input, from its events                                           |
 | `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
