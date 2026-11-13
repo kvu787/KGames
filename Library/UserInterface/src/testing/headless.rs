@@ -45,7 +45,8 @@ pub struct Headless<P: Program> {
     pointer: Point,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
-    // A window of a size other than the supported setups', like an overlay.
+    // A window of a size other than the supported setups', like a test's of
+    // the unsupported setup.
     custom_size: Option<Size>,
     closed: bool,
 }
@@ -91,8 +92,8 @@ impl<P: Program> Headless<P> {
         headless
     }
 
-    // A program in a window of the size, like an overlay, which has no
-    // PerfBar.
+    // A program in a window of the size, without a PerfBar, like the
+    // unsupported setup's in a test.
     pub fn with_size(program: P, theme: ThemeKind, size: Size) -> Self {
         let mut headless = Self::with_theme(program, theme);
         headless.custom_size = Some(size);

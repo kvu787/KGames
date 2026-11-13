@@ -30,7 +30,6 @@ use crate::platform::clock;
 
 // RunInBackground finds programs' windows by this class.
 const CLASS: PCWSTR = w!("MainWindow");
-const OVERLAY_CLASS: PCWSTR = w!("OverlayWindow");
 
 // The one supported display and its taskbar.
 pub const DISPLAY_WIDTH: i32 = 2560;
@@ -107,7 +106,7 @@ impl Window {
     pub fn create(title: &str, monitor: HMONITOR, mode: WindowMode) -> Result<Window> {
         unsafe {
             prepare_process();
-            register_class(CLASS)?;
+            register_class()?;
             // Where it would be if it were ever restored: half the work area,
             // in its middle.
             let work = monitor_info(monitor).rcWork;
@@ -133,34 +132,6 @@ impl Window {
             let mut window = Window::wrap(hwnd);
             window.apply_mode(mode, false);
             Ok(window)
-        }
-    }
-
-    // A window without a frame that floats over the others, like one of
-    // IdentifyDisplays' boxes, in screen pixels.
-    pub fn create_overlay(title: &str, rect: RECT) -> Result<Window> {
-        unsafe {
-            prepare_process();
-            register_class(OVERLAY_CLASS)?;
-            let title = wide(title);
-            let hwnd = CreateWindowExW(
-                (WS_EX_TOPMOST | WS_EX_TOOLWINDOW) as u32,
-                OVERLAY_CLASS,
-                PCWSTR(title.as_ptr()),
-                WS_POPUP,
-                rect.left,
-                rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                None,
-                None,
-                Some(GetModuleHandleW(None)),
-                None,
-            );
-            if hwnd.0.is_null() {
-                return Err(Error::from_thread());
-            }
-            Ok(Window::wrap(hwnd))
         }
     }
 
@@ -323,13 +294,6 @@ impl Window {
         }
     }
 
-    // Waits for a message, or for the milliseconds to pass.
-    pub fn wait_for(&self, milliseconds: u32) {
-        unsafe {
-            let _ = MsgWaitForMultipleObjects(None, false, milliseconds, QS_ALLINPUT as u32);
-        }
-    }
-
     // The focus changes since the last call, oldest first.
     pub fn take_focus_changes(&mut self) -> Vec<FocusChange> {
         self.shared().focus_changes.take()
@@ -348,11 +312,6 @@ impl Window {
             self.shared().cursor_inside.set(inside);
             (Point::new(point.x as f32, point.y as f32), inside)
         }
-    }
-
-    // Whether Windows' cursor is on the client area.
-    pub fn cursor_over(&mut self) -> bool {
-        self.cursor().1
     }
 
     // Captures the mouse, so that a drag keeps going past the window's edges,
@@ -533,13 +492,13 @@ unsafe fn set_power_throttling(throttle: bool) {
     }
 }
 
-unsafe fn register_class(name: PCWSTR) -> Result<()> {
+unsafe fn register_class() -> Result<()> {
     unsafe {
         let class = WNDCLASSEXW {
             cbSize: size_of::<WNDCLASSEXW>() as u32,
             lpfnWndProc: Some(window_procedure),
             hInstance: GetModuleHandleW(None),
-            lpszClassName: name,
+            lpszClassName: CLASS,
             ..Default::default()
         };
         // ERROR_CLASS_ALREADY_EXISTS: a second window of the class.

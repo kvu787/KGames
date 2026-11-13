@@ -312,8 +312,7 @@ impl StatusIcon {
     }
 }
 
-// The icon itself, for widgets that draw their own, like IdentifyDisplays'
-// boxes.
+// The icon itself, for widgets that draw their own, like InfoBar.
 pub fn status_icon(painter: &mut Painter, center: Point, severity: Severity, size: f32) {
     let theme = painter.theme();
     let mark = match severity {

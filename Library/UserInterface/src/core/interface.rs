@@ -186,7 +186,8 @@ pub struct Interface {
     // The notices under the app bar.
     pub(crate) notices: Vec<Notice>,
     // What the PerfBar along the top of the window shows, which every
-    // program's window has, and overlays don't.
+    // program's window has, and a test's window of a size of its own
+    // doesn't.
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, and whether it hit the cap.
     pub(crate) messages_applied: usize,
@@ -308,8 +309,8 @@ impl Interface {
         self.phases
     }
 
-    // Runs a frame of a tree that isn't a program's, like an overlay's or
-    // the unsupported setup's: the interface's own keys, and drawing.
+    // Runs a frame of a tree that isn't a program's, like the unsupported
+    // setup's: the interface's own keys, and drawing.
     pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size, fullscreen: bool) {
         self.frame += 1;
         self.size = size;
@@ -930,7 +931,7 @@ impl Interface {
     }
 
     // Where the program's part of the window starts: under the PerfBar,
-    // PERF_BAR_HEIGHT pixels down, or at the top in an overlay.
+    // PERF_BAR_HEIGHT pixels down, or at the top without one.
     pub fn content_top(&self) -> f32 {
         if self.performance.is_some() { crate::design::tokens::PERF_BAR_HEIGHT } else { 0.0 }
     }

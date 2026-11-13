@@ -14,7 +14,6 @@
 // - testing: scripts, and running a program without a window.
 
 mod application {
-    pub mod overlays;
     pub mod performance;
     pub mod program;
     pub mod run;
@@ -93,7 +92,6 @@ pub use design::{controls, tokens};
 pub use application::performance;
 pub use platform::clock;
 
-pub use application::overlays::{Overlay, run_overlays};
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{CommonSettings, Settings, WindowMode};

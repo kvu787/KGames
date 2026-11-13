@@ -493,7 +493,6 @@ folder, through `startup.data_folder`.
 | `src/application/program.rs`     | `Program`, `Options`, `Startup`, and the command line                      |
 | `src/application/run.rs`         | The main loop                                                              |
 | `src/application/settings.rs`    | `Settings.json`                                                            |
-| `src/application/overlays.rs`    | Frameless windows over each display, like IdentifyDisplays' boxes          |
 | `src/application/performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen |
 | `src/core/interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
 | `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
