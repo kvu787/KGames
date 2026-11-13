@@ -113,21 +113,6 @@ GetKeyNameTextW
 MapVirtualKeyW
 MAPVK_VK_TO_VSC_EX
 
-// The clipboard, for text fields' Ctrl+C, Ctrl+X and Ctrl+V
-CloseClipboard
-EmptyClipboard
-GetClipboardData
-GlobalAlloc
-GlobalSize
-GlobalFree
-GlobalLock
-GlobalUnlock
-IsClipboardFormatAvailable
-OpenClipboard
-SetClipboardData
-CF_UNICODETEXT
-GMEM_MOVEABLE
-
 // Opting out of power throttling
 GetCurrentProcess
 SetProcessInformation

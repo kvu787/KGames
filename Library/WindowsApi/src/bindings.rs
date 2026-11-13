@@ -84,11 +84,6 @@ pub unsafe fn CM_Locate_DevNodeW(
     }
 }
 #[inline]
-pub unsafe fn CloseClipboard() -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn CloseClipboard() -> windows_core::BOOL);
-    unsafe { CloseClipboard() }
-}
-#[inline]
 pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn CloseHandle(hobject : HANDLE) -> windows_core::BOOL);
     unsafe { CloseHandle(hobject) }
@@ -333,11 +328,6 @@ pub unsafe fn DwmSetWindowAttribute(
     unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
 }
 #[inline]
-pub unsafe fn EmptyClipboard() -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn EmptyClipboard() -> windows_core::BOOL);
-    unsafe { EmptyClipboard() }
-}
-#[inline]
 pub unsafe fn EnableTraceEx2(
     traceid: CONTROLTRACE_ID,
     providerid: *const windows_core::GUID,
@@ -398,11 +388,6 @@ pub unsafe fn GetCapture() -> HWND {
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
-}
-#[inline]
-pub unsafe fn GetClipboardData(uformat: u32) -> HANDLE {
-    windows_core::link!("user32.dll" "system" fn GetClipboardData(uformat : u32) -> HANDLE);
-    unsafe { GetClipboardData(uformat) }
 }
 #[inline]
 pub unsafe fn GetCurrentProcess() -> HANDLE {
@@ -551,36 +536,6 @@ pub unsafe fn GetWindowLongW(hwnd: HWND, nindex: i32) -> i32 {
     unsafe { GetWindowLongW(hwnd, nindex) }
 }
 #[inline]
-pub unsafe fn GlobalAlloc(uflags: u32, dwbytes: usize) -> HGLOBAL {
-    windows_core::link!("kernel32.dll" "system" fn GlobalAlloc(uflags : u32, dwbytes : usize) -> HGLOBAL);
-    unsafe { GlobalAlloc(uflags, dwbytes) }
-}
-#[inline]
-pub unsafe fn GlobalFree(hmem: HGLOBAL) -> HGLOBAL {
-    windows_core::link!("kernel32.dll" "system" fn GlobalFree(hmem : HGLOBAL) -> HGLOBAL);
-    unsafe { GlobalFree(hmem) }
-}
-#[inline]
-pub unsafe fn GlobalLock(hmem: HGLOBAL) -> *mut core::ffi::c_void {
-    windows_core::link!("kernel32.dll" "system" fn GlobalLock(hmem : HGLOBAL) -> *mut core::ffi::c_void);
-    unsafe { GlobalLock(hmem) }
-}
-#[inline]
-pub unsafe fn GlobalSize(hmem: HGLOBAL) -> usize {
-    windows_core::link!("kernel32.dll" "system" fn GlobalSize(hmem : HGLOBAL) -> usize);
-    unsafe { GlobalSize(hmem) }
-}
-#[inline]
-pub unsafe fn GlobalUnlock(hmem: HGLOBAL) -> windows_core::BOOL {
-    windows_core::link!("kernel32.dll" "system" fn GlobalUnlock(hmem : HGLOBAL) -> windows_core::BOOL);
-    unsafe { GlobalUnlock(hmem) }
-}
-#[inline]
-pub unsafe fn IsClipboardFormatAvailable(format: u32) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn IsClipboardFormatAvailable(format : u32) -> windows_core::BOOL);
-    unsafe { IsClipboardFormatAvailable(format) }
-}
-#[inline]
 pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsZoomed(hwnd : HWND) -> windows_core::BOOL);
     unsafe { IsZoomed(hwnd) }
@@ -640,11 +595,6 @@ pub unsafe fn MsgWaitForMultipleObjects(
             dwwakemask,
         )
     }
-}
-#[inline]
-pub unsafe fn OpenClipboard(hwndnewowner: Option<HWND>) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn OpenClipboard(hwndnewowner : HWND) -> windows_core::BOOL);
-    unsafe { OpenClipboard(hwndnewowner.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn OpenProcess(dwdesiredaccess: u32, binherithandle: bool, dwprocessid: u32) -> HANDLE {
@@ -775,11 +725,6 @@ pub unsafe fn SendMessageW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
 pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
     windows_core::link!("user32.dll" "system" fn SetCapture(hwnd : HWND) -> HWND);
     unsafe { SetCapture(hwnd) }
-}
-#[inline]
-pub unsafe fn SetClipboardData(uformat: u32, hmem: Option<HANDLE>) -> HANDLE {
-    windows_core::link!("user32.dll" "system" fn SetClipboardData(uformat : u32, hmem : HANDLE) -> HANDLE);
-    unsafe { SetClipboardData(uformat, hmem.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn SetCursor(hcursor: Option<HCURSOR>) -> HCURSOR {
@@ -969,7 +914,6 @@ pub unsafe fn WindowFromPoint(point: POINT) -> HWND {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ATOM(pub u16);
-pub const CF_UNICODETEXT: i32 = 13;
 pub type CLSCTX = u32;
 pub const CLSCTX_ACTIVATE_32_BIT_SERVER: CLSCTX = 262144;
 pub const CLSCTX_ACTIVATE_64_BIT_SERVER: CLSCTX = 524288;
@@ -3717,7 +3661,6 @@ pub struct FILETIME {
 pub const GENERIC_WRITE: i32 = 1073741824;
 pub const GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS: i32 = 4;
 pub const GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT: i32 = 2;
-pub const GMEM_MOVEABLE: i32 = 2;
 pub const GUID_ContainerFormatPng: windows_core::GUID =
     windows_core::GUID::from_u128(0x1b7cfaf4_713f_473c_bbcd_6137425faeaf);
 pub const GUID_WICPixelFormat24bppBGR: windows_core::GUID =
@@ -3741,7 +3684,6 @@ pub struct HDC(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HGDIOBJ(pub *mut core::ffi::c_void);
-pub type HGLOBAL = HANDLE;
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HICON(pub *mut core::ffi::c_void);
