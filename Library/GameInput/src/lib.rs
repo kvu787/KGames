@@ -141,14 +141,6 @@ pub type GameInputDeviceCallback = Option<
     ),
 >;
 
-pub type GameInputReadingCallback = Option<
-    unsafe extern "system" fn(
-        callbacktoken: GameInputCallbackToken,
-        context: *mut c_void,
-        reading: *mut c_void,
-    ),
->;
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GameInputKeyState {
@@ -348,26 +340,6 @@ impl IGameInput {
             .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
-    pub unsafe fn RegisterReadingCallback(
-        &self,
-        device: Option<&IGameInputDevice>,
-        inputkind: GameInputKind,
-        context: Option<*const c_void>,
-        callbackfunc: GameInputReadingCallback,
-    ) -> Result<GameInputCallbackToken> {
-        let mut result__ = 0;
-        unsafe {
-            (Interface::vtable(self).RegisterReadingCallback)(
-                Interface::as_raw(self),
-                device_abi(device),
-                inputkind,
-                context.unwrap_or(core::ptr::null()),
-                callbackfunc,
-                &mut result__,
-            )
-            .map(|| result__)
-        }
-    }
     pub unsafe fn RegisterDeviceCallback(
         &self,
         device: Option<&IGameInputDevice>,
@@ -418,14 +390,11 @@ pub struct IGameInput_Vtbl {
         *mut c_void,
         *mut *mut c_void,
     ) -> HRESULT,
-    pub RegisterReadingCallback: unsafe extern "system" fn(
-        *mut c_void,
-        *mut c_void,
-        GameInputKind,
-        *const c_void,
-        GameInputReadingCallback,
-        *mut GameInputCallbackToken,
-    ) -> HRESULT,
+    // Deliberately not bound: KGames reads every reading by walking
+    // GameInput's stream with GetNextReading, in the stream's order, as
+    // Microsoft's documentation and its GameInputSequential sample do (see
+    // Library/UserInterface's platform/input_devices.rs).
+    RegisterReadingCallback: usize,
     pub RegisterDeviceCallback: unsafe extern "system" fn(
         *mut c_void,
         *mut c_void,
@@ -453,8 +422,8 @@ windows_core::imp::define_interface!(
     0x0dfaa2a2_688b_4a9c_a3a9_0feb4f90ee12
 );
 windows_core::imp::interface_hierarchy!(IGameInputReading, windows_core::IUnknown);
-// GameInput's objects are free-threaded: reading callbacks hand readings over
-// from GameInput's own threads, and the main thread then reads them.
+// GameInput's objects are free-threaded: Microsoft's documentation says that
+// "All objects are agile", with no threading model.
 unsafe impl Send for IGameInputReading {}
 unsafe impl Sync for IGameInputReading {}
 impl IGameInputReading {
