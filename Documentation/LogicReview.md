@@ -194,3 +194,84 @@ as the window; and the reader's repeats, gamepad changes and unplugging.
   lands where the cursor is as the frame reads its input, and not where it was as the button went
   down. `GetMouseMovePointsEx`, which keeps the cursor's last 64 positions with their times in
   milliseconds, could place it closer.
+
+# What walking GameInput's stream in its order found
+
+The frames read GameInput's readings by walking its stream a kind at a time, merging the three walks
+with a reading callback's queue by sorting on timestamps, and taking the readings that shared a
+timestamp and a device as one. GameInput says that a timestamp can't tell readings apart, and its
+stream already has every device's readings in the order the input happened in. Each frame now
+walks the stream once, in its order, as Microsoft's documentation and its GameInputSequential
+sample do, with no callback, no sorting and no timestamp key, and the reader keeps each gamepad's
+own state. Two adversarial reviews followed: one of the GameInput side, against Microsoft's
+documentation, and one of the interface side, the steps, the widgets and the programs. Each fix
+has a test that pins it.
+
+## Found and fixed
+
+- A frame that lost its place in the stream, and the first frame, handed out only the newest
+  reading, so every other device kept what it held: a key let go of in the readings that left the
+  history stayed held, and repeated, until its keyboard read again. Microsoft's sample walks one
+  device, and starts that one over; the walk now starts every device over from its newest reading,
+  in the stream's order as far as the history goes.
+- The reader kept one gamepad, which every gamepad's reading replaced, so a gamepad at rest whose
+  sticks read thousands of times a second covered the one in use. Each keeps its own state now.
+- The interface takes the gamepad event right after focus comes as what's held then, and the
+  reader sent none, so a press after focus came, in that frame, counted only once let go of and
+  pressed again.
+- The reader's keys and mouse buttons now go with focus, and a gamepad is connected from when it
+  connects, rather than from its first reading.
+- GameInputDemo took the frame's focus in its last step, where a frame that lost focus and got it
+  back looked as if nothing happened, and timed getting focus at the frame's end. Devices now give
+  the window's focus changes on GameInput's clock, and the demo puts them among its readings.
+- The message cap counted a frame's steps together, so a frame of many settling steps stopped the
+  program as a chain without end. It counts each step's chain.
+- NumberBox and ComboBox rounded each step's wheel, so a wheel that turns by less than a notch at a
+  time, a step each, never moved them. They keep the remainder, as Slider did.
+- A text field scrolled to its caret only as it was drawn, so a press after typing in one frame
+  placed the caret on last frame's scroll. It scrolls as each step's tree is laid out.
+- MeshModeler applied a modal edit again in every step, each a new document version that remade
+  the subdivided surface, for the same pointer. It applies it again only when its inputs change.
+- The cursor came from the tree that a step's input came on, so a press that put a text field under
+  a still pointer showed the old cursor for a frame. Widgets now say their cursor, which the
+  interface takes from the drawn tree.
+
+## Examined and sound
+
+The COM objects' ownership and identity, the walk's ends and its kind filter, a reading with
+several kinds of input, devices that disconnect within a frame, the wheel's running totals across a
+lost place, modifiers in one reading, `ToUnicodeEx` on the main thread, the conversion between
+GameInput's clock and the performance counter, the steps' edge cases, which state is per frame and
+which per step, F9, F10 and F11 pressed twice in a frame, drags over many steps, the widgets'
+memory, the programs' ticks of no time, Veehiicuul's commits per step, and the fidelity of Headless
+and scripts to the window.
+
+## Decisions left to the user
+
+- **How several gamepads combine:** a button held while any gamepad holds it, a trigger as far as
+  any pulls it, each stick the one pushed furthest. The mask of buttons held as focus came is on
+  the combination, so a button that one gamepad held then doesn't count from another until both
+  let go.
+- **The time of a frame's steps before its last:** the last frame's time, so that a simulation
+  moves once a frame. A press then gets the last frame's time if something follows it in the
+  frame, and this frame's if it's the frame's last event, for a double-click's and a tooltip's
+  timing.
+- **What a frame of many steps costs:** each step runs `view`, the layout and the programs' messages,
+  like Veehiicuul's and MeshModeler's `Prepare`, so a burst of wheel readings, or a held key's
+  repeats after a stall, costs that many times. Merging wheel events that nothing separates would
+  cut it, at the cost of a notch that scrolls a widget under the pointer no longer going to it.
+- **A held key's repeats:** every repeat due is handed out, as many as a stall lasted, and repeats
+  run up to the frame's time, so a release that GameInput hasn't delivered yet can follow an extra
+  repeat. Lagging repeats by a margin would trade that for later repeats.
+- **When focus changes:** at the time the window handles `WM_SETFOCUS`, after GameInput's own switch,
+  so input in between counts as without focus.
+- **The cursor**, read once a frame, as Windows has none on GameInput's clock.
+
+## Still open
+
+- On the user's devices: whether GameInput reports the Left Ctrl that Windows adds for AltGr; what
+  GameSir's controllers in Xbox 360 mode report as their kinds of input; what `GetNextReading` does
+  with a last reading whose device disconnected; and how often `Devices::restarts` counts, like
+  after an Alt+Tab back.
+- GameInputDemo's log merges a run of motion only with its newest line, so two devices moving at
+  once cut each other's runs short, as they did before the stream walk.

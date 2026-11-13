@@ -331,6 +331,10 @@ first frame starts the same way, so every device's state is known from the start
 | `1dff548` | Keys are released as focus goes, and readings from before focus count as without it, if late too     |
 | `403e053` | GameInputDemo describes a run of motion once, from its last reading, not every reading               |
 | `0242783` | A reading callback queues every reading, as the history held only 513 of a gamepad's                 |
+| `316f6a1` | Each frame walks GameInput's stream once, in its order, with no callback, sorting or timestamp key   |
+| `f372be4` | `RegisterReadingCallback` unbound                                                                    |
+| `74ed8a8` | A frame that loses its place starts every device over from its newest reading                        |
+| `6b6f913` | GameInputDemo puts the window's focus changes among its readings by their times                      |
 
 What was considered and not done:
 
