@@ -9368,8 +9368,6 @@ impl Default for WNODE_HEADER_1 {
 pub struct WPARAM(pub usize);
 pub const WS_EX_APPWINDOW: i32 = 262144;
 pub const WS_EX_NOACTIVATE: i32 = 134217728;
-pub const WS_EX_TOOLWINDOW: i32 = 128;
-pub const WS_EX_TOPMOST: i32 = 8;
 pub const WS_MAXIMIZE: i32 = 16777216;
 pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
 pub const WS_POPUP: u32 = 2147483648;

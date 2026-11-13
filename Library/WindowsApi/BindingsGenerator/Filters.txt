@@ -73,13 +73,11 @@ MONITORINFOEXW
 MONITORINFOF_PRIMARY
 QDC_ONLY_ACTIVE_PATHS
 
-// Showing windows, and overlays like IdentifyDisplays' boxes
+// Showing windows
 ShowWindow
 GWLP_USERDATA
 SW_SHOW
 WM_PAINT
-WS_EX_TOOLWINDOW
-WS_EX_TOPMOST
 
 // Input, which comes from GameInput: where Windows' cursor is, capturing the
 // mouse for drags, typed text from keys with the keyboard layout, Windows'
@@ -106,8 +104,7 @@ WM_KILLFOCUS
 QueryPerformanceCounter
 QueryPerformanceFrequency
 
-// Waiting for messages for a while, like overlays between checks of the input,
-// or for messages and the swap chain together, like with vertical sync
+// Waiting for messages and the swap chain together, like with vertical sync
 MsgWaitForMultipleObjects
 QS_ALLINPUT
 
