@@ -226,10 +226,14 @@ before, but reports gamepads' whole state, their held buttons too.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
-  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate.
+  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate, each repeat
+  among the frame's other events at its time.
 - The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
   moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
-  window's.
+  window's. Windows keeps no cursor on GameInput's clock, so the cursor is read once a frame, and a
+  press lands where it is as the frame reads its input.
+- A device that's unplugged lets go of what it held after the frame's readings, as GameInput
+  doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
   tree the user saw, or for a later event in the frame, the tree that the events before it left.
   So a combo box's list, a menu or a dialog takes the pointer from what's under it, from the very
@@ -276,7 +280,10 @@ before, but reports gamepads' whole state, their held buttons too.
   `ui.toggle_fullscreen()`.
 - `F9`, `F10` and `F11` are the library's in every program, even while a text field has focus or a
   dialog is open, so a program mustn't also use them for something else.
-- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
+- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`, and each
+  change of its buttons is an event at its time, so that a button pressed and let go of within a
+  frame is a step with the press and one with the release, which `ui.input().gamepad_pressed` and
+  `gamepad_released` see.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
   frame's readings and device events from `startup.devices`, which the interface reads them with.
 

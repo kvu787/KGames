@@ -5,10 +5,17 @@
 // - Keys come from keyboards' readings, which are the keys held down. Shift,
 //   Ctrl and Alt are the same keys on the left and the right. Typed text is
 //   the keys, translated with Windows' keyboard layout, with Shift, AltGr and
-//   dead keys. A held key repeats at Windows' keyboard delay and rate.
+//   dead keys. A held key repeats at Windows' keyboard delay and rate, each
+//   repeat among the other events at its time.
 // - The mouse's buttons and wheels come from mice's readings, and the pointer
-//   is where Windows' cursor is, so that it moves as Windows moves it.
-// - The gamepad is the newest reading of any gamepad.
+//   is where Windows' cursor is, so that it moves as Windows moves it. It's
+//   read once a frame, as Windows has no cursor on GameInput's clock, so a
+//   press happens where the cursor is as the frame reads its input.
+// - The gamepad is the newest reading of any gamepad, as the frame's last
+//   event, and each change of its buttons is an event at its time too, so
+//   that a button pressed and let go of within a frame counts.
+// - A device that's unplugged lets go of what it held after the frame's
+//   readings, as GameInput doesn't say when it went.
 //
 // Without focus, the window gets no input, and GameInput gives none, as the
 // library leaves its background input off (see platform/input_devices.rs):
@@ -73,6 +80,8 @@ pub struct InputReader {
     // The gamepad's buttons held without focus, which the interface doesn't
     // get until they're let go of.
     gamepad_ignored: u32,
+    // The buttons that the last Gamepad event told the interface of.
+    gamepad_sent: u32,
     repeat: Option<Repeat>,
     repeat_delay: i64,
     repeat_interval: i64,
@@ -112,6 +121,7 @@ impl InputReader {
             gamepad_state: Gamepad::default(),
             gamepad_device: None,
             gamepad_ignored: 0,
+            gamepad_sent: 0,
             repeat: None,
             repeat_delay: (delay * clock::frequency() as f64) as i64,
             repeat_interval: (clock::frequency() as f64 / rate) as i64,
@@ -164,23 +174,6 @@ impl InputReader {
         }
         let (cursor, inside) = (window.cursor, window.inside);
         let mut frame = FrameInput::default();
-        // A device that's unplugged lets go of what it held: a gamepad's
-        // state goes, and a keyboard's keys and a mouse's buttons are
-        // released, unless another keyboard or mouse holds them.
-        if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
-            self.gamepad_state = Gamepad::default();
-            self.gamepad_device = None;
-            self.gamepad_ignored = 0;
-        }
-        let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
-        if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
-            self.keyboards.retain(|(device, _)| !unplugged(device));
-            self.update_keys(now, &mut frame.events);
-        }
-        if self.mice.iter().any(|(device, _)| unplugged(device)) {
-            self.mice.retain(|(device, _)| !unplugged(device));
-            self.update_buttons(cursor, inside, &mut frame.events);
-        }
         let mut items: Vec<(i64, Item)> = window.focus_changes.iter().map(|change| (change.time, Item::Focus(change.gained))).collect();
         for (time, kind, reading) in readings {
             items.push((*time, Item::Reading(*kind, reading)));
@@ -189,6 +182,8 @@ impl InputReader {
         items.sort_by_key(|(time, _)| *time);
 
         for (time, item) in items {
+            // A held key's repeats that came before this, at their times.
+            self.repeat_until(time - 1, &mut frame.events);
             match item {
                 Item::Focus(true) => {
                     if !self.focused {
@@ -222,6 +217,12 @@ impl InputReader {
                             self.gamepad_device = reading.device;
                             let held = self.gamepad_state.buttons.0;
                             self.gamepad_ignored = if self.focused { self.gamepad_ignored & held } else { held };
+                            // A change of the buttons is an event at its
+                            // time, so that a button pressed and let go of
+                            // within a frame is a press and a release.
+                            if self.gamepad && self.gamepad_buttons() != self.gamepad_sent {
+                                self.send_gamepad(&mut frame.events);
+                            }
                         }
                     }
                     if self.focused && (kind != GameInputKindGamepad || self.gamepad) {
@@ -232,28 +233,68 @@ impl InputReader {
             }
         }
 
-        // A held key repeats, at the times Windows' settings give it.
-        if self.focused
-            && let Some(repeat) = &mut self.repeat
-        {
-            let (key, scan_code) = (repeat.key, repeat.scan_code);
-            let mut count = 0;
-            while repeat.next <= now {
-                repeat.next += self.repeat_interval.max(1);
-                count += 1;
-            }
-            for _ in 0..count {
-                frame.events.push(Event::KeyPressed { key, repeat: true });
-                self.text(key, scan_code, &mut frame.events);
-            }
+        // A device that's unplugged lets go of what it held: a gamepad's
+        // state goes, and a keyboard's keys and a mouse's buttons are
+        // released, unless another keyboard or mouse holds them. GameInput's
+        // device events have no times, so this comes after the frame's
+        // readings, which are all from before the device went: a reading of
+        // its that came in the same frame mustn't bring it back, with what
+        // it held stuck down.
+        if self.gamepad_device.is_some_and(|device| disconnected.contains(&device)) {
+            self.gamepad_state = Gamepad::default();
+            self.gamepad_device = None;
+            self.gamepad_ignored = 0;
         }
+        let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
+        if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
+            self.keyboards.retain(|(device, _)| !unplugged(device));
+            self.update_keys(now, &mut frame.events);
+        }
+        if self.mice.iter().any(|(device, _)| unplugged(device)) {
+            self.mice.retain(|(device, _)| !unplugged(device));
+            self.update_buttons(cursor, inside, &mut frame.events);
+        }
+
+        self.repeat_until(now, &mut frame.events);
         self.point(cursor, inside, &mut frame.events);
         if self.gamepad {
-            let mut state = self.gamepad_state;
-            state.buttons.0 &= !self.gamepad_ignored;
-            frame.events.push(Event::Gamepad(state));
+            self.send_gamepad(&mut frame.events);
         }
         frame
+    }
+
+    // A held key's repeats until the time, at the times Windows' settings
+    // give them.
+    fn repeat_until(&mut self, time: i64, events: &mut Vec<Event>) {
+        if !self.focused {
+            return;
+        }
+        let Some(repeat) = &mut self.repeat else {
+            return;
+        };
+        let (key, scan_code) = (repeat.key, repeat.scan_code);
+        let mut count = 0;
+        while repeat.next <= time {
+            repeat.next += self.repeat_interval.max(1);
+            count += 1;
+        }
+        for _ in 0..count {
+            events.push(Event::KeyPressed { key, repeat: true });
+            self.text(key, scan_code, events);
+        }
+    }
+
+    // The gamepad's buttons that count: those held but not ignored.
+    fn gamepad_buttons(&self) -> u32 {
+        self.gamepad_state.buttons.0 & !self.gamepad_ignored
+    }
+
+    // Tells the interface the gamepad's state, with the buttons that count.
+    fn send_gamepad(&mut self, events: &mut Vec<Event>) {
+        let mut state = self.gamepad_state;
+        state.buttons.0 = self.gamepad_buttons();
+        self.gamepad_sent = state.buttons.0;
+        events.push(Event::Gamepad(state));
     }
 
     // Tells the interface where the pointer is, if that changed: where the
