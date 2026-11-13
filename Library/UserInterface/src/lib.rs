@@ -108,7 +108,7 @@ pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, S
 pub use input::events::{Event, Input};
 pub use platform::clipboard::Clipboard;
 pub use platform::input_devices::{Device, Devices, NextReadingFailure, Reading, after_next_reading_failed, frame_readings};
-pub use platform::window::FocusChange;
+pub use platform::window::{FocusChange, Window};
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};

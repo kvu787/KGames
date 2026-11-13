@@ -16,6 +16,12 @@
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
 //   have, with DWMWA_USE_IMMERSIVE_DARK_MODE, which Microsoft's documentation
 //   describes as drawing the frame dark while Windows' own dark mode is on.
+// - Until its first frame is presented, it shows the theme's background,
+//   which it fills with GDI whenever Windows asks it to paint, and as soon as
+//   it shows. A window that paints nothing shows white, which would flash
+//   before a dark theme's first frame. GDI shows only until the first
+//   present of the window's flip-model swap chain, as DXGI_SWAP_EFFECT's
+//   documentation says, so after that the fills change nothing.
 
 use std::cell::Cell;
 use std::ptr::NonNull;
@@ -25,7 +31,7 @@ use windows_core::{BOOL, Error, PCWSTR, Result, w};
 
 use crate::application::settings::WindowMode;
 use crate::core::interaction::Cursor;
-use crate::drawing::geometry::Point;
+use crate::drawing::geometry::{Color, Point};
 use crate::platform::clock;
 
 // RunInBackground finds programs' windows by this class.
@@ -76,6 +82,8 @@ struct Shared {
     // Whether the cursor was on the client area when last asked.
     cursor_inside: Cell<bool>,
     cursor: Cell<HCURSOR>,
+    // What the window shows until its first frame is presented.
+    background: COLORREF,
 }
 
 impl Shared {
@@ -102,8 +110,9 @@ pub struct Window {
 }
 
 impl Window {
-    // A program's window on the monitor, hidden until shown.
-    pub fn create(title: &str, monitor: HMONITOR, mode: WindowMode) -> Result<Window> {
+    // A program's window on the monitor, hidden until shown, which shows
+    // `background`, the theme's, until its first frame is presented.
+    pub fn create(title: &str, monitor: HMONITOR, mode: WindowMode, background: Color) -> Result<Window> {
         unsafe {
             prepare_process();
             register_class()?;
@@ -129,13 +138,13 @@ impl Window {
             if hwnd.0.is_null() {
                 return Err(Error::from_thread());
             }
-            let mut window = Window::wrap(hwnd);
+            let mut window = Window::wrap(hwnd, background);
             window.apply_mode(mode, false);
             Ok(window)
         }
     }
 
-    unsafe fn wrap(hwnd: HWND) -> Window {
+    unsafe fn wrap(hwnd: HWND, background: Color) -> Window {
         unsafe {
             let cursors = [
                 IDC_ARROW,
@@ -158,6 +167,7 @@ impl Window {
                 setup_changed: Cell::new(true),
                 cursor_inside: Cell::new(false),
                 cursor: Cell::new(cursors[0]),
+                background: colorref(background),
             });
             let shared = NonNull::new_unchecked(Box::into_raw(shared));
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as isize);
@@ -180,25 +190,28 @@ impl Window {
         unsafe { self.shared.as_ref() }
     }
 
-    // Shows the window. Without `activate`, it opens beneath the others,
-    // without taking focus from the window that has it.
+    // Shows the window, and paints the background at once, rather than when
+    // the loop next handles messages. Without `activate`, it opens beneath
+    // the others, without taking focus from the window that has it.
     pub fn show(&mut self, activate: bool) {
         unsafe {
             if activate {
                 set_power_throttling(false);
                 let _ = ShowWindow(self.hwnd, SW_SHOW);
-                return;
+            } else {
+                // A window that mustn't take focus, like a test run's while
+                // someone works or plays a game, goes beneath the other
+                // windows, where it never covers theirs or takes their
+                // pointer, and a click on it never activates it. Screenshots
+                // of it work all the same.
+                set_power_throttling(true);
+                let style = GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE);
+                SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE as isize);
+                let _ = ShowWindow(self.hwnd, SW_SHOWNA);
+                let flags = (SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER) as u32;
+                let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), 0, 0, 0, 0, flags);
             }
-            // A window that mustn't take focus, like a test run's while
-            // someone works or plays a game, goes beneath the other windows,
-            // where it never covers theirs or takes their pointer, and a click
-            // on it never activates it. Screenshots of it work all the same.
-            set_power_throttling(true);
-            let style = GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE);
-            SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE as isize);
-            let _ = ShowWindow(self.hwnd, SW_SHOWNA);
-            let flags = (SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER) as u32;
-            let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), 0, 0, 0, 0, flags);
+            let _ = UpdateWindow(self.hwnd);
         }
     }
 
@@ -512,6 +525,21 @@ unsafe fn register_class() -> Result<()> {
     }
 }
 
+// GDI's color: red in the low byte.
+fn colorref(color: Color) -> COLORREF {
+    let [r, g, b, _] = color.to_bytes();
+    COLORREF(r as u32 | (g as u32) << 8 | (b as u32) << 16)
+}
+
+// Fills the rectangle with the color, with the DC's own brush, which needs no
+// brush of its own to make and delete.
+unsafe fn fill(hdc: HDC, rect: &RECT, color: COLORREF) {
+    unsafe {
+        SetDCBrushColor(hdc, color);
+        FillRect(hdc, rect, HBRUSH(GetStockObject(DC_BRUSH).0));
+    }
+}
+
 fn low_word(value: isize) -> i32 {
     (value & 0xFFFF) as u16 as i16 as i32
 }
@@ -565,9 +593,21 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 shared.setup_changed.set(true);
                 LRESULT(0)
             }
-            WM_ERASEBKGND => LRESULT(1),
+            // The background, until the first frame is presented: see the
+            // top. WM_PAINT fills what it paints itself, and Windows asks for
+            // this one too, like in BeginPaint and in WM_PRINT, as
+            // PrintWindow sends it.
+            WM_ERASEBKGND => {
+                let mut client = RECT::default();
+                let _ = GetClientRect(hwnd, &mut client);
+                fill(HDC(wparam.0 as *mut core::ffi::c_void), &client, shared.background);
+                LRESULT(1)
+            }
             WM_PAINT => {
-                let _ = ValidateRect(Some(hwnd), None);
+                let mut paint = PAINTSTRUCT::default();
+                let hdc = BeginPaint(hwnd, &mut paint);
+                fill(hdc, &paint.rcPaint, shared.background);
+                let _ = EndPaint(hwnd, &paint);
                 LRESULT(0)
             }
             WM_CLOSE => {

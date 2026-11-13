@@ -154,7 +154,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         });
     }
 
-    let mut window = Window::create(&program.title(), display.monitor, mode).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    let mut window = Window::create(&program.title(), display.monitor, mode, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
     if !scripted {
         ui.clipboard = Clipboard::Windows(window.hwnd());
     }

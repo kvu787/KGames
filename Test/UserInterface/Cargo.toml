@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 present_timing = { path = "../../Library/PresentTiming" }
 user_interface = { path = "../../Library/UserInterface" }
+windows_api = { path = "../../Library/WindowsApi" }
 
 [lints]
 workspace = true

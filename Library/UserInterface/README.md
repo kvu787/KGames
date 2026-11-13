@@ -498,7 +498,8 @@ folder, through `startup.data_folder`.
 | `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
 | `src/core/interface.rs`          | The interface: input against the shown tree, messages, layout, focus,      |
 |                                  | popups, tooltips, widget memory, and the frame's phases                    |
-| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check   |
+| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check,  |
+|                                  | and the theme's background that it shows until its first frame             |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/platform/clipboard.rs`      | Windows' clipboard, and the interface's own for scripts and tests          |
