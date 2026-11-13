@@ -304,10 +304,14 @@ walks it once, filtered to gamepad, keyboard and mouse input together, from the 
 handed out, with `GetNextReading`, until `GAMEINPUT_E_READING_NOT_FOUND` says there's nothing
 newer. The reading objects are where the walk is: GameInput's readings are singletons, which
 compare by pointer, while two readings can have the same timestamp. A frame that took longer than
-the history lasts loses its place, and starts over from the newest reading, as Microsoft's sample
-does, and the readings in between are lost. KGames accepts that loss, for keeping GameInput's own
-order, and doesn't register a reading callback, which Microsoft's documentation offers for
-event-driven input, like a menu, without promising that it gets every reading.
+the history lasts loses its place. Microsoft's sample walks one device, and starts that device over
+from its newest reading; KGames walks every device, so it starts each over from its newest reading,
+which it hands out unless it already has, those in the history in the stream's order, after those
+older than it. So no device keeps what it held before, like a key that was let go of in the
+readings that were lost, and only those readings are lost. KGames accepts that loss, for keeping
+GameInput's own order, and doesn't register a reading callback, which Microsoft's documentation
+offers for event-driven input, like a menu, without promising that it gets every reading. The
+first frame starts the same way, so every device's state is known from the start.
 `Test/UserInterface/tests/reader.rs` pins the walk.
 
 ## What changed in KGames

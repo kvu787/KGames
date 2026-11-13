@@ -20,9 +20,9 @@
 // The history is short: about 513 readings, which is about 70 ms of a gamepad
 // that reports thousands of times a second, measured on the development
 // machine with GameInput 4.0.306. A frame that takes longer than that loses
-// its place in the stream, and starts over from the newest reading, as
-// Microsoft's sample does, so the readings that left the history in between
-// are lost. Readings' times are GameInput's microseconds, which `qpc` turns
+// its place in the stream, and starts over from each device's newest reading
+// (see `Walker`), so that no device keeps what it held before, and only the
+// readings that left the history in between are lost. Readings' times are GameInput's microseconds, which `qpc` turns
 // into the performance counter's ticks, on the clock that frames, the window's
 // focus changes and the display's flips are timed on.
 
@@ -110,9 +110,8 @@ pub struct Devices {
     callback_token: GameInputCallbackToken,
     // The queue that the callback fills, which it holds a reference to.
     queue: *const DeviceQueue,
-    // The last reading handed out, which the next frame's walk starts after,
-    // or None before the first.
-    last: Option<IGameInputReading>,
+    // Where the walk of the stream is.
+    walker: Walker<IGameInput>,
     // How many times a frame's walk lost its place in the stream, and started
     // over from the newest reading.
     restarts: u64,
@@ -161,7 +160,7 @@ impl Devices {
             runtime,
             callback_token,
             queue,
-            last: None,
+            walker: Walker::default(),
             restarts: 0,
             known: Vec::new(),
             epoch: 0,
@@ -228,12 +227,8 @@ impl Devices {
             let device = unsafe { self.device(&object) };
             self.device_events.push((event, device));
         }
-        let game_input = self.game_input.clone();
-        let walked = walk_stream(
-            &mut self.last,
-            || unsafe { current_reading(&game_input) },
-            |last| unsafe { next_reading(&game_input, last) },
-        );
+        let known: Vec<IGameInputDevice> = self.known.iter().map(|(object, _)| object.clone()).collect();
+        let walked = self.walker.walk(&self.game_input, &known);
         if walked.restarted {
             self.restarts += 1;
         }
@@ -314,94 +309,203 @@ impl Devices {
     }
 }
 
+// GameInput's stream as a walk sees it: GetCurrentReading, GetNextReading
+// and GetPreviousReading, of every kind that frames read, with a device's
+// filter or without, each with the HRESULT it fails with, and a reading's
+// device. A test makes one up.
+pub trait Stream {
+    type Reading: Clone + PartialEq;
+    type Device: Clone + PartialEq;
+    fn current(&self, device: Option<&Self::Device>) -> Result<Self::Reading, HRESULT>;
+    fn next(&self, after: &Self::Reading, device: Option<&Self::Device>) -> Result<Self::Reading, HRESULT>;
+    fn previous(&self, before: &Self::Reading) -> Result<Self::Reading, HRESULT>;
+    fn device(&self, reading: &Self::Reading) -> Option<Self::Device>;
+}
+
 // What a frame's walk of the stream found.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Walked<R> {
     // The readings to hand out, in the stream's order.
     pub readings: Vec<R>,
-    // Whether the walk lost its place and started over from the newest
-    // reading, losing what came in between.
+    // Whether the walk lost its place and started over, losing readings.
     pub restarted: bool,
 }
 
-// One frame's walk of GameInput's stream, as Microsoft's documentation and
-// its GameInputSequential sample walk it, with `current` for GetCurrentReading
-// and `next` for GetNextReading, each with the HRESULT it fails with:
+// Walks GameInput's stream, a frame at a time, as Microsoft's documentation
+// and its GameInputSequential sample walk it:
 //
-// - The first walk, with no last reading, hands out the newest reading, and
-//   starts from it.
-// - Then each reading after the last one handed out, in the stream's order,
-//   until GAMEINPUT_E_READING_NOT_FOUND says there's nothing newer.
-// - Any other failure, like the last reading having left GameInput's history,
-//   starts over from the newest reading, which is handed out unless it's the
-//   last one handed out. The readings in between are lost.
-// - If there's no newest reading to start over from, the next walk starts as
-//   the first did.
+// - Each walk hands out every reading after the last one handed out, in the
+//   stream's order, until GAMEINPUT_E_READING_NOT_FOUND says there's nothing
+//   newer.
+// - The first walk, and one that loses its place, on any other failure, like
+//   the last reading having left GameInput's history, start from the newest
+//   reading. Microsoft's sample walks one device, and starts that device over
+//   from its newest reading; this walks every device, so it starts each over
+//   from its newest reading, which it hands out unless it already has: those
+//   in the history after the last reading handed out in the stream's order,
+//   after those older than the history, whose order the history no longer
+//   has. So no device keeps what it held before the readings that were lost,
+//   like a key that was let go of in them. Only the readings in between are
+//   lost, which a frame that took longer than the history lasts can't help.
+// - If there's no newest reading, the next walk starts as the first did.
 //
 // Readings are known by their objects, which GameInput's readings compare
-// by, so a reading is never handed out twice, and nothing is reordered.
-pub fn walk_stream<R: Clone + PartialEq>(
-    last: &mut Option<R>,
-    current: impl Fn() -> Result<R, HRESULT>,
-    next: impl Fn(&R) -> Result<R, HRESULT>,
-) -> Walked<R> {
-    let mut walked = Walked {
-        readings: Vec::new(),
-        restarted: false,
-    };
-    let Some(mut from) = last.clone() else {
-        if let Ok(newest) = current() {
-            walked.readings.push(newest.clone());
-            *last = Some(newest);
+// by, never by their times, which can't tell readings apart, so a reading is
+// never handed out twice, and nothing is reordered.
+pub struct Walker<S: Stream> {
+    // The last reading handed out, which the next walk starts after.
+    last: Option<S::Reading>,
+    // The last reading handed out of each device.
+    latest: Vec<(Option<S::Device>, S::Reading)>,
+}
+
+impl<S: Stream> Default for Walker<S> {
+    fn default() -> Self {
+        Walker {
+            last: None,
+            latest: Vec::new(),
         }
-        return walked;
-    };
-    loop {
-        match next(&from) {
-            Ok(reading) => {
-                walked.readings.push(reading.clone());
-                from = reading;
+    }
+}
+
+impl<S: Stream> Walker<S> {
+    // A frame's walk of the stream, with the devices known, which a walk that
+    // starts over brings up to date.
+    pub fn walk(&mut self, stream: &S, devices: &[S::Device]) -> Walked<S::Reading> {
+        let mut walked = Walked {
+            readings: Vec::new(),
+            restarted: false,
+        };
+        let Some(mut from) = self.last.clone() else {
+            for reading in self.start(stream, devices, None) {
+                self.hand_out(stream, reading, &mut walked.readings);
             }
-            Err(code) if code == GAMEINPUT_E_READING_NOT_FOUND => break,
-            Err(_) => {
-                walked.restarted = true;
-                match current() {
-                    Ok(newest) => {
-                        if newest != from {
-                            walked.readings.push(newest.clone());
-                        }
-                        from = newest;
-                    }
-                    Err(_) => {
-                        *last = None;
-                        return walked;
-                    }
+            return walked;
+        };
+        loop {
+            match stream.next(&from, None) {
+                Ok(reading) => {
+                    self.hand_out(stream, reading.clone(), &mut walked.readings);
+                    from = reading;
                 }
+                Err(code) if code == GAMEINPUT_E_READING_NOT_FOUND => {
+                    self.last = Some(from);
+                    break;
+                }
+                Err(_) => {
+                    walked.restarted = true;
+                    for reading in self.start(stream, devices, Some(&from)) {
+                        self.hand_out(stream, reading, &mut walked.readings);
+                    }
+                    break;
+                }
+            }
+        }
+        walked
+    }
+
+    // Hands a reading out, as its device's last.
+    fn hand_out(&mut self, stream: &S, reading: S::Reading, readings: &mut Vec<S::Reading>) {
+        let device = stream.device(&reading);
+        match self.latest.iter_mut().find(|(known, _)| *known == device) {
+            Some((_, latest)) => *latest = reading.clone(),
+            None => self.latest.push((device, reading.clone())),
+        }
+        readings.push(reading);
+    }
+
+    // Starts the walk from the newest reading, after `from`, the last reading
+    // handed out, if any: each device's newest reading that isn't handed out
+    // yet, those older than the history first, then those in it, in the
+    // stream's order, the newest last.
+    fn start(&mut self, stream: &S, devices: &[S::Device], from: Option<&S::Reading>) -> Vec<S::Reading> {
+        let Ok(newest) = stream.current(None) else {
+            self.last = None;
+            return Vec::new();
+        };
+        // Each device's newest reading in the history, met walking back from
+        // the newest reading, as far as `from` or the history's start.
+        let mut met: Vec<(Option<S::Device>, S::Reading)> = vec![(stream.device(&newest), newest.clone())];
+        let mut reading = newest.clone();
+        while Some(&reading) != from {
+            let Ok(previous) = stream.previous(&reading) else {
+                break;
+            };
+            if Some(&previous) == from {
                 break;
             }
+            let device = stream.device(&previous);
+            if !met.iter().any(|(known, _)| *known == device) {
+                met.push((device, previous.clone()));
+            }
+            reading = previous;
+        }
+        met.reverse();
+        // The newest reading of each device that the walk back didn't meet,
+        // which is older than the history, or at or before `from`, unless it's
+        // after the newest, which the next walk hands out: one is, if the
+        // device has a reading after the newest, which is looked for after
+        // the device's newest reading was taken, so that a reading that comes
+        // in between can't be handed out twice.
+        let mut older = Vec::new();
+        for device in devices {
+            if met.iter().any(|(known, _)| known.as_ref() == Some(device)) {
+                continue;
+            }
+            let Ok(current) = stream.current(Some(device)) else {
+                continue;
+            };
+            if matches!(stream.next(&newest, Some(device)), Err(code) if code == GAMEINPUT_E_READING_NOT_FOUND) {
+                older.push((Some(device.clone()), current));
+            }
+        }
+        self.last = Some(newest);
+        older
+            .into_iter()
+            .chain(met)
+            .filter(|(device, reading)| !self.latest.iter().any(|(known, latest)| known == device && latest == reading))
+            .map(|(_, reading)| reading)
+            .collect()
+    }
+}
+
+// GameInput's stream, read with GetCurrentReading, GetNextReading and
+// GetPreviousReading of every kind that frames read, with the HRESULT that
+// GameInput returns. GetNextReading fails every frame that has nothing new,
+// and the bindings' Result makes each failure a windows_core::Error, which
+// asks COM for the thread's error info.
+impl Stream for IGameInput {
+    type Reading = IGameInputReading;
+    type Device = IGameInputDevice;
+
+    fn current(&self, device: Option<&IGameInputDevice>) -> Result<IGameInputReading, HRESULT> {
+        let mut reading = std::ptr::null_mut();
+        let device = device.map_or(std::ptr::null_mut(), |device| device.as_raw());
+        unsafe {
+            let code = (Interface::vtable(self).GetCurrentReading)(self.as_raw(), KINDS, device, &mut reading);
+            returned(code, reading)
         }
     }
-    *last = Some(from);
-    walked
-}
 
-// GetCurrentReading and GetNextReading of every kind that frames read, with
-// the HRESULT that GameInput returns. GetNextReading fails every frame that
-// has nothing new, and the bindings' Result makes each failure a
-// windows_core::Error, which asks COM for the thread's error info.
-unsafe fn current_reading(game_input: &IGameInput) -> Result<IGameInputReading, HRESULT> {
-    let mut reading = std::ptr::null_mut();
-    unsafe {
-        let code = (Interface::vtable(game_input).GetCurrentReading)(game_input.as_raw(), KINDS, std::ptr::null_mut(), &mut reading);
-        returned(code, reading)
+    fn next(&self, after: &IGameInputReading, device: Option<&IGameInputDevice>) -> Result<IGameInputReading, HRESULT> {
+        let mut reading = std::ptr::null_mut();
+        let device = device.map_or(std::ptr::null_mut(), |device| device.as_raw());
+        unsafe {
+            let code = (Interface::vtable(self).GetNextReading)(self.as_raw(), after.as_raw(), KINDS, device, &mut reading);
+            returned(code, reading)
+        }
     }
-}
 
-unsafe fn next_reading(game_input: &IGameInput, last: &IGameInputReading) -> Result<IGameInputReading, HRESULT> {
-    let mut reading = std::ptr::null_mut();
-    unsafe {
-        let code = (Interface::vtable(game_input).GetNextReading)(game_input.as_raw(), last.as_raw(), KINDS, std::ptr::null_mut(), &mut reading);
-        returned(code, reading)
+    fn previous(&self, before: &IGameInputReading) -> Result<IGameInputReading, HRESULT> {
+        let mut reading = std::ptr::null_mut();
+        unsafe {
+            let code = (Interface::vtable(self).GetPreviousReading)(self.as_raw(), before.as_raw(), KINDS, std::ptr::null_mut(), &mut reading);
+            returned(code, reading)
+        }
+    }
+
+    fn device(&self, reading: &IGameInputReading) -> Option<IGameInputDevice> {
+        unsafe { reading.GetDevice() }
     }
 }
 

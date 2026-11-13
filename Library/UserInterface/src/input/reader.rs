@@ -21,17 +21,18 @@
 //   in use. Each change of its buttons is an event at its reading, so that a
 //   button pressed and let go of within a frame counts, and the frame's last
 //   event is its state as the frame leaves it.
-// - A device that's unplugged lets go of what it held after the frame's
-//   readings, as GameInput doesn't say when it went.
+// - A gamepad is known from when it connects, and a device that's unplugged
+//   lets go of what it held after the frame's readings, as GameInput doesn't
+//   say when it went.
 //
 // Without focus, the window gets no input, and GameInput gives none, as the
 // library leaves its background input off (see platform/input_devices.rs):
 // as focus goes, it gives each device a reading at rest, which lets go of
-// everything held. Keys and buttons held when focus comes count once they're
-// let go of. GameInput doesn't report keys and mouse buttons held from before
-// focus at all, like the click that gives the window focus, but reports a
-// gamepad's whole state, whose held buttons the reader ignores until they're
-// let go of. A reading from before the window got focus is input without it
+// everything held, and the reader forgets the keys and mouse buttons held
+// itself, in case that reading was lost. GameInput doesn't report keys and
+// mouse buttons held from before focus at all, like the click that gives the
+// window focus, but reports a gamepad's whole state, whose held buttons the
+// reader ignores until they're let go of. A reading from before the window got focus is input without it
 // even when it comes in a later frame than the focus change, like that
 // reading of a gamepad if GameInput is late with it. A press while the
 // pointer isn't on the window is another window's.
@@ -148,9 +149,17 @@ impl InputReader {
         let mut readings = Vec::new();
         let mut disconnected = Vec::new();
         if let Some(devices) = devices {
-            for (event, device) in devices.device_events() {
+            // By each device's last event in the frame, so that one that
+            // disconnects and connects again stays.
+            let events = devices.device_events();
+            for (index, (event, device)) in events.iter().enumerate() {
+                if events[index + 1..].iter().any(|(_, later)| later.id == device.id) {
+                    continue;
+                }
                 if *event == GameInputDeviceEventDisconnected {
                     disconnected.push(device.id);
+                } else if *event == GameInputDeviceEventConnected && device.supported_input & GameInputKindGamepad != 0 {
+                    self.gamepad_connected(device.id);
                 }
             }
             for reading in devices.readings() {
@@ -253,12 +262,43 @@ impl InputReader {
                 self.ignored_buttons = self.buttons_down;
                 self.gamepad_ignored = self.combined_gamepad().buttons.0;
                 self.pointer = None;
+                // The interface takes the gamepad event right after focus
+                // comes as what's held then, which counts once it's let go
+                // of. Its buttons that count are none, as the reader ignores
+                // all that are held, so that a press after this, in the same
+                // frame, is a press.
+                if self.gamepad {
+                    self.send_gamepad(events);
+                }
             }
         } else if self.focused {
             self.focused = false;
             events.push(Event::FocusLost);
             self.repeat = None;
             self.pointer = None;
+            // Keys and mouse buttons go with focus: GameInput gives each
+            // device a reading at rest as focus goes, and none of what's
+            // held or let go of until focus comes back, so whatever the
+            // reader last had is no longer so, even if that reading was lost.
+            self.keyboards.clear();
+            self.keys_down = [false; 256];
+            self.mice.clear();
+            self.buttons_down = 0;
+            self.ignored_buttons = 0;
+        }
+    }
+
+    // A gamepad that connected, which is known from then on, at rest until it
+    // reads, so that the interface's gamepad is connected while one is.
+    pub fn gamepad_connected(&mut self, device: usize) {
+        if !self.gamepads.iter().any(|(known, _)| *known == Some(device)) {
+            self.gamepads.push((
+                Some(device),
+                Gamepad {
+                    connected: true,
+                    ..Gamepad::default()
+                },
+            ));
         }
     }
 
