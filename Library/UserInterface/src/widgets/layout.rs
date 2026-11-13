@@ -215,8 +215,9 @@ impl ViewInput {
 }
 
 // A 3D view's area. It takes presses of every mouse button and the wheel,
-// but never keyboard focus, and a press in it takes focus from whatever had
-// it, so that the program's keys work while it's used.
+// but never keyboard focus, and a press in it, as anywhere but on a text
+// field, takes focus from the field that had it, so that the program's keys
+// work while it's used.
 pub struct View<M> {
     cursor: Option<Cursor>,
     sense: Sense,
@@ -291,9 +292,6 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let hit = interaction.whole();
-        if hit.pressed || hit.secondary_pressed || hit.middle_pressed {
-            ctx.clear_focus();
-        }
         if let Some(cursor) = self.cursor
             && (hit.hovered || hit.held)
         {

@@ -12,11 +12,6 @@
 use crate::design::tokens::Curve;
 use crate::drawing::geometry::Insets;
 
-// The focus visual: FocusVisualMargin -3 puts it 3 pixels outside a control,
-// and checkboxes, radio buttons and switches put it around their label too.
-pub const FOCUS_VISUAL_MARGIN: Insets = Insets::all(3.0);
-pub const FOCUS_VISUAL_MARGIN_WIDE: Insets = Insets::new(7.0, 3.0, 7.0, 3.0);
-
 // Button, ToggleButton and RepeatButton: ButtonPadding, and
 // ButtonBorderThemeThickness.
 pub const BUTTON_PADDING: Insets = Insets::new(11.0, 5.0, 11.0, 6.0);
@@ -84,16 +79,12 @@ pub const SLIDER_HEADER_GAP: f32 = 4.0;
 pub const SLIDER_TOOLTIP_PADDING: Insets = Insets::new(8.0, 3.0, 8.0, 5.0);
 pub const SLIDER_TOOLTIP_FONT_SIZE: f32 = 15.0;
 
-// ComboBox: ComboBoxPadding, the chevron's column, its glyph and margin, and
-// the keyboard focus cue: a 2-pixel ring 4 pixels outside, with corners of 7.
+// ComboBox: ComboBoxPadding, and the chevron's column, its glyph and margin.
 pub const COMBO_BOX_PADDING: Insets = Insets::new(12.0, 5.0, 0.0, 7.0);
 pub const COMBO_BOX_CHEVRON_COLUMN: f32 = 38.0;
 pub const COMBO_BOX_CHEVRON_SIZE: f32 = 12.0;
 pub const COMBO_BOX_CHEVRON_MARGIN: f32 = 14.0;
 pub const COMBO_BOX_MIN_WIDTH: f32 = 64.0;
-pub const COMBO_BOX_FOCUS_MARGIN: f32 = 4.0;
-pub const COMBO_BOX_FOCUS_THICKNESS: f32 = 2.0;
-pub const COMBO_BOX_FOCUS_RADIUS: f32 = 7.0;
 // Its popup: ComboBoxDropdownContentMargin, ComboBoxPopupThemeMinWidth, and
 // ComboBoxPopupMaxNumberOfItems.
 pub const COMBO_BOX_POPUP_PADDING: Insets = Insets::new(0.0, 4.0, 0.0, 4.0);
@@ -174,7 +165,7 @@ pub const INFO_BADGE_TEXT_MARGIN: Insets = Insets::new(4.0, 0.0, 4.0, 2.0);
 pub const INFO_BADGE_DOT: f32 = 6.0;
 
 // ToolTip: ToolTipBorderPadding, ToolTipMaxWidth, and how far it is from the
-// pointer (DEFAULT_MOUSE_OFFSET) or from the control the keyboard is on.
+// pointer (DEFAULT_MOUSE_OFFSET).
 pub const TOOLTIP_PADDING: Insets = Insets::new(9.0, 6.0, 9.0, 8.0);
 pub const TOOLTIP_MAX_WIDTH: f32 = 320.0;
 pub const TOOLTIP_OFFSET: f32 = 20.0;

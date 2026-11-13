@@ -16,8 +16,8 @@
     { "Frame": 29, "Release": "Right" },
     { "Frame": 45, "Capture": "ContextMenu" },
     { "Frame": 45, "Expect": { "Interface": { "Popup": "View/ContextMenu" } } },
-    { "Frame": 46, "Key": "Esc" },
-    { "Frame": 48, "Expect": { "Interface": { "Popup": null } } },
+    { "Frame": 46, "Click": { "Target": "View", "At": [0.05, 0.05] } },
+    { "Frame": 48, "Expect": { "Interface": { "Popup": null }, "Selection": { "Vertices": 8 } } },
     { "Frame": 49, "Key": "Alt+Z" },
     { "Frame": 51, "Expect": { "XRay": true } },
     { "Frame": 60, "Capture": "XRay" }

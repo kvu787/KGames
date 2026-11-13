@@ -95,7 +95,7 @@ pub use platform::clock;
 pub use application::program::{Arguments, Notice, Options, Program, Startup};
 pub use application::run::{run, state};
 pub use application::settings::{CommonSettings, Settings, WindowMode};
-pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Keys, Part, Sense, Target, Wheel, id};
+pub use core::interaction::{ControlState, Cursor, Hit, Id, Interaction, Part, Sense, Target, Wheel, id};
 pub use core::interface::{Context, Environment, FramePhases, FrameStats, Interface, Ui};
 pub use core::tree::{Dispatch, Draw, Element, Look, Parts, Tooltip, TooltipLine, Tree, Widget};
 pub use design::icons::Icon;
@@ -132,7 +132,7 @@ pub use widgets::slider::{Slider, slider_rail};
 pub use widgets::text::{Badge, Canvas, Divider, Field, IconView, KEYCAP_HEIGHT, Keycaps, Run, Spans, StatusIcon, Swatch, Text, TextColor, status_icon};
 pub use widgets::text_box::TextBox;
 pub use widgets::toggles::{CheckBox, RadioButton, RadioGroup, ToggleSwitch};
-pub use widgets::widget::{Elevation, Reaction, StateColors, focus_visual};
+pub use widgets::widget::{Elevation, Reaction, StateColors};
 
 // The crates that programs use with the interface, so that they share them.
 pub use game_input;

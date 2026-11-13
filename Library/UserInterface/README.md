@@ -112,8 +112,7 @@ of your own, so that every program looks like one family, and like Windows 11.
   and dialogs at 128), and the page's sizes.
 - **Controls** (`design/controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
-  a list item's backplate and selection pill, a menu item's padding, and the focus visual's two
-  rings, each from WinUI's styles.
+  a list item's backplate and selection pill, and a menu item's padding, each from WinUI's styles.
 - **Elevation borders**: controls' borders shade from their top to their bottom, as WinUI's
   ControlElevationBorderBrush does, and text fields' bottom edge is strong, and the accent's two
   pixels while they have focus.
@@ -151,8 +150,8 @@ it is to the input, `interact` turns what happened to it into messages through `
 | `CheckBox`, `RadioButton`          | CheckBox, RadioButton     | A radio button is checked while the value is its own            |
 | `RadioGroup`                       | RadioButtons              | A column of radios that picks one of its items, by index        |
 | `ToggleSwitch`                     | ToggleSwitch              |                                                                 |
-| `Slider`                           | Slider                    | Steps, the wheel, the keys, a header, and the value as dragged  |
-| `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons, the arrows or the wheel        |
+| `Slider`                           | Slider                    | Steps, the wheel, a header, and the value as dragged            |
+| `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons or the wheel                    |
 | `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is        |
 | `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own   |
 | `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
@@ -180,12 +179,9 @@ it is to the input, `interact` turns what happened to it into messages through `
 | `Keycaps`, `Badge`, `Divider`      | InfoBadge, and others     | Keycaps of shortcuts, counts on a pill, and lines               |
 | `Text`, `Field`, `Swatch`, `Spans` |                           | Labels, captions, label-value rows, color squares, mixed runs   |
 
-`tree.add(...)` returns the element, whose `set_enabled`, `set_tooltip`, `set_label`,
-`set_context_menu` and `set_focusable` say more about it. A container's children, like a card's,
-inherit its enabling, so a disabled card can't have a working widget. `Tree::set_focusable` sets
-what every widget added after it takes from the keyboard, and an element's own `set_focusable`
-stands on its own, so a program that keeps focus off everything, like a game, calls
-`tree.set_focusable(false)` first and opts its text fields back in one by one.
+`tree.add(...)` returns the element, whose `set_enabled`, `set_tooltip`, `set_label` and
+`set_context_menu` say more about it. A container's children, like a card's, inherit its enabling,
+so a disabled card can't have a working widget.
 A widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
 `takes_wheel_while_focused()`, like a number box's - so what it's in doesn't scroll under it;
 `Sense::VIEW` takes it already.
@@ -229,16 +225,18 @@ before, but reports gamepads' whole state, their held buttons too.
 - Widgets act on a press, on the frame that the button goes down, and never wait for its release,
   which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
   opens, an item is chosen, and a right press opens a context menu. Sliding off before letting go
-  doesn't take a press back. `Hit::activated` is a left press or Space or Enter, and
-  `ViewInput::pressed` is a click in a 3D view. While a button is held, the window captures the
+  doesn't take a press back. `Hit::pressed` is a left press, and `ViewInput::pressed` is a click
+  in a 3D view. While a button is held, the window captures the
   mouse, so a drag keeps going past its edges.
-- Keyboard focus moves with Tab and Shift+Tab, in the order that the frame showed the widgets, and
-  with a press on a widget that takes it. Its rings show only after the keyboard moved it, as
-  Windows does. Esc closes a menu or a dialog, or else takes focus away. A widget with focus under
-  an open menu or dialog gets no keys.
+- Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
+  and a press anywhere else takes it away, once the field has taken what was typed in that frame.
+  No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
+  with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
+  dialog gets no keys.
 - `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
-  don't see the keys that the widget with focus takes, like a text field's letters or a slider's
-  arrows, or any while a dialog is open - from the very frame it opens, for checks after it.
+  don't see the keys that a text field with focus takes - every key without Ctrl, and the ones
+  that edit with Ctrl, like Ctrl+C - or any while a dialog is open - from the very frame it
+  opens, for checks after it.
   `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
   driving.
 - Without focus, the window has no input at all, including the gamepad's. As focus goes,

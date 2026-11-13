@@ -92,10 +92,9 @@ the demo applies a dead zone.
 ### Choosing a gamepad
 
 Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
-Esc, a click anywhere else in the window, or the window losing focus, like when it's minimized,
-closes the list. While the list is open, Up, Down, Home and End move to another choice, and Space or
-Enter pick it, like in any combo box of Library/UserInterface. Otherwise the combo box never takes
-keyboard focus, so the keys that you press to try the Keyboard card leave it alone.
+A click anywhere else in the window, or the window losing focus, like when it's minimized, closes
+the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
+text field does, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |
 | --------- | ------------------------------------------------------------------------------- |

@@ -1,6 +1,6 @@
 // Tests the interface's rules for input with a small program: which widget
 // the pointer is on, presses, which act as the button goes down, keyboard
-// focus and the keys that widgets take, popups, menus, dialogs, tooltips,
+// focus, which only text fields take, popups, menus, dialogs, tooltips,
 // notices, editing, and palettes.
 
 use user_interface::json::Value;
@@ -183,7 +183,6 @@ impl Program for Test {
                 dialog.add("Pick", area.content.top_strip(32.0), ComboBox::new(self.pick, &["Yes", "No"]).on_select(Msg::Pick));
             });
         }
-        // Last, so that the tab order of the widgets above stays.
         tree.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(self.shrink, &self.items).on_select(Msg::Shrink));
         let beneath = Rect::new(1000.0, top + 400.0, 300.0, 100.0);
         let list = ListView::new(50, 20.0).selection(self.beneath).on_select(Msg::Beneath);
@@ -288,10 +287,24 @@ fn a_focused_text_field_takes_the_keys_that_type() {
     assert_eq!(app.program.text, "");
     app.key_with(Modifiers::CONTROL, Key::V);
     assert_eq!(app.program.text, "ab ");
-    // Esc takes focus away, and the keys are the program's again.
-    app.key(Key::ESCAPE).key(Key::A);
+    // A press elsewhere takes focus away, and the keys are the program's
+    // again.
+    app.click_point(Point::new(5.0, 900.0)).key(Key::A);
     assert_eq!(app.program.shortcut, 2);
     assert_eq!(focused(&app), Some(Value::Null));
+}
+
+// A press elsewhere takes focus from a text field only once the field has
+// taken what was typed in the press's frame.
+#[test]
+fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
+    let mut app = Headless::new(Test::default());
+    app.click("Field");
+    let center = app.target("Button").center();
+    app.queue(&[Event::Text('x'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
+    assert_eq!(focused(&app), Some(Value::Null));
+    app.release();
 }
 
 // Cut takes the text away only once it's on the clipboard. Windows'
@@ -311,21 +324,22 @@ fn a_cut_keeps_the_text_unless_the_clipboard_takes_it() {
 }
 
 #[test]
-fn tab_goes_through_the_widgets_in_order_and_skips_disabled_ones() {
-    let mut app = Headless::new(Test {
-        disabled: true,
-        ..Test::default()
-    });
-    app.key(Key::TAB);
-    assert_eq!(focused(&app), Some(Value::from("Button")));
-    app.key(Key::TAB);
+fn only_a_text_field_takes_focus_and_a_press_elsewhere_takes_it_away() {
+    let mut app = Headless::new(Test::default());
+    // Buttons, lists and checkboxes take no focus, and Tab moves none.
+    app.click("Button").click("Rows/1").click("Check").key(Key::TAB);
+    assert_eq!(focused(&app), Some(Value::Null));
+    app.click("Field").type_text("x");
     assert_eq!(focused(&app), Some(Value::from("Field")));
-    // Under is covered from the pointer, but not from the keyboard, and
-    // Maybe is disabled.
-    app.key(Key::TAB).key(Key::TAB).key(Key::TAB);
-    assert_eq!(focused(&app), Some(Value::from("Rows")));
-    app.key_with(Modifiers::SHIFT, Key::TAB);
-    assert_eq!(focused(&app), Some(Value::from("Under")));
+    // A press on the field's own clear button leaves focus in the field.
+    app.click("Field/Clear");
+    assert_eq!((focused(&app), app.program.text.as_str()), (Some(Value::from("Field")), ""));
+    // A press on any other widget takes it away, and so does one that no
+    // widget takes, of any button.
+    app.click("Button");
+    assert_eq!(focused(&app), Some(Value::Null));
+    app.click("Field").press_button(Point::new(5.0, 900.0), MouseButton::Right).release_button(MouseButton::Right);
+    assert_eq!(focused(&app), Some(Value::Null));
 }
 
 #[test]
@@ -340,8 +354,8 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
     assert_eq!(app.program.choice, 2);
     assert_eq!(app.ui.popup_name(), None);
     assert_eq!(app.label("Combo").as_deref(), Some("Two"));
-    // Esc closes it without choosing.
-    app.click("Combo").key(Key::UP).key(Key::ESCAPE);
+    // A press outside closes it without choosing.
+    app.click("Combo").click_point(Point::new(5.0, 900.0));
     assert_eq!((app.program.choice, app.ui.popup_name()), (2, None));
 }
 
@@ -363,13 +377,12 @@ fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
 }
 
 #[test]
-fn a_list_shows_only_the_rows_in_view_and_the_keys_scroll_to_the_selection() {
+fn a_list_shows_only_the_rows_in_view() {
     let mut app = Headless::new(Test::default());
     assert!(app.has_target("Rows/4") && !app.has_target("Rows/6"));
     app.click("Rows/1");
     assert_eq!(app.program.rows, Some(1));
-    app.key(Key::END);
-    assert_eq!(app.program.rows, Some(49));
+    app.scroll("Rows", -20.0);
     assert!(app.has_target("Rows/49") && !app.has_target("Rows/1"));
     app.scroll("Rows", 2.0);
     assert!(app.has_target("Rows/43"));
@@ -387,11 +400,9 @@ fn toggles_sliders_and_number_boxes_change_their_values() {
     let (left, _) = user_interface::slider_rail(app.target("Level"));
     app.press_point(Point::new(left, app.target("Level").center().y)).release();
     assert!((app.program.level - 0.2).abs() < 1e-9, "{}", app.program.level);
-    app.key(Key::RIGHT);
-    assert!((app.program.level - 0.3).abs() < 1e-9);
     app.scroll("Level", 0.5).scroll("Level", 0.5);
-    assert!((app.program.level - 0.4).abs() < 1e-9, "half notches add up: {}", app.program.level);
-    assert_eq!(app.label("Level").as_deref(), Some("0.40"));
+    assert!((app.program.level - 0.3).abs() < 1e-9, "half notches add up: {}", app.program.level);
+    assert_eq!(app.label("Level").as_deref(), Some("0.30"));
     // A number box takes what's typed with Enter, inside its range.
     app.click("Number").key_with(Modifiers::CONTROL, Key::A).type_text("42").key(Key::ENTER);
     assert_eq!(app.program.number, 10);
@@ -422,11 +433,29 @@ fn menus_open_choose_and_close() {
     assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
     let menu = app.target("Area/ContextMenu");
     assert!((menu.x - at.x).abs() < 1.0 && (menu.y - at.y).abs() < 1.0);
-    app.key(Key::DOWN).key(Key::ENTER);
+    app.click("Area/ContextMenu/First");
     assert_eq!(app.program.chosen, ["Open", "Second", "First"]);
     // A press outside a menu closes it, and does nothing else.
     app.click("MenuButton").click("Button");
     assert_eq!((app.program.clicks, app.ui.any_popup()), (0, false));
+}
+
+// A press on what a context menu belongs to, outside the menu, closes it and
+// does nothing else, as a press anywhere outside a popup does.
+#[test]
+fn a_press_on_a_context_menu_s_area_outside_it_closes_it() {
+    let mut app = Headless::new(Test::default());
+    let at = Point::new(850.0, PERF_BAR + 450.0);
+    app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
+    assert_eq!(app.ui.popup_name(), Some("Area/ContextMenu"));
+    let secondary = app.program.secondary;
+    // In the area, left of the menu.
+    let away = Point::new(810.0, PERF_BAR + 590.0);
+    app.press_button(away, MouseButton::Right).release_button(MouseButton::Right);
+    assert_eq!((app.ui.popup_name(), app.program.secondary), (None, secondary));
+    app.press_button(at, MouseButton::Right).release_button(MouseButton::Right);
+    app.click_point(away);
+    assert_eq!(app.ui.popup_name(), None);
 }
 
 #[test]
@@ -438,7 +467,7 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     assert_eq!(app.program.clicks, 0, "the page is under the smoke");
     app.key(Key::A);
     assert_eq!(app.program.shortcut, 0, "the program's keys wait too");
-    app.key(Key::ESCAPE);
+    app.click("Question/Close");
     assert_eq!(app.program.answer, Some(DialogResult::Close));
     app.click("Ask").click("Question/Primary");
     assert_eq!(app.program.answer, Some(DialogResult::Primary));
@@ -616,9 +645,9 @@ fn a_program_starts_in_the_theme_that_its_settings_say() {
     assert!(wrong.label("Notice/0").unwrap().contains("Theme must be \"Light\" or \"Dark\""), "{:?}", wrong.label("Notice/0"));
 }
 
-// What porting the programs found: segments where widgets can't take focus,
-// a color field left while it's typed in, a slider's steps of a thousandth,
-// and a wide tooltip.
+// What porting the programs found: segments, which take no focus, a color
+// field left while it's typed in, a slider's steps of a thousandth, and a
+// wide tooltip.
 #[derive(Clone, Debug, PartialEq)]
 enum PortedMsg {
     Segment(usize),
@@ -655,9 +684,7 @@ impl Program for Ported {
         let mut tree = Tree::new();
         // Under the PerfBar.
         let top = ui.content_top();
-        tree.set_focusable(false);
         tree.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), Segmented::new(self.segment, &["A", "B", "C"]).on_select(PortedMsg::Segment));
-        tree.set_focusable(true);
         tree.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), ColorField::new(self.color).on_change(PortedMsg::Color));
         tree.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&self.other).on_change(PortedMsg::Other));
         tree.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<PortedMsg>::height(false)), Slider::new(self.fine, 0.0, 1.0).step(0.001).on_change(PortedMsg::Fine));
@@ -668,7 +695,7 @@ impl Program for Ported {
 }
 
 #[test]
-fn segments_take_no_focus_where_widgets_can_t() {
+fn segments_take_no_focus() {
     let mut app = Headless::new(Ported::default());
     app.frame();
     app.click("Segments/B");
@@ -688,9 +715,9 @@ fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
     assert_eq!(app.program.color.to_hex(), "#FF8000");
 }
 
-// However focus leaves a number box - Esc, or a press on a view that takes
-// focus without being focusable - the typed draft commits on that very
-// frame, and no stale draft revives on the next edit.
+// However focus leaves a number box - a press on a button, or on a view -
+// the typed draft commits on that very frame, and no stale draft revives on
+// the next edit.
 #[test]
 fn a_number_box_commits_its_draft_however_focus_leaves() {
     let mut app = Headless::new(Test::default());
@@ -698,44 +725,15 @@ fn a_number_box_commits_its_draft_however_focus_leaves() {
     app.click("Number").key_with(Modifiers::CONTROL, Key::A);
     app.type_text("7");
     assert_eq!(app.program.number, 0, "not before it commits");
-    app.queue(&[Event::KeyPressed { key: Key::ESCAPE, repeat: false }]).frame();
-    assert_eq!(app.program.number, 7, "Esc committed the draft on its frame");
-    app.queue(&[Event::KeyReleased(Key::ESCAPE)]).frame();
+    app.press("Button");
+    assert_eq!(app.program.number, 7, "the button's press committed the draft on its frame");
+    app.release();
     // A fresh edit starts from the value, not a revived draft.
     app.click("Number").key_with(Modifiers::CONTROL, Key::A);
     app.type_text("3");
     app.press("Area");
     assert_eq!(app.program.number, 3, "the view's press committed the draft on its frame");
     app.release();
-}
-
-// Enter in a dialog goes to the focused widget that takes it, like the
-// combo box, and to the default button only when nothing does.
-#[test]
-fn enter_in_a_dialog_is_the_focused_widgets_before_the_defaults() {
-    let mut app = Headless::new(Test::default());
-    app.click("Ask");
-    assert!(app.has_target("Question"));
-    // Tab goes through the dialog's own buttons first, then its content.
-    app.key(Key::TAB);
-    assert_eq!(focused(&app), Some("Question/Primary".into()));
-    app.key(Key::TAB);
-    app.key(Key::TAB);
-    assert_eq!(focused(&app), Some("Pick".into()));
-    app.key(Key::ENTER);
-    assert_eq!(app.program.answer, None, "Enter opened the combo, not the default");
-    assert_ne!(app.ui.state().get("Popup"), Some(&Value::Null));
-    app.key(Key::ESCAPE);
-    app.key(Key::ENTER);
-    assert_eq!(app.program.answer, None, "the combo still has focus and takes Enter");
-    app.key(Key::ESCAPE);
-    app.key(Key::ESCAPE);
-    assert_eq!(app.program.answer, Some(DialogResult::Close));
-    // With nothing focused inside, Enter is the default's, even while a
-    // widget under the dialog kept focus.
-    app.click("Ask");
-    app.key(Key::ENTER);
-    assert_eq!(app.program.answer, Some(DialogResult::Primary));
 }
 
 // F10's very frame already says the new setting, PerfBar and state alike.
@@ -873,18 +871,6 @@ fn a_right_press_that_closes_a_menu_goes_nowhere_else() {
 }
 
 #[test]
-fn enter_goes_to_an_open_list_in_a_dialog_not_to_its_default_button() {
-    let mut app = Headless::new(Test::default());
-    app.click("Ask").click("Pick");
-    assert!(app.ui.any_popup());
-    app.key(Key::DOWN).key(Key::ENTER);
-    assert_eq!((app.program.pick, app.program.answer), (1, None));
-    assert!(!app.ui.any_popup());
-    app.click("Question/Primary");
-    assert_eq!(app.program.answer, Some(DialogResult::Primary));
-}
-
-#[test]
 fn a_list_whose_items_go_while_it_is_open_closes() {
     let mut app = Headless::new(Test {
         items: vec!["Only".to_string()],
@@ -920,7 +906,7 @@ fn the_wheel_over_a_menu_leaves_the_list_under_it_alone() {
     assert!(app.target("Beneath").contains(over), "the menu opens over the list");
     app.scroll_point(over, -2.0);
     assert!(app.has_target("Beneath/0"), "the list didn't scroll under the menu");
-    app.key(Key::ESCAPE);
+    app.click_point(Point::new(5.0, 900.0));
     app.scroll_point(over, -2.0);
     assert!(!app.has_target("Beneath/0"), "the list scrolls once the menu is gone");
 }
@@ -1005,9 +991,8 @@ impl Program for Names {
 }
 
 // A program's selection may be past its list's rows, when the list got
-// shorter and the selection wasn't moved. The list takes it as no selection:
-// it asks for no label of it, doesn't activate it, and the keys move from the
-// top.
+// shorter and the selection wasn't moved. The list takes it as no selection,
+// and asks for no label of it.
 #[test]
 fn a_list_takes_a_selection_past_its_rows_as_none() {
     let names = |count: usize| (0..count).map(|index| format!("Name {index}")).collect::<Vec<_>>();
@@ -1018,13 +1003,8 @@ fn a_list_takes_a_selection_past_its_rows_as_none() {
     // The frame asks the list for its label, which is its selected row's.
     app.frame();
     assert_eq!(app.program.selected, Some(2), "the program's selection is the program's to move");
-    // Enter activates the selected row, and there is none.
-    app.key(Key::ENTER);
-    assert_eq!(app.program.activated, Vec::<usize>::new());
-    // Up from no selection is the first row, not the row before one that
-    // isn't there.
-    app.program.names = names(2);
-    app.program.selected = Some(5);
-    app.key(Key::UP);
-    assert_eq!(app.program.selected, Some(0));
+    assert_eq!(app.label("Names"), None);
+    // A double-click activates the row it's on.
+    app.double_click("Names/0");
+    assert_eq!(app.program.activated, [0]);
 }

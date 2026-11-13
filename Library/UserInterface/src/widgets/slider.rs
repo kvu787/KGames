@@ -1,9 +1,9 @@
 // WinUI's Slider, horizontal: a rail in ControlStrongFill, the part up to the
 // value in the accent, and a round thumb whose accent dot is bigger with the
 // pointer over it and smaller while it's pressed. A press anywhere on the
-// rail moves the thumb there and drags it; the arrows, Page Up, Page Down,
-// Home and End move it; and the wheel turns it a step a notch, adding up
-// parts of notches. While it's dragged, its value shows above the thumb.
+// rail moves the thumb there and drags it, and the wheel turns it a step a
+// notch, adding up parts of notches. While it's dragged, its value shows
+// above the thumb.
 //
 // Its value is an f64, which the program keeps in any number type. The
 // rail's ends can be wider than the values allowed, like a rail from 0 to 1
@@ -20,10 +20,9 @@ use crate::design::controls::{
     SLIDER_TOOLTIP_FONT_SIZE, SLIDER_TOOLTIP_PADDING, SLIDER_TRACK_HEIGHT, SLIDER_TRACK_RADIUS, TOOLTIP_OFFSET,
 };
 use crate::design::tokens::{BODY, ELEVATION_TOOLTIP, RADIUS_CONTROL};
-use crate::drawing::geometry::{Insets, Point, Rect, Size};
+use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::drawing::text::TextStyle;
-use crate::input::devices::Key;
 use crate::widgets::widget::{Elevation, Reaction, StateColors, react};
 
 pub struct Slider<M> {
@@ -31,7 +30,6 @@ pub struct Slider<M> {
     minimum: f64,
     maximum: f64,
     step: Option<f64>,
-    large_step: Option<f64>,
     // The values allowed, inside the rail's ends.
     allowed: (f64, f64),
     header: Option<String>,
@@ -67,7 +65,6 @@ impl<M: Clone + 'static> Slider<M> {
             minimum,
             maximum,
             step: None,
-            large_step: None,
             allowed: (minimum.min(maximum), minimum.max(maximum)),
             header: None,
             show_value: None,
@@ -103,12 +100,6 @@ impl<M: Clone + 'static> Slider<M> {
     // The value moves in steps of this, from the minimum.
     pub fn step(mut self, step: f64) -> Self {
         self.step = Some(step);
-        self
-    }
-
-    // How far Page Up and Page Down move it.
-    pub fn large_step(mut self, step: f64) -> Self {
-        self.large_step = Some(step);
         self
     }
 
@@ -180,7 +171,7 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::NAVIGATE.takes_wheel())
+        Some(Sense::CLICK.takes_wheel())
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
@@ -194,38 +185,12 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
         let mut value = before;
         let span = self.maximum - self.minimum;
         let step = self.step.unwrap_or(span / 100.0);
-        let large_step = self.large_step.unwrap_or(span / 10.0);
 
         if hit.pressing()
             && let Some(pointer) = interaction.pointer
         {
             let fraction = ((pointer.x - left) / (right - left).max(1.0)).clamp(0.0, 1.0) as f64;
             value = self.snap(self.minimum + span * fraction);
-        }
-        if interaction.focused {
-            let input = ctx.input();
-            let mut moved = 0.0;
-            if input.key_pressed(Key::RIGHT) || input.key_pressed(Key::UP) {
-                moved += step;
-            }
-            if input.key_pressed(Key::LEFT) || input.key_pressed(Key::DOWN) {
-                moved -= step;
-            }
-            if input.key_pressed(Key::PAGE_UP) {
-                moved += large_step;
-            }
-            if input.key_pressed(Key::PAGE_DOWN) {
-                moved -= large_step;
-            }
-            if moved != 0.0 {
-                value = self.snap(value + moved * span.signum());
-            }
-            if input.key_pressed(Key::HOME) {
-                value = self.allowed.0;
-            }
-            if input.key_pressed(Key::END) {
-                value = self.allowed.1;
-            }
         }
         if hit.wheel.y != 0.0 {
             if let Some(reaction) = &self.on_wheel {
@@ -296,7 +261,6 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
         let value_color = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary };
         let thumb_x = left + (right - left) * self.fraction(value);
         let center_y = track_row.center().y.round();
-        let focused = ctx.focused();
         let mut painter = ctx.painter();
         let theme = painter.theme();
         if let Some(header) = &self.header {
@@ -335,6 +299,5 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             painter.text_in(tip_rect.pad(SLIDER_TOOLTIP_PADDING), &text, style, theme.text_primary, Align::Center);
             painter.set_layer(layer);
         }
-        ctx.focus_visual_around(focused, track_row, RADIUS_CONTROL, Insets::new(7.0, 0.0, 7.0, 0.0));
     }
 }

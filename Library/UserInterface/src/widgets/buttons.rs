@@ -199,7 +199,7 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn parts(&self, ctx: &mut Parts) {
@@ -214,13 +214,13 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
         let hit = interaction.whole();
         match &self.menu {
             None => {
-                if hit.activated && let Some(message) = &self.on_press {
+                if hit.pressed && let Some(message) = &self.on_press {
                     ctx.send(message.clone());
                 }
             }
             Some(items) => {
                 let name = Self::menu_name(ctx.name());
-                if hit.activated {
+                if hit.pressed {
                     if ctx.popup_open() {
                         ctx.close_popup();
                     } else {
@@ -229,7 +229,7 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
                     }
                 }
                 if ctx.popup_open() {
-                    menu::interact_menu(interaction, ctx, &name, ctx.id(), items, 0);
+                    menu::interact_menu(interaction, ctx, &name, ctx.id(), items);
                 }
             }
         }
@@ -239,8 +239,6 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
         let state = ctx.state();
         let rect = ctx.rect();
         draw_button(ctx, rect, &self.text, self.icon, self.style, self.checked, self.chevron, state);
-        let focused = ctx.focused();
-        ctx.focus_visual_if(focused, rect, RADIUS_CONTROL);
         if let Some(items) = &self.menu
             && ctx.popup_open()
         {
@@ -280,11 +278,11 @@ impl<M: Clone + 'static> Widget<M> for ToggleButton<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().activated
+        if interaction.whole().pressed
             && let Some(reaction) = &self.on_toggle
         {
             ctx.send(reaction(!self.on));
@@ -295,8 +293,6 @@ impl<M: Clone + 'static> Widget<M> for ToggleButton<M> {
         let state = ctx.state();
         let rect = ctx.rect();
         draw_button(ctx, rect, &self.button.text, self.button.icon, self.button.style, self.on, self.button.chevron, state);
-        let focused = ctx.focused();
-        ctx.focus_visual_if(focused, rect, RADIUS_CONTROL);
     }
 }
 
@@ -328,7 +324,7 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
@@ -336,7 +332,7 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
         if hit.hovered && interaction.enabled {
             ctx.set_cursor(Cursor::Hand);
         }
-        if hit.activated && let Some(message) = &self.on_press {
+        if hit.pressed && let Some(message) = &self.on_press {
             ctx.send(message.clone());
         }
     }
@@ -350,8 +346,6 @@ impl<M: Clone + 'static> Widget<M> for HyperlinkButton<M> {
         let mut painter = ctx.painter();
         painter.shape(rect, RADIUS_CONTROL, background, None);
         painter.text_fit(rect.pad(HYPERLINK_PADDING), &self.text, BODY, foreground, Align::Center);
-        let focused = ctx.focused();
-        ctx.focus_visual_if(focused, rect, RADIUS_CONTROL);
     }
 }
 

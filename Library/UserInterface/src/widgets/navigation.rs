@@ -1,8 +1,7 @@
 // Choosing one of a few places or modes: WinUI's SelectorBar, whose selected
 // item has the accent's pill under it, and the Windows Community Toolkit's
 // Segmented, whose selected segment is raised like a button. Their items are
-// targets named "<name>/<label>", and the control is one focus stop whose
-// arrows move the selection, as WinUI's are.
+// targets named "<name>/<label>", which a press selects.
 
 use crate::core::interaction::{ControlState, Interaction, Part, Sense};
 use crate::core::interface::Ui;
@@ -10,10 +9,9 @@ use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{BUTTON_ICON_GAP, SELECTOR_BAR_ITEM_PADDING, SELECTOR_BAR_PADDING, SELECTOR_BAR_PILL_HEIGHT, SELECTOR_BAR_PILL_WIDTH};
 use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, ICON, RADIUS_CONTROL};
-use crate::drawing::geometry::{Insets, Point, Rect};
+use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border};
 use crate::drawing::text::Fonts;
-use crate::input::devices::Key;
 use crate::widgets::widget::{Elevation, Reaction, react};
 
 // An item: its label, and maybe an icon before it.
@@ -49,43 +47,12 @@ fn choice_width(fonts: &mut Fonts, choice: &Choice) -> f32 {
     (icon + fonts.measure(&choice.label, BODY).width).ceil()
 }
 
-// The arrows move the selection of a control with focus.
-fn arrows<M>(ctx: &Dispatch<M>, focused: bool, selected: usize, count: usize) -> Option<usize> {
-    if !focused || count == 0 {
-        return None;
-    }
-    let input = ctx.input();
-    let mut moved = selected;
-    if input.key_pressed(Key::RIGHT) || input.key_pressed(Key::DOWN) {
-        moved = (moved + 1).min(count - 1);
-    }
-    if input.key_pressed(Key::LEFT) || input.key_pressed(Key::UP) {
-        moved = moved.saturating_sub(1);
-    }
-    if input.key_pressed(Key::HOME) {
-        moved = 0;
-    }
-    if input.key_pressed(Key::END) {
-        moved = count - 1;
-    }
-    (moved != selected).then_some(moved)
-}
-
-// The items' input. A press on one gives the control focus, as its one
-// stop, unless widgets can't take focus here, and selects it.
-fn items_input<M>(interaction: &Interaction, ctx: &mut Dispatch<M>, items: &[Choice], selected: usize) -> Option<usize> {
-    let mut chosen = None;
-    for (index, item) in items.iter().enumerate() {
-        let part = Part::Named(item.label.clone());
-        let Some(hit) = interaction.hit(&part) else { continue };
-        if hit.pressed && ctx.focusable() {
-            ctx.focus();
-        }
-        if hit.activated && selected != index {
-            chosen = Some(index);
-        }
-    }
-    chosen
+// The item that a press selected, if it isn't the selected one already.
+fn chosen(interaction: &Interaction, items: &[Choice], selected: usize) -> Option<usize> {
+    items
+        .iter()
+        .position(|item| interaction.pressed(&Part::Named(item.label.clone())))
+        .filter(|index| *index != selected)
 }
 
 pub struct SelectorBar<M> {
@@ -140,7 +107,7 @@ impl<M: Clone + 'static> Widget<M> for SelectorBar<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::NAVIGATE)
+        Some(Sense::CLICK)
     }
 
     fn parts(&self, ctx: &mut Parts) {
@@ -152,11 +119,7 @@ impl<M: Clone + 'static> Widget<M> for SelectorBar<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        let mut chosen = arrows(ctx, interaction.focused, self.selected, self.items.len());
-        if let Some(index) = items_input(interaction, ctx, &self.items, self.selected) {
-            chosen = Some(index);
-        }
-        if let Some(index) = chosen
+        if let Some(index) = chosen(interaction, &self.items, self.selected)
             && let Some(reaction) = &self.on_select
         {
             ctx.send(reaction(index));
@@ -197,7 +160,6 @@ impl<M: Clone + 'static> Widget<M> for SelectorBar<M> {
                 }
             }
             if selected {
-                ctx.focus_visual_around(look.focused, item_rect, RADIUS_CONTROL, Insets::all(2.0));
             }
         }
     }
@@ -241,7 +203,7 @@ impl<M: Clone + 'static> Widget<M> for Segmented<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::NAVIGATE)
+        Some(Sense::CLICK)
     }
 
     fn parts(&self, ctx: &mut Parts) {
@@ -252,11 +214,7 @@ impl<M: Clone + 'static> Widget<M> for Segmented<M> {
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        let mut chosen = arrows(ctx, interaction.focused, self.selected, self.items.len());
-        if let Some(index) = items_input(interaction, ctx, &self.items, self.selected) {
-            chosen = Some(index);
-        }
-        if let Some(index) = chosen
+        if let Some(index) = chosen(interaction, &self.items, self.selected)
             && let Some(reaction) = &self.on_select
         {
             ctx.send(reaction(index));
@@ -311,7 +269,6 @@ impl<M: Clone + 'static> Widget<M> for Segmented<M> {
                 }
             }
             if selected {
-                ctx.focus_visual_if(look.focused, segment, RADIUS_CONTROL);
             }
         }
     }

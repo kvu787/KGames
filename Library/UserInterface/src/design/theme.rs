@@ -138,9 +138,6 @@ pub struct Theme {
     pub surface_stroke_flyout: Color,
     pub surface_stroke_inverse: Color,
     pub divider: Color,
-    // The two strokes of the focus visual.
-    pub focus_outer: Color,
-    pub focus_inner: Color,
 
     // Surfaces, from the window's background up.
     pub background: Color,
@@ -275,8 +272,6 @@ impl Theme {
             surface_stroke_flyout: Color::argb(0x0F000000),
             surface_stroke_inverse: Color::argb(0x15FFFFFF),
             divider: Color::argb(0x0F000000),
-            focus_outer: Color::argb(0xE4000000),
-            focus_inner: Color::argb(0xB3FFFFFF),
             background: Color::hex(0xF3F3F3),
             background_secondary: Color::hex(0xEEEEEE),
             background_tertiary: Color::hex(0xF9F9F9),
@@ -384,8 +379,6 @@ impl Theme {
             surface_stroke_flyout: Color::argb(0x33000000),
             surface_stroke_inverse: Color::argb(0x0F000000),
             divider: Color::argb(0x15FFFFFF),
-            focus_outer: Color::WHITE,
-            focus_inner: Color::argb(0xB3000000),
             background: Color::hex(0x202020),
             background_secondary: Color::hex(0x1C1C1C),
             background_tertiary: Color::hex(0x282828),
@@ -482,7 +475,6 @@ impl Theme {
             ("card_stroke", self.card_stroke),
             ("surface_stroke_flyout", self.surface_stroke_flyout),
             ("divider", self.divider),
-            ("focus_outer", self.focus_outer),
             ("background", self.background),
             ("background_secondary", self.background_secondary),
             ("background_tertiary", self.background_tertiary),

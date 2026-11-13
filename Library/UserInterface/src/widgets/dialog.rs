@@ -1,7 +1,7 @@
 // WinUI's ContentDialog: a box in the middle of the window, over smoke that
 // keeps the page from input, with a title, a message or content of the
 // program's own, and up to three buttons, of which the default is the
-// accent's. Esc is its close button, and Enter its default one.
+// accent's.
 //
 // The program's view adds it while it's open, in the area that `area`
 // gives, with its own content as children in `area.content`, and the
@@ -15,11 +15,10 @@ use crate::core::interaction::{Interaction, Part, Sense};
 use crate::core::interface::Ui;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{DIALOG_BUTTON_GAP, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH, DIALOG_PADDING, DIALOG_TITLE_GAP};
-use crate::design::tokens::{BODY, CONTROL_HEIGHT, ELEVATION_DIALOG, RADIUS_CONTROL, RADIUS_OVERLAY, SUBTITLE};
+use crate::design::tokens::{BODY, CONTROL_HEIGHT, ELEVATION_DIALOG, RADIUS_OVERLAY, SUBTITLE};
 use crate::drawing::geometry::{Insets, Rect, Size};
 use crate::drawing::painter::{Border, Corners, Layer};
 use crate::drawing::text::Fonts;
-use crate::input::devices::Key;
 use crate::widgets::buttons::{ButtonStyle, draw_button};
 use crate::widgets::widget::{Reaction, react};
 
@@ -208,41 +207,22 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
         Layer::Dialog
     }
 
-    fn always_interacts(&self) -> bool {
-        true
-    }
-
     fn parts(&self, ctx: &mut Parts) {
         // The smoke covers the page and takes its input.
         let bounds = ctx.bounds();
         ctx.cover_on(Layer::Dialog, bounds);
         for (rect, result, text) in self.buttons(ctx.rect()) {
             let name = result.part_name();
-            ctx.part(Part::Named(name.to_string()), name, rect, Sense::BUTTON, "Button", Some(text.to_string()));
+            ctx.part(Part::Named(name.to_string()), name, rect, Sense::CLICK, "Button", Some(text.to_string()));
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let mut chosen = None;
         for (_, result, _) in self.buttons(ctx.rect()) {
-            if interaction.activated(&Part::Named(result.part_name().to_string())) {
+            if interaction.pressed(&Part::Named(result.part_name().to_string())) {
                 chosen = Some(result);
             }
-        }
-        if ctx.key_pressed_once(Key::ESCAPE) {
-            chosen = Some(DialogResult::Close);
-            ctx.consume_escape();
-        }
-        // Enter is the default button's, unless something that takes Enter
-        // has focus - a text box submitting, a combo box opening, a focused
-        // button clicking - or a popup is open, which takes it.
-        if chosen.is_none()
-            && self.default.is_some()
-            && !ctx.any_popup()
-            && ctx.key_pressed_once(Key::ENTER)
-            && !ctx.focused_takes_enter()
-        {
-            chosen = self.default;
         }
         if let Some(result) = chosen
             && let Some(reaction) = &self.on_result
@@ -279,8 +259,6 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
             let style = if self.default == Some(result) { ButtonStyle::Accent } else { ButtonStyle::Standard };
             let state = look.part_state(&part);
             draw_button(ctx, button_rect, text, None, style, false, false, state);
-            let focused = look.focused && look.focused_part.as_ref() == Some(&part);
-            ctx.focus_visual_if(focused, button_rect, RADIUS_CONTROL);
         }
     }
 }

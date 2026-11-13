@@ -52,14 +52,10 @@ borderless fullscreen.
 | Drag a slider      | Moves it, even past the window's edges                                   |
 | Drag in a field    | Selects text                                                             |
 | The wheel          | Moves a slider a step a notch, or scrolls the list 3 rows                |
-| `Tab`, `Shift+Tab` | Moves keyboard focus to the next or previous widget                      |
-| `Space`, `Enter`   | Presses the button with focus, or flips the checkbox or switch           |
-| Arrow keys         | Move the slider, segments, tabs, combo box or list with focus, or a text |
-|                    | field's caret, which Shift selects with, and Control moves by words      |
+| Arrow keys         | Move a text field's caret, which Shift selects with, and Control moves   |
+|                    | by words                                                                 |
 | `Ctrl+A`, `C`, `X` | Select everything in a text field, copy it, or cut it                    |
 | `Ctrl+V`           | Pastes into a text field                                                 |
-| `Esc`              | Closes a menu or a combo box's list, or a dialog, or else takes focus    |
-|                    | away                                                                     |
 | A right-click      | Opens the context menu, on the area for it                               |
 | `F1`               | Shows or hides the tooltips                                              |
 | `Ctrl+R`           | Resets every widget                                                      |
@@ -91,11 +87,11 @@ Program\RunInBackground\RunInBackground.ps1 UiShowcase --all-scripts
 
 The tests in `Test/UiShowcase` drive the showcase through its cards' real layout, with
 `user_interface::Headless`, which lays them out without a window or a GPU: presses on each kind of
-widget, a press that slides off a button, drags past a slider's ends, the wheel, the keys, the combo
+widget, a press that slides off a button, drags past a slider's ends, the wheel, the combo
 boxes' lists and what closes them, typing, copying and pasting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
-double-click, the caution info bar, tooltips above the pointer, `Tab`, `Ctrl+R`, `F9`, `F10`, `F11`,
+double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9`, `F10`, `F11`,
 and a window without focus. They also check that every widget fits both window heights, in both themes.
 
 The scripts in `Test/UiShowcase/Scripts` run the same kinds of input through the real window and

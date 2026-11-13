@@ -1,12 +1,12 @@
 // WinUI's controls that are on or off: CheckBox, RadioButton, and
 // ToggleSwitch. Each is a target as wide as its rectangle, so its label takes
-// clicks too, and its focus visual goes around the label, as XAML's do.
+// clicks too, as XAML's do.
 
 use crate::core::interaction::{ControlState, Interaction, Part, Sense};
 use crate::core::interface::Ui;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{
-    CHECK_BOX_GLYPH_SIZE, CHECK_BOX_PADDING, CHECK_BOX_SIZE, FOCUS_VISUAL_MARGIN_WIDE, RADIO_BUTTON_GLYPH, RADIO_BUTTON_GLYPH_DISABLED,
+    CHECK_BOX_GLYPH_SIZE, CHECK_BOX_PADDING, CHECK_BOX_SIZE, RADIO_BUTTON_GLYPH, RADIO_BUTTON_GLYPH_DISABLED,
     RADIO_BUTTON_GLYPH_POINTER_OVER, RADIO_BUTTON_GLYPH_PRESSED, RADIO_BUTTON_PADDING, RADIO_BUTTON_SIZE, TOGGLE_SWITCH_CONTENT_GAP,
     TOGGLE_SWITCH_HEIGHT, TOGGLE_SWITCH_KNOB, TOGGLE_SWITCH_KNOB_POINTER_OVER, TOGGLE_SWITCH_KNOB_PRESSED_HEIGHT, TOGGLE_SWITCH_KNOB_PRESSED_MARGIN,
     TOGGLE_SWITCH_KNOB_PRESSED_WIDTH, TOGGLE_SWITCH_KNOB_TRAVEL, TOGGLE_SWITCH_WIDTH,
@@ -55,11 +55,11 @@ impl<M: Clone + 'static> Widget<M> for CheckBox<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().activated
+        if interaction.whole().pressed
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(!self.checked));
@@ -97,8 +97,6 @@ impl<M: Clone + 'static> Widget<M> for CheckBox<M> {
             let left = box_rect.right() + CHECK_BOX_PADDING.left;
             painter.text_fit(Rect::new(left, rect.y, rect.right() - left, rect.height), &self.label, BODY, text, Align::Start);
         }
-        let focused = ctx.focused();
-        ctx.focus_visual_around(focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
     }
 }
 
@@ -174,11 +172,11 @@ impl<M: Clone + 'static> Widget<M> for RadioButton<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().activated
+        if interaction.whole().pressed
             && !self.checked
             && let Some(message) = &self.on_check
         {
@@ -191,8 +189,6 @@ impl<M: Clone + 'static> Widget<M> for RadioButton<M> {
         let state = ctx.state();
         let theme = ctx.theme().clone();
         draw_radio(&mut ctx.painter(), &theme, rect, state, self.checked, &self.label);
-        let focused = ctx.focused();
-        ctx.focus_visual_around(focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
     }
 }
 
@@ -248,12 +244,12 @@ impl<M: Clone + 'static> Widget<M> for RadioGroup<M> {
         for (index, item) in self.items.iter().enumerate() {
             let checked = index == self.selected;
             let label = Some(if checked { "Checked".to_string() } else { "Unchecked".to_string() });
-            ctx.part(Part::Index(index), item, Self::row(rect, index), Sense::BUTTON, "RadioButton", label);
+            ctx.part(Part::Index(index), item, Self::row(rect, index), Sense::CLICK, "RadioButton", label);
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(Part::Index(index)) = interaction.activated_part()
+        if let Some(Part::Index(index)) = interaction.pressed_part()
             && *index != self.selected
             && let Some(reaction) = &self.on_select
         {
@@ -269,8 +265,6 @@ impl<M: Clone + 'static> Widget<M> for RadioGroup<M> {
             let part = Part::Index(index);
             let row = Self::row(rect, index);
             draw_radio(&mut ctx.painter(), &theme, row, look.part_state(&part), index == self.selected, item);
-            let focused = look.focused && look.focused_part.as_ref() == Some(&part);
-            ctx.focus_visual_around(focused, row, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
         }
     }
 }
@@ -314,11 +308,11 @@ impl<M: Clone + 'static> Widget<M> for ToggleSwitch<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::BUTTON)
+        Some(Sense::CLICK)
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if interaction.whole().activated
+        if interaction.whole().pressed
             && let Some(reaction) = &self.on_change
         {
             ctx.send(reaction(!self.on));
@@ -368,7 +362,5 @@ impl<M: Clone + 'static> Widget<M> for ToggleSwitch<M> {
             let left = track.right() + TOGGLE_SWITCH_CONTENT_GAP;
             painter.text_fit(Rect::new(left, rect.y, rect.right() - left, rect.height), &self.label, BODY, text, Align::Start);
         }
-        let focused = ctx.focused();
-        ctx.focus_visual_around(focused, rect, RADIUS_CONTROL, FOCUS_VISUAL_MARGIN_WIDE);
     }
 }

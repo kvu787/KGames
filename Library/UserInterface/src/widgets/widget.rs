@@ -1,11 +1,10 @@
-// What every widget shares: the brushes of WinUI's visual states, its focus
-// visual, and its elevation borders, the gradients that make controls look
-// raised.
+// What every widget shares: the brushes of WinUI's visual states, and its
+// elevation borders, the gradients that make controls look raised.
 
 use crate::core::interaction::ControlState;
 use crate::design::theme::{Theme, ThemeKind};
 use crate::drawing::geometry::{Color, Insets, Point, Rect};
-use crate::drawing::painter::{Border, Brush, Painter};
+use crate::drawing::painter::{Border, Brush};
 
 // A brush for each of WinUI's visual states, like ButtonBackground,
 // ButtonBackgroundPointerOver, ButtonBackgroundPressed and
@@ -88,16 +87,6 @@ impl Elevation {
         let widths = if self == Elevation::TextControlFocused { Insets::new(1.0, 1.0, 1.0, 2.0) } else { Insets::all(1.0) };
         Border::sides(self.brush(theme, rect), widths)
     }
-}
-
-// WinUI's focus visual: a 2-pixel outer stroke in FocusStrokeColorOuter and
-// a 1-pixel inner one in FocusStrokeColorInner, around the control by its
-// FocusVisualMargin, with its corners as much rounder as the margin is wide.
-pub fn focus_visual(painter: &mut Painter, theme: &Theme, rect: Rect, radius: f32, margin: Insets) {
-    let outer = Rect::new(rect.x - margin.left, rect.y - margin.top, rect.width + margin.horizontal(), rect.height + margin.vertical());
-    let outer_radius = if radius > 0.0 { radius + (margin.left + margin.top) / 2.0 } else { 0.0 };
-    painter.shape(outer, outer_radius, Color::TRANSPARENT, Some(Border::new(theme.focus_outer, 2.0)));
-    painter.shape(outer.inset(2.0), (outer_radius - 2.0).max(0.0), Color::TRANSPARENT, Some(Border::new(theme.focus_inner, 1.0)));
 }
 
 // A reaction to a widget's value: the message that the value makes.

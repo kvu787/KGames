@@ -1,18 +1,14 @@
 // WinUI's ComboBox: a button that shows the chosen item and a chevron, whose
 // list opens over it as a popup, with the chosen item where the combo box's
 // text is, as WinUI places it. Items are named "<name>/<index>", labeled with
-// their text, and the combo box's own label is the chosen item.
-//
-// Closed, Up and Down choose the item before or after, and Enter, Space or
-// Alt+Down open the list. Open, Up and Down move the highlight, Enter chooses
-// it, and Esc or a press outside closes the list.
+// their text, and the combo box's own label is the chosen item. A press
+// outside the list closes it.
 
 use crate::core::interaction::{ControlState, Interaction, Part, Sense};
 use crate::core::interface::Ui;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{
-    COMBO_BOX_CHEVRON_COLUMN, COMBO_BOX_CHEVRON_MARGIN, COMBO_BOX_CHEVRON_SIZE, COMBO_BOX_FOCUS_MARGIN, COMBO_BOX_FOCUS_RADIUS,
-    COMBO_BOX_FOCUS_THICKNESS, COMBO_BOX_ITEM_HEIGHT, COMBO_BOX_ITEM_MARGIN, COMBO_BOX_ITEM_PADDING, COMBO_BOX_ITEM_RADIUS, COMBO_BOX_MIN_WIDTH,
+    COMBO_BOX_CHEVRON_COLUMN, COMBO_BOX_CHEVRON_MARGIN, COMBO_BOX_CHEVRON_SIZE, COMBO_BOX_ITEM_HEIGHT, COMBO_BOX_ITEM_MARGIN, COMBO_BOX_ITEM_PADDING, COMBO_BOX_ITEM_RADIUS, COMBO_BOX_MIN_WIDTH,
     COMBO_BOX_PADDING, COMBO_BOX_POPUP_MAX_ITEMS, COMBO_BOX_POPUP_MIN_WIDTH, COMBO_BOX_POPUP_PADDING, SELECTION_PILL_LENGTH,
     SELECTION_PILL_PRESSED_LENGTH, SELECTION_PILL_THICKNESS,
 };
@@ -20,7 +16,6 @@ use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, ELEVATION_FLYOUT, RADIUS_CONTROL, RADIUS_OVERLAY};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
-use crate::input::devices::Key;
 use crate::widgets::widget::{Elevation, Reaction, StateColors, react};
 
 pub struct ComboBox<M> {
@@ -30,11 +25,9 @@ pub struct ComboBox<M> {
     on_select: Option<Reaction<usize, M>>,
 }
 
-// Which item the keys highlight while the list is open, and which is at its
-// top.
+// Which item is at the top of the open list, which the wheel scrolls.
 #[derive(Default, Clone, Copy)]
 struct ComboState {
-    highlighted: usize,
     first: usize,
 }
 
@@ -96,7 +89,6 @@ impl<M: Clone + 'static> ComboBox<M> {
 fn open_list(ctx: &mut Dispatch<impl Clone + 'static>, selected: usize, count: usize, name: &str) {
     ctx.open_popup(name);
     let state = ctx.memory::<ComboState>();
-    state.highlighted = selected.min(count.saturating_sub(1));
     state.first = selected.saturating_sub(COMBO_BOX_POPUP_MAX_ITEMS / 2).min(count.saturating_sub(COMBO_BOX_POPUP_MAX_ITEMS));
 }
 
@@ -110,7 +102,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
     }
 
     fn sense(&self) -> Option<Sense> {
-        Some(Sense::NAVIGATE)
+        Some(Sense::CLICK)
     }
 
     fn parts(&self, ctx: &mut Parts) {
@@ -143,7 +135,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             open = false;
         }
         let mut chosen: Option<usize> = None;
-        if hit.activated && count > 0 {
+        if hit.pressed && count > 0 {
             if open {
                 ctx.close_popup();
                 open = false;
@@ -152,69 +144,20 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
                 open = true;
             }
         }
-        // Whether this very press opened the list, so it doesn't also
-        // choose from it below.
-        let mut opened_now = false;
-        if interaction.focused && !open && count > 0 {
-            let input = ctx.input();
-            let alt_down = input.modifiers().alt && input.key_pressed(Key::DOWN);
-            if alt_down || input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE) {
-                open_list(ctx, self.selected, count, &name);
-                open = true;
-                opened_now = true;
-            } else if input.key_pressed(Key::DOWN) && self.selected + 1 < count {
-                chosen = Some(self.selected + 1);
-            } else if input.key_pressed(Key::UP) && self.selected > 0 {
-                chosen = Some(self.selected - 1);
-            }
-        }
         if open {
             let mut state = *ctx.memory::<ComboState>();
             let shown = self.shown_count();
-            state.highlighted = state.highlighted.min(count - 1);
             state.first = state.first.min(count.saturating_sub(shown));
-            // The keys move the highlight while the list is the top popup.
-            if ctx.popup_on_top() {
-                let input = ctx.input();
-                if input.key_pressed(Key::DOWN) && state.highlighted + 1 < count {
-                    state.highlighted += 1;
-                }
-                if input.key_pressed(Key::UP) && state.highlighted > 0 {
-                    state.highlighted -= 1;
-                }
-                if input.key_pressed(Key::HOME) {
-                    state.highlighted = 0;
-                }
-                if input.key_pressed(Key::END) {
-                    state.highlighted = count - 1;
-                }
-                let moved = input.key_pressed(Key::DOWN) || input.key_pressed(Key::UP) || input.key_pressed(Key::HOME) || input.key_pressed(Key::END);
-                if !opened_now && (input.key_pressed_once(Key::ENTER) || input.key_pressed_once(Key::SPACE)) {
-                    chosen = Some(state.highlighted);
-                }
-                if moved {
-                    ctx.set_focus_visible(true);
-                }
-            }
-            // The wheel over the list scrolls it, and the pointer moves the
-            // highlight only as it moves, so that the keys can move it while
-            // the pointer rests on the list.
+            // The wheel over the list scrolls it.
             let wheel = interaction.wheel().y;
             if wheel != 0.0 {
                 let scrolled = state.first as f32 - wheel.round();
                 state.first = scrolled.clamp(0.0, count.saturating_sub(shown) as f32) as usize;
             }
-            if state.highlighted < state.first {
-                state.first = state.highlighted;
-            } else if state.highlighted >= state.first + shown {
-                state.first = state.highlighted + 1 - shown;
-            }
             for (part, item_hit) in &interaction.hits {
-                let Part::Index(index) = part else { continue };
-                if item_hit.hovered && ctx.input().pointer_delta != Point::ZERO {
-                    state.highlighted = *index;
-                }
-                if item_hit.activated {
+                if let Part::Index(index) = part
+                    && item_hit.pressed
+                {
                     chosen = Some(*index);
                 }
             }
@@ -237,7 +180,6 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         let state = look.state();
         let placeholder = self.chosen().is_none();
         let text = self.chosen().unwrap_or(&self.placeholder).to_string();
-        let keyboard_focus = look.focused && look.focus_visible;
         let theme = ctx.theme().clone();
         let background = StateColors::new(theme.control_fill, theme.control_fill_secondary, theme.control_fill_tertiary, theme.control_fill_disabled);
         // ComboBoxForeground and ComboBoxPlaceHolderForeground.
@@ -250,21 +192,11 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         let chevron = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary };
         {
             let mut painter = ctx.painter();
-            // A combo box draws its own focus cue instead of the system's: a
-            // ring 4 pixels outside it, and the pill at its left.
-            if keyboard_focus {
-                let ring = rect.expand(COMBO_BOX_FOCUS_MARGIN);
-                painter.shape(ring, COMBO_BOX_FOCUS_RADIUS, theme.control_fill, Some(Border::new(theme.focus_outer, COMBO_BOX_FOCUS_THICKNESS)));
-            }
             let border = match state {
                 ControlState::Normal | ControlState::PointerOver => Elevation::Control.border(&theme, rect),
                 ControlState::Pressed | ControlState::Disabled => Border::new(theme.control_stroke, 1.0),
             };
             painter.shape(rect, RADIUS_CONTROL, background.get(state), Some(border));
-            if keyboard_focus {
-                let pill = Rect::new(rect.x, rect.center().y - SELECTION_PILL_LENGTH / 2.0, SELECTION_PILL_THICKNESS, SELECTION_PILL_LENGTH);
-                painter.rounded(pill, SELECTION_PILL_THICKNESS / 2.0, theme.accent);
-            }
             let text_rect = Rect::new(rect.x + COMBO_BOX_PADDING.left, rect.y, rect.width - COMBO_BOX_PADDING.left - COMBO_BOX_CHEVRON_COLUMN, rect.height);
             painter.text_fit(text_rect, &text, BODY, foreground, Align::Start);
             painter.icon(Point::new(rect.right() - COMBO_BOX_CHEVRON_MARGIN - COMBO_BOX_CHEVRON_SIZE / 2.0, rect.center().y), Icon::ChevronDown, COMBO_BOX_CHEVRON_SIZE, chevron);
@@ -275,7 +207,6 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         }
         let combo_state = *ctx.memory::<ComboState>();
         let (panel, first_slot) = self.list(ctx.bounds(), rect, combo_state.first);
-        let focus_visible = ctx.focus_visible();
         let bounds = ctx.bounds();
         let mut painter = ctx.painter();
         let layer = painter.layer();
@@ -308,9 +239,6 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             }
             let text_rect = Rect::new(item_rect.x + COMBO_BOX_ITEM_PADDING.left, item_rect.y, item_rect.width - COMBO_BOX_ITEM_PADDING.horizontal(), item_rect.height);
             painter.text_fit(text_rect, item, BODY, text_color, Align::Start);
-            if index == combo_state.highlighted && focus_visible && !look.hovered(&part) {
-                crate::widgets::widget::focus_visual(&mut painter, &theme, item_rect, COMBO_BOX_ITEM_RADIUS, crate::design::controls::FOCUS_VISUAL_MARGIN);
-            }
         }
         painter.pop_clip();
         painter.pop_clip();

@@ -66,12 +66,12 @@ fn the_first_checkbox_disables_the_options() {
 #[test]
 fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     let mut app = showcase();
-    // The press's own frame switches the theme, and logs it with the press
-    // and the focus it gave, newest first.
+    // The press's own frame switches the theme, and logs it with the press,
+    // newest first.
     app.press("DarkTheme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Dark);
-    let newest: Vec<&str> = app.program.log.iter().take(3).map(String::as_str).collect();
-    assert_eq!(newest, ["Press on DarkTheme", "Focus on DarkTheme", "Dark theme"]);
+    let newest: Vec<&str> = app.program.log.iter().take(2).map(String::as_str).collect();
+    assert_eq!(newest, ["Press on DarkTheme", "Dark theme"]);
     app.release();
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
@@ -152,11 +152,9 @@ fn radio_buttons_and_segments_pick_one() {
     let mut app = showcase();
     app.click("Size/Large").click("Alignment/Right").click("Tool/Pick");
     assert_eq!((app.program.size, app.program.alignment, app.program.tool), (2, 2, 3));
-    // A segmented control is one focus stop, whose arrows move it.
+    // They take no keyboard focus.
     app.click("Tool/Erase");
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Tool")));
-    app.key(Key::LEFT);
-    assert_eq!(app.program.tool, 1);
+    assert_eq!((app.program.tool, interface(&app, "Focused")), (2, Some(Value::Null)));
 }
 
 #[test]
@@ -172,14 +170,10 @@ fn a_press_on_a_slider_sets_it_and_a_drag_moves_it_past_its_ends() {
 }
 
 #[test]
-fn the_wheel_and_the_keys_move_a_slider_by_its_steps() {
+fn the_wheel_moves_a_slider_by_its_steps() {
     let mut app = showcase();
     app.scroll("Opacity", -3.0);
     assert!((app.program.opacity - 0.747).abs() < 1e-9, "{}", app.program.opacity);
-    app.click("Angle").key(Key::HOME).key(Key::RIGHT).key(Key::PAGE_UP);
-    assert!((app.program.angle - 15.1).abs() < 1e-3, "{}", app.program.angle);
-    app.key(Key::END);
-    assert_eq!(app.program.angle, 360.0);
 }
 
 #[test]
@@ -246,15 +240,15 @@ fn number_boxes_take_typing_and_their_spin_buttons() {
     assert_eq!(app.program.quantity, 5);
     app.click("Scale").key_with(Modifiers::CONTROL, Key::A).type_text("9").key(Key::ENTER);
     assert_eq!(app.program.scale, 4.0);
-    app.key(Key::DOWN);
+    app.click("Scale/Down");
     assert_eq!(app.program.scale, 3.75);
 }
 
 #[test]
 fn the_list_selects_scrolls_and_opens() {
     let mut app = showcase();
-    app.click("Items/2").key(Key::DOWN);
-    assert_eq!(app.program.selected, Some(3));
+    app.click("Items/2");
+    assert_eq!(app.program.selected, Some(2));
     app.scroll("Items", -10.0);
     assert!(!app.has_target("Items/0"));
     let row = app.ui.targets().iter().filter(|target| target.name.starts_with("Items/") && target.listed).nth(2).unwrap().name.clone();
@@ -326,7 +320,7 @@ fn the_dialog_asks_and_takes_the_page_until_answered() {
     app.click("Question/Secondary");
     assert_eq!(app.program.dialog_result.as_deref(), Some("Don't save"));
     assert!(!app.program.dialog_open);
-    app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").key(Key::ESCAPE);
+    app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").click("Question/Close");
     assert_eq!(app.program.dialog_result.as_deref(), Some("Cancel"));
 }
 
@@ -351,21 +345,6 @@ fn the_expander_shows_and_hides() {
     assert!(app.program.expanded);
     app.click("Expander");
     assert!(!app.program.expanded);
-}
-
-#[test]
-fn tab_moves_focus_through_the_widgets_and_esc_takes_it_away() {
-    let mut app = showcase();
-    for _ in 0..5 {
-        app.key(Key::TAB);
-    }
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Standard")));
-    app.key(Key::SPACE);
-    assert_eq!(app.program.presses[0], 1);
-    app.key_with(Modifiers::SHIFT, Key::TAB);
-    assert_eq!(interface(&app, "Focused"), Some(Value::from("Theme")));
-    app.key(Key::ESCAPE);
-    assert_eq!(interface(&app, "Focused"), Some(Value::Null));
 }
 
 #[test]

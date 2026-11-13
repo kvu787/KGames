@@ -129,15 +129,11 @@ fn settings(demo: &Demo, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) -> b
         card.add("Save", save_rect, save).set_tooltip("Saves the material to Paint.json (Ctrl+S)");
         save_status(ui, card, header, &editor.status);
 
-        // The sliders don't take keyboard focus, as the arrow keys move the
-        // selected one.
-        card.set_focusable(false);
         let mut content = Content::new(area.content);
         for index in 0..SETTINGS.len() {
             let row = content.take(ROW_HEIGHT, 0.0);
             setting_row(editor, card, index, row, area.rect);
         }
-        card.set_focusable(true);
 
         content.take(0.0, SPACE_M);
         base_color(ui, card, content.take(CONTROL_HEIGHT, SPACE_M), editor);

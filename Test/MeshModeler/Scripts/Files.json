@@ -17,7 +17,7 @@
     { "Frame": 49, "Key": "Ctrl+O" },
     { "Frame": 51, "Expect": { "Prompt": "OpenModel" } },
     { "Frame": 65, "Capture": "Open" },
-    { "Frame": 66, "Key": "Esc" },
+    { "Frame": 66, "Click": "OpenModel/Close" },
     { "Frame": 68, "Expect": { "Prompt": null } },
     { "Frame": 69, "Click": "Menu/Mesh" },
     { "Frame": 71, "Move": "Menu/Mesh/Menu/Add" },
