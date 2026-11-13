@@ -110,7 +110,7 @@ pub struct Veehiicuul {
     // Whether the document differed from `saved` as the frame's messages
     // ended, for the bars.
     unsaved_now: bool,
-    // The wheel's notches over Play's view this frame, for its Tick.
+    // The wheel's notches over Play's view in this step, for its Tick.
     pending_notches: f64,
     // Where Save writes: the game's folder, or a script's output folder.
     save_folder: PathBuf,

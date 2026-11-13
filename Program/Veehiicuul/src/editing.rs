@@ -61,11 +61,11 @@ pub fn window_size(ui: &Ui) -> [f32; 2] {
 }
 
 // The editors' and the game's view of the ground: a target that hears the
-// pointer every frame, sends what it did with whether Space is down, and
+// pointer in every step, sends what it did with whether Space is down, and
 // takes keyboard focus from a text field when pressed, so that the keys
 // after it, like Space, are the view's.
 pub struct GroundView {
-    // Whether a pan drag was under way as of the last frame, for the cursor.
+    // Whether a pan drag was under way as of the last step, for the cursor.
     pub panning: bool,
 }
 
@@ -106,7 +106,7 @@ impl Widget<Message> for GroundView {
     }
 }
 
-// What happened in an editor's view in a frame, on the ground.
+// What happened in an editor's view in a step, on the ground.
 #[derive(Clone, Copy, Debug)]
 pub struct GroundInput {
     // The left button's press, and whether it's still down, which is what

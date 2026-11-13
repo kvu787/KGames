@@ -89,8 +89,8 @@ impl Program for Demo {
         TITLE.to_string()
     }
 
-    // Each key pressed this frame, in order, with its repeats, unless a
-    // widget with focus takes it, like a button takes Space.
+    // The key pressed in this step, with its repeats, unless a widget with
+    // focus takes it, like a button takes Space.
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let modifiers = ui.input().modifiers();
         let mut messages = Vec::new();

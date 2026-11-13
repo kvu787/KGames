@@ -1,5 +1,5 @@
-// What the player does in a frame, from the gamepad and the keyboard, which
-// both do everything:
+// What the player does in a step of a frame's input, from the gamepad and
+// the keyboard, which both do everything:
 //
 // | Gamepad               | Keyboard              | Does                                 |
 // | --------------------- | --------------------- | ------------------------------------ |
@@ -49,7 +49,7 @@ pub struct Controls {
 }
 
 impl Controls {
-    // The frame's controls, with the wheel's notches over the game's view.
+    // The step's controls, with the wheel's notches over the game's view.
     pub fn read(ui: &Ui, notches: f64) -> Controls {
         let gamepad = *ui.gamepad();
         let input = ui.input();
