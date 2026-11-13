@@ -3,8 +3,9 @@
 A car moves back and forth at 8 units per second while it turns at 90 degrees per second, past a
 sphere and a red cube, on green ground, seen by an orthographic camera. The car and the sphere
 are painted with [SimplePaint](../../Library/SimplePaint/README.md), and the ground and the cube
-are lit by one light, like in the C++ scene that the test is a port of. Every frame draws all of
-it. Like every KGames GUI program, it's built on
+are each one color, unlit, as SimplePaint's
+[unlit shader](../../Library/SimplePaint/Usage.md#unlit-models) draws them. Every frame draws
+all of it. Like every KGames GUI program, it's built on
 [Library/UserInterface](../../Library/UserInterface/README.md), with Win32 and Direct3D 12,
 ignores input without focus, and supports the two
 [window setups](../../Library/UserInterface/README.md#window-setups).
@@ -23,9 +24,8 @@ ignores input without focus, and supports the two
 | Sphere     | Radius 0.4, on the ground at X = 1.5 and Z = -1.5                          |
 | Ground     | A plane 10 units along X and 5 along Z, at Y = 0                           |
 | Cube       | 1 unit on each side, on the ground at Z = -1.5                             |
-| Lighting   | Each face of the ground and the cube is a flat color: its sRGB color times |
-|            | 0.28, plus 0.72 times how much it faces the light, which is above, between |
-|            | +X and +Z. `Shaders/FlatShading.hlsl` draws them                           |
+| Colors     | The ground and the cube are each one sRGB color, the C++ scene's, on every |
+|            | face, without lights. SimplePaint's unlit shader draws them               |
 | Background | #4c4c4c                                                                    |
 | Frames     | Through Library/UserInterface's main loop, paced for the lowest latency.   |
 |            | Maximized or borderless fullscreen, and waiting for vertical sync or not,  |
@@ -105,11 +105,10 @@ as `Notice/0`, `Notice/1` and so on.
 | `src/lib.rs`               | The test's parts, as a library that `Test/SpinningCarTest` tests         |
 | `src/spinning_car.rs`      | The test as a `Program`: where the car is, the keys, and the state       |
 | `src/controls.rs`          | What S does                                                              |
-| `src/scene.rs`             | The objects, the camera, the light and the animation                     |
+| `src/scene.rs`             | The objects and their colors, the camera and the animation               |
 | `src/settings.rs`          | The materials and the sphere's resolution, and their defaults            |
-| `Shaders/FlatShading.hlsl` | Draws the ground and the cube, with its root signature, which is         |
-|                            | SimplePaint's, so SimplePaint's pipeline and meshes draw with it         |
-| `build.rs`                 | Compiles SimplePaint's shaders for six materials, and `FlatShading.hlsl` |
+| `build.rs`                 | Compiles SimplePaint's shaders for six materials, and its unlit one for  |
+|                            | the ground's and the cube's colors                                       |
 | `HumanRun.ps1`             | Builds the test and runs it on the primary display, for people to use    |
 | `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                |
 | `Settings.json`            | The settings, which the test writes if it's missing                      |
