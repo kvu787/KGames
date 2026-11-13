@@ -1,6 +1,6 @@
 // Tests the library's parts that need no window: geometry, colors, easing,
-// the design system's values, keys, how events fold into a frame's input,
-// settings, the command line, and text layout.
+// the design system's values, keys, how a frame's events come in steps and
+// fold into each step's input, settings, the command line, and text layout.
 
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
@@ -136,6 +136,56 @@ fn events_fold_into_a_frame_of_input() {
     assert!(input.key_down(Key::ALT));
     input.begin(0.6, &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]);
     assert!(input.shortcut_pressed(Shortcut::new(Modifiers::new(true, false, true), Key::S)));
+}
+
+// A frame's events come in steps, which the interface handles one at a time,
+// each on the state the steps before it left. A step ends with an event that
+// does something, with the text that a key's press types, and the moves
+// before it are its own. Moves of the pointer after the frame's last such
+// event are a step of their own, and moves of only the gamepad's sticks are
+// the last step's.
+#[test]
+fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
+    use user_interface::{Gamepad, GamepadButtons};
+    let (a, b) = (Point::new(1.0, 1.0), Point::new(2.0, 2.0));
+    let stick = Gamepad {
+        connected: true,
+        left_stick: Point::new(0.5, 0.0),
+        ..Gamepad::default()
+    };
+    let holding_a = Gamepad {
+        buttons: GamepadButtons(GamepadButtons::A),
+        ..stick
+    };
+    let pressed = |key: Key| Event::KeyPressed { key, repeat: false };
+    let mut input = Input::default();
+    let events = [
+        Event::PointerMoved(a),
+        Event::ButtonPressed(MouseButton::Left),
+        pressed(Key::A),
+        Event::Text('a'),
+        Event::Text('b'),
+        Event::Gamepad(stick),
+        Event::KeyReleased(Key::A),
+        Event::PointerMoved(b),
+    ];
+    let steps = input.steps(&events);
+    assert_eq!(steps, [&events[0..2], &events[2..5], &events[5..7], &events[7..8]]);
+    let events = [Event::ButtonReleased(MouseButton::Left), Event::Gamepad(stick)];
+    assert_eq!(input.steps(&events), [&events[..]]);
+    // A change of the gamepad's buttons does something, and a move of its
+    // sticks while they're held doesn't.
+    let moved = Gamepad {
+        left_stick: Point::new(0.9, 0.0),
+        ..holding_a
+    };
+    let events = [Event::Gamepad(holding_a), Event::Gamepad(moved), Event::Gamepad(stick)];
+    assert_eq!(input.steps(&events), [&events[0..1], &events[1..3]]);
+    // Text that no key's press typed is a step of its own, a character each.
+    let events = [Event::Text('x'), Event::Text('y')];
+    assert_eq!(input.steps(&events), [&events[0..1], &events[1..2]]);
+    // A frame without events is one step.
+    assert_eq!(input.steps(&[]), [&[] as &[Event]]);
 }
 
 #[test]
