@@ -55,7 +55,7 @@ claims in KGames' code. Nothing in BUI was built or run.
 
 | #   | Task                                              | Effort     | Status      |
 | --- | ------------------------------------------------- | ---------- | ----------- |
-| 1   | Keep a frame's keys and text in order             | 1 day      | Not started |
+| 1   | Keep a frame's keys and text in order             | 1 day      | Done        |
 | 2   | Repaint the frame when the glyph atlas fills      | Half a day | Not started |
 | 3   | Check design values against WinUI's generic.xaml  | Half a day | Proposed    |
 | 4   | Test that round trips give an identical frame     | 2 hours    | Proposed    |
@@ -78,14 +78,26 @@ claims in KGames' code. Nothing in BUI was built or run.
 | 21  | A third-party notices file and its check          | 1 hour     | Not started |
 | 22  | Decide whether idle frames are skipped            | Decision   | Not started |
 
-Tasks 1 and 2 fix bugs in KGames that BUI showed up, which break AGENTS.md's rules today. Tasks 3
-and 4 are the cheapest checks with the most reach.
+Tasks 1 and 2 fix bugs in KGames that BUI showed up, which broke AGENTS.md's rules: task 1's is
+fixed, and task 2's still does. Tasks 3 and 4 are the cheapest checks with the most reach.
 
 ## Task details
 
 ### 1. Keep a frame's keys and text in order
 
-Status: Not started. A bug in KGames, checked in the code.
+Status: Done, more widely than the task asked. The interface takes a frame's input in steps, one
+for each event that does something, like a key's press with its text, a release, a click or the
+wheel, and runs each step's input, messages, view and layout on the state that the steps before it
+left, as a Win32 window's messages do (`Input::steps` in
+[events.rs](../Library/UserInterface/src/input/events.rs), and `Interface::frame` in
+[interface.rs](../Library/UserInterface/src/core/interface.rs)). So every widget and program sees
+one key at a time, with the modifiers held as it went down, and no widget needs an ordered list of
+its own. `Test/UserInterface/tests/order.rs` pins that "a", Backspace, "b" in one frame deletes the
+"a", that a shortcut sees the modifiers held as its key went down and applies twice when pressed
+twice, that two clicks in a frame are two presses, and that a click lands on a menu or a dialog
+that a click before it in the frame opened. No widget moves by Left or Down today, so the cases
+below about them have nothing to pin yet; a widget that takes them will get them one at a time.
+What follows is the task as it was found.
 
 - **KGames:** `Input` keeps the frame's presses in `keys_pressed` and its typed text in one `text`
   string, and the modifiers are the ones held at the end of the frame

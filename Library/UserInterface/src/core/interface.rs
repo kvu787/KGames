@@ -1,11 +1,17 @@
-// The interface's frame machinery. A frame: the input is found on the tree
-// the user saw, as the frame before this one drew it, and each widget there
-// says what the input did to it, as messages; the program's own messages
-// are added; the messages are applied, and those they send in turn, until
-// none are left; the program describes the frame's tree; the tree is laid
-// out, its targets found, the pointer placed on the topmost of them, and
-// the tree drawn. So every widget shows all that the input did, whatever
-// order the tree lists them in, on the frame of the input.
+// The interface's frame machinery. A frame takes its input in steps, in the
+// order it happened, one for each event that does something, like a press,
+// a key or the wheel (see `Input::steps`), so that each event sees the state
+// that the events before it left, as a Win32 window's messages do. A step:
+// its input is found on the tree that the step before laid out, which for a
+// frame's first step is the tree the user saw, and each widget there says
+// what the input did to it, as messages; the program's own messages are
+// added; the messages are applied, and those they send in turn, until none
+// are left; the program describes the step's tree; and the tree is laid
+// out, its targets found, and the pointer placed on the topmost of them.
+// Then the last step's tree is drawn. So a second click in a frame lands on
+// the menu that the first one opened, and every widget shows all that the
+// input did, whatever order the tree lists them in, on the frame of the
+// input. The frame's time passes in its last step, after its events.
 //
 // Widgets are named, like "Volume" or "Devices/3". A name is what a widget is
 // known by from one frame to the next, for what it keeps, like a caret, and
@@ -143,28 +149,28 @@ impl LookSources {
 
 pub struct Interface {
     pub(crate) theme: Theme,
-    // The theme that toggle_theme asked for this frame, which the frame's
-    // view is drawn in: what `theme` says until then.
+    // The theme that toggle_theme asked for in this step, which the step's
+    // view is built in: what `theme` says until then.
     next_theme: Option<Theme>,
     pub(crate) fonts: Fonts,
     pub(crate) draw: DrawList,
     pub(crate) input: Input,
     size: Size,
     fullscreen: bool,
-    // The targets of the frame that's laid out, which are the frame the
-    // user saw, that the next frame's input is on, until that frame's
-    // layout.
+    // The targets of the tree that's laid out, which the next step's input
+    // is on, until that step's layout: the tree the user saw, between
+    // frames.
     pub(crate) targets: Vec<Target>,
     pub(crate) hovered: Option<Id>,
     // The target with a press, and the button.
     active: Option<(Id, MouseButton)>,
     // The text field with keyboard focus.
     pub(crate) focused: Option<Id>,
-    // Whether a text field with focus takes the keys typed this frame.
+    // Whether a text field with focus takes the keys typed in this step.
     typing: bool,
     pub(crate) popups: Vec<Popup>,
-    // Whether the frame the user saw had a dialog, which then takes all
-    // input, and whether the frame laid out has one.
+    // Whether the tree that the step's input is on had a dialog, which then
+    // takes all input, and whether the tree laid out has one.
     pub(crate) modal_shown: bool,
     modal: bool,
     // Presses that only closed a popup, which no widget may take.
@@ -223,27 +229,56 @@ impl Interface {
         }
     }
 
-    // Runs a frame of the program: the input on the tree the user saw, the
-    // messages, the new tree, and its drawing. `shown` is that tree, which
-    // this leaves as the new one. `sent` are messages from outside, like a
-    // test's, applied before the input's.
+    // Runs a frame of the program: its input in steps, each on the tree that
+    // the step before left, then the drawing of the last step's tree.
+    // `shown` is the tree the user saw, which this leaves as the new one.
+    // `sent` are messages from outside, like a test's, applied in the first
+    // step, before the input's. The frame's time passes in its last step.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size, fullscreen: bool) {
         self.frame += 1;
         self.size = size;
         self.fullscreen = fullscreen;
-        self.input.begin(time, events);
+        self.requests.clear();
         self.fonts.begin_frame();
         if let Some(performance) = &mut self.performance {
             performance.frame_started(time);
             performance.update(time);
         }
+        let mut phases = FramePhases::default();
+        let mut applied = 0;
+        let mut sent = Some(sent);
+        let steps = self.input.steps(events);
+        let last = steps.len() - 1;
+        for (index, step) in steps.into_iter().enumerate() {
+            let step_time = if index == last { time } else { self.input.time };
+            let tree = self.step(program, shown.as_ref(), step, sent.take().unwrap_or_default(), step_time, &mut applied, &mut phases);
+            *shown = Some(tree);
+        }
+        self.messages_applied = applied;
 
-        // The input, on the frame the user saw.
+        // The last step's tree, drawn.
+        let started = std::time::Instant::now();
+        if let Some(tree) = shown.as_ref() {
+            self.draw_tree(tree);
+        }
+        phases.draw = (std::time::Instant::now() - started).as_secs_f64() * 1000.0;
+        self.phases = phases;
+    }
+
+    // Runs a step of a frame: the step's input on the tree `shown`, which
+    // the user saw for the frame's first step, and which the step before
+    // left for the others; the messages; and the step's tree, laid out,
+    // which this returns. `applied` counts the frame's messages so far.
+    #[allow(clippy::too_many_arguments)]
+    fn step<P: Program>(&mut self, program: &mut P, shown: Option<&Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, applied: &mut usize, phases: &mut FramePhases) -> Tree<P::Message> {
+        self.input.begin(time, events);
+
+        // The input, on the tree it came on.
         let started = std::time::Instant::now();
         self.begin_input();
         let mut messages = sent;
-        if let Some(tree) = shown.as_ref() {
+        if let Some(tree) = shown {
             self.dispatch(tree, &mut messages);
         }
         self.end_input();
@@ -251,11 +286,10 @@ impl Interface {
             let ui = Ui { inner: self };
             messages.extend(program.input(&ui));
         }
-        let mut phases = FramePhases::default();
         let mut mark = started;
         let mut lap = |phase: &mut f64| {
             let now = std::time::Instant::now();
-            *phase = (now - mark).as_secs_f64() * 1000.0;
+            *phase += (now - mark).as_secs_f64() * 1000.0;
             mark = now;
         };
         lap(&mut phases.input);
@@ -264,17 +298,16 @@ impl Interface {
         // that doesn't settle is a bug, and stops the program rather than
         // hiding or dropping what's queued behind it.
         let mut queue: VecDeque<P::Message> = messages.into_iter().collect();
-        let mut applied = 0;
         while let Some(message) = queue.pop_front() {
-            assert!(applied < MOST_MESSAGES, "the frame stopped after {MOST_MESSAGES} messages: a message sends messages without end");
-            applied += 1;
+            assert!(*applied < MOST_MESSAGES, "the frame stopped after {MOST_MESSAGES} messages: a message sends messages without end");
+            *applied += 1;
             let mut context = Context { inner: self, queue: &mut queue };
             program.update(message, &mut context);
         }
-        self.messages_applied = applied;
         lap(&mut phases.update);
 
-        // The frame's tree, laid out and drawn.
+        // The step's tree, laid out, for the next step's input and for the
+        // frame's drawing.
         if let Some(theme) = self.next_theme.take() {
             self.theme = theme;
         }
@@ -286,40 +319,42 @@ impl Interface {
         lap(&mut phases.view);
         self.layout(&tree);
         lap(&mut phases.layout);
-        self.draw_tree(&tree);
-        lap(&mut phases.draw);
-        self.phases = phases;
-        *shown = Some(tree);
+        tree
     }
 
-    // What the parts of the last frame cost the CPU.
+    // What the parts of the last frame cost the CPU, over all its steps.
     pub fn phases(&self) -> FramePhases {
         self.phases
     }
 
     // Runs a frame of a tree that isn't a program's, like the unsupported
-    // setup's: the interface's own keys, and drawing.
+    // setup's: the interface's own keys, in steps, and drawing.
     pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size, fullscreen: bool) {
         self.frame += 1;
         self.size = size;
         self.fullscreen = fullscreen;
-        self.input.begin(time, events);
+        self.requests.clear();
         self.fonts.begin_frame();
-        self.begin_input();
-        self.end_input();
-        if let Some(theme) = self.next_theme.take() {
-            self.theme = theme;
+        let steps = self.input.steps(events);
+        let last = steps.len() - 1;
+        for (index, step) in steps.into_iter().enumerate() {
+            let step_time = if index == last { time } else { self.input.time };
+            self.input.begin(step_time, step);
+            self.begin_input();
+            self.end_input();
+            if let Some(theme) = self.next_theme.take() {
+                self.theme = theme;
+            }
+            self.layout(tree);
         }
-        self.layout(tree);
         self.draw_tree(tree);
     }
 
-    // Starts on the frame's input: where the pointer is, by the targets the
-    // user saw, and what the keys do before any widget hears them.
+    // Starts on a step's input: where the pointer is, by the targets of the
+    // tree it came on, and what the keys do before any widget hears them.
     fn begin_input(&mut self) {
         self.cursor = Cursor::Arrow;
         self.press_consumed = [false; 3];
-        self.requests.clear();
         if self.input.focus_lost {
             self.popups.clear();
         }
@@ -354,7 +389,7 @@ impl Interface {
 
         self.typing = self.focused.is_some_and(|focused| self.targets.iter().any(|target| target.id == focused && target.sense.text));
 
-        // F9 switches the theme from this frame, which draws in the new one.
+        // F9 switches the theme from this step, whose view is in the new one.
         if self.input.key_pressed_once(Key::F9) {
             self.toggle_theme();
         }
@@ -440,8 +475,8 @@ impl Interface {
         self.take_focus_away();
     }
 
-    // What the input did to a target this frame. A press acts on the frame
-    // that the button goes down: a left press presses the target, and a
+    // What the step's input did to a target. A press acts on the step that
+    // the button goes down: a left press presses the target, and a
     // right press asks for its context menu, whatever the pointer does
     // before the button comes up.
     fn hit(&mut self, target: &Target) -> Hit {
@@ -497,8 +532,8 @@ impl Interface {
 
     // A left press on a text field gives it keyboard focus, as its hit is
     // found, and any press anywhere else takes it away, here, once every
-    // widget has heard the frame's input, so that the field still takes
-    // what was typed before the press. A press on the field itself, or on
+    // widget has heard the step's input, so that the field still takes
+    // what was typed with the press. A press on the field itself, or on
     // its own parts, like its clear button, leaves it there.
     fn take_focus_away(&mut self) {
         let pressed = MouseButton::ALL.iter().any(|&button| self.input.button_pressed(button));
@@ -510,7 +545,7 @@ impl Interface {
         }
     }
 
-    // Ends the frame's input: what no widget took is let go of, and the
+    // Ends the step's input: what no widget took is let go of, and the
     // interface's own keys.
     fn end_input(&mut self) {
         if let Some((_, button)) = self.active
@@ -529,7 +564,7 @@ impl Interface {
         }
     }
 
-    // Lays the frame's tree out: finds every target, and which layer each
+    // Lays a step's tree out: finds every target, and which layer each
     // is on, and places the pointer on the topmost of them, for the look.
     fn layout<M: Clone + 'static>(&mut self, tree: &Tree<M>) {
         self.targets.clear();
@@ -572,8 +607,8 @@ impl Interface {
             });
         }
 
-        // The pointer, on the frame as it's drawn, for the look of what's
-        // under it.
+        // The pointer, on the tree as it's laid out, for the next step's
+        // input and the look of what's under it.
         let topmost = self.topmost(&self.targets, self.modal);
         self.hovered = self.under_pointer(topmost);
         self.modal_shown = self.modal;
@@ -775,14 +810,14 @@ impl Interface {
         self.targets.iter().rev().find(|target| target.id == active)
     }
 
-    // The theme, whose roles color everything: the one this frame draws in,
-    // as the frame's toggles leave it.
+    // The theme, whose roles color everything: the one this step's view is
+    // built in, as the step's toggles leave it.
     pub fn theme(&self) -> &Theme {
         self.next_theme.as_ref().unwrap_or(&self.theme)
     }
 
     // Switches between the light and dark themes, as F9 does, for this
-    // frame's view on.
+    // step's view on.
     pub fn toggle_theme(&mut self) {
         let kind = self.theme().kind.other();
         self.next_theme = Some(Theme::new(kind));
@@ -852,7 +887,8 @@ impl Interface {
         &self.input.gamepad
     }
 
-    // Seconds since the last frame.
+    // Seconds since the last frame, in a frame's last step, and 0 in the
+    // steps before it: time passes once a frame, after its events.
     pub fn delta(&self) -> f32 {
         self.input.delta
     }
@@ -875,7 +911,7 @@ impl Interface {
         self.tooltips_enabled
     }
 
-    // Whether the key was pressed this frame, counting a held key's repeats,
+    // Whether the key was pressed in this step, counting a held key's repeats,
     // unless a text field with focus takes it, or a dialog is open over the
     // page.
     pub fn key_pressed(&self, key: Key) -> bool {
@@ -1022,12 +1058,12 @@ impl Interface {
         &self.notices
     }
 
-    // The targets of the last frame that's laid out.
+    // The targets of the last tree that's laid out.
     pub fn targets(&self) -> &[Target] {
         &self.targets
     }
 
-    // The last frame's listed target with the name: the first of them, as
+    // The last tree's listed target with the name: the first of them, as
     // the state lists it, if the name is used twice.
     pub fn target(&self, name: &str) -> Option<&Target> {
         let id = id(name);
@@ -1193,13 +1229,13 @@ impl<M> Deref for Context<'_, M> {
 }
 
 impl<M> Context<'_, M> {
-    // Sends a message, which is applied after those before it, this frame.
+    // Sends a message, which is applied after those before it, in this step.
     pub fn send(&mut self, message: M) {
         self.queue.push_back(message);
     }
 
     // Switches between the light and dark themes, as F9 does, from this
-    // frame's view on.
+    // step's view on.
     pub fn toggle_theme(&mut self) {
         self.inner.toggle_theme();
     }
@@ -1230,7 +1266,8 @@ impl<M> Context<'_, M> {
         }
     }
 
-    // Whether the frame the user saw had a dialog, which took its input.
+    // Whether the tree that the step's input was on had a dialog, which
+    // took the input.
     #[allow(clippy::misnamed_getters)]
     pub fn modal(&self) -> bool {
         self.inner.modal_shown

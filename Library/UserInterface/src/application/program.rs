@@ -5,11 +5,18 @@
 // and devices into messages. It may draw 3D under the interface, and tells
 // scripts its state. `run` runs one with the Options that say how.
 //
-// A frame: the interface finds what the input did to the widgets the user
-// saw, as messages; the program's `input` adds its own; `update` applies
-// them all, and any they send in turn, until none are left; then `view`
-// describes the frame, which is laid out and drawn. So every widget shows
-// what every message did, on the frame of the input.
+// A frame takes its input in steps, in the order it happened, one for each
+// event that does something, like a press or a key, so that each event sees
+// what the ones before it did. A step: the interface finds what the step's
+// input did to the widgets of the tree that the step before left, which for
+// a frame's first step is the tree the user saw, as messages; the program's
+// `input` adds its own; `update` applies them all, and any they send in
+// turn, until none are left; then `view` describes the step's tree, which is
+// laid out for the next step. The last step's tree is drawn. So every widget
+// shows what every message did, on the frame of the input. The frame's time
+// passes in its last step, after its events: in the steps before it,
+// `Ui::delta` is 0 and `Ui::time` the last frame's, so that a simulation
+// that `input` ticks moves once a frame, by the frame's time.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -31,9 +38,10 @@ pub trait Program {
     // The window's title.
     fn title(&self) -> String;
 
-    // The frame's messages from what isn't a widget: the keys that no widget
+    // The step's messages from what isn't a widget: the keys that no widget
     // took, the time since the last frame, the gamepad, and the devices.
-    // Once a frame, before the messages are applied.
+    // Once a step, after the widgets' messages and before the messages are
+    // applied.
     fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
         Vec::new()
     }
@@ -42,8 +50,8 @@ pub trait Program {
     // messages, or ask the window to close, or switch the theme.
     fn update(&mut self, message: Self::Message, ui: &mut Context<Self::Message>);
 
-    // Describes the frame's interface from the program's state, which it
-    // doesn't change. Once a frame, after the messages are applied.
+    // Describes the interface from the program's state, which it doesn't
+    // change. Once a step, after the step's messages are applied.
     fn view(&self, ui: &mut Ui) -> Tree<Self::Message>;
 
     // Creates what the program draws with on the GPU, once, before the first

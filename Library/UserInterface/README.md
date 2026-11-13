@@ -9,14 +9,18 @@ and runs scripts and headless tests. [UiShowcase](../../Program/UiShowcase/READM
 widget.
 
 A program is its state, what each frame's input means to it, and a description of its interface
-from that state. Each frame, the main loop reads the newest input and hit-tests it against the tree
-the user saw; the widgets it landed on turn it into the program's messages, and the program's
-`input` adds its own, like shortcuts; `update` applies each message to the state, in order, each
-seeing what the one before left; and one read-only `view` builds the frame's tree of widgets from
-the state, which is laid out, drawn and presented. So everything a frame's input causes shows on
-that same frame, and nothing is retained between frames but the program's state and what only a
-widget needs, like a text field's caret or a list's scroll, which the library keeps by the widget's
-name.
+from that state. Each frame, the main loop reads the newest input and takes it in steps, in the
+order it happened, one for each event that does something, like a press, a key or the wheel, so
+that each event sees the state that the ones before it left, as a Win32 window's messages do. Each
+step hit-tests its input against the tree that the step before laid out, which for the frame's
+first step is the tree the user saw; the widgets it landed on turn it into the program's messages,
+and the program's `input` adds its own, like shortcuts; `update` applies each message to the state,
+in order, each seeing what the one before left; and a read-only `view` builds the step's tree of
+widgets from the state, which is laid out for the next step. The last step's tree is drawn and
+presented. So a second click in a frame lands on the menu that the first one opened, everything a
+frame's input causes shows on that same frame, and nothing is retained between frames but the
+program's state and what only a widget needs, like a text field's caret or a list's scroll, which
+the library keeps by the widget's name.
 
 ## A program
 
@@ -77,21 +81,26 @@ card made with `card_with_view` leaves a hole.
 | -------------- | ----------------------------------------------------------------------------- |
 | `Message`      | What a frame's input means to the program; `Clone`, and usually an enum       |
 | `title`        | The window's title                                                            |
-| `input`        | The program's own messages from the frame's input, like shortcuts or a tick,  |
-|                | queued after the widgets'                                                     |
+| `input`        | The program's own messages from a step's input, like shortcuts or a tick,     |
+|                | queued after the widgets', once a step                                        |
 | `update`       | Applies one message to the program's state, with the `Context` to send more,  |
 |                | ask the time, or close the window                                             |
-| `view`         | Describes the frame's interface from the state, read-only, as a `Tree` of     |
-|                | widgets                                                                       |
+| `view`         | Describes the interface from the state, read-only, as a `Tree` of widgets,    |
+|                | once a step                                                                   |
 | `prepare`      | Creates the program's GPU resources, once                                     |
 | `render`       | Draws the program's 3D views into the frame, under the interface              |
 | `may_close`    | Whether the window may close now, or asks first, like about unsaved work      |
 | `state`        | What scripts save and check, as a JSON object                                 |
 | `script`       | Does a script's `Program` step, like connecting a made-up device              |
 
-A message sent from `update`, with `Context::send`, joins the same frame's queue. A per-frame
-message from `input`, queued last, is the place for what runs after everything else, like
+A message sent from `update`, with `Context::send`, joins the same step's queue. A message that
+`input` sends every step, queued last, is the place for what runs after everything else, like
 committing an edit once the button is up, or rebuilding what a 3D view shows.
+
+A frame's time passes in its last step, after its events. In the steps before it, `ui.delta()` is
+0 and `ui.time()` is the last frame's, so a simulation that `input` ticks every step moves once a
+frame, by the frame's time, with every event of the frame applied before it moves. A frame without
+input, or with one event, is one step, like most frames.
 
 ## The design system
 
@@ -221,8 +230,10 @@ before, but reports gamepads' whole state, their held buttons too.
 - The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
   moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
   window's.
-- The pointer is on the topmost target under it, in the tree the user saw, so a combo box's
-  list, a menu or a dialog takes the pointer from what's under it. A card, and `Cover`, cover
+- The pointer is on the topmost target under it, in the tree that the step's input came on: the
+  tree the user saw, or for a later event in the frame, the tree that the events before it left.
+  So a combo box's list, a menu or a dialog takes the pointer from what's under it, from the very
+  next event after the one that opened it. A card, and `Cover`, cover
   what's under them, like a 3D view.
 - Widgets act on a press, on the frame that the button goes down, and never wait for its release,
   which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
@@ -231,7 +242,7 @@ before, but reports gamepads' whole state, their held buttons too.
   in a 3D view. While a button is held, the window captures the
   mouse, so a drag keeps going past its edges.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
-  and a press anywhere else takes it away, once the field has taken what was typed in that frame.
+  and a press anywhere else takes it away, once the field has taken what was typed before it.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
   it, and Enter takes what's typed in a number box or a color field, which goes if the field loses
   focus first.
@@ -241,8 +252,9 @@ before, but reports gamepads' whole state, their held buttons too.
 - `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
   don't see the keys that a text field with focus takes - every key without Ctrl - or any while
   a dialog is open - from the very frame it opens, for checks after it.
-  `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
-  driving.
+  `ui.input()` has all of the step's input, for programs that read keys themselves, like for
+  driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
+  its presses in a frame are two.
 - Without focus, the window has no input at all, including the gamepad's. As focus goes,
   everything held is let go of on that frame: keys and mouse buttons are released, the gamepad
   goes to rest, and `ui.input().focus_lost` says why. The click that gives it focus does only
@@ -497,14 +509,15 @@ writes its files in its output folder, through `startup.data_folder`.
 | `src/application/performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen |
 | `src/core/interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
 | `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
-| `src/core/interface.rs`          | The interface: input against the shown tree, messages, layout, focus,      |
-|                                  | popups, tooltips, widget memory, and the frame's phases                    |
+| `src/core/interface.rs`          | The interface: a frame's steps, each step's input against the tree laid    |
+|                                  | out before it, messages, layout, focus, popups, tooltips, widget memory,   |
+|                                  | and the frame's phases                                                     |
 | `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check,  |
 |                                  | and the theme's background that it shows until its first frame             |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
-| `src/input/events.rs`            | A frame's input, from its events                                           |
+| `src/input/events.rs`            | A frame's events in steps, and each step's input, from its events          |
 | `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
 | `src/design/theme.rs`            | WinUI's theme resources, light and dark                                    |
 | `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |

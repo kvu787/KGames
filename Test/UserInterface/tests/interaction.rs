@@ -917,11 +917,13 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
 fn a_message_s_effects_all_show_on_its_frame() {
     // Every widget shows what the input did, whatever order the tree lists
     // them in: the field's text, which the view builds from the model, is
-    // the typed text on the very frame that types it.
+    // the typed text on the very frame that types it. Each character is a
+    // step of its own, with its own message, which the next one's field
+    // was built from.
     let mut app = Headless::new(Test::default());
     app.click("Field").type_text("abc");
     assert_eq!(app.label("Field").as_deref(), Some("abc"));
-    assert_eq!(app.messages_applied(), 1);
+    assert_eq!(app.messages_applied(), 3);
 }
 
 #[test]

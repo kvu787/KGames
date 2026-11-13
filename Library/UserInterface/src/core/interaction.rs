@@ -1,6 +1,6 @@
 // What a widget is to the input: its identity, what it senses, its targets,
-// which the pointer can be on, and the interaction that says what the input
-// did to it in a frame. These are the types between the interface's frame
+// which the pointer can be on, and the interaction that says what a step of
+// a frame's input did to it. These are the types between the interface's frame
 // machinery, in interface.rs, and the widgets.
 
 use crate::drawing::geometry::{Point, Rect};
@@ -149,18 +149,18 @@ pub enum ControlState {
     Disabled,
 }
 
-// What the input did to a target this frame. Widgets act on presses, on the
-// frame that the button goes down, and never wait for its release: then a
-// button sends its message, and a menu or a context menu opens.
+// What a step's input did to a target. Widgets act on presses, on the step
+// that the button goes down, and never wait for its release: then a button
+// sends its message, and a menu or a context menu opens.
 #[derive(Clone, Debug, Default)]
 pub struct Hit {
     // The pointer is on it, and it's enabled.
     pub hovered: bool,
-    // The left button went down on it this frame.
+    // The left button went down on it in this step.
     pub pressed: bool,
     // It has a press: a button that went down on it is still down.
     pub held: bool,
-    // Its left press ended this frame, wherever the pointer was, which ends
+    // Its left press ended in this step, wherever the pointer was, which ends
     // a drag, like a slider's.
     pub released: bool,
     // Its press was the second of a double-click.
@@ -195,8 +195,8 @@ impl Hit {
     }
 }
 
-// What the input did to a widget and its parts this frame, which the widget
-// turns into messages and changes of its own state.
+// What a step's input did to a widget and its parts, which the widget turns
+// into messages and changes of its own state.
 #[derive(Clone, Debug, Default)]
 pub struct Interaction {
     pub enabled: bool,
@@ -208,7 +208,7 @@ pub struct Interaction {
     pub focused: bool,
     // The pointer, while it's on the widget or the widget is held.
     pub pointer: Option<Point>,
-    // How far the pointer moved this frame while the widget was held.
+    // How far the pointer moved in this step while the widget was held.
     pub drag_delta: Point,
     // Notches of the wheel turned over the widget's area while what's under
     // the pointer doesn't take the wheel itself, for what scrolls.

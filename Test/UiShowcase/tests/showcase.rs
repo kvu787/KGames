@@ -106,7 +106,9 @@ fn starting_in_the_dark_theme_logs_no_change_of_theme() {
 }
 
 // F9 and the program's own theme command in one frame are two toggles, which
-// cancel: the theme is the same at the frame's end, so it doesn't change.
+// apply in order and cancel: F9 switches to dark, which the program sees, and
+// the button's press after it switches back, so the frame ends, and is
+// drawn, in the theme it started in.
 #[test]
 fn two_theme_toggles_in_one_frame_cancel() {
     use user_interface::Event;
@@ -117,13 +119,13 @@ fn two_theme_toggles_in_one_frame_cancel() {
     app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
     app.press("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
-    // The button's toggle logged the theme the frame draws in, once; the
-    // watcher re-reads the theme when it applies, so it adds nothing, this
-    // frame or the next.
+    // The watcher logged the dark theme that F9 left, and the button's toggle
+    // the light one that it left, newest first; the watcher re-reads the
+    // theme when it applies, so it adds nothing more, this frame or the next.
     app.release();
     let after: Vec<&String> = app.program.log.iter().filter(|line| line.ends_with("theme")).collect();
-    assert_eq!(after.len(), themed + 1, "{after:?}");
-    assert_eq!(after.first().map(|line| line.as_str()), Some("Light theme"));
+    assert_eq!(after.len(), themed + 2, "{after:?}");
+    assert_eq!(after[..2], ["Light theme", "Dark theme"]);
     // Either alone still switches.
     app.queue(&[Event::KeyReleased(Key::F9)]).frame();
     app.key(Key::F9);
@@ -133,17 +135,19 @@ fn two_theme_toggles_in_one_frame_cancel() {
 }
 
 // A frame can hold both a typed letter, which re-filters the list, and a
-// press on a row. The press means the item the row showed, so it still
-// lands there.
+// press on a row after it. The letter applies first, as it was typed first,
+// so the press lands on the row as the filtered list shows it: the first
+// row shows Basalt, the first item with a "b", where it showed Aurora.
 #[test]
-fn a_press_lands_on_the_item_its_row_showed_even_as_the_search_changes() {
+fn a_press_after_a_letter_in_one_frame_lands_on_the_list_the_letter_filtered() {
     use user_interface::Event;
     let mut app = showcase();
     app.click("Search");
     let center = app.target("Items/0").center();
     app.queue(&[Event::Text('b'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!(app.program.search, "b", "the letter reached the search box");
-    assert_eq!(app.program.selected, Some(0), "the press selected what the row was showing");
+    assert_eq!(app.program.matches()[0], 1);
+    assert_eq!(app.program.selected, Some(1), "the press selected what the row showed once the letter filtered the list");
     app.release();
 }
 
