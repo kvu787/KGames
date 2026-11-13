@@ -112,14 +112,16 @@ impl Input {
     // handles one at a time, each on the state that the steps before it
     // left, so that each event sees what the events before it did. Each
     // event that does something is the end of a step: a press or a release
-    // of a button or a key, with the text that a key's press types, the
-    // wheel, text typed, focus coming or going, or a change of the gamepad's
-    // buttons. The events before it that only move something, the pointer
-    // or the gamepad's sticks, are its step's too, so that it happens where
-    // they left the pointer. Those after the frame's last such event are a
-    // step of their own if they move the pointer, so that the event before
-    // them happens where the pointer was then, and are the last step's
-    // otherwise. A frame with no events is one step with none.
+    // of a button or a key, the wheel, a character typed, focus coming or
+    // going, or a change of the gamepad's buttons. A key's press and the
+    // text it types are two steps, as Win32's WM_KEYDOWN and WM_CHAR are two
+    // messages, so that text a script types after a key, like Enter, never
+    // goes with the key. The events before it that only move something, the
+    // pointer or the gamepad's sticks, are its step's too, so that it
+    // happens where they left the pointer. Those after the frame's last such
+    // event are a step of their own if they move the pointer, so that the
+    // event before them happens where the pointer was then, and are the last
+    // step's otherwise. A frame with no events is one step with none.
     pub fn steps<'a>(&mut self, events: &'a [Event]) -> Vec<&'a [Event]> {
         let mut steps: Vec<&'a [Event]> = Vec::new();
         // Where the step being gathered starts, and where the last one did.
@@ -135,11 +137,6 @@ impl Input {
             index += 1;
             if !acts {
                 continue;
-            }
-            if matches!(events[index - 1], Event::KeyPressed { .. }) {
-                while index < events.len() && matches!(events[index], Event::Text(_)) {
-                    index += 1;
-                }
             }
             steps.push(&events[start..index]);
             last_start = start;

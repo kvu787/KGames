@@ -140,10 +140,10 @@ fn events_fold_into_a_frame_of_input() {
 
 // A frame's events come in steps, which the interface handles one at a time,
 // each on the state the steps before it left. A step ends with an event that
-// does something, with the text that a key's press types, and the moves
-// before it are its own. Moves of the pointer after the frame's last such
-// event are a step of their own, and moves of only the gamepad's sticks are
-// the last step's.
+// does something, and the moves before it are its own. A key's press and the
+// text it types are two steps, as Win32's WM_KEYDOWN and WM_CHAR are. Moves
+// of the pointer after the frame's last such event are a step of their own,
+// and moves of only the gamepad's sticks are the last step's.
 #[test]
 fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
     use user_interface::{Gamepad, GamepadButtons};
@@ -170,7 +170,7 @@ fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
         Event::PointerMoved(b),
     ];
     let steps = input.steps(&events);
-    assert_eq!(steps, [&events[0..2], &events[2..5], &events[5..7], &events[7..8]]);
+    assert_eq!(steps, [&events[0..2], &events[2..3], &events[3..4], &events[4..5], &events[5..7], &events[7..8]]);
     let events = [Event::ButtonReleased(MouseButton::Left), Event::Gamepad(stick)];
     assert_eq!(input.steps(&events), [&events[..]]);
     // A change of the gamepad's buttons does something, and a move of its
