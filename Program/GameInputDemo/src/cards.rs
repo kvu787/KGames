@@ -297,20 +297,11 @@ fn gamepad(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, rect: Rect) {
 }
 
 // The combo box in the Gamepad card's header, which shows which gamepad the
-// demo listens to, and lists each connected gamepad, a picked one while it's
-// disconnected, and none, to pick another. After it, a note on what the card
-// shows, if it isn't the gamepad.
+// demo listens to, always a connected one, and lists each connected gamepad,
+// and none, to pick another. After it, a note on what the card shows, if it
+// isn't a gamepad.
 fn gamepad_combo_box(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, header: Rect) {
-    let connected = match &input.listen {
-        Listen::Gamepad(device) => input.gamepads().any(|info| info.id == device.id),
-        Listen::NoGamepad => true,
-    };
     let mut choices: Vec<Option<Device>> = input.gamepads().cloned().map(Some).collect();
-    if let Listen::Gamepad(device) = &input.listen
-        && !connected
-    {
-        choices.push(Some(device.clone()));
-    }
     choices.push(None);
     let labels: Vec<&str> = choices.iter().map(|choice| choice.as_ref().map_or(NO_GAMEPAD, |device| device.label.as_str())).collect();
     let chosen = match &input.listen {
@@ -328,11 +319,9 @@ fn gamepad_combo_box(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, heade
     });
     tree.add(GAMEPAD_COMBO_BOX, rect, combo);
 
-    // Until a choice is picked, the demo switches to a gamepad as soon as one
-    // connects, and to none once none is connected, so only a picked one is
-    // ever disconnected.
+    // Unless none is picked, the demo switches to a gamepad as soon as one
+    // connects, so it has none only while none is connected.
     let (note, caution) = match &input.listen {
-        Listen::Gamepad(_) if !connected => ("Disconnected: waiting for it to reconnect", true),
         Listen::Gamepad(_) => ("", false),
         Listen::NoGamepad if !input.listen_picked => ("No gamepad connected", true),
         Listen::NoGamepad => ("Gamepad input is ignored", false),

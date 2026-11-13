@@ -263,8 +263,7 @@ fn buttons(kind: GameInputKind, reading: &Reading) -> i32 {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Listen {
-    // Kept with its device's data, so that it's listened to again if it
-    // reconnects, and named while it's gone.
+    // A connected gamepad, with its device's data, which names it.
     Gamepad(Device),
     NoGamepad,
 }
@@ -351,9 +350,11 @@ pub struct Input {
     // are dropped when it disconnects, so one that reconnects starts from an
     // idle state.
     last_readings: Vec<LastReading>,
-    // Changed with pick_listen, or by listen_by_default until then.
+    // Changed with pick_listen, and by listen_by_default, which keeps it to
+    // connected gamepads, and chooses one while nothing's picked.
     pub listen: Listen,
-    // Whether listen was picked in the combo box.
+    // Whether listen was picked in the combo box. A pick of a gamepad lasts
+    // until it disconnects.
     pub listen_picked: bool,
     // Virtual keys of the demo's shortcuts, pressed in the reading being handled.
     shortcuts: Vec<u8>,
@@ -743,17 +744,20 @@ impl Input {
         self.set_listen(listen);
     }
 
-    // Until a choice is picked, the demo listens to a connected gamepad if
-    // there is one: the one it has while that's connected, or else the first.
-    // Without one, it has none, as before any gamepad connected, so a gamepad
-    // that it chose for itself isn't kept once it's gone.
+    // The demo only ever listens to a gamepad that's connected. A gamepad
+    // that's picked is kept while it's connected, and once it disconnects,
+    // the pick is over. Until another is picked, the demo listens to a
+    // connected gamepad if there is one: the one it has while that's
+    // connected, or else the first. Without one, it has none, as before any
+    // gamepad connected, until one connects. A pick of none lasts.
     fn listen_by_default(&mut self) {
-        if self.listen_picked {
-            return;
+        if let Listen::Gamepad(device) = &self.listen {
+            if self.gamepads().any(|info| info.id == device.id) {
+                return;
+            }
+            self.listen_picked = false;
         }
-        if let Listen::Gamepad(device) = &self.listen
-            && self.gamepads().any(|info| info.id == device.id)
-        {
+        if self.listen_picked {
             return;
         }
         let first = self.gamepads().next().cloned();

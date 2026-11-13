@@ -126,16 +126,19 @@ fn the_open_list_offers_each_gamepad_and_none() {
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("None"));
 }
 
+// The box only ever shows and offers gamepads that are connected. A picked
+// one that disconnects leaves it on that frame, for another that's connected.
 #[test]
-fn a_picked_gamepad_stays_in_the_list_while_it_is_disconnected() {
-    let mut app = demo(&["Pad One", "Pad Two"]);
+fn a_picked_gamepad_leaves_the_box_when_it_disconnects() {
+    let mut app = demo(&["Pad One", "Pad Two", "Pad Three"]);
     open(&mut app);
     app.click("Gamepad/1");
-    step(&mut app, r#"{ "Disconnect": 2 }"#);
     assert_eq!(listen(&app), "Pad Two");
-    assert_eq!(rows(&app).len(), 1);
+    step(&mut app, r#"{ "Disconnect": 2 }"#);
+    assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad One"));
+    assert_eq!(rows(&app).len(), 2);
     open(&mut app);
-    assert_eq!(choices(&app), ["Pad One", "Pad Two", "None"]);
+    assert_eq!(choices(&app), ["Pad One", "Pad Three", "None"]);
 }
 
 #[test]
@@ -146,12 +149,14 @@ fn without_gamepads_the_list_offers_none() {
     assert_eq!(choices(&app), ["None"]);
 }
 
-// Until one is picked, a gamepad that the demo chose for itself leaves the
-// combo box and its list on the frame that it disconnects, if it was the last
-// one connected.
+// Once the last gamepad disconnects, picked or not, the box shows None, on
+// that frame.
 #[test]
-fn once_every_gamepad_disconnects_the_box_shows_none_unless_one_was_picked() {
+fn once_every_gamepad_disconnects_the_box_shows_none() {
     let mut app = demo(&["Pad One", "Pad Two"]);
+    open(&mut app);
+    app.click("Gamepad/1");
+    assert!(input(&app).listen_picked);
     step(&mut app, r#"{ "Disconnect": 1 }"#);
     assert_eq!(app.label(GAMEPAD_COMBO_BOX).as_deref(), Some("Pad Two"));
     step(&mut app, r#"{ "Disconnect": 2 }"#);
