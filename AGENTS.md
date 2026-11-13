@@ -70,9 +70,11 @@ kind that holds, because a later session never read the conversation that invent
   frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a
   second, fits 2 steps in some frames and 3 in others, and what moves judders. Cap a frame's time,
   so that a late one, like after the window was minimized, doesn't carry things far, and test
-  frames at 100 frames a second and of uneven lengths: each moves things by its own time. Event
-  queues drain to quiescence inside the frame; a cascade that doesn't settle stops the program
-  instead of hiding.
+  frames at 100 frames a second and of uneven lengths: each moves things by its own time. A GUI
+  program's `input` runs once for each step of a frame's input, and only the frame's last step has
+  time, so a simulation that it ticks skips its step when no time passed, and test that a tick of
+  no time moves nothing. Event queues drain to quiescence inside the frame; a cascade that doesn't
+  settle stops the program instead of hiding.
 - A comment is a promise: a comment or README that says the code does something the code doesn't
   do is a bug, and models believe documentation more than people do. Keep them true in the same
   change that would make them false.

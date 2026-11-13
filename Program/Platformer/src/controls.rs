@@ -1,5 +1,5 @@
-// What the player does in a frame, from the keyboard and the gamepad, which
-// both do everything:
+// What the player does in a step of a frame's input, from the keyboard and
+// the gamepad, which both do everything:
 //
 // | Gamepad               | Keyboard              | Does                        |
 // | --------------------- | --------------------- | --------------------------- |
@@ -18,7 +18,7 @@ use user_interface::{GamepadButtons, Key, Ui};
 pub struct Controls {
     // The run, from -1, left, to 1, right.
     pub push: f64,
-    // The jump's press this frame, and whether it's still held.
+    // The jump's press in this step, and whether it's still held.
     pub jump_pressed: bool,
     pub jump_held: bool,
     pub restart: bool,

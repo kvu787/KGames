@@ -2,8 +2,9 @@
 // the player by its time, at 100 frames a second and at uneven ones, a jump
 // as high at any frame rate, jumping only from the ground, the buffered jump
 // firing on the very frame of the landing, coyote time, the jump cut, the
-// spring, the moving platform that carries the player, and every top in
-// every level holding a player who runs along it.
+// spring, the moving platform that carries the player, steps of no time that
+// move nothing, and every top in every level holding a player who runs
+// along it.
 
 use platformer::controls::Controls;
 use platformer::game::Game;
@@ -158,6 +159,39 @@ fn a_moving_platform_carries_the_player() {
     let before = game.player.position[0];
     let platform_before = patrol.at(game.simulated).x;
     for _ in 0..30 {
+        frame(&mut game, Controls::default());
+    }
+    let platform_moved = patrol.at(game.simulated).x - platform_before;
+    let player_moved = game.player.position[0] - before;
+    assert!(platform_moved.abs() > 0.3, "the platform moved, {platform_moved}");
+    assert!((player_moved - platform_moved).abs() < 0.05, "the player rode it: {player_moved} against {platform_moved}");
+}
+
+// The interface's steps before a frame's last one tick the game at the last
+// frame's time, so that no time passes in them. A step of no time moves
+// nothing and forgets nothing, like the platform that the player stands on,
+// so the player still rides it.
+#[test]
+fn a_step_of_no_time_moves_nothing_and_keeps_the_player_on_a_moving_platform() {
+    let mut game = game("NoTime");
+    let patrol = game.current().patrols[0];
+    let zone = patrol.at(game.simulated);
+    game.player.position = [zone.center()[0], zone.top() + 0.56];
+    game.player.velocity = [0.0, 0.0];
+    for _ in 0..10 {
+        frame(&mut game, Controls::default());
+        if game.player.grounded {
+            break;
+        }
+    }
+    assert_eq!(game.player.standing, Standing::Patrol(0), "{:?}", game.player);
+    let before = game.player.position[0];
+    let platform_before = patrol.at(game.simulated).x;
+    for _ in 0..30 {
+        let (position, simulated) = (game.player.position, game.simulated);
+        game.update(&Controls::default(), game.simulated);
+        assert_eq!((game.player.position, game.simulated), (position, simulated), "no time, no movement");
+        assert!(game.player.grounded && game.player.standing == Standing::Patrol(0), "{:?}", game.player);
         frame(&mut game, Controls::default());
     }
     let platform_moved = patrol.at(game.simulated).x - platform_before;

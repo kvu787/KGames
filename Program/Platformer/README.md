@@ -72,8 +72,8 @@ The file isn't checked in; delete it for a fresh start.
 | `src/events.rs`   | Every occurrence, as data, with the cascade cap                |
 | `src/game.rs`     | The game: a step a frame, detections, and the drained events   |
 | `src/progress.rs` | Save.json: unlocked levels and best times                      |
-| `src/controls.rs` | The frame's input, from the keyboard and the gamepad           |
-| `src/program.rs`  | The Program: one Tick message a frame, and the app bar's two   |
+| `src/controls.rs` | A step's input, from the keyboard and the gamepad              |
+| `src/program.rs`  | The Program: one Tick message a step, and the app bar's two    |
 | `src/cards.rs`    | The view: the world's canvas, the Run and Events cards, banner |
 
 ## Testing

@@ -1,7 +1,8 @@
 // The platformer as a Program, which Library/UserInterface's main loop runs.
-// A frame's input is one message: the controls, which the game turns into
-// a step by the frame's time and events, drained to quiescence before the
-// frame's view.
+// Each step of a frame's input is one message: the step's controls, which
+// the game turns into its one-off actions, a step by the time since the step
+// before, which only the frame's last step has, and events, drained to
+// quiescence before the step's view.
 // The app bar goes between the unlocked levels and starts a run over, and
 // the cards show the run and the events as they happen.
 
@@ -15,11 +16,11 @@ use crate::level;
 use crate::progress::{self, Progress};
 use crate::NAME;
 
-// What a frame's input means.
+// What a step of a frame's input means.
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Once a frame: the frame's controls, which move the game on by the
-    // frame's time.
+    // Once a step: the step's controls, which move the game on by the time
+    // since the step before, the frame's time in its last step.
     Tick(Controls),
     // The app bar: a level to go to, and starting the run over.
     GoLevel(usize),
