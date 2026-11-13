@@ -17,6 +17,7 @@
 
 use std::any::{Any, TypeId};
 use std::collections::VecDeque;
+use std::ops::Deref;
 
 use crate::application::program::{Notice, Program};
 use crate::core::interaction::{Cursor, Hit, Id, Interaction, Part, Sense, Target, Wheel, id};
@@ -762,12 +763,14 @@ impl Interface {
         }
     }
 
-    pub(crate) fn hovered_target(&self) -> Option<&Target> {
+    // The target that the pointer is on, and the one with a press, for
+    // widgets built of others.
+    pub fn hovered_target(&self) -> Option<&Target> {
         let hovered = self.hovered?;
         self.targets.iter().rev().find(|target| target.id == hovered)
     }
 
-    pub(crate) fn held_target(&self) -> Option<&Target> {
+    pub fn held_target(&self) -> Option<&Target> {
         let (active, _) = self.active?;
         self.targets.iter().rev().find(|target| target.id == active)
     }
@@ -849,6 +852,25 @@ impl Interface {
         &self.input.gamepad
     }
 
+    // Seconds since the last frame.
+    pub fn delta(&self) -> f32 {
+        self.input.delta
+    }
+
+    // Whether the window has focus. Without it there's no input at all.
+    pub fn window_focused(&self) -> bool {
+        self.input.focused
+    }
+
+    pub fn pointer(&self) -> Option<Point> {
+        self.input.pointer
+    }
+
+    // Shift, Ctrl and Alt, as they're held.
+    pub fn modifiers(&self) -> Modifiers {
+        self.input.modifiers()
+    }
+
     pub fn tooltips_enabled(&self) -> bool {
         self.tooltips_enabled
     }
@@ -868,6 +890,20 @@ impl Interface {
     // dialog is open. Shift, Ctrl and Alt are always the program's.
     pub fn key_down(&self, key: Key) -> bool {
         self.input.key_down(key) && !(self.typing && !key.is_modifier() && !key.is_function()) && !self.modal_shown
+    }
+
+    // Whether the key was pressed with exactly these modifiers, like Ctrl+S.
+    pub fn shortcut(&self, modifiers: Modifiers, key: Key) -> bool {
+        self.input.modifiers() == modifiers && self.key_pressed(key)
+    }
+
+    pub fn shortcut_pressed(&self, shortcut: Shortcut) -> bool {
+        self.shortcut(shortcut.modifiers, shortcut.key)
+    }
+
+    // Whether the text field with the name has keyboard focus.
+    pub fn is_focused(&self, name: &str) -> bool {
+        self.focused == Some(id(name))
     }
 
     // Whether a text field with focus takes the key: every key pressed
@@ -1101,101 +1137,21 @@ fn collect<'a, M: 'static>(elements: &'a [Element<M>], enabled: bool, layer: Lay
 }
 
 // What a program's `view` and `input` see of the interface: the frame as it
-// stands, which they read and don't change, and the fonts to measure text
-// with.
+// stands, which they read and don't change, through Interface's getters,
+// and the fonts to measure text with.
 pub struct Ui<'a> {
     pub(crate) inner: &'a mut Interface,
 }
 
+impl Deref for Ui<'_> {
+    type Target = Interface;
+
+    fn deref(&self) -> &Interface {
+        self.inner
+    }
+}
+
 impl Ui<'_> {
-    pub fn theme(&self) -> &Theme {
-        self.inner.theme()
-    }
-
-    pub fn size(&self) -> Size {
-        self.inner.size
-    }
-
-    pub fn bounds(&self) -> Rect {
-        self.inner.bounds()
-    }
-
-    pub fn content_top(&self) -> f32 {
-        self.inner.content_top()
-    }
-
-    pub fn fullscreen(&self) -> bool {
-        self.inner.fullscreen
-    }
-
-    pub fn vertical_sync(&self) -> bool {
-        self.inner.environment.vertical_sync
-    }
-
-    pub fn time(&self) -> f64 {
-        self.inner.input.time
-    }
-
-    // Seconds since the last frame.
-    pub fn delta(&self) -> f32 {
-        self.inner.input.delta
-    }
-
-    pub fn frame_number(&self) -> u64 {
-        self.inner.frame
-    }
-
-    pub fn stats(&self) -> FrameStats {
-        self.inner.stats()
-    }
-
-    pub fn environment(&self) -> &Environment {
-        &self.inner.environment
-    }
-
-    // All of the frame's input, for programs that read it themselves, like
-    // the keys held for driving.
-    pub fn input(&self) -> &Input {
-        &self.inner.input
-    }
-
-    // Whether the window has focus. Without it there's no input at all.
-    pub fn window_focused(&self) -> bool {
-        self.inner.input.focused
-    }
-
-    pub fn gamepad(&self) -> &Gamepad {
-        &self.inner.input.gamepad
-    }
-
-    pub fn pointer(&self) -> Option<Point> {
-        self.inner.input.pointer
-    }
-
-    // Whether the key was pressed this frame, counting a held key's repeats,
-    // unless a text field with keyboard focus takes it, or a dialog is open
-    // over the page.
-    pub fn key_pressed(&self, key: Key) -> bool {
-        self.inner.key_pressed(key)
-    }
-
-    pub fn key_pressed_once(&self, key: Key) -> bool {
-        self.inner.key_pressed_once(key)
-    }
-
-    // Whether the key was pressed with exactly these modifiers, like Ctrl+S.
-    pub fn shortcut(&self, modifiers: Modifiers, key: Key) -> bool {
-        self.inner.input.modifiers() == modifiers && self.key_pressed(key)
-    }
-
-    pub fn shortcut_pressed(&self, shortcut: Shortcut) -> bool {
-        self.shortcut(shortcut.modifiers, shortcut.key)
-    }
-
-    pub fn key_down(&self, key: Key) -> bool {
-        self.inner.key_down(key)
-    }
-
     pub fn measure(&mut self, text: &str, style: TextStyle) -> Size {
         self.inner.fonts.measure(text, style)
     }
@@ -1213,71 +1169,33 @@ impl Ui<'_> {
         &mut self.inner.fonts
     }
 
-    pub fn notices(&self) -> &[Notice] {
-        &self.inner.notices
-    }
-
-    // Whether a dialog is open, which takes the input from the page.
-    pub fn modal(&self) -> bool {
-        self.inner.modal
-    }
-
-    pub fn any_popup(&self) -> bool {
-        !self.inner.popups.is_empty()
-    }
-
-    // The names of the widgets that the input is on.
-    pub fn hovered_name(&self) -> Option<&str> {
-        self.inner.hovered_name()
-    }
-
-    pub fn pressed_name(&self) -> Option<&str> {
-        self.inner.pressed_name()
-    }
-
-    pub fn focused_name(&self) -> Option<&str> {
-        self.inner.focused_name()
-    }
-
-    pub fn popup_name(&self) -> Option<&str> {
-        self.inner.popup_name()
-    }
-
-    pub fn tooltip_name(&self) -> Option<&str> {
-        self.inner.tooltip_name()
-    }
-
-    pub fn is_focused(&self, name: &str) -> bool {
-        self.inner.focused == Some(id(name))
-    }
-
-    pub fn tooltips_enabled(&self) -> bool {
-        self.inner.tooltips_enabled
-    }
-
     // What a widget keeps between frames, read for laying the frame out,
     // like how far a scroll area is scrolled.
     pub fn memory<T: Default + Clone + 'static>(&mut self, name: &str) -> T {
         self.inner.memory::<T>(id(name)).clone()
     }
-
 }
 
-// What a program's `update` works with: the interface's state, and where
-// the messages it sends go.
+// What a program's `update` works with: the interface's state, which it
+// reads through Interface's getters and changes with the requests here, and
+// where the messages it sends go.
 pub struct Context<'a, M> {
     pub(crate) inner: &'a mut Interface,
     pub(crate) queue: &'a mut VecDeque<M>,
+}
+
+impl<M> Deref for Context<'_, M> {
+    type Target = Interface;
+
+    fn deref(&self) -> &Interface {
+        self.inner
+    }
 }
 
 impl<M> Context<'_, M> {
     // Sends a message, which is applied after those before it, this frame.
     pub fn send(&mut self, message: M) {
         self.queue.push_back(message);
-    }
-
-    pub fn theme(&self) -> &Theme {
-        self.inner.theme()
     }
 
     // Switches between the light and dark themes, as F9 does, from this
@@ -1301,79 +1219,15 @@ impl<M> Context<'_, M> {
         self.inner.requests.push(Request::Close);
     }
 
-    pub fn time(&self) -> f64 {
-        self.inner.input.time
-    }
-
-    pub fn delta(&self) -> f32 {
-        self.inner.input.delta
-    }
-
-    pub fn fullscreen(&self) -> bool {
-        self.inner.fullscreen
-    }
-
-    pub fn vertical_sync(&self) -> bool {
-        self.inner.environment.vertical_sync
-    }
-
-    pub fn environment(&self) -> &Environment {
-        &self.inner.environment
-    }
-
-    pub fn input(&self) -> &Input {
-        &self.inner.input
-    }
-
-    pub fn window_focused(&self) -> bool {
-        self.inner.input.focused
-    }
-
-    pub fn size(&self) -> Size {
-        self.inner.size
-    }
-
-    pub fn bounds(&self) -> Rect {
-        self.inner.bounds()
-    }
-
     // Shows a notice under the app bar.
     pub fn notify(&mut self, notice: Notice) {
         self.inner.notices.push(notice);
-    }
-
-    pub fn notices(&self) -> &[Notice] {
-        &self.inner.notices
     }
 
     pub fn remove_notice(&mut self, index: usize) {
         if index < self.inner.notices.len() {
             self.inner.notices.remove(index);
         }
-    }
-
-    pub fn is_focused(&self, name: &str) -> bool {
-        self.inner.focused == Some(id(name))
-    }
-
-    pub fn hovered_name(&self) -> Option<&str> {
-        self.inner.hovered_name()
-    }
-
-    pub fn pressed_name(&self) -> Option<&str> {
-        self.inner.pressed_name()
-    }
-
-    pub fn focused_name(&self) -> Option<&str> {
-        self.inner.focused_name()
-    }
-
-    pub fn popup_name(&self) -> Option<&str> {
-        self.inner.popup_name()
-    }
-
-    pub fn tooltip_name(&self) -> Option<&str> {
-        self.inner.tooltip_name()
     }
 
     // Whether the frame the user saw had a dialog, which took its input.

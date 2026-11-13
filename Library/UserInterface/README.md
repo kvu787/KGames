@@ -141,7 +141,9 @@ looked at, like text. What it does is a reaction given where it's built: a messa
 tests point at. Each named widget is a target, whose area, kind and label the interface's state
 lists. A widget of a program's own implements `Widget<M>`: its `kind`, `sense` and `parts` say what
 it is to the input, `interact` turns what happened to it into messages through `Dispatch`, and
-`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus.
+`draw` paints it through `Draw`, whose `look` has the frame's hover, press and focus. Every
+context, the program's `Ui` and `Context` and a widget's `Parts`, `Dispatch` and `Draw`, reads the
+frame's state through `Interface`'s getters, like `theme()`, `time()`, `input()` and `bounds()`.
 
 | Widget                             | WinUI's                   | Notes                                                           |
 | ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
