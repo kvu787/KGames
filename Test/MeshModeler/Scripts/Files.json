@@ -9,7 +9,7 @@
     { "Frame": 24, "Key": "Ctrl+S" },
     { "Frame": 26, "Expect": { "Prompt": "SaveAs" } },
     { "Frame": 27, "Click": "SaveAs/Name" },
-    { "Frame": 29, "Key": "Ctrl+A" },
+    { "Frame": 29, "Click": "SaveAs/Name/Clear" },
     { "Frame": 30, "Type": "Scripted" },
     { "Frame": 45, "Capture": "SaveAs" },
     { "Frame": 46, "Click": "SaveAs/Primary" },

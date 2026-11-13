@@ -205,22 +205,17 @@ fn a_press_outside_a_combo_box_list_closes_it_and_does_nothing_else() {
 }
 
 #[test]
-fn a_text_field_takes_typing_and_enter_greets() {
+fn a_text_field_takes_typing_and_backspace() {
     let mut app = showcase();
-    app.click("Name").type_text("Ada Lovelace").key_with(Modifiers::CONTROL, Key::LEFT).key_with(Modifiers::SHIFT, Key::END).type_text("Byron");
-    app.key(Key::ENTER);
+    app.click("Name").type_text("Ada Lovelace");
+    for _ in 0.."Lovelace".len() {
+        app.key(Key::BACKSPACE);
+    }
+    app.type_text("Byron").click("Greet");
     assert_eq!(app.program.name, "Ada Byron");
     assert_eq!(app.program.greeting.as_deref(), Some("Hello, Ada Byron!"));
     app.click("Greeting/Close");
     assert_eq!(app.program.greeting, None);
-}
-
-#[test]
-fn a_double_click_selects_a_word() {
-    let mut app = showcase();
-    app.click("Name").type_text("one two");
-    app.double_click("Name").type_text("three");
-    assert!(app.program.name == "one three" || app.program.name == "three two", "{}", app.program.name);
 }
 
 #[test]
@@ -238,7 +233,7 @@ fn number_boxes_take_typing_and_their_spin_buttons() {
     let mut app = showcase();
     app.click("Quantity/Up").click("Quantity/Up");
     assert_eq!(app.program.quantity, 5);
-    app.click("Scale").key_with(Modifiers::CONTROL, Key::A).type_text("9").key(Key::ENTER);
+    app.click("Scale").click("Scale/Clear").type_text("9").key(Key::ENTER);
     assert_eq!(app.program.scale, 4.0);
     app.click("Scale/Down");
     assert_eq!(app.program.scale, 3.75);
@@ -330,7 +325,7 @@ fn the_color_picker_and_field_and_palette_agree() {
     app.click("Palette/3");
     assert_eq!(app.program.color.to_hex(), "#107C10");
     assert_eq!(app.label("Hex").as_deref(), Some("#107C10"));
-    app.click("Hex").key_with(Modifiers::CONTROL, Key::A).type_text("#FF0000").key(Key::ENTER);
+    app.click("Hex").click("Hex/Clear").type_text("#FF0000").key(Key::ENTER);
     assert_eq!(app.program.color.to_hex(), "#FF0000");
     // The spectrum's top left is red, at full saturation.
     let spectrum = app.target("Picker/Spectrum");

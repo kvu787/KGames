@@ -78,7 +78,6 @@ pub struct Theme {
     pub text_on_accent: Color,
     pub text_on_accent_secondary: Color,
     pub text_on_accent_disabled: Color,
-    pub text_on_accent_selected: Color,
 
     // Controls' fills: at rest, with the pointer over, pressed, and more.
     pub control_fill: Color,
@@ -118,8 +117,6 @@ pub struct Theme {
     pub accent_secondary: Color,
     pub accent_tertiary: Color,
     pub accent_disabled: Color,
-    // Behind selected text.
-    pub accent_selected_text_background: Color,
 
     // Strokes.
     pub control_stroke: Color,
@@ -228,7 +225,6 @@ impl Theme {
             text_on_accent: Color::WHITE,
             text_on_accent_secondary: Color::argb(0xB3FFFFFF),
             text_on_accent_disabled: Color::WHITE,
-            text_on_accent_selected: Color::WHITE,
             control_fill: Color::argb(0xB3FFFFFF),
             control_fill_secondary: Color::argb(0x80F9F9F9),
             control_fill_tertiary: Color::argb(0x4DF9F9F9),
@@ -256,7 +252,6 @@ impl Theme {
             accent_secondary: accent.fade(0.9),
             accent_tertiary: accent.fade(0.8),
             accent_disabled: Color::argb(0x37000000),
-            accent_selected_text_background: ramp.base,
             control_stroke: Color::argb(0x0F000000),
             control_stroke_secondary: Color::argb(0x29000000),
             control_stroke_on_accent: Color::argb(0x14FFFFFF),
@@ -335,7 +330,6 @@ impl Theme {
             text_on_accent: Color::BLACK,
             text_on_accent_secondary: Color::argb(0x80000000),
             text_on_accent_disabled: Color::argb(0x87FFFFFF),
-            text_on_accent_selected: Color::WHITE,
             control_fill: Color::argb(0x0FFFFFFF),
             control_fill_secondary: Color::argb(0x15FFFFFF),
             control_fill_tertiary: Color::argb(0x08FFFFFF),
@@ -363,7 +357,6 @@ impl Theme {
             accent_secondary: accent.fade(0.9),
             accent_tertiary: accent.fade(0.8),
             accent_disabled: Color::argb(0x28FFFFFF),
-            accent_selected_text_background: ramp.base,
             control_stroke: Color::argb(0x12FFFFFF),
             control_stroke_secondary: Color::argb(0x18FFFFFF),
             control_stroke_on_accent: Color::argb(0x14FFFFFF),

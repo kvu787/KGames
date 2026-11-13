@@ -935,15 +935,10 @@ impl Interface {
     }
 
     // Whether a text field with focus takes the key: every key pressed
-    // without Ctrl, and the ones that edit with Ctrl, but the function keys.
-    // Ctrl's other shortcuts, like Ctrl+S, and F9, F10 and F11, stay the
-    // program's and the window's.
+    // without Ctrl, but the function keys. Ctrl's shortcuts, like Ctrl+S,
+    // and F9, F10 and F11, stay the program's and the window's.
     fn is_typed(&self, key: Key) -> bool {
-        let editing = matches!(
-            key,
-            Key::A | Key::C | Key::X | Key::V | Key::Z | Key::Y | Key::LEFT | Key::RIGHT | Key::BACKSPACE | Key::DELETE | Key::HOME | Key::END
-        );
-        self.typing && !key.is_function() && (!self.input.modifiers().control || editing)
+        self.typing && !key.is_function() && !self.input.modifiers().control
     }
 
     pub(crate) fn painter(&mut self) -> Painter<'_> {

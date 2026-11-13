@@ -17,8 +17,8 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 |                            | button, a drop-down button with a menu, and buttons of icons alone       |
 | Checkboxes and switches    | A checkbox that disables the four under it, and switches for the         |
 |                            | tooltips, the dark theme, and the progress bar that fills                |
-| Combo boxes and fields     | A color of the theme and what it's for, a name that Enter or Greet says  |
-|                            | hello to, a search of the list, and number boxes with spin buttons       |
+| Combo boxes and fields     | A color of the theme and what it's for, a name that Greet says hello to, |
+|                            | a search of the list, and number boxes with spin buttons                 |
 | Sliders and progress       | Sliders of whole numbers, of thousandths and of tenths of a degree, with |
 |                            | their headers and values, and a disabled one; progress bars at the       |
 |                            | volume, filling every 4 seconds, and of unknown length; progress rings   |
@@ -32,7 +32,7 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 | Info bars                  | One of each severity, of which the caution closes, and comes back        |
 | Color                      | A color picker's spectrum and value slider, a hex field, and a palette   |
 | List                       | 120 items that scroll, of which the search shows those it matches, one   |
-|                            | can be selected, and a double-click or Enter opens one                   |
+|                            | can be selected, and a double-click opens one                            |
 | Interface                  | Whether the window has focus, the pointer, the widget under it, the one  |
 |                            | with the press, the one with focus, the open popup, the tooltip and the  |
 |                            | dialog; the keys held; the gamepad's sticks, triggers and buttons;       |
@@ -48,14 +48,11 @@ borderless fullscreen.
 | ------------------ | ------------------------------------------------------------------------ |
 | A press            | Presses a button, flips a checkbox or a switch, picks a choice, sets a   |
 |                    | slider, opens a combo box, or puts a text field's caret there            |
-| A double-click     | Selects a word in a text field, or opens a row of the list               |
+| A double-click     | Opens a row of the list                                                  |
 | Drag a slider      | Moves it, even past the window's edges                                   |
-| Drag in a field    | Selects text                                                             |
 | The wheel          | Moves a slider a step a notch, or scrolls the list 3 rows                |
-| Arrow keys         | Move a text field's caret, which Shift selects with, and Control moves   |
-|                    | by words                                                                 |
-| `Ctrl+A`, `C`, `X` | Select everything in a text field, copy it, or cut it                    |
-| `Ctrl+V`           | Pastes into a text field                                                 |
+| `Backspace`        | Deletes the character before a text field's caret                        |
+| `Enter`            | Takes what's typed in a number box or the hex field                      |
 | A right-click      | Opens the context menu, on the area for it                               |
 | `F1`               | Shows or hides the tooltips                                              |
 | `Ctrl+R`           | Resets every widget                                                      |
@@ -88,7 +85,7 @@ Program\RunInBackground\RunInBackground.ps1 UiShowcase --all-scripts
 The tests in `Test/UiShowcase` drive the showcase through its cards' real layout, with
 `user_interface::Headless`, which lays them out without a window or a GPU: presses on each kind of
 widget, a press that slides off a button, drags past a slider's ends, the wheel, the combo
-boxes' lists and what closes them, typing, copying and pasting, the search and its clear button, number
+boxes' lists and what closes them, typing and deleting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
 double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9`, `F10`, `F11`,

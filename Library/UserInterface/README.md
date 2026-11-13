@@ -153,7 +153,7 @@ it is to the input, `interact` turns what happened to it into messages through `
 | `Slider`                           | Slider                    | Steps, the wheel, a header, and the value as dragged            |
 | `NumberBox`                        | NumberBox                 | Typed, stepped with its buttons or the wheel                    |
 | `ComboBox`                         | ComboBox                  | Its list opens over it, with the chosen item where it is        |
-| `TextBox`                          | TextBox                   | Selection, clipboard, a clear button, and a button of its own   |
+| `TextBox`                          | TextBox                   | Typing and Backspace, a clear button, and a button of its own   |
 | `ColorPicker`, `ColorField`        | ColorPicker               | A spectrum with a value slider, and a hex field                 |
 | `Palette`                          |                           | Swatches of colors to pick one from, with a ring around it      |
 | `ListView`                         | ListView                  | Rows that scroll and are virtualized, one selected              |
@@ -230,13 +230,14 @@ before, but reports gamepads' whole state, their held buttons too.
   mouse, so a drag keeps going past its edges.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
   and a press anywhere else takes it away, once the field has taken what was typed in that frame.
+  What's typed goes in at the caret, which a press places, Backspace deletes the character before
+  it, and Enter takes what's typed in a number box or a color field.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.
 - `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
-  don't see the keys that a text field with focus takes - every key without Ctrl, and the ones
-  that edit with Ctrl, like Ctrl+C - or any while a dialog is open - from the very frame it
-  opens, for checks after it.
+  don't see the keys that a text field with focus takes - every key without Ctrl - or any while
+  a dialog is open - from the very frame it opens, for checks after it.
   `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
   driving.
 - Without focus, the window has no input at all, including the gamepad's. As focus goes,

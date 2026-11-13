@@ -229,7 +229,7 @@ fn fields(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect
         form.caption(ui, card, ROLE_USES[showcase.role]);
         let mut row = form.control(card, "Your name");
         let greet = row.cut_right(96.0, SPACE_S);
-        card.add("Name", row, TextBox::new(&showcase.name).placeholder("Type a name").max_length(40).on_change(Message::Name).on_submit(Message::Greet));
+        card.add("Name", row, TextBox::new(&showcase.name).placeholder("Type a name").max_length(40).on_change(Message::Name));
         card.add("Greet", greet, Button::new("Greet").accent().on_press(Message::Greet));
         let row = form.control(card, "Search the list");
         card.add("Search", row, TextBox::new(&showcase.search).placeholder("Search").button(Icon::Search).on_change(Message::Search));

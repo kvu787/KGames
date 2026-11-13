@@ -7,7 +7,7 @@ use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
-    AppBar, Button, Card, CheckBox, Clipboard, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
+    AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
     Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox, Palette, Point, Program, Rect, Segmented, Sense, Severity, Slider,
     Startup, Text, TextBox, ThemeKind, TooltipLine, Tree, Ui, View, ViewInput,
 };
@@ -280,17 +280,21 @@ fn a_focused_text_field_takes_the_keys_that_type() {
     app.click("Field").type_text("ab cd").key(Key::A);
     assert_eq!(app.program.text, "ab cd");
     assert_eq!(app.program.shortcut, 1);
-    // Editing: a word goes with Ctrl+Backspace, everything with Ctrl+A.
-    app.key_with(Modifiers::CONTROL, Key::BACKSPACE);
-    assert_eq!(app.program.text, "ab ");
-    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::C).key(Key::BACKSPACE);
-    assert_eq!(app.program.text, "");
-    app.key_with(Modifiers::CONTROL, Key::V);
-    assert_eq!(app.program.text, "ab ");
+    // Backspace deletes the character before the caret, and keys with Ctrl
+    // are the program's.
+    app.key(Key::BACKSPACE);
+    assert_eq!(app.program.text, "ab c");
+    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::BACKSPACE);
+    assert_eq!((app.program.text.as_str(), app.program.shortcut), ("ab c", 2));
+    // A press puts the caret where it is.
+    let field = app.target("Field");
+    let a = app.ui.fonts().measure("a", user_interface::tokens::BODY).width;
+    app.click_point(Point::new(field.x + user_interface::controls::TEXT_BOX_PADDING.left + a + 1.0, field.center().y)).type_text("x");
+    assert_eq!(app.program.text, "axb c");
     // A press elsewhere takes focus away, and the keys are the program's
     // again.
     app.click_point(Point::new(5.0, 900.0)).key(Key::A);
-    assert_eq!(app.program.shortcut, 2);
+    assert_eq!(app.program.shortcut, 3);
     assert_eq!(focused(&app), Some(Value::Null));
 }
 
@@ -305,22 +309,6 @@ fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
     assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
     assert_eq!(focused(&app), Some(Value::Null));
     app.release();
-}
-
-// Cut takes the text away only once it's on the clipboard. Windows'
-// clipboard can be unavailable for a moment, while another program has it
-// open, and then the selection stays.
-#[test]
-fn a_cut_keeps_the_text_unless_the_clipboard_takes_it() {
-    let mut app = Headless::new(Test::default());
-    app.click("Field").type_text("keep");
-    app.set_clipboard(Clipboard::Unavailable);
-    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::X);
-    assert_eq!(app.program.text, "keep");
-    app.set_clipboard(Clipboard::Own(String::new()));
-    app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::X);
-    assert_eq!(app.program.text, "");
-    assert_eq!(app.clipboard_text().as_deref(), Some("keep"));
 }
 
 #[test]
@@ -404,7 +392,7 @@ fn toggles_sliders_and_number_boxes_change_their_values() {
     assert!((app.program.level - 0.3).abs() < 1e-9, "half notches add up: {}", app.program.level);
     assert_eq!(app.label("Level").as_deref(), Some("0.30"));
     // A number box takes what's typed with Enter, inside its range.
-    app.click("Number").key_with(Modifiers::CONTROL, Key::A).type_text("42").key(Key::ENTER);
+    app.click("Number").key(Key::BACKSPACE).type_text("42").key(Key::ENTER);
     assert_eq!(app.program.number, 10);
     app.click("Number/Down");
     assert_eq!(app.program.number, 9);
@@ -707,8 +695,7 @@ fn segments_take_no_focus() {
 fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
     let mut app = Headless::new(Ported::default());
     app.frame();
-    app.click("Hex");
-    app.key_with(Modifiers::CONTROL, Key::A);
+    app.click("Hex").click("Hex/Clear");
     app.type_text("#FF8000");
     assert_eq!(app.program.color, Color::default());
     app.click("Other");
@@ -722,14 +709,14 @@ fn a_color_field_takes_what_was_typed_when_it_loses_focus() {
 fn a_number_box_commits_its_draft_however_focus_leaves() {
     let mut app = Headless::new(Test::default());
     app.frame();
-    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.click("Number").key(Key::BACKSPACE);
     app.type_text("7");
     assert_eq!(app.program.number, 0, "not before it commits");
     app.press("Button");
     assert_eq!(app.program.number, 7, "the button's press committed the draft on its frame");
     app.release();
     // A fresh edit starts from the value, not a revived draft.
-    app.click("Number").key_with(Modifiers::CONTROL, Key::A);
+    app.click("Number").key(Key::BACKSPACE);
     app.type_text("3");
     app.press("Area");
     assert_eq!(app.program.number, 3, "the view's press committed the draft on its frame");
@@ -889,7 +876,11 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
 #[test]
 fn a_caret_in_text_the_program_replaced_lands_on_a_character() {
     let mut app = Headless::new(Test::default());
-    app.click("Field").type_text("abc").key(Key::LEFT).key(Key::LEFT);
+    app.click("Field").type_text("abc");
+    // The caret goes after the a.
+    let field = app.target("Field");
+    let a = app.ui.fonts().measure("a", user_interface::tokens::BODY).width;
+    app.click_point(Point::new(field.x + user_interface::controls::TEXT_BOX_PADDING.left + a + 1.0, field.center().y));
     // The caret was inside the two-byte character's bytes.
     app.program.replace = true;
     app.frame().type_text("x");

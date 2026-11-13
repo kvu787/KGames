@@ -82,7 +82,6 @@ fn the_themes_have_winui_3s_values() {
     assert_eq!(light.background.to_hex(), "#F3F3F3");
     assert_eq!(dark.background.to_hex(), "#202020");
     assert_eq!(light.acrylic.to_hex(), "#F9F9F9");
-    assert_eq!(light.accent_selected_text_background.to_hex(), "#0078D4");
 }
 
 #[test]
