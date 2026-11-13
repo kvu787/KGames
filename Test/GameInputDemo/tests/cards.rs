@@ -248,7 +248,7 @@ fn a_frame_that_loses_focus_after_other_input_drops_what_the_devices_read() {
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
     let count = input(&app).reading_count;
     app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
-    app.send(&[Event::KeyPressed { key: Key::Q, repeat: false }, Event::FocusLost]);
+    app.send(&[Event::KeyPressed(Key::Q), Event::FocusLost]);
     assert_eq!(input(&app).reading_count, count);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }

@@ -126,15 +126,15 @@ fn events_fold_into_a_frame_of_input() {
     assert_eq!(input.clicks(MouseButton::Left), 2);
     // Without focus there's no input, and losing it lets go of everything,
     // with a release.
-    input.begin(0.3, &[Event::KeyPressed { key: Key::W, repeat: false }, Event::FocusLost, Event::KeyPressed { key: Key::A, repeat: false }]);
+    input.begin(0.3, &[Event::KeyPressed(Key::W), Event::FocusLost, Event::KeyPressed(Key::A)]);
     assert!(input.focus_lost && !input.key_down(Key::W) && !input.key_down(Key::A) && !input.button_down(MouseButton::Left));
     assert!(input.key_released(Key::W) && input.button_released(MouseButton::Left));
     // Keys held when focus comes count once they're let go of.
-    input.begin(0.4, &[Event::FocusGained(vec![Key::ALT]), Event::KeyPressed { key: Key::ALT, repeat: true }]);
+    input.begin(0.4, &[Event::FocusGained(vec![Key::ALT]), Event::KeyPressed(Key::ALT)]);
     assert!(!input.key_down(Key::ALT));
-    input.begin(0.5, &[Event::KeyReleased(Key::ALT), Event::KeyPressed { key: Key::ALT, repeat: false }]);
+    input.begin(0.5, &[Event::KeyReleased(Key::ALT), Event::KeyPressed(Key::ALT)]);
     assert!(input.key_down(Key::ALT));
-    input.begin(0.6, &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]);
+    input.begin(0.6, &[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
     assert!(input.shortcut_pressed(Shortcut::new(Modifiers::new(true, false, true), Key::S)));
 }
 
@@ -157,7 +157,7 @@ fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
         buttons: GamepadButtons(GamepadButtons::A),
         ..stick
     };
-    let pressed = |key: Key| Event::KeyPressed { key, repeat: false };
+    let pressed = |key: Key| Event::KeyPressed(key);
     let mut input = Input::default();
     let events = [
         Event::PointerMoved(a),

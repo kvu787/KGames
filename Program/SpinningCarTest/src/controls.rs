@@ -3,8 +3,8 @@
 
 use user_interface::{Input, Key};
 
-// Whether S went down this frame, which keeps the car in the middle, or lets
-// it move. Holding it down repeats it, which does nothing more.
+// Whether S went down in this step, which keeps the car in the middle, or
+// lets it move.
 pub fn toggles_stationary(input: &Input) -> bool {
-    input.key_pressed_once(Key::S)
+    input.key_pressed(Key::S)
 }

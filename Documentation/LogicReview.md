@@ -260,9 +260,10 @@ and scripts to the window.
   like Veehiicuul's and MeshModeler's `Prepare`, so a burst of wheel readings, or a held key's
   repeats after a stall, costs that many times. Merging wheel events that nothing separates would
   cut it, at the cost of a notch that scrolls a widget under the pointer no longer going to it.
-- **A held key's repeats:** every repeat due is handed out, as many as a stall lasted, and repeats
-  run up to the frame's time, so a release that GameInput hasn't delivered yet can follow an extra
-  repeat. Lagging repeats by a margin would trade that for later repeats.
+- **A held key's repeats:** decided. GameInput doesn't repeat a held key, its keyboard readings
+  being the keys held down, which come only when they change, so KGames no longer makes repeats
+  of its own, which every stall would have handed out at once, and which could come after a
+  release that GameInput hadn't delivered yet. They can come back when they're wanted.
 - **When focus changes:** at the time the window handles `WM_SETFOCUS`, after GameInput's own switch,
   so input in between counts as without focus.
 - **The cursor**, read once a frame, as Windows has none on GameInput's clock.

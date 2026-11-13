@@ -21,8 +21,8 @@ use crate::editing::{Axis, Drawn, Element, Tool};
 use crate::modeler::{COMMANDS, Command, Message, Modeler};
 
 // A step's messages from the keys: the modal edit's, or the commands whose
-// shortcuts were pressed, without repeats, unless something else has the
-// keys. Prepare goes last, after everything the step does.
+// shortcuts were pressed, unless something else has the keys. Prepare goes
+// last, after everything the step does.
 pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     let mut messages = Vec::new();
     // A paint's edit ends once the pointer lets go and its name has no focus.
@@ -31,14 +31,14 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     }
     if modeler.editor.operation.is_some() {
         for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
-            if ui.key_pressed_once(key) {
+            if ui.key_pressed(key) {
                 messages.push(Message::Constrain(axis));
             }
         }
-        if ui.key_pressed_once(Key::ENTER) {
+        if ui.key_pressed(Key::ENTER) {
             messages.push(Message::ConfirmOperation);
         }
-        if ui.key_pressed_once(Key::ESCAPE) {
+        if ui.key_pressed(Key::ESCAPE) {
             messages.push(Message::CancelOperation);
         }
     } else if modeler.prompt.is_none() && !ui.any_popup() && !ui.modal() {
@@ -52,14 +52,14 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
             for text in *shortcuts {
                 if let Some(shortcut) = Shortcut::parse(text)
                     && shortcut.modifiers == modifiers
-                    && ui.key_pressed_once(shortcut.key)
+                    && ui.key_pressed(shortcut.key)
                 {
                     messages.push(Message::Command(*command));
                 }
             }
         }
         // Esc goes back to the Select tool.
-        if ui.key_pressed_once(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
+        if ui.key_pressed(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
             messages.push(Message::Command(Command::SelectTool));
         }
     }

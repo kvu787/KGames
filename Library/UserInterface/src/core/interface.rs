@@ -99,8 +99,8 @@ pub(crate) struct Popup {
 
 // The most messages a step of a frame's input applies, counting those that
 // messages send in turn, before it gives up on a chain that never ends. Per
-// step, as a frame can have any number of steps, like a held key's repeats
-// after a long stall, each with its own messages, which all settle.
+// step, as a frame can have any number of steps, like a burst of wheel
+// readings after a long stall, each with its own messages, which all settle.
 const MOST_MESSAGES: usize = 10_000;
 
 // The targets that decide how elements look this frame: the one the pointer
@@ -399,7 +399,7 @@ impl Interface {
         self.typing = self.focused.is_some_and(|focused| self.targets.iter().any(|target| target.id == focused && target.sense.text));
 
         // F9 switches the theme from this step, whose view is in the new one.
-        if self.input.key_pressed_once(Key::F9) {
+        if self.input.key_pressed(Key::F9) {
             self.toggle_theme();
         }
     }
@@ -561,13 +561,13 @@ impl Interface {
         {
             self.active = None;
         }
-        if self.input.key_pressed_once(Key::F10) {
+        if self.input.key_pressed(Key::F10) {
             // The frame presents with the new setting, so the PerfBar says
             // it from this very frame; the loop re-reads the truth after.
             self.environment.vertical_sync = !self.environment.vertical_sync;
             self.requests.push(Request::ToggleVerticalSync);
         }
-        if self.input.key_pressed_once(Key::F11) {
+        if self.input.key_pressed(Key::F11) {
             self.requests.push(Request::ToggleFullscreen);
         }
     }
@@ -944,15 +944,11 @@ impl Interface {
         self.tooltips_enabled
     }
 
-    // Whether the key was pressed in this step, counting a held key's repeats,
+    // Whether the key was pressed in this step,
     // unless a text field with focus takes it, or a dialog is open over the
     // page.
     pub fn key_pressed(&self, key: Key) -> bool {
         self.input.key_pressed(key) && !self.is_typed(key) && !self.modal_shown
-    }
-
-    pub fn key_pressed_once(&self, key: Key) -> bool {
-        self.input.key_pressed_once(key) && !self.is_typed(key) && !self.modal_shown
     }
 
     // Whether the key is down, unless a text field with focus takes it, or a

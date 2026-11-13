@@ -252,7 +252,7 @@ impl ScriptRunner {
                 Action::Key(shortcut) => gestures::key(shortcut.modifiers, shortcut.key, &self.held),
                 Action::Hold(keys) => {
                     let released = self.held.iter().filter(|key| !keys.contains(key)).map(|key| Event::KeyReleased(*key));
-                    let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed { key: *key, repeat: false });
+                    let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed(*key));
                     let events = released.chain(pressed).collect();
                     self.held = keys;
                     vec![events]

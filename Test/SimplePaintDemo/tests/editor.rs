@@ -187,17 +187,14 @@ fn the_sliders_take_no_keyboard_focus_so_the_arrows_stay_the_editor_s() {
 #[test]
 fn keys_and_their_modifiers_make_commands() {
     let command = editor::command;
-    assert_eq!(command(Key::UP, false, Modifiers::NONE), Some(Command::Select(-1)));
-    assert_eq!(command(Key::DOWN, true, Modifiers::SHIFT), Some(Command::Select(1)));
-    // Holding an arrow repeats it.
-    assert_eq!(command(Key::RIGHT, true, Modifiers::NONE), Some(Command::Nudge(1.0)));
-    assert_eq!(command(Key::LEFT, false, Modifiers::SHIFT), Some(Command::Nudge(-10.0)));
-    assert_eq!(command(Key::LEFT, false, Modifiers::CONTROL), None);
-    // Ctrl+S saves, but holding it doesn't save again.
-    assert_eq!(command(Key::S, false, Modifiers::CONTROL), Some(Command::Save));
-    assert_eq!(command(Key::S, true, Modifiers::CONTROL), None);
-    assert_eq!(command(Key::S, false, Modifiers::NONE), None);
-    assert_eq!(command(Key::S, false, Modifiers::CONTROL_SHIFT), None);
+    assert_eq!(command(Key::UP, Modifiers::NONE), Some(Command::Select(-1)));
+    assert_eq!(command(Key::DOWN, Modifiers::SHIFT), Some(Command::Select(1)));
+    assert_eq!(command(Key::RIGHT, Modifiers::NONE), Some(Command::Nudge(1.0)));
+    assert_eq!(command(Key::LEFT, Modifiers::SHIFT), Some(Command::Nudge(-10.0)));
+    assert_eq!(command(Key::LEFT, Modifiers::CONTROL), None);
+    assert_eq!(command(Key::S, Modifiers::CONTROL), Some(Command::Save));
+    assert_eq!(command(Key::S, Modifiers::NONE), None);
+    assert_eq!(command(Key::S, Modifiers::CONTROL_SHIFT), None);
 }
 
 #[test]

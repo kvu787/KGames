@@ -35,7 +35,7 @@ theme, ignores input without focus, and supports the two
 
 Settings step by 0.001, and Rotation by 0.1 degrees, and stop at the last step inside the range
 that SimplePaint accepts, so the material is always valid. Parts of a notch, like a touchpad's,
-add up over the same slider. Holding an arrow key repeats it, but holding `Ctrl+S` saves once.
+add up over the same slider. A held key doesn't repeat: holding an arrow key moves a setting once.
 
 When it starts, the demo loads `Paint.json`, if it's there, and a notice under the app bar says
 what's wrong with it if it can't. It's in the format of

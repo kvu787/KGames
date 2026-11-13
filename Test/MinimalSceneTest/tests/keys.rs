@@ -41,11 +41,8 @@ fn f11_switches_between_maximized_and_borderless_fullscreen() {
 #[test]
 fn holding_f1_down_does_not_show_and_hide_the_card_again() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed { key: Key::F1, repeat: false }]);
+    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::F1)]);
     assert!(InfoCard::toggled(&input));
-    // Windows repeats a held key.
-    input.begin(0.5, &[Event::KeyPressed { key: Key::F1, repeat: true }]);
-    assert!(!InfoCard::toggled(&input));
 
     let mut app = sphere();
     app.hold(Key::F1).wait(1.0).release_key(Key::F1);

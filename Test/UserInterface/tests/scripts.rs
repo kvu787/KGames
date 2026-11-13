@@ -59,9 +59,9 @@ fn steps_make_input_on_their_frames() {
     assert_eq!(first[1], Event::ButtonPressed(MouseButton::Left));
     assert_eq!(frame(2)[0], Event::ButtonReleased(MouseButton::Left));
     let third = frame(3);
-    assert_eq!(&third[..2], &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]);
+    assert_eq!(&third[..2], &[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
     assert_eq!(&frame(4)[..2], &[Event::KeyReleased(Key::S), Event::KeyReleased(Key::CONTROL)]);
-    assert_eq!(frame(5)[0], Event::KeyPressed { key: Key::W, repeat: false });
+    assert_eq!(frame(5)[0], Event::KeyPressed(Key::W));
     assert_eq!(frame(6)[0], Event::KeyReleased(Key::W));
     assert_eq!(frame(7)[1], Event::ButtonPressed(MouseButton::Middle));
     frame(8);

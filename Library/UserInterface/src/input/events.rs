@@ -23,7 +23,7 @@ pub enum Event {
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
     Wheel(Point),
-    KeyPressed { key: Key, repeat: bool },
+    KeyPressed(Key),
     KeyReleased(Key),
     Text(char),
     // With the keys held as focus came, which count once they're let go of.
@@ -70,8 +70,8 @@ pub struct Input {
     pub previous_gamepad: Gamepad,
     buttons: [ButtonState; 3],
     keys_down: [bool; 256],
-    // This step's presses, and whether each is a held key's repeat.
-    keys_pressed: Vec<(Key, bool)>,
+    // This step's presses.
+    keys_pressed: Vec<Key>,
     keys_released: Vec<Key>,
     ignored_keys: [bool; 256],
     ignored_gamepad_buttons: u32,
@@ -235,12 +235,12 @@ impl Input {
                 }
             }
             Event::Wheel(notches) => self.wheel += *notches,
-            Event::KeyPressed { key, repeat } => {
+            Event::KeyPressed(key) => {
                 if self.ignored_keys[key.0 as usize] {
                     return;
                 }
                 self.keys_down[key.0 as usize] = true;
-                self.keys_pressed.push((*key, *repeat));
+                self.keys_pressed.push(*key);
             }
             Event::KeyReleased(key) => {
                 let index = key.0 as usize;
@@ -296,14 +296,9 @@ impl Input {
         self.keys_down[key.0 as usize]
     }
 
-    // Pressed in this step, counting a held key's repeats.
+    // Pressed in this step.
     pub fn key_pressed(&self, key: Key) -> bool {
-        self.keys_pressed.iter().any(|(pressed, _)| *pressed == key)
-    }
-
-    // Pressed in this step, not counting repeats.
-    pub fn key_pressed_once(&self, key: Key) -> bool {
-        self.keys_pressed.iter().any(|(pressed, repeat)| *pressed == key && !repeat)
+        self.keys_pressed.contains(&key)
     }
 
     pub fn key_released(&self, key: Key) -> bool {
@@ -315,8 +310,8 @@ impl Input {
         &self.keys_released
     }
 
-    // This step's presses, with whether each is a repeat.
-    pub fn keys_pressed(&self) -> &[(Key, bool)] {
+    // This step's presses, in order.
+    pub fn keys_pressed(&self) -> &[Key] {
         &self.keys_pressed
     }
 

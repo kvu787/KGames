@@ -111,7 +111,7 @@ impl Program for Order {
 const AWAY: Point = Point::new(5.0, 900.0);
 
 fn press(key: Key) -> Event {
-    Event::KeyPressed { key, repeat: false }
+    Event::KeyPressed(key)
 }
 
 fn click_at(point: Point) -> [Event; 3] {
@@ -255,16 +255,15 @@ fn a_frame_s_time_passes_once_after_its_events() {
     assert_eq!(app.program.ticks, [((app.time() - now) as f32, app.time(), true)]);
 }
 
-// A frame can have any number of steps, like a held key's repeats after a
-// long stall, each with its own messages, which all settle: the frame applies
-// them all. Only a chain of messages that never ends, in one step, stops the
-// program.
+// A frame can have any number of steps, like a burst of wheel readings after
+// a long stall, each with its own messages, which all settle: the frame
+// applies them all. Only a chain of messages that never ends, in one step,
+// stops the program.
 #[test]
 fn a_frame_of_many_steps_applies_all_their_messages() {
     let mut app = Headless::new(Order::default());
-    app.hold(Key::Q);
     app.program.ticks.clear();
-    app.send(&vec![Event::KeyPressed { key: Key::Q, repeat: true }; 10_001]);
+    app.send(&vec![Event::KeyReleased(Key::Q); 10_001]);
     assert_eq!(app.program.ticks.len(), 10_001);
 }
 

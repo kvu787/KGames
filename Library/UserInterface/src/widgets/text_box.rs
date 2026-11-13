@@ -246,7 +246,7 @@ pub(crate) fn field_interact<M>(text: &str, settings: &FieldSettings, interactio
     // before it, and Enter submits. Keys with Ctrl are the program's.
     if interaction.focused && interaction.enabled && !ctx.modifiers().control {
         let input = ctx.input();
-        for (key, _) in input.keys_pressed() {
+        for key in input.keys_pressed() {
             match *key {
                 Key::BACKSPACE => {
                     let start = previous_boundary(&text, editing.caret);

@@ -268,14 +268,14 @@ pub fn text(budget: Budget) -> Vec<Measurement> {
 // The input reader with a frame's readings from a 1000 Hz mouse at 60
 // frames a second, and a keyboard that holds a key.
 pub fn input(budget: Budget) -> Vec<Measurement> {
-    let mut reader = InputReader::with_repeat(true, 0.5, 30.0);
+    let mut reader = InputReader::new(true);
     let now = clock::now();
     let window = WindowState {
         cursor: Point::new(100.0, 50.0),
         inside: true,
         focus_changes: vec![FocusChange { time: now, gained: true }],
     };
-    reader.read(&[], &[], &window, now);
+    reader.read(&[], &[], &window);
     let window = WindowState { focus_changes: Vec::new(), ..window };
     let tick = clock::frequency() / 1000;
     let mut time = now;
@@ -312,7 +312,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     ));
     vec![measure("input/reader/frame", "frame", budget, 1.0, || {
         time += tick;
-        std::hint::black_box(reader.read(&readings, &[], &window, time));
+        std::hint::black_box(reader.read(&readings, &[], &window));
     })
     .with_note("17 mouse readings and 1 keyboard reading")]
 }

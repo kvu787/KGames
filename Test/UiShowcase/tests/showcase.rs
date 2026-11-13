@@ -116,7 +116,7 @@ fn two_theme_toggles_in_one_frame_cancel() {
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     // The button fires on its press, so its press frame also presses F9.
     let themed = app.program.log.iter().filter(|line| line.ends_with("theme")).count();
-    app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.queue(&[Event::KeyPressed(Key::F9)]);
     app.press("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     // The watcher logged the dark theme that F9 left, and the button's toggle
@@ -402,12 +402,14 @@ fn the_interface_card_shows_held_keys_and_the_gamepad() {
     assert_eq!(app.ui.gamepad().buttons.names(), ["A"]);
 }
 
+// GameInput doesn't repeat a held key, and neither does KGames: holding
+// Backspace deletes one character.
 #[test]
-fn a_held_key_repeats() {
+fn a_held_key_does_not_repeat() {
     let mut app = showcase();
     app.click("Name").type_text("abc");
-    app.hold(Key::BACKSPACE).repeat(Key::BACKSPACE).release_key(Key::BACKSPACE);
-    assert_eq!(app.program.name, "a");
+    app.hold(Key::BACKSPACE).wait(1.0).release_key(Key::BACKSPACE);
+    assert_eq!(app.program.name, "ab");
 }
 
 #[test]

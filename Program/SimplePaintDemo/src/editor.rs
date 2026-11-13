@@ -122,11 +122,11 @@ pub enum Command {
 }
 
 // What a key does, pressed with the modifiers held. Up and Down select a
-// setting, and Left and Right move it a step, or 10 with Shift. Holding an
-// arrow key repeats it. Ctrl+S saves, and holding it does nothing more.
-pub fn command(key: Key, repeat: bool, modifiers: Modifiers) -> Option<Command> {
+// setting, and Left and Right move it a step, or 10 with Shift. Ctrl+S
+// saves.
+pub fn command(key: Key, modifiers: Modifiers) -> Option<Command> {
     if modifiers == Modifiers::CONTROL {
-        return (key == Key::S && !repeat).then_some(Command::Save);
+        return (key == Key::S).then_some(Command::Save);
     }
     if modifiers.control || modifiers.alt {
         return None;

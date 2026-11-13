@@ -7,8 +7,8 @@
 // - Keys come from keyboards' readings, which are the keys held down. Shift,
 //   Ctrl and Alt are the same keys on the left and the right. Typed text is
 //   the keys, translated with Windows' keyboard layout, with Shift, AltGr and
-//   dead keys. A held key repeats at Windows' keyboard delay and rate, each
-//   repeat among the other events at its time.
+//   dead keys. A held key doesn't repeat: GameInput's readings don't, and the
+//   reader doesn't make repeats of its own.
 // - The mouse's buttons and wheels come from mice's readings, and the pointer
 //   is where Windows' cursor is, so that it moves as Windows moves it. It's
 //   read once a frame, as Windows has no cursor on GameInput's clock, so a
@@ -32,10 +32,10 @@
 // itself, in case that reading was lost. GameInput doesn't report keys and
 // mouse buttons held from before focus at all, like the click that gives the
 // window focus, but reports a gamepad's whole state, whose held buttons the
-// reader ignores until they're let go of. A reading from before the window got focus is input without it
-// even when it comes in a later frame than the focus change, like that
-// reading of a gamepad if GameInput is late with it. A press while the
-// pointer isn't on the window is another window's.
+// reader ignores until they're let go of. A reading from before the window
+// got focus is input without it even when it comes in a later frame than the
+// focus change, like that reading of a gamepad if GameInput is late with it.
+// A press while the pointer isn't on the window is another window's.
 
 use game_input::*;
 use windows_api::*;
@@ -43,7 +43,6 @@ use windows_api::*;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
-use crate::platform::clock;
 use crate::platform::input_devices::{Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
 
@@ -58,13 +57,6 @@ pub struct FrameInput {
 
 // A keyboard's held keys, with their scan codes.
 type HeldKeys = Vec<(Key, u32)>;
-
-struct Repeat {
-    key: Key,
-    scan_code: u32,
-    // When it next repeats, as the counter's ticks.
-    next: i64,
-}
 
 pub struct InputReader {
     // Whether the gamepad goes to the interface, as Options::gamepad says.
@@ -90,9 +82,6 @@ pub struct InputReader {
     gamepad_ignored: u32,
     // The buttons that the last Gamepad event told the interface of.
     gamepad_sent: u32,
-    repeat: Option<Repeat>,
-    repeat_delay: i64,
-    repeat_interval: i64,
     // Where the interface last heard the pointer was.
     pointer: Option<Point>,
 }
@@ -107,15 +96,7 @@ pub struct WindowState {
 }
 
 impl InputReader {
-    // Held keys repeat at Windows' keyboard delay and rate.
     pub fn new(gamepad: bool) -> Self {
-        let (delay, rate) = keyboard_repeat();
-        Self::with_repeat(gamepad, delay, rate)
-    }
-
-    // Held keys repeat after the delay, in seconds, at the rate, in repeats a
-    // second.
-    pub fn with_repeat(gamepad: bool, delay: f64, rate: f64) -> Self {
         Self {
             gamepad,
             focused: false,
@@ -129,9 +110,6 @@ impl InputReader {
             gamepads: Vec::new(),
             gamepad_ignored: 0,
             gamepad_sent: 0,
-            repeat: None,
-            repeat_delay: (delay * clock::frequency() as f64) as i64,
-            repeat_interval: (clock::frequency() as f64 / rate) as i64,
             pointer: None,
         }
     }
@@ -166,7 +144,7 @@ impl InputReader {
                 readings.push((devices.qpc(reading.timestamp), reading.clone()));
             }
         }
-        let frame = self.read(&readings, &disconnected, &state, clock::now());
+        let frame = self.read(&readings, &disconnected, &state);
         window.set_capture(self.capturing());
         frame
     }
@@ -178,8 +156,8 @@ impl InputReader {
 
     // The frame's events from its readings, in the stream's order, each with
     // its time on the counter, from the devices that disconnected, and from
-    // what the window says, at a time on the counter.
-    pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState, now: i64) -> FrameInput {
+    // what the window says.
+    pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState) -> FrameInput {
         let (cursor, inside) = (window.cursor, window.inside);
         let mut frame = FrameInput::default();
         // The window's focus changes go before the first reading that's
@@ -192,8 +170,6 @@ impl InputReader {
             while let Some(change) = changes.next_if(|change| change.time <= *time) {
                 self.focus_change(change, &mut frame.events);
             }
-            // A held key's repeats that came before this, at their times.
-            self.repeat_until(time - 1, &mut frame.events);
             self.reading(*time, reading, cursor, inside, &mut frame);
         }
         for change in changes {
@@ -214,14 +190,13 @@ impl InputReader {
         }
         if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
             self.keyboards.retain(|(device, _)| !unplugged(device));
-            self.update_keys(now, &mut frame.events);
+            self.update_keys(&mut frame.events);
         }
         if self.mice.iter().any(|(device, _)| unplugged(device)) {
             self.mice.retain(|(device, _)| !unplugged(device));
             self.update_buttons(cursor, inside, &mut frame.events);
         }
 
-        self.repeat_until(now, &mut frame.events);
         self.point(cursor, inside, &mut frame.events);
         if self.gamepad {
             self.send_gamepad(&mut frame.events);
@@ -229,30 +204,8 @@ impl InputReader {
         frame
     }
 
-    // A held key's repeats until the time, at the times Windows' settings
-    // give them.
-    fn repeat_until(&mut self, time: i64, events: &mut Vec<Event>) {
-        if !self.focused {
-            return;
-        }
-        let Some(repeat) = &mut self.repeat else {
-            return;
-        };
-        let (key, scan_code) = (repeat.key, repeat.scan_code);
-        let mut count = 0;
-        while repeat.next <= time {
-            repeat.next += self.repeat_interval.max(1);
-            count += 1;
-        }
-        for _ in 0..count {
-            events.push(Event::KeyPressed { key, repeat: true });
-            self.text(key, scan_code, events);
-        }
-    }
-
     // The window got or lost focus, at a time on the counter.
     fn focus_change(&mut self, change: FocusChange, events: &mut Vec<Event>) {
-        self.repeat_until(change.time - 1, events);
         if change.gained {
             if !self.focused {
                 self.focused = true;
@@ -274,7 +227,6 @@ impl InputReader {
         } else if self.focused {
             self.focused = false;
             events.push(Event::FocusLost);
-            self.repeat = None;
             self.pointer = None;
             // Keys and mouse buttons go with focus: GameInput gives each
             // device a reading at rest as focus goes, and none of what's
@@ -312,7 +264,7 @@ impl InputReader {
         self.focused = focused && time >= self.focus_time;
         let kinds = reading.kinds;
         if kinds & GameInputKindKeyboard != 0 {
-            self.keyboard(reading, time, &mut frame.events);
+            self.keyboard(reading, &mut frame.events);
         }
         if kinds & GameInputKindMouse != 0 {
             self.mouse(reading, cursor, inside, &mut frame.events);
@@ -396,18 +348,18 @@ impl InputReader {
         }
     }
 
-    fn keyboard(&mut self, reading: &Reading, time: i64, events: &mut Vec<Event>) {
+    fn keyboard(&mut self, reading: &Reading, events: &mut Vec<Event>) {
         let keys: HeldKeys = reading.keys.iter().filter_map(|state| key(state).map(|key| (key, state.scanCode))).collect();
         match self.keyboards.iter_mut().find(|(device, _)| *device == reading.device) {
             Some((_, held)) => *held = keys,
             None => self.keyboards.push((reading.device, keys)),
         }
-        self.update_keys(time, events);
+        self.update_keys(events);
     }
 
     // The presses and releases since the last time, from what every keyboard
-    // holds now, at a time on the counter.
-    fn update_keys(&mut self, time: i64, events: &mut Vec<Event>) {
+    // holds now.
+    fn update_keys(&mut self, events: &mut Vec<Event>) {
         let mut down = [false; 256];
         for (_, held) in &self.keyboards {
             for (key, scan_code) in held {
@@ -428,9 +380,6 @@ impl InputReader {
                 if self.focused {
                     events.push(Event::KeyReleased(Key(code as u8)));
                 }
-                if self.repeat.as_ref().is_some_and(|repeat| repeat.key.0 as usize == code) {
-                    self.repeat = None;
-                }
             }
         }
         for code in modifiers.into_iter().chain(others).map(usize::from) {
@@ -439,17 +388,8 @@ impl InputReader {
                 self.keys_down[code] = true;
                 let key = Key(code as u8);
                 if self.focused {
-                    events.push(Event::KeyPressed { key, repeat: false });
+                    events.push(Event::KeyPressed(key));
                     self.text(key, self.scan_codes[code], events);
-                    // Windows repeats the last key pressed, and not Shift,
-                    // Ctrl or Alt here.
-                    if !key.is_modifier() {
-                        self.repeat = Some(Repeat {
-                            key,
-                            scan_code: self.scan_codes[code],
-                            next: time + self.repeat_delay,
-                        });
-                    }
                 }
             }
         }
@@ -599,19 +539,4 @@ pub fn gamepad(state: &GameInputGamepadState) -> Gamepad {
         // GameInput's bits for these buttons are the interface's.
         buttons: GamepadButtons(state.buttons as u32 & 0x3FFF),
     }
-}
-
-// Windows' keyboard delay, in seconds, and repeat rate, in repeats a second,
-// from its settings: the delay's 0 to 3 is 250 ms to 1 s, and the rate's 0 to
-// 31 is about 2.5 to 30 a second.
-fn keyboard_repeat() -> (f64, f64) {
-    let mut delay = 1u32;
-    let mut speed = 31u32;
-    unsafe {
-        let _ = SystemParametersInfoW(SPI_GETKEYBOARDDELAY as u32, 0, (&raw mut delay).cast(), 0);
-        let _ = SystemParametersInfoW(SPI_GETKEYBOARDSPEED as u32, 0, (&raw mut speed).cast(), 0);
-    }
-    let delay = (delay.min(3) + 1) as f64 * 0.25;
-    let rate = 2.5 + speed.min(31) as f64 * (30.0 - 2.5) / 31.0;
-    (delay, rate)
 }

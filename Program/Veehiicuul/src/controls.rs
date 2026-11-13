@@ -57,8 +57,7 @@ impl Controls {
         // which mustn't push the car.
         let control = input.modifiers().control;
         let held = |keys: [Key; 2]| !control && keys.iter().any(|&key| ui.key_down(key));
-        // A key's press, not its repeats.
-        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
+        let key = |key: Key| ui.key_pressed(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         // Keys push all the way, and a diagonal as far as a straight push.
         let keys = [

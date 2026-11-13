@@ -55,7 +55,7 @@ pub(crate) fn key(modifiers: Modifiers, key: Key, held: &[Key]) -> Frames {
         .filter(|key| !held.contains(key))
         .collect();
     vec![
-        keys.iter().map(|key| Event::KeyPressed { key: *key, repeat: false }).collect(),
+        keys.iter().map(|key| Event::KeyPressed(*key)).collect(),
         keys.iter().rev().map(|key| Event::KeyReleased(*key)).collect(),
     ]
 }

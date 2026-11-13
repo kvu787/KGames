@@ -34,8 +34,7 @@ impl Controls {
         // Not with Ctrl, which is for shortcuts like Ctrl+S elsewhere.
         let control = input.modifiers().control;
         let held = |keys: &[Key]| !control && keys.iter().any(|&key| ui.key_down(key));
-        // A key's press, not its repeats.
-        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
+        let key = |key: Key| ui.key_pressed(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         let keys = held(&[Key::RIGHT, Key::F]) as i32 - held(&[Key::LEFT, Key::S]) as i32;
         let push = if keys != 0 {

@@ -318,16 +318,11 @@ impl<P: Program> Headless<P> {
 
     // Presses the key and holds it, until release_key.
     pub fn hold(&mut self, key: Key) -> &mut Self {
-        self.send(&[Event::KeyPressed { key, repeat: false }])
+        self.send(&[Event::KeyPressed(key)])
     }
 
     pub fn release_key(&mut self, key: Key) -> &mut Self {
         self.send(&[Event::KeyReleased(key)])
-    }
-
-    // A held key's repeat, as Windows sends while it stays down.
-    pub fn repeat(&mut self, key: Key) -> &mut Self {
-        self.send(&[Event::KeyPressed { key, repeat: true }])
     }
 
     // Sends the events as they are, all in one frame.

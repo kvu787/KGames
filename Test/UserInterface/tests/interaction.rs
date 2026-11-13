@@ -474,7 +474,7 @@ fn a_dialog_gates_the_keys_the_frame_it_opens() {
     app.move_to("Ask").frame();
     app.send(&[
         Event::ButtonPressed(MouseButton::Left),
-        Event::KeyPressed { key: Key::D, repeat: false },
+        Event::KeyPressed(Key::D),
         Event::KeyReleased(Key::D),
     ]);
     assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
@@ -728,7 +728,7 @@ fn a_number_box_takes_what_was_typed_with_enter_only() {
 fn f10_shows_the_new_vertical_sync_on_its_own_frame() {
     let mut app = Headless::new(Test::default());
     app.frame();
-    app.queue(&[Event::KeyPressed { key: Key::F10, repeat: false }]).frame();
+    app.queue(&[Event::KeyPressed(Key::F10)]).frame();
     assert!(!app.vertical_sync());
     assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(false)));
 }
@@ -791,7 +791,7 @@ impl Program for Themes {
 fn a_frame_is_drawn_whole_in_the_theme_its_messages_leave() {
     let mut app = Headless::new(Themes::default());
     // F9 switches the theme from the frame that it's pressed in.
-    app.send(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.send(&[Event::KeyPressed(Key::F9)]);
     let frames = app.program.frames.borrow().clone();
     assert_eq!(frames[frames.len() - 2..], [ThemeKind::Light, ThemeKind::Dark]);
     app.send(&[Event::KeyReleased(Key::F9)]);

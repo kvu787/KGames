@@ -236,8 +236,8 @@ before, but reports gamepads' whole state, their held buttons too.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
-  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate, each repeat
-  among the frame's other events at its time.
+  and dead keys, but no IME. A held key doesn't repeat: GameInput's readings don't, and KGames
+  doesn't make repeats of its own.
 - The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
   moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
   window's. Windows keeps no cursor on GameInput's clock, so the cursor is read once a frame, and a
@@ -263,7 +263,7 @@ before, but reports gamepads' whole state, their held buttons too.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.
-- `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
+- `ui.key_pressed` and `ui.shortcut` are for programs' shortcuts. They
   don't see the keys that a text field with focus takes - every key without Ctrl - or any while
   a dialog is open - from the very step after the one that opens it, so a key's press after the
   click that opens a dialog, in the same frame, is the dialog's.

@@ -58,26 +58,13 @@ fn f11_switches_between_maximized_and_borderless_fullscreen() {
     assert!(!app.program.stationary);
 }
 
+// A held key doesn't repeat, so holding S down toggles once.
 #[test]
 fn holding_a_key_down_does_not_do_it_again() {
     let mut input = Input::default();
-    input.begin(
-        0.0,
-        &[
-            Event::FocusGained(Vec::new()),
-            Event::KeyPressed { key: Key::S, repeat: false },
-            Event::KeyPressed { key: Key::F1, repeat: false },
-        ],
-    );
+    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::S), Event::KeyPressed(Key::F1)]);
     assert!(toggles_stationary(&input));
     assert!(InfoCard::toggled(&input));
-    // Windows repeats a held key.
-    input.begin(
-        0.5,
-        &[Event::KeyPressed { key: Key::S, repeat: true }, Event::KeyPressed { key: Key::F1, repeat: true }],
-    );
-    assert!(!toggles_stationary(&input));
-    assert!(!InfoCard::toggled(&input));
 
     let mut app = car();
     app.hold(Key::S).wait(1.0).release_key(Key::S);
