@@ -84,7 +84,6 @@ pub fn view(showcase: &Showcase, ui: &mut Ui) -> Tree<Message> {
     let display = format!("{} {}", environment.display, environment.display_name);
     let status = vec![
         Status::shortcut("F1", "Tooltips"),
-        Status::shortcut("Tab", "Next widget"),
         Status::shortcut("Ctrl+R", "Reset"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
