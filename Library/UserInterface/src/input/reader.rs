@@ -333,7 +333,14 @@ impl InputReader {
                 self.scan_codes[key.0 as usize] = *scan_code;
             }
         }
-        for (code, held) in down.iter().enumerate() {
+        // Keys that change in one reading are let go of before Shift, Ctrl
+        // and Alt are, and pressed after them, as each step sees what's held
+        // as its key goes: a Ctrl+Backspace, Shift+Tab or Ctrl+Enter that
+        // one reading has is that, and not a Backspace, Tab or Enter.
+        let modifiers = [Key::SHIFT.0, Key::CONTROL.0, Key::ALT.0];
+        let others = (0..=255u8).filter(|code| !modifiers.contains(code));
+        for code in others.clone().chain(modifiers).map(usize::from) {
+            let held = down[code];
             if self.keys_down[code] && !held {
                 self.keys_down[code] = false;
                 if self.focused {
@@ -344,8 +351,9 @@ impl InputReader {
                 }
             }
         }
-        for (code, held) in down.iter().enumerate() {
-            if !self.keys_down[code] && *held {
+        for code in modifiers.into_iter().chain(others).map(usize::from) {
+            let held = down[code];
+            if !self.keys_down[code] && held {
                 self.keys_down[code] = true;
                 let key = Key(code as u8);
                 if self.focused {

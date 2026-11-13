@@ -15,6 +15,8 @@ const GAMEPAD: usize = 3;
 const A: (u8, u32) = (0x41, 0x1E);
 const LEFT_SHIFT: (u8, u32) = (0xA0, 0x2A);
 const RIGHT_SHIFT: (u8, u32) = (0xA1, 0x36);
+const LEFT_CONTROL: (u8, u32) = (0xA2, 0x1D);
+const BACKSPACE: (u8, u32) = (0x08, 0x0E);
 
 fn keyboard(time: i64, keys: &[(u8, u32)]) -> (i64, GameInputKind, Reading) {
     let keys = keys
@@ -113,6 +115,34 @@ fn a_key_press_types_the_character_that_the_layout_gives() {
             Event::Text('A'),
         ]
     );
+}
+
+// Keys that one reading has go down after Shift, Ctrl and Alt, and come up
+// before them, whatever their codes, as each step sees what's held as its
+// key goes: a Ctrl+Backspace in one reading is that, and not a Backspace,
+// which would delete a character in a text field.
+#[test]
+fn a_reading_s_keys_go_down_after_its_modifiers_and_up_before_them() {
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(10, &[LEFT_CONTROL, BACKSPACE])], &[], &window(None), 10);
+    let position = |events: &[Event], wanted: Event| events.iter().position(|event| *event == wanted);
+    let control = position(&frame.events, Event::KeyPressed { key: Key::CONTROL, repeat: false });
+    let backspace = position(&frame.events, Event::KeyPressed { key: Key::BACKSPACE, repeat: false });
+    assert!(control.is_some() && backspace.is_some() && control < backspace, "{:?}", frame.events);
+    // In the interface's steps, the Backspace's has Ctrl held.
+    let mut input = Input::default();
+    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
+    let mut seen = false;
+    for step in input.steps(&frame.events) {
+        input.begin(0.0, step);
+        if input.key_pressed(Key::BACKSPACE) {
+            assert!(input.modifiers().control);
+            seen = true;
+        }
+    }
+    assert!(seen);
+    let frame = reader.read(&[keyboard(20, &[])], &[], &window(None), 20);
+    assert_eq!(keys(&frame.events), vec![Event::KeyReleased(Key::BACKSPACE), Event::KeyReleased(Key::CONTROL)]);
 }
 
 #[test]
