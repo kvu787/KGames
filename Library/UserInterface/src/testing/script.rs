@@ -29,7 +29,7 @@ use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
 use crate::input::events::Event;
 use crate::input::reader::platform_key;
-use crate::testing::gestures::{self, Frames};
+use crate::testing::gestures::{self, Frames, Made};
 
 pub const DEFAULT_FRAME_TIME: f64 = 1.0 / 60.0;
 
@@ -202,8 +202,8 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
 
 pub struct ScriptRunner {
     script: Script,
-    // Events that steps put off to later frames, like a click's release.
-    scheduled: BTreeMap<u64, Vec<Event>>,
+    // Input that steps put off to later frames, like a click's release.
+    scheduled: BTreeMap<u64, Vec<Made>>,
     held: Vec<Key>,
     gamepad: Gamepad,
     pub failures: Vec<String>,
@@ -229,19 +229,18 @@ impl ScriptRunner {
     }
 
     // What frame N does. `ui` has the last frame's targets, which names point
-    // at.
+    // at, and the pointer, which moves to the places that steps point at, as
+    // the mice's motion that takes it there.
     pub fn frame(&mut self, frame: u64, ui: &Interface) -> Result<ScriptFrame, String> {
         let mut output = ScriptFrame::default();
-        if let Some(events) = self.scheduled.remove(&frame) {
-            output.events.extend(events);
-        }
+        let mut made: Vec<Made> = self.scheduled.remove(&frame).unwrap_or_default();
         let steps: Vec<Step> = self.script.steps.iter().filter(|step| step.frame == frame).cloned().collect();
         for step in steps {
             let at = |place: &Place| point(place, ui).map_err(|error| format!("Frame {frame}: {} {error}", step.name));
             let gesture: Frames = match step.action {
-                Action::Move(place) => vec![vec![Event::PointerMoved(at(&place)?)]],
+                Action::Move(place) => vec![vec![Made::PointTo(at(&place)?)]],
                 Action::Press(place, button) => gestures::press(at(&place)?, button),
-                Action::Release(button) => vec![vec![Event::ButtonReleased(button)]],
+                Action::Release(button) => vec![gestures::made(&[Event::ButtonReleased(button)])],
                 Action::Click(place) => gestures::click(at(&place)?, MouseButton::Left),
                 Action::DoubleClick(place) => gestures::double_click(at(&place)?),
                 Action::Drag { from, to, frames, button } => gestures::drag(at(&from)?, at(&to)?, frames, button),
@@ -250,11 +249,11 @@ impl ScriptRunner {
                 Action::Hold(keys) => {
                     let released = self.held.iter().filter(|key| !keys.contains(key)).map(|key| Event::KeyReleased(*key));
                     let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed(*key));
-                    let events = released.chain(pressed).collect();
+                    let events: Vec<Event> = released.chain(pressed).collect();
                     self.held = keys;
-                    vec![events]
+                    vec![gestures::made(&events)]
                 }
-                Action::Type(events) => vec![events],
+                Action::Type(events) => vec![gestures::made(&events)],
                 Action::Gamepad(gamepad) => {
                     self.gamepad = gamepad;
                     Vec::new()
@@ -273,13 +272,14 @@ impl ScriptRunner {
                 }
             };
             // The gesture's first frame is this one, and the rest follow.
-            for (index, events) in gesture.into_iter().enumerate() {
+            for (index, input) in gesture.into_iter().enumerate() {
                 match index {
-                    0 => output.events.extend(events),
-                    _ => self.scheduled.entry(frame + index as u64).or_default().extend(events),
+                    0 => made.extend(input),
+                    _ => self.scheduled.entry(frame + index as u64).or_default().extend(input),
                 }
             }
         }
+        output.events = gestures::events(made, ui.pointer(), ui.size());
         // The gamepad reads every frame, like a real one.
         output.events.push(Event::Gamepad(self.gamepad));
         Ok(output)

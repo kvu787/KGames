@@ -245,13 +245,15 @@ before, but reports gamepads' whole state, their held buttons too.
   punctuation, each with its form under Shift, and the numpad's digits and operators. It has no
   Caps Lock, no accents and no IME, and a key held with Ctrl or Alt types nothing. A key's press
   and the text it types are one step.
-- The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as SDL's
-  relative mode keeps one: it starts in the middle of the window the first time the window gets
-  focus, and carries on from where it was each time after, and each mouse's motion moves it, its
-  counts times `MOUSE_SENSITIVITY` in `input/reader.rs`, in parts of a pixel, in the stream's
-  order, so a press lands where the pointer was as its button went down, and a key after a move
-  sees the pointer where it went. Only mice's relative motion moves it, not a pen's or a touch
-  screen's absolute positions.
+- The mouse's buttons, wheels and motion come from mice, the motion as `Event::MouseMoved`, in
+  GameInput's counts. The pointer is the interface's, as SDL's relative mode keeps one: it starts
+  in the middle of the window with the mice's first event, and carries on from where it is after
+  that, and the motion moves it, its counts times `MOUSE_SENSITIVITY` in `input/events.rs`, in
+  parts of a pixel, worked out in f64, inside the window, in the events' order, so a press lands
+  where the pointer was as its button went down, and a key after a move sees the pointer where it
+  went. Only mice's relative motion moves it, not a pen's or a touch screen's absolute positions.
+  Tests and scripts point at places, which become the motion that takes the pointer there from
+  where it is, and lands on the place exactly.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
   kept inside its client area, as far as it's on the screens, so that no click goes to a window
   beside it, and the interface draws

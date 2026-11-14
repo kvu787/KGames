@@ -250,6 +250,7 @@ impl Interface {
         no_platform_keys(events);
         self.frame += 1;
         self.size = size;
+        self.input.resize(size);
         self.requests.clear();
         self.fonts.begin_frame();
         if let Some(performance) = &mut self.performance {
@@ -352,6 +353,7 @@ impl Interface {
         no_platform_keys(events);
         self.frame += 1;
         self.size = size;
+        self.input.resize(size);
         self.requests.clear();
         self.fonts.begin_frame();
         let delta = (time - self.input.time).max(0.0) as f32;

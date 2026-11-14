@@ -306,7 +306,7 @@ fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
     let mut app = Headless::new(Test::default());
     app.click("Field");
     let center = app.target("Button").center();
-    app.queue(&[Event::KeyPressed(Key::X), Event::KeyReleased(Key::X), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    app.queue(&[Event::KeyPressed(Key::X), Event::KeyReleased(Key::X)]).queue_move(center).queue(&[Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
     assert_eq!(focused(&app), Some(Value::Null));
     app.release();

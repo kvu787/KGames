@@ -13,7 +13,7 @@ use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameI
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::performance::{Frame, Performance};
 use user_interface::tokens::{BODY, CAPTION, WINDOW_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Event, FocusChange, Font, Fonts, Headless, Point, Program, Reading, Size, Startup, TextStyle, Weight, clock};
+use user_interface::{FocusChange, Font, Fonts, Headless, Point, Program, Reading, Startup, TextStyle, Weight, clock};
 
 use crate::harness::{Budget, Measurement, measure, measure_timed};
 
@@ -142,7 +142,7 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Measurement {
         let t = step as f32 * 0.017;
         let x = (t.sin() * 0.5 + 0.5) * WINDOW_WIDTH;
         let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
-        app.send(&[Event::PointerMoved(Point::new(x, y))]);
+        app.move_point(Point::new(x, y));
     })
     .with_note("1 frame an iteration")
 }
@@ -270,7 +270,6 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     let mut reader = InputReader::new(true);
     let now = clock::now();
     let window = WindowState {
-        size: Size::new(WINDOW_WIDTH, WINDOW_HEIGHT),
         focus_changes: vec![FocusChange { time: now, gained: true }],
         keeps_cursor: true,
     };

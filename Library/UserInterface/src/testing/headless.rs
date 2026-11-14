@@ -28,8 +28,8 @@ use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
-use crate::input::events::Event;
-use crate::testing::gestures::{self, Frames};
+use crate::input::events::{Event, moved_pointer};
+use crate::testing::gestures::{self, Frames, Made};
 use crate::testing::script::DEFAULT_FRAME_TIME;
 
 pub struct Headless<P: Program> {
@@ -211,12 +211,38 @@ impl<P: Program> Headless<P> {
         self.ui.pointer().unwrap_or(Point::ZERO)
     }
 
-    // Runs a frame for each of a gesture's frames, with its events.
+    // Where the pointer will be once the input queued for the next frame
+    // moves it.
+    fn queued_pointer(&self) -> Option<Point> {
+        let size = self.size();
+        self.pending.iter().fold(self.ui.pointer(), |pointer, event| match event {
+            Event::MouseMoved { x, y } => Some(moved_pointer(pointer, *x, *y, size)),
+            Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_) => Some(pointer.unwrap_or_else(|| moved_pointer(None, 0.0, 0.0, size))),
+            _ => pointer,
+        })
+    }
+
+    // Queues made-up input for the next frame: moves of the pointer become
+    // the mice's motion that takes it there.
+    fn queue_made(&mut self, made: Vec<Made>) {
+        let events = gestures::events(made, self.queued_pointer(), self.size());
+        self.pending.extend(events);
+    }
+
+    // Runs a frame for each of a gesture's frames, with its input.
     fn play(&mut self, gesture: Frames) -> &mut Self {
-        for events in gesture {
-            self.pending.extend(events);
+        for made in gesture {
+            self.queue_made(made);
             self.run_frame();
         }
+        self
+    }
+
+    // Queues the mice's motion that moves the pointer to the point, from
+    // where the input queued before it leaves it, without running the frame,
+    // for a test's own events around it, like a press.
+    pub fn queue_move(&mut self, point: Point) -> &mut Self {
+        self.queue_made(vec![Made::PointTo(point)]);
         self
     }
 
@@ -227,7 +253,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn move_point(&mut self, point: Point) -> &mut Self {
-        self.send(&[Event::PointerMoved(point)])
+        self.play(vec![vec![Made::PointTo(point)]])
     }
 
     // Presses the left button on the widget, and holds it.

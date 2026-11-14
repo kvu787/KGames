@@ -114,8 +114,9 @@ fn press(key: Key) -> Event {
     Event::KeyPressed(key)
 }
 
-fn click_at(point: Point) -> [Event; 3] {
-    [Event::PointerMoved(point), Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]
+// Queues a click at the point, for the next frame.
+fn click_at(app: &mut Headless<Order>, point: Point) {
+    app.queue_move(point).queue(&[Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
 }
 
 // Typing "a", Backspace and "b" in one frame deletes the "a": Backspace
@@ -142,9 +143,8 @@ fn keys_and_their_text_apply_in_the_order_they_were_typed() {
 fn two_clicks_in_one_frame_are_two_presses() {
     let mut app = Headless::new(Order::default());
     let add = app.target("Add").center();
-    let mut events = click_at(add).to_vec();
-    events.extend([Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
-    app.send(&events);
+    click_at(&mut app, add);
+    app.send(&[Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
     assert_eq!(app.program.clicks, 2);
 }
 
@@ -154,7 +154,7 @@ fn two_clicks_in_one_frame_are_two_presses() {
 fn a_press_lands_where_the_pointer_was_as_it_went_down() {
     let mut app = Headless::new(Order::default());
     let add = app.target("Add").center();
-    app.send(&[Event::PointerMoved(add), Event::ButtonPressed(MouseButton::Left), Event::PointerMoved(AWAY)]);
+    app.queue_move(add).queue(&[Event::ButtonPressed(MouseButton::Left)]).queue_move(AWAY).frame();
     assert_eq!(app.program.clicks, 1);
     assert_eq!(app.pointer(), AWAY);
     app.release();
@@ -171,9 +171,9 @@ fn a_click_lands_on_the_menu_that_a_click_before_it_in_the_frame_opened() {
     app.click_point(AWAY);
     assert_eq!(app.ui.popup_name(), None);
     let menu = app.target("Menu").center();
-    let mut events = click_at(menu).to_vec();
-    events.extend(click_at(open));
-    app.send(&events);
+    click_at(&mut app, menu);
+    click_at(&mut app, open);
+    app.frame();
     assert_eq!(app.program.chosen, ["Open"]);
     assert_eq!(app.ui.popup_name(), None);
 }
@@ -185,9 +185,9 @@ fn a_dialog_that_a_click_opened_takes_the_next_click_in_the_frame() {
     let mut app = Headless::new(Order::default());
     let ask = app.target("Ask").center();
     let add = app.target("Add").center();
-    let mut events = click_at(ask).to_vec();
-    events.extend(click_at(add));
-    app.send(&events);
+    click_at(&mut app, ask);
+    click_at(&mut app, add);
+    app.frame();
     assert!(app.program.dialog);
     assert_eq!(app.program.clicks, 0);
     assert_eq!(app.ui.state().get("Dialog"), Some(&user_interface::json::Value::Bool(true)));
@@ -316,9 +316,9 @@ fn a_press_in_a_field_lands_on_the_text_as_the_typing_before_it_scrolled_it() {
     apart.send(&typed(10)).click_point(near_left).type_text("Z");
     let mut together = Headless::new(Order::default());
     together.click("Field").send(&typed(60));
-    let mut events = typed(10);
-    events.extend([Event::PointerMoved(near_left), Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
-    together.send(&events).type_text("Z");
+    together.queue(&typed(10));
+    click_at(&mut together, near_left);
+    together.frame().type_text("Z");
     assert_eq!(together.program.text, apart.program.text);
     assert_ne!(together.program.text.find('Z'), Some(0), "the field had scrolled");
 }

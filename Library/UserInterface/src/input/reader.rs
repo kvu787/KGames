@@ -9,22 +9,18 @@
 //   doesn't repeat: GameInput's readings don't, and the reader doesn't make
 //   repeats of its own. Typed text isn't the reader's: the interface makes
 //   it from the keys (see input/typing.rs).
-// - The mouse's buttons, wheels and motion come from mice's readings, and
-//   the pointer is the reader's own, as SDL's relative mode keeps one: it
-//   starts in the middle of the window the first time the window gets focus,
-//   and carries on from where it was each time after, and each mouse's
-//   motion moves it, its counts times MOUSE_SENSITIVITY, inside the window,
-//   where the window keeps Windows' cursor, hidden, while it has focus (see
-//   platform/window.rs and platform/cursor.rs). It moves in the stream's
-//   order, so a press happens where the pointer was as the button went
-//   down. Only mice's relative motion moves it, not the absolute positions
-//   of a pen or a touch screen.
+// - The mouse's buttons, wheels and motion come from mice's readings, in
+//   the stream's order, the motion in GameInput's counts, which move the
+//   interface's pointer (see input/events.rs), while the window keeps
+//   Windows' cursor, hidden (see platform/window.rs and platform/cursor.rs).
+//   Only mice's relative motion counts, not the absolute positions of a pen
+//   or a touch screen.
 //   A mouse's motion and wheels are running totals, which only its readings
 //   with relative positions have: GameInput gives each mouse a reading as
 //   focus goes that has none, and whose totals are 0, and goes on adding up
 //   a mouse's motion and wheels while the program doesn't have focus, as
-//   measured with GameInput 4.0.306. So such a reading neither moves the
-//   pointer nor turns the wheel, and each mouse starts over as focus goes:
+//   measured with GameInput 4.0.306. So such a reading neither moves nor
+//   turns the wheel, and each mouse starts over as focus goes:
 //   its first reading with relative positions after that only says where its
 //   totals are, and motion and turns made in another program never count.
 // - Each gamepad keeps its own state, from its own readings, and the
@@ -66,14 +62,11 @@
 use game_input::*;
 use windows_api::*;
 
-use crate::drawing::geometry::{Point, Size};
+use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
 use crate::platform::input_devices::{Device, Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
-
-// How far the pointer moves for each count of a mouse's motion, in pixels.
-pub const MOUSE_SENSITIVITY: f32 = 0.8;
 
 // What a frame read.
 #[derive(Clone, Debug, Default)]
@@ -132,14 +125,6 @@ pub struct InputReader {
     gamepad_ignored: u32,
     // The buttons that the last Gamepad event told the interface of.
     gamepad_sent: u32,
-    // The pointer, in the client area's pixels and parts of them, once the
-    // window has had focus, and the client area's size, which it stays
-    // inside, from 0 to its width or height less 1, as SDL keeps its own.
-    position: Point,
-    placed: bool,
-    size: Size,
-    // Where the interface last heard the pointer was.
-    pointer: Option<Point>,
     // Whether F1 last chose to keep Windows' cursor, which it does from the
     // start.
     captured: bool,
@@ -177,11 +162,10 @@ pub fn connections(events: &[(GameInputDeviceEvent, Device)]) -> Connections {
     connections
 }
 
-// What the window says for a frame: the size of its client area, when it
-// got or lost focus, and whether it keeps Windows' cursor.
+// What the window says for a frame: when it got or lost focus, and whether
+// it keeps Windows' cursor.
 #[derive(Clone, Debug, Default)]
 pub struct WindowState {
-    pub size: Size,
     pub focus_changes: Vec<FocusChange>,
     pub keeps_cursor: bool,
 }
@@ -201,10 +185,6 @@ impl InputReader {
             gamepads: Vec::new(),
             gamepad_ignored: 0,
             gamepad_sent: 0,
-            position: Point::ZERO,
-            placed: false,
-            size: Size::default(),
-            pointer: None,
             captured: true,
             keeping: false,
             quit: false,
@@ -238,9 +218,7 @@ impl InputReader {
     // The frame's events, from the devices' readings since the last frame, in
     // the stream's order, and the window's focus changes.
     pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameInput {
-        let (width, height) = window.client_size();
         let state = WindowState {
-            size: Size::new(width as f32, height as f32),
             focus_changes: focus_changes.to_vec(),
             keeps_cursor: window.keeps_cursor(),
         };
@@ -263,8 +241,6 @@ impl InputReader {
     // its time on the counter, from the devices that disconnected, and from
     // what the window says.
     pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState) -> FrameInput {
-        self.size = window.size;
-        self.position = self.inside(self.position);
         let mut frame = FrameInput::default();
         // The window keeps the cursor or lets it go between frames, as it
         // checks its focus. While it has focus, letting it go stops the
@@ -310,7 +286,6 @@ impl InputReader {
             self.update_buttons(&mut frame.events);
         }
 
-        self.point(&mut frame.events);
         if self.gamepad && self.focused {
             self.send_gamepad(&mut frame.events);
         }
@@ -328,17 +303,6 @@ impl InputReader {
                 // interface gets nothing of until it's let go of.
                 self.ignored_buttons = self.buttons_down;
                 self.gamepad_ignored = self.combined_gamepad().buttons.0;
-                // The pointer starts in the middle of the window, and carries
-                // on from where it was after that. It's anywhere, not on the
-                // pixels' grid, as the motion moves it by parts of a pixel.
-                if !std::mem::replace(&mut self.placed, true) {
-                    self.position = Point::new(self.size.width / 2.0, self.size.height / 2.0);
-                }
-                self.position = self.inside(self.position);
-                // The interface hears where the pointer is right away, so
-                // that a key or a button after focus came is where it is.
-                self.pointer = None;
-                self.point(events);
                 // The gamepad as it is, without the buttons held, which count
                 // once they're let go of, so that a press after this, in the
                 // same frame, is a press.
@@ -369,7 +333,6 @@ impl InputReader {
                 self.gamepad_sent = 0;
             }
             self.focused = false;
-            self.pointer = None;
             // Keys and mouse buttons go with focus: GameInput gives each
             // device a reading at rest as focus goes, and none of what's
             // held or let go of until focus comes back, so whatever the
@@ -478,24 +441,6 @@ impl InputReader {
         events.push(Event::Gamepad(state));
     }
 
-    // Tells the interface where the pointer is, if that changed, while the
-    // mice's input reaches it.
-    fn point(&mut self, events: &mut Vec<Event>) {
-        if !self.mouse_open() || self.pointer == Some(self.position) {
-            return;
-        }
-        events.push(Event::PointerMoved(self.position));
-        self.pointer = Some(self.position);
-    }
-
-    // The point, kept inside the client area.
-    fn inside(&self, point: Point) -> Point {
-        Point::new(
-            point.x.clamp(0.0, (self.size.width - 1.0).max(0.0)),
-            point.y.clamp(0.0, (self.size.height - 1.0).max(0.0)),
-        )
-    }
-
     fn keyboard(&mut self, reading: &Reading, events: &mut Vec<Event>) {
         let keys: HeldKeys = reading.keys.iter().filter_map(key).collect();
         match self.keyboards.iter_mut().find(|(device, _)| *device == reading.device) {
@@ -574,17 +519,17 @@ impl InputReader {
         // i64's ends, the wheels in Windows' units of 120 a notch, from the
         // mouse's last reading with them. The motion comes first: a reading
         // with a press has the motion before it. The interface hears of each
-        // move as it happens, so that what comes after it in the stream, like
-        // a key, sees the pointer where it went.
+        // motion as it happens, so that what comes after it in the stream,
+        // like a key, sees the pointer where it went.
         let change = match (previous, totals) {
             (Some(previous), Some(totals)) if self.mouse_open() => Some((previous, totals)),
             _ => None,
         };
         if let Some((previous, totals)) = change {
-            let moved = Point::new(totals.x.wrapping_sub(previous.x) as f32, totals.y.wrapping_sub(previous.y) as f32);
-            let moved = Point::new(moved.x * MOUSE_SENSITIVITY, moved.y * MOUSE_SENSITIVITY);
-            self.position = self.inside(self.position + moved);
-            self.point(events);
+            let (x, y) = (totals.x.wrapping_sub(previous.x), totals.y.wrapping_sub(previous.y));
+            if (x, y) != (0, 0) {
+                events.push(Event::MouseMoved { x: x as f64, y: y as f64 });
+            }
         }
         self.update_buttons(events);
         if let Some((previous, totals)) = change {
@@ -593,7 +538,6 @@ impl InputReader {
                 totals.wheel_y.wrapping_sub(previous.wheel_y) as f32 / WHEEL_DELTA as f32,
             );
             if turned != Point::default() {
-                self.point(events);
                 events.push(Event::Wheel(turned));
             }
         }
@@ -611,7 +555,6 @@ impl InputReader {
             if down & bit != 0 && self.buttons_down & bit == 0 {
                 self.buttons_down |= bit;
                 if self.mouse_open() && self.ignored_buttons & bit == 0 {
-                    self.point(events);
                     events.push(Event::ButtonPressed(button));
                 } else {
                     self.ignored_buttons |= bit;
@@ -621,7 +564,6 @@ impl InputReader {
                 if self.ignored_buttons & bit != 0 {
                     self.ignored_buttons &= !bit;
                 } else if self.mouse_open() {
-                    self.point(events);
                     events.push(Event::ButtonReleased(button));
                 }
             }

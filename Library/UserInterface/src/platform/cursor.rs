@@ -1,5 +1,5 @@
 // Windows' cursor, while the interface draws a pointer of its own, as games
-// do: GameInput's mice move the interface's pointer (see input/reader.rs),
+// do: GameInput's mice move the interface's pointer (see input/events.rs),
 // and Windows' cursor is kept out of the way. What the window does with it
 // is decided here, from facts that platform/window.rs gathers from Windows,
 // as actions that it carries out, so that every transition is tested

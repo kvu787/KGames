@@ -5,7 +5,7 @@
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
 use user_interface::json::{self, Value};
-use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Startup, Theme, ThemeKind};
+use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Size, Startup, Theme, ThemeKind};
 
 #[test]
 fn rectangles_cut_into_strips_and_columns() {
@@ -116,7 +116,8 @@ fn keys_have_names_that_parse_back() {
 #[test]
 fn events_fold_into_a_frame_of_input() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::PointerMoved(Point::new(5.0, 5.0)), Event::ButtonPressed(MouseButton::Left)]);
+    input.resize(Size::new(100.0, 100.0));
+    input.begin(0.0, &[Event::MouseMoved { x: 5.0, y: 5.0 }, Event::ButtonPressed(MouseButton::Left)]);
     assert!(input.button_pressed(MouseButton::Left) && input.button_down(MouseButton::Left));
     assert_eq!(input.clicks(MouseButton::Left), 1);
     input.begin(0.1, &[Event::ButtonReleased(MouseButton::Left)]);
@@ -145,7 +146,6 @@ fn events_fold_into_a_frame_of_input() {
 #[test]
 fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
     use user_interface::{Gamepad, GamepadButtons};
-    let (a, b) = (Point::new(1.0, 1.0), Point::new(2.0, 2.0));
     let stick = Gamepad {
         connected: true,
         left_stick: Point::new(0.5, 0.0),
@@ -158,12 +158,12 @@ fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
     let pressed = |key: Key| Event::KeyPressed(key);
     let mut input = Input::default();
     let events = [
-        Event::PointerMoved(a),
+        Event::MouseMoved { x: 1.0, y: 1.0 },
         Event::ButtonPressed(MouseButton::Left),
         pressed(Key::A),
         Event::Gamepad(stick),
         Event::KeyReleased(Key::A),
-        Event::PointerMoved(b),
+        Event::MouseMoved { x: 2.0, y: 2.0 },
     ];
     let steps = input.steps(&events);
     assert_eq!(steps, [&events[0..2], &events[2..3], &events[3..5], &events[5..6]]);

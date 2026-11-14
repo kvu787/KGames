@@ -3,6 +3,7 @@
 
 use user_interface::json;
 use user_interface::testing::script::compare;
+use user_interface::input::events::moved_pointer;
 use user_interface::{Button, Context, Event, Headless, Key, MouseButton, Point, Program, Rect, Script, ScriptRunner, Tree, Ui};
 
 struct Page;
@@ -56,7 +57,7 @@ fn steps_make_input_on_their_frames() {
     // Frame 0 has nothing but the gamepad, which reads every frame.
     assert!(matches!(frame(0)[..], [Event::Gamepad(_)]));
     let first = frame(1);
-    assert_eq!(first[0], Event::PointerMoved(app.target("Save").center()));
+    assert_eq!(lands(&app, &first[0]), app.target("Save").center());
     assert_eq!(first[1], Event::ButtonPressed(MouseButton::Left));
     assert_eq!(frame(2)[0], Event::ButtonReleased(MouseButton::Left));
     let third = frame(3);
@@ -66,10 +67,20 @@ fn steps_make_input_on_their_frames() {
     assert_eq!(frame(6)[0], Event::KeyReleased(Key::W));
     assert_eq!(frame(7)[1], Event::ButtonPressed(MouseButton::Middle));
     frame(8);
-    assert!(matches!(frame(9)[0], Event::PointerMoved(point) if point.x == 10.0));
+    assert_eq!(lands(&app, &frame(9)[0]), Point::new(10.0, 0.0));
     assert_eq!(frame(10)[0], Event::ButtonReleased(MouseButton::Middle));
     frame(11);
-    assert_eq!(&frame(12)[..2], &[Event::PointerMoved(Point::new(3.0, 4.0)), Event::ButtonPressed(MouseButton::Right)]);
+    let twelfth = frame(12);
+    assert_eq!((lands(&app, &twelfth[0]), &twelfth[1]), (Point::new(3.0, 4.0), &Event::ButtonPressed(MouseButton::Right)));
+}
+
+// Where the mice's motion moves the pointer from where the app has it, as a
+// step that points at a place makes the motion that takes it there.
+fn lands(app: &Headless<Page>, event: &Event) -> Point {
+    let Event::MouseMoved { x, y } = event else {
+        panic!("{event:?} isn't the mice's motion");
+    };
+    moved_pointer(app.ui.pointer(), *x, *y, app.size())
 }
 
 #[test]
@@ -101,5 +112,5 @@ fn a_point_can_be_a_place_in_a_target() {
     let script = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Move": { "Target": "Save", "At": [0.25, 0.5] } } ] }"#).unwrap();
     let events = ScriptRunner::new(script).frame(1, &app.ui).unwrap().events;
     let save = app.target("Save");
-    assert_eq!(events[0], Event::PointerMoved(Point::new(save.x + save.width / 4.0, save.center().y)));
+    assert_eq!(lands(&app, &events[0]), Point::new(save.x + save.width / 4.0, save.center().y));
 }

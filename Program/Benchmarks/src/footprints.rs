@@ -14,7 +14,7 @@ use std::path::Path;
 use graphics::{AdapterChoice, Gpu, Offscreen};
 use polygon_mesh::{Mesh, Shading, primitives};
 use user_interface::tokens::{BODY, WINDOW_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Draw, Event, Font, Fonts, Headless, Point, Program, Rect, TextStyle, Tree, Ui, Weight, Widget};
+use user_interface::{Draw, Font, Fonts, Headless, Point, Program, Rect, TextStyle, Tree, Ui, Weight, Widget};
 
 use crate::harness::Budget;
 use crate::interface::{Car, GameInput, Modeler, Racing, Showcase, SimplePaint, Sphere, Subject};
@@ -58,7 +58,7 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Usage {
         let t = step as f32 * 0.017;
         let x = (t.sin() * 0.5 + 0.5) * WINDOW_WIDTH;
         let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
-        app.send(&[Event::PointerMoved(Point::new(x, y))]);
+        app.move_point(Point::new(x, y));
     })
     .with_note("1 frame an iteration")
 }

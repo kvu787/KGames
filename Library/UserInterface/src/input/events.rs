@@ -10,14 +10,29 @@
 // and the gamepad at rest, and holds back what's held as it comes, until
 // it's let go of. So a program never hears of focus, and nothing it holds
 // is ever stuck.
+//
+// The pointer is the interface's: the mice's motion moves it, in GameInput's
+// counts times MOUSE_SENSITIVITY, inside the frame, as SDL's relative mode
+// keeps one. It starts in the frame's middle with the first of the mice's
+// events, and carries on from where it is after that. It moves in the
+// events' order, so a press happens where the pointer was as the button
+// went down. It's worked out in f64, so that a test's motion, worked out
+// from where the pointer is to a point, lands on that point exactly (see
+// testing/gestures.rs).
 
-use crate::drawing::geometry::Point;
+use crate::drawing::geometry::{Point, Size};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
 use crate::input::typing::typed;
 
+// How far the pointer moves for each count of the mice's motion, in pixels.
+pub const MOUSE_SENSITIVITY: f64 = 0.8;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
-    PointerMoved(Point),
+    // The mice's motion, in GameInput's counts, before MOUSE_SENSITIVITY. A
+    // real mouse moves by whole counts; a test may move by parts of one, to
+    // land the pointer on a point.
+    MouseMoved { x: f64, y: f64 },
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
@@ -50,6 +65,9 @@ pub struct Input {
     // before it, so that a simulation moves once a frame, after its events.
     pub time: f64,
     pub delta: f32,
+    // The frame's size, which the pointer stays inside, and starts in the
+    // middle of.
+    pub size: Size,
     pub pointer: Option<Point>,
     // How far the pointer moved in this step.
     pub pointer_delta: Point,
@@ -77,6 +95,7 @@ impl Default for Input {
         Self {
             time: 0.0,
             delta: 0.0,
+            size: Size::default(),
             pointer: None,
             pointer_delta: Point::ZERO,
             wheel: Point::ZERO,
@@ -114,7 +133,7 @@ impl Input {
         let mut index = 0;
         while index < events.len() {
             let acts = match &events[index] {
-                Event::PointerMoved(_) => false,
+                Event::MouseMoved { .. } => false,
                 Event::Gamepad(gamepad) => std::mem::replace(&mut self.step_gamepad_buttons, gamepad.buttons.0) != gamepad.buttons.0,
                 _ => true,
             };
@@ -127,7 +146,7 @@ impl Input {
             start = index;
         }
         let rest = &events[start..];
-        let moves_pointer = rest.iter().any(|event| matches!(event, Event::PointerMoved(_)));
+        let moves_pointer = rest.iter().any(|event| matches!(event, Event::MouseMoved { .. }));
         if steps.is_empty() || moves_pointer {
             steps.push(rest);
         } else if !rest.is_empty() {
@@ -161,8 +180,12 @@ impl Input {
     }
 
     fn apply(&mut self, event: &Event) {
+        // The pointer starts with the mice's first event.
+        if matches!(event, Event::MouseMoved { .. } | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_)) && self.pointer.is_none() {
+            self.pointer = Some(moved_pointer(None, 0.0, 0.0, self.size));
+        }
         match event {
-            Event::PointerMoved(point) => self.pointer = Some(*point),
+            Event::MouseMoved { x, y } => self.pointer = Some(moved_pointer(self.pointer, *x, *y, self.size)),
             Event::ButtonPressed(button) => {
                 let time = self.time;
                 let position = self.pointer.unwrap_or_default();
@@ -203,6 +226,15 @@ impl Input {
                 }
             }
             Event::Gamepad(reading) => self.gamepad = *reading,
+        }
+    }
+
+    // The frame's size, which the pointer stays inside: a smaller one takes it
+    // in at once.
+    pub fn resize(&mut self, size: Size) {
+        self.size = size;
+        if let Some(pointer) = self.pointer {
+            self.pointer = Some(moved_pointer(Some(pointer), 0.0, 0.0, size));
         }
     }
 
@@ -276,5 +308,27 @@ impl Input {
 
     pub fn gamepad_released(&self, button: u32) -> bool {
         !self.gamepad.buttons.contains(button) && self.previous_gamepad.buttons.contains(button)
+    }
+}
+
+// Where the mice's motion of x and y counts moves the pointer from `from`, or
+// from the middle of a frame of the size if it's nowhere yet: by the counts
+// times MOUSE_SENSITIVITY, worked out in f64, inside the frame, from 0 to its
+// width or height less 1, as SDL keeps its own.
+pub fn moved_pointer(from: Option<Point>, x: f64, y: f64, size: Size) -> Point {
+    let from = from.unwrap_or(Point::new(size.width / 2.0, size.height / 2.0));
+    let inside = |at: f64, extent: f32| at.clamp(0.0, (extent as f64 - 1.0).max(0.0)) as f32;
+    Point::new(inside(from.x as f64 + x * MOUSE_SENSITIVITY, size.width), inside(from.y as f64 + y * MOUSE_SENSITIVITY, size.height))
+}
+
+// The mice's motion that moves the pointer from `from` to `to`, or from the
+// middle of a frame of the size if it's nowhere yet, for tests and scripts,
+// which point at places: moved_pointer then lands on `to` exactly, if it's
+// inside the frame.
+pub fn motion_to(from: Option<Point>, to: Point, size: Size) -> Event {
+    let from = from.unwrap_or(Point::new(size.width / 2.0, size.height / 2.0));
+    Event::MouseMoved {
+        x: (to.x as f64 - from.x as f64) / MOUSE_SENSITIVITY,
+        y: (to.y as f64 - from.y as f64) / MOUSE_SENSITIVITY,
     }
 }

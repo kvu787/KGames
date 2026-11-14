@@ -320,10 +320,10 @@ over until then, and loses nothing. `Test/UserInterface/tests/reader.rs` pins th
 
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
-says, has nothing to do with the screen. Each reading with relative positions moves the pointer by
-its difference from that mouse's last such reading times `MOUSE_SENSITIVITY`, in the stream's
-order. The pointer starts in the middle of the window the first time the window gets focus, and
-carries on from where it was each time after.
+says, has nothing to do with the screen. Each reading with relative positions is the motion of its
+difference from that mouse's last such reading, in the stream's order, which the interface moves
+the pointer by, times `MOUSE_SENSITIVITY`. The pointer starts in the middle of the window with the
+mice's first input, and carries on from where it was after that, focus or not.
 
 Microsoft's documentation says that the sum counts only the motion that the program gets while it
 has focus. Measured with GameInput 4.0.306, with input that `SendInput` injected, it doesn't: the

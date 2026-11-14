@@ -6,9 +6,9 @@
 // are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
-use user_interface::input::reader::{Connections, InputReader, MOUSE_SENSITIVITY, WindowState, connections};
+use user_interface::input::reader::{Connections, InputReader, WindowState, connections};
 use user_interface::FocusChange;
-use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading, Size};
+use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading};
 
 const KEYBOARD: usize = 1;
 const MOUSE: usize = 2;
@@ -87,7 +87,6 @@ fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
 // cursor.
 fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
-        size: Size::new(2560.0, 1440.0),
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
         keeps_cursor: true,
     }
@@ -107,7 +106,7 @@ fn buttons(events: &[Event]) -> Vec<Event> {
 }
 
 fn mouse_events(events: &[Event]) -> Vec<Event> {
-    events.iter().filter(|event| matches!(event, Event::PointerMoved(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_))).cloned().collect()
+    events.iter().filter(|event| matches!(event, Event::MouseMoved { .. } | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_))).cloned().collect()
 }
 
 fn reader() -> InputReader {
@@ -368,24 +367,6 @@ fn a_gamepad_reading_from_before_focus_counts_as_without_it_even_when_it_comes_l
     assert!(input.gamepad_pressed(GamepadButtons::A));
 }
 
-// The interface hears where the pointer is as focus comes, so that a key or
-// a button right after it, in the same frame, sees the pointer, and what's
-// under it, from its own step.
-#[test]
-fn a_key_right_after_focus_comes_sees_the_pointer() {
-    let mut reader = reader();
-    let mut input = Input::default();
-    let frame = reader.read(&[keyboard(30, &[A])], &[], &window(Some((20, true))));
-    let mut seen = None;
-    for events in input.steps(&frame.events) {
-        input.begin(0.03, events);
-        if input.key_pressed(Key::A) {
-            seen = Some(input.pointer);
-        }
-    }
-    assert_eq!(seen, Some(Some(MIDDLE)), "{:?}", frame.events);
-}
-
 #[test]
 fn the_click_that_gives_the_window_focus_does_only_that() {
     let mut reader = reader();
@@ -481,39 +462,33 @@ fn focus_doesn_t_change_what_f1_chose() {
     assert!(reader.captured());
 }
 
-// The middle of the window, where the pointer starts.
-const MIDDLE: Point = Point::new(1280.0, 720.0);
-
-// Where a mouse's motion of x and y counts moves the pointer from a point,
-// as the reader works it out.
-fn moved(from: Point, x: i64, y: i64) -> Point {
-    Point::new(from.x + x as f32 * MOUSE_SENSITIVITY, from.y + y as f32 * MOUSE_SENSITIVITY)
+// The mice's motion in a frame's events, in counts.
+fn motions(events: &[Event]) -> Vec<(f64, f64)> {
+    events.iter().filter_map(|event| if let Event::MouseMoved { x, y } = event { Some((*x, *y)) } else { None }).collect()
 }
 
-// The pointer is the reader's own, from GameInput's mice alone, and starts in
-// the middle of the window the first time the window gets focus, and carries
-// on from where it was each time that focus comes back, as SDL's relative
-// mode carries its own on.
+// The reader gives each mouse's motion as GameInput counts it, which the
+// interface moves its pointer by (see Test/UserInterface/tests/pointer.rs).
+// A mouse's first reading has no motion: its position adds up from wherever
+// GameInput started it.
 #[test]
-fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
-    let mut reader = reader();
-    let frame = reader.read(&[], &[], &window(Some((1, true))));
-    assert!(frame.events.contains(&Event::PointerMoved(MIDDLE)), "{:?}", frame.events);
-    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(11, GameInputMouseNone, 300, 200)], &[], &window(None));
-    reader.read(&[], &[], &window(Some((20, false))));
-    let frame = reader.read(&[], &[], &window(Some((40, true))));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 300, 200))), "{:?}", frame.events);
+fn the_reader_gives_each_mouse_s_motion_in_counts() {
+    let mut reader = focused();
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
+    assert_eq!(motions(&frame.events), []);
+    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 2, -1), mouse_at(21, GameInputMouseNone, 42, -1)], &[], &window(None));
+    assert_eq!(motions(&frame.events), [(2.0, -1.0), (40.0, 0.0)]);
 }
 
 // GameInput's reading of each mouse as focus goes has no positions, and its
 // totals are 0, even if its time puts it before the focus change: it neither
-// moves the pointer nor turns the wheel. GameInput goes on adding a mouse's
-// motion and turns up without focus, so each mouse starts over as focus
-// goes: its first reading after focus comes back only says where its totals
-// are, and what moved in another program doesn't count. As measured with
-// GameInput 4.0.306: totals (200, 150) and wheel 240, a reading at rest with
-// 0s as focus went, (30, 0) and 120 without focus, then (-100, 0) with it,
-// read as (130, 150) and 360.
+// moves nor turns the wheel. GameInput goes on adding a mouse's motion and
+// turns up without focus, so each mouse starts over as focus goes: its first
+// reading after focus comes back only says where its totals are, and what
+// moved in another program doesn't count. As measured with GameInput 4.0.306:
+// totals (200, 150) and wheel 240, a reading at rest with 0s as focus went,
+// (30, 0) and 120 without focus, then (-100, 0) with it, read as (130, 150)
+// and 360.
 #[test]
 fn a_mouse_starts_over_across_focus_changes() {
     let mut reader = focused();
@@ -524,12 +499,11 @@ fn a_mouse_starts_over_across_focus_changes() {
         ..Default::default()
     });
     let frame = reader.read(&[at_rest], &[], &window(Some((20, false))));
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::PointerMoved(_) | Event::Wheel(_))), "{:?}", frame.events);
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::Wheel(_))), "{:?}", frame.events);
     let frame = reader.read(&[mouse_with(50, 130, 150, 360)], &[], &window(Some((40, true))));
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
-    assert_eq!(frame.events.iter().rfind(|event| matches!(event, Event::PointerMoved(_))), Some(&Event::PointerMoved(MIDDLE)));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::Wheel(_))), "{:?}", frame.events);
     let frame = reader.read(&[mouse_with(60, 137, 157, 240)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 7, 7))), "{:?}", frame.events);
+    assert_eq!(motions(&frame.events), [(7.0, 7.0)]);
     assert!(frame.events.contains(&Event::Wheel(Point::new(0.0, -1.0))), "{:?}", frame.events);
 }
 
@@ -543,13 +517,12 @@ fn a_mouse_starts_over_as_focus_goes_without_its_reading_at_rest() {
     reader.read(&[mouse_with(10, 200, 150, 240)], &[], &window(None));
     reader.read(&[], &[], &window(Some((20, false))));
     let frame = reader.read(&[mouse_with(50, 230, 150, 360)], &[], &window(Some((40, true))));
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
-    assert_eq!(frame.events.iter().rfind(|event| matches!(event, Event::PointerMoved(_))), Some(&Event::PointerMoved(MIDDLE)));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::Wheel(_))), "{:?}", frame.events);
 }
 
-// Only relative positions move the pointer: a reading with only absolute
-// ones, like a pen's, doesn't, and the mouse's next reading with relative
-// ones starts over.
+// Only relative positions are motion: a reading with only absolute ones,
+// like a pen's, isn't, and the mouse's next reading with relative ones starts
+// over.
 #[test]
 fn a_reading_with_only_absolute_positions_moves_nothing() {
     let mut reader = focused();
@@ -557,30 +530,15 @@ fn a_reading_with_only_absolute_positions_moves_nothing() {
     let (time, mut absolute) = mouse_at(20, GameInputMouseNone, 500, 500);
     absolute.mouse.positions = GameInputMouseAbsolutePosition;
     let frame = reader.read(&[(time, absolute), mouse_at(30, GameInputMouseNone, 510, 500)], &[], &window(None));
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::PointerMoved(_))), "{:?}", frame.events);
+    assert_eq!(motions(&frame.events), []);
     let frame = reader.read(&[mouse_at(40, GameInputMouseNone, 520, 500)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 10, 0))), "{:?}", frame.events);
+    assert_eq!(motions(&frame.events), [(10.0, 0.0)]);
 }
 
-// Each mouse's motion moves the pointer its counts times MOUSE_SENSITIVITY,
-// in parts of a pixel, however fast the mouse moves.
+// Each mouse's motion comes in the stream's order, so that a press and a
+// release each happen where the pointer was as the button went down or up.
 #[test]
-fn the_mouse_moves_the_pointer_its_counts_times_the_mouse_sensitivity() {
-    let mut reader = focused();
-    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
-    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 2, -1), mouse_at(21, GameInputMouseNone, 42, -1)], &[], &window(None));
-    let moves: Vec<&Event> = frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).collect();
-    let first = moved(MIDDLE, 2, -1);
-    assert_eq!(moves, [&Event::PointerMoved(first), &Event::PointerMoved(moved(first, 40, 0))]);
-    assert_eq!(first, Point::new(1280.0 + 2.0 * 0.8, 720.0 - 0.8));
-}
-
-// Each mouse's motion moves the pointer in the stream's order, so that a
-// press and a release each happen where the pointer was as the button went
-// down or up. A mouse's first reading has no motion: its position adds up
-// from wherever GameInput started it.
-#[test]
-fn the_mouse_moves_the_pointer_in_the_stream_s_order() {
+fn the_mouse_moves_in_the_stream_s_order() {
     let mut reader = focused();
     let frame = reader.read(
         &[
@@ -592,29 +550,21 @@ fn the_mouse_moves_the_pointer_in_the_stream_s_order() {
         &[],
         &window(None),
     );
-    let pointer = |events: &[Event]| {
-        events
-            .iter()
-            .filter(|event| matches!(event, Event::PointerMoved(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_)))
-            .cloned()
-            .collect::<Vec<_>>()
-    };
-    let pressed = moved(MIDDLE, 10, -5);
     assert_eq!(
-        pointer(&frame.events),
+        mouse_events(&frame.events),
         vec![
-            Event::PointerMoved(pressed),
+            Event::MouseMoved { x: 10.0, y: -5.0 },
             Event::ButtonPressed(MouseButton::Left),
-            Event::PointerMoved(moved(pressed, 20, 0)),
+            Event::MouseMoved { x: 20.0, y: 0.0 },
             Event::ButtonReleased(MouseButton::Left),
         ]
     );
 }
 
-// What comes after a move in the stream sees the pointer where it went, like
-// a key that acts on what the pointer is over.
+// What comes after a move in the stream comes after its motion, like a key
+// that acts on what the pointer is over.
 #[test]
-fn a_key_sees_the_pointer_where_the_mouse_moved_it() {
+fn a_key_comes_after_the_motion_before_it() {
     let mut reader = focused();
     let frame = reader.read(
         &[
@@ -626,15 +576,21 @@ fn a_key_sees_the_pointer_where_the_mouse_moved_it() {
         &[],
         &window(None),
     );
-    let at = |event: &Event| frame.events.iter().position(|other| other == event).unwrap_or_else(|| panic!("no {event:?} in {:?}", frame.events));
-    let before = moved(MIDDLE, 10, 0);
-    assert!(at(&Event::PointerMoved(before)) < at(&Event::KeyPressed(Key::A)));
-    assert!(at(&Event::KeyPressed(Key::A)) < at(&Event::PointerMoved(moved(before, 10, 0))));
+    let kinds: Vec<&str> = frame
+        .events
+        .iter()
+        .filter_map(|event| match event {
+            Event::MouseMoved { .. } => Some("Moved"),
+            Event::KeyPressed(_) => Some("Key"),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(kinds, ["Moved", "Key", "Moved"]);
 }
 
-// Two mice move the one pointer, each by its own motion.
+// Two mice each give their own motion.
 #[test]
-fn each_mouse_moves_the_pointer_by_its_own_motion() {
+fn each_mouse_gives_its_own_motion() {
     let mut reader = focused();
     let other = |time: i64, x: i64, y: i64| {
         let (time, mut reading) = mouse_at(time, GameInputMouseNone, x, y);
@@ -643,28 +599,7 @@ fn each_mouse_moves_the_pointer_by_its_own_motion() {
     };
     reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), other(11, 900, 900)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 10, 0), other(21, 900, 920)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(moved(MIDDLE, 10, 0), 0, 20))), "{:?}", frame.events);
-}
-
-// The pointer stays in the window, as Windows' cursor, which the window keeps
-// inside it, does: motion past an edge is lost, and motion back moves it off
-// the edge at once.
-#[test]
-fn the_pointer_stays_inside_the_window() {
-    let mut reader = focused();
-    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
-    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, -5000, 5000)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(0.0, 1439.0))), "{:?}", frame.events);
-    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, -4999, 4999)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(Point::new(0.0, 1439.0), 1, -1))), "{:?}", frame.events);
-    // A smaller window takes it in.
-    let smaller = WindowState {
-        size: Size::new(1000.0, 500.0),
-        ..window(None)
-    };
-    reader.read(&[mouse_at(40, GameInputMouseNone, 5000, -4999)], &[], &window(None));
-    let frame = reader.read(&[], &[], &smaller);
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(999.0, 0.0))), "{:?}", frame.events);
+    assert_eq!(motions(&frame.events), [(10.0, 0.0), (0.0, 20.0)]);
 }
 
 // A mouse's motion is a running total, which goes around an i64's ends.
@@ -673,7 +608,7 @@ fn the_motion_goes_around_an_i64_s_ends() {
     let mut reader = focused();
     reader.read(&[mouse_at(10, GameInputMouseNone, i64::MAX - 1, i64::MIN + 1)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, i64::MIN + 1, i64::MAX - 1)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 3, -3))), "{:?}", frame.events);
+    assert_eq!(motions(&frame.events), [(3.0, -3.0)]);
 }
 
 #[test]
