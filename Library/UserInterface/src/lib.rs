@@ -110,7 +110,7 @@ pub use drawing::text::{Font, Fonts, TextStyle, Weight};
 pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 pub use input::events::{Event, Input};
 pub use platform::input_devices::{Device, Devices, Reading, Stream, Walked, Walker};
-pub use platform::window::{FocusChange, Window, keeps_cursor_in};
+pub use platform::window::{ClipHolder, FocusChange, Window, clip_holder, keeps_cursor_in};
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};

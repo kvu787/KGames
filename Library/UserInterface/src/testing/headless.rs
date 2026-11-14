@@ -350,8 +350,9 @@ impl<P: Program> Headless<P> {
         self.run_frame()
     }
 
-    // Draws the pointer, as a window's frames do while it has focus, which a
-    // test's frames don't, so that what they draw is what a script captures.
+    // Draws the pointer, as a window's frames do while it keeps Windows'
+    // cursor, which a test's frames don't, so that what they draw is what a
+    // script captures.
     pub fn draw_pointer(&mut self) -> &mut Self {
         self.ui.draws_pointer = true;
         self.run_frame()

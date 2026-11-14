@@ -196,7 +196,7 @@ pub struct Interface {
     // How many messages the last frame applied, over all its steps.
     pub(crate) messages_applied: usize,
     // Whether the frame draws the pointer, while the window has focus, as a
-    // window's frames do, whose Windows' cursor is hidden then, and not a
+    // window's frames do while it keeps Windows' cursor, hidden, and not a
     // script's or a test's, whose captures never showed Windows' cursor.
     pub(crate) draws_pointer: bool,
     // Whether the step running is its frame's last, which has the frame's

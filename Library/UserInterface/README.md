@@ -247,12 +247,14 @@ before, but reports gamepads' whole state, their held buttons too.
   precision", in the stream's order, so a press lands where the pointer was as its button went
   down, and a key after a move sees the pointer where it went. Only mice's relative motion moves
   it, not a pen's or a touch screen's absolute positions.
-- While the window has focus, Windows' cursor is hidden over it and kept inside its client area, so
-  that no click goes to another window, and the interface draws the pointer over everything, in
-  the shape that the widget under it asks for with `Widget::cursor`. The window starts to keep the
-  cursor only once the click that gave it focus is let go of, so that one on the title bar's
-  minimize or close button works. As it loses focus, like with Alt+Tab, Windows' cursor goes to
-  the middle of the window, where it shows once the window is left. So the title bar's buttons and
+- While the window has focus and is the foreground window, Windows' cursor is hidden over it and
+  kept inside its client area, so that no click goes to another window, and the interface draws
+  the pointer over everything, in the shape that the widget under it asks for with
+  `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. The window starts to
+  keep the cursor only once the click that gave it focus is let go of, so that one on the title
+  bar's minimize or close button works. As it loses focus, like with Alt+Tab, Windows' cursor goes
+  to the middle of the window, where it shows once the window is left, unless the program that
+  got focus has confined the cursor already, whose confinement the window leaves alone. So the title bar's buttons and
   the taskbar can't be reached with the mouse while the window has focus: Alt+Tab or the Windows
   key leave it. Scripts' and tests' frames don't draw the pointer, and `Headless::draw_pointer`
   makes a test's draw it.

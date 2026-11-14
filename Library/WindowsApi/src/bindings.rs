@@ -400,6 +400,11 @@ pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL
     unsafe { GetClientRect(hwnd, lprect as _) }
 }
 #[inline]
+pub unsafe fn GetClipCursor(lprect: *mut RECT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetClipCursor(lprect : *mut RECT) -> windows_core::BOOL);
+    unsafe { GetClipCursor(lprect as _) }
+}
+#[inline]
 pub unsafe fn GetCurrentProcess() -> HANDLE {
     windows_core::link!("kernel32.dll" "system" fn GetCurrentProcess() -> HANDLE);
     unsafe { GetCurrentProcess() }
@@ -448,6 +453,11 @@ pub unsafe fn GetDpiForWindow(hwnd: HWND) -> u32 {
 pub unsafe fn GetExitCodeProcess(hprocess: HANDLE, lpexitcode: *mut u32) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn GetExitCodeProcess(hprocess : HANDLE, lpexitcode : *mut u32) -> windows_core::BOOL);
     unsafe { GetExitCodeProcess(hprocess, lpexitcode as _) }
+}
+#[inline]
+pub unsafe fn GetForegroundWindow() -> HWND {
+    windows_core::link!("user32.dll" "system" fn GetForegroundWindow() -> HWND);
+    unsafe { GetForegroundWindow() }
 }
 #[inline]
 pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsize: i32) -> i32 {

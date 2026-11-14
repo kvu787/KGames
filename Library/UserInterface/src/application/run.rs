@@ -104,9 +104,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     });
     let mut program = create(&mut startup)?;
     ui.notices = startup.take_notices();
-    // The window's frames draw the pointer, as Windows' cursor is hidden over
-    // the window while it has focus. A script's don't.
-    ui.draws_pointer = !scripted;
     if !scripted && let Err(error) = startup.settings.write_if_missing() {
         ui.notices.push(Notice {
             severity: Severity::Warning,
@@ -174,7 +171,12 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             }
         }
 
-        // The input, read as late as it can be.
+        // Windows' cursor kept, or not, as the frame reads its input, so that
+        // the frame draws the pointer exactly while Windows' cursor is
+        // hidden, which a script's frames never do. And the input, read as
+        // late as it can be.
+        window.keep_cursor();
+        ui.draws_pointer = !scripted && window.keeps_cursor();
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
         if minimized && !input.focus_changed {
@@ -221,9 +223,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             });
         }
         gpu.report_messages();
-        // Windows' cursor kept inside the window while it has focus, once a
-        // frame, after it's presented, where it doesn't hold up the input.
-        window.keep_cursor();
         if let Some(script) = input.script
             && source.check(script, image, || state(&program, &ui))?
         {

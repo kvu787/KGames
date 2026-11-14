@@ -2,7 +2,7 @@
 // Windows' cursor. The window is made hidden and never shown, so nothing
 // opens on a display, and nothing takes focus.
 
-use user_interface::{Theme, ThemeKind, Window, WindowMode, keeps_cursor_in};
+use user_interface::{ClipHolder, Theme, ThemeKind, Window, WindowMode, clip_holder, keeps_cursor_in};
 use windows_api::*;
 
 // Until its first frame is presented, a window shows what it paints with GDI.
@@ -67,9 +67,34 @@ fn a_minimized_window_keeps_no_cursor() {
 #[test]
 fn the_click_that_gives_the_window_focus_is_let_go_of_before_the_window_keeps_the_cursor() {
     let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
-    assert_eq!(keeps_cursor_in(true, false, Some(area), true), None);
-    assert_eq!(keeps_cursor_in(true, false, Some(area), false), Some(area));
-    assert_eq!(keeps_cursor_in(true, true, Some(area), true), Some(area));
-    assert_eq!(keeps_cursor_in(false, true, Some(area), false), None);
-    assert_eq!(keeps_cursor_in(true, true, None, false), None);
+    assert_eq!(keeps_cursor_in(true, true, false, Some(area), true), None);
+    assert_eq!(keeps_cursor_in(true, true, false, Some(area), false), Some(area));
+    assert_eq!(keeps_cursor_in(true, true, true, Some(area), true), Some(area));
+    assert_eq!(keeps_cursor_in(false, true, true, Some(area), false), None);
+    assert_eq!(keeps_cursor_in(true, true, true, None, false), None);
+}
+
+// A window can get focus without being the foreground window, when Windows
+// won't let it take the foreground from the program that has it, and it
+// mustn't keep the cursor of someone using that program then.
+#[test]
+fn a_window_with_focus_that_isn_t_the_foreground_window_keeps_no_cursor() {
+    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    assert_eq!(keeps_cursor_in(true, false, false, Some(area), false), None);
+    assert_eq!(keeps_cursor_in(true, false, true, Some(area), false), None);
+}
+
+// The cursor's confinement is shared by every program, and the window and
+// the program that gets focus hear of it in no fixed order: as the window
+// lets the cursor go, it releases the confinement and puts the cursor in its
+// middle only if it still holds it, or nobody does, and leaves another
+// program's alone.
+#[test]
+fn the_window_lets_go_only_of_the_cursor_s_confinement_that_it_holds() {
+    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    let free = RECT { left: -2560, top: 0, right: 5120, bottom: 1440 };
+    let other = RECT { left: 2560, top: 0, right: 5120, bottom: 1440 };
+    assert_eq!(clip_holder(area, area, free), ClipHolder::Window);
+    assert_eq!(clip_holder(free, area, free), ClipHolder::Nobody);
+    assert_eq!(clip_holder(other, area, free), ClipHolder::Other);
 }

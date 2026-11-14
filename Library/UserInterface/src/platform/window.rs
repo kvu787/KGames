@@ -9,15 +9,20 @@
 //   on, as input without focus is ignored. The time is when it handles the
 //   message, which Windows sends it once the focus has moved, so it can be
 //   a little after.
-// - While it has focus, it keeps Windows' cursor inside its client area,
-//   hidden, as games do: the interface keeps a pointer of its own, which
-//   GameInput's mice move, and draws it (see input/reader.rs). It starts to
-//   keep it only once no mouse button is held, by Windows' account of the
-//   mouse, which, unlike GameInput's, has the click that gave the window
-//   focus: Windows tracks a click on the title bar's minimize or close button
-//   until it's let go of there, which a cursor kept in the client area never
-//   is. As the window loses focus, like with Alt+Tab, it lets the cursor go
-//   in the middle of its client area, where it shows.
+// - While it has focus and is the foreground window, it keeps Windows' cursor
+//   inside its client area, hidden, as games do: the interface keeps a
+//   pointer of its own, which GameInput's mice move, and draws it exactly
+//   while the cursor is kept (see input/reader.rs). A window can get focus
+//   without being the foreground window, whose cursor it mustn't keep. It
+//   starts to keep it only once no mouse button is held, by Windows' account
+//   of the mouse, which, unlike GameInput's, has the click that gave the
+//   window focus: Windows tracks a click on the title bar's minimize or close
+//   button until it's let go of there, which a cursor kept in the client area
+//   never is. The cursor's confinement is shared by every program, so the
+//   window releases it only if it still holds it, as the program that gets
+//   focus may have taken it first. As the window loses focus, like with
+//   Alt+Tab, it lets the cursor go in the middle of its client area, where it
+//   shows, unless that program has taken it.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
@@ -72,8 +77,8 @@ struct Shared {
     minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
-    // Whether the window keeps Windows' cursor, hidden, in its client area.
-    keeps_cursor: Cell<bool>,
+    // Where the window keeps Windows' cursor, hidden, if it does.
+    kept: Cell<Option<Kept>>,
     // Windows' arrow, which its cursor is over the window while it isn't kept.
     arrow: HCURSOR,
     // What the window shows until its first frame is presented.
@@ -145,7 +150,7 @@ impl Window {
                 minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
-                keeps_cursor: Cell::new(false),
+                kept: Cell::new(None),
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
             });
@@ -298,6 +303,12 @@ impl Window {
     // window focus is let go of.
     pub fn keep_cursor(&mut self) {
         unsafe { keep_cursor(self.hwnd, self.shared()) };
+    }
+
+    // Whether the window keeps Windows' cursor, hidden, so that its frames
+    // draw the pointer instead.
+    pub fn keeps_cursor(&self) -> bool {
+        self.shared().kept.get().is_some()
     }
 
     // Where Windows' cursor is kept and centered: the client area, in the
@@ -513,14 +524,55 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
 }
 
 // Where the window keeps Windows' cursor, if anywhere: in its client area,
-// the area, which a minimized window has none of, while it has focus. It
+// the area, which a minimized window has none of, while it has focus and is
+// the foreground window, as a window can get focus without being it, when
+// Windows won't let it take the foreground from the program that has it. It
 // starts to keep it only once no mouse button is held, like the click that
 // gave it focus on its title bar's minimize or close button, which Windows
 // tracks until it's let go of there, where a cursor kept in the client area
 // would never be let go of. A button held while it keeps it, like for a drag,
 // doesn't let it go.
-pub fn keeps_cursor_in(focused: bool, keeps: bool, area: Option<RECT>, button_held: bool) -> Option<RECT> {
-    if focused && (keeps || !button_held) { area } else { None }
+pub fn keeps_cursor_in(focused: bool, foreground: bool, keeps: bool, area: Option<RECT>, button_held: bool) -> Option<RECT> {
+    if focused && foreground && (keeps || !button_held) { area } else { None }
+}
+
+// Where the window keeps the cursor, and the cursor's confinement as it was
+// before, which was none, as Windows' documentation has a program save it.
+#[derive(Clone, Copy, Debug)]
+struct Kept {
+    area: RECT,
+    free: RECT,
+}
+
+// Who holds the cursor's confinement as the window lets the cursor go.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClipHolder {
+    // The window, which releases it.
+    Window,
+    // Nobody: Windows released it, as it can as focus moves.
+    Nobody,
+    // Another program, which took it as it got focus, before the window
+    // heard that it lost focus, as the two hear of it in no fixed order.
+    Other,
+}
+
+// Who holds the confinement `clip`, which GetClipCursor gives, when the
+// window kept the cursor in `area`, and the confinement was `free` before.
+pub fn clip_holder(clip: RECT, area: RECT, free: RECT) -> ClipHolder {
+    if clip == area {
+        ClipHolder::Window
+    } else if clip == free {
+        ClipHolder::Nobody
+    } else {
+        ClipHolder::Other
+    }
+}
+
+// The cursor's confinement, or the whole of the screens, without one.
+unsafe fn clip() -> RECT {
+    let mut clip = RECT::default();
+    let _ = unsafe { GetClipCursor(&mut clip) };
+    clip
 }
 
 // Whether a mouse button is held, by Windows' account of the mouse, which has
@@ -535,27 +587,44 @@ fn mouse_button_held() -> bool {
 // says, and lets it go where it doesn't.
 unsafe fn keep_cursor(hwnd: HWND, shared: &Shared) {
     unsafe {
-        let (focused, keeps) = (shared.focused.get(), shared.keeps_cursor.get());
+        let (focused, kept) = (shared.focused.get(), shared.kept.get());
         // Without focus, there's nothing to keep, or let go of.
-        if !focused && !keeps {
+        if !focused && kept.is_none() {
             return;
         }
-        let area = keeps_cursor_in(focused, keeps, cursor_area(hwnd), focused && !keeps && mouse_button_held());
-        match area {
+        let foreground = GetForegroundWindow() == hwnd;
+        let held = focused && foreground && kept.is_none() && mouse_button_held();
+        match keeps_cursor_in(focused, foreground, kept.is_some(), cursor_area(hwnd), held) {
             Some(area) => {
-                let _ = ClipCursor(Some(&area));
+                let clip = clip();
+                if clip != area {
+                    let _ = ClipCursor(Some(&area));
+                }
+                let free = kept.map_or(clip, |kept| kept.free);
+                shared.kept.set(Some(Kept { area, free }));
                 // Hidden at once, as Windows asks for its shape only as it
                 // moves.
-                if !shared.keeps_cursor.replace(true) {
+                if kept.is_none() {
                     SetCursor(None);
                 }
             }
             None => {
-                if shared.keeps_cursor.replace(false) {
-                    let _ = ClipCursor(None);
-                }
+                let_go(shared);
             }
         }
+    }
+}
+
+// Lets Windows' cursor go, if the window keeps it, and releases its
+// confinement if the window still holds it. Says who held it.
+unsafe fn let_go(shared: &Shared) -> Option<ClipHolder> {
+    unsafe {
+        let kept = shared.kept.take()?;
+        let holder = clip_holder(clip(), kept.area, kept.free);
+        if holder == ClipHolder::Window {
+            let _ = ClipCursor(None);
+        }
+        Some(holder)
     }
 }
 
@@ -589,11 +658,11 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 LRESULT(0)
             }
             // Windows' cursor, if kept, is let go of in the middle of the
-            // client area, where it shows once the window is left.
+            // client area, where it shows once the window is left, unless
+            // the program that got focus has taken it already.
             WM_KILLFOCUS => {
                 shared.focus_changed(false);
-                if shared.keeps_cursor.get() {
-                    keep_cursor(hwnd, shared);
+                if let_go(shared).is_some_and(|holder| holder != ClipHolder::Other) {
                     center_cursor(hwnd);
                 }
                 LRESULT(0)
@@ -610,7 +679,7 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             // the interface draws its own pointer, and the arrow otherwise.
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    let cursor = if shared.keeps_cursor.get() { None } else { Some(shared.arrow) };
+                    let cursor = if shared.kept.get().is_some() { None } else { Some(shared.arrow) };
                     SetCursor(cursor);
                     LRESULT(1)
                 } else {
