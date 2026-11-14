@@ -148,27 +148,29 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if window.take_setup_changed() {
             problems = window.setup_problems();
         }
-        // A minimized window doesn't draw, and waits for messages, but its
-        // program still runs a frame when the window gets or loses focus,
-        // like as it minimizes, so that it can stop what it's doing, like a
-        // gamepad's motors.
+        // A minimized window runs no frames, and waits for messages. Its
+        // input waits too: what came meanwhile, like losing focus as it
+        // minimized, goes to the program in the first frame after it's
+        // restored. GameInput stops gamepads' motors without focus itself.
         let (width, height) = window.client_size();
         let minimized = !scripted && (window.minimized() || width == 0 || height == 0);
-        if !minimized {
-            if (width, height) != presenter.size() {
-                presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
+        if minimized {
+            window.wait();
+            continue;
+        }
+        if (width, height) != presenter.size() {
+            presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
+        }
+        if !presenter.poll_ready(&gpu) {
+            // With vertical sync, the loop waits for the GPU and DXGI
+            // instead of spinning, which ends as soon as a frame can begin,
+            // or a message comes. Without it, the loop spins, so that the
+            // frame begins the moment that it can, without a thread's
+            // wake-up.
+            if presenter.vsync() {
+                presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
             }
-            if !presenter.poll_ready(&gpu) {
-                // With vertical sync, the loop waits for the GPU and DXGI
-                // instead of spinning, which ends as soon as a frame can
-                // begin, or a message comes. Without it, the loop spins, so
-                // that the frame begins the moment that it can, without a
-                // thread's wake-up.
-                if presenter.vsync() {
-                    presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
-                }
-                continue;
-            }
+            continue;
         }
 
         // Windows' cursor kept, or not, as the frame reads its input, so that
@@ -179,10 +181,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         ui.draws_pointer = !scripted && window.keeps_cursor();
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
-        if minimized && !input.focus_changed {
-            window.wait();
-            continue;
-        }
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
         let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
@@ -211,10 +209,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if program.title() != title {
             title = program.title();
             window.set_title(&title);
-        }
-        if minimized {
-            window.wait();
-            continue;
         }
 
         let capture = input.script.as_ref().is_some_and(|script| !script.captures.is_empty());
@@ -316,8 +310,6 @@ struct Input {
     // When GameInput got the newest reading that the frame took, for the
     // input latency.
     input_time: Option<i64>,
-    // Whether the window got or lost focus since the last frame.
-    focus_changed: bool,
     // What a script does around the frame.
     script: Option<ScriptFrame>,
 }
@@ -370,7 +362,6 @@ impl Source {
                     events: read.events,
                     time: start.get_or_insert_with(Instant::now).elapsed().as_secs_f64(),
                     input_time: read.input_time,
-                    focus_changed: !focus_changes.is_empty(),
                     script: None,
                 })
             }
@@ -385,7 +376,6 @@ impl Source {
                     events: script.events.clone(),
                     time: number as f64 * runner.frame_time(),
                     input_time: None,
-                    focus_changed: false,
                     script: Some(script),
                 })
             }
