@@ -1,5 +1,5 @@
-// What the player does in a frame, from the gamepad and the keyboard, which
-// both do everything:
+// What the player does in a step of a frame's input, from the gamepad and
+// the keyboard, which both do everything:
 //
 // | Gamepad               | Keyboard              | Does                                 |
 // | --------------------- | --------------------- | ------------------------------------ |
@@ -11,7 +11,7 @@
 // | Menu                  | C                     | The fixed or the following camera    |
 // | RB and left stick     | The wheel             | Zooms                                |
 // | Y                     | Home                  | Zooms back to the camera's height    |
-// | View                  | F1                    | Shows or hides the card              |
+// | View                  | F2                    | Shows or hides the card              |
 //
 // Without the window's focus, the interface has no input at all, so the
 // controls are at rest.
@@ -49,7 +49,7 @@ pub struct Controls {
 }
 
 impl Controls {
-    // The frame's controls, with the wheel's notches over the game's view.
+    // The step's controls, with the wheel's notches over the game's view.
     pub fn read(ui: &Ui, notches: f64) -> Controls {
         let gamepad = *ui.gamepad();
         let input = ui.input();
@@ -57,8 +57,7 @@ impl Controls {
         // which mustn't push the car.
         let control = input.modifiers().control;
         let held = |keys: [Key; 2]| !control && keys.iter().any(|&key| ui.key_down(key));
-        // A key's press, not its repeats.
-        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
+        let key = |key: Key| ui.key_pressed(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         // Keys push all the way, and a diagonal as far as a straight push.
         let keys = [
@@ -98,7 +97,7 @@ impl Controls {
             zoom,
             notches,
             default_zoom: pressed(GamepadButtons::Y, Key::HOME),
-            toggle_card: pressed(GamepadButtons::VIEW, Key::F1),
+            toggle_card: pressed(GamepadButtons::VIEW, Key::F2),
         }
     }
 }

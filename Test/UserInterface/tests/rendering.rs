@@ -4,15 +4,15 @@
 // on the frame that makes it, that a press draws all it did on its own frame,
 // that a selection that moves leaves its old item on that frame, that a
 // release shows on its own frame, whether the PerfBar says that vertical sync
-// is on, the PerfBar's colors in each theme, and the page for an unsupported
-// setup.
+// is on, the PerfBar's colors in each theme, the page for an unsupported
+// setup, and the pointer that a window draws while it has focus.
 
 use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Card, CheckBox, Color, ComboBox, Context, Event, Headless, Key, ListView, MenuBar, MenuItem, MouseButton, Palette, Program, RadioGroup,
-    Rect, Segmented, SelectorBar, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, unsupported_setup,
+    Button, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
+    Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, Widget, unsupported_setup,
 };
 
 struct Page;
@@ -55,7 +55,7 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
         let image = app.render(&mut gpu).unwrap();
         let theme = Theme::new(kind);
         save(&image, &format!("Page{}", kind.name()));
-        assert_eq!((image.width, image.height), (2560, 1369));
+        assert_eq!((image.width, image.height), (2560, 1440));
         assert!(close(image.pixel(1000, 1000), theme.background.to_bytes()), "{:?}", image.pixel(1000, 1000));
         // The card is its fill over the background.
         assert!(close(image.pixel(400, 220), theme.card_opaque().to_bytes()), "{:?}", image.pixel(400, 220));
@@ -418,9 +418,162 @@ impl Program for Unsupported {
     fn view(&self, _ui: &mut Ui) -> Tree<()> {
         unsupported_setup(&[
             "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
-            "The window must be maximized, or borderless fullscreen with F11.".to_string(),
+            "The window's client area is 1280 × 720 at (0, 0). It must be the whole display, 1920 × 1080 at (0, 0).".to_string(),
         ])
     }
+}
+
+const CURSORS: [Cursor; 10] = [
+    Cursor::Arrow,
+    Cursor::Text,
+    Cursor::Hand,
+    Cursor::Move,
+    Cursor::ResizeHorizontal,
+    Cursor::ResizeVertical,
+    Cursor::ResizeDiagonal,
+    Cursor::ResizeAntidiagonal,
+    Cursor::Crosshair,
+    Cursor::NotAllowed,
+];
+
+// A widget that asks for a cursor while the pointer is on it.
+struct Shape(Cursor);
+
+impl Widget<()> for Shape {
+    fn kind(&self) -> &'static str {
+        "Shape"
+    }
+
+    fn sense(&self) -> Option<Sense> {
+        Some(Sense::VIEW)
+    }
+
+    fn cursor(&self, _ui: &Interface, hovered: bool, held: bool) -> Option<Cursor> {
+        (hovered || held).then_some(self.0)
+    }
+}
+
+// A row of widgets, one for each cursor.
+struct Shapes;
+
+impl Program for Shapes {
+    type Message = ();
+
+    fn title(&self) -> String {
+        "Shapes".to_string()
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        for (index, cursor) in CURSORS.into_iter().enumerate() {
+            tree.add(&format!("Shape{index}"), Rect::new(100.0 + index as f32 * 150.0, 200.0, 100.0, 100.0), Shape(cursor));
+        }
+        tree
+    }
+}
+
+// The area of the image, each pixel made a square of `zoom` pixels.
+fn crop(image: &Image, area: Rect, zoom: u32) -> Image {
+    let (width, height) = (area.width as u32 * zoom, area.height as u32 * zoom);
+    let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+    for y in 0..height {
+        for x in 0..width {
+            let at = (((area.y as u32 + y / zoom) * image.width + area.x as u32 + x / zoom) * 4) as usize;
+            pixels.extend_from_slice(&image.pixels[at..at + 4]);
+        }
+    }
+    Image { width, height, pixels }
+}
+
+// Images side by side, which are all as high.
+fn side_by_side(images: &[Image]) -> Image {
+    let height = images[0].height;
+    let width = images.iter().map(|image| image.width).sum();
+    let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+    for y in 0..height {
+        for image in images {
+            let row = (y * image.width * 4) as usize;
+            pixels.extend_from_slice(&image.pixels[row..row + (image.width * 4) as usize]);
+        }
+    }
+    Image { width, height, pixels }
+}
+
+// The window draws its own pointer while it keeps Windows' cursor, hidden,
+// in the shape that the widget under it asks for, in the theme's accent with
+// an edge in text_on_accent, unlike Windows' cursors, and only near its hot
+// spot. Once it lets the cursor go, as focus goes or F1 lets it, Windows'
+// cursor shows, and the window draws none.
+#[test]
+fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the_window_keeps_the_cursor() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut problems = Vec::new();
+    for kind in [ThemeKind::Light, ThemeKind::Dark] {
+        let mut app = Headless::with_theme(Shapes, kind);
+        app.draw_pointer(true);
+        let theme = Theme::new(kind);
+        let (fill, edge) = (theme.accent.to_bytes(), theme.text_on_accent.to_bytes());
+        let mut shapes = Vec::new();
+        for (index, cursor) in CURSORS.into_iter().enumerate() {
+            let name = format!("Shape{index}");
+            app.draw_pointer(true).move_to(&name);
+            assert_eq!(app.ui.cursor(), cursor);
+            let with = app.render(&mut gpu).unwrap();
+            app.draw_pointer(false);
+            let without = app.render(&mut gpu).unwrap();
+            let at = app.target(&name).center();
+            let near = Rect::new(at.x - 13.0, at.y - 13.0, 31.0, 34.0);
+            // Below the PerfBar, whose stats change from frame to frame.
+            let mut changed = Vec::new();
+            for y in PERF_BAR_HEIGHT as u32..with.height {
+                for x in 0..with.width {
+                    if with.pixel(x, y) != without.pixel(x, y) {
+                        changed.push((x, y));
+                    }
+                }
+            }
+            let outside: Vec<_> = changed.iter().filter(|(x, y)| !near.contains(user_interface::Point::new(*x as f32, *y as f32))).collect();
+            let filled = changed.iter().any(|&(x, y)| close(with.pixel(x, y), fill));
+            let edged = changed.iter().any(|&(x, y)| close(with.pixel(x, y), edge));
+            if changed.is_empty() || !outside.is_empty() || !filled || !edged {
+                problems.push(format!(
+                    "{} theme, {cursor:?}: {} pixels, {:?} away from the hot spot, filled {filled}, edged {edged}",
+                    kind.name(),
+                    changed.len(),
+                    &outside[..outside.len().min(5)],
+                ));
+            }
+            shapes.push(crop(&with, near, 6));
+        }
+        // Saved before the checks, to see what failed.
+        save(&side_by_side(&shapes), &format!("Pointers{}", kind.name()));
+    }
+    assert!(problems.is_empty(), "{problems:#?}");
+}
+
+// The pointer is anywhere, in parts of a pixel, and it's drawn where it is,
+// like a triangle whose corners are anywhere, not on the pixels' grid: half a
+// pixel to the right, it's drawn neither where it was nor a whole pixel
+// further.
+#[test]
+fn the_pointer_is_drawn_where_it_is_in_parts_of_a_pixel() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(Shapes);
+    app.draw_pointer(true);
+    let at = app.target("Shape0").center();
+    app.move_point(at);
+    let whole = app.render(&mut gpu).unwrap();
+    app.move_point(user_interface::Point::new(at.x + 0.5, at.y));
+    let half = app.render(&mut gpu).unwrap();
+    save(&crop(&half, Rect::new(at.x - 4.0, at.y - 4.0, 24.0, 24.0), 8), "PointerHalfPixel");
+    let area = Rect::new(at.x - 4.0, at.y - 4.0, 24.0, 24.0);
+    let differs = |shift: u32| {
+        (area.y as u32..area.bottom() as u32).any(|y| (area.x as u32..area.right() as u32).any(|x| half.pixel(x, y) != whole.pixel(x - shift, y)))
+    };
+    assert!(differs(0), "drawn where it was, on the pixel it's in");
+    assert!(differs(1), "drawn a whole pixel further");
 }
 
 #[test]

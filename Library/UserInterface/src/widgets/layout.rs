@@ -9,7 +9,7 @@
 // used, and sends what the pointer does in it.
 
 use crate::core::interaction::{Cursor, Interaction, Sense};
-use crate::core::interface::Ui;
+use crate::core::interface::{Interface, Ui};
 use crate::core::tree::{Dispatch, Tree, Widget};
 use crate::design::controls::TEXT_BOX_HEADER_GAP;
 use crate::design::tokens::{BODY, BODY_STRONG, CAPTION, CARD_PADDING, CONTROL_HEIGHT, FORM_ROW_GAP, SPACE_S, SPACE_XS};
@@ -177,15 +177,15 @@ impl<M: 'static> Widget<M> for Group {
     }
 }
 
-// What the pointer did in a 3D view this frame.
+// What the pointer did in a 3D view in a step of a frame's input.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ViewInput {
     // The pointer is on the view, and where it is, while it's on the view or
     // holds it.
     pub hovered: bool,
     pub pointer: Option<Point>,
-    // Each button's press on the view this frame, which is what a click in
-    // it acts on, and whether the left one was the second of a
+    // Each button's press on the view in this step, which is what a click
+    // in it acts on, and whether the left one was the second of a
     // double-click.
     pub pressed: bool,
     pub secondary_pressed: bool,
@@ -196,7 +196,7 @@ pub struct ViewInput {
     pub held: bool,
     pub held_button: Option<MouseButton>,
     pub drag_delta: Point,
-    // The left press ended this frame, which ends a drag.
+    // The left press ended in this step, which ends a drag.
     pub released: bool,
     // Notches of the wheel turned over it.
     pub wheel: Point,
@@ -250,8 +250,9 @@ impl<M: Clone + 'static> View<M> {
         self
     }
 
-    // Sends its input every frame, even one where nothing happened to it,
-    // like for clearing what was under the pointer once it leaves.
+    // Sends its input in every step of every frame, even one where nothing
+    // happened to it, like for clearing what was under the pointer once it
+    // leaves.
     pub fn every_frame(mut self) -> Self {
         self.every_frame = true;
         self
@@ -263,7 +264,7 @@ impl<M: Clone + 'static> View<M> {
         self
     }
 
-    // What the pointer doing anything in the view sends, each frame that it
+    // What the pointer doing anything in the view sends, each step that it
     // does.
     pub fn on_input(mut self, reaction: impl Fn(ViewInput) -> M + 'static) -> Self {
         self.on_input = Some(react(reaction));
@@ -282,6 +283,10 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
         self.kind
     }
 
+    fn cursor(&self, _ui: &Interface, hovered: bool, held: bool) -> Option<Cursor> {
+        self.cursor.filter(|_| hovered || held)
+    }
+
     fn sense(&self) -> Option<Sense> {
         Some(self.sense)
     }
@@ -292,11 +297,6 @@ impl<M: Clone + 'static> Widget<M> for View<M> {
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
         let hit = interaction.whole();
-        if let Some(cursor) = self.cursor
-            && (hit.hovered || hit.held)
-        {
-            ctx.set_cursor(cursor);
-        }
         if let Some(reaction) = &self.on_input {
             let input = ViewInput {
                 hovered: hit.hovered,

@@ -10,15 +10,18 @@
 //                    "Motors": ["LowFrequency", "HighFrequency"] } }
 //     { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "RightStick": [0, 0],
 //                    "LeftTrigger": 0, "RightTrigger": 1, "Buttons": ["A"] } }
-//     { "Keyboard": { "Id": 2, "Down": ["F1", "A"] } }
+//     { "Keyboard": { "Id": 2, "Down": ["F3", "A"] } }
 //     { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120],
 //                  "Buttons": ["Left"] } }
 //     { "Disconnect": 1 }
+//     { "Focus": false }
 //
 // "Gamepad", "Keyboard" and "Mouse" give that input's whole state: what's
 // left out is at rest, except that "Motion" and "Wheel" are added to the
 // mouse's running totals, as a mouse moves. "Input" can also have
 // "Keyboard" and "Mouse", and "Motors" "LeftTrigger" and "RightTrigger".
+// "Focus" gives the window focus or takes it away, which it has from the
+// start, at the frame's time, as a script's focus has no time.
 
 use game_input::*;
 use json::Value;
@@ -30,21 +33,50 @@ use crate::device_tree::Tree;
 use crate::devices::{Device, InputSource, Reading};
 use crate::input::{GAMEPAD_BUTTONS, MOUSE_BUTTONS};
 
-#[derive(Default)]
 pub struct ScriptedSource {
     // The time now, in microseconds. The demo sets it from the frame's.
     pub now: u64,
     connected: Vec<Device>,
     events: Vec<(GameInputDeviceEvent, Device)>,
-    // Readings not handed out yet, by kind of input, oldest first.
-    queues: Vec<(GameInputKind, Vec<Reading>)>,
+    // Readings not handed out yet, oldest first, as GameInput's stream has
+    // them.
+    queue: Vec<Reading>,
     // Each device's newest reading, which the next one starts from.
     latest: Vec<Reading>,
     // Each gamepad's rumble, as the demo last set it.
     rumble: Vec<(usize, Option<GameInputRumbleParams>)>,
+    // When the window got or lost focus, on the readings' clock, as a test
+    // says, not handed out yet. A script's focus changes have no times.
+    pub focus: Vec<(u64, bool)>,
+    // Whether the window has focus, which it has from the start, and whether
+    // it lost it since the demo last asked, as a script's "Focus" says.
+    pub focused: bool,
+    lost: bool,
+}
+
+impl Default for ScriptedSource {
+    fn default() -> Self {
+        Self {
+            now: 0,
+            connected: Vec::new(),
+            events: Vec::new(),
+            queue: Vec::new(),
+            latest: Vec::new(),
+            rumble: Vec::new(),
+            focus: Vec::new(),
+            focused: true,
+            lost: false,
+        }
+    }
 }
 
 impl ScriptedSource {
+    // Gives the window focus, or takes it away, at the frame's time.
+    pub fn set_focus(&mut self, focused: bool) {
+        self.focused = focused;
+        self.lost |= !focused;
+    }
+
     pub fn connect(&mut self, device: Device) {
         self.connected.retain(|known| known.id != device.id);
         self.connected.push(device.clone());
@@ -81,15 +113,7 @@ impl ScriptedSource {
         change(&mut reading);
         self.latest.retain(|known| known.device != Some(id));
         self.latest.push(reading.clone());
-        for kind in [GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse] {
-            if reading.kinds & kind == 0 {
-                continue;
-            }
-            match self.queues.iter_mut().find(|(queued, _)| *queued == kind) {
-                Some((_, queue)) => queue.push(reading.clone()),
-                None => self.queues.push((kind, vec![reading.clone()])),
-            }
-        }
+        self.queue.push(reading);
         Ok(())
     }
 
@@ -158,6 +182,13 @@ impl ScriptedSource {
                 });
                 Ok(())
             }
+            "Focus" => match value {
+                Value::Bool(focused) => {
+                    self.set_focus(*focused);
+                    Ok(())
+                }
+                other => Err(format!("Focus must be true or false, not {}", other.describe())),
+            },
             "Disconnect" => match value {
                 Value::Number(id) if *id >= 1.0 && id.fract() == 0.0 => {
                     self.disconnect(*id as usize);
@@ -216,12 +247,16 @@ impl InputSource for ScriptedSource {
         std::mem::take(&mut self.events)
     }
 
-    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading> {
-        self.queues
-            .iter_mut()
-            .find(|(queued, _)| *queued == kind)
-            .map(|(_, queue)| std::mem::take(queue))
-            .unwrap_or_default()
+    fn readings(&mut self) -> Vec<Reading> {
+        std::mem::take(&mut self.queue)
+    }
+
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
+        std::mem::take(&mut self.focus)
+    }
+
+    fn focus(&mut self) -> (bool, bool) {
+        (self.focused, std::mem::take(&mut self.lost))
     }
 
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {
@@ -234,7 +269,7 @@ impl InputSource for ScriptedSource {
     }
 }
 
-// The key, as GameInput reports it held, from its name, like "F1" or "A".
+// The key, as GameInput reports it held, from its name, like "F3" or "A".
 // Its scan code comes from the keyboard layout, and has the 0xE0 prefix for
 // extended keys, like GameInput's.
 pub fn key_state(name: &str) -> Option<GameInputKeyState> {

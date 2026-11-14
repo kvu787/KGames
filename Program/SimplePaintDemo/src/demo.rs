@@ -89,14 +89,14 @@ impl Program for Demo {
         TITLE.to_string()
     }
 
-    // Each key pressed this frame, in order, with its repeats, unless a
-    // widget with focus takes it, like a button takes Space.
+    // The key pressed in this step, unless a text field with focus takes it,
+    // or a dialog is open.
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let modifiers = ui.input().modifiers();
         let mut messages = Vec::new();
-        for &(key, repeat) in ui.input().keys_pressed() {
+        for &key in ui.input().keys_pressed() {
             if ui.key_pressed(key)
-                && let Some(command) = editor::command(key, repeat, modifiers)
+                && let Some(command) = editor::command(key, modifiers)
             {
                 messages.push(Message::Command(command));
             }

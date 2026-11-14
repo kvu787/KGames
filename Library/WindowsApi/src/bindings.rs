@@ -1,15 +1,4 @@
 #[inline]
-pub unsafe fn AdjustWindowRectExForDpi(
-    lprect: *mut RECT,
-    dwstyle: u32,
-    bmenu: bool,
-    dwexstyle: u32,
-    dpi: u32,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn AdjustWindowRectExForDpi(lprect : *mut RECT, dwstyle : u32, bmenu : windows_core::BOOL, dwexstyle : u32, dpi : u32) -> windows_core::BOOL);
-    unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
-}
-#[inline]
 pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
     windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
     unsafe { BeginPaint(hwnd, lppaint as _) }
@@ -82,6 +71,16 @@ pub unsafe fn CM_Locate_DevNodeW(
             ulflags,
         )
     }
+}
+#[inline]
+pub unsafe fn ClientToScreen(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ClientToScreen(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
+    unsafe { ClientToScreen(hwnd, lppoint as _) }
+}
+#[inline]
+pub unsafe fn ClipCursor(lprect: Option<*const RECT>) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn ClipCursor(lprect : *const RECT) -> windows_core::BOOL);
+    unsafe { ClipCursor(lprect.unwrap_or(core::mem::zeroed()) as _) }
 }
 #[inline]
 pub unsafe fn CloseHandle(hobject: HANDLE) -> windows_core::BOOL {
@@ -318,16 +317,6 @@ pub unsafe fn DisplayConfigGetDeviceInfo(
     unsafe { DisplayConfigGetDeviceInfo(requestpacket as _) }
 }
 #[inline]
-pub unsafe fn DwmSetWindowAttribute(
-    hwnd: HWND,
-    dwattribute: u32,
-    pvattribute: *const core::ffi::c_void,
-    cbattribute: u32,
-) -> windows_core::HRESULT {
-    windows_core::link!("dwmapi.dll" "system" fn DwmSetWindowAttribute(hwnd : HWND, dwattribute : u32, pvattribute : *const core::ffi::c_void, cbattribute : u32) -> windows_core::HRESULT);
-    unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
-}
-#[inline]
 pub unsafe fn EnableTraceEx2(
     traceid: CONTROLTRACE_ID,
     providerid: *const windows_core::GUID,
@@ -380,14 +369,19 @@ pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
     unsafe { FillRect(hdc, lprc, hbr) }
 }
 #[inline]
-pub unsafe fn GetCapture() -> HWND {
-    windows_core::link!("user32.dll" "system" fn GetCapture() -> HWND);
-    unsafe { GetCapture() }
+pub unsafe fn GetAsyncKeyState(vkey: i32) -> i16 {
+    windows_core::link!("user32.dll" "system" fn GetAsyncKeyState(vkey : i32) -> i16);
+    unsafe { GetAsyncKeyState(vkey) }
 }
 #[inline]
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
+}
+#[inline]
+pub unsafe fn GetClipCursor(lprect: *mut RECT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetClipCursor(lprect : *mut RECT) -> windows_core::BOOL);
+    unsafe { GetClipCursor(lprect as _) }
 }
 #[inline]
 pub unsafe fn GetCurrentProcess() -> HANDLE {
@@ -398,11 +392,6 @@ pub unsafe fn GetCurrentProcess() -> HANDLE {
 pub unsafe fn GetCurrentProcessId() -> u32 {
     windows_core::link!("kernel32.dll" "system" fn GetCurrentProcessId() -> u32);
     unsafe { GetCurrentProcessId() }
-}
-#[inline]
-pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn GetCursorPos(lppoint : *mut POINT) -> windows_core::BOOL);
-    unsafe { GetCursorPos(lppoint as _) }
 }
 #[inline]
 pub unsafe fn GetDC(hwnd: Option<HWND>) -> HDC {
@@ -443,6 +432,11 @@ pub unsafe fn GetDpiForWindow(hwnd: HWND) -> u32 {
 pub unsafe fn GetExitCodeProcess(hprocess: HANDLE, lpexitcode: *mut u32) -> windows_core::BOOL {
     windows_core::link!("kernel32.dll" "system" fn GetExitCodeProcess(hprocess : HANDLE, lpexitcode : *mut u32) -> windows_core::BOOL);
     unsafe { GetExitCodeProcess(hprocess, lpexitcode as _) }
+}
+#[inline]
+pub unsafe fn GetForegroundWindow() -> HWND {
+    windows_core::link!("user32.dll" "system" fn GetForegroundWindow() -> HWND);
+    unsafe { GetForegroundWindow() }
 }
 #[inline]
 pub unsafe fn GetKeyNameTextW(lparam: i32, lpstring: windows_core::PWSTR, cchsize: i32) -> i32 {
@@ -518,6 +512,11 @@ pub unsafe fn GetStockObject(i: i32) -> HGDIOBJ {
     windows_core::link!("gdi32.dll" "system" fn GetStockObject(i : i32) -> HGDIOBJ);
     unsafe { GetStockObject(i) }
 }
+#[inline]
+pub unsafe fn GetSystemMetrics(nindex: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn GetSystemMetrics(nindex : i32) -> i32);
+    unsafe { GetSystemMetrics(nindex) }
+}
 #[cfg(any(
     target_arch = "aarch64",
     target_arch = "arm64ec",
@@ -536,9 +535,9 @@ pub unsafe fn GetWindowLongW(hwnd: HWND, nindex: i32) -> i32 {
     unsafe { GetWindowLongW(hwnd, nindex) }
 }
 #[inline]
-pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn IsZoomed(hwnd : HWND) -> windows_core::BOOL);
-    unsafe { IsZoomed(hwnd) }
+pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
+    unsafe { IsIconic(hwnd) }
 }
 #[inline]
 pub unsafe fn LoadCursorW<P1>(hinstance: Option<HINSTANCE>, lpcursorname: P1) -> HCURSOR
@@ -697,19 +696,9 @@ pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
     unsafe { RegisterClassExW(param0) }
 }
 #[inline]
-pub unsafe fn ReleaseCapture() -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn ReleaseCapture() -> windows_core::BOOL);
-    unsafe { ReleaseCapture() }
-}
-#[inline]
 pub unsafe fn ReleaseDC(hwnd: Option<HWND>, hdc: HDC) -> i32 {
     windows_core::link!("user32.dll" "system" fn ReleaseDC(hwnd : HWND, hdc : HDC) -> i32);
     unsafe { ReleaseDC(hwnd.unwrap_or(core::mem::zeroed()) as _, hdc) }
-}
-#[inline]
-pub unsafe fn ScreenToClient(hwnd: HWND, lppoint: *mut POINT) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn ScreenToClient(hwnd : HWND, lppoint : *mut POINT) -> windows_core::BOOL);
-    unsafe { ScreenToClient(hwnd, lppoint as _) }
 }
 #[inline]
 pub unsafe fn SelectObject(hdc: HDC, h: HGDIOBJ) -> HGDIOBJ {
@@ -722,14 +711,14 @@ pub unsafe fn SendMessageW(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
     unsafe { SendMessageW(hwnd, msg, wparam, lparam) }
 }
 #[inline]
-pub unsafe fn SetCapture(hwnd: HWND) -> HWND {
-    windows_core::link!("user32.dll" "system" fn SetCapture(hwnd : HWND) -> HWND);
-    unsafe { SetCapture(hwnd) }
-}
-#[inline]
 pub unsafe fn SetCursor(hcursor: Option<HCURSOR>) -> HCURSOR {
     windows_core::link!("user32.dll" "system" fn SetCursor(hcursor : HCURSOR) -> HCURSOR);
     unsafe { SetCursor(hcursor.unwrap_or(core::mem::zeroed()) as _) }
+}
+#[inline]
+pub unsafe fn SetCursorPos(x: i32, y: i32) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn SetCursorPos(x : i32, y : i32) -> windows_core::BOOL);
+    unsafe { SetCursorPos(x, y) }
 }
 #[inline]
 pub unsafe fn SetDCBrushColor(hdc: HDC, color: COLORREF) -> COLORREF {
@@ -831,16 +820,6 @@ where
     unsafe { StartTraceW(traceid as _, instancename.param().abi(), properties as _) }
 }
 #[inline]
-pub unsafe fn SystemParametersInfoW(
-    uiaction: u32,
-    uiparam: u32,
-    pvparam: *mut core::ffi::c_void,
-    fwinini: u32,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn SystemParametersInfoW(uiaction : u32, uiparam : u32, pvparam : *mut core::ffi::c_void, fwinini : u32) -> windows_core::BOOL);
-    unsafe { SystemParametersInfoW(uiaction, uiparam, pvparam as _, fwinini) }
-}
-#[inline]
 pub unsafe fn TdhGetEventInformation(
     event: *const EVENT_RECORD,
     tdhcontext: Option<&[TDH_CONTEXT]>,
@@ -905,11 +884,6 @@ pub unsafe fn WaitForSingleObject(hhandle: HANDLE, dwmilliseconds: u32) -> u32 {
 pub unsafe fn WaitMessage() -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn WaitMessage() -> windows_core::BOOL);
     unsafe { WaitMessage() }
-}
-#[inline]
-pub unsafe fn WindowFromPoint(point: POINT) -> HWND {
-    windows_core::link!("user32.dll" "system" fn WindowFromPoint(point : POINT) -> HWND);
-    unsafe { WindowFromPoint(point) }
 }
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -2715,34 +2689,6 @@ impl DISPLAYCONFIG_VIDEO_SIGNAL_INFO_0_0 {
 pub struct DPI_AWARENESS_CONTEXT(pub *mut core::ffi::c_void);
 pub const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
     DPI_AWARENESS_CONTEXT(-4 as _);
-pub const DWMWA_ALLOW_NCPAINT: DWMWINDOWATTRIBUTE = 4;
-pub const DWMWA_BORDER_COLOR: DWMWINDOWATTRIBUTE = 34;
-pub const DWMWA_BORDER_MARGINS: DWMWINDOWATTRIBUTE = 40;
-pub const DWMWA_CAPTION_BUTTON_BOUNDS: DWMWINDOWATTRIBUTE = 5;
-pub const DWMWA_CAPTION_COLOR: DWMWINDOWATTRIBUTE = 35;
-pub const DWMWA_CLOAK: DWMWINDOWATTRIBUTE = 13;
-pub const DWMWA_CLOAKED: DWMWINDOWATTRIBUTE = 14;
-pub const DWMWA_DISALLOW_PEEK: DWMWINDOWATTRIBUTE = 11;
-pub const DWMWA_EXCLUDED_FROM_PEEK: DWMWINDOWATTRIBUTE = 12;
-pub const DWMWA_EXTENDED_FRAME_BOUNDS: DWMWINDOWATTRIBUTE = 9;
-pub const DWMWA_FLIP3D_POLICY: DWMWINDOWATTRIBUTE = 8;
-pub const DWMWA_FORCE_ICONIC_REPRESENTATION: DWMWINDOWATTRIBUTE = 7;
-pub const DWMWA_FREEZE_REPRESENTATION: DWMWINDOWATTRIBUTE = 15;
-pub const DWMWA_HAS_ICONIC_BITMAP: DWMWINDOWATTRIBUTE = 10;
-pub const DWMWA_LAST: DWMWINDOWATTRIBUTE = 41;
-pub const DWMWA_NCRENDERING_ENABLED: DWMWINDOWATTRIBUTE = 1;
-pub const DWMWA_NCRENDERING_POLICY: DWMWINDOWATTRIBUTE = 2;
-pub const DWMWA_NONCLIENT_RTL_LAYOUT: DWMWINDOWATTRIBUTE = 6;
-pub const DWMWA_PASSIVE_UPDATE_MODE: DWMWINDOWATTRIBUTE = 16;
-pub const DWMWA_REDIRECTIONBITMAP_ALPHA: DWMWINDOWATTRIBUTE = 39;
-pub const DWMWA_SYSTEMBACKDROP_TYPE: DWMWINDOWATTRIBUTE = 38;
-pub const DWMWA_TEXT_COLOR: DWMWINDOWATTRIBUTE = 36;
-pub const DWMWA_TRANSITIONS_FORCEDISABLED: DWMWINDOWATTRIBUTE = 3;
-pub const DWMWA_USE_HOSTBACKDROPBRUSH: DWMWINDOWATTRIBUTE = 17;
-pub const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = 20;
-pub const DWMWA_VISIBLE_FRAME_BORDER_THICKNESS: DWMWINDOWATTRIBUTE = 37;
-pub const DWMWA_WINDOW_CORNER_PREFERENCE: DWMWINDOWATTRIBUTE = 33;
-pub type DWMWINDOWATTRIBUTE = i32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
@@ -6434,15 +6380,6 @@ pub struct ID3D12RootSignature_Vtbl {
 }
 impl windows_core::RuntimeName for ID3D12RootSignature {}
 pub const IDC_ARROW: windows_core::PCWSTR = windows_core::PCWSTR(32512 as _);
-pub const IDC_CROSS: windows_core::PCWSTR = windows_core::PCWSTR(32515 as _);
-pub const IDC_HAND: windows_core::PCWSTR = windows_core::PCWSTR(32649 as _);
-pub const IDC_IBEAM: windows_core::PCWSTR = windows_core::PCWSTR(32513 as _);
-pub const IDC_NO: windows_core::PCWSTR = windows_core::PCWSTR(32648 as _);
-pub const IDC_SIZEALL: windows_core::PCWSTR = windows_core::PCWSTR(32646 as _);
-pub const IDC_SIZENESW: windows_core::PCWSTR = windows_core::PCWSTR(32643 as _);
-pub const IDC_SIZENS: windows_core::PCWSTR = windows_core::PCWSTR(32645 as _);
-pub const IDC_SIZENWSE: windows_core::PCWSTR = windows_core::PCWSTR(32642 as _);
-pub const IDC_SIZEWE: windows_core::PCWSTR = windows_core::PCWSTR(32644 as _);
 windows_core::imp::define_interface!(
     IDWriteFactory,
     IDWriteFactory_Vtbl,
@@ -9081,7 +9018,6 @@ pub struct RECTL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
-pub const SC_KEYMENU: i32 = 61696;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SECURITY_ATTRIBUTES {
@@ -9089,16 +9025,15 @@ pub struct SECURITY_ATTRIBUTES {
     pub lpSecurityDescriptor: *mut core::ffi::c_void,
     pub bInheritHandle: windows_core::BOOL,
 }
-pub const SIZE_MINIMIZED: i32 = 1;
-pub const SPI_GETKEYBOARDDELAY: i32 = 22;
-pub const SPI_GETKEYBOARDSPEED: i32 = 10;
+pub const SM_CXVIRTUALSCREEN: i32 = 78;
+pub const SM_CYVIRTUALSCREEN: i32 = 79;
+pub const SM_XVIRTUALSCREEN: i32 = 76;
+pub const SM_YVIRTUALSCREEN: i32 = 77;
 pub const STILL_ACTIVE: i32 = 259;
-pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
 pub const SWP_NOOWNERZORDER: i32 = 512;
 pub const SWP_NOSIZE: i32 = 1;
-pub const SWP_NOZORDER: i32 = 4;
 pub const SW_SHOW: i32 = 5;
 pub const SW_SHOWNA: i32 = 8;
 #[repr(C)]
@@ -9327,6 +9262,11 @@ pub struct TRACE_LOGFILE_HEADER_1_0 {
     pub CpuSpeedInMHz: u32,
 }
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_LBUTTON: i32 = 1;
+pub const VK_MBUTTON: i32 = 4;
+pub const VK_RBUTTON: i32 = 2;
+pub const VK_XBUTTON1: i32 = 5;
+pub const VK_XBUTTON2: i32 = 6;
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WHEEL_DELTA: i32 = 120;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;
@@ -9339,16 +9279,16 @@ pub const WM_CLOSE: i32 = 16;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_ERASEBKGND: i32 = 20;
-pub const WM_KILLFOCUS: i32 = 8;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_PRINT: i32 = 791;
 pub const WM_QUIT: i32 = 18;
 pub const WM_SETCURSOR: i32 = 32;
-pub const WM_SETFOCUS: i32 = 7;
 pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
-pub const WM_SYSCOMMAND: i32 = 274;
+pub const WM_SYSCHAR: i32 = 262;
+pub const WM_SYSKEYDOWN: i32 = 260;
+pub const WM_SYSKEYUP: i32 = 261;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {
@@ -9419,8 +9359,6 @@ impl Default for WNODE_HEADER_1 {
 pub struct WPARAM(pub usize);
 pub const WS_EX_APPWINDOW: i32 = 262144;
 pub const WS_EX_NOACTIVATE: i32 = 134217728;
-pub const WS_MAXIMIZE: i32 = 16777216;
-pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
+pub const WS_MINIMIZE: i32 = 536870912;
 pub const WS_POPUP: u32 = 2147483648;
-pub const WS_VISIBLE: i32 = 268435456;
 pub type _TDH_IN_TYPE = i32;

@@ -18,11 +18,12 @@
 // whether there are changes to save. drawing.rs draws the 3D view under all
 // of it, over the whole window.
 //
-// A frame's input becomes messages: the view's pointer and the cards'
-// controls from the widgets, then the shortcuts and, in Play, a Tick with
-// the frame's controls, and last Prepare, which commits a change when the
-// button is up and rebuilds what the 3D view shows. The frame then draws
-// from the state they made, so nothing shows a frame late.
+// Each step of a frame's input becomes messages: the view's pointer and the
+// cards' controls from the widgets, then the shortcuts, a Tick, which moves
+// the game's clock in the frame's last step and in Play drives the car by
+// it, and last Prepare, which commits a change when the button is up and
+// rebuilds what the 3D view shows. The frame then draws from the state they
+// made, so nothing shows a frame late.
 
 use std::path::{Path, PathBuf};
 
@@ -81,11 +82,14 @@ pub enum Message {
     Terrain(TerrainMsg),
     Track(TrackMsg),
     Vehicle(VehicleMsg),
-    // Once a frame in Play: the controls drive the car.
+    // Once a step of a frame's input: the game's clock moves on to the
+    // frame's time in the frame's last step, the one with its delta, and in
+    // Play, the controls drive the car by it.
     Tick(Controls),
-    // Once a frame, after everything else: keeps the game in the document,
-    // commits a change once the button is up, shapes the track, and rebuilds
-    // what the 3D view shows.
+    // Once a step, after everything else in it: keeps the game in the
+    // document, commits a change once the button is up, shapes the track,
+    // and rebuilds what the 3D view shows, so that the next step's input
+    // finds them as the steps before left them.
     Prepare,
 }
 
@@ -108,8 +112,13 @@ pub struct Veehiicuul {
     // Whether the document differed from `saved` as the frame's messages
     // ended, for the bars.
     unsaved_now: bool,
-    // The wheel's notches over Play's view this frame, for its Tick.
+    // The wheel's notches over Play's view in this step, for its Tick.
     pending_notches: f64,
+    // The game's clock: the last frame's time in a frame's steps before its
+    // last, and the frame's time from its last step's Tick, the step that has
+    // the frame's delta, so that the game moves once a frame, by the frame's
+    // delta, after the frame's input.
+    clock: f64,
     // Where Save writes: the game's folder, or a script's output folder.
     save_folder: PathBuf,
     // What the last save, or anything else, said.
@@ -141,6 +150,7 @@ impl Veehiicuul {
             undo: Vec::new(),
             redo: Vec::new(),
             pending_notches: 0.0,
+            clock: 0.0,
             save_folder,
             status: String::new(),
             drawing: None,
@@ -249,12 +259,14 @@ impl Veehiicuul {
         self.game.go_to_scene(self.game.document.scenes.len() - 1, seconds);
     }
 
-    // Goes to a tab. Going to Play puts the car at the start.
+    // Goes to a tab. Going to Play puts the car at the start, and starts the
+    // game's clock again, which doesn't run in the editors.
     pub fn go_to(&mut self, mode: usize, seconds: f64) {
         self.mode = mode;
         self.game.keep_in_document();
         if mode == PLAY {
             self.game.put_at_start(seconds);
+            self.game.resume(seconds);
         }
     }
 
@@ -339,14 +351,13 @@ impl Veehiicuul {
             Status::shortcut("Ctrl+Y", "Redo"),
         ];
         if self.mode == PLAY {
-            items.push(Status::shortcut("F1", if self.game.show_card { "Hide the card" } else { "Show the card" }));
+            items.push(Status::shortcut("F2", if self.game.show_card { "Hide the card" } else { "Show the card" }));
         } else {
             items.push(Status::shortcut("Space", "Pan, with a drag"));
             items.push(Status::shortcut("Wheel", "Zoom"));
         }
         items.push(Status::shortcut("F9", "Theme"));
         items.push(Status::shortcut("F10", "VSync"));
-        items.push(Status::shortcut("F11", "Fullscreen"));
         items.push(Status::Spacer);
         if !self.status.is_empty() {
             items.push(Status::text(&self.status));
@@ -447,9 +458,7 @@ impl Program for Veehiicuul {
         if ui.shortcut(Modifiers::CONTROL, Key::Y) {
             messages.push(Message::Redo);
         }
-        if self.mode == PLAY {
-            messages.push(Message::Tick(Controls::read(ui, 0.0)));
-        }
+        messages.push(Message::Tick(Controls::read(ui, 0.0)));
         messages.push(Message::Prepare);
         messages
     }
@@ -458,16 +467,16 @@ impl Program for Veehiicuul {
         match message {
             Message::Mode(mode) => {
                 if mode != self.mode {
-                    self.go_to(mode, ctx.time());
+                    self.go_to(mode, self.clock);
                 }
             }
             Message::Save => self.save(),
             Message::Undo => self.undo(),
             Message::Redo => self.redo(),
-            Message::NewScene => self.new_scene(ctx.time()),
+            Message::NewScene => self.new_scene(self.clock),
             Message::GoScene(scene) => {
                 if scene != self.game.scene {
-                    self.game.go_to_scene(scene, ctx.time());
+                    self.game.go_to_scene(scene, self.clock);
                     let current = self.game.current_scene();
                     self.viewport = Viewport::new(current.camera_center, current.camera_height);
                 }
@@ -488,9 +497,12 @@ impl Program for Veehiicuul {
             }
             Message::Vehicle(message) => self.vehicle_editor.apply(message, &mut self.game.document, &self.game.models, &mut self.game.vehicle),
             Message::Tick(mut controls) => {
+                if ctx.last_step() {
+                    self.clock = ctx.time();
+                }
                 if self.mode == PLAY {
                     controls.notches = std::mem::take(&mut self.pending_notches);
-                    self.game.update(&controls, ctx.time());
+                    self.game.update(&controls, self.clock);
                 }
             }
             Message::Prepare => {
@@ -622,7 +634,7 @@ const CONTROLS: [(&str, &[&str], &[&str]); 9] = [
     ("Camera", &["Menu"], &["C"]),
     ("Zoom", &["RB+Left stick"], &["Wheel"]),
     ("Zoom back", &["Y"], &["Home"]),
-    ("Hide this", &["View"], &["F1"]),
+    ("Hide this", &["View"], &["F2"]),
 ];
 // The label column's width in the card, the gap before the keyboard's
 // column, and a row of keycaps' height.

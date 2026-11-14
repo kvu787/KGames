@@ -26,9 +26,9 @@ This decision was primarily motivated by my experience working with those depend
 - GUI apps
   - If the window isn't focused, the app must ignore all input.
   - Use Win32, Rust, Direct3D 12, DirectWrite
+  - Borderless fullscreen on a 2560 x 1440 display, the one window setup
   - F9 to toggle between light and dark mode
   - F10 to toggle VSync
-  - F11 to toggle borderless fullscreen
   - Each program's Settings.json says which of those it starts in
   - Optimize for minimal input latency
 
@@ -37,7 +37,7 @@ interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluen
 with WinUI 3's own colors and sizes but none of its animations: its main loop runs them, its widgets are their
 controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
 input without focus, including gamepads, and a click that gives a window focus does only that. The
-library's README has the details, and the two window setups that programs support.
+library's README has the details, and the one window setup that programs support.
 [AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
 you.
 
@@ -100,6 +100,8 @@ programs' time goes, and [Memory](Documentation/Memory.md), where their memory g
 [BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
 derived from Blender's, as tasks with their status. [GameInput](Documentation/GameInput.md) has
 what was measured of how GameInput reads gamepads, and why KGames leaves its background input off.
+[FrameInput](Documentation/FrameInput.md) describes a frame's input as one value, its delta and its
+events from keyboards, mice and gamepads, with focus, Windows' cursor, F1 and F12 under it.
 
 ## Test
 

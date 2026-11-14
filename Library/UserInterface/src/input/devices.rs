@@ -132,7 +132,7 @@ impl Key {
         upper.is_ascii_alphanumeric().then_some(Key(upper as u8))
     }
 
-    // Like "A", "F11", "Left" or "Space".
+    // Like "A", "F2", "Left" or "Space".
     pub fn name(self) -> String {
         if let Some((_, name)) = Key::NAMES.iter().find(|(key, _)| *key == self) {
             return name.to_string();
@@ -228,7 +228,7 @@ impl Shortcut {
         Self::new(Modifiers::CONTROL, key)
     }
 
-    // From its name, like "Ctrl+Shift+S" or "F11".
+    // From its name, like "Ctrl+Shift+S" or "F2".
     pub fn parse(text: &str) -> Option<Shortcut> {
         let parts: Vec<&str> = text.split('+').map(str::trim).collect();
         let (last, held) = parts.split_last()?;

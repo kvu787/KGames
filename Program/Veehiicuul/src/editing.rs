@@ -6,7 +6,7 @@
 // widgets, laid out with its Form, with colors from the theme's roles and
 // sizes from its tokens.
 //
-// Programs only support two window setups (see Library/UserInterface's
+// Programs only support one window setup (see Library/UserInterface's
 // README), so the editors' cards have fixed places in pixels: the app bar at
 // the top, with the tabs, a card at the top of the page's left side, as tall
 // as what's in it, and in the vehicle editor, another at the top of its right
@@ -18,7 +18,7 @@ use simple_paint::Parameters;
 use user_interface::controls::TEXT_BOX_HEADER_GAP;
 use user_interface::tokens::{APP_BAR_HEIGHT, BODY, CONTROL_HEIGHT, PAGE_PADDING, SPACE_S, STATUS_BAR_HEIGHT};
 use user_interface::{
-    Color, ColorField, ComboBox, Cursor, Dispatch, Form, Interaction, Key, MouseButton, Painter, Point, Rect, Sense, Slider, Swatch,
+    Color, ColorField, ComboBox, Cursor, Dispatch, Form, Interaction, Interface, Key, MouseButton, Painter, Point, Rect, Sense, Slider, Swatch,
     Text, Tree, Ui, ViewInput, Widget,
 };
 
@@ -61,17 +61,22 @@ pub fn window_size(ui: &Ui) -> [f32; 2] {
 }
 
 // The editors' and the game's view of the ground: a target that hears the
-// pointer every frame, sends what it did with whether Space is down, and
+// pointer in every step, sends what it did with whether Space is down, and
 // takes keyboard focus from a text field when pressed, so that the keys
 // after it, like Space, are the view's.
 pub struct GroundView {
-    // Whether a pan drag was under way as of the last frame, for the cursor.
+    // Whether a pan drag was under way as of the last step, for the cursor.
     pub panning: bool,
 }
 
 impl Widget<Message> for GroundView {
     fn kind(&self) -> &'static str {
         "View"
+    }
+
+    // A pan's, while Space is held, or a pan drag is under way.
+    fn cursor(&self, ui: &Interface, hovered: bool, held: bool) -> Option<Cursor> {
+        ((ui.key_down(Key::SPACE) || self.panning) && (hovered || held)).then_some(Cursor::Move)
     }
 
     fn sense(&self) -> Option<Sense> {
@@ -85,9 +90,6 @@ impl Widget<Message> for GroundView {
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<Message>) {
         let hit = interaction.whole();
         let space = ctx.key_down(Key::SPACE);
-        if (space || self.panning) && (hit.hovered || hit.held) {
-            ctx.set_cursor(Cursor::Move);
-        }
         let input = ViewInput {
             hovered: hit.hovered,
             pointer: interaction.pointer,
@@ -106,7 +108,7 @@ impl Widget<Message> for GroundView {
     }
 }
 
-// What happened in an editor's view in a frame, on the ground.
+// What happened in an editor's view in a step, on the ground.
 #[derive(Clone, Copy, Debug)]
 pub struct GroundInput {
     // The left button's press, and whether it's still down, which is what

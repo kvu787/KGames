@@ -16,7 +16,7 @@ use crate::design::icons::Icon;
 use crate::design::tokens::{BODY, ELEVATION_FLYOUT, RADIUS_CONTROL, RADIUS_OVERLAY};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
-use crate::widgets::widget::{Elevation, Reaction, StateColors, react};
+use crate::widgets::widget::{Elevation, Reaction, StateColors, WheelRemainder, react};
 
 pub struct ComboBox<M> {
     items: Vec<String>,
@@ -149,9 +149,9 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             let shown = self.shown_count();
             state.first = state.first.min(count.saturating_sub(shown));
             // The wheel over the list scrolls it.
-            let wheel = interaction.wheel().y;
-            if wheel != 0.0 {
-                let scrolled = state.first as f32 - wheel.round();
+            let notches = ctx.memory::<WheelRemainder>().notches(interaction.wheel().y);
+            if notches != 0.0 {
+                let scrolled = state.first as f32 - notches;
                 state.first = scrolled.clamp(0.0, count.saturating_sub(shown) as f32) as usize;
             }
             for (part, item_hit) in &interaction.hits {

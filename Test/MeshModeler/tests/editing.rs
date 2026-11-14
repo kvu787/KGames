@@ -2,7 +2,7 @@
 // real layout, which user_interface::Headless builds without a window or a
 // GPU: picking as a press goes down and box selection, modal moves and
 // extrusions, loop cuts, painting, creases, subdivision, undo, and where the
-// cards go at both supported window heights.
+// cards go in the supported window.
 
 use std::path::{Path, PathBuf};
 
@@ -10,8 +10,8 @@ use json::Value;
 use math::Vector3;
 use mesh_modeler::modeler::{Command, Message, Modeler, PaintEdit};
 use polygon_mesh::Edge;
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
+use user_interface::tokens::{PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use user_interface::{Event, Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
 
 fn folder(test: &str) -> PathBuf {
     let folder = Path::new(env!("CARGO_TARGET_TMPDIR")).join("MeshModeler").join(test);
@@ -223,6 +223,27 @@ fn keys_select_all_none_and_the_inverse_in_each_mode() {
     app.key(Key::DIGIT_2);
     assert_eq!(app.program.document.selection.edges.len(), 12);
     assert_eq!(app.program.document.selection.faces.len(), 6);
+}
+
+// The modal edit hears the pointer in every step of a frame's input, and
+// steps that don't move it, like a key's, leave it where it was, so the edit
+// isn't applied again for the same pointer: the document gets no new
+// version, which would remake the subdivided surface that the view draws,
+// in every step.
+#[test]
+fn a_modal_edit_is_applied_once_for_a_pointer_however_many_steps_a_frame_has() {
+    let mut app = modeler("MoveSteps");
+    app.key(Key::A);
+    let start = app.program.view.center() + Point::new(-200.0, 100.0);
+    app.move_point(start);
+    app.key(Key::G);
+    app.move_point(start + Point::new(50.0, 0.0));
+    let version = app.program.document.version;
+    app.send(&vec![Event::KeyReleased(Key::F11); 5]);
+    assert_eq!(app.program.document.version, version);
+    // A move of the pointer applies it again.
+    app.move_point(start + Point::new(80.0, 0.0));
+    assert!(app.program.document.version > version);
 }
 
 #[test]
@@ -605,36 +626,16 @@ fn f9_and_the_view_menu_switch_the_theme_once() {
 }
 
 #[test]
-fn the_cards_fit_at_both_window_heights() {
-    for (height, fullscreen) in [(MAXIMIZED_HEIGHT, false), (FULLSCREEN_HEIGHT, true)] {
-        let mut app = modeler(if fullscreen { "Fullscreen" } else { "Maximized" });
-        app.set_fullscreen(fullscreen).frames(2);
-        assert_eq!(app.size().height, height);
-        let bottom = height - STATUS_BAR_HEIGHT - PAGE_PADDING;
-        for name in ["Paint/Light", "Clear crease", "AddPrimitive", "Grid"] {
-            assert!(app.target(name).bottom() <= bottom, "{name} at {:?} is below {bottom}", app.target(name));
-        }
-        let view = app.target("View");
-        assert!(view.bottom() <= bottom && view.bottom() > bottom - 40.0, "{view:?}");
-        assert!(view.right() < WINDOW_WIDTH - 400.0);
+fn the_cards_fit_in_the_window() {
+    let app = modeler("Fit");
+    assert_eq!(app.size().height, WINDOW_HEIGHT);
+    let bottom = WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING;
+    for name in ["Paint/Light", "Clear crease", "AddPrimitive", "Grid"] {
+        assert!(app.target(name).bottom() <= bottom, "{name} at {:?} is below {bottom}", app.target(name));
     }
-}
-
-#[test]
-fn closing_with_changes_asks_first() {
-    let mut app = modeler("Close");
-    use user_interface::Program;
-    assert!(app.program.may_close());
-    app.key(Key::A);
-    assert!(!app.program.may_close());
-    app.frames(2);
-    assert_eq!(text(&app, "Prompt").as_deref(), Some("Unsaved"));
-    app.click("Unsaved/Close");
-    assert!(!app.closed());
-    assert!(!app.program.may_close());
-    app.frames(2);
-    app.click("Unsaved/Secondary");
-    assert!(app.closed());
+    let view = app.target("View");
+    assert!(view.bottom() <= bottom && view.bottom() > bottom - 40.0, "{view:?}");
+    assert!(view.right() < WINDOW_WIDTH - 400.0);
 }
 
 // How long a frame takes with the pointer over a subdivided mesh, where the

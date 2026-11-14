@@ -2,18 +2,18 @@
 // update costs the CPU, without a window, through Headless, steady and with
 // the pointer moving; what recording the frame's drawing costs the CPU; and
 // what drawing it costs the GPU, timed with timestamp queries, into a target
-// the size of the maximized window's client area. And the parts of a frame
+// the size of the window's client area. And the parts of a frame
 // that every program pays for: text layout and the glyph atlas, the input
 // reader, and the PerfBar's bookkeeping.
 
 use std::path::PathBuf;
 
 use graphics::{AdapterChoice, Gpu, GpuTimer, Offscreen};
-use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameInputKindMouse, GameInputMouseState};
+use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameInputKindMouse, GameInputMouseRelativePosition, GameInputMouseState};
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::performance::{Frame, Performance};
-use user_interface::tokens::{BODY, CAPTION, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Event, FocusChange, Font, Fonts, Headless, Point, Program, Reading, Startup, TextStyle, Weight, clock};
+use user_interface::tokens::{BODY, CAPTION, WINDOW_HEIGHT, WINDOW_WIDTH};
+use user_interface::{FocusChange, Font, Fonts, Headless, Point, Program, Reading, Startup, TextStyle, Weight, clock};
 
 use crate::harness::{Budget, Measurement, measure, measure_timed};
 
@@ -141,11 +141,10 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Measurement {
         step += 1;
         let t = step as f32 * 0.017;
         let x = (t.sin() * 0.5 + 0.5) * WINDOW_WIDTH;
-        let y = ((t * 0.7).cos() * 0.5 + 0.5) * MAXIMIZED_HEIGHT;
-        app.send(&[Event::PointerMoved(Point::new(x, y))]);
+        let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
+        app.move_point(Point::new(x, y));
     })
-    // `send` runs two frames.
-    .with_note("2 frames an iteration")
+    .with_note("1 frame an iteration")
 }
 
 // The first frame: a program made from nothing, with every layout and
@@ -158,10 +157,10 @@ fn first<S: Subject>(subject: &S, budget: Budget) -> Measurement {
 }
 
 // What the GPU takes to draw the last frame into a target the size of the
-// maximized window's client area, and what the CPU takes to record it.
+// window's client area, and what the CPU takes to record it.
 fn draw<S: Subject>(subject: &S, gpu: &mut Gpu, budget: Budget) -> Vec<Measurement> {
     let mut app = subject.make();
-    let mut target = Offscreen::new(gpu, WINDOW_WIDTH as u32, MAXIMIZED_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
+    let mut target = Offscreen::new(gpu, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
     let mut timer = GpuTimer::new(gpu, 1).expect("a GPU timer");
     let background = app.ui.theme().background;
     let clear = [background.r, background.g, background.b, 1.0];
@@ -268,14 +267,13 @@ pub fn text(budget: Budget) -> Vec<Measurement> {
 // The input reader with a frame's readings from a 1000 Hz mouse at 60
 // frames a second, and a keyboard that holds a key.
 pub fn input(budget: Budget) -> Vec<Measurement> {
-    let mut reader = InputReader::with_repeat(true, 0.5, 30.0);
+    let mut reader = InputReader::new(true);
     let now = clock::now();
     let window = WindowState {
-        cursor: Point::new(100.0, 50.0),
-        inside: true,
         focus_changes: vec![FocusChange { time: now, gained: true }],
+        keeps_cursor: true,
     };
-    reader.read(&[], &[], &window, now);
+    reader.read(&[], &[], &window);
     let window = WindowState { focus_changes: Vec::new(), ..window };
     let tick = clock::frequency() / 1000;
     let mut time = now;
@@ -284,11 +282,11 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
         time += tick;
         readings.push((
             time,
-            GameInputKindMouse,
             Reading {
                 device: Some(2),
                 kinds: GameInputKindMouse,
                 mouse: GameInputMouseState {
+                    positions: GameInputMouseRelativePosition,
                     positionX: index,
                     positionY: index * 2,
                     ..Default::default()
@@ -299,7 +297,6 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     }
     readings.push((
         time,
-        GameInputKindKeyboard,
         Reading {
             device: Some(1),
             kinds: GameInputKindKeyboard,
@@ -314,7 +311,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     ));
     vec![measure("input/reader/frame", "frame", budget, 1.0, || {
         time += tick;
-        std::hint::black_box(reader.read(&readings, &[], &window, time));
+        std::hint::black_box(reader.read(&readings, &[], &window));
     })
     .with_note("17 mouse readings and 1 keyboard reading")]
 }

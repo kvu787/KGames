@@ -10,5 +10,10 @@ present_timing = { path = "../../Library/PresentTiming" }
 user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
+[dependencies.windows-core]
+version = "0.100"
+default-features = false
+features = ["std"]
+
 [lints]
 workspace = true

@@ -3,9 +3,10 @@
 //
 // The demo reads its input from the devices that Library/UserInterface reads
 // with GameInput, or from a script's Program steps in a scripted run, its
-// shortcuts F1 and F2 too. F10 and F11 are the library's, from the same
-// readings. Without GameInput the window still opens, and the library's
-// notice under the app bar says why there's no input.
+// shortcuts F2 and F3 too. F9 and F10 are the library's, from the same
+// readings, and F1 and F12 the platform's, which keep Windows' cursor and
+// quit. Without GameInput the window still opens, and the library's notice
+// under the app bar says why there's no input.
 
 use json::Value;
 use user_interface::testing::script::DEFAULT_FRAME_TIME;
@@ -22,7 +23,9 @@ use crate::settings::DemoSettings;
 // What a frame means to the demo.
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Once a frame: the title, and the frame's readings.
+    // Once a frame, in its last step, after all of the frame's input, so
+    // with the window's focus as the frame leaves it: the title, and the
+    // frame's readings, which the devices hand out once a frame.
     Tick,
     // The combo box picked which gamepad to listen to.
     Listen(Listen),
@@ -80,8 +83,12 @@ impl Program for Demo {
         self.title.clone()
     }
 
-    fn input(&self, _ui: &Ui) -> Vec<Message> {
-        vec![Message::Tick]
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages = Vec::new();
+        if ui.last_step() {
+            messages.push(Message::Tick);
+        }
+        messages
     }
 
     fn update(&mut self, message: Message, ui: &mut Context<Message>) {
@@ -89,8 +96,9 @@ impl Program for Demo {
             Message::Listen(listen) => {
                 if let Ok(input) = &mut self.input {
                     // The pick applies before the frame's Tick advances the
-                    // clock, so bring the clock to the frame first, and the
-                    // log line carries this frame's time.
+                    // clock, so bring the clock to the step's time first,
+                    // and the log line carries it: the frame's in its last
+                    // step, and the last frame's in a step before it.
                     input.align_clock(ui.time());
                     input.pick_listen(listen);
                 }
@@ -106,14 +114,15 @@ impl Program for Demo {
                     if let Some(scripted) = input.scripted() {
                         scripted.now = scripted.now.max(microseconds(ui.time()));
                     }
-                    let focused = ui.window_focused();
-                    // A frame can both lose focus and get it back, like when
-                    // focus goes to another window and back between two
-                    // frames. Losing focus first drops what came meanwhile,
-                    // stops the motors, and makes getting it back count as
-                    // getting focus.
-                    if focused && ui.input().focus_lost {
-                        input.update(false);
+                    // The interface never hears of focus, so the source
+                    // says. A frame can both lose focus and get it back,
+                    // like when focus goes to another window and back
+                    // between two frames: losing it drops what came
+                    // meanwhile, and makes getting it back count as getting
+                    // focus.
+                    let (focused, lost) = input.source_focus();
+                    if lost {
+                        input.focus_lost();
                     }
                     input.update(focused);
                 }

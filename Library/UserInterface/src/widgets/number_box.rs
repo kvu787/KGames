@@ -4,14 +4,15 @@
 // focus, step it. The value is the program's; what's typed, until it takes
 // effect, is the box's own.
 
-use crate::core::interaction::{Interaction, Part, Sense};
+use crate::core::interaction::{Cursor, Interaction, Part, Sense};
+use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, NUMBER_BOX_SPIN_GLYPH, TEXT_BOX_BUTTON_MARGIN};
 use crate::design::icons::Icon;
 use crate::drawing::geometry::{Insets, Rect};
 use crate::widgets::buttons::draw_text_control_button;
 use crate::widgets::text_box::{FieldSettings, field_draw, field_interact, field_parts};
-use crate::widgets::widget::{Reaction, react};
+use crate::widgets::widget::{Reaction, WheelRemainder, react};
 
 pub struct NumberBox<M> {
     value: f64,
@@ -109,6 +110,11 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
         "NumberBox"
     }
 
+    // A text field's, while the pointer is on it.
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(Cursor::Text)
+    }
+
     fn label(&self) -> Option<String> {
         Some(self.format(self.value))
     }
@@ -161,7 +167,7 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
         // on one of its buttons, as WinUI's does; elsewhere, the wheel is for
         // what's under the pointer.
         if focused && interaction.hovered_part().is_some() {
-            steps += interaction.wheel().y.round() as f64;
+            steps += ctx.memory::<WheelRemainder>().notches(interaction.wheel().y) as f64;
         }
         if steps != 0.0 {
             if draft.editing && let Ok(typed) = draft.text.trim().parse::<f64>() {

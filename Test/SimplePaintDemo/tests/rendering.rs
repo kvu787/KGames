@@ -1,6 +1,6 @@
 // SimplePaintDemo's frames, drawn offscreen with the GPU, as the window would
 // draw them: the sphere fills the preview card's view, around the card's
-// color, at both window heights, and is drawn again when the material changes.
+// color, and is drawn again when the material changes.
 
 use simple_paint::Parameters;
 use simple_paint_demo::demo::Demo;
@@ -34,7 +34,7 @@ fn check(image: &Image, view: Rect, card: [u8; 3]) -> [u8; 3] {
 }
 
 #[test]
-fn the_sphere_fills_the_preview_card_s_view_at_both_heights() {
+fn the_sphere_fills_the_preview_card_s_view() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(Demo::new(Parameters::default(), r"C:\Nowhere\Paint.json".into()));
     let theme = app.ui.theme().clone();
@@ -47,18 +47,11 @@ fn the_sphere_fills_the_preview_card_s_view_at_both_heights() {
     // The default material is a blue.
     assert!(blue[2] > blue[0] + 64 && blue[2] > blue[1], "{blue:?}");
 
-    // In fullscreen, the view is taller, and the sphere is still in its middle.
-    app.set_fullscreen(true).frame();
-    let image = app.render(&mut gpu).unwrap();
-    let tall = app.program.view.get().unwrap();
-    assert!(tall.height > view.height);
-    assert_eq!(check(&image, tall, card), blue);
-
     // A new material draws the sphere again.
     app.program.editor.set(0, 0.9);
     app.program.editor.set(2, 0.1);
     app.frame();
     let image = app.render(&mut gpu).unwrap();
-    let red = check(&image, tall, card);
+    let red = check(&image, view, card);
     assert!(red[0] > red[2] + 64, "{red:?}");
 }

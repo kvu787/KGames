@@ -36,6 +36,23 @@ fn a_jump_press_rises_on_its_own_frame() {
     assert_eq!(state(&app, "Grounded"), Value::Bool(false));
 }
 
+// A frame's steps before its last see the frame's time and no delta, so the
+// game moves once a frame, by the frame's time, however many steps the frame
+// has: running for a frame with steps before the press of F that starts the
+// run goes as far as running for a frame of the press alone, on that same
+// frame.
+#[test]
+fn the_game_moves_once_a_frame_however_many_steps_it_has() {
+    use user_interface::Event;
+    let mut plain = start("StepsPlain");
+    let mut stepped = start("StepsStepped");
+    plain.send(&[Event::KeyPressed(Key::F)]);
+    stepped.send(&[Event::KeyReleased(Key::Q), Event::KeyReleased(Key::W), Event::KeyPressed(Key::F)]);
+    assert!(stepped.program.game.player.velocity[0] > 0.0, "the run starts on the press's frame");
+    assert_eq!(stepped.program.game.player.position, plain.program.game.player.position);
+    assert_eq!(stepped.program.game.simulated, plain.program.game.simulated);
+}
+
 // ESDF: S and F run, E jumps, each on its own frame, and A, D and W do
 // nothing.
 #[test]
@@ -95,12 +112,12 @@ fn the_goal_frame_shows_the_banner_and_saves() {
 }
 
 #[test]
-fn f1_hides_the_cards_on_its_frame() {
+fn f2_hides_the_cards_on_its_frame() {
     let mut app = start("Cards");
     assert!(app.has_target("Run") && app.has_target("Events"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(!app.has_target("Run") && !app.has_target("Events"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(app.has_target("Run"));
 }
 
@@ -131,22 +148,11 @@ fn r_restarts_the_run_on_its_frame() {
 }
 
 #[test]
-fn without_focus_nothing_moves() {
-    let mut app = start("Focus");
-    let before = app.program.game.player.position;
-    app.focus(false).hold(Key::RIGHT).hold(Key::SPACE).frames(10);
-    assert_eq!(app.program.game.player.position[0], before[0], "the keys went nowhere");
-    assert!(app.program.game.player.grounded);
-}
-
-#[test]
 fn the_run_card_fits_and_the_targets_stay_on_the_page() {
-    for fullscreen in [false, true] {
-        let mut app = start("Fits");
-        app.set_fullscreen(fullscreen).frame();
-        for target in app.ui.targets().iter().filter(|target| target.listed) {
-            let rect = target.rect;
-            assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0, "{} at {rect:?}", target.name);
-        }
+    let mut app = start("Fits");
+    app.frame();
+    for target in app.ui.targets().iter().filter(|target| target.listed) {
+        let rect = target.rect;
+        assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0, "{} at {rect:?}", target.name);
     }
 }

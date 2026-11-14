@@ -277,20 +277,21 @@ fn a_focused_text_field_takes_the_keys_that_type() {
     let mut app = Headless::new(Test::default());
     app.key(Key::A);
     assert_eq!(app.program.shortcut, 1);
+    // A key types its character into the field, and isn't the program's.
     app.click("Field").type_text("ab cd").key(Key::A);
-    assert_eq!(app.program.text, "ab cd");
+    assert_eq!(app.program.text, "ab cda");
     assert_eq!(app.program.shortcut, 1);
     // Backspace deletes the character before the caret, and keys with Ctrl
     // are the program's.
     app.key(Key::BACKSPACE);
-    assert_eq!(app.program.text, "ab c");
+    assert_eq!(app.program.text, "ab cd");
     app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::BACKSPACE);
-    assert_eq!((app.program.text.as_str(), app.program.shortcut), ("ab c", 2));
+    assert_eq!((app.program.text.as_str(), app.program.shortcut), ("ab cd", 2));
     // A press puts the caret where it is.
     let field = app.target("Field");
     let a = app.ui.fonts().measure("a", user_interface::tokens::BODY).width;
     app.click_point(Point::new(field.x + user_interface::controls::TEXT_BOX_PADDING.left + a + 1.0, field.center().y)).type_text("x");
-    assert_eq!(app.program.text, "axb c");
+    assert_eq!(app.program.text, "axb cd");
     // A press elsewhere takes focus away, and the keys are the program's
     // again.
     app.click_point(Point::new(5.0, 900.0)).key(Key::A);
@@ -305,7 +306,7 @@ fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
     let mut app = Headless::new(Test::default());
     app.click("Field");
     let center = app.target("Button").center();
-    app.queue(&[Event::Text('x'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    app.queue(&[Event::KeyPressed(Key::X), Event::KeyReleased(Key::X)]).queue_move(center).queue(&[Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
     assert_eq!(focused(&app), Some(Value::Null));
     app.release();
@@ -345,6 +346,26 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
     // A press outside closes it without choosing.
     app.click("Combo").click_point(Point::new(5.0, 900.0));
     assert_eq!((app.program.choice, app.ui.popup_name()), (2, None));
+}
+
+// While the window doesn't keep Windows' cursor, as focus went or F1 let it
+// go, the pointer is away: nothing is under it, no tooltip shows, and the
+// popups that were open close as it goes. Back, it's where it was.
+#[test]
+fn nothing_is_under_the_pointer_while_it_is_away() {
+    let mut app = Headless::new(Test::default());
+    app.move_point(Point::new(60.0, PERF_BAR + 30.0)).wait(TOOLTIP_DELAY * 2.0);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (Some("Button"), Some("Button")));
+    app.pointer_away(true);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (None, None));
+    app.wait(TOOLTIP_DELAY * 2.0);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (None, None));
+    app.pointer_away(false);
+    assert_eq!(app.ui.hovered_name(), Some("Button"));
+    app.click("Combo");
+    assert_eq!(app.ui.popup_name(), Some("Combo"));
+    app.pointer_away(true);
+    assert_eq!(app.ui.popup_name(), None);
 }
 
 #[test]
@@ -474,7 +495,7 @@ fn a_dialog_gates_the_keys_the_frame_it_opens() {
     app.move_to("Ask").frame();
     app.send(&[
         Event::ButtonPressed(MouseButton::Left),
-        Event::KeyPressed { key: Key::D, repeat: false },
+        Event::KeyPressed(Key::D),
         Event::KeyReleased(Key::D),
     ]);
     assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
@@ -728,7 +749,7 @@ fn a_number_box_takes_what_was_typed_with_enter_only() {
 fn f10_shows_the_new_vertical_sync_on_its_own_frame() {
     let mut app = Headless::new(Test::default());
     app.frame();
-    app.queue(&[Event::KeyPressed { key: Key::F10, repeat: false }]).frame();
+    app.queue(&[Event::KeyPressed(Key::F10)]).frame();
     assert!(!app.vertical_sync());
     assert_eq!(app.ui.state().get("VerticalSync"), Some(&Value::Bool(false)));
 }
@@ -791,7 +812,7 @@ impl Program for Themes {
 fn a_frame_is_drawn_whole_in_the_theme_its_messages_leave() {
     let mut app = Headless::new(Themes::default());
     // F9 switches the theme from the frame that it's pressed in.
-    app.send(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.send(&[Event::KeyPressed(Key::F9)]);
     let frames = app.program.frames.borrow().clone();
     assert_eq!(frames[frames.len() - 2..], [ThemeKind::Light, ThemeKind::Dark]);
     app.send(&[Event::KeyReleased(Key::F9)]);
@@ -917,11 +938,13 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
 fn a_message_s_effects_all_show_on_its_frame() {
     // Every widget shows what the input did, whatever order the tree lists
     // them in: the field's text, which the view builds from the model, is
-    // the typed text on the very frame that types it.
+    // the typed text on the very frame that types it. Each character is a
+    // step of its own, with its own message, which the next one's field
+    // was built from.
     let mut app = Headless::new(Test::default());
     app.click("Field").type_text("abc");
     assert_eq!(app.label("Field").as_deref(), Some("abc"));
-    assert_eq!(app.messages_applied(), 1);
+    assert_eq!(app.messages_applied(), 3);
 }
 
 #[test]

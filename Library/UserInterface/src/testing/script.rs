@@ -16,8 +16,7 @@
 // Frame N's steps happen before frame N's update, which sees them as input,
 // except Capture and Expect, which happen after it. Frame N is at N times
 // FrameTime seconds, a 60th of a second unless the script says. Frame 0,
-// before the first step, gives the window focus and draws what steps can
-// point at. The program exits after the last step's frame, and fails if an
+// before the first step, draws what steps can point at. The program exits after the last step's frame, and fails if an
 // expectation wasn't met.
 
 use std::collections::BTreeMap;
@@ -29,12 +28,13 @@ use crate::core::interface::Interface;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
 use crate::input::events::Event;
-use crate::testing::gestures::{self, Frames};
+use crate::input::reader::platform_key;
+use crate::testing::gestures::{self, Frames, Made};
 
 pub const DEFAULT_FRAME_TIME: f64 = 1.0 / 60.0;
 
-const ACTIONS: [&str; 15] = [
-    "Move", "Press", "Release", "Click", "DoubleClick", "Drag", "Scroll", "Key", "Hold", "Type", "Gamepad", "Focus", "Capture", "Expect", "Program",
+const ACTIONS: [&str; 14] = [
+    "Move", "Press", "Release", "Click", "DoubleClick", "Drag", "Scroll", "Key", "Hold", "Type", "Gamepad", "Capture", "Expect", "Program",
 ];
 
 // Where a step points: a target's middle, by its name; a place in the
@@ -60,9 +60,9 @@ enum Action {
     Scroll(Place, f32),
     Key(Shortcut),
     Hold(Vec<Key>),
+    // Text that the keys type, which the script was read with.
     Type(String),
     Gamepad(Gamepad),
-    Focus(bool),
     Capture(String),
     Expect(Value),
     Program(Value),
@@ -167,9 +167,11 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
         "Scroll" => Action::Scroll(place(member("At")?)?, number(value.get("Notches")).ok_or("needs Notches, a number")? as f32),
         "Key" => {
             let Value::String(name) = value else {
-                return Err("needs a key's name, like \"F11\" or \"Ctrl+S\"".to_string());
+                return Err("needs a key's name, like \"F2\" or \"Ctrl+S\"".to_string());
             };
-            Action::Key(Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?)
+            let shortcut = Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?;
+            platform_free(&[shortcut.key])?;
+            Action::Key(shortcut)
         }
         "Hold" => {
             let Value::Array(names) = value else {
@@ -179,17 +181,18 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                 Value::String(name) => Key::parse(name).ok_or_else(|| format!("names no key: {name}")),
                 other => Err(format!("has {}, which isn't a key's name", other.describe())),
             });
-            Action::Hold(keys.collect::<Result<_, _>>()?)
+            let keys: Vec<Key> = keys.collect::<Result<_, _>>()?;
+            platform_free(&keys)?;
+            Action::Hold(keys)
         }
         "Type" => match value {
-            Value::String(text) => Action::Type(text.clone()),
+            Value::String(text) => {
+                gestures::type_text(text, false)?;
+                Action::Type(text.clone())
+            }
             _ => return Err("needs text".to_string()),
         },
         "Gamepad" => Action::Gamepad(parse_gamepad(value)?),
-        "Focus" => match value {
-            Value::Bool(focused) => Action::Focus(*focused),
-            other => return Err(format!("must be true or false, not {}", other.describe())),
-        },
         "Capture" => match value {
             Value::String(name) => Action::Capture(name.clone()),
             _ => return Err("needs a name for the files".to_string()),
@@ -202,8 +205,8 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
 
 pub struct ScriptRunner {
     script: Script,
-    // Events that steps put off to later frames, like a click's release.
-    scheduled: BTreeMap<u64, Vec<Event>>,
+    // Input that steps put off to later frames, like a click's release.
+    scheduled: BTreeMap<u64, Vec<Made>>,
     held: Vec<Key>,
     gamepad: Gamepad,
     pub failures: Vec<String>,
@@ -229,22 +232,18 @@ impl ScriptRunner {
     }
 
     // What frame N does. `ui` has the last frame's targets, which names point
-    // at.
+    // at, and the pointer, which moves to the places that steps point at, as
+    // the mice's motion that takes it there.
     pub fn frame(&mut self, frame: u64, ui: &Interface) -> Result<ScriptFrame, String> {
         let mut output = ScriptFrame::default();
-        if frame == 0 {
-            output.events.push(Event::FocusGained(Vec::new()));
-        }
-        if let Some(events) = self.scheduled.remove(&frame) {
-            output.events.extend(events);
-        }
+        let mut made: Vec<Made> = self.scheduled.remove(&frame).unwrap_or_default();
         let steps: Vec<Step> = self.script.steps.iter().filter(|step| step.frame == frame).cloned().collect();
         for step in steps {
             let at = |place: &Place| point(place, ui).map_err(|error| format!("Frame {frame}: {} {error}", step.name));
             let gesture: Frames = match step.action {
-                Action::Move(place) => vec![vec![Event::PointerMoved(at(&place)?)]],
+                Action::Move(place) => vec![vec![Made::PointTo(at(&place)?)]],
                 Action::Press(place, button) => gestures::press(at(&place)?, button),
-                Action::Release(button) => vec![vec![Event::ButtonReleased(button)]],
+                Action::Release(button) => vec![gestures::made(&[Event::ButtonReleased(button)])],
                 Action::Click(place) => gestures::click(at(&place)?, MouseButton::Left),
                 Action::DoubleClick(place) => gestures::double_click(at(&place)?),
                 Action::Drag { from, to, frames, button } => gestures::drag(at(&from)?, at(&to)?, frames, button),
@@ -252,14 +251,15 @@ impl ScriptRunner {
                 Action::Key(shortcut) => gestures::key(shortcut.modifiers, shortcut.key, &self.held),
                 Action::Hold(keys) => {
                     let released = self.held.iter().filter(|key| !keys.contains(key)).map(|key| Event::KeyReleased(*key));
-                    let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed { key: *key, repeat: false });
-                    let events = released.chain(pressed).collect();
+                    let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed(*key));
+                    let events: Vec<Event> = released.chain(pressed).collect();
                     self.held = keys;
-                    vec![events]
+                    vec![gestures::made(&events)]
                 }
-                Action::Type(text) => vec![text.chars().map(Event::Text).collect()],
-                Action::Focus(true) => vec![vec![Event::FocusGained(self.held.clone())]],
-                Action::Focus(false) => vec![vec![Event::FocusLost]],
+                Action::Type(text) => {
+                    let typed = gestures::type_text(&text, self.held.contains(&Key::SHIFT))?;
+                    vec![gestures::made(&typed)]
+                }
                 Action::Gamepad(gamepad) => {
                     self.gamepad = gamepad;
                     Vec::new()
@@ -278,13 +278,14 @@ impl ScriptRunner {
                 }
             };
             // The gesture's first frame is this one, and the rest follow.
-            for (index, events) in gesture.into_iter().enumerate() {
+            for (index, input) in gesture.into_iter().enumerate() {
                 match index {
-                    0 => output.events.extend(events),
-                    _ => self.scheduled.entry(frame + index as u64).or_default().extend(events),
+                    0 => made.extend(input),
+                    _ => self.scheduled.entry(frame + index as u64).or_default().extend(input),
                 }
             }
         }
+        output.events = gestures::events(made, ui.pointer(), ui.size());
         // The gamepad reads every frame, like a real one.
         output.events.push(Event::Gamepad(self.gamepad));
         Ok(output)
@@ -336,6 +337,15 @@ fn point(place: &Place, ui: &Interface) -> Result<Point, String> {
         Place::Target(name) => Ok(target(name)?.center()),
         Place::Window(point) => Ok(*point),
         Place::InTarget(name, fraction) => Ok(target(name)?.at_fraction(*fraction)),
+    }
+}
+
+// F1 and F12 are the platform's, which never reach the interface, so a
+// script can't press them.
+fn platform_free(keys: &[Key]) -> Result<(), String> {
+    match keys.iter().find(|key| platform_key(**key)) {
+        Some(key) => Err(format!("presses {}, but F1 and F12 are the platform's, which a script can't press", key.name())),
+        None => Ok(()),
     }
 }
 

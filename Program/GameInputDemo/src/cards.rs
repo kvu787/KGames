@@ -2,15 +2,14 @@
 // Library/UserInterface's widgets and canvases: the app bar, the status bar,
 // and between them three columns of cards. The first has the Gamepad card
 // over the Keyboard and Mouse cards, the second the Latest input event card
-// over the Devices card, and the third the Event log. The demo supports two
-// window setups, maximized and borderless fullscreen (see
-// Library/UserInterface's README), whose client areas differ only in
-// height, so the cards have fixed places in pixels. The 71 pixels that
-// fullscreen adds go to the bottom row of cards and to the log.
+// over the Devices card, and the third the Event log. The demo supports one
+// window setup, borderless fullscreen on a 2560 × 1440 display (see
+// Library/UserInterface's README), so the cards have fixed places in pixels.
+// The bottom row of cards and the log get what's left of the height.
 //
 // The combo box and the Devices card's rows are the library's widgets, which
-// read the mouse's buttons from GameInput, and the pointer from where Windows'
-// cursor is in the window. Everything else that the cards show comes from the
+// read the mouse's buttons and motion from GameInput, whose motion moves the
+// library's own pointer. Everything else that the cards show comes from the
 // devices' readings.
 
 use game_input::*;
@@ -113,7 +112,7 @@ pub fn view(ui: &mut Ui, input: &Result<Input, String>) -> Tree<Message> {
         false,
         Some(status),
     );
-    app_bar_status(ui, &mut tree, shell.commands);
+    app_bar_status(ui, &mut tree, shell.commands, input.as_ref().is_ok_and(|input| input.focused()));
     // Without GameInput, a notice says why, and there's nothing to show.
     let Ok(input) = input else {
         return tree;
@@ -133,14 +132,14 @@ pub fn view(ui: &mut Ui, input: &Result<Input, String>) -> Tree<Message> {
 }
 
 // After the app bar's title: whether the window has focus, which the demo
-// needs to read input, and the frame rate.
-fn app_bar_status(ui: &mut Ui, tree: &mut Tree<Message>, mut bar: Rect) {
+// needs to read input, as its source says, and the frame rate.
+fn app_bar_status(ui: &mut Ui, tree: &mut Tree<Message>, mut bar: Rect, focused: bool) {
     let stats = ui.stats();
     let rate = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
     let width = ui.measure(&rate, CAPTION).width.ceil();
     tree.draw(bar.cut_right(width, SPACE_XXL), Text::caption(rate));
 
-    let (status, severity) = if ui.window_focused() {
+    let (status, severity) = if focused {
         ("Focused: reading input", Severity::Success)
     } else {
         ("Not focused: input is ignored", Severity::Warning)
@@ -167,11 +166,10 @@ fn status_items(ui: &Ui, input: &Result<Input, String>) -> Vec<Status> {
         Err(_) => ("GameInput isn't available".to_string(), String::new()),
     };
     let mut items = vec![
-        Status::shortcut("F1", "Rumble test"),
+        Status::shortcut("F3", "Rumble test"),
         Status::shortcut("F2", "Clear the log"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
-        Status::shortcut("F11", "Fullscreen"),
         Status::text(runtime),
         Status::Spacer,
     ];
@@ -224,7 +222,7 @@ fn gamepad(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, rect: Rect) {
     let rumble_dead_zone = input.rumble_dead_zone;
     let rumble = if input.rumble_enabled { "on" } else { "off" };
     let status_line = format!(
-        "Readings: {:.0}/s over the last 2 s   ·   Rumble test: {rumble} (F1)   ·   Motors: {}",
+        "Readings: {:.0}/s over the last 2 s   ·   Rumble test: {rumble} (F3)   ·   Motors: {}",
         view.rate.per_second(),
         rumble_motor_names(view.rumble_motors)
     );

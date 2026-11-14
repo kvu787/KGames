@@ -79,7 +79,6 @@ pub enum Command {
     ToggleGrid,
     ToggleTheme,
     VerticalSync,
-    Fullscreen,
 }
 
 // Each command's label, which menus show and return, and its shortcuts, of
@@ -143,7 +142,6 @@ pub const COMMANDS: &[(Command, &str, &[&str])] = &[
     (Command::ToggleGrid, "Grid", &["Shift+G"]),
     (Command::ToggleTheme, "Dark theme", &["F9"]),
     (Command::VerticalSync, "VSync", &["F10"]),
-    (Command::Fullscreen, "Fullscreen", &["F11"]),
 ];
 
 impl Command {
@@ -166,7 +164,6 @@ impl Command {
 pub enum Pending {
     New,
     Open,
-    Close,
 }
 
 // The dialog that's open.
@@ -217,7 +214,9 @@ pub enum Message {
     Unsaved(DialogResult),
     SaveAsResult(DialogResult),
     OpenResult(DialogResult),
-    // Once a frame, after everything else: remakes what the view draws.
+    // Once a step of a frame's input, after everything else in it: remakes
+    // what the view draws, so that the next step's input finds it as the
+    // steps before left it.
     Prepare,
 }
 
@@ -456,7 +455,6 @@ impl Modeler {
             Command::ToggleGrid => self.grid = !self.grid,
             Command::ToggleTheme => ui.toggle_theme(),
             Command::VerticalSync => ui.toggle_vertical_sync(),
-            Command::Fullscreen => ui.toggle_fullscreen(),
         }
     }
 
@@ -507,8 +505,7 @@ impl Modeler {
         }
     }
 
-    // Does what was pending, now that the changes are saved or not. Closing
-    // is done by cards.rs, which has the Ui.
+    // Does what was pending, now that the changes are saved or not.
     pub fn proceed(&mut self, pending: Pending) {
         match pending {
             Pending::New => {
@@ -523,7 +520,6 @@ impl Modeler {
                 self.open_choice = self.saved_names.iter().position(|name| *name == self.document.name).or((!self.saved_names.is_empty()).then_some(0));
                 self.prompt = Some(Prompt::Open);
             }
-            Pending::Close => self.prompt = None,
         }
     }
 
@@ -765,13 +761,8 @@ fn object(members: Vec<(&str, Value)>) -> Value {
 
 impl Modeler {
     // Does what was pending once the changes are saved or not.
-    fn finish(&mut self, ui: &mut Context<Message>, pending: Pending) {
-        if pending == Pending::Close {
-            self.prompt = None;
-            ui.close();
-        } else {
-            self.proceed(pending);
-        }
+    fn finish(&mut self, _ui: &mut Context<Message>, pending: Pending) {
+        self.proceed(pending);
     }
 
     // A dialog's answer.
@@ -859,8 +850,8 @@ impl Program for Modeler {
             Message::ConfirmOperation => self.editor.confirm(&mut self.document),
             Message::CancelOperation => self.editor.cancel(&mut self.document),
             Message::PickPaint(index) => {
-                // The row is of the frame that the user saw. An Undo before
-                // it in this frame may have taken its paint away.
+                // The row is of the tree that the press was on. An Undo
+                // before it in this step may have taken its paint away.
                 self.editor.active_paint = index;
                 self.keep_paint_picked();
             }
@@ -899,14 +890,6 @@ impl Program for Modeler {
             viewport.draw(gpu, frame, &self.scene)?;
         }
         Ok(())
-    }
-
-    fn may_close(&mut self) -> bool {
-        if self.document.dirty {
-            self.prompt = Some(Prompt::Unsaved(Pending::Close));
-            return false;
-        }
-        true
     }
 
     fn state(&self) -> Value {

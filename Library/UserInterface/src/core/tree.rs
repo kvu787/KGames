@@ -1,9 +1,9 @@
 // The tree that a program's view describes a frame with: elements, each a
 // named widget in a rectangle, with the message that the input on it makes,
 // and children for the containers, like cards. The program builds a tree
-// from its state each frame, and never changes state while it does; the
-// interface lays it out, finds what the input did to the tree the user saw,
-// and draws the new one.
+// from its state for each step of a frame's input, and never changes state
+// while it does; the interface lays it out, finds what the next step's input
+// did to it, and draws the frame's last one.
 //
 //     let mut tree = Tree::new();
 //     tree.add("Save", rect, Button::new("Save").accent().on_press(Message::Save));
@@ -288,10 +288,10 @@ impl<M: 'static> Element<M> {
 }
 
 // What a widget is: what it is to scripts, what its targets are, what the
-// input on them means, and how it draws. Each is called once a frame, for
-// each element that has the widget: `parts` and `draw` for the frame's
-// tree, and `interact` for the tree the user saw as the input came, with
-// what the input did to it.
+// input on them means, and how it draws. For each element that has the
+// widget, `parts` is called as each step's tree is laid out, `interact` for
+// each step's input on the tree it came on, with what the step's input did
+// to it, and `draw` once a frame, for the last step's tree.
 pub trait Widget<M>: 'static {
     // Like "Button" or "Slider", as WinUI names its controls.
     fn kind(&self) -> &'static str;
@@ -313,11 +313,18 @@ pub trait Widget<M>: 'static {
         false
     }
 
-    // Whether `interact` is called every frame, even when nothing happened
-    // to its targets, like a 3D view that clears what was under the pointer
-    // once it leaves.
+    // Whether `interact` is called in every step of every frame, even when
+    // nothing happened to its targets, like a 3D view that clears what was
+    // under the pointer once it leaves.
     fn always_interacts(&self) -> bool {
         false
+    }
+
+    // The pointer's look while it's on the widget, or the widget holds its
+    // press, as each step's tree is laid out, the last for the frame. Its
+    // whole area's, not its parts'.
+    fn cursor(&self, _ui: &Interface, _hovered: bool, _held: bool) -> Option<crate::core::interaction::Cursor> {
+        None
     }
 
     // The layer it and its children draw on: a dialog's, or the base.
@@ -595,10 +602,6 @@ impl<M> Dispatch<'_, M> {
 
     pub fn is_focused(&self) -> bool {
         self.ui.focused == Some(self.id)
-    }
-
-    pub fn set_cursor(&mut self, cursor: crate::core::interaction::Cursor) {
-        self.ui.cursor = cursor;
     }
 
     // The notices under the app bar, for the bar that shows them.

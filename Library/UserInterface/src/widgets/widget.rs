@@ -1,5 +1,6 @@
-// What every widget shares: the brushes of WinUI's visual states, and its
-// elevation borders, the gradients that make controls look raised.
+// What every widget shares: the brushes of WinUI's visual states, its
+// elevation borders, the gradients that make controls look raised, and the
+// wheel's turns that haven't added up to a notch yet.
 
 use crate::core::interaction::ControlState;
 use crate::design::theme::{Theme, ThemeKind};
@@ -90,6 +91,23 @@ impl Elevation {
 }
 
 // A reaction to a widget's value: the message that the value makes.
+// Turns of the wheel that haven't added up to a notch yet, which a widget
+// that moves by whole notches keeps between steps, as a wheel that turns by
+// less than a notch at a time gives each turn in a step of its own.
+#[derive(Default)]
+pub(crate) struct WheelRemainder(f32);
+
+impl WheelRemainder {
+    // The whole notches that this turn completes, toward zero, keeping the
+    // rest.
+    pub(crate) fn notches(&mut self, turned: f32) -> f32 {
+        self.0 += turned;
+        let notches = self.0.trunc();
+        self.0 -= notches;
+        notches
+    }
+}
+
 pub type Reaction<V, M> = Box<dyn Fn(V) -> M>;
 
 pub(crate) fn react<V, M>(reaction: impl Fn(V) -> M + 'static) -> Reaction<V, M> {

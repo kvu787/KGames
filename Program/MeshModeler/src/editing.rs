@@ -133,6 +133,21 @@ pub struct Operation {
     faces: Vec<usize>,
     // What it's done, for the status bar: like "0.25" or "45°".
     pub amount: String,
+    // What the edit was last applied for, and the document's version that it
+    // left, so that applying it again for the same is nothing to do.
+    applied: Option<Applied>,
+}
+
+// What a modal edit is applied for: the pointer, the snap, the axis, the
+// camera and the view, and the document's version as it left it.
+#[derive(Clone, Debug, PartialEq)]
+struct Applied {
+    pointer: Point,
+    snap: bool,
+    axis: Axis,
+    camera: Camera,
+    view: Rect,
+    version: u64,
 }
 
 // What the view draws, which a ray from the pointer goes through: the
@@ -464,6 +479,7 @@ impl Editor {
             faces: document.selection.faces.iter().copied().collect(),
             vertices,
             amount: String::new(),
+            applied: None,
         });
         self.message = None;
         true
@@ -477,11 +493,26 @@ impl Editor {
     }
 
     // Applies the edit for where the pointer is now; with `snap`, to whole
-    // tenths, or 15 degrees.
+    // tenths, or 15 degrees. The modal edit hears the pointer in every step
+    // of a frame's input, and the steps that don't move it, like a key's,
+    // leave it where it was, so the edit is applied again only when what
+    // it's for changed, and the document doesn't get a new version, which
+    // remakes what the view draws, for the same edit.
     pub fn update(&mut self, document: &mut Document, pointer: Point, snap: bool, camera: &Camera, view: Rect) {
         let Some(operation) = &mut self.operation else {
             return;
         };
+        let applied = |version| Applied {
+            pointer,
+            snap,
+            axis: operation.axis,
+            camera: *camera,
+            view,
+            version,
+        };
+        if operation.applied.as_ref() == Some(&applied(document.version)) {
+            return;
+        }
         let mut mesh = operation.base.clone();
         let vertices = operation.vertices.iter().copied();
         let snap_to = |value: f32, step: f32| if snap { (value / step).round() * step } else { value };
@@ -543,6 +574,7 @@ impl Editor {
         }
         document.mesh = mesh;
         document.touch();
+        operation.applied = Some(applied(document.version));
     }
 
     // Keeps the edit, as one step of the history.

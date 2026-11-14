@@ -10,18 +10,17 @@ KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInte
 whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, list,
 scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
 
-## Supported window setups
+## Supported window setup
 
-The demo supports exactly the two window setups that every KGames program does, both on a
-2560 × 1440 monitor at 100% scaling: maximized, with a 2560 × 1369 client area, and borderless
-fullscreen, with 2560 × 1440 (see
-[Library/UserInterface](../../Library/UserInterface/README.md#window-setups)). The cards have fixed
-places in pixels, and the 71 pixels that fullscreen adds go to the bottom row of cards and to the
-event log. In any other setup, the window shows what's wrong instead of the cards.
+The demo supports exactly the one window setup that every KGames program does: borderless
+fullscreen on a 2560 × 1440 monitor at 100% scaling, with a 2560 × 1440 client area (see
+[Library/UserInterface](../../Library/UserInterface/README.md#window-setup)). The cards have fixed
+places in pixels, and the bottom row of cards and the event log get what's left of the height. In
+any other setup, the window shows what's wrong instead of the cards.
 
 ## What it shows
 
-- **Title bar**: the GPU that draws.
+- **Window title**, which the taskbar and Alt+Tab show: the GPU that draws.
 - **App bar**: whether the window has focus, which the demo needs to read input, and the frame rate
   with the time per frame. Under it, anything wrong with the [settings file](#settings-file), or
   GameInput not being available, as info bars that close.
@@ -57,17 +56,19 @@ event log. In any other setup, the window shows what's wrong instead of the card
 
 Shortcuts, while the demo's window has focus:
 
-| Key   | Action                                                                                    |
-| ----- | ----------------------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors                    |
-| `F2`  | Clear the event log                                                                       |
-| `F9`  | Switches between the light and dark themes                                                |
-| `F10` | Switches vertical sync on or off                                                          |
-| `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
+| Key   | Action                                                                 |
+| ----- | ---------------------------------------------------------------------- |
+| `F1`  | Lets Windows' cursor go, or keeps it again, as in every KGames program |
+| `F2`  | Clear the event log                                                    |
+| `F3`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
+| `F9`  | Switches between the light and dark themes                             |
+| `F10` | Switches vertical sync on or off                                       |
+| `F12` | Quits, as in every KGames program                                      |
 
-The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F9`, `F10` and `F11`
-are Library/UserInterface's, which reads them from the same readings, as in every KGames program, so
-the demo doesn't also switch on them, which would switch them back.
+The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
+Library/UserInterface's, which reads them from the same readings, as in every KGames program, so the
+demo doesn't also switch on them, which would switch them back. `F1` and `F12` are too, and the
+demo's cards show them as GameInput read them, like any key, but do nothing with them.
 
 ### Rumble test
 
@@ -75,12 +76,10 @@ The rumble test drives only the standard rumble: the low-frequency motor in the 
 high-frequency one in the right, which Xbox 360, PlayStation 4 and 5 and most other gamepads with
 rumble have. The left stick drives the first and the right stick the second. The trigger motors of
 Xbox One and Series gamepads stay off. The Gamepad card's "Motors" still lists every motor the
-gamepad has. With the rumble test off, no motor runs, and while the window doesn't have focus,
-which stops the demo from reading the sticks, none does either.
-
-Minimizing the window takes its focus. The main loop draws no frames while the window is minimized,
-but it still runs the demo's update once with the focus lost, so the motors stop as the window
-minimizes.
+gamepad has. With the rumble test off, no motor runs. While the window doesn't have focus, which
+minimizing it takes, none does either: GameInput turns the motors off itself, and back on as the
+demo last asked them when the window gets focus back, as Microsoft's documentation says, so the
+demo asks nothing new of them meanwhile.
 
 A motor is off while its stick is inside the inner dead zone, the ring on the stick's graph. Sticks
 don't read exactly 0 at rest, and the dead zone keeps that noise from running the motors. Past the
@@ -92,8 +91,8 @@ the demo applies a dead zone.
 ### Choosing a gamepad
 
 Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
-A click anywhere else in the window, or the window losing focus, like when it's minimized, closes
-the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
+A click anywhere else in the window, or the pointer going away, as the window loses focus, like
+when it's minimized, or F1 lets Windows' cursor go, closes the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
 text field does, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |
@@ -119,8 +118,8 @@ GameInput reports the devices that are already connected when the demo starts as
 starts on the last gamepad of those. The combo box only ever shows and lists gamepads that are
 connected. While none is, the combo box shows `None`, and a note after it says that no gamepad is
 connected. While `None` is picked with gamepads connected, the note says that gamepad input is
-ignored. The combo box is the library's, which reads the mouse's buttons from GameInput too, and the
-pointer from where Windows' cursor is in the window.
+ignored. The combo box is the library's, which reads the mouse from GameInput too: its buttons, and
+its motion, which moves the pointer.
 
 ### Device tooltips
 
@@ -183,8 +182,8 @@ cargo run --release -- --display KXGR16
 ```
 
 To open the demo without taking focus from the window you're typing in, add `--no-activate`. The
-window opens without taking focus from that one, and gets keyboard and mouse input once you click
-it.
+window opens beneath the others, and never takes focus, even when it's clicked, so it reads no
+input, as test runs want.
 
 ### Running it in the background
 
@@ -215,7 +214,6 @@ it doesn't exist, the demo writes it with the defaults:
 ```json
 {
   "Display": "Primary",
-  "WindowMode": "WindowedMaximized",
   "VerticalSync": true,
   "Theme": "Light",
   "RumbleTestInnerDeadZone": 0.1
@@ -225,22 +223,20 @@ it doesn't exist, the demo writes it with the defaults:
 | Setting                   | Value                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
-| `WindowMode`              | `"WindowedMaximized"` or `"BorderlessFullscreen"`, the two supported setups |
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
 | `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first four are the settings that every KGames program has, which
+The first three are the settings that every KGames program has, which
 [Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 
 - If `Display` names a display that isn't connected, the demo opens on the primary display, and a
   notice under the app bar says so.
-- `F11` switches between the two window modes, whichever the demo opened in.
 - A setting that's missing keeps its default. So does one that's wrong, and a notice under the app
   bar says what's wrong with it. If the file isn't valid JSON, it says where, and the demo uses the
-  defaults. Values that are words, like `"WindowedMaximized"`, ignore case, but setting names don't.
+  defaults. Values that are words, like `"Dark"`, ignore case, but setting names don't.
 - The demo never changes the file once it exists. Delete it to get the defaults back.
 
 `--display` and an identifier on the command line overrides `Display`. `--display Primary` opens on
@@ -266,19 +262,20 @@ library makes its events from, from `startup.devices`. Every frame, the library:
 1. Drains the queue of device events that its `RegisterDeviceCallback` callback fills. That callback
    runs on one of GameInput's threads, and also reports the devices that were already connected when
    the program started.
-2. For each of gamepad, keyboard and mouse input, walks the history from the last reading it handled
-   with `GetNextReading`, right before the frame. GameInput keeps readings for only a short time,
-   and only about 512 of a gamepad's, under a tenth of a second at thousands a second, so after a
-   pause in input, or a frame that took longer than that, the last reading handled has left the
-   history, and `GetNextReading` fails with `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`. The library
-   then walks back from the newest reading with `GetPreviousReading`, as far as the history goes.
-3. Takes the readings that its `RegisterReadingCallback` callback queued since the last frame. The
-   callback runs on one of GameInput's threads, for every reading as it comes, so the queue has the
-   readings that left the history too. The frame hands out the readings of both, each once, oldest
-   first, so that none is missed between frames, and the newest are as fresh as the history's.
+2. Walks GameInput's stream of readings, which has every device's in the order the input happened
+   in, from the last reading it handed out, with `GetNextReading`, right before the frame, until
+   there's nothing newer, as Microsoft's GameInputSequential sample does. The frame hands out
+   every reading since the last frame once, in the stream's order. GameInput keeps only about 513
+   readings, under a tenth of a second of a gamepad's at thousands a second, so after a frame that
+   took longer than that, the last reading handed out has left the history, and `GetNextReading`
+   fails. The library then starts over from the history's start, after the newest reading of each
+   device that has none left in it, so that only the readings that left the history are lost, and
+   no device keeps what it held before them.
 
 Then the demo:
 
+3. Takes the readings in that order, so its log interleaves devices as they were used. A reading
+   with more than one kind of input, like a keyboard's with a trackball's, is each.
 4. Compares each reading with the same device's previous one to work out what changed. It keeps
    every device's last reading itself for that, including the ones it drops without focus.
    `GetPreviousReading` would give it too, but only while it's still in the history, so after a
@@ -299,12 +296,16 @@ says whether it has focus. The library leaves GameInput's background input off (
 [Library/UserInterface](../../Library/UserInterface/README.md#input)), so GameInput gives the demo
 no readings while its window doesn't have focus: as the window loses focus, a reading of each
 device at rest, and nothing after that until focus comes back. The demo also drops what comes
-without focus itself, by the window's own focus changes: readings that come while the window
-doesn't have focus, including while it's minimized, and from before it got focus by their
-timestamps, whichever frame they come in, like the reading of a gamepad that GameInput gives as
-focus comes, which came before the frame that saw the focus on the development machine. When the window loses focus, the cards stop showing keys, buttons and
-sticks as held, and a gamepad that the demo switches to then shows at rest. The frame that restores
-a minimized window counts as the window getting focus, after losing it.
+without focus itself, by the window's own focus changes, which the library's devices give on the
+readings' clock, and which the demo puts among the readings by their times: readings from while
+the window doesn't have focus, including while it's minimized, and from before it got focus, by
+their timestamps, whichever frame they come in, like the reading of a gamepad that GameInput gives
+as focus comes, which came before the frame that saw the focus on the development machine. A
+scripted run's focus changes have no times, so they're at the frame's time: a loss before the
+frame's readings, and a gain after them. When the window loses focus, the cards stop showing keys,
+buttons and sticks as held, and a gamepad that the demo switches to then shows at rest. The frame
+that restores a minimized window counts as the window getting focus, after losing it, and so does
+a frame that loses focus and gets it back.
 
 Keys and buttons that are still held when the window gets focus, like the button of the click that
 gave it, or a key held down while clicking into it, are ignored until they're let go of: they don't
@@ -334,8 +335,8 @@ device's own polling, its connection, and the monitor's scanout and response, is
 
 Library/UserInterface's main loop does most of it (see its
 [README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
-time, the loop waits until the GPU and DXGI can take another, and only then calls the demo's
-`update`, which reads GameInput, so no readings age during the wait. The demo starts with vertical
+time, the loop waits until the GPU and DXGI can take another, and only then reads GameInput,
+whose readings the demo's `update` takes, so no readings age during the wait. The demo starts with vertical
 sync on, as every program does, so its frames wait for the screen's refresh, and never tear. With
 `F10`, or `"VerticalSync": false` in the [settings](#settings-file), they're presented without
 waiting, and the loop spins instead of waiting, so the demo draws thousands of frames a second, and
@@ -346,11 +347,9 @@ machine, an RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a whole frame takes ab
 
 Without vertical sync, when Windows flips the demo's frames straight to the screen, a frame can
 replace the one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
-compositor shows the newest frame at its next refresh. `F11`, or
-`"WindowMode": "BorderlessFullscreen"`, makes the window cover its monitor, which lets Windows flip
-the frames straight to the screen, instead of the compositor copying them into its own frame. That
-saves up to a refresh, and lets frames tear. In a window, Windows can only do that if the GPU
-supports multiplane overlays.
+compositor shows the newest frame at its next refresh. The window covers its monitor, in
+borderless fullscreen, which lets Windows flip the frames straight to the screen, instead of the
+compositor copying them into its own frame. That saves up to a refresh, and lets frames tear.
 
 What it doesn't do:
 
@@ -398,7 +397,7 @@ readings:
     { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
     { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
     { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } } },
-    { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+    { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F3"] } } },
     { "Frame": 3, "Program": { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120] } } },
     { "Frame": 4, "Program": { "Disconnect": 1 } },
     { "Frame": 5, "Expect": { "Listen": "Pad", "RumbleTest": true } }
@@ -419,13 +418,16 @@ readings are at the time of its frame.
 |              | `RightTrigger`                                                                  |
 | `Gamepad`    | `Id`, `LeftStick` and `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`,  |
 |              | and `Buttons`, named as the Gamepad card names them                             |
-| `Keyboard`   | `Id`, and the keys `Down`, like `F1`, `A` or `Left`                             |
+| `Keyboard`   | `Id`, and the keys `Down`, like `F3`, `A` or `Left`                             |
 | `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the Mouse card  |
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |
+| `Focus`      | `true` or `false`: gives the window focus or takes it away, which it has from   |
+|              | the start, at the frame's time                                                  |
 
 The window's own keys and mouse are the script's `Key`, `Click`, `Move` and other steps, which the
-combo box, the Devices card's rows and `F11` read, like `{ "Frame": 10, "Key": "F11" }`.
+combo box, the Devices card's rows and the library's `F9` and `F10` read, like
+`{ "Frame": 2, "Key": "F9" }`.
 
 The state that scripts save and check has what the cards show, the log's 10 newest lines, and the
 rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`. Its
@@ -444,11 +446,11 @@ nothing on it.
 | --------------- | ------------------------------------------------------------------------------- |
 | `DeviceTooltip` | Rests the pointer on two devices' rows, and shows their tooltips                |
 | `Gamepad`       | Presses buttons and moves sticks and triggers, lets go, and disconnects         |
-| `Keyboard`      | Holds keys, clears the log with `F2`, and switches fullscreen with `F11`        |
+| `Keyboard`      | Holds keys, clears the log with `F2`, and logs `F10`, which is the library's    |
 | `Mouse`         | Moves a mouse, presses its buttons, and turns its wheel                         |
 | `Overview`      | Gives every card something to show, for a look at the whole window              |
 | `Picker`        | Picks gamepads with the combo box, with clicks and keys, and closes its list    |
-| `RumbleTest`    | Drives the motors with the sticks, and stops them without focus                 |
+| `RumbleTest`    | Drives the motors with the sticks, and leaves them to GameInput without focus   |
 
 What only real devices show still needs a person: GameInput's own readings and device events, how
 the motors feel, and focus changing while a gamepad is held.

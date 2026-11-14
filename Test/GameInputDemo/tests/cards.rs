@@ -1,6 +1,6 @@
 // What the mouse and the window do to GameInputDemo's cards: the combo box
 // that picks which gamepad to listen to, what its list offers, the Devices
-// card's list, its rows and their tooltips, focus and F11, through the
+// card's list, its rows and their tooltips, focus and F10, through the
 // cards' real layout, which Library/UserInterface's Headless draws without a
 // window. And one frame drawn with the GPU, offscreen.
 
@@ -12,10 +12,10 @@ use json::Value;
 use user_interface::controls::TOOLTIP_OFFSET;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
 use user_interface::tokens::{
-    APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING,
-    PERF_BAR_HEIGHT, SPACE_S, STATUS_BAR_HEIGHT, WINDOW_WIDTH,
+    APP_BAR_HEIGHT, BODY, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, PAGE_PADDING, PERF_BAR_HEIGHT, SPACE_S, STATUS_BAR_HEIGHT,
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
-use user_interface::{Headless, Key, Point, Program, Rect, Theme, ThemeKind};
+use user_interface::{Event, Headless, Key, Point, Program, Rect, Theme, ThemeKind};
 
 // The demo, drawn once, with gamepads of these names connected, so that the
 // next frame's input has targets.
@@ -200,31 +200,33 @@ fn without_game_input_there_is_nothing_to_point_at() {
 }
 
 #[test]
-fn f11_switches_fullscreen_from_the_window_and_not_through_game_input() {
+fn f10_switches_vertical_sync_from_the_window_and_not_through_game_input() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 9, "Name": "Keys", "Input": ["Keyboard"] } }"#);
-    app.key(Key::F11);
-    assert!(app.fullscreen());
+    app.key(Key::F10);
+    assert!(!app.vertical_sync());
     // GameInput reads the same key, which mustn't switch it back.
-    step(&mut app, r#"{ "Keyboard": { "Id": 9, "Down": ["F11"] } }"#);
+    step(&mut app, r#"{ "Keyboard": { "Id": 9, "Down": ["F10"] } }"#);
     step(&mut app, r#"{ "Keyboard": { "Id": 9, "Down": [] } }"#);
-    assert!(app.fullscreen());
-    assert_eq!(input(&app).log[1].text, "Keys: F11 down");
+    assert!(!app.vertical_sync());
+    assert_eq!(input(&app).log[1].text, "Keys: F10 down");
 }
 
 #[test]
-fn input_without_window_focus_is_dropped_and_stops_the_motors() {
+fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency"] } }"#);
     step(&mut app, r#"{ "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } }"#);
-    step(&mut app, r#"{ "Keyboard": { "Id": 2, "Down": ["F1"] } }"#);
+    step(&mut app, r#"{ "Keyboard": { "Id": 2, "Down": ["F3"] } }"#);
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
     assert!(input(&app).rumble_enabled);
     let rumble = |app: &mut Headless<Demo>| app.program.input.as_mut().unwrap().scripted().unwrap().rumble(1);
     assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
 
-    app.focus(false);
-    assert!(rumble(&mut app).is_none());
+    // GameInput turns the motors off without focus itself, so the demo asks
+    // nothing new of them.
+    step(&mut app, r#"{ "Focus": false }"#);
+    assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
     let count = input(&app).reading_count;
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["A"] } }"#);
     assert_eq!(input(&app).reading_count, count);
@@ -232,9 +234,44 @@ fn input_without_window_focus_is_dropped_and_stops_the_motors() {
 
     // With focus again, the button held from before doesn't count until
     // it's let go of, but the stick does.
-    app.focus(true);
-    step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.5], "Buttons": ["A"] } }"#);
-    assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.5);
+    // The stick drives the motor again.
+    step(&mut app, r#"{ "Focus": true }"#);
+    step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.55], "Buttons": ["A"] } }"#);
+    assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.55);
+    assert_eq!(input(&app).gamepad.state.buttons, 0);
+    assert!((rumble(&mut app).unwrap().lowFrequency - 0.5).abs() < 1e-6);
+}
+
+// The demo reads the devices once a frame, in the frame's last step, with
+// the window's focus as its source says the frame leaves it, as the
+// interface never hears of focus: in a frame with keys' presses and the
+// window losing focus, what the devices read came without focus, and is
+// dropped, as in a frame that only loses focus.
+#[test]
+fn a_frame_that_loses_focus_after_other_input_drops_what_the_devices_read() {
+    let mut app = demo(&[]);
+    step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
+    let count = input(&app).reading_count;
+    app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
+    app.program.script(&json::parse(r#"{ "Focus": false }"#).unwrap()).unwrap();
+    app.send(&[Event::KeyPressed(Key::Q), Event::KeyReleased(Key::Q)]);
+    assert_eq!(input(&app).reading_count, count);
+    assert_eq!(input(&app).gamepad.state.buttons, 0);
+}
+
+// A frame that loses focus and gets it back, like when focus goes to another
+// window and back between two frames, drops what came meanwhile, and what's
+// held then counts only once it's let go of.
+#[test]
+fn a_frame_that_loses_focus_and_gets_it_back_drops_what_came_meanwhile() {
+    let mut app = demo(&[]);
+    step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
+    let count = input(&app).reading_count;
+    app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
+    app.program.script(&json::parse(r#"{ "Focus": false }"#).unwrap()).unwrap();
+    app.program.script(&json::parse(r#"{ "Focus": true }"#).unwrap()).unwrap();
+    app.frame();
+    assert_eq!(input(&app).reading_count, count);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }
 
@@ -257,23 +294,20 @@ fn rows_that_do_not_fit_scroll() {
     for id in 1..=40 {
         step(&mut app, &format!(r#"{{ "Connect": {{ "Id": {id}, "Name": "Keys {id}", "Input": ["Keyboard"] }} }}"#));
     }
-    for fullscreen in [false, true] {
-        app.set_fullscreen(fullscreen);
-        // The list ends above the card's padding and the status bar, and so
-        // do the rows in sight, with a scroll bar for the rest.
-        let list = app.target(DEVICE_ROWS);
-        assert!(list.bottom() <= app.size().height - STATUS_BAR_HEIGHT - PAGE_PADDING - CARD_PADDING, "{list:?}");
-        let rows = rows(&app);
-        assert!(rows.len() > 5 && rows.len() < 40, "{}", rows.len());
-        assert!(rows.iter().all(|row| row.bottom() <= list.bottom()), "{rows:?}");
-        assert!(app.has_target("Devices/ScrollBar"));
-        // The wheel scrolls to the last row, and back.
-        app.scroll(DEVICE_ROWS, -40.0);
-        assert!(app.has_target("Devices/39") && !app.has_target("Devices/0"));
-        assert_eq!(app.label("Devices/39").as_deref(), Some("Keys 40"));
-        app.scroll(DEVICE_ROWS, 40.0);
-        assert!(app.has_target("Devices/0"));
-    }
+    // The list ends above the card's padding and the status bar, and so do
+    // the rows in sight, with a scroll bar for the rest.
+    let list = app.target(DEVICE_ROWS);
+    assert!(list.bottom() <= app.size().height - STATUS_BAR_HEIGHT - PAGE_PADDING - CARD_PADDING, "{list:?}");
+    let rows = rows(&app);
+    assert!(rows.len() > 5 && rows.len() < 40, "{}", rows.len());
+    assert!(rows.iter().all(|row| row.bottom() <= list.bottom()), "{rows:?}");
+    assert!(app.has_target("Devices/ScrollBar"));
+    // The wheel scrolls to the last row, and back.
+    app.scroll(DEVICE_ROWS, -40.0);
+    assert!(app.has_target("Devices/39") && !app.has_target("Devices/0"));
+    assert_eq!(app.label("Devices/39").as_deref(), Some("Keys 40"));
+    app.scroll(DEVICE_ROWS, 40.0);
+    assert!(app.has_target("Devices/0"));
 }
 
 #[test]
@@ -332,34 +366,30 @@ fn real_device(nodes: usize) -> Headless<Demo> {
 #[test]
 fn a_tooltip_stays_in_the_window_off_the_pointer() {
     for nodes in [1, 5, 9] {
-        for fullscreen in [false, true] {
-            let mut app = real_device(nodes);
-            app.set_fullscreen(fullscreen);
-            let size = app.size();
-            for row in rows(&app) {
-                for pointer in [Point::new(row.x + 1.0, row.center().y), Point::new(row.right() - 1.0, row.center().y)] {
-                    let (_, area) = rest(&mut app, pointer).unwrap();
-                    // The program's part of the window, under the
-                    // PerfBar.
-                    let top = PERF_BAR_HEIGHT;
-                    assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= top, "{nodes} nodes, {pointer:?}: {area:?}");
-                    // A deep device's tooltip, though wider than WinUI's, can
-                    // be taller than the maximized window. Then it starts at
-                    // the top of the program's part of it.
-                    if area.height <= size.height - top - SPACE_S * 2.0 {
-                        assert!(area.bottom() <= size.height, "{nodes} nodes, {pointer:?}: {area:?}");
-                    } else {
-                        assert_eq!(area.y, top + SPACE_S, "{nodes} nodes, {pointer:?}: {area:?}");
-                    }
-                    // Above the pointer, or under it if there's no room
-                    // above. A tooltip with room on neither side covers it.
-                    let room = |space: f32| area.height + TOOLTIP_OFFSET + SPACE_S <= space;
-                    if room(pointer.y - top) || room(size.height - pointer.y) {
-                        assert!(pointer.y < area.y || pointer.y > area.bottom(), "{nodes} nodes, {pointer:?}: {area:?}");
-                    }
-                    if room(pointer.y - top) {
-                        assert!(area.bottom() < pointer.y, "{nodes} nodes, {pointer:?}: {area:?}");
-                    }
+        let mut app = real_device(nodes);
+        let size = app.size();
+        for row in rows(&app) {
+            for pointer in [Point::new(row.x + 1.0, row.center().y), Point::new(row.right() - 1.0, row.center().y)] {
+                let (_, area) = rest(&mut app, pointer).unwrap();
+                // The program's part of the window, under the PerfBar.
+                let top = PERF_BAR_HEIGHT;
+                assert!(area.x >= 0.0 && area.right() <= size.width && area.y >= top, "{nodes} nodes, {pointer:?}: {area:?}");
+                // A deep device's tooltip, though wider than WinUI's, can be
+                // taller than the window. Then it starts at the top of the
+                // program's part of it.
+                if area.height <= size.height - top - SPACE_S * 2.0 {
+                    assert!(area.bottom() <= size.height, "{nodes} nodes, {pointer:?}: {area:?}");
+                } else {
+                    assert_eq!(area.y, top + SPACE_S, "{nodes} nodes, {pointer:?}: {area:?}");
+                }
+                // Above the pointer, or under it if there's no room above. A
+                // tooltip with room on neither side covers it.
+                let room = |space: f32| area.height + TOOLTIP_OFFSET + SPACE_S <= space;
+                if room(pointer.y - top) || room(size.height - pointer.y) {
+                    assert!(pointer.y < area.y || pointer.y > area.bottom(), "{nodes} nodes, {pointer:?}: {area:?}");
+                }
+                if room(pointer.y - top) {
+                    assert!(area.bottom() < pointer.y, "{nodes} nodes, {pointer:?}: {area:?}");
                 }
             }
         }
@@ -375,29 +405,25 @@ fn a_long_value_wraps_in_its_tooltip() {
     // making the tooltip as wide, which is wider than WinUI's, so that every
     // detail fits in the window's height.
     assert!(area.width > user_interface::controls::TOOLTIP_MAX_WIDTH && area.width <= game_input_demo::cards::DEVICE_TOOLTIP_WIDTH, "{area:?}");
-    assert!(area.bottom() <= user_interface::tokens::MAXIMIZED_HEIGHT, "{area:?}");
+    assert!(area.bottom() <= WINDOW_HEIGHT, "{area:?}");
 }
 
 #[test]
-fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
+fn every_widget_fits_in_the_window_in_both_themes() {
     for theme in [ThemeKind::Light, ThemeKind::Dark] {
-        for fullscreen in [false, true] {
-            let mut app = Headless::with_theme(Demo::scripted(0.1), theme);
-            for id in 1..=3 {
-                let step_text = format!(r#"{{ "Connect": {{ "Id": {id}, "Name": "Pad {id}", "Input": ["Gamepad"] }} }}"#);
-                step(&mut app, &step_text);
-            }
-            app.set_fullscreen(fullscreen);
-            open(&mut app);
-            let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-            for target in app.ui.targets().iter().filter(|target| target.listed) {
-                let rect = target.rect;
-                assert!(
-                    rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= WINDOW_WIDTH && rect.bottom() <= height,
-                    "{} is at {rect:?}, outside the window",
-                    target.name
-                );
-            }
+        let mut app = Headless::with_theme(Demo::scripted(0.1), theme);
+        for id in 1..=3 {
+            let step_text = format!(r#"{{ "Connect": {{ "Id": {id}, "Name": "Pad {id}", "Input": ["Gamepad"] }} }}"#);
+            step(&mut app, &step_text);
+        }
+        open(&mut app);
+        for target in app.ui.targets().iter().filter(|target| target.listed) {
+            let rect = target.rect;
+            assert!(
+                rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= WINDOW_WIDTH && rect.bottom() <= WINDOW_HEIGHT,
+                "{} is at {rect:?}, outside the window",
+                target.name
+            );
         }
     }
 }

@@ -158,11 +158,12 @@ the user held keys and buttons across them:
 
 So for keyboards and mice, GameInput does what its documentation promises: programs need nothing
 of their own for gaining and losing focus. For gamepads it reports the state, and the library's
-interface ignores a gamepad's buttons held as focus comes until they're let go of, as
+reader ignores a gamepad's buttons held as focus comes until they're let go of, as
 GameInputDemo's masks do. Both go by the readings' timestamps, so a reading from before the
 window got focus is input without it even if it comes in a later frame. As focus goes, the
-interface lets go of everything held on that frame, keys with a release like mouse buttons,
-whichever comes first of GameInput's readings at rest and the window's focus change.
+reader lets go of everything held on that frame, keys with a release like mouse buttons,
+whichever comes first of GameInput's readings at rest and the window's focus change, and the
+interface never hears of focus itself.
 `Test/UserInterface/tests/reader.rs` and `Test/GameInputDemo/tests/input.rs` pin these, with
 readings shaped like GameInput's: a key held as focus goes is released once, and counts again once
 it's pressed with focus back, like an Alt+Tab away, a click back and an Alt+F4, and a gamepad
@@ -298,11 +299,42 @@ number of readings, not a time: at the 7,500 a second that background input off 
 about 70 ms. A frame that took longer, like one that waited on the GPU, would miss the readings
 that left the history, a button's tap among them.
 
-So the library also registers GameInput's reading callback, which GameInput calls for every
-reading as it comes, on its own thread, and which queues them. Each frame still walks the history
-right before the frame, as how promptly the callback comes wasn't measured, and hands out the
-readings of both, each once, oldest first. `Test/UserInterface/tests/reader.rs` pins how the two
-are merged.
+The library walks GameInput's stream as Microsoft's documentation and its GameInputSequential
+sample do, and keeps the stream's order, which is the order the input happened in. Each frame
+walks it once, filtered to gamepad, keyboard and mouse input together, from the last reading it
+handed out, with `GetNextReading`, until `GAMEINPUT_E_READING_NOT_FOUND` says there's nothing
+newer. The reading objects are where the walk is: GameInput's readings are singletons, which
+compare by pointer, while two readings can have the same timestamp. A frame that took longer than
+the history lasts loses its place. Microsoft's sample starts the one device that it walks over
+from its newest reading; KGames starts over from the history's start, and hands out every reading
+in it after the last one handed out, in the stream's order, after the newest reading of each
+device that has none left in it, unless it already has. So only the readings that left the history
+are lost, and no device keeps what it held before them, like a key that was let go of in them.
+KGames accepts that loss, for keeping GameInput's own order, and doesn't register a reading
+callback, which Microsoft's documentation offers for event-driven input, like a menu, without
+promising that it gets every reading. The first frame starts the same way, so every device's state
+is known from the start. Until the process has its first reading, `GetCurrentReading` gives a
+reading that isn't in the history, a device's state at rest, from which `GetNextReading` fails with
+`GAMEINPUT_E_REFERENCE_READING_TOO_OLD`, as measured with GameInput 4.0.306, so each frame starts
+over until then, and loses nothing. `Test/UserInterface/tests/reader.rs` pins the walk.
+
+The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
+`positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
+says, has nothing to do with the screen. Each reading with relative positions is the motion of its
+difference from that mouse's last such reading, in the stream's order, which the interface moves
+the pointer by, times `MOUSE_SENSITIVITY`. The pointer starts in the middle of the window with the
+mice's first input, and carries on from where it was after that, focus or not.
+
+Microsoft's documentation says that the sum counts only the motion that the program gets while it
+has focus. Measured with GameInput 4.0.306, with input that `SendInput` injected, it doesn't: the
+sum went on counting motion, and the wheels' sums turns, while the program didn't have focus. And
+as focus went, GameInput gave every mouse a reading at rest whose sums were all 0 and that had no
+positions. So the reader takes motion and turns only from readings with relative positions, and
+each mouse starts over as focus goes: its first reading after focus comes back only says where its
+sums are, and what moved in another program never counts.
+While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
+goes to a window beside it, and the interface draws the pointer. `absolutePositionX` and
+`absolutePositionY`, which a pen or a touch screen may give, aren't read.
 
 ## What changed in KGames
 
@@ -321,6 +353,11 @@ are merged.
 | `1dff548` | Keys are released as focus goes, and readings from before focus count as without it, if late too     |
 | `403e053` | GameInputDemo describes a run of motion once, from its last reading, not every reading               |
 | `0242783` | A reading callback queues every reading, as the history held only 513 of a gamepad's                 |
+| `316f6a1` | Each frame walks GameInput's stream once, in its order, with no callback, sorting or timestamp key   |
+| `f372be4` | `RegisterReadingCallback` unbound                                                                    |
+| `74ed8a8` | A frame that loses its place starts every device over from its newest reading                        |
+| `6b6f913` | GameInputDemo puts the window's focus changes among its readings by their times                      |
+| `25dd7d2` | The pointer moves by GameInput's mice alone, in the stream's order, and Windows' cursor is hidden    |
 
 What was considered and not done:
 
@@ -350,13 +387,15 @@ What was considered and not done:
   directly.
 - **Whether GameInput's reading of a gamepad as focus comes always has a timestamp from before the
   window's focus change.** It did the five times logged, 2.4 to 40 ms before the frame that saw the
-  change. A reading that comes in a later frame is still from before focus by its timestamp, but
-  if its timestamp were ever after the window's focus change, a button held as focus came would
-  count as a press.
+  change, when the window timed focus changes as it handled `WM_SETFOCUS`. A reading that comes in
+  a later frame is still from before focus by its timestamp, but if its timestamp were ever after
+  the window's focus change, a button held as focus came would count as a press. The window now
+  times a focus change when the main loop sees the foreground change, and a probe that checked the
+  foreground without sleeping saw GameInput's readings at rest as focus went stamped 1.4 ms after
+  it saw the change, three times out of three, with GameInput 4.0.306, so a gamepad's reading as
+  focus comes may well be stamped after it too. Only a real gamepad can tell.
 - **The Android mode**, which wasn't measured.
 - **How fresh readings are with background input off**, which wasn't measured.
-- **How promptly GameInput's reading callback comes** after a reading reaches the history, which
-  wasn't measured, so the library walks the history too.
 - **What GameInput does with keys held as focus comes on other keyboards**, which only one keyboard
   showed.
 

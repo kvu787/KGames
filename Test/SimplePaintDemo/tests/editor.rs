@@ -1,6 +1,6 @@
 // What input does to SimplePaintDemo's editor, through the cards' real
 // layout, which user_interface::Headless builds without a window or a GPU,
-// and where the cards go at both supported window heights.
+// and where the cards go in the supported window.
 
 use std::path::{Path, PathBuf};
 
@@ -9,7 +9,7 @@ use simple_paint_demo::cards::PREVIEW_WIDTH;
 use simple_paint_demo::demo::Demo;
 use simple_paint_demo::editor::{self, Command, SETTINGS};
 use simple_paint_demo::preview::{CopyPlace, IMAGE_HEIGHT, IMAGE_WIDTH, copy_place};
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Rect, Settings, Severity, Startup, slider_rail};
 use windows_api::D3D12_BOX;
 
@@ -96,15 +96,16 @@ fn a_press_on_a_setting_s_row_selects_it() {
     assert_eq!(app.program.editor.parameters, Parameters::default(), "a press on the name changes nothing");
 }
 
+// A release ends a drag, like the one that the reader gives as the window
+// loses focus.
 #[test]
-fn losing_focus_ends_a_drag() {
+fn a_release_ends_a_drag() {
     let mut app = demo(Parameters::default(), nowhere());
     let half = along(&app, "Shift", 0.5);
     app.press_point(half);
     assert_eq!(app.program.editor.dragging, Some(4));
-    app.focus(false);
+    app.release();
     assert_eq!(app.program.editor.dragging, None);
-    app.focus(true);
     let far = along(&app, "Shift", 0.9);
     app.move_point(far);
     assert_eq!(app.program.editor.parameters.shift, 0.5);
@@ -187,17 +188,14 @@ fn the_sliders_take_no_keyboard_focus_so_the_arrows_stay_the_editor_s() {
 #[test]
 fn keys_and_their_modifiers_make_commands() {
     let command = editor::command;
-    assert_eq!(command(Key::UP, false, Modifiers::NONE), Some(Command::Select(-1)));
-    assert_eq!(command(Key::DOWN, true, Modifiers::SHIFT), Some(Command::Select(1)));
-    // Holding an arrow repeats it.
-    assert_eq!(command(Key::RIGHT, true, Modifiers::NONE), Some(Command::Nudge(1.0)));
-    assert_eq!(command(Key::LEFT, false, Modifiers::SHIFT), Some(Command::Nudge(-10.0)));
-    assert_eq!(command(Key::LEFT, false, Modifiers::CONTROL), None);
-    // Ctrl+S saves, but holding it doesn't save again.
-    assert_eq!(command(Key::S, false, Modifiers::CONTROL), Some(Command::Save));
-    assert_eq!(command(Key::S, true, Modifiers::CONTROL), None);
-    assert_eq!(command(Key::S, false, Modifiers::NONE), None);
-    assert_eq!(command(Key::S, false, Modifiers::CONTROL_SHIFT), None);
+    assert_eq!(command(Key::UP, Modifiers::NONE), Some(Command::Select(-1)));
+    assert_eq!(command(Key::DOWN, Modifiers::SHIFT), Some(Command::Select(1)));
+    assert_eq!(command(Key::RIGHT, Modifiers::NONE), Some(Command::Nudge(1.0)));
+    assert_eq!(command(Key::LEFT, Modifiers::SHIFT), Some(Command::Nudge(-10.0)));
+    assert_eq!(command(Key::LEFT, Modifiers::CONTROL), None);
+    assert_eq!(command(Key::S, Modifiers::CONTROL), Some(Command::Save));
+    assert_eq!(command(Key::S, Modifiers::NONE), None);
+    assert_eq!(command(Key::S, Modifiers::CONTROL_SHIFT), None);
 }
 
 #[test]
@@ -339,8 +337,8 @@ fn any_input_leaves_a_valid_material() {
 }
 
 #[test]
-fn the_cards_fit_both_window_heights() {
-    let maximized = demo(Parameters::default(), nowhere());
+fn the_cards_fit_the_window() {
+    let app = demo(Parameters::default(), nowhere());
     let names = |app: &Headless<Demo>| -> Vec<String> {
         app.ui.targets().iter().filter(|target| target.listed).map(|target| target.name.clone()).collect()
     };
@@ -349,34 +347,24 @@ fn the_cards_fit_both_window_heights() {
     for setting in &SETTINGS {
         expected.extend([format!("Setting/{}", setting.name), setting.name.to_string()]);
     }
-    assert_eq!(names(&maximized), expected);
-    for fullscreen in [false, true] {
-        let mut app = demo(Parameters::default(), nowhere());
-        app.set_fullscreen(fullscreen).frame();
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        for name in names(&app) {
-            let area = app.target(&name);
-            assert!(area.x >= PREVIEW_WIDTH && area.right() <= WINDOW_WIDTH && area.bottom() <= height, "{name}: {area:?}");
-            // The layout doesn't depend on the height above the status bar.
-            assert_eq!(area, maximized.target(&name), "{name}");
-        }
-        // The view fills the preview card, and the sphere's image fills the
-        // view: the whole image in fullscreen, and its middle maximized.
-        let view = app.program.view.get().unwrap();
-        assert_eq!(view.width, IMAGE_WIDTH as f32);
-        assert_eq!(view.height, IMAGE_HEIGHT as f32 - if fullscreen { 0.0 } else { FULLSCREEN_HEIGHT - MAXIMIZED_HEIGHT });
-        let place = copy_place(view, [WINDOW_WIDTH as u32, height as u32]).unwrap();
-        let box_size = [place.source.right - place.source.left, place.source.bottom - place.source.top];
-        assert_eq!(place.destination, [view.x as u32, view.y as u32]);
-        assert_eq!(box_size, [view.width as u32, view.height as u32]);
+    assert_eq!(names(&app), expected);
+    for name in names(&app) {
+        let area = app.target(&name);
+        assert!(area.x >= PREVIEW_WIDTH && area.right() <= WINDOW_WIDTH && area.bottom() <= WINDOW_HEIGHT, "{name}: {area:?}");
     }
+    // The view fills the preview card, and the sphere's whole image fills
+    // the view.
+    let view = app.program.view.get().unwrap();
+    assert_eq!((view.width, view.height), (IMAGE_WIDTH as f32, IMAGE_HEIGHT as f32));
+    let place = copy_place(view, [WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32]).unwrap();
+    let box_size = [place.source.right - place.source.left, place.source.bottom - place.source.top];
+    assert_eq!(place.destination, [view.x as u32, view.y as u32]);
+    assert_eq!(box_size, [view.width as u32, view.height as u32]);
     // Every card's text fits, with a long message from Save.
-    for fullscreen in [false, true] {
-        let mut app = demo(Parameters::default(), folder("Fit").join("A folder with a long name to save in").join("Paint.json"));
-        app.key_with(Modifiers::CONTROL, Key::S).set_fullscreen(fullscreen);
-        assert!(app.program.editor.status.as_ref().is_some_and(|(_, failed)| *failed));
-        assert_eq!(*app.program.overflow.borrow(), Vec::<&str>::new(), "cards whose content didn't fit, fullscreen {fullscreen}");
-    }
+    let mut app = demo(Parameters::default(), folder("Fit").join("A folder with a long name to save in").join("Paint.json"));
+    app.key_with(Modifiers::CONTROL, Key::S).frame();
+    assert!(app.program.editor.status.as_ref().is_some_and(|(_, failed)| *failed));
+    assert_eq!(*app.program.overflow.borrow(), Vec::<&str>::new(), "cards whose content didn't fit");
 }
 
 #[test]
@@ -386,7 +374,7 @@ fn the_image_s_middle_goes_in_the_view_inside_the_frame() {
     let whole = copy_place(Rect::new(32.0, 120.0, 1152.0, 1239.0), [2560, 1440]).unwrap();
     assert_eq!(whole.source, D3D12_BOX { left: 0, top: 0, front: 0, right: 1152, bottom: 1239, back: 1 });
     // A shorter one takes its middle.
-    let middle = copy_place(Rect::new(32.0, 120.0, 1152.0, 1139.0), [2560, 1369]).unwrap();
+    let middle = copy_place(Rect::new(32.0, 120.0, 1152.0, 1139.0), [2560, 1440]).unwrap();
     assert_eq!((middle.destination, middle.source.top, size(middle)), ([32, 120], 50, [1152, 1139]));
     // A bigger one has the image in its middle.
     let centered = copy_place(Rect::new(0.0, 0.0, 1352.0, 1439.0), [2560, 1440]).unwrap();

@@ -23,7 +23,7 @@ use crate::design::tokens::{BODY, ELEVATION_TOOLTIP, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::drawing::text::TextStyle;
-use crate::widgets::widget::{Elevation, Reaction, StateColors, react};
+use crate::widgets::widget::{Elevation, Reaction, StateColors, WheelRemainder, react};
 
 pub struct Slider<M> {
     value: f64,
@@ -48,10 +48,6 @@ pub fn slider_rail(rect: Rect) -> (f32, f32) {
     let track = rect.bottom_strip(SLIDER_HEIGHT);
     (track.x + SLIDER_THUMB_SIZE / 2.0, track.right() - SLIDER_THUMB_SIZE / 2.0)
 }
-
-// Turns of the wheel that haven't added up to a step yet.
-#[derive(Default)]
-struct WheelRemainder(f32);
 
 // Rounds away the noise of floating-point steps.
 fn tidy(value: f64) -> f64 {
@@ -198,10 +194,7 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             }
             // Parts of notches add up, and a value between steps goes to the
             // next step the way the wheel turns, never back.
-            let remainder = &mut ctx.memory::<WheelRemainder>().0;
-            *remainder += hit.wheel.y;
-            let notches = remainder.trunc();
-            *remainder -= notches;
+            let notches = ctx.memory::<WheelRemainder>().notches(hit.wheel.y);
             if notches != 0.0 {
                 let direction = (notches as f64) * span.signum();
                 let current = match self.step {

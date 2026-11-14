@@ -1,10 +1,9 @@
 // Describes the demo's cards from the editor's state, with
 // Library/UserInterface's widgets, and what the input on each one means.
-// Programs support two client areas, 2560 x 1369 maximized and 2560 x 1440
-// in borderless fullscreen, so the cards have fixed places in pixels. Of the
-// 71 pixels that borderless fullscreen adds to the height, the preview and
-// the GPU constants card get all of them, as each is at the bottom of its
-// column.
+// Programs support one client area, 2560 x 1440 in borderless fullscreen,
+// so the cards have fixed places in pixels. The preview and the GPU
+// constants card get what's left of the height, as each is at the bottom of
+// its column.
 //
 // The preview card has a view in it, which the demo's render fills with the
 // sphere before the interface draws over the rest of the frame.
@@ -66,7 +65,6 @@ fn status_bar(ui: &mut Ui) -> Vec<Status> {
         Status::shortcut("Ctrl+S", "Save to Paint.json"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
-        Status::shortcut("F11", "Fullscreen"),
         Status::Spacer,
         Status::text(environment.gpu.clone()),
         Status::text(display.trim().to_string()),

@@ -9,8 +9,8 @@
 // what it does:
 //
 //     let mut app = Headless::new(program);
-//     app.click("Save").key(Key::F11);
-//     assert!(app.fullscreen());
+//     app.click("Save").key(Key::F10);
+//     assert!(!app.vertical_sync());
 //
 // The frame shows all that the input did: a click's press opens a popup
 // whose items the next input can point at, and a message's every effect is
@@ -23,13 +23,13 @@ use crate::application::program::{Program, Startup};
 use crate::core::interface::{Interface, Request};
 use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
-use crate::design::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use crate::design::tokens::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
-use crate::input::events::Event;
-use crate::testing::gestures::{self, Frames};
+use crate::input::events::{Event, FrameInput, moved_pointer};
+use crate::testing::gestures::{self, Frames, Made};
 use crate::testing::script::DEFAULT_FRAME_TIME;
 
 pub struct Headless<P: Program> {
@@ -38,20 +38,19 @@ pub struct Headless<P: Program> {
     // The tree the last frame showed, which the next frame's input is on.
     shown: Option<Tree<P::Message>>,
     frame: u64,
-    fullscreen: bool,
     pending: Vec<Event>,
     // Messages a test sends, applied in the next frame before the input's.
     sent: Vec<P::Message>,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
-    // A window of a size other than the supported setups', like a test's of
+    // A window of a size other than the supported setup's, like a test's of
     // the unsupported setup.
     custom_size: Option<Size>,
     closed: bool,
 }
 
 impl<P: Program> Headless<P> {
-    // The program in a maximized window that has focus, in the light theme.
+    // The program, in the light theme, in the supported setup.
     pub fn new(program: P) -> Self {
         Self::with_theme(program, ThemeKind::Light)
     }
@@ -63,8 +62,7 @@ impl<P: Program> Headless<P> {
             ui: Interface::new(fonts, theme),
             shown: None,
             frame: 0,
-            fullscreen: false,
-            pending: vec![Event::FocusGained(Vec::new())],
+            pending: Vec::new(),
             sent: Vec::new(),
             gamepad: Gamepad::default(),
             renderer: None,
@@ -101,17 +99,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn size(&self) -> Size {
-        self.custom_size
-            .unwrap_or_else(|| Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT }))
-    }
-
-    pub fn fullscreen(&self) -> bool {
-        self.fullscreen
-    }
-
-    pub fn set_fullscreen(&mut self, fullscreen: bool) -> &mut Self {
-        self.fullscreen = fullscreen;
-        self.run_frame()
+        self.custom_size.unwrap_or(Size::new(WINDOW_WIDTH, WINDOW_HEIGHT))
     }
 
     // Whether frames would wait for vertical sync, which a test's frames
@@ -129,8 +117,10 @@ impl<P: Program> Headless<P> {
         self.frame
     }
 
+    // The frames' deltas added up, as Ui::time has them: a 60th of a second
+    // a frame, but for those of frame_input.
     pub fn time(&self) -> f64 {
-        self.frame as f64 * DEFAULT_FRAME_TIME
+        self.ui.time()
     }
 
     // How many messages the last frame applied, counting those that
@@ -140,16 +130,19 @@ impl<P: Program> Headless<P> {
     }
 
     fn run_frame(&mut self) -> &mut Self {
+        self.run_frame_of(DEFAULT_FRAME_TIME)
+    }
+
+    fn run_frame_of(&mut self, delta: f64) -> &mut Self {
         self.frame += 1;
         let mut events = std::mem::take(&mut self.pending);
         events.push(Event::Gamepad(self.gamepad));
         let sent = std::mem::take(&mut self.sent);
         let size = self.size();
-        let time = self.time();
-        self.ui.frame(&mut self.program, &mut self.shown, &events, sent, time, size, self.fullscreen);
+        let input = FrameInput { delta, events };
+        self.ui.frame(&mut self.program, &mut self.shown, &input, sent, size);
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
-                Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
                 // The environment already switched when the request was
                 // made, so the frame that asked says the new setting; a
                 // window would switch its presenter here.
@@ -163,6 +156,14 @@ impl<P: Program> Headless<P> {
     // Runs a frame with whatever input is pending.
     pub fn frame(&mut self) -> &mut Self {
         self.run_frame()
+    }
+
+    // Runs a frame with the input as it is, its delta and its events, after
+    // whatever input is pending, like a frame at 100 a second, or a long
+    // one.
+    pub fn frame_input(&mut self, input: FrameInput) -> &mut Self {
+        self.pending.extend(input.events);
+        self.run_frame_of(input.delta)
     }
 
     pub fn frames(&mut self, count: usize) -> &mut Self {
@@ -224,12 +225,38 @@ impl<P: Program> Headless<P> {
         self.ui.pointer().unwrap_or(Point::ZERO)
     }
 
-    // Runs a frame for each of a gesture's frames, with its events.
+    // Where the pointer will be once the input queued for the next frame
+    // moves it.
+    fn queued_pointer(&self) -> Option<Point> {
+        let size = self.size();
+        self.pending.iter().fold(self.ui.pointer(), |pointer, event| match event {
+            Event::MouseMoved { x, y } => Some(moved_pointer(pointer, *x, *y, size)),
+            Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_) => Some(pointer.unwrap_or_else(|| moved_pointer(None, 0.0, 0.0, size))),
+            _ => pointer,
+        })
+    }
+
+    // Queues made-up input for the next frame: moves of the pointer become
+    // the mice's motion that takes it there.
+    fn queue_made(&mut self, made: Vec<Made>) {
+        let events = gestures::events(made, self.queued_pointer(), self.size());
+        self.pending.extend(events);
+    }
+
+    // Runs a frame for each of a gesture's frames, with its input.
     fn play(&mut self, gesture: Frames) -> &mut Self {
-        for events in gesture {
-            self.pending.extend(events);
+        for made in gesture {
+            self.queue_made(made);
             self.run_frame();
         }
+        self
+    }
+
+    // Queues the mice's motion that moves the pointer to the point, from
+    // where the input queued before it leaves it, without running the frame,
+    // for a test's own events around it, like a press.
+    pub fn queue_move(&mut self, point: Point) -> &mut Self {
+        self.queue_made(vec![Made::PointTo(point)]);
         self
     }
 
@@ -240,7 +267,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn move_point(&mut self, point: Point) -> &mut Self {
-        self.send(&[Event::PointerMoved(point)])
+        self.play(vec![vec![Made::PointTo(point)]])
     }
 
     // Presses the left button on the widget, and holds it.
@@ -318,16 +345,11 @@ impl<P: Program> Headless<P> {
 
     // Presses the key and holds it, until release_key.
     pub fn hold(&mut self, key: Key) -> &mut Self {
-        self.send(&[Event::KeyPressed { key, repeat: false }])
+        self.send(&[Event::KeyPressed(key)])
     }
 
     pub fn release_key(&mut self, key: Key) -> &mut Self {
         self.send(&[Event::KeyReleased(key)])
-    }
-
-    // A held key's repeat, as Windows sends while it stays down.
-    pub fn repeat(&mut self, key: Key) -> &mut Self {
-        self.send(&[Event::KeyPressed { key, repeat: true }])
     }
 
     // Sends the events as they are, all in one frame.
@@ -344,9 +366,12 @@ impl<P: Program> Headless<P> {
         self
     }
 
-    // Types the text, all in one frame.
+    // Types the text, all in one frame, with the keys that type it on a US
+    // keyboard: each character's key, with Shift if it needs it, and a Shift
+    // that the test holds still held after. A character that no key types
+    // fails the test.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
-        let typed: Vec<Event> = text.chars().map(Event::Text).collect();
+        let typed = gestures::type_text(text, self.ui.input().key_down(Key::SHIFT)).unwrap_or_else(|error| panic!("{error}"));
         self.send(&typed)
     }
 
@@ -355,9 +380,21 @@ impl<P: Program> Headless<P> {
         self.run_frame()
     }
 
-    // Gives the window focus, or takes it away.
-    pub fn focus(&mut self, focused: bool) -> &mut Self {
-        self.send(&[if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost }])
+    // Takes the pointer away, as a window's frames do while it doesn't keep
+    // Windows' cursor, like once focus went or F1 let it go, or brings it
+    // back, and runs a frame.
+    pub fn pointer_away(&mut self, away: bool) -> &mut Self {
+        self.ui.set_pointer_away(away);
+        self.run_frame()
+    }
+
+    // Draws the pointer, as a window's frames do while it keeps Windows'
+    // cursor, which a test's frames don't, so that what they draw is what a
+    // script captures, or stops drawing it, as a window's frames do once it
+    // lets the cursor go.
+    pub fn draw_pointer(&mut self, draws: bool) -> &mut Self {
+        self.ui.draws_pointer = draws;
+        self.run_frame()
     }
 
     // Draws the last frame offscreen, as the window would, with the

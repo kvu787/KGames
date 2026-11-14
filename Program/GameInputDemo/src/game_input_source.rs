@@ -1,7 +1,8 @@
 // Devices and readings from GameInput, as Library/UserInterface reads them
 // for every program: once a frame, right before the frame, with every reading
-// since the last one. The demo shows the same readings that the interface
-// makes its events from, and runs gamepads' motors through the library.
+// since the last one, in the order of GameInput's stream. The demo shows the
+// same readings that the interface makes its events from, and runs gamepads'
+// motors through the library.
 //
 // input.rs keeps each device's last reading itself, to say what changed.
 
@@ -17,10 +18,11 @@ use crate::devices::{Device, InputSource, Reading};
 pub struct GameInputSource {
     devices: Rc<RefCell<Devices>>,
     runtime: Runtime,
-    // The last frame whose device events, and whose readings of each kind,
-    // were handed out, so that each is handed out once.
+    // The last frame whose device events, readings and focus changes were
+    // handed out, so that each is handed out once.
     events_frame: u64,
-    readings_frames: Vec<(GameInputKind, u64)>,
+    readings_frame: u64,
+    focus_frame: u64,
     // Every device seen, with its node in Windows' device tree, which is
     // looked up once.
     described: Vec<Device>,
@@ -39,7 +41,8 @@ impl GameInputSource {
             devices,
             runtime,
             events_frame: 0,
-            readings_frames: Vec::new(),
+            readings_frame: 0,
+            focus_frame: 0,
             described: Vec::new(),
         }
     }
@@ -91,15 +94,27 @@ impl InputSource for GameInputSource {
             .collect()
     }
 
-    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading> {
+    // The library's devices say, with the times of their focus changes.
+    fn focus(&mut self) -> (bool, bool) {
+        (self.devices.borrow().focused(), false)
+    }
+
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
         let devices = self.devices.borrow();
-        let frame = devices.frame();
-        match self.readings_frames.iter_mut().find(|(known, _)| *known == kind) {
-            Some((_, taken)) if *taken == frame => return Vec::new(),
-            Some((_, taken)) => *taken = frame,
-            None => self.readings_frames.push((kind, frame)),
+        if devices.frame() == self.focus_frame {
+            return Vec::new();
         }
-        devices.readings(kind).to_vec()
+        self.focus_frame = devices.frame();
+        devices.focus_changes().to_vec()
+    }
+
+    fn readings(&mut self) -> Vec<Reading> {
+        let devices = self.devices.borrow();
+        if devices.frame() == self.readings_frame {
+            return Vec::new();
+        }
+        self.readings_frame = devices.frame();
+        devices.readings().to_vec()
     }
 
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {

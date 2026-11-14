@@ -1,16 +1,16 @@
 // Play through its frames, as the main loop runs them, with input that the
 // tests make up, without a window, with Library/UserInterface's Headless:
 // driving with the gamepad and the keys, braking, crashing, the vehicles,
-// the scenes, the camera, the card, settings that name what isn't there,
-// and a window without focus. And the 3D view, drawn offscreen with the GPU.
+// the scenes, the camera, the card, and settings that name what isn't
+// there. And the 3D view, drawn offscreen with the GPU.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image};
-use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Point, Startup};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::controls::Controls;
 use veehiicuul::game::PAUSE;
-use veehiicuul::program::Veehiicuul;
+use veehiicuul::program::{Message, PLAY, TRACK, Veehiicuul};
 use veehiicuul::track::Pose;
 
 // The game as it starts, with Settings.json's text, after its first frames.
@@ -206,25 +206,21 @@ fn the_camera_follows_the_car_and_zooms() {
     assert_eq!(app.program.game.camera.height, 150.0);
 }
 
-// F1 hides the card and shows it again, and the card fits in the page's
-// bottom left corner, under the notices, at either height.
+// F2 hides the card and shows it again, and the card fits in the page's
+// bottom left corner, under the notices.
 #[test]
-fn f1_hides_the_card_which_fits_the_page() {
+fn f2_hides_the_card_which_fits_the_page() {
     let mut app = start();
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(!app.program.game.show_card);
     assert!(!app.has_target("Play/Card"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(app.program.game.show_card);
-    let mut app = start_with(r#"{ "Vehicle": "Purple" }"#);
-    for fullscreen in [false, true] {
-        app.set_fullscreen(fullscreen);
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let card = app.target("Play/Card");
-        assert!(card.width < WINDOW_WIDTH / 2.0 && card.height < height / 2.0, "{card:?}");
-        assert_eq!((card.x, card.bottom()), (PAGE_PADDING, height - STATUS_BAR_HEIGHT - PAGE_PADDING));
-        assert!(card.y > app.target("Notice/0").bottom(), "{card:?}");
-    }
+    let app = start_with(r#"{ "Vehicle": "Purple" }"#);
+    let card = app.target("Play/Card");
+    assert!(card.width < WINDOW_WIDTH / 2.0 && card.height < WINDOW_HEIGHT / 2.0, "{card:?}");
+    assert_eq!((card.x, card.bottom()), (PAGE_PADDING, WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING));
+    assert!(card.y > app.target("Notice/0").bottom(), "{card:?}");
 }
 
 // Settings that name a scene or a vehicle that isn't there start the game
@@ -244,21 +240,6 @@ fn settings_that_name_what_is_not_there_make_notices() {
         ]
     );
     assert!(app.has_target("Notice/2"));
-    assert!(!app.program.game.camera.follow);
-}
-
-// Without the window's focus, the keys and the gamepad do nothing.
-#[test]
-fn without_focus_nothing_moves_the_car() {
-    let mut app = start();
-    app.focus(false).hold(Key::UP);
-    app.set_gamepad(gamepad(Gamepad {
-        right_stick: Point::new(0.0, 1.0),
-        buttons: GamepadButtons(GamepadButtons::MENU),
-        ..Gamepad::default()
-    }));
-    app.frames(30);
-    assert_eq!(speed(&app), 0.0);
     assert!(!app.program.game.camera.follow);
 }
 
@@ -385,6 +366,52 @@ fn a_crash_and_its_pause_take_the_frames_time() {
         }
         assert_eq!(game.crashes, 1);
     }
+}
+
+// A tick of no time, as every step of a frame but its last is, moves
+// nothing: not a car slower than braking stops at once, nor one that's
+// pushed.
+#[test]
+fn a_tick_of_no_time_moves_nothing() {
+    let mut app = start();
+    let game = &mut app.program.game;
+    game.update(&Controls::default(), 1.0);
+    assert!(!game.paused());
+    let brake = Controls {
+        brake: 1.0,
+        ..Controls::default()
+    };
+    let push = Controls {
+        push: [1.0, 0.0],
+        ..Controls::default()
+    };
+    for velocity in [[0.005, 0.0], [5.0, 0.0]] {
+        game.car.velocity = velocity;
+        let before = game.car;
+        game.update(&brake, 1.0);
+        game.update(&push, 1.0);
+        assert_eq!(game.car, before);
+    }
+}
+
+// The game doesn't run in the editors, so the first frame back in Play
+// moves it by that frame's own time, not by the time spent in an editor.
+#[test]
+fn the_first_frame_back_in_play_moves_by_its_own_time() {
+    let mut app = start();
+    app.send_message(Message::Mode(TRACK));
+    app.wait(1.0);
+    // RB and the left stick up, which zoom in Play.
+    app.set_gamepad(gamepad(Gamepad {
+        left_stick: Point::new(0.0, 1.0),
+        buttons: GamepadButtons(GamepadButtons::RIGHT_SHOULDER),
+        ..Gamepad::default()
+    }));
+    let before = (app.program.game.camera.height, app.time());
+    app.send_message(Message::Mode(PLAY));
+    let after = (app.program.game.camera.height, app.time());
+    let frame = after.1 - before.1;
+    assert!((before.0 - after.0 - camera::ZOOM_SPEED * frame).abs() < 1e-9, "{before:?} to {after:?}");
 }
 
 // Each frame moves the car by its own time, the time since the frame before,

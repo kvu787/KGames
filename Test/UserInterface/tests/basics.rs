@@ -1,11 +1,11 @@
 // Tests the library's parts that need no window: geometry, colors, easing,
-// the design system's values, keys, how events fold into a frame's input,
-// settings, the command line, and text layout.
+// the design system's values, keys, how a frame's events come in steps and
+// fold into each step's input, settings, the command line, and text layout.
 
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
 use user_interface::json::{self, Value};
-use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Startup, Theme, ThemeKind, WindowMode};
+use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Size, Startup, Theme, ThemeKind};
 
 #[test]
 fn rectangles_cut_into_strips_and_columns() {
@@ -102,10 +102,10 @@ fn elevations_follow_themeshadows_recipe() {
 
 #[test]
 fn keys_have_names_that_parse_back() {
-    for key in [Key::A, Key::F11, Key::LEFT, Key::SPACE, Key::ENTER, Key::ESCAPE, Key(b'7'), Key::PAGE_DOWN, Key::DELETE] {
+    for key in [Key::A, Key::F12, Key::LEFT, Key::SPACE, Key::ENTER, Key::ESCAPE, Key(b'7'), Key::PAGE_DOWN, Key::DELETE] {
         assert_eq!(Key::parse(&key.name()), Some(key), "{}", key.name());
     }
-    assert_eq!(Key::parse("f11"), Some(Key::F11));
+    assert_eq!(Key::parse("f12"), Some(Key::F12));
     assert_eq!(Key::parse("Nope"), None);
     assert_eq!(Shortcut::parse("Ctrl+S"), Some(Shortcut::new(Modifiers::CONTROL, Key::S)));
     assert_eq!(Shortcut::parse("Ctrl+Shift+Z"), Some(Shortcut::new(Modifiers::CONTROL_SHIFT, Key::Z)));
@@ -116,7 +116,8 @@ fn keys_have_names_that_parse_back() {
 #[test]
 fn events_fold_into_a_frame_of_input() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::PointerMoved(Point::new(5.0, 5.0)), Event::ButtonPressed(MouseButton::Left)]);
+    input.resize(Size::new(100.0, 100.0));
+    input.begin(0.0, &[Event::MouseMoved { x: 5.0, y: 5.0 }, Event::ButtonPressed(MouseButton::Left)]);
     assert!(input.button_pressed(MouseButton::Left) && input.button_down(MouseButton::Left));
     assert_eq!(input.clicks(MouseButton::Left), 1);
     input.begin(0.1, &[Event::ButtonReleased(MouseButton::Left)]);
@@ -124,18 +125,60 @@ fn events_fold_into_a_frame_of_input() {
     // A second press, soon and close by, is a double-click.
     input.begin(0.2, &[Event::ButtonPressed(MouseButton::Left)]);
     assert_eq!(input.clicks(MouseButton::Left), 2);
-    // Without focus there's no input, and losing it lets go of everything,
-    // with a release.
-    input.begin(0.3, &[Event::KeyPressed { key: Key::W, repeat: false }, Event::FocusLost, Event::KeyPressed { key: Key::A, repeat: false }]);
-    assert!(input.focus_lost && !input.key_down(Key::W) && !input.key_down(Key::A) && !input.button_down(MouseButton::Left));
-    assert!(input.key_released(Key::W) && input.button_released(MouseButton::Left));
-    // Keys held when focus comes count once they're let go of.
-    input.begin(0.4, &[Event::FocusGained(vec![Key::ALT]), Event::KeyPressed { key: Key::ALT, repeat: true }]);
-    assert!(!input.key_down(Key::ALT));
-    input.begin(0.5, &[Event::KeyReleased(Key::ALT), Event::KeyPressed { key: Key::ALT, repeat: false }]);
+    // A release of what isn't held, which the reader never gives, changes
+    // nothing.
+    input.begin(0.3, &[Event::ButtonReleased(MouseButton::Left), Event::KeyReleased(Key::ALT)]);
+    assert!(input.button_released(MouseButton::Left) && !input.key_released(Key::ALT));
+    input.begin(0.4, &[Event::ButtonReleased(MouseButton::Left)]);
+    assert!(!input.button_released(MouseButton::Left));
+    input.begin(0.5, &[Event::KeyPressed(Key::ALT)]);
     assert!(input.key_down(Key::ALT));
-    input.begin(0.6, &[Event::KeyPressed { key: Key::CONTROL, repeat: false }, Event::KeyPressed { key: Key::S, repeat: false }]);
+    input.begin(0.6, &[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
     assert!(input.shortcut_pressed(Shortcut::new(Modifiers::new(true, false, true), Key::S)));
+}
+
+// A frame's events come in steps, which the interface handles one at a time,
+// each on the state the steps before it left. A step ends with an event that
+// does something, and the moves before it are its own. A key's press and the
+// text it types are two steps, as Win32's WM_KEYDOWN and WM_CHAR are. Moves
+// of the pointer after the frame's last such event are a step of their own,
+// and moves of only the gamepad's sticks are the last step's.
+#[test]
+fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
+    use user_interface::{Gamepad, GamepadButtons};
+    let stick = Gamepad {
+        connected: true,
+        left_stick: Point::new(0.5, 0.0),
+        ..Gamepad::default()
+    };
+    let holding_a = Gamepad {
+        buttons: GamepadButtons(GamepadButtons::A),
+        ..stick
+    };
+    let pressed = |key: Key| Event::KeyPressed(key);
+    let mut input = Input::default();
+    let events = [
+        Event::MouseMoved { x: 1.0, y: 1.0 },
+        Event::ButtonPressed(MouseButton::Left),
+        pressed(Key::A),
+        Event::Gamepad(stick),
+        Event::KeyReleased(Key::A),
+        Event::MouseMoved { x: 2.0, y: 2.0 },
+    ];
+    let steps = input.steps(&events);
+    assert_eq!(steps, [&events[0..2], &events[2..3], &events[3..5], &events[5..6]]);
+    let events = [Event::ButtonReleased(MouseButton::Left), Event::Gamepad(stick)];
+    assert_eq!(input.steps(&events), [&events[..]]);
+    // A change of the gamepad's buttons does something, and a move of its
+    // sticks while they're held doesn't.
+    let moved = Gamepad {
+        left_stick: Point::new(0.9, 0.0),
+        ..holding_a
+    };
+    let events = [Event::Gamepad(holding_a), Event::Gamepad(moved), Event::Gamepad(stick)];
+    assert_eq!(input.steps(&events), [&events[0..1], &events[1..3]]);
+    // A frame without events is one step.
+    assert_eq!(input.steps(&[]), [&[] as &[Event]]);
 }
 
 #[test]
@@ -166,7 +209,7 @@ fn a_missing_settings_file_is_written_with_the_defaults() {
 }
 
 #[test]
-fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
+fn the_settings_every_program_has_start_its_display_theme_and_vertical_sync() {
     let read = |text: &str| {
         let mut settings = Settings::from_text(text);
         (CommonSettings::read(&mut settings), settings.problems().to_vec())
@@ -174,18 +217,16 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
     let (defaults, problems) = read("{}");
     let light = CommonSettings {
         display: "Primary".to_string(),
-        window_mode: WindowMode::WindowedMaximized,
         vertical_sync: true,
         theme: ThemeKind::Light,
     };
     assert_eq!((defaults, problems.len()), (light.clone(), 0));
     // Words ignore case.
-    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "WindowMode": "borderlessfullscreen", "VerticalSync": false, "Theme": "dark" }"#);
+    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "VerticalSync": false, "Theme": "dark" }"#);
     assert_eq!(
         dark,
         CommonSettings {
             display: "CVVNY2".to_string(),
-            window_mode: WindowMode::BorderlessFullscreen,
             vertical_sync: false,
             theme: ThemeKind::Dark,
         }
@@ -199,10 +240,6 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
     let (wrong, problems) = read(r#"{ "Theme": true }"#);
     assert_eq!(wrong.theme, ThemeKind::Light);
     assert_eq!(problems, ["Theme must be \"Light\" or \"Dark\", not true, so it's the default."]);
-    // The window mode that was called Maximized is WindowedMaximized.
-    let (old, problems) = read(r#"{ "WindowMode": "Maximized" }"#);
-    assert_eq!(old.window_mode, WindowMode::WindowedMaximized);
-    assert_eq!(problems, ["WindowMode must be \"WindowedMaximized\" or \"BorderlessFullscreen\", not \"Maximized\", so it's the default."]);
 }
 
 #[test]
@@ -216,7 +253,7 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     startup.settings.boolean("Own", false);
     startup.settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    let expected = "{\n  \"Display\": \"Primary\",\n  \"WindowMode\": \"WindowedMaximized\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Own\": false\n}\n";
+    let expected = "{\n  \"Display\": \"Primary\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }
@@ -239,7 +276,7 @@ fn every_programs_settings_file_has_the_settings_every_program_has() {
         let mut settings = Settings::from_text(&text);
         CommonSettings::read(&mut settings);
         assert!(settings.problems().is_empty(), "{}: {:?}", path.display(), settings.problems());
-        for name in ["Display", "WindowMode", "VerticalSync", "Theme"] {
+        for name in ["Display", "VerticalSync", "Theme"] {
             assert!(members.iter().any(|(member, _)| member == name), "{} doesn't have {name}", path.display());
         }
     }
@@ -255,29 +292,28 @@ fn vsync_arguments_override_the_setting_only_when_given() {
     assert_eq!(parse(&["--no-vsync", "--vsync"]), Some(true));
 }
 
-// RunInBackground starts every program with --vsync, --theme Light and
-// --window-mode WindowedMaximized, so that its scripts and screenshots start
-// the same way whatever the program's Settings.json says.
+// RunInBackground starts every program with --vsync and --theme Light, so
+// that its scripts and screenshots start the same way whatever the
+// program's Settings.json says.
 #[test]
-fn the_command_line_overrides_the_theme_window_mode_and_vertical_sync_settings() {
+fn the_command_line_overrides_the_theme_and_vertical_sync_settings() {
     let parse = |arguments: &[&str]| Arguments::parse(arguments.iter().map(|argument| argument.to_string()), &[]);
     let started = |arguments: &[&str]| {
-        let settings = r#"{ "Theme": "Dark", "WindowMode": "BorderlessFullscreen", "VerticalSync": false }"#;
+        let settings = r#"{ "Theme": "Dark", "VerticalSync": false }"#;
         let mut startup = Startup::for_tests(settings, &std::env::temp_dir());
         parse(arguments).unwrap().override_settings(&mut startup.common);
         let common = startup.common;
-        (common.theme, common.window_mode, common.vertical_sync)
+        (common.theme, common.vertical_sync)
     };
-    assert_eq!(started(&[]), (ThemeKind::Dark, WindowMode::BorderlessFullscreen, false));
-    let run_in_background = ["--vsync", "--theme", "Light", "--window-mode", "WindowedMaximized"];
-    assert_eq!(started(&run_in_background), (ThemeKind::Light, WindowMode::WindowedMaximized, true));
+    assert_eq!(started(&[]), (ThemeKind::Dark, false));
+    let run_in_background = ["--vsync", "--theme", "Light"];
+    assert_eq!(started(&run_in_background), (ThemeKind::Light, true));
     // Words ignore case, and the last one says, so RunInBackground's
     // --arguments, after its own, can say otherwise.
-    assert_eq!(started(&["--theme", "light", "--theme", "DARK", "--window-mode", "windowedmaximized"]), (ThemeKind::Dark, WindowMode::WindowedMaximized, false));
+    assert_eq!(started(&["--theme", "light", "--theme", "DARK"]), (ThemeKind::Dark, false));
     assert_eq!(parse(&["--theme", "Blue"]).unwrap_err(), "--theme takes Light or Dark, not Blue.");
-    assert_eq!(parse(&["--window-mode", "Maximized"]).unwrap_err(), "--window-mode takes WindowedMaximized or BorderlessFullscreen, not Maximized.");
     assert_eq!(parse(&["--theme"]).unwrap_err(), "--theme needs a value after it.");
-    assert!(parse(&["--light"]).unwrap_err().contains("--theme <Light or Dark>, --window-mode <WindowedMaximized or BorderlessFullscreen>"));
+    assert!(parse(&["--light"]).unwrap_err().contains("--theme <Light or Dark>, and --script <path> with --output <folder>"));
 }
 
 #[test]
@@ -329,7 +365,7 @@ mod readme {
 
         fn view(&self, ui: &mut Ui) -> Tree<Message> {
             let mut tree = Tree::new();
-            let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+            let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F10", "VSync")]));
             tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
                 let mut area = area.content;
                 let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Level);
@@ -346,8 +382,8 @@ mod readme {
         app.frame();
         app.click("Mute");
         assert_eq!(app.program.level, 0.0);
-        app.key(Key::F11);
-        assert!(app.fullscreen());
+        app.key(Key::F10);
+        assert!(!app.vertical_sync());
     }
 }
 

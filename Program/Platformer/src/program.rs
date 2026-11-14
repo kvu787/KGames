@@ -1,7 +1,8 @@
 // The platformer as a Program, which Library/UserInterface's main loop runs.
-// A frame's input is one message: the controls, which the game turns into
-// a step by the frame's time and events, drained to quiescence before the
-// frame's view.
+// Each step of a frame's input is one message: the step's controls, which
+// the game turns into its one-off actions, a step by the time since the step
+// before, which only the frame's last step has, and events, drained to
+// quiescence before the step's view.
 // The app bar goes between the unlocked levels and starts a run over, and
 // the cards show the run and the events as they happen.
 
@@ -15,11 +16,11 @@ use crate::level;
 use crate::progress::{self, Progress};
 use crate::NAME;
 
-// What a frame's input means.
+// What a step of a frame's input means.
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Once a frame: the frame's controls, which move the game on by the
-    // frame's time.
+    // Once a step: the step's controls, which move the game on by the
+    // step's `ui.delta()`, the frame's time in its last step, and 0 before.
     Tick(Controls),
     // The app bar: a level to go to, and starting the run over.
     GoLevel(usize),
@@ -28,6 +29,11 @@ pub enum Message {
 
 pub struct Platformer {
     pub game: Game,
+    // The game's clock: the last frame's time in a frame's steps before its
+    // last, and the frame's time in its last, which has the frame's delta,
+    // so that the game moves once a frame, by the frame's delta, after the
+    // frame's input.
+    clock: f64,
 }
 
 impl Platformer {
@@ -46,6 +52,7 @@ impl Platformer {
         };
         Platformer {
             game: Game::new(levels, progress, save_path),
+            clock: 0.0,
         }
     }
 }
@@ -63,7 +70,12 @@ impl Program for Platformer {
 
     fn update(&mut self, message: Message, ui: &mut Context<Message>) {
         match message {
-            Message::Tick(controls) => self.game.update(&controls, ui.time()),
+            Message::Tick(controls) => {
+                if ui.last_step() {
+                    self.clock = ui.time();
+                }
+                self.game.update(&controls, self.clock);
+            }
             Message::GoLevel(level) => self.game.go_to_level(level),
             Message::Restart => self.game.restart(),
         }

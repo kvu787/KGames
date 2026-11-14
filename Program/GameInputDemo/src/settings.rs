@@ -3,7 +3,6 @@
 //
 //     {
 //       "Display": "Primary",
-//       "WindowMode": "WindowedMaximized",
 //       "VerticalSync": true,
 //       "Theme": "Light",
 //       "RumbleTestInnerDeadZone": 0.1

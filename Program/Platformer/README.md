@@ -44,8 +44,9 @@ frame rate.
 
 Two consumers can ask for a save in one cascade; the first `SaveProgress`
 writes `Save.json` and the second finds the progress clean, so one cascade
-saves once. A cascade that doesn't settle within 1,000 events in a frame is
-a bug in the graph, and stops the program instead of hiding.
+saves once. A cascade that doesn't settle within 1,000 events in one update,
+a step of a frame's input, is a bug in the graph, and stops the program
+instead of hiding.
 
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,
@@ -72,8 +73,8 @@ The file isn't checked in; delete it for a fresh start.
 | `src/events.rs`   | Every occurrence, as data, with the cascade cap                |
 | `src/game.rs`     | The game: a step a frame, detections, and the drained events   |
 | `src/progress.rs` | Save.json: unlocked levels and best times                      |
-| `src/controls.rs` | The frame's input, from the keyboard and the gamepad           |
-| `src/program.rs`  | The Program: one Tick message a frame, and the app bar's two   |
+| `src/controls.rs` | A step's input, from the keyboard and the gamepad              |
+| `src/program.rs`  | The Program: one Tick message a step, and the app bar's two    |
 | `src/cards.rs`    | The view: the world's canvas, the Run and Events cards, banner |
 
 ## Testing

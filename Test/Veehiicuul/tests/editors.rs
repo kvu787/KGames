@@ -9,15 +9,15 @@
 use std::path::PathBuf;
 
 use user_interface::json::Value;
-use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Startup};
 use veehiicuul::curve;
 use veehiicuul::program::{PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
 use veehiicuul::scene_editor::Picked;
 use veehiicuul::vehicle_editor::SHOWN_HEADING;
 
-// The window's size, maximized, which the views fill.
-const SIZE: [f32; 2] = [WINDOW_WIDTH, MAXIMIZED_HEIGHT];
+// The window's size, which the views fill.
+const SIZE: [f32; 2] = [WINDOW_WIDTH, WINDOW_HEIGHT];
 // The middle of the window, which is in the editors' view, right of the
 // card and under the app bar.
 const MIDDLE: Point = Point::new(SIZE[0] / 2.0, SIZE[1] / 2.0);
@@ -76,35 +76,30 @@ fn the_tabs_go_between_play_and_the_editors() {
     assert!(app.program.game.car.speed() > 0.0);
 }
 
-// Every editor's controls are in its cards, above the status bar, at either
-// height, even the scene editor's with a decoration picked, which shows its
-// model's paint.
+// Every editor's controls are in its cards, above the status bar, even the
+// scene editor's with a decoration picked, which shows its model's paint.
 #[test]
 fn the_editors_controls_fit_in_their_cards() {
-    for fullscreen in [false, true] {
-        let mut app = start("Fit");
-        app.set_fullscreen(fullscreen);
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let bottom = height - STATUS_BAR_HEIGHT - PAGE_PADDING - CARD_PADDING;
-        for label in ["Scene", "Terrain", "Track", "Vehicles"] {
-            app.click(&format!("Mode/{label}"));
-            if label == "Scene" {
-                app.click("Scene/Objects/0");
-                assert_eq!(app.program.scene_editor.picked, Some(Picked::Decoration(0)));
+    let mut app = start("Fit");
+    let bottom = WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING - CARD_PADDING;
+    for label in ["Scene", "Terrain", "Track", "Vehicles"] {
+        app.click(&format!("Mode/{label}"));
+        if label == "Scene" {
+            app.click("Scene/Objects/0");
+            assert_eq!(app.program.scene_editor.picked, Some(Picked::Decoration(0)));
+        }
+        for target in app.ui.targets().iter().filter(|target| target.listed) {
+            let area = target.rect;
+            if target.name.ends_with("/View") || area.y < PERF_BAR_HEIGHT + APP_BAR_HEIGHT {
+                continue;
             }
-            for target in app.ui.targets().iter().filter(|target| target.listed) {
-                let area = target.rect;
-                if target.name.ends_with("/View") || area.y < PERF_BAR_HEIGHT + APP_BAR_HEIGHT {
-                    continue;
-                }
-                assert!(
-                    area.x >= PAGE_PADDING + CARD_PADDING
-                        && area.right() <= WINDOW_WIDTH - PAGE_PADDING - CARD_PADDING
-                        && area.bottom() <= bottom,
-                    "{label}: {} is at {area:?}",
-                    target.name
-                );
-            }
+            assert!(
+                area.x >= PAGE_PADDING + CARD_PADDING
+                    && area.right() <= WINDOW_WIDTH - PAGE_PADDING - CARD_PADDING
+                    && area.bottom() <= bottom,
+                "{label}: {} is at {area:?}",
+                target.name
+            );
         }
     }
 }
@@ -254,7 +249,7 @@ fn a_track_with_a_problem_says_so() {
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(app.has_target("Play/Problem"));
     let card = app.target("Play/Card");
-    assert!(card.y > PERF_BAR_HEIGHT + APP_BAR_HEIGHT && card.bottom() == MAXIMIZED_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING, "{card:?}");
+    assert!(card.y > PERF_BAR_HEIGHT + APP_BAR_HEIGHT && card.bottom() == WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING, "{card:?}");
     app.click("Mode/Track");
     assert!(app.has_target("Track/Problem/0") && !app.has_target("Track/Problem/1"));
     let state = app.state();

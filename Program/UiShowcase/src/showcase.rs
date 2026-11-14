@@ -205,7 +205,6 @@ impl Showcase {
             "Dark theme" => self.toggle_theme(ui),
             "Tooltips" => self.toggle_tooltips(),
             "VSync" => ui.toggle_vertical_sync(),
-            "Fullscreen" => ui.toggle_fullscreen(),
             "Ask a question" => self.dialog_open = true,
             "Pinned" => self.pinned = !self.pinned,
             _ => {}
@@ -227,7 +226,7 @@ impl Program for Showcase {
     // when it changes.
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let mut messages = Vec::new();
-        if ui.key_pressed(Key::F1) {
+        if ui.key_pressed(Key::F2) {
             messages.push(Message::ToggleTooltips);
         }
         if ui.shortcut(Modifiers::CONTROL, Key::R) {

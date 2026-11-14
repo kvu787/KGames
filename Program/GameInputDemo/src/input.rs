@@ -19,10 +19,11 @@ use crate::devices::{Device, InputSource, Reading};
 use crate::scripted_source::ScriptedSource;
 
 const LOG_CAPACITY: usize = 200;
-// Virtual-key codes of the demo's own shortcuts. F10, which switches vertical
-// sync, and F11, which switches the window to and from fullscreen, are
-// Library/UserInterface's, which reads them from the same readings.
-const KEY_TOGGLE_RUMBLE: u8 = 0x70; // F1
+// Virtual-key codes of the demo's own shortcuts. F9, which switches the
+// theme, and F10, which switches vertical sync, are Library/UserInterface's,
+// which reads them from the same readings, and so are F1, which keeps
+// Windows' cursor or lets it go, and F12, which quits.
+const KEY_TOGGLE_RUMBLE: u8 = 0x72; // F3
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -364,6 +365,8 @@ pub struct Input {
     // When the window last got focus, in the source's clock. Readings from
     // before then are input without focus too, like the click that gave it.
     focus_timestamp: u64,
+    // Whether the window lost focus in this frame, which the update takes.
+    lost: bool,
 }
 
 // A reading that changed something, to log and show on the Latest card.
@@ -578,6 +581,7 @@ impl Input {
             motion: None,
             focused: false,
             focus_timestamp: u64::MAX,
+            lost: false,
         }
     }
 
@@ -592,64 +596,78 @@ impl Input {
         self.source.as_scripted()
     }
 
+    // Whether the window has focus as the frame leaves it, and whether it
+    // lost it since the last frame, as the source says.
+    pub fn source_focus(&mut self) -> (bool, bool) {
+        self.source.focus()
+    }
+
+    // Whether the window has focus, as the last update left it.
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+
     fn seconds(&self, timestamp: u64) -> f64 {
         timestamp.saturating_sub(self.start_timestamp) as f64 / 1_000_000.0
     }
 
-    // `focused` is whether the window has focus. Input is only handled while
-    // it does, see take_reading. A minimized window doesn't have it, so the
-    // demo calls this with false on the frame that restores the window, and
-    // restoring it counts as getting focus.
+    // Says that the window lost focus in this frame, which the next update
+    // takes, even if the window got it back in the same frame.
+    pub fn focus_lost(&mut self) {
+        self.lost = true;
+    }
+
+    // The frame's update, with `focused`, whether the window has focus as the
+    // frame leaves it. Input is only handled while it has focus, see
+    // take_reading. The window's focus changes go among the readings by their
+    // times, as the library's reader puts them, when the source says when
+    // they were. A source that doesn't, like a script's, changes focus at
+    // the frame's time: losing it before the frame's readings, and getting
+    // it after them. A minimized window doesn't have focus, so restoring one
+    // counts as getting it, after losing it.
     pub fn update(&mut self, focused: bool) {
-        if self.focused && !focused {
-            // Keys, buttons and sticks let go of after the window lost focus
-            // are never seen, so stop showing them as held.
-            self.keyboard.keys.clear();
-            self.keyboard.descriptions.clear();
-            self.mouse.state.buttons = 0;
-            let device = self.gamepad.device;
-            self.view_gamepad(device);
-            for rumble in &mut self.rumbles {
-                rumble.sticks = [0.0; 2];
-            }
-        }
+        let lost = std::mem::take(&mut self.lost);
         let now = self.source.now();
-        if !self.focused && focused {
-            self.focus_timestamp = now;
-            // What's held now was pressed without focus.
-            for last in &mut self.last_readings {
-                last.masked = Masked::held(last.kind, &last.reading);
-            }
-        }
-        self.focused = focused;
         self.now = self.seconds(now);
         for (event, device) in self.source.device_events() {
             self.handle_device_event(event, device);
         }
+        let mut changes = self.source.focus_changes().into_iter().peekable();
+        let timed = changes.peek().is_some();
+        if !timed && (lost || !focused) {
+            self.focus_change(now, false);
+        }
 
-        // Gather every new reading of each kind, then handle them all in
-        // timestamp order, so the log interleaves devices correctly.
-        let mut readings = Vec::new();
-        for &(source, kind) in READING_KINDS.iter() {
-            for reading in self.source.readings(kind) {
-                readings.push((source, kind, reading));
+        // Every new reading, in the order the input happened in, as
+        // GameInput's stream has them, so the log interleaves devices as
+        // they were used. A reading with more than one kind of input, like a
+        // keyboard's with a trackball's, is taken as each.
+        for reading in self.source.readings() {
+            while let Some((time, gained)) = changes.next_if(|(time, _)| *time <= reading.timestamp) {
+                self.focus_change(time, gained);
+            }
+            for &(source, kind) in READING_KINDS.iter() {
+                if reading.kinds & kind != 0 {
+                    self.take_reading(source, kind, reading.clone());
+                }
             }
         }
-        readings.sort_by_key(|(_, _, reading)| reading.timestamp);
-        for (source, kind, reading) in readings {
-            self.take_reading(source, kind, reading);
+        for (time, gained) in changes {
+            self.focus_change(time, gained);
+        }
+        // As the frame leaves it, whatever the source said.
+        if self.focused != focused {
+            self.focus_change(now, focused);
         }
         self.end_motion();
 
         self.gamepad.rate.tick(now);
         self.keyboard.rate.tick(self.now);
         self.mouse.rate.tick(self.now);
-        // Without focus, the sticks don't drive the motors.
-        if focused {
-            self.update_rumble();
-        } else {
-            self.stop_rumble();
-        }
+        // Without focus, GameInput turns the motors off itself, and back on
+        // as the demo last asked as focus comes back, so the demo asks
+        // nothing new of them: the sticks aren't read.
+        self.update_rumble();
     }
 
     // The demo listens to the gamepad that connected last, from the first
@@ -818,6 +836,27 @@ impl Input {
             self.mouse = MouseView::default();
         }
         self.log(self.now, Source::Demo, text, None);
+    }
+
+    // The window got or lost focus, at a time on the readings' clock.
+    fn focus_change(&mut self, time: u64, gained: bool) {
+        if gained && !self.focused {
+            self.focused = true;
+            self.focus_timestamp = time;
+            // What's held now was pressed without focus.
+            for last in &mut self.last_readings {
+                last.masked = Masked::held(last.kind, &last.reading);
+            }
+        } else if !gained && self.focused {
+            self.focused = false;
+            // Keys, buttons and sticks let go of after the window lost focus
+            // are never seen, so stop showing them as held.
+            self.keyboard.keys.clear();
+            self.keyboard.descriptions.clear();
+            self.mouse.state.buttons = 0;
+            let device = self.gamepad.device;
+            self.view_gamepad(device);
+        }
     }
 
     // A gamepad's state from its last reading, without what's masked, to
@@ -1191,20 +1230,6 @@ impl Input {
             if params != rumble.sent {
                 self.source.set_rumble(rumble.device, Some(&params));
                 rumble.sent = params;
-            }
-        }
-    }
-
-    // Stops every motor, for while the window doesn't have focus, or is
-    // minimized. Otherwise they would keep running at their last strength,
-    // as the sticks aren't read then. The sticks count as at rest from then
-    // on, so the motors start again only once a stick moves with focus.
-    fn stop_rumble(&mut self) {
-        let off = GameInputRumbleParams::default();
-        for rumble in &mut self.rumbles {
-            if rumble.sent != off {
-                self.source.set_rumble(rumble.device, None);
-                rumble.sent = off;
             }
         }
     }

@@ -3,7 +3,8 @@
 // ring and a slider's thumb; and a color field, a text field for a color's
 // hex code with a swatch of it. Both send the color as the input leaves it.
 
-use crate::core::interaction::{Interaction, Part, Sense};
+use crate::core::interaction::{Cursor, Interaction, Part, Sense};
+use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{COLOR_SLIDER_HEIGHT, COLOR_SLIDER_INNER_THUMB, COLOR_SLIDER_RADIUS, COLOR_SPECTRUM_RING, SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE};
 use crate::design::tokens::{RADIUS_CONTROL, SPACE_L};
@@ -224,6 +225,11 @@ impl<M: Clone + 'static> ColorField<M> {
 impl<M: Clone + 'static> Widget<M> for ColorField<M> {
     fn kind(&self) -> &'static str {
         "ColorField"
+    }
+
+    // A text field's, while the pointer is on it.
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(Cursor::Text)
     }
 
     fn label(&self) -> Option<String> {

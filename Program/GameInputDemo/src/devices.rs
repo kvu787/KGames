@@ -369,10 +369,25 @@ pub trait InputSource {
     // connected, disconnected, or changed.
     fn device_events(&mut self) -> Vec<(GameInputDeviceEvent, Device)>;
 
-    // The readings with this kind of input since the last call, oldest
-    // first. input.rs compares each with the same device's reading before
-    // it, which it keeps itself.
-    fn readings(&mut self, kind: GameInputKind) -> Vec<Reading>;
+    // When the window got or lost focus since the last call, on the readings'
+    // clock, oldest first, if the source says: GameInput's doesn't have the
+    // window's focus, but the library's devices do. None from a source that
+    // doesn't, like a script's.
+    fn focus_changes(&mut self) -> Vec<(u64, bool)> {
+        Vec::new()
+    }
+
+    // Whether the window has focus as the frame leaves it, and whether it
+    // lost it since the last call, even if it got it back, for a source whose
+    // focus changes have no times. The interface never hears of focus, so
+    // the demo asks its source: the library's devices, or a test's or a
+    // script's steps.
+    fn focus(&mut self) -> (bool, bool);
+
+    // The readings since the last call, of every kind, in the order the
+    // input happened in. input.rs compares each with the same device's
+    // reading before it, which it keeps itself.
+    fn readings(&mut self) -> Vec<Reading>;
 
     // Runs a gamepad's motors, or stops them with None.
     fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>);

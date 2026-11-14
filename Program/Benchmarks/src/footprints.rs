@@ -13,8 +13,8 @@ use std::path::Path;
 
 use graphics::{AdapterChoice, Gpu, Offscreen};
 use polygon_mesh::{Mesh, Shading, primitives};
-use user_interface::tokens::{BODY, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Draw, Event, Font, Fonts, Headless, Point, Program, Rect, TextStyle, Tree, Ui, Weight, Widget};
+use user_interface::tokens::{BODY, WINDOW_HEIGHT, WINDOW_WIDTH};
+use user_interface::{Draw, Font, Fonts, Headless, Point, Program, Rect, TextStyle, Tree, Ui, Weight, Widget};
 
 use crate::harness::Budget;
 use crate::interface::{Car, GameInput, Modeler, Racing, Showcase, SimplePaint, Sphere, Subject};
@@ -57,10 +57,10 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Usage {
         step += 1;
         let t = step as f32 * 0.017;
         let x = (t.sin() * 0.5 + 0.5) * WINDOW_WIDTH;
-        let y = ((t * 0.7).cos() * 0.5 + 0.5) * MAXIMIZED_HEIGHT;
-        app.send(&[Event::PointerMoved(Point::new(x, y))]);
+        let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
+        app.move_point(Point::new(x, y));
     })
-    .with_note("2 frames an iteration")
+    .with_note("1 frame an iteration")
 }
 
 // Frames in a row, counted only after the program has run for long enough
@@ -290,13 +290,13 @@ pub fn video(_budget: Budget) -> Report {
         non_local: empty[1].used,
         note: format!("{} MiB of budget", empty[0].budget / (1024 * 1024)),
     });
-    let mut target = Offscreen::new(&gpu, WINDOW_WIDTH as u32, MAXIMIZED_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
+    let mut target = Offscreen::new(&gpu, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
     let base = gpu.video_memory().expect("the GPU's memory");
     video.push(Video {
         name: "memory/gpu/target".to_string(),
         local: base[0].used - empty[0].used,
         non_local: base[1].used.saturating_sub(empty[1].used),
-        note: format!("{} x {} target, over an idle device", WINDOW_WIDTH as u32, MAXIMIZED_HEIGHT as u32),
+        note: format!("{} x {} target, over an idle device", WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
     });
     video.push(drawn(&Showcase, &mut gpu, &mut target));
     video.push(drawn(&SimplePaint, &mut gpu, &mut target));

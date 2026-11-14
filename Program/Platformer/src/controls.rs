@@ -1,5 +1,5 @@
-// What the player does in a frame, from the keyboard and the gamepad, which
-// both do everything:
+// What the player does in a step of a frame's input, from the keyboard and
+// the gamepad, which both do everything:
 //
 // | Gamepad               | Keyboard              | Does                        |
 // | --------------------- | --------------------- | --------------------------- |
@@ -7,7 +7,7 @@
 // | A                     | Space, E, or up       | Jumps; held jumps higher    |
 // | X                     | R                     | Starts the run over         |
 // | LB and RB             | PageDown and PageUp   | The previous and next level |
-// | View                  | F1                    | Shows or hides the cards    |
+// | View                  | F2                    | Shows or hides the cards    |
 //
 // Without the window's focus, the interface has no input at all, so the
 // controls are at rest.
@@ -18,7 +18,7 @@ use user_interface::{GamepadButtons, Key, Ui};
 pub struct Controls {
     // The run, from -1, left, to 1, right.
     pub push: f64,
-    // The jump's press this frame, and whether it's still held.
+    // The jump's press in this step, and whether it's still held.
     pub jump_pressed: bool,
     pub jump_held: bool,
     pub restart: bool,
@@ -34,8 +34,7 @@ impl Controls {
         // Not with Ctrl, which is for shortcuts like Ctrl+S elsewhere.
         let control = input.modifiers().control;
         let held = |keys: &[Key]| !control && keys.iter().any(|&key| ui.key_down(key));
-        // A key's press, not its repeats.
-        let key = |key: Key| ui.key_pressed(key) && input.key_pressed_once(key) && !control;
+        let key = |key: Key| ui.key_pressed(key) && !control;
         let pressed = |button: u32, other: Key| input.gamepad_pressed(button) || key(other);
         let keys = held(&[Key::RIGHT, Key::F]) as i32 - held(&[Key::LEFT, Key::S]) as i32;
         let push = if keys != 0 {
@@ -58,7 +57,7 @@ impl Controls {
                 pressed(GamepadButtons::LEFT_SHOULDER, Key::PAGE_DOWN),
                 pressed(GamepadButtons::RIGHT_SHOULDER, Key::PAGE_UP),
             ),
-            toggle_cards: pressed(GamepadButtons::VIEW, Key::F1),
+            toggle_cards: pressed(GamepadButtons::VIEW, Key::F2),
         }
     }
 }

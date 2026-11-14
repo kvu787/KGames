@@ -41,12 +41,12 @@ RunLightly's job.
 | `ui`             | A frame's update of each GUI program, through `Headless`: steady, with nothing   |
 |                  | changing; moving, with the pointer crossing the page; and the start, from        |
 |                  | nothing to the first frame                                                       |
-| `gpu`            | Drawing the frame with the GPU, into a target the size of the maximized window's |
-|                  | client area, timed with `GpuTimer`'s timestamp queries; and what recording it    |
-|                  | costs the CPU                                                                    |
+| `gpu`            | Drawing the frame with the GPU, into a target the size of the window's client    |
+|                  | area, timed with `GpuTimer`'s timestamp queries; and what recording it costs the |
+|                  | CPU                                                                              |
 | `text`           | DirectWrite through `Fonts`: a layout the cache has, one it doesn't, a wrapped   |
 |                  | one, glyph quads, and rasterizing glyphs the atlas doesn't have                  |
-| `input`          | The input reader turning a frame's readings into events: a 1000 Hz mouse at 60  |
+| `input`          | The input reader turning a frame's readings into events: a 1000 Hz mouse at 60   |
 |                  | frames a second, and a keyboard holding a key                                    |
 | `perfbar`        | The PerfBar's bookkeeping a frame, at 240 frames a second                        |
 | `mesh`           | Catmull-Clark subdivision of a cube and a torus, triangulation, topology, ray    |
@@ -54,7 +54,7 @@ RunLightly's job.
 | `gltf`           | Reading Veehiicuul's models                                                      |
 | `json`           | Parsing and writing a Veehiicuul scene                                           |
 | `math`           | Matrix multiplication and transforming points                                    |
-| `present-timing` | The tracker following a present through Windows' events                         |
+| `present-timing` | The tracker following a present through Windows' events                          |
 
 The GPU is the fastest one, as the tests use, not the one a window's monitor is wired to. Each
 `gpu` iteration waits for the GPU, so the CPU and GPU times are of the same frames.

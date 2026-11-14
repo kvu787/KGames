@@ -5,8 +5,8 @@ without touching the road's edges. It's also where its levels are made: tabs in 
 between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
 program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
 [Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, widgets and design
-system, after Fluent 2, ignores input without focus, and supports the two window setups in
-[Library/UserInterface](../../Library/UserInterface/README.md#window-setups).
+system, after Fluent 2, ignores input without focus, and supports the one window setup in
+[Library/UserInterface](../../Library/UserInterface/README.md#window-setup).
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
 the camera's view of them. The car is the only thing that moves. The ground is flat colors, drawn
@@ -91,10 +91,9 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 |                         |                        | the car                                                  |
 | RB and the left stick   | The wheel, on the view | Zooms, up or away from you to zoom in                    |
 | Y                       | Home                   | Zooms back to the camera's own height                    |
-| View                    | F1                     | Hides or shows the card                                  |
+| View                    | F2                     | Hides or shows the card                                  |
 |                         | F9                     | Switches between the light and dark themes               |
 |                         | F10                    | Switches vertical sync on or off                         |
-|                         | F11                    | Switches between maximized and borderless fullscreen     |
 
 There's no steering wheel, mass or grip. The player pushes the car toward where they want it
 to go, and it speeds up that way, at its vehicle's rates, in units per second per second:
@@ -216,13 +215,12 @@ The tests in `Test/Veehiicuul` check, without a window: driving; what touches; c
 shapes and what's wrong with them, cutting the road's islands out, and the ground's meshes;
 hexels, brushes and fills; the models from Blender, the vehicles, the settings, and that the
 files write back as they were; Play through its frames, with Library/UserInterface's `Headless`,
-and its card, which fits the page at either height, under notices about the settings; the
-editors through their frames, with presses and drags in their real layout: the tabs, that every
-editor's controls fit in its cards at either height, that only text fields keep keyboard focus,
-color fields, painting hexels, panning and zooming the view, moving, adding and deleting control
-points, a track's problems, dragging a footprint's side, renaming a vehicle, picking and moving a
-decoration, undo, and saving; and, with the GPU, offscreen, that the 3D view draws the scene
-under the interface.
+and its card, which fits the page, under notices about the settings; the editors through their
+frames, with presses and drags in their real layout: the tabs, that every editor's controls fit
+in its cards, that only text fields keep keyboard focus, color fields, painting hexels, panning
+and zooming the view, moving, adding and deleting control points, a track's problems, dragging a
+footprint's side, renaming a vehicle, picking and moving a decoration, undo, and saving; and,
+with the GPU, offscreen, that the 3D view draws the scene under the interface.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Gamepad`

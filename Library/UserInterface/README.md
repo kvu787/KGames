@@ -9,14 +9,18 @@ and runs scripts and headless tests. [UiShowcase](../../Program/UiShowcase/READM
 widget.
 
 A program is its state, what each frame's input means to it, and a description of its interface
-from that state. Each frame, the main loop reads the newest input and hit-tests it against the tree
-the user saw; the widgets it landed on turn it into the program's messages, and the program's
-`input` adds its own, like shortcuts; `update` applies each message to the state, in order, each
-seeing what the one before left; and one read-only `view` builds the frame's tree of widgets from
-the state, which is laid out, drawn and presented. So everything a frame's input causes shows on
-that same frame, and nothing is retained between frames but the program's state and what only a
-widget needs, like a text field's caret or a list's scroll, which the library keeps by the widget's
-name.
+from that state. Each frame, the main loop reads the newest input and takes it in steps, in the
+order it happened, one for each event that does something, like a press, a key or the wheel, so
+that each event sees the state that the ones before it left, as a Win32 window's messages do. Each
+step hit-tests its input against the tree that the step before laid out, which for the frame's
+first step is the tree the user saw; the widgets it landed on turn it into the program's messages,
+and the program's `input` adds its own, like shortcuts; `update` applies each message to the state,
+in order, each seeing what the one before left; and a read-only `view` builds the step's tree of
+widgets from the state, which is laid out for the next step. The last step's tree is drawn and
+presented. So a second click in a frame lands on the menu that the first one opened, everything a
+frame's input causes shows on that same frame, and nothing is retained between frames but the
+program's state and what only a widget needs, like a text field's caret or a list's scroll, which
+the library keeps by the widget's name.
 
 ## A program
 
@@ -49,7 +53,7 @@ impl Program for Volume {
 
     fn view(&self, ui: &mut Ui) -> Tree<Message> {
         let mut tree = Tree::new();
-        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F10", "VSync")]));
         tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
             let mut area = area.content;
             let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Set);
@@ -67,8 +71,8 @@ fn main() -> std::process::ExitCode {
 }
 ```
 
-`run` reads `Settings.json` and the command line, opens the window on the chosen display, creates
-the program, and runs the main loop until the window closes. A program can also draw 3D: its
+`run` reads `Settings.json` and the command line, creates the program, opens the window on the
+chosen display, and runs the main loop until the window closes. A program can also draw 3D: its
 `prepare` creates GPU resources once, and its `render` records commands into each frame, after
 the frame is cleared to the theme's background and before the interface draws over it, where a
 card made with `card_with_view` leaves a hole.
@@ -77,21 +81,36 @@ card made with `card_with_view` leaves a hole.
 | -------------- | ----------------------------------------------------------------------------- |
 | `Message`      | What a frame's input means to the program; `Clone`, and usually an enum       |
 | `title`        | The window's title                                                            |
-| `input`        | The program's own messages from the frame's input, like shortcuts or a tick,  |
-|                | queued after the widgets'                                                     |
+| `input`        | The program's own messages from a step's input, like shortcuts or a tick,     |
+|                | queued after the widgets', once a step                                        |
 | `update`       | Applies one message to the program's state, with the `Context` to send more,  |
 |                | ask the time, or close the window                                             |
-| `view`         | Describes the frame's interface from the state, read-only, as a `Tree` of     |
-|                | widgets                                                                       |
+| `view`         | Describes the interface from the state, read-only, as a `Tree` of widgets,    |
+|                | once a step                                                                   |
 | `prepare`      | Creates the program's GPU resources, once                                     |
 | `render`       | Draws the program's 3D views into the frame, under the interface              |
-| `may_close`    | Whether the window may close now, or asks first, like about unsaved work      |
 | `state`        | What scripts save and check, as a JSON object                                 |
 | `script`       | Does a script's `Program` step, like connecting a made-up device              |
 
-A message sent from `update`, with `Context::send`, joins the same frame's queue. A per-frame
-message from `input`, queued last, is the place for what runs after everything else, like
+A message sent from `update`, with `Context::send`, joins the same step's queue. A message that
+`input` sends every step, queued last, is the place for what runs after everything else, like
 committing an edit once the button is up, or rebuilding what a 3D view shows.
+
+A frame's input is a `FrameInput`: its delta, the seconds since the frame before, and its events,
+in the order they happened, which is all that the interface and programs get of the devices and the
+clock. Every step of a frame sees the frame's time, `ui.time()`, the frames' deltas added up, so an
+event's time doesn't hang on what follows it in the frame. The frame's delta, `ui.delta()`, comes
+in its last step, after its
+events, and is 0 in the steps before it, so a simulation that `input` ticks every step, and moves
+by `ui.delta()`, moves once a frame, by the frame's time, with every event of the frame applied
+before it moves. A simulation that keeps a clock of its own takes `ui.time()` in the frame's last
+step, as Platformer's and Veehiicuul's do, so that it moves by exactly the frame's delta. That holds
+only if a tick of no time moves nothing: a simulation skips its step when no time passed, and still
+takes the step's one-off presses, like a jump, as Platformer does. `ui.last_step()` says whether a
+step is its frame's last, for what a program does once a frame, after all of its input, like
+reading the devices' readings itself, as GameInputDemo does. A frame without input, or with one
+event that does something, like a press or a key, is one step, like most frames. A key's press and
+the text it types are one step.
 
 ## The design system
 
@@ -199,11 +218,17 @@ All input comes from [GameInput](../GameInput/README.md): keyboards, mice and ga
 program needs GameInput 4.0.306 installed, as that README says, and doesn't start without it, not
 even in a scripted run or with `--no-input`, which don't read it. `platform/input_devices.rs`
 reads every device's readings once a frame, right before the frame, and `input/reader.rs` turns
-them into the interface's events, in the order they happened, with the window's focus changes
-between them. The window's messages bring none of it. Each frame walks GameInput's history of
-readings, for the freshest, and takes the ones that GameInput's reading callback queued, as the
-history keeps only about 512 readings, under a tenth of a second of a gamepad's, so that a long
-frame misses none.
+them into the interface's events, with the window's focus changes among them. The window's
+messages bring none of it. GameInput puts every device's readings in one stream, in the order the
+input happened in, and each frame walks it as Microsoft's documentation and its GameInputSequential
+sample do: from the last reading it handed out, with `GetNextReading`, until there's nothing newer.
+So a frame hands out every reading since the last one once, in the stream's order, which nothing
+after it changes: the readings aren't sorted, merged or told apart by their times, which GameInput
+says can't tell readings apart. GameInput's history is short, about 513 readings, about 70 ms of a
+gamepad that reads thousands of times a second, so a frame that takes longer than that loses its
+place, and starts over from the history's start, after the newest reading of each device that has
+none left in it. Only the readings that left the history are lost, and no device keeps what it
+held before them, like a key let go of in them.
 
 The library leaves GameInput's background input off, as it is by default, so GameInput gives a
 program input only while it has focus. On, it would give input without focus too, but GameInput
@@ -216,76 +241,134 @@ none after that. As focus comes back, it doesn't report keys or mouse buttons th
 before, but reports gamepads' whole state, their held buttons too.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
-  and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
-  and dead keys, but no IME. A held key repeats at Windows' keyboard delay and rate.
-- The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
-  moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
-  window's.
-- The pointer is on the topmost target under it, in the tree the user saw, so a combo box's
-  list, a menu or a dialog takes the pointer from what's under it. A card, and `Cover`, cover
+  and the right. A held key doesn't repeat: GameInput's readings don't, and KGames doesn't make
+  repeats of its own.
+- Typed text is ASCII, which the interface makes from the keys with a fixed table of a US keyboard,
+  in `input/typing.rs`, whatever Windows' keyboard layout is: the letters, the digits, space and the
+  punctuation, each with its form under Shift, and the numpad's digits and operators. It has no
+  Caps Lock, no accents and no IME, and a key held with Ctrl or Alt types nothing. A key's press
+  and the text it types are one step.
+- The mouse's buttons, wheels and motion come from mice, the motion as `Event::MouseMoved`, in
+  GameInput's counts. The pointer is the interface's, as SDL's relative mode keeps one: it starts
+  in the middle of the window with the mice's first event, and carries on from where it is after
+  that, and the motion moves it, its counts times `MOUSE_SENSITIVITY` in `input/events.rs`, in
+  parts of a pixel, worked out in f64, inside the window, in the events' order, so a press lands
+  where the pointer was as its button went down, and a key after a move sees the pointer where it
+  went. Only mice's relative motion moves it, not a pen's or a touch screen's absolute positions.
+  Tests and scripts point at places, which become the motion that takes the pointer there from
+  where it is, and lands on the place exactly.
+- While the window has focus and is the foreground window, Windows' cursor is hidden over it and
+  kept inside its client area, as far as it's on the screens, so that no click goes to a window
+  beside it, and the interface draws
+  the pointer over everything, in the shape that the widget under it asks for with
+  `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
+  pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
+  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
+  window starts to keep the cursor only once the click that gave it focus is let go of. `F1`
+  lets the cursor go, where the pointer is, and keeps it again: the window keeps it from the
+  start, and focus going and coming doesn't change what `F1` last chose. While the window doesn't
+  keep the cursor, the mice's input doesn't reach the interface, so the pointer stays where it
+  was, undrawn, and the buttons that the mice pressed are let go of as that starts. The pointer is
+  away then: nothing is under it, no tooltip shows, and the popups that were open close as it
+  goes, though the program never hears why. As it
+  loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
+  goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
+  program that got focus has confined the cursor already, whose confinement the window leaves
+  alone, or the window is minimized. `platform/cursor.rs` decides all of it, on what Windows says
+  as the main loop checks focus on every pass, and `Test/UserInterface/tests/cursor.rs` tests it.
+  So the windows beside it and the taskbar can't be reached with the mouse while the window has
+  focus: Alt+Tab or the Windows key leave it. A window that's always on top over it, like Task
+  Manager's can be, still gets the clicks under Windows' hidden cursor, which goes its own way
+  inside the client area, apart from the pointer, and `F1` lets the cursor go to reach anything
+  else. A run whose input is a script's, or that has
+  none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
+  makes a test's frames draw it.
+- A device that's unplugged lets go of what it held after the frame's readings, as GameInput
+  doesn't say when it went.
+- The pointer is on the topmost target under it, in the tree that the step's input came on: the
+  tree the user saw, or for a later event in the frame, the tree that the events before it left.
+  So a combo box's list, a menu or a dialog takes the pointer from what's under it, from the very
+  next event after the one that opened it. A card, and `Cover`, cover
   what's under them, like a 3D view.
 - Widgets act on a press, on the frame that the button goes down, and never wait for its release,
   which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
   opens, an item is chosen, and a right press opens a context menu. Sliding off before letting go
   doesn't take a press back. `Hit::pressed` is a left press, and `ViewInput::pressed` is a click
-  in a 3D view. While a button is held, the window captures the
-  mouse, so a drag keeps going past its edges.
+  in a 3D view. The pointer stays inside the window, so a drag ends only with its release.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
-  and a press anywhere else takes it away, once the field has taken what was typed in that frame.
+  and a press anywhere else takes it away, once the field has taken what was typed before it.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
   it, and Enter takes what's typed in a number box or a color field, which goes if the field loses
   focus first.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.
-- `ui.key_pressed`, `ui.key_pressed_once` and `ui.shortcut` are for programs' shortcuts. They
+- `ui.key_pressed` and `ui.shortcut` are for programs' shortcuts. They
   don't see the keys that a text field with focus takes - every key without Ctrl - or any while
-  a dialog is open - from the very frame it opens, for checks after it.
-  `ui.input()` has all of the frame's input, for programs that read keys themselves, like for
-  driving.
-- Without focus, the window has no input at all, including the gamepad's. As focus goes,
-  everything held is let go of on that frame: keys and mouse buttons are released, the gamepad
-  goes to rest, and `ui.input().focus_lost` says why. The click that gives it focus does only
-  that, and keys and gamepad buttons held when it gets focus count once they're let go of:
-  GameInput doesn't report the keys and the click, and the interface ignores the gamepad's held
-  buttons until they're let go of. A reading from before the window got focus is input without
-  it, even if GameInput is late with it and it comes in a later frame.
+  a dialog is open - from the very step after the one that opens it, so a key's press after the
+  click that opens a dialog, in the same frame, is the dialog's.
+  `ui.input()` has all of the step's input, for programs that read keys themselves, like for
+  driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
+  its presses in a frame are two.
+- The window's focus isn't input, and a program never hears of it. Without focus, the window
+  has no input at all, including the gamepad's. As focus goes, the reader lets go of everything
+  still held on that step: a release for each key and mouse button whose press the interface
+  got, and the gamepad at rest, so a program sees them let go of, as if the user had, and
+  nothing stays held. GameInput's readings at rest as focus goes may come first, and let go of
+  what they say on their own steps, as any reading does. The click that gives the window focus
+  does only that, and keys and gamepad buttons held when it gets focus count once they're let go
+  of, and their releases are never given: GameInput doesn't report the keys and the click, and
+  the reader ignores the gamepad's held buttons until they're let go of. A reading from before
+  the window got focus is input without it, even if GameInput is late with it and it comes in a
+  later frame. A program that reads GameInput's readings itself, like GameInputDemo, gets the
+  window's focus from `Devices::focused` and `Devices::focus_changes`.
 - `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
-  The frame that `F9` is pressed in is all in the new theme, and the title bar asks for it too,
-  which DWM draws, as its documentation promises while Windows' own dark mode is on. A program's
-  own command for it calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme
-  for the rest of that frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which
-  it is. Every widget, card and color role follows by itself, as long as the program colors with
-  `ui.theme()` each frame.
+  The frame that `F9` is pressed in is all in the new theme. A program's own command for it calls
+  `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
+  frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
+  card and color role follows by itself, as long as the program colors with `ui.theme()` each
+  frame.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
-- `F11` switches between maximized and borderless fullscreen. A program's own command for it calls
-  `ui.toggle_fullscreen()`.
-- `F9`, `F10` and `F11` are the library's in every program, even while a text field has focus or a
+- `F12` quits at once, without asking the program, and so does the taskbar's Close, which sends
+  `WM_CLOSE`, whether the window is minimized, shows the error page, or neither. A program closes
+  itself with `Context::close`, and the steps of its frame after the one that closes don't happen.
+- `F1` and `F12` are the platform's, under the interface: the reader takes them from GameInput's
+  keys, and no program gets them, as presses or releases. The interface stops the program if a
+  frame's events have them, whoever made the events, and a script that presses them says so before
+  it runs.
+- `Alt+F4` is only two keys. Windows' own window shortcuts do nothing in the window, which
+  swallows the system keys' messages, so Alt and F10 don't open the menu's keyboard mode,
+  Alt+Space doesn't open the window's menu, and Windows doesn't close the window on Alt+F4. The
+  shortcuts that Windows handles before any window sees them, like Alt+Tab and the Windows key,
+  stay Windows'.
+- `F9` and `F10` are the library's in every program, even while a text field has focus or a
   dialog is open, so a program mustn't also use them for something else.
-- With `Options::gamepad`, the newest reading of any gamepad goes to `ui.gamepad()`.
+- With `Options::gamepad`, `ui.gamepad()` is every gamepad at once: a button is held while any
+  gamepad holds it, a trigger is pulled as far as any pulls it, and each stick is the one pushed
+  furthest, so a gamepad at rest never covers the one in use. Each change of its buttons is an
+  event at its reading, so that a button pressed and let go of within a frame is a step with the
+  press and one with the release, which `ui.input().gamepad_pressed` and `gamepad_released` see.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
   frame's readings and device events from `startup.devices`, which the interface reads them with.
 
-## Window setups
+## Window setup
 
-Programs support exactly two window setups, both on a 2560 × 1440 display at 100% scale, where
-logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
+Programs support exactly one window setup: borderless fullscreen, a window without a frame that
+covers a 2560 × 1440 display at 100% scale, where logical and physical pixels are the same. Its
+client area is the whole display, 2560 × 1440, `WINDOW_WIDTH` × `WINDOW_HEIGHT` in
+`design/tokens.rs`.
 
-| Setup                 | Client area | What makes it                                             |
-| --------------------- | ----------- | --------------------------------------------------------- |
-| Windowed maximized    | 2560 × 1369 | The 2560 × 1392 work area, less the title bar's 23 pixels |
-| Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
-
-In any other setup, the window says what's wrong instead of showing the program. It checks again
-whenever the window moves or changes size, or the displays, the scale or the taskbar change.
+In any other setup, the window says what's wrong instead of showing the program, like a client
+area that's moved off the display. It checks again whenever the window moves or changes size, or
+the displays, the scale or Windows' settings change, once it isn't minimized.
 
 The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at
-`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
-areas, which leaves the program 2560 × 1352 maximized and 2560 × 1423 in borderless fullscreen;
-they differ by 71 pixels of height. A 3D view may still fill the window, under the PerfBar.
+`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the client
+area, which leaves the program 2560 × 1423. A 3D view may still fill the window, under the
+PerfBar.
 
 ## Settings and the command line
 
@@ -299,25 +382,22 @@ every one of the settings that every program has, which `Test/UserInterface` che
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | `Display`      | `"Primary"`, or the identifier of the display to open on                 |
-| `WindowMode`   | `"WindowedMaximized"`, by default, or `"BorderlessFullscreen"`           |
 | `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
 |                | tear. `false`: frames present at once, and may tear                      |
 | `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
 
-| Argument               | What it does                                                              |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `--display <id>`       | Opens on the display, which must be connected. `Primary` for the primary  |
-| `--no-activate`        | Opens beneath the other windows, without taking focus, in efficiency mode |
-| `--no-input`           | Doesn't start GameInput, so the program reads no input at all             |
-| `--vsync`              | Waits for vertical sync, whatever `VerticalSync` says                     |
-| `--no-vsync`           | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
-| `--theme <theme>`      | Starts `Light` or `Dark`, whatever `Theme` says                           |
-| `--window-mode <mode>` | Starts `WindowedMaximized` or `BorderlessFullscreen`, whatever            |
-|                        | `WindowMode` says                                                         |
-| `--script <path>`      | Runs a script instead of the user's input, with `--output <folder>`       |
+| Argument          | What it does                                                              |
+| ----------------- | ------------------------------------------------------------------------- |
+| `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary  |
+| `--no-activate`   | Opens beneath the other windows, without taking focus, in efficiency mode |
+| `--no-input`      | Doesn't start GameInput, so the program reads no input at all             |
+| `--vsync`         | Waits for vertical sync, whatever `VerticalSync` says                     |
+| `--no-vsync`      | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
+| `--theme <theme>` | Starts `Light` or `Dark`, whatever `Theme` says                           |
+| `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`       |
 
-What the command line says goes into `startup.common` too, so a program sees the theme, window mode
-and vertical sync that it starts in. Of an argument given twice, the last one says.
+What the command line says goes into `startup.common` too, so a program sees the theme and vertical
+sync that it starts in. Of an argument given twice, the last one says.
 
 ## Input latency
 
@@ -339,10 +419,10 @@ soon as one can. `F10` switches it on and off while the program runs. With it of
 as soon as they're drawn, and may tear, and the loop spins, so that the input that reaches the
 screen is as fresh as it can be.
 
-RunInBackground's test runs also start light and windowed maximized, with `--theme Light` and
-`--window-mode WindowedMaximized`, whatever the program's settings say, so that scripts start the
-same way whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`,
-so that they share the computer lightly with someone using it, like playing a game: the window opens
+RunInBackground's test runs also start light, with `--theme Light`, whatever the program's
+settings say, so that scripts start the same way whatever someone set for themselves. They use
+`--no-activate`, `--vsync` and `--no-input`, so that they share the computer lightly with someone
+using it, like playing a game: the window opens
 beneath the others and the process asks Windows for efficiency mode, where a window that someone
 uses asks for full execution speed; frames wait for vertical sync, whatever the program's settings
 say, at most one a refresh, and the loop waits on DXGI between them, instead of spinning; GameInput,
@@ -424,15 +504,16 @@ no input latency.
 makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
 real layout. Each input method runs one frame with the input, whose output came from it, so a test
 asserts on exactly what that input made. `queue` only queues events, for `frame` to run, and
-`send_message` and `queue_message` feed the program messages directly, for testing `update` on the
-real pipeline:
+`queue_move` the mice's motion to a place among them; `frame_input` runs a frame of a delta of the
+test's own, like at 100 frames a second; and `send_message` and `queue_message` feed the program
+messages directly, for testing `update` on the real pipeline:
 
 ```rust
 let mut app = Headless::new(Volume { level: 50.0 });
 app.click("Mute");
 assert_eq!(app.program.level, 0.0);
-app.key(Key::F11);
-assert!(app.fullscreen());
+app.key(Key::F10);
+assert!(!app.vertical_sync());
 ```
 
 `render` draws the last frame offscreen with the GPU, with the program's 3D, for tests that check
@@ -442,7 +523,7 @@ pixels, and `record` draws it into a frame of the caller's, for timing frames in
 **Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
 instead of from the user, and saves frames and its state. RunInBackground runs them (see its
 [README](../../Program/RunInBackground/README.md#scripts)). A script is a JSON object with its
-`Steps`, each at a `Frame`. Frame 0 gives the window focus and draws what frame 1's steps point at.
+`Steps`, each at a `Frame`. Frame 0 draws what frame 1's steps point at.
 
 ```json
 {
@@ -466,19 +547,18 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 | `DoubleClick` | A point: two clicks, a frame apart                                               |
 | `Drag`        | `{ "From", "To", "Frames", "Button" }`: a press, a move a frame, and a release   |
 | `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                              |
-| `Key`         | A key, like `"F11"` or `"Ctrl+S"`: pressed, and let go of the next frame         |
+| `Key`         | A key, like `"F2"` or `"Ctrl+S"`: pressed, and let go of the next frame          |
 | `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them        |
-| `Type`        | Text, as if typed                                                                |
+| `Type`        | Text, typed with the keys that type it on a US keyboard, Shift and all           |
 | `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,               |
 |               | `RightTrigger`, and `Buttons`                                                    |
-| `Focus`       | Whether the window has focus                                                     |
 | `Capture`     | A name: saves the frame as `<name>.png` and the state as `<name>.json`           |
 | `Expect`      | What the state must have: every member it names must match, numbers to a         |
 |               | millionth                                                                        |
 | `Program`     | A step for the program's `script`                                                |
 
-The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`, `Fullscreen`,
-`VerticalSync`, `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
+The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`,
+`VerticalSync`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
 `Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,
 `Enabled` and `Label`, by name. Menu items are named after their menu and label, like
 `Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. A scripted run reads and
@@ -497,14 +577,16 @@ writes its files in its output folder, through `startup.data_folder`.
 | `src/application/performance.rs` | What the PerfBar shows, and the input latency from GameInput to the screen |
 | `src/core/interaction.rs`        | What a widget is to the input: `Sense`, `Target`, `Interaction` and `Hit`  |
 | `src/core/tree.rs`               | The view tree: `Tree`, `Element`, `Widget`, and its contexts               |
-| `src/core/interface.rs`          | The interface: input against the shown tree, messages, layout, focus,      |
-|                                  | popups, tooltips, widget memory, and the frame's phases                    |
-| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check,  |
-|                                  | and the theme's background that it shows until its first frame             |
+| `src/core/interface.rs`          | The interface: a frame's steps, each step's input against the tree laid    |
+|                                  | out before it, messages, layout, focus, popups, tooltips, widget memory,   |
+|                                  | and the frame's phases                                                     |
+| `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its setup and its    |
+|                                  | check, and the theme's background that it shows until its first frame      |
+| `src/platform/cursor.rs`         | What the window does with Windows' cursor, decided from what Windows says  |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
-| `src/input/events.rs`            | A frame's input, from its events                                           |
+| `src/input/events.rs`            | A frame's events in steps, and each step's input, from its events          |
 | `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
 | `src/design/theme.rs`            | WinUI's theme resources, light and dark                                    |
 | `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |

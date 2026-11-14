@@ -90,7 +90,7 @@ pub struct Game {
     // card shows, and how many drained this frame, against the cap.
     queue: VecDeque<Event>,
     pub log: VecDeque<(f64, String)>,
-    drained_this_frame: usize,
+    drained_this_update: usize,
     pub effects: Vec<Effect>,
     // What the last save said, for the status bar.
     pub status: String,
@@ -114,7 +114,7 @@ impl Game {
             last: 0.0,
             queue: VecDeque::new(),
             log: VecDeque::new(),
-            drained_this_frame: 0,
+            drained_this_update: 0,
             effects: Vec::new(),
             status: String::new(),
             show_cards: true,
@@ -169,11 +169,15 @@ impl Game {
         }
     }
 
-    // A frame, at `seconds` on the frames' clock: the frame's one-off
-    // controls, then one step by the frame's time, the time since the frame
-    // before, at most LONGEST_FRAME, then its events, drained to quiescence.
+    // A step of a frame's input, at `seconds` on the frames' clock: the
+    // step's one-off controls, then one step of the world by the time since
+    // the step before, at most LONGEST_FRAME, then its events, drained to
+    // quiescence. The interface's steps before a frame's last one are at the
+    // last frame's time, so no time passes in them, and the world moves only
+    // in the last, by the frame's time: a step of no time moves nothing,
+    // as standing on a platform would otherwise be forgotten for it.
     pub fn update(&mut self, controls: &Controls, seconds: f64) {
-        self.drained_this_frame = 0;
+        self.drained_this_update = 0;
         let frame = (seconds - self.last).clamp(0.0, LONGEST_FRAME);
         self.last = seconds;
         if controls.toggle_cards {
@@ -194,8 +198,10 @@ impl Game {
             // just before a landing jumps on the very frame of the landing.
             self.player.jump_until = self.simulated + BUFFER;
         }
-        self.simulated += frame;
-        self.step(controls, frame);
+        if frame > 0.0 {
+            self.simulated += frame;
+            self.step(controls, frame);
+        }
         self.drain();
         let simulated = self.simulated;
         self.effects.retain(|effect| effect.started + effect.kind.life() > simulated);
@@ -280,15 +286,15 @@ impl Game {
     }
 
     // Runs every queued event, and everything they publish, now. A cascade
-    // that doesn't settle within MOST_EVENTS in one frame is a bug in the
+    // that doesn't settle within MOST_EVENTS in one update is a bug in the
     // event graph, and stops the program rather than hiding.
     fn drain(&mut self) {
         while let Some(event) = self.queue.pop_front() {
-            self.drained_this_frame += 1;
+            self.drained_this_update += 1;
             assert!(
-                self.drained_this_frame <= MOST_EVENTS,
-                "the event cascade didn't settle: {} events in one frame, last {}",
-                self.drained_this_frame,
+                self.drained_this_update <= MOST_EVENTS,
+                "the event cascade didn't settle: {} events in one update, last {}",
+                self.drained_this_update,
                 event.label()
             );
             self.log.push_front((self.simulated, event.label()));

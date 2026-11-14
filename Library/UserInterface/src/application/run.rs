@@ -10,8 +10,9 @@
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// Programs start in the theme, window mode and vertical sync that their
-// Settings.json says, unless the command line says otherwise.
+// Programs start in the theme and vertical sync that their Settings.json
+// says, unless the command line says otherwise, in borderless fullscreen,
+// the one supported setup.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
@@ -19,6 +20,11 @@
 // a frame couldn't begin any sooner, and the input is still read as soon as
 // one can. F10 switches it on and off. Without it, frames present as soon as
 // they're drawn, and may tear, and the loop spins, for the lowest latency.
+//
+// F12 quits at once, and so does the taskbar's Close, which sends WM_CLOSE,
+// without asking the program, whether the window is minimized, shows the
+// error page, or neither. F1 keeps Windows' cursor, or lets it go, on the
+// frame of the press (see input/reader.rs).
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -31,14 +37,13 @@ use graphics::{AdapterChoice, Gpu, Image, Presenter, Readback, write_png};
 
 use crate::application::performance::{Frame, Performance};
 use crate::application::program::{Arguments, Notice, Options, Program, Startup};
-use crate::application::settings::{Settings, WindowMode};
+use crate::application::settings::Settings;
 use crate::core::interface::{Environment, Interface, Request};
 use crate::core::tree::Tree;
-use crate::design::theme::ThemeKind;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
-use crate::input::events::Event;
+use crate::input::events::FrameInput;
 use crate::input::reader::InputReader;
 use crate::platform::clock;
 use crate::platform::input_devices::Devices;
@@ -112,8 +117,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         });
     }
 
-    let mut window = Window::create(&program.title(), display.monitor, common.window_mode, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
-    window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
+    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and
@@ -133,64 +137,85 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
+    // Whether the frames read GameInput's mice, which move the pointer, and
+    // so whether the window keeps Windows' cursor while it has focus: not
+    // with a script's input, or without input.
+    let mice = matches!(source, Source::User { devices: Some(_), .. });
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     let mut problems = Vec::new();
     loop {
+        // WM_CLOSE, like the taskbar's Close, quits at once.
         if !window.pump() {
-            // The window was asked to close. A program with unsaved work may
-            // say not yet, and close itself later with Ui::close.
-            if program.may_close() {
-                break;
-            }
-            window.cancel_close();
+            break;
         }
-        if window.take_setup_changed() {
+        // Not while minimized, whose client area is off the screen: the
+        // setup is checked again once the window is restored.
+        if !window.minimized() && window.take_setup_changed() {
             problems = window.setup_problems();
         }
-        // A minimized window doesn't draw, and waits for messages, but its
-        // program still runs a frame when the window gets or loses focus,
-        // like as it minimizes, so that it can stop what it's doing, like a
-        // gamepad's motors.
+        // Focus, and Windows' cursor with it, on every pass, whatever woke
+        // the loop, before it waits while minimized, so that losing focus
+        // lets the cursor go at once. The window keeps the cursor only while
+        // F1 says so.
+        window.check_focus(mice && source.captured());
+        // A minimized window runs no frames, and waits for messages. Its
+        // input waits too: what came meanwhile, like losing focus as it
+        // minimized, goes to the program in the first frame after it's
+        // restored. GameInput stops gamepads' motors without focus itself.
         let (width, height) = window.client_size();
         let minimized = !scripted && (window.minimized() || width == 0 || height == 0);
-        if !minimized {
-            if (width, height) != presenter.size() {
-                presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
-            }
-            if !presenter.poll_ready(&gpu) {
-                // With vertical sync, the loop waits for the GPU and DXGI
-                // instead of spinning, which ends as soon as a frame can
-                // begin, or a message comes. Without it, the loop spins, so
-                // that the frame begins the moment that it can, without a
-                // thread's wake-up.
-                if presenter.vsync() {
-                    presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
-                }
-                continue;
-            }
-        }
-
-        // The input, read as late as it can be.
-        let read = clock::now();
-        let input = source.read(&mut window, &ui, &mut program)?;
-        if minimized && !input.focus_changed {
+        if minimized {
             window.wait();
             continue;
         }
+        if (width, height) != presenter.size() {
+            presenter.resize(&mut gpu, width, height).map_err(|error| format!("Couldn't resize the swap chain: {error}"))?;
+        }
+        if !presenter.poll_ready(&gpu) {
+            // With vertical sync, the loop waits for the GPU and DXGI
+            // instead of spinning, which ends as soon as a frame can begin,
+            // or a message comes. Without it, the loop spins, so that the
+            // frame begins the moment that it can, without a thread's
+            // wake-up.
+            if presenter.vsync() {
+                presenter.wait_ready(&gpu, 100).map_err(|error| format!("Couldn't wait for the GPU: {error}"))?;
+            }
+            continue;
+        }
+
+        // The input, read as late as it can be. F1 keeps Windows' cursor or
+        // lets it go on this frame: an F1 that keeps it again keeps it
+        // before the frame, so that the frame draws the pointer, and one that
+        // lets it go lets it go after it, where the frame's input left the
+        // pointer. The frame draws the pointer exactly while Windows' cursor
+        // is kept, hidden, which a script's frames, and those without input,
+        // never do, and while it isn't kept, the pointer is away.
+        let read = clock::now();
+        let input = source.read(&mut window, &ui, &mut program)?;
+        let keep = mice && source.captured();
+        if keep {
+            window.check_focus(keep);
+        }
+        let kept = keep && window.keeps_cursor();
+        ui.draws_pointer = kept;
+        ui.set_pointer_away(mice && !kept);
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
-        let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
         if problems.is_empty() {
-            ui.frame(&mut program, &mut shown, &input.events, Vec::new(), input.time, size, fullscreen);
+            ui.frame(&mut program, &mut shown, &input.frame, Vec::new(), size);
         } else {
             // The error instead of the program, until the setup is right.
             shown = None;
-            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.events, input.time, size, fullscreen);
+            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.frame, size);
         }
+        // Where Windows' cursor shows as it's let go of.
+        if let Some(at) = ui.pointer() {
+            window.set_pointer(at);
+        }
+        window.check_focus(keep);
         for request in std::mem::take(&mut ui.requests) {
             match request {
-                Request::ToggleFullscreen => window.set_mode(window.mode().other()),
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
@@ -198,15 +223,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::Close => return finish(&mut gpu, source),
             }
         }
-        window.set_cursor(ui.cursor());
-        window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
+        // F12 quits, once the frame has had the input that came before it.
+        if input.quit {
+            return finish(&mut gpu, source);
+        }
         if program.title() != title {
             title = program.title();
             window.set_title(&title);
-        }
-        if minimized {
-            window.wait();
-            continue;
         }
 
         let capture = input.script.as_ref().is_some_and(|script| !script.captures.is_empty());
@@ -288,8 +311,9 @@ enum Source {
         // None with --no-input.
         devices: Option<Rc<RefCell<Devices>>>,
         reader: Box<InputReader>,
-        // When the first frame read its input, which time counts from.
-        start: Option<Instant>,
+        // When the last frame read its input, which the next one's delta is
+        // from: none before the first, whose delta is 0.
+        last: Option<Instant>,
     },
     Script {
         runner: ScriptRunner,
@@ -300,16 +324,15 @@ enum Source {
     },
 }
 
-// A frame's input, from its source.
+// A frame's input, from its source, and what the platform does with the
+// rest of what it read.
 struct Input {
-    events: Vec<Event>,
-    // Seconds since the start.
-    time: f64,
+    frame: FrameInput,
+    // Whether F12 was pressed, which quits.
+    quit: bool,
     // When GameInput got the newest reading that the frame took, for the
     // input latency.
     input_time: Option<i64>,
-    // Whether the window got or lost focus since the last frame.
-    focus_changed: bool,
     // What a script does around the frame.
     script: Option<ScriptFrame>,
 }
@@ -336,8 +359,17 @@ impl Source {
         Ok(Source::User {
             devices,
             reader: Box::new(InputReader::new(gamepad)),
-            start: None,
+            last: None,
         })
+    }
+
+    // Whether F1 last chose to keep Windows' cursor, which a script's input
+    // never touches.
+    fn captured(&self) -> bool {
+        match self {
+            Source::User { reader, .. } => reader.captured(),
+            Source::Script { .. } => true,
+        }
     }
 
     // The devices, for programs that read them themselves.
@@ -353,16 +385,17 @@ impl Source {
     fn read<P: Program>(&mut self, window: &mut Window, ui: &Interface, program: &mut P) -> Result<Input, String> {
         let focus_changes = window.take_focus_changes();
         match self {
-            Source::User { devices, reader, start } => {
+            Source::User { devices, reader, last } => {
                 if let Some(devices) = devices {
-                    devices.borrow_mut().read();
+                    devices.borrow_mut().read(&focus_changes);
                 }
                 let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), window, &focus_changes);
+                let now = Instant::now();
+                let delta = last.replace(now).map_or(0.0, |last| (now - last).as_secs_f64());
                 Ok(Input {
-                    events: read.events,
-                    time: start.get_or_insert_with(Instant::now).elapsed().as_secs_f64(),
+                    frame: FrameInput { delta, events: read.events },
+                    quit: read.quit,
                     input_time: read.input_time,
-                    focus_changed: !focus_changes.is_empty(),
                     script: None,
                 })
             }
@@ -374,10 +407,12 @@ impl Source {
                     program.script(step).map_err(|error| format!("Frame {number}: Program step: {error}"))?;
                 }
                 Ok(Input {
-                    events: script.events.clone(),
-                    time: number as f64 * runner.frame_time(),
+                    frame: FrameInput {
+                        delta: if number == 0 { 0.0 } else { runner.frame_time() },
+                        events: script.events.clone(),
+                    },
+                    quit: false,
                     input_time: None,
-                    focus_changed: false,
                     script: Some(script),
                 })
             }

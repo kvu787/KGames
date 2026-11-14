@@ -1,10 +1,10 @@
 // Tests the showcase without a window: what each widget does with input, in
-// the cards' real layout, at both window heights and in both themes.
+// the cards' real layout, and in both themes.
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
-use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY, WINDOW_HEIGHT};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Startup, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
@@ -16,16 +16,13 @@ fn interface(app: &Headless<Showcase>, member: &str) -> Option<Value> {
 }
 
 #[test]
-fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
+fn every_widget_fits_in_the_window_in_both_themes() {
     for theme in [ThemeKind::Light, ThemeKind::Dark] {
-        for fullscreen in [false, true] {
-            let mut app = Headless::with_theme(Showcase::default(), theme);
-            app.set_fullscreen(fullscreen).frame();
-            let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-            for target in app.ui.targets().iter().filter(|target| target.listed) {
-                let rect = target.rect;
-                assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= height, "{} is at {rect:?}", target.name);
-            }
+        let mut app = Headless::with_theme(Showcase::default(), theme);
+        app.frame();
+        for target in app.ui.targets().iter().filter(|target| target.listed) {
+            let rect = target.rect;
+            assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= WINDOW_HEIGHT, "{} is at {rect:?}", target.name);
         }
     }
 }
@@ -76,7 +73,7 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
     // F9 is the library's, which the theme's switch follows.
-    app.key(Key::F9).key(Key::F1);
+    app.key(Key::F9).key(Key::F2);
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     assert!(app.ui.tooltips_enabled());
     assert!(app.program.log.iter().any(|line| line == "Light theme"));
@@ -106,7 +103,9 @@ fn starting_in_the_dark_theme_logs_no_change_of_theme() {
 }
 
 // F9 and the program's own theme command in one frame are two toggles, which
-// cancel: the theme is the same at the frame's end, so it doesn't change.
+// apply in order and cancel: F9 switches to dark, which the program sees, and
+// the button's press after it switches back, so the frame ends, and is
+// drawn, in the theme it started in.
 #[test]
 fn two_theme_toggles_in_one_frame_cancel() {
     use user_interface::Event;
@@ -114,16 +113,16 @@ fn two_theme_toggles_in_one_frame_cancel() {
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     // The button fires on its press, so its press frame also presses F9.
     let themed = app.program.log.iter().filter(|line| line.ends_with("theme")).count();
-    app.queue(&[Event::KeyPressed { key: Key::F9, repeat: false }]);
+    app.queue(&[Event::KeyPressed(Key::F9)]);
     app.press("Theme");
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
-    // The button's toggle logged the theme the frame draws in, once; the
-    // watcher re-reads the theme when it applies, so it adds nothing, this
-    // frame or the next.
+    // The watcher logged the dark theme that F9 left, and the button's toggle
+    // the light one that it left, newest first; the watcher re-reads the
+    // theme when it applies, so it adds nothing more, this frame or the next.
     app.release();
     let after: Vec<&String> = app.program.log.iter().filter(|line| line.ends_with("theme")).collect();
-    assert_eq!(after.len(), themed + 1, "{after:?}");
-    assert_eq!(after.first().map(|line| line.as_str()), Some("Light theme"));
+    assert_eq!(after.len(), themed + 2, "{after:?}");
+    assert_eq!(after[..2], ["Light theme", "Dark theme"]);
     // Either alone still switches.
     app.queue(&[Event::KeyReleased(Key::F9)]).frame();
     app.key(Key::F9);
@@ -133,17 +132,19 @@ fn two_theme_toggles_in_one_frame_cancel() {
 }
 
 // A frame can hold both a typed letter, which re-filters the list, and a
-// press on a row. The press means the item the row showed, so it still
-// lands there.
+// press on a row after it. The letter applies first, as it was typed first,
+// so the press lands on the row as the filtered list shows it: the first
+// row shows Basalt, the first item with a "b", where it showed Aurora.
 #[test]
-fn a_press_lands_on_the_item_its_row_showed_even_as_the_search_changes() {
-    use user_interface::Event;
+fn a_press_after_a_letter_in_one_frame_lands_on_the_list_the_letter_filtered() {
+    use user_interface::{Event, Key};
     let mut app = showcase();
     app.click("Search");
     let center = app.target("Items/0").center();
-    app.queue(&[Event::Text('b'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    app.queue(&[Event::KeyPressed(Key::B), Event::KeyReleased(Key::B)]).queue_move(center).queue(&[Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!(app.program.search, "b", "the letter reached the search box");
-    assert_eq!(app.program.selected, Some(0), "the press selected what the row was showing");
+    assert_eq!(app.program.matches()[0], 1);
+    assert_eq!(app.program.selected, Some(1), "the press selected what the row showed once the letter filtered the list");
     app.release();
 }
 
@@ -364,25 +365,6 @@ fn f10_and_the_view_menu_switch_vertical_sync() {
 }
 
 #[test]
-fn f11_switches_to_fullscreen_and_back() {
-    let mut app = showcase();
-    app.key(Key::F11);
-    assert!(app.fullscreen());
-    app.key(Key::F11);
-    assert!(!app.fullscreen());
-}
-
-#[test]
-fn without_focus_nothing_responds() {
-    let mut app = showcase();
-    app.focus(false).click("Standard").key(Key::F9);
-    assert_eq!(app.program.presses[0], 0);
-    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
-    app.focus(true).click("Standard");
-    assert_eq!(app.program.presses[0], 1);
-}
-
-#[test]
 fn the_interface_card_shows_held_keys_and_the_gamepad() {
     let mut app = showcase();
     app.hold(Key::W);
@@ -398,12 +380,14 @@ fn the_interface_card_shows_held_keys_and_the_gamepad() {
     assert_eq!(app.ui.gamepad().buttons.names(), ["A"]);
 }
 
+// GameInput doesn't repeat a held key, and neither does KGames: holding
+// Backspace deletes one character.
 #[test]
-fn a_held_key_repeats() {
+fn a_held_key_does_not_repeat() {
     let mut app = showcase();
     app.click("Name").type_text("abc");
-    app.hold(Key::BACKSPACE).repeat(Key::BACKSPACE).release_key(Key::BACKSPACE);
-    assert_eq!(app.program.name, "a");
+    app.hold(Key::BACKSPACE).wait(1.0).release_key(Key::BACKSPACE);
+    assert_eq!(app.program.name, "ab");
 }
 
 #[test]

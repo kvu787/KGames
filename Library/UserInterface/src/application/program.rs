@@ -1,15 +1,24 @@
 // What a GUI program is to the library: a Program with a message type, which
 // says what the input on its widgets means; `view`, which describes a
 // frame's interface from the program's state and changes nothing; `update`,
-// which applies a message; and `input`, which turns the frame's keys, time
-// and devices into messages. It may draw 3D under the interface, and tells
+// which applies a message; and `input`, which turns a step's keys, time and
+// devices into messages. It may draw 3D under the interface, and tells
 // scripts its state. `run` runs one with the Options that say how.
 //
-// A frame: the interface finds what the input did to the widgets the user
-// saw, as messages; the program's `input` adds its own; `update` applies
-// them all, and any they send in turn, until none are left; then `view`
-// describes the frame, which is laid out and drawn. So every widget shows
-// what every message did, on the frame of the input.
+// A frame takes its input in steps, in the order it happened, one for each
+// event that does something, like a press or a key, so that each event sees
+// what the ones before it did. A step: the interface finds what the step's
+// input did to the widgets of the tree that the step before left, which for
+// a frame's first step is the tree the user saw, as messages; the program's
+// `input` adds its own; `update` applies them all, and any they send in
+// turn, until none are left; then `view` describes the step's tree, which is
+// laid out for the next step. The last step's tree is drawn. So every widget
+// shows what every message did, on the frame of the input. Every step sees
+// the frame's time, `Ui::time`, and the frame's delta, `Ui::delta`, comes in
+// its last step, after its events, and is 0 in the steps before it, so that a
+// simulation that `input` ticks by `Ui::delta` moves once a frame, by the
+// frame's time, as long as a tick of no time moves nothing. `Ui::last_step`
+// says which step is the frame's last, for what a program does once a frame.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -17,7 +26,7 @@ use std::rc::Rc;
 
 use graphics::{Frame, Gpu};
 
-use crate::application::settings::{CommonSettings, Settings, WindowMode};
+use crate::application::settings::{CommonSettings, Settings};
 use crate::core::interface::{Context, Ui};
 use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
@@ -31,9 +40,10 @@ pub trait Program {
     // The window's title.
     fn title(&self) -> String;
 
-    // The frame's messages from what isn't a widget: the keys that no widget
-    // took, the time since the last frame, the gamepad, and the devices.
-    // Once a frame, before the messages are applied.
+    // The step's messages from what isn't a widget: the keys that no widget
+    // took, the frame's delta, which comes in the frame's last step and is 0
+    // before it, the gamepad, and the devices. Once a step, after the
+    // widgets' messages and before the messages are applied.
     fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
         Vec::new()
     }
@@ -42,8 +52,8 @@ pub trait Program {
     // messages, or ask the window to close, or switch the theme.
     fn update(&mut self, message: Self::Message, ui: &mut Context<Self::Message>);
 
-    // Describes the frame's interface from the program's state, which it
-    // doesn't change. Once a frame, after the messages are applied.
+    // Describes the interface from the program's state, which it doesn't
+    // change. Once a step, after the step's messages are applied.
     fn view(&self, ui: &mut Ui) -> Tree<Self::Message>;
 
     // Creates what the program draws with on the GPU, once, before the first
@@ -58,13 +68,6 @@ pub trait Program {
         Ok(())
     }
 
-    // Whether the window may close now that it's asked to, like by its close
-    // button. A program with unsaved work can say no, ask with a dialog, and
-    // close with Context::close once the user says so.
-    fn may_close(&mut self) -> bool {
-        true
-    }
-
     // What scripts save and check, besides the interface's, as a JSON object.
     fn state(&self) -> json::Value {
         json::Value::Object(Vec::new())
@@ -76,17 +79,18 @@ pub trait Program {
     }
 }
 
-// How the library runs a program. Every program starts in the theme, window
-// mode and vertical sync that its Settings.json says, unless the command
-// line says otherwise, and F9, F11 and F10 switch them.
+// How the library runs a program. Every program starts in the theme and
+// vertical sync that its Settings.json says, unless the command line says
+// otherwise, and F9 and F10 switch them.
 #[derive(Clone, Debug)]
 pub struct Options {
     // The program's name, like "SimplePaintDemo".
     pub name: &'static str,
     // The program's folder, which has its Settings.json: env!("CARGO_MANIFEST_DIR").
     pub folder: &'static str,
-    // Whether the program reads the gamepad: its newest reading goes to
-    // Ui::gamepad, and its readings count as input for input latency.
+    // Whether the program reads the gamepads: all of them at once go to
+    // Ui::gamepad, each change of its buttons is an event of its own, and
+    // its readings count as input for input latency.
     pub gamepad: bool,
     // Arguments of the program's own, which it reads from Startup.
     pub arguments: &'static [&'static str],
@@ -127,8 +131,8 @@ pub struct Startup {
     // Settings.json, which the program reads its own settings from.
     pub settings: Settings,
     // The settings that every program has, which were read from `settings`
-    // first, as the command line overrides them: the window mode, vertical
-    // sync and theme that the program starts in. `display` is the setting's,
+    // first, as the command line overrides them: the display, vertical sync
+    // and theme that the program starts in. `display` is the setting's,
     // which --display overrides with a display that must be connected.
     pub common: CommonSettings,
     // Where the program reads and writes its files: its folder, or a
@@ -203,11 +207,10 @@ pub struct Arguments {
     // Whether frames wait for vertical sync, with --vsync or --no-vsync,
     // whatever the VerticalSync setting says, like for test runs.
     pub vsync: Option<bool>,
-    // The theme and window mode to start in, with --theme and --window-mode,
-    // whatever the Theme and WindowMode settings say, so that test runs start
-    // the same way whatever someone set for themselves.
+    // The theme to start in, with --theme, whatever the Theme setting says,
+    // so that test runs start the same way whatever someone set for
+    // themselves.
     pub theme: Option<ThemeKind>,
-    pub window_mode: Option<WindowMode>,
     // Doesn't start GameInput, for test runs, which never have focus, so
     // that nothing of theirs reads the devices of someone using the computer.
     pub no_input: bool,
@@ -231,17 +234,13 @@ impl Arguments {
                 "--vsync" => parsed.vsync = Some(true),
                 "--no-vsync" => parsed.vsync = Some(false),
                 "--theme" => parsed.theme = Some(choose("--theme", value("--theme")?, &[ThemeKind::Light, ThemeKind::Dark], ThemeKind::name)?),
-                "--window-mode" => {
-                    let modes = [WindowMode::WindowedMaximized, WindowMode::BorderlessFullscreen];
-                    parsed.window_mode = Some(choose("--window-mode", value("--window-mode")?, &modes, WindowMode::name)?);
-                }
                 "--no-input" => parsed.no_input = true,
                 "--script" => parsed.script = Some(PathBuf::from(value("--script")?)),
                 "--output" => parsed.output = Some(PathBuf::from(value("--output")?)),
                 other if own.contains(&other) => parsed.own.push(other.to_string()),
                 other => {
                     return Err(format!(
-                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, --theme <Light or Dark>, --window-mode <WindowedMaximized or BorderlessFullscreen>, and --script <path> with --output <folder>."
+                        "Unknown argument {other}. Every program takes --display <identifier>, --no-activate, --no-input, --vsync or --no-vsync, --theme <Light or Dark>, and --script <path> with --output <folder>."
                     ));
                 }
             }
@@ -253,16 +252,13 @@ impl Arguments {
     }
 
     // Overrides the settings that every program has with what the command
-    // line says, of vertical sync, the theme and the window mode.
+    // line says, of vertical sync and the theme.
     pub fn override_settings(&self, common: &mut CommonSettings) {
         if let Some(vsync) = self.vsync {
             common.vertical_sync = vsync;
         }
         if let Some(theme) = self.theme {
             common.theme = theme;
-        }
-        if let Some(window_mode) = self.window_mode {
-            common.window_mode = window_mode;
         }
     }
 }

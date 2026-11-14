@@ -13,37 +13,12 @@ use json::Value;
 
 use crate::design::theme::ThemeKind;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum WindowMode {
-    #[default]
-    WindowedMaximized,
-    BorderlessFullscreen,
-}
-
-impl WindowMode {
-    pub fn name(self) -> &'static str {
-        match self {
-            WindowMode::WindowedMaximized => "WindowedMaximized",
-            WindowMode::BorderlessFullscreen => "BorderlessFullscreen",
-        }
-    }
-
-    pub fn other(self) -> WindowMode {
-        match self {
-            WindowMode::WindowedMaximized => WindowMode::BorderlessFullscreen,
-            WindowMode::BorderlessFullscreen => WindowMode::WindowedMaximized,
-        }
-    }
-}
-
 // The settings that every program has, which the library reads first, in
 // this order, before the program reads its own.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommonSettings {
     // "Primary", or the identifier of the display to open on.
     pub display: String,
-    // How the window opens, which F11 switches.
-    pub window_mode: WindowMode,
     // Whether frames start waiting for vertical sync, unless the command
     // line says otherwise. F10 switches it.
     pub vertical_sync: bool,
@@ -55,14 +30,11 @@ impl CommonSettings {
     // Reads them, each its default if it's missing or wrong.
     pub fn read(settings: &mut Settings) -> CommonSettings {
         let display = settings.string("Display", "Primary");
-        let modes = [WindowMode::WindowedMaximized, WindowMode::BorderlessFullscreen];
-        let window_mode = settings.choice_of("WindowMode", WindowMode::WindowedMaximized, &modes, |mode| mode.name());
         let vertical_sync = settings.boolean("VerticalSync", true);
         let themes = [ThemeKind::Light, ThemeKind::Dark];
         let theme = settings.choice_of("Theme", ThemeKind::Light, &themes, |theme| theme.name());
         CommonSettings {
             display,
-            window_mode,
             vertical_sync,
             theme,
         }

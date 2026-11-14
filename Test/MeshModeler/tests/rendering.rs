@@ -61,10 +61,4 @@ fn the_view_draws_the_mesh_with_either_shader_subdivided_and_selected() {
     app.move_point(view.origin() + Point::new(10.0, 10.0));
     let selected = pixel(&app.render(&mut gpu).unwrap(), center);
     assert!(differs(selected, unselected), "{selected:?} {unselected:?}");
-
-    // At fullscreen's height, the view's taller, and the mesh still in it.
-    app.set_fullscreen(true).frames(2);
-    let image = app.render(&mut gpu).unwrap();
-    assert!(app.program.view.height > view.height);
-    assert!(differs(pixel(&image, app.program.view.center()), card));
 }

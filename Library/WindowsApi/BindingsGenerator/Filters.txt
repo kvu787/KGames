@@ -8,7 +8,6 @@
 // in Library/GameInput instead.
 
 // Window and message loop
-AdjustWindowRectExForDpi
 CreateWindowExW
 DefWindowProcW
 DispatchMessageW
@@ -17,7 +16,6 @@ GetDpiForWindow
 GetModuleHandleW
 GetMonitorInfoW
 GetWindowLongPtrW
-IsZoomed
 LoadCursorW
 MonitorFromWindow
 PeekMessageW
@@ -33,11 +31,8 @@ GWL_STYLE
 IDC_ARROW
 MONITOR_DEFAULTTONEAREST
 PM_REMOVE
-SC_KEYMENU
-SWP_FRAMECHANGED
 SWP_NOACTIVATE
 SWP_NOOWNERZORDER
-SWP_NOZORDER
 SW_SHOWNA
 USER_DEFAULT_SCREEN_DPI
 WM_DISPLAYCHANGE
@@ -46,11 +41,11 @@ WM_MOVE
 WM_QUIT
 WM_SETTINGCHANGE
 WM_SIZE
-WM_SYSCOMMAND
-WS_MAXIMIZE
-WS_OVERLAPPEDWINDOW
+WM_SYSCHAR
+WM_SYSKEYDOWN
+WM_SYSKEYUP
+WS_MINIMIZE
 WS_POPUP
-WS_VISIBLE
 MONITORINFO
 RECT
 
@@ -79,25 +74,34 @@ GWLP_USERDATA
 SW_SHOW
 WM_PAINT
 
-// Input, which comes from GameInput: where Windows' cursor is, capturing the
-// mouse for drags, typed text from keys with the keyboard layout, Windows'
-// key repeat settings, and Caps Lock's toggle
-GetCapture
-GetCursorPos
+// Input, which comes from GameInput: Windows' cursor, which is hidden and
+// kept inside the window while it's the foreground window and has focus, once
+// Windows' mouse buttons are let go of, and let go of only by the window that
+// keeps it, within the screens, which Windows keeps a confinement to, typed
+// text from keys with the keyboard layout, and Caps Lock's toggle
+ClientToScreen
+ClipCursor
+GetAsyncKeyState
+GetClipCursor
+GetForegroundWindow
 GetKeyboardLayout
 GetKeyState
+GetSystemMetrics
+IsIconic
 MAPVK_VSC_TO_VK_EX
-ReleaseCapture
-ScreenToClient
-SetCapture
-SPI_GETKEYBOARDDELAY
-SPI_GETKEYBOARDSPEED
-SystemParametersInfoW
+SetCursorPos
+SM_CXVIRTUALSCREEN
+SM_CYVIRTUALSCREEN
+SM_XVIRTUALSCREEN
+SM_YVIRTUALSCREEN
 ToUnicodeEx
-WindowFromPoint
+VK_LBUTTON
+VK_MBUTTON
+VK_RBUTTON
+VK_XBUTTON1
+VK_XBUTTON2
 HTCLIENT
 WHEEL_DELTA
-WM_KILLFOCUS
 
 // The performance counter, which input, frames and the display's flips are
 // timed on
@@ -284,12 +288,6 @@ DWRITE_TEXT_ALIGNMENT
 DWRITE_TEXT_METRICS
 DWRITE_WORD_WRAPPING
 DestroyWindow
-IDC_CROSS
-IDC_HAND
-IDC_IBEAM
-IDC_SIZEALL
-IDC_SIZENS
-IDC_SIZEWE
 IDWriteFactory::CreateTextFormat
 IDWriteFactory::CreateTextLayout
 IDWritePixelSnapping
@@ -302,22 +300,12 @@ IDWriteTextLayout::HitTestTextPosition
 IDWriteTextRenderer
 IDXGIAdapter1::GetDesc1
 IDXGISwapChain3::GetCurrentBackBufferIndex
-SIZE_MINIMIZED
 SetCursor
 ValidateRect
 WM_CLOSE
 WM_ERASEBKGND
 WM_SETCURSOR
-WM_SETFOCUS
 WS_EX_APPWINDOW
-
-// Library/UserInterface's rewrite: a dark title bar in the dark theme, and
-// the cursors for diagonal resizing and for what can't be done
-DwmSetWindowAttribute
-DWMWINDOWATTRIBUTE
-IDC_NO
-IDC_SIZENESW
-IDC_SIZENWSE
 
 // Windows that test runs open beneath the others, and that a click never
 // activates

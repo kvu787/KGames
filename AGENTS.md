@@ -61,7 +61,7 @@ kind that holds, because a later session never read the conversation that invent
 - Every bug fix lands with a test that pins it, in the same change. A fix without a test is a bug
   that will come back.
 - A discipline that can't be a type must be a test. For messages and game events: they carry the
-  facts of their moment - which coin, which row's item, the view the user was shown - and their
+  facts of their moment - which coin, which row's item, the view their input was on - and their
   consumers read everything else from the state as it is when they apply, never from a snapshot.
   The test for an intent-carrying message is two of the same intent in one frame: they cancel, or
   apply twice, and never collapse into one.
@@ -70,9 +70,11 @@ kind that holds, because a later session never read the conversation that invent
   frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a
   second, fits 2 steps in some frames and 3 in others, and what moves judders. Cap a frame's time,
   so that a late one, like after the window was minimized, doesn't carry things far, and test
-  frames at 100 frames a second and of uneven lengths: each moves things by its own time. Event
-  queues drain to quiescence inside the frame; a cascade that doesn't settle stops the program
-  instead of hiding.
+  frames at 100 frames a second and of uneven lengths: each moves things by its own time. A GUI
+  program's `input` runs once for each step of a frame's input, and only the frame's last step has
+  a delta, so a simulation that it ticks moves by the delta, skips its step when it's 0, and test
+  that a tick of no time moves nothing. Event queues drain to quiescence inside the frame; a
+  cascade that doesn't settle stops the program instead of hiding.
 - A comment is a promise: a comment or README that says the code does something the code doesn't
   do is a bug, and models believe documentation more than people do. Keep them true in the same
   change that would make them false.
@@ -124,28 +126,26 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Read all input with GameInput, through `Library/UserInterface`, which reads keyboards, mice and gamepads with it, and not from window messages.
 - Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
-- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: input on the tree the user saw becomes messages, `update` applies them, and one read-only `view` describes the frame's widgets from the state, so a frame's output always comes from that frame's input, never a frame late. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
+- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: a frame's input comes in steps, in the order it happened, one for each event that does something, like a press or a key; each step's input, on the tree that the step before laid out, which for the first step is the tree the user saw, becomes messages, `update` applies them, and a read-only `view` describes the widgets from the state, so each event sees what the events before it did, and a frame's output always comes from that frame's input, never a frame late. Every step sees the frame's time, and the frame's delta comes in its last step. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
 - Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/src/design/controls.rs`.
 - Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
+- `F1` toggles between keeping Windows' cursor in the window, hidden, and letting it go.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `F11` toggles between windowed and borderless fullscreen.
+- `F12` quits the program at once, without asking, and so does the taskbar's Close. `F1` and `F12` are `Library/UserInterface`'s, and never reach a program. `Alt+F4` is only two keys. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
 - Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the PerfBar along the top of every window shows.
 
-## Supported window setups
+## Supported window setup
 
-Programs only support the user's own setup, to keep development simple. They support exactly two window setups, both on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same:
-
-- **Windowed maximized**, with a client area of 2560 × 1369. The taskbar takes 48 pixels at the bottom of the monitor, which leaves a 2560 × 1392 work area. The title bar takes the top 23 pixels of that, so the client area runs from screen y = 23 down to the bottom of the work area: 1392 − 23 = 1369.
-- **Borderless fullscreen**, with a client area of 2560 × 1440 that covers the whole monitor. `F11` switches between the two.
+Programs only support the user's own setup, to keep development simple. They support exactly one window setup: **borderless fullscreen** on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same, with a client area of 2560 × 1440 that covers the whole monitor.
 
 In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/UserInterface` does the check.
 
 So:
 
-- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of these two client areas, from `ui.content_top()`: 2560 × 1352 and 2560 × 1423. The only difference between the two is 71 pixels of height.
-- Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window at either height.
+- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of the client area, from `ui.content_top()`: 2560 × 1423.
+- Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window.
 
 ## Non-disruptive workflow
 
@@ -159,7 +159,7 @@ While working:
 How:
 
 - Run builds, tests and anything else that keeps the CPU busy with `Program\RunLightly\RunLightly.ps1 <command>`, like `Program\RunLightly\RunLightly.ps1 cargo test --workspace`. It runs the command, and every process that it starts, only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time, at low I/O and memory priority, in efficiency mode, and with their GPU work after other processes', so that a game the user is playing keeps its cores and its frame rate. It's slower than running the command directly. Give it `cargo` as the command itself, not a script that runs cargo: rustup's cargo puts itself in a job of its own, which RunLightly can't take it out of afterwards.
-- Run a GUI program with `Program\RunInBackground\RunInBackground.ps1 <program>`, like `Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo`, from the root of the repository. It builds the program, opens it on CVVNY2 without activating it, without GameInput, in the light theme and windowed maximized whatever the program's `Settings.json` says, and with vertical sync, so that it draws at most one frame a refresh and is light on a computer that someone's playing games on, saves a screenshot of what it draws to `target\RunInBackground\<program>.png`, and closes it. Read the screenshot to see the result.
+- Run a GUI program with `Program\RunInBackground\RunInBackground.ps1 <program>`, like `Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo`, from the root of the repository. It builds the program, opens it on CVVNY2 without activating it, without GameInput, in the light theme whatever the program's `Settings.json` says, and with vertical sync, so that it draws at most one frame a refresh and is light on a computer that someone's playing games on, saves a screenshot of what it draws to `target\RunInBackground\<program>.png`, and closes it. Read the screenshot to see the result.
 - With `--debug-build`, the D3D12 debug layer's warnings and errors go to `target\RunInBackground\<program>Errors.log`. Check it after changing how a program draws.
 - Don't start a GUI program any other way, like with `cargo run`. The `HumanRun.cmd` and `HumanRun.ps1` in a program's folder are for the user to launch it and use it. Never run them. Without `--no-activate`, a program's window takes focus. Without `--display CVVNY2`, it opens on the display in its `Settings.json`, or on the primary display if that one isn't connected.
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.

@@ -120,7 +120,8 @@ impl Gpu {
             set_gpu_priority(priority)?;
         }
         unsafe {
-            let debug = cfg!(debug_assertions) && enable_debug_layer();
+            let _making = MAKING.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let debug = cfg!(debug_assertions) && *DEBUG_LAYER.get_or_init(|| enable_debug_layer());
             let flags = if debug { DXGI_CREATE_FACTORY_DEBUG as u32 } else { 0 };
             let factory: IDXGIFactory6 = CreateDXGIFactory2(flags)?;
             let (adapter, device) = create_device(&factory, choice)?;
@@ -289,6 +290,15 @@ impl Drop for Gpu {
         }
     }
 }
+
+// A process makes its devices one at a time: in a debug build, DXGI's
+// factory, made with its debug layer, failed now and then with
+// DXGI_ERROR_INVALID_CALL while another thread made a device, as tests do,
+// each on a thread of its own. And it turns D3D12's debug layer on once,
+// before its first device, as D3D12 removes the devices that exist when the
+// debug layer is turned on.
+static MAKING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static DEBUG_LAYER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 
 // Turns on the D3D12 debug layer, if Windows' optional "Graphics Tools"
 // feature is installed.

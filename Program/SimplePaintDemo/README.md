@@ -3,8 +3,8 @@
 Edits a [SimplePaint](../../Library/SimplePaint/README.md) material, and shows it live on a UV
 sphere. Like every KGames GUI program, it's built on
 [Library/UserInterface](../../Library/UserInterface/README.md), after Fluent 2, in its light
-theme, ignores input without focus, and supports the two
-[window setups](../../Library/UserInterface/README.md#window-setups).
+theme, ignores input without focus, and supports the one
+[window setup](../../Library/UserInterface/README.md#window-setup).
 
 ## What it shows
 
@@ -31,11 +31,10 @@ theme, ignores input without focus, and supports the two
 | **Reset**              | Goes back to SimplePaint's default material                       |
 | `F9`                   | Switches between the light and dark themes                        |
 | `F10`                  | Switches vertical sync on or off                                  |
-| `F11`                  | Switches between maximized and borderless fullscreen              |
 
 Settings step by 0.001, and Rotation by 0.1 degrees, and stop at the last step inside the range
 that SimplePaint accepts, so the material is always valid. Parts of a notch, like a touchpad's,
-add up over the same slider. Holding an arrow key repeats it, but holding `Ctrl+S` saves once.
+add up over the same slider. A held key doesn't repeat: holding an arrow key moves a setting once.
 
 When it starts, the demo loads `Paint.json`, if it's there, and a notice under the app bar says
 what's wrong with it if it can't. It's in the format of
@@ -63,14 +62,14 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 
 The tests in `Test/SimplePaintDemo` drive the demo through the cards' real layout, which
 `user_interface::Headless` builds without a window or a GPU: presses, drags past a rail's ends,
-the wheel and its parts of a notch, the arrow keys, Ctrl+S, **Save**, **Reset**, losing focus
-mid-drag, a bad `Paint.json`, and thousands of random inputs that must leave a valid material.
-They also check that the cards and their text fit both window heights, and draw frames offscreen
-with the GPU, where the sphere must fill the preview's view.
+the wheel and its parts of a notch, the arrow keys, Ctrl+S, **Save**, **Reset**, a release that
+ends a drag, a bad `Paint.json`, and thousands of random inputs that must leave a valid material.
+They also check that the cards and their text fit the window, and draw frames offscreen with the
+GPU, where the sphere must fill the preview's view.
 
 The scripts in `Test/SimplePaintDemo/Scripts` run the same kinds of input through the real
 window and GPU, as [Library/UserInterface](../../Library/UserInterface/README.md#testing)
-describes, including F11 there and back. A scripted run starts from SimplePaint's default
+describes. A scripted run starts from SimplePaint's default
 material, and saves `Paint.json` in its output folder, not in the demo's. The state that scripts
 save and check has the material's `Parameters`, the `Selected` setting, the one whose slider is
 `Dragging`, whether it's `Saved`, and the shader's `Constants`. The interface's state has where
@@ -94,10 +93,9 @@ range never moves the other way. Parts of a notch add up over the same slider.
 
 The demo draws the sphere into its own 4x multisampled texture, through an sRGB view, so the
 shader's linear output is encoded once, and resolves it, which averages the samples in linear
-light. The texture is as big as the view in borderless fullscreen, around the card's color, and
-the view shows its middle, 71 pixels shorter, maximized. The demo keeps the result, and draws
-the sphere again only when the material changes. Each frame, it copies the result into the
-frame at the view, where the card leaves a hole. The copy keeps the bytes, which are sRGB, as
+light. The texture is as big as the view, around the card's color. The demo keeps the result,
+and draws the sphere again only when the material changes. Each frame, it copies the result into
+the frame at the view, where the card leaves a hole. The copy keeps the bytes, which are sRGB, as
 the frame's are. The sphere has 256 vertices around and 128 bands from pole to pole, so its edge
 looks round and its normals interpolate smoothly.
 

@@ -18,14 +18,9 @@
     { "Frame": 9, "Key": "R" },
     { "Frame": 9, "Expect": { "Paused": true, "Position": [94.5437, -48.4802] } },
     { "Frame": 10, "Capture": "Following" },
-    { "Frame": 11, "Key": "F1" },
+    { "Frame": 11, "Key": "F2" },
     { "Frame": 11, "Expect": { "CardShown": false } },
-    { "Frame": 12, "Key": "F11" },
-    { "Frame": 20, "Expect": { "Interface": { "Fullscreen": true, "Size": [2560, 1440] } } },
-    { "Frame": 21, "Key": "F1" },
-    { "Frame": 30, "Expect": { "CardShown": true, "Interface": { "Targets": { "Play/Card": { "Kind": "Card" } } } } },
-    { "Frame": 30, "Capture": "Fullscreen" },
-    { "Frame": 31, "Key": "F11" },
-    { "Frame": 40, "Expect": { "Interface": { "Fullscreen": false, "Size": [2560, 1369] } } }
+    { "Frame": 12, "Key": "F2" },
+    { "Frame": 12, "Expect": { "CardShown": true, "Interface": { "Targets": { "Play/Card": { "Kind": "Card" } } } } }
   ]
 }

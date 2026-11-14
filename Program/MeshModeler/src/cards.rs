@@ -1,9 +1,8 @@
 // Describes the modeler's interface from its state, with
 // Library/UserInterface's widgets: the app bar with its menu bar, the status
-// bar, and the cards, which have fixed places in pixels for the two client
-// areas that programs support, 2560 x 1369 maximized and 2560 x 1440 in
-// borderless fullscreen. The view and the cards at the bottom of the side
-// columns get the 71 pixels that fullscreen adds.
+// bar, and the cards, which have fixed places in pixels for the client area
+// that programs support, 2560 x 1440 in borderless fullscreen. The view and
+// the cards at the bottom of the side columns get what's left of its height.
 //
 // Left: Select, with the selection mode and the tool; Edit, with the edits;
 // Add, with primitives; and Model, with what the model has. Middle: the
@@ -64,7 +63,7 @@ pub fn view(modeler: &Modeler, ui: &mut Ui) -> Tree<Message> {
     right_column(modeler, ui, &mut tree, right);
 
     // A modal edit: a cover over the whole window takes the pointer from
-    // everything else while it's under way, and hears it every frame.
+    // everything else while it's under way, and hears it every step.
     if modeler.editor.operation.is_some() {
         tree.add("Operation", ui.bounds(), View::new().cursor(Cursor::Move).every_frame().on_input(Message::Operation));
     }
@@ -165,7 +164,6 @@ fn menu_bar(modeler: &Modeler, ui: &mut Ui, tree: &mut Tree<Message>, bar: Rect)
         MenuItem::separator(),
         item(m, Command::ToggleTheme, Some(Icon::Moon)),
         item(m, Command::VerticalSync, None).checked(ui.vertical_sync()),
-        item(m, Command::Fullscreen, Some(Icon::FullScreen)),
     ];
     let menus = vec![("File", file), ("Edit", edit), ("Mesh", mesh), ("Paint", paint), ("View", view)];
     let menu = MenuBar::new(menus);

@@ -1,5 +1,5 @@
 // The test, as a program that Library/UserInterface runs: the sphere's
-// motion, the card over the scene that F1 shows and hides, and the scene,
+// motion, the card over the scene that F2 shows and hides, and the scene,
 // which fills the window under the card.
 
 use graphics::{Frame, Gpu};
@@ -12,7 +12,7 @@ use crate::settings::SceneSettings;
 pub const NAME: &str = "Minimal Scene Test";
 pub const DESCRIPTION: &str = "A sphere moving at 8 units per second";
 
-// What a frame's input means: F1, and the frame's time passing.
+// What a frame's input means: F2, and the frame's time passing.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Message {
     ToggleText,

@@ -1,6 +1,6 @@
 # Platformer
 
-Follow the rules for GUI programs in the [AGENTS.md](../../AGENTS.md) at the root, including the supported window setups and the non-disruptive workflow. Run the game with `Program\RunInBackground\RunInBackground.ps1 Platformer`.
+Follow the rules for GUI programs in the [AGENTS.md](../../AGENTS.md) at the root, including the supported window setup and the non-disruptive workflow. Run the game with `Program\RunInBackground\RunInBackground.ps1 Platformer`.
 
 - Keep the game and its event graph as the [README](README.md) describes them, and the README up to date with them.
 - Everything that happens in the game is an `Event` in `src/events.rs`, consumed in `Game::apply`. A consumer may publish more events; the queue drains to quiescence inside the frame, so no consequence may wait for a later frame, and a cascade that doesn't settle stops the program. An event carries the facts of its moment; consumers read everything else from the game as it is when they run, never from a snapshot.

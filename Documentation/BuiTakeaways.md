@@ -55,7 +55,7 @@ claims in KGames' code. Nothing in BUI was built or run.
 
 | #   | Task                                              | Effort     | Status      |
 | --- | ------------------------------------------------- | ---------- | ----------- |
-| 1   | Keep a frame's keys and text in order             | 1 day      | Not started |
+| 1   | Keep a frame's keys and text in order             | 1 day      | Done        |
 | 2   | Repaint the frame when the glyph atlas fills      | Half a day | Not started |
 | 3   | Check design values against WinUI's generic.xaml  | Half a day | Proposed    |
 | 4   | Test that round trips give an identical frame     | 2 hours    | Proposed    |
@@ -78,14 +78,26 @@ claims in KGames' code. Nothing in BUI was built or run.
 | 21  | A third-party notices file and its check          | 1 hour     | Not started |
 | 22  | Decide whether idle frames are skipped            | Decision   | Not started |
 
-Tasks 1 and 2 fix bugs in KGames that BUI showed up, which break AGENTS.md's rules today. Tasks 3
-and 4 are the cheapest checks with the most reach.
+Tasks 1 and 2 fix bugs in KGames that BUI showed up, which broke AGENTS.md's rules: task 1's is
+fixed, and task 2's still does. Tasks 3 and 4 are the cheapest checks with the most reach.
 
 ## Task details
 
 ### 1. Keep a frame's keys and text in order
 
-Status: Not started. A bug in KGames, checked in the code.
+Status: Done, more widely than the task asked. The interface takes a frame's input in steps, one
+for each event that does something, like a key's press with its text, a release, a click or the
+wheel, and runs each step's input, messages, view and layout on the state that the steps before it
+left, as a Win32 window's messages do (`Input::steps` in
+[events.rs](../Library/UserInterface/src/input/events.rs), and `Interface::frame` in
+[interface.rs](../Library/UserInterface/src/core/interface.rs)). So every widget and program sees
+one key at a time, with the modifiers held as it went down, and no widget needs an ordered list of
+its own. `Test/UserInterface/tests/order.rs` pins that "a", Backspace, "b" in one frame deletes the
+"a", that a shortcut sees the modifiers held as its key went down and applies twice when pressed
+twice, that two clicks in a frame are two presses, and that a click lands on a menu or a dialog
+that a click before it in the frame opened. No widget moves by Left or Down today, so the cases
+below about them have nothing to pin yet; a widget that takes them will get them one at a time.
+What follows is the task as it was found.
 
 - **KGames:** `Input` keeps the frame's presses in `keys_pressed` and its typed text in one `text`
   string, and the modifiers are the ones held at the end of the frame
@@ -160,9 +172,9 @@ Status: Proposed, as a session card.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
 - **Do:** with `Headless` on UiShowcase, press F9 twice, open and close a menu, lose and regain
-  focus, and press F11 twice if `Headless` supports it, and compare whole frames, leaving out the
-  PerfBar, the way `a_press_draws_all_it_did_on_its_own_frame` does. A frame that doesn't come
-  back identical is a bug, fixed with the test pinning it.
+  focus, and compare whole frames, leaving out the PerfBar, the way
+  `a_press_draws_all_it_did_on_its_own_frame` does. A frame that doesn't come back identical is a
+  bug, fixed with the test pinning it.
 - **Done when:** the tests pass, with any fixes they force.
 
 ### 5. Turn the IME off for KGames' windows
@@ -184,9 +196,9 @@ Status: Not started.
 Status: Not started. Needs an exception in AGENTS.md, which says to read all input with
 GameInput.
 
-- **KGames:** text comes from `ToUnicodeEx` on GameInput's scan codes
-  ([reader.rs:356-397](../Library/UserInterface/src/input/reader.rs#L356)), so Chinese,
-  Japanese and Korean can't be typed.
+- **KGames:** text is ASCII, made from GameInput's keys with a fixed table of a US keyboard
+  ([typing.rs](../Library/UserInterface/src/input/typing.rs)), so nothing but ASCII can be typed,
+  Chinese, Japanese and Korean included.
 - **BUI:** `BUI/kit/intern/kit_ime_win32.c`, which comes from Chromium's `ImeInput` by way of
   Blender's GHOST, and `BUI/kit/intern/kit_ime.c`:
   - The candidate window is placed per language (`kit_ime_win32.c:119-143`).
@@ -398,7 +410,7 @@ Status: Not started.
 - **BUI:** press one toggle and drag, and every toggle the pointer crosses takes its value. It
   samples the pointer's path every 2 pixels, so fast drags skip none
   (`BUI/kit/intern/kit_core.c:1856-1912`).
-- **KGames:** sees only where the pointer ends the frame
+- **KGames:** sees only where the pointer ends each step
   ([events.rs:117-120](../Library/UserInterface/src/input/events.rs#L117)).
 - **Do:** sample the frame's pointer segment against the shown tree, in `interact`. WinUI doesn't do
   this, so decide first whether it fits Fluent 2.

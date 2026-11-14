@@ -12,7 +12,7 @@
 //   Enter keeps it, or a right-click or Esc takes it back. X, Y and Z limit it
 //   to an axis, N to the selection's normal, and Ctrl snaps it.
 //
-// `messages` turns the frame's keys into messages; `view` and `operation`
+// `messages` turns a step's keys into messages; `view` and `operation`
 // apply the pointer's input, as update runs them.
 
 use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
@@ -20,9 +20,9 @@ use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
 use crate::editing::{Axis, Drawn, Element, Tool};
 use crate::modeler::{COMMANDS, Command, Message, Modeler};
 
-// The frame's messages from the keys: the modal edit's, or the commands
-// whose shortcuts were pressed, without repeats, unless something else has
-// the keys. Prepare goes last, after everything the frame does.
+// A step's messages from the keys: the modal edit's, or the commands whose
+// shortcuts were pressed, unless something else has the keys. Prepare goes
+// last, after everything the step does.
 pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     let mut messages = Vec::new();
     // A paint's edit ends once the pointer lets go and its name has no focus.
@@ -31,35 +31,35 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     }
     if modeler.editor.operation.is_some() {
         for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
-            if ui.key_pressed_once(key) {
+            if ui.key_pressed(key) {
                 messages.push(Message::Constrain(axis));
             }
         }
-        if ui.key_pressed_once(Key::ENTER) {
+        if ui.key_pressed(Key::ENTER) {
             messages.push(Message::ConfirmOperation);
         }
-        if ui.key_pressed_once(Key::ESCAPE) {
+        if ui.key_pressed(Key::ESCAPE) {
             messages.push(Message::CancelOperation);
         }
     } else if modeler.prompt.is_none() && !ui.any_popup() && !ui.modal() {
         let modifiers = ui.input().modifiers();
         for (command, _, shortcuts) in COMMANDS {
-            // The library switches the theme with F9, vertical sync with F10,
-            // and fullscreen with F11, itself.
-            if matches!(command, Command::ToggleTheme | Command::VerticalSync | Command::Fullscreen) {
+            // The library switches the theme with F9 and vertical sync with
+            // F10 itself.
+            if matches!(command, Command::ToggleTheme | Command::VerticalSync) {
                 continue;
             }
             for text in *shortcuts {
                 if let Some(shortcut) = Shortcut::parse(text)
                     && shortcut.modifiers == modifiers
-                    && ui.key_pressed_once(shortcut.key)
+                    && ui.key_pressed(shortcut.key)
                 {
                     messages.push(Message::Command(*command));
                 }
             }
         }
         // Esc goes back to the Select tool.
-        if ui.key_pressed_once(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
+        if ui.key_pressed(Key::ESCAPE) && modeler.editor.tool != Tool::Select {
             messages.push(Message::Command(Command::SelectTool));
         }
     }
@@ -67,7 +67,7 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     messages
 }
 
-// What the pointer did in the view this frame.
+// What the pointer did in the view in a step.
 pub fn view(modeler: &mut Modeler, input: ViewInput) {
     let view = modeler.view;
     let modifiers = input.modifiers;
