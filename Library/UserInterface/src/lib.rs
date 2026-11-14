@@ -70,6 +70,7 @@ mod widgets {
     pub mod navigation;
     pub mod number_box;
     pub mod palette;
+    pub mod pointer;
     pub mod progress;
     pub mod scrolling;
     pub mod shell;

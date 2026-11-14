@@ -195,6 +195,10 @@ pub struct Interface {
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, over all its steps.
     pub(crate) messages_applied: usize,
+    // Whether the frame draws the pointer, while the window has focus, as a
+    // window's frames do, whose Windows' cursor is hidden then, and not a
+    // script's or a test's, whose captures never showed Windows' cursor.
+    pub(crate) draws_pointer: bool,
     // Whether the step running is its frame's last, which has the frame's
     // delta.
     last_step: bool,
@@ -231,6 +235,7 @@ impl Interface {
             notices: Vec::new(),
             performance: None,
             messages_applied: 0,
+            draws_pointer: false,
             last_step: true,
             phases: FramePhases::default(),
         }
@@ -717,6 +722,17 @@ impl Interface {
         }
         if self.performance.is_some() {
             self.perf_bar();
+        }
+        // The pointer, over everything.
+        if self.draws_pointer
+            && self.input.focused
+            && let Some(at) = self.input.pointer
+        {
+            let cursor = self.cursor;
+            self.draw.set_layer(Layer::Tooltip);
+            self.draw.push_clip(Rect::new(0.0, 0.0, self.size.width, self.size.height), true);
+            crate::widgets::pointer::draw_pointer(&mut self.painter(), at, cursor);
+            self.draw.pop_clip();
         }
     }
 
