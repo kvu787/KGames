@@ -71,8 +71,8 @@ fn main() -> std::process::ExitCode {
 }
 ```
 
-`run` reads `Settings.json` and the command line, opens the window on the chosen display, creates
-the program, and runs the main loop until the window closes. A program can also draw 3D: its
+`run` reads `Settings.json` and the command line, creates the program, opens the window on the
+chosen display, and runs the main loop until the window closes. A program can also draw 3D: its
 `prepare` creates GPU resources once, and its `render` records commands into each frame, after
 the frame is cleared to the theme's background and before the interface draws over it, where a
 card made with `card_with_view` leaves a hole.
@@ -399,8 +399,9 @@ as soon as they're drawn, and may tear, and the loop spins, so that the input th
 screen is as fresh as it can be.
 
 RunInBackground's test runs also start light, with `--theme Light`, whatever the program's
-settings say, so that scripts start the same way whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`,
-so that they share the computer lightly with someone using it, like playing a game: the window opens
+settings say, so that scripts start the same way whatever someone set for themselves. They use
+`--no-activate`, `--vsync` and `--no-input`, so that they share the computer lightly with someone
+using it, like playing a game: the window opens
 beneath the others and the process asks Windows for efficiency mode, where a window that someone
 uses asks for full execution speed; frames wait for vertical sync, whatever the program's settings
 say, at most one a refresh, and the loop waits on DXGI between them, instead of spinning; GameInput,
@@ -560,6 +561,7 @@ writes its files in its output folder, through `startup.data_folder`.
 |                                  | and the frame's phases                                                     |
 | `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its setup and its    |
 |                                  | check, and the theme's background that it shows until its first frame      |
+| `src/platform/cursor.rs`         | What the window does with Windows' cursor, decided from what Windows says  |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |

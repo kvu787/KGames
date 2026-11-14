@@ -75,7 +75,7 @@ other windows that show drawn over its own, where they are on the screen.
 | `--arguments <text>`  | More arguments for the program, after the others, like WinUi3Sample's      |
 |                       | `"--page Settings --theme Dark"`                                           |
 
-The screenshot is of what the program draws in its window, without the title bar. It comes
+The screenshot is of what the program draws in its window's client area. It comes
 from `PrintWindow`, so it doesn't matter if other windows are in front of the program's. What
 the program writes to standard output and standard error, like why it couldn't start, goes to
 `target\RunInBackground\<program>Output.log` and `<program>Errors.log`.

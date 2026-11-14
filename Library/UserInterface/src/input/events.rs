@@ -1,5 +1,6 @@
-// A frame's input: the events since the last frame, from the window, or
-// made up by a script or a test, in the order they happened. The interface
+// A frame's input: the events since the last frame, from GameInput's
+// readings and the window's focus, or made up by a script or a test, in the
+// order they happened. The interface
 // takes them in steps (see `Input::steps`), each of which it handles on the
 // state that the steps before it left, and gathers each step's events into
 // what happened in the step and what's held. Programs and widgets read it

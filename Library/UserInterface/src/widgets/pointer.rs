@@ -1,5 +1,5 @@
 // The pointer, which the interface draws over everything while the window
-// keeps Windows' cursor, hidden (see platform/window.rs), at the reader's
+// keeps Windows' cursor, hidden (see platform/cursor.rs), at the reader's
 // pointer, in the shape that the widget under it asks for (see
 // Widget::cursor). It looks unlike Windows' cursors, so that the two are easy
 // to tell apart: filled with the theme's accent, edged in text_on_accent,

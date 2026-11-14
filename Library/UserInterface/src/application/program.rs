@@ -1,8 +1,8 @@
 // What a GUI program is to the library: a Program with a message type, which
 // says what the input on its widgets means; `view`, which describes a
 // frame's interface from the program's state and changes nothing; `update`,
-// which applies a message; and `input`, which turns the frame's keys, time
-// and devices into messages. It may draw 3D under the interface, and tells
+// which applies a message; and `input`, which turns a step's keys, time and
+// devices into messages. It may draw 3D under the interface, and tells
 // scripts its state. `run` runs one with the Options that say how.
 //
 // A frame takes its input in steps, in the order it happened, one for each
@@ -42,8 +42,8 @@ pub trait Program {
 
     // The step's messages from what isn't a widget: the keys that no widget
     // took, the frame's delta, which comes in the frame's last step and is 0
-    // before it, the gamepad, and the devices. Once a step, after the widgets' messages and before the
-    // messages are applied.
+    // before it, the gamepad, and the devices. Once a step, after the
+    // widgets' messages and before the messages are applied.
     fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
         Vec::new()
     }
@@ -68,9 +68,9 @@ pub trait Program {
         Ok(())
     }
 
-    // Whether the window may close now that it's asked to, like by its close
-    // button. A program with unsaved work can say no, ask with a dialog, and
-    // close with Context::close once the user says so.
+    // Whether the window may close now that it's asked to, like with Alt+F4
+    // or the taskbar's Close. A program with unsaved work can say no, ask
+    // with a dialog, and close with Context::close once the user says so.
     fn may_close(&mut self) -> bool {
         true
     }
@@ -138,8 +138,8 @@ pub struct Startup {
     // Settings.json, which the program reads its own settings from.
     pub settings: Settings,
     // The settings that every program has, which were read from `settings`
-    // first, as the command line overrides them: the window mode, vertical
-    // sync and theme that the program starts in. `display` is the setting's,
+    // first, as the command line overrides them: the display, vertical sync
+    // and theme that the program starts in. `display` is the setting's,
     // which --display overrides with a display that must be connected.
     pub common: CommonSettings,
     // Where the program reads and writes its files: its folder, or a

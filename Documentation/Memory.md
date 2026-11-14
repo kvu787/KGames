@@ -198,8 +198,9 @@ starting allocates almost exactly what it keeps: no large temporary buffers, no 
 ## What a frame churns
 
 A steady frame's allocations, all of which it frees before the next one, from `memory/frames`.
-The moving row counts two frames an iteration, as a pointer move runs two; a widget there is of
-one frame.
+The moving row counts two frames an iteration, as a pointer move ran two when it was measured; it
+runs one now, so the row is two frames' until it's measured again. A widget there is of one
+frame.
 
 | Program                    | Targets | Allocations |  Bytes | A widget |
 | -------------------------- | ------: | ----------: | -----: | -------: |

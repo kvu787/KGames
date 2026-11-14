@@ -89,8 +89,8 @@ impl Program for Demo {
         TITLE.to_string()
     }
 
-    // The key pressed in this step, unless a widget with focus takes it, like
-    // a button takes Space.
+    // The key pressed in this step, unless a text field with focus takes it,
+    // or a dialog is open.
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let modifiers = ui.input().modifiers();
         let mut messages = Vec::new();

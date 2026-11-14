@@ -179,8 +179,8 @@ cargo run --release -- --display KXGR16
 ```
 
 To open the demo without taking focus from the window you're typing in, add `--no-activate`. The
-window opens without taking focus from that one, and gets keyboard and mouse input once you click
-it.
+window opens beneath the others, and never takes focus, even when it's clicked, so it reads no
+input, as test runs want.
 
 ### Running it in the background
 
@@ -332,8 +332,8 @@ device's own polling, its connection, and the monitor's scanout and response, is
 
 Library/UserInterface's main loop does most of it (see its
 [README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
-time, the loop waits until the GPU and DXGI can take another, and only then calls the demo's
-`update`, which reads GameInput, so no readings age during the wait. The demo starts with vertical
+time, the loop waits until the GPU and DXGI can take another, and only then reads GameInput,
+whose readings the demo's `update` takes, so no readings age during the wait. The demo starts with vertical
 sync on, as every program does, so its frames wait for the screen's refresh, and never tear. With
 `F10`, or `"VerticalSync": false` in the [settings](#settings-file), they're presented without
 waiting, and the loop spins instead of waiting, so the demo draws thousands of frames a second, and

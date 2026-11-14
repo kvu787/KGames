@@ -144,8 +144,7 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Measurement {
         let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
         app.send(&[Event::PointerMoved(Point::new(x, y))]);
     })
-    // `send` runs two frames.
-    .with_note("2 frames an iteration")
+    .with_note("1 frame an iteration")
 }
 
 // The first frame: a program made from nothing, with every layout and

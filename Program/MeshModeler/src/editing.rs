@@ -494,10 +494,10 @@ impl Editor {
 
     // Applies the edit for where the pointer is now; with `snap`, to whole
     // tenths, or 15 degrees. The modal edit hears the pointer in every step
-    // of a frame's input, while the pointer is read once a frame, so the
-    // edit is applied again only when what it's for changed, and the
-    // document doesn't get a new version, which remakes what the view
-    // draws, for the same edit.
+    // of a frame's input, and the steps that don't move it, like a key's,
+    // leave it where it was, so the edit is applied again only when what
+    // it's for changed, and the document doesn't get a new version, which
+    // remakes what the view draws, for the same edit.
     pub fn update(&mut self, document: &mut Document, pointer: Point, snap: bool, camera: &Camera, view: Rect) {
         let Some(operation) = &mut self.operation else {
             return;

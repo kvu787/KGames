@@ -13,10 +13,12 @@
 //   the pointer is the reader's own, as SDL's relative mode keeps one: it
 //   starts in the middle of the window the first time the window gets focus,
 //   and carries on from where it was each time after, and each mouse's
-//   motion moves it, its counts times MOUSE_SENSITIVITY, inside the window, where the window keeps Windows' cursor, hidden, while
-//   it has focus (see platform/window.rs). It moves in the stream's order, so a press happens
-//   where the pointer was as the button went down. Only mice's relative
-//   motion moves it, not the absolute positions of a pen or a touch screen.
+//   motion moves it, its counts times MOUSE_SENSITIVITY, inside the window,
+//   where the window keeps Windows' cursor, hidden, while it has focus (see
+//   platform/window.rs and platform/cursor.rs). It moves in the stream's
+//   order, so a press happens where the pointer was as the button went
+//   down. Only mice's relative motion moves it, not the absolute positions
+//   of a pen or a touch screen.
 //   A mouse's motion and wheels are running totals, which only its readings
 //   with relative positions have: GameInput gives each mouse a reading as
 //   focus goes that has none, and whose totals are 0, and goes on adding up

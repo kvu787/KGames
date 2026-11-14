@@ -1,7 +1,7 @@
 // A program's Win32 window. Its input comes from GameInput
 // (platform/input_devices.rs and input/reader.rs), not from its messages,
-// which it handles only to be a window: Windows' cursor over it, its size
-// and its close button.
+// which it handles only to be a window: Windows' cursor over it, its size,
+// WM_CLOSE, the system keys that it swallows, and its background.
 //
 // - It's borderless fullscreen on its display, the one supported setup.
 // - Windows' own window shortcuts do nothing in it: it swallows the system
@@ -299,7 +299,9 @@ impl Window {
         unsafe { IsIconic(self.hwnd).as_bool() }
     }
 
-    // Whether it was asked to close, like by its close button or Alt+F4.
+    // Whether it was asked to close with WM_CLOSE, like by the taskbar's
+    // Close. Alt+F4 comes from GameInput's keys instead (see
+    // core/interface.rs).
     pub fn close_requested(&self) -> bool {
         self.shared().close_requested.get()
     }

@@ -44,8 +44,9 @@ frame rate.
 
 Two consumers can ask for a save in one cascade; the first `SaveProgress`
 writes `Save.json` and the second finds the progress clean, so one cascade
-saves once. A cascade that doesn't settle within 1,000 events in a frame is
-a bug in the graph, and stops the program instead of hiding.
+saves once. A cascade that doesn't settle within 1,000 events in one update,
+a step of a frame's input, is a bug in the graph, and stops the program
+instead of hiding.
 
 An event carries the facts of its moment - which coin, how many seconds -
 and its consumers read everything else from the game as it is when they run,

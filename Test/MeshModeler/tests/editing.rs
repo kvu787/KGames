@@ -225,10 +225,11 @@ fn keys_select_all_none_and_the_inverse_in_each_mode() {
     assert_eq!(app.program.document.selection.faces.len(), 6);
 }
 
-// The modal edit hears the pointer in every step of a frame's input, while
-// the pointer is read once a frame, so the edit isn't applied again for the
-// same pointer: the document gets no new version, which would remake the
-// subdivided surface that the view draws, in every step.
+// The modal edit hears the pointer in every step of a frame's input, and
+// steps that don't move it, like a key's, leave it where it was, so the edit
+// isn't applied again for the same pointer: the document gets no new
+// version, which would remake the subdivided surface that the view draws,
+// in every step.
 #[test]
 fn a_modal_edit_is_applied_once_for_a_pointer_however_many_steps_a_frame_has() {
     let mut app = modeler("MoveSteps");

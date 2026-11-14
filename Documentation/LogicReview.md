@@ -265,7 +265,8 @@ and scripts to the window.
   of its own, which every stall would have handed out at once, and which could come after a
   release that GameInput hadn't delivered yet. They can come back when they're wanted.
 - **When focus changes:** at the time the window handles `WM_SETFOCUS`, after GameInput's own switch,
-  so input in between counts as without focus.
+  so input in between counts as without focus. Since superseded: when the main loop sees the
+  foreground change, as the section on simplifying the window, focus and the cursor says.
 - **The pointer:** decided. It's KGames' own, as a game's is: GameInput's mice move it, in the
   stream's order, so a press lands where it was as the button went down, and a key after a move
   sees it where it went. While the window has focus, Windows' cursor is hidden and kept inside it, and the

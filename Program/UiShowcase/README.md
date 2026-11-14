@@ -49,7 +49,7 @@ window's height.
 | A press            | Presses a button, flips a checkbox or a switch, picks a choice, sets a   |
 |                    | slider, opens a combo box, or puts a text field's caret there            |
 | A double-click     | Opens a row of the list                                                  |
-| Drag a slider      | Moves it, even past the window's edges                                   |
+| Drag a slider      | Moves it, past its ends too, until the button is let go of               |
 | The wheel          | Moves a slider a step a notch, or scrolls the list 3 rows                |
 | `Backspace`        | Deletes the character before a text field's caret                        |
 | `Enter`            | Takes what's typed in a number box or the hex field                      |

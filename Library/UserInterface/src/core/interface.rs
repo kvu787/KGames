@@ -1299,7 +1299,7 @@ impl<M> Context<'_, M> {
         self.inner.toggle_theme();
     }
 
-    // Switches vertical sync, as F10 does, from the next frame on.
+    // Switches vertical sync, as F10 does, from this frame's present on.
     pub fn toggle_vertical_sync(&mut self) {
         self.inner.environment.vertical_sync = !self.inner.environment.vertical_sync;
         self.inner.requests.push(Request::ToggleVerticalSync);

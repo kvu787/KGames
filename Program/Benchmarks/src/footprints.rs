@@ -60,7 +60,7 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Usage {
         let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
         app.send(&[Event::PointerMoved(Point::new(x, y))]);
     })
-    .with_note("2 frames an iteration")
+    .with_note("1 frame an iteration")
 }
 
 // Frames in a row, counted only after the program has run for long enough

@@ -8,8 +8,8 @@
 // The bottom row of cards and the log get what's left of the height.
 //
 // The combo box and the Devices card's rows are the library's widgets, which
-// read the mouse's buttons from GameInput, and the pointer from where Windows'
-// cursor is in the window. Everything else that the cards show comes from the
+// read the mouse's buttons and motion from GameInput, whose motion moves the
+// library's own pointer. Everything else that the cards show comes from the
 // devices' readings.
 
 use game_input::*;

@@ -4,7 +4,8 @@
 //
 // - application: what a program is, its settings, the main loop, and its
 //   PerfBar's stats.
-// - platform: the window, the clock, and GameInput's devices.
+// - platform: the window, Windows' cursor, the clock, and GameInput's
+//   devices.
 // - input: keys, buttons and the gamepad, and a frame's input from GameInput,
 //   in steps.
 // - design: Fluent's theme, tokens and icons, and WinUI's controls' sizes.

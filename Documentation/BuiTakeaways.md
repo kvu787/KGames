@@ -197,7 +197,7 @@ Status: Not started. Needs an exception in AGENTS.md, which says to read all inp
 GameInput.
 
 - **KGames:** text comes from `ToUnicodeEx` on GameInput's scan codes
-  ([reader.rs:356-397](../Library/UserInterface/src/input/reader.rs#L356)), so Chinese,
+  ([reader.rs:546-587](../Library/UserInterface/src/input/reader.rs#L546)), so Chinese,
   Japanese and Korean can't be typed.
 - **BUI:** `BUI/kit/intern/kit_ime_win32.c`, which comes from Chromium's `ImeInput` by way of
   Blender's GHOST, and `BUI/kit/intern/kit_ime.c`:
@@ -410,7 +410,7 @@ Status: Not started.
 - **BUI:** press one toggle and drag, and every toggle the pointer crosses takes its value. It
   samples the pointer's path every 2 pixels, so fast drags skip none
   (`BUI/kit/intern/kit_core.c:1856-1912`).
-- **KGames:** sees only where the pointer ends the frame
+- **KGames:** sees only where the pointer ends each step
   ([events.rs:117-120](../Library/UserInterface/src/input/events.rs#L117)).
 - **Do:** sample the frame's pointer segment against the shown tree, in `interact`. WinUI doesn't do
   this, so decide first whether it fits Fluent 2.
