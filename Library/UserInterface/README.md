@@ -268,7 +268,9 @@ before, but reports gamepads' whole state, their held buttons too.
   lets the cursor go, where the pointer is, and keeps it again: the window keeps it from the
   start, and focus going and coming doesn't change what `F1` last chose. While the window doesn't
   keep the cursor, the mice's input doesn't reach the interface, so the pointer stays where it
-  was, undrawn, and the buttons that the mice pressed are let go of as that starts. As it
+  was, undrawn, and the buttons that the mice pressed are let go of as that starts. The pointer is
+  away then: nothing is under it, no tooltip shows, and the popups that were open close as it
+  goes, though the program never hears why. As it
   loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
   goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
   program that got focus has confined the cursor already, whose confinement the window leaves

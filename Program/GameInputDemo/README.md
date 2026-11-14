@@ -91,8 +91,8 @@ the demo applies a dead zone.
 ### Choosing a gamepad
 
 Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
-A click anywhere else in the window, or the window losing focus, like when it's minimized, closes
-the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
+A click anywhere else in the window, or the pointer going away, as the window loses focus, like
+when it's minimized, or F1 lets Windows' cursor go, closes the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
 text field does, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |

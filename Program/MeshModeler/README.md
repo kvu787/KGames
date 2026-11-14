@@ -93,8 +93,9 @@ from.
 mesh, in PolygonMesh's format, and the paints, each a `Name` and its settings in
 [Library/PaintSettings](../../Library/PaintSettings/README.md)'s format. **Open** lists what's
 there. **Export OBJ** writes `Models/<name>.obj` beside it, with the mesh's positions and faces.
-A model that was never saved asks for its name first, and **New**, **Open** and closing the
-window ask before changes are lost.
+A model that was never saved asks for its name first, and **New** and **Open** ask before changes
+are lost. Closing the window, with F12 or the taskbar's Close, quits at once, without asking, as
+in every KGames program.
 
 ## Build and run
 
@@ -118,7 +119,7 @@ The tests in `Test/MeshModeler` drive the modeler through its real layout, which
 `user_interface::Headless` builds without a window or a GPU: clicks, Shift and Alt clicks and
 boxes in the view, the camera, modal moves, rotations with snapping, extrusions and insets and
 their cancelling, loop cuts, the Paint tool, creases, subdivision, the menus, the dialogs,
-saving, opening and exporting, and closing with changes. They check that the cards fit the
+saving, opening and exporting, and starting over with changes. They check that the cards fit the
 window, and draw frames offscreen with the GPU, with either shader, subdivided and selected.
 
 The scripts in `Test/MeshModeler/Scripts` run the same kinds of input through the real window,

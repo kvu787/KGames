@@ -62,8 +62,8 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 
 The tests in `Test/SimplePaintDemo` drive the demo through the cards' real layout, which
 `user_interface::Headless` builds without a window or a GPU: presses, drags past a rail's ends,
-the wheel and its parts of a notch, the arrow keys, Ctrl+S, **Save**, **Reset**, losing focus
-mid-drag, a bad `Paint.json`, and thousands of random inputs that must leave a valid material.
+the wheel and its parts of a notch, the arrow keys, Ctrl+S, **Save**, **Reset**, a release that
+ends a drag, a bad `Paint.json`, and thousands of random inputs that must leave a valid material.
 They also check that the cards and their text fit the window, and draw frames offscreen with the
 GPU, where the sphere must fill the preview's view.
 
