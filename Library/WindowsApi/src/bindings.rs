@@ -512,6 +512,11 @@ pub unsafe fn GetStockObject(i: i32) -> HGDIOBJ {
     windows_core::link!("gdi32.dll" "system" fn GetStockObject(i : i32) -> HGDIOBJ);
     unsafe { GetStockObject(i) }
 }
+#[inline]
+pub unsafe fn GetSystemMetrics(nindex: i32) -> i32 {
+    windows_core::link!("user32.dll" "system" fn GetSystemMetrics(nindex : i32) -> i32);
+    unsafe { GetSystemMetrics(nindex) }
+}
 #[cfg(any(
     target_arch = "aarch64",
     target_arch = "arm64ec",
@@ -9020,6 +9025,10 @@ pub struct SECURITY_ATTRIBUTES {
     pub lpSecurityDescriptor: *mut core::ffi::c_void,
     pub bInheritHandle: windows_core::BOOL,
 }
+pub const SM_CXVIRTUALSCREEN: i32 = 78;
+pub const SM_CYVIRTUALSCREEN: i32 = 79;
+pub const SM_XVIRTUALSCREEN: i32 = 76;
+pub const SM_YVIRTUALSCREEN: i32 = 77;
 pub const STILL_ACTIVE: i32 = 259;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
