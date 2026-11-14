@@ -245,9 +245,14 @@ impl InputReader {
             // device a reading at rest as focus goes, and none of what's
             // held or let go of until focus comes back, so whatever the
             // reader last had is no longer so, even if that reading was lost.
+            // Each mouse's motion and wheels stay: GameInput adds them up
+            // only while the program has focus, so the first reading after
+            // it comes back moves the pointer by what moved since.
             self.keyboards.clear();
             self.keys_down = [false; 256];
-            self.mice.clear();
+            for (_, mouse) in &mut self.mice {
+                mouse.buttons = GameInputMouseNone;
+            }
             self.buttons_down = 0;
             self.ignored_buttons = 0;
         }

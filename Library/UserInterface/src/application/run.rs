@@ -147,6 +147,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if window.take_setup_changed() {
             problems = window.setup_problems();
         }
+        // Focus, and Windows' cursor with it, on every pass, whatever woke
+        // the loop, before it waits while minimized, so that losing focus
+        // lets the cursor go at once.
+        window.check_focus();
         // A minimized window runs no frames, and waits for messages. Its
         // input waits too: what came meanwhile, like losing focus as it
         // minimized, goes to the program in the first frame after it's
@@ -172,11 +176,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             continue;
         }
 
-        // Windows' cursor kept, or not, as the frame reads its input, so that
-        // the frame draws the pointer exactly while Windows' cursor is
-        // hidden, which a script's frames never do. And the input, read as
-        // late as it can be.
-        window.keep_cursor();
+        // The frame draws the pointer exactly while Windows' cursor is kept,
+        // hidden, as this pass's check left it, which a script's frames never
+        // do. And the input, read as late as it can be.
         ui.draws_pointer = !scripted && window.keeps_cursor();
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;

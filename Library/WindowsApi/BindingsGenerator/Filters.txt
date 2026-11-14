@@ -97,7 +97,6 @@ VK_XBUTTON1
 VK_XBUTTON2
 HTCLIENT
 WHEEL_DELTA
-WM_KILLFOCUS
 
 // The performance counter, which input, frames and the display's flips are
 // timed on
@@ -296,13 +295,11 @@ IDWriteTextLayout::HitTestTextPosition
 IDWriteTextRenderer
 IDXGIAdapter1::GetDesc1
 IDXGISwapChain3::GetCurrentBackBufferIndex
-SIZE_MINIMIZED
 SetCursor
 ValidateRect
 WM_CLOSE
 WM_ERASEBKGND
 WM_SETCURSOR
-WM_SETFOCUS
 WS_EX_APPWINDOW
 
 // Windows that test runs open beneath the others, and that a click never

@@ -9020,7 +9020,6 @@ pub struct SECURITY_ATTRIBUTES {
     pub lpSecurityDescriptor: *mut core::ffi::c_void,
     pub bInheritHandle: windows_core::BOOL,
 }
-pub const SIZE_MINIMIZED: i32 = 1;
 pub const STILL_ACTIVE: i32 = 259;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
@@ -9271,13 +9270,11 @@ pub const WM_CLOSE: i32 = 16;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_ERASEBKGND: i32 = 20;
-pub const WM_KILLFOCUS: i32 = 8;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
 pub const WM_PRINT: i32 = 791;
 pub const WM_QUIT: i32 = 18;
 pub const WM_SETCURSOR: i32 = 32;
-pub const WM_SETFOCUS: i32 = 7;
 pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
 pub const WM_SYSCHAR: i32 = 262;

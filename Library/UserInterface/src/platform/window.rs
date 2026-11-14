@@ -1,7 +1,7 @@
 // A program's Win32 window. Its input comes from GameInput
 // (platform/input_devices.rs and input/reader.rs), not from its messages,
-// which it handles only to be a window: its focus, Windows' cursor over it,
-// its size and its close button.
+// which it handles only to be a window: Windows' cursor over it, its size
+// and its close button.
 //
 // - It's borderless fullscreen on its display, the one supported setup.
 // - Windows' own window shortcuts do nothing in it: it swallows the system
@@ -11,10 +11,12 @@
 //   instead (see core/interface.rs). The shortcuts that Windows handles
 //   before any window sees them, like Alt+Tab and the Windows key, stay
 //   Windows'.
-// - It says when it gets and loses focus, on the clock that input is timed
-//   on, as input without focus is ignored. The time is when it handles the
-//   message, which Windows sends it once the focus has moved, so it can be
-//   a little after.
+// - It has focus while it's the foreground window and isn't minimized,
+//   which the main loop checks on every pass, with check_focus, and not
+//   from Windows' focus messages, as a window can get those without being
+//   the foreground window. It says when that changes, on the clock that
+//   input is timed on, as input without focus is ignored, at the time the
+//   check finds it, so it can be a little after.
 // - While it has focus and is the foreground window, it keeps Windows' cursor
 //   inside its client area, hidden, as games do: the interface keeps a
 //   pointer of its own, which GameInput's mice move, and draws it exactly
@@ -71,7 +73,6 @@ pub struct FocusChange {
 struct Shared {
     focus_changes: Cell<Vec<FocusChange>>,
     focused: Cell<bool>,
-    minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
     // Where the interface's pointer last was, in the client area's pixels.
@@ -140,7 +141,6 @@ impl Window {
             let shared = Box::new(Shared {
                 focus_changes: Cell::new(Vec::new()),
                 focused: Cell::new(false),
-                minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
                 pointer: Cell::new(None),
@@ -226,12 +226,28 @@ impl Window {
         }));
     }
 
-    // Keeps Windows' cursor inside the client area where keeps_cursor_in
-    // says, every frame, as Windows lets go of a cursor's confinement when
-    // other windows come and go, and a click that gave the window focus is
-    // let go of.
-    pub fn keep_cursor(&mut self) {
-        unsafe { keep_cursor(self.hwnd, self.shared()) };
+    // Whether the window has focus: whether it's the foreground window and
+    // isn't minimized, which the main loop asks on every pass, so that
+    // losing it, like with Alt+Tab, the Windows key or minimizing, is found
+    // at once, without waiting for a frame. Says when that changes, at the
+    // time it finds it. Windows' cursor goes with it: let go of as the window
+    // loses focus, where the interface's pointer was, unless the program
+    // that got focus has taken it, and kept inside the client area where
+    // keeps_cursor_in says, each pass, as Windows lets go of a cursor's
+    // confinement when other windows come and go, and a click that gave the
+    // window focus is let go of.
+    pub fn check_focus(&mut self) {
+        unsafe {
+            let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
+            let shared = self.shared();
+            if focused != shared.focused.get() {
+                shared.focus_changed(focused);
+                if !focused && let_go(shared).is_some_and(|holder| holder != ClipHolder::Other) {
+                    place_cursor(self.hwnd, shared);
+                }
+            }
+            keep_cursor(self.hwnd, shared);
+        }
     }
 
     // Whether the window keeps Windows' cursor, hidden, so that its frames
@@ -252,7 +268,7 @@ impl Window {
     }
 
     pub fn minimized(&self) -> bool {
-        self.shared().minimized.get()
+        unsafe { IsIconic(self.hwnd).as_bool() }
     }
 
     // Whether it was asked to close, like by its close button or Alt+F4.
@@ -563,21 +579,6 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
         let shared = &*shared;
         let message = message as i32;
         match message {
-            WM_SETFOCUS => {
-                shared.focus_changed(true);
-                keep_cursor(hwnd, shared);
-                LRESULT(0)
-            }
-            // Windows' cursor, if kept, is let go of where the interface's
-            // pointer was, where it shows once the window is left, unless
-            // the program that got focus has taken it already.
-            WM_KILLFOCUS => {
-                shared.focus_changed(false);
-                if let_go(shared).is_some_and(|holder| holder != ClipHolder::Other) {
-                    place_cursor(hwnd, shared);
-                }
-                LRESULT(0)
-            }
             // Windows' own window shortcuts do nothing: its default handling
             // of the system keys' messages would turn Alt alone and F10 into
             // the menu's keyboard mode, Alt+Space into the window's menu, and
@@ -596,9 +597,6 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 }
             }
             WM_SIZE => {
-                shared.minimized.set(wparam.0 as i32 == SIZE_MINIMIZED);
-                // A minimized window keeps no cursor, even with focus.
-                keep_cursor(hwnd, shared);
                 shared.setup_changed.set(true);
                 LRESULT(0)
             }

@@ -359,6 +359,20 @@ fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
     assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 300, 200))), "{:?}", frame.events);
 }
 
+// A mouse's motion counts across focus changes: GameInput adds it up only
+// while the program has focus, so the first reading after focus comes back
+// moves the pointer by what moved since, and isn't taken as the mouse's
+// first, without motion. Its buttons go with focus.
+#[test]
+fn a_mouse_s_motion_counts_across_focus_changes() {
+    let mut reader = focused();
+    reader.read(&[mouse_at(10, GameInputMouseLeftButton, 0, 0)], &[], &window(None));
+    reader.read(&[], &[], &window(Some((20, false))));
+    let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 10, 0)], &[], &window(Some((40, true))));
+    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 10, 0))), "{:?}", frame.events);
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonReleased(_))), "{:?}", frame.events);
+}
+
 // Each mouse's motion moves the pointer its counts times MOUSE_SENSITIVITY,
 // in parts of a pixel, however fast the mouse moves.
 #[test]
