@@ -316,10 +316,18 @@ first frame starts the same way, so every device's state is known from the start
 
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
-says, has nothing to do with the screen, and counts only while the program has focus. Each reading
-moves the pointer by its difference from that mouse's last reading times `MOUSE_SENSITIVITY`, in
-the stream's order. The pointer starts in the middle of the window the
-first time the window gets focus, and carries on from where it was each time after.
+says, has nothing to do with the screen. Each reading with relative positions moves the pointer by
+its difference from that mouse's last such reading times `MOUSE_SENSITIVITY`, in the stream's
+order. The pointer starts in the middle of the window the first time the window gets focus, and
+carries on from where it was each time after.
+
+Microsoft's documentation says that the sum counts only the motion that the program gets while it
+has focus. Measured with GameInput 4.0.306, with input that `SendInput` injected, it doesn't: the
+sum went on counting motion, and the wheels' sums turns, while the program didn't have focus. And
+as focus went, GameInput gave every mouse a reading at rest whose sums were all 0 and that had no
+positions. So the reader takes motion and turns only from readings with relative positions, and
+each mouse starts over as focus goes: its first reading after focus comes back only says where its
+sums are, and what moved in another program never counts.
 While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
 goes to another window, and the interface draws the pointer. `absolutePositionX` and
 `absolutePositionY`, which a pen or a touch screen may give, aren't read.

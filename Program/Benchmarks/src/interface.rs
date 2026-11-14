@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 
 use graphics::{AdapterChoice, Gpu, GpuTimer, Offscreen};
-use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameInputKindMouse, GameInputMouseState};
+use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameInputKindMouse, GameInputMouseRelativePosition, GameInputMouseState};
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::performance::{Frame, Performance};
 use user_interface::tokens::{BODY, CAPTION, WINDOW_HEIGHT, WINDOW_WIDTH};
@@ -287,6 +287,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
                 device: Some(2),
                 kinds: GameInputKindMouse,
                 mouse: GameInputMouseState {
+                    positions: GameInputMouseRelativePosition,
                     positionX: index,
                     positionY: index * 2,
                     ..Default::default()

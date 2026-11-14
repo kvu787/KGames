@@ -17,6 +17,14 @@
 //   it has focus (see platform/window.rs). It moves in the stream's order, so a press happens
 //   where the pointer was as the button went down. Only mice's relative
 //   motion moves it, not the absolute positions of a pen or a touch screen.
+//   A mouse's motion and wheels are running totals, which only its readings
+//   with relative positions have: GameInput gives each mouse a reading as
+//   focus goes that has none, and whose totals are 0, and goes on adding up
+//   a mouse's motion and wheels while the program doesn't have focus, as
+//   measured with GameInput 4.0.306. So such a reading neither moves the
+//   pointer nor turns the wheel, and each mouse starts over as focus goes:
+//   its first reading with relative positions after that only says where its
+//   totals are, and motion and turns made in another program never count.
 // - Each gamepad keeps its own state, from its own readings, and the
 //   interface's gamepad is all of them at once: a button is held while any
 //   gamepad holds it, a trigger is pulled as far as any gamepad pulls it, and
@@ -64,6 +72,24 @@ pub struct FrameInput {
 // A keyboard's held keys, with their scan codes.
 type HeldKeys = Vec<(Key, u32)>;
 
+// A mouse's buttons, and its motion's and wheels' running totals as its last
+// reading with relative positions had them, which the next one's motion and
+// turns are from: none until it has one, and none again once focus goes, or
+// a reading without them comes.
+#[derive(Clone, Copy, Debug, Default)]
+struct Mouse {
+    buttons: GameInputMouseButtons,
+    totals: Option<Totals>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Totals {
+    x: i64,
+    y: i64,
+    wheel_x: i64,
+    wheel_y: i64,
+}
+
 pub struct InputReader {
     // Whether the gamepad goes to the interface, as Options::gamepad says.
     gamepad: bool,
@@ -74,8 +100,8 @@ pub struct InputReader {
     keyboards: Vec<(Option<usize>, HeldKeys)>,
     keys_down: [bool; 256],
     scan_codes: [u32; 256],
-    // Each mouse's last reading, by device.
-    mice: Vec<(Option<usize>, GameInputMouseState)>,
+    // Each mouse, by device.
+    mice: Vec<(Option<usize>, Mouse)>,
     // The mouse buttons held, as bits by Button, on any mouse.
     buttons_down: u32,
     // Buttons whose presses the interface didn't get, whose releases it
@@ -245,13 +271,12 @@ impl InputReader {
             // device a reading at rest as focus goes, and none of what's
             // held or let go of until focus comes back, so whatever the
             // reader last had is no longer so, even if that reading was lost.
-            // Each mouse's motion and wheels stay: GameInput adds them up
-            // only while the program has focus, so the first reading after
-            // it comes back moves the pointer by what moved since.
+            // Each mouse starts over too, as GameInput goes on adding up its
+            // motion and wheels without focus.
             self.keyboards.clear();
             self.keys_down = [false; 256];
             for (_, mouse) in &mut self.mice {
-                mouse.buttons = GameInputMouseNone;
+                *mouse = Mouse::default();
             }
             self.buttons_down = 0;
             self.ignored_buttons = 0;
@@ -416,36 +441,43 @@ impl InputReader {
 
     fn mouse(&mut self, reading: &Reading, events: &mut Vec<Event>) {
         let state = reading.mouse;
-        let previous = match self.mice.iter_mut().find(|(device, _)| *device == reading.device) {
-            Some((_, last)) => Some(std::mem::replace(last, state)),
+        let totals = (state.positions & GameInputMouseRelativePosition != 0).then_some(Totals {
+            x: state.positionX,
+            y: state.positionY,
+            wheel_x: state.wheelX,
+            wheel_y: state.wheelY,
+        });
+        let index = match self.mice.iter().position(|(device, _)| *device == reading.device) {
+            Some(index) => index,
             None => {
-                self.mice.push((reading.device, state));
-                None
+                self.mice.push((reading.device, Mouse::default()));
+                self.mice.len() - 1
             }
         };
+        let mouse = &mut self.mice[index].1;
+        mouse.buttons = state.buttons;
+        let previous = std::mem::replace(&mut mouse.totals, totals);
         // The motion and the wheels are running totals, which go around an
-        // i64's ends, the wheels in Windows' units of 120 a notch. The motion
-        // comes first: a reading with a press has the motion before it. The
-        // interface hears of each move as it happens, so that what comes
-        // after it in the stream, like a key, sees the pointer where it went.
-        let Some(previous) = previous else {
-            self.update_buttons(events);
-            return;
+        // i64's ends, the wheels in Windows' units of 120 a notch, from the
+        // mouse's last reading with them. The motion comes first: a reading
+        // with a press has the motion before it. The interface hears of each
+        // move as it happens, so that what comes after it in the stream, like
+        // a key, sees the pointer where it went.
+        let change = match (previous, totals) {
+            (Some(previous), Some(totals)) if self.focused => Some((previous, totals)),
+            _ => None,
         };
-        if self.focused {
-            let moved = Point::new(
-                state.positionX.wrapping_sub(previous.positionX) as f32,
-                state.positionY.wrapping_sub(previous.positionY) as f32,
-            );
+        if let Some((previous, totals)) = change {
+            let moved = Point::new(totals.x.wrapping_sub(previous.x) as f32, totals.y.wrapping_sub(previous.y) as f32);
             let moved = Point::new(moved.x * MOUSE_SENSITIVITY, moved.y * MOUSE_SENSITIVITY);
             self.position = self.inside(self.position + moved);
             self.point(events);
         }
         self.update_buttons(events);
-        if self.focused {
+        if let Some((previous, totals)) = change {
             let turned = Point::new(
-                state.wheelX.wrapping_sub(previous.wheelX) as f32 / WHEEL_DELTA as f32,
-                state.wheelY.wrapping_sub(previous.wheelY) as f32 / WHEEL_DELTA as f32,
+                totals.wheel_x.wrapping_sub(previous.wheel_x) as f32 / WHEEL_DELTA as f32,
+                totals.wheel_y.wrapping_sub(previous.wheel_y) as f32 / WHEEL_DELTA as f32,
             );
             if turned != Point::default() {
                 self.point(events);

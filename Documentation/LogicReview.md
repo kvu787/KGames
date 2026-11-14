@@ -391,8 +391,9 @@ program in the background from confining the cursor.
   meanwhile, like losing focus, in the first frame after the window is restored. GameInput turns
   gamepads' motors off without focus itself, and back on as the program last asked when focus comes
   back.
-- **The pointer:** a mouse's counts times `MOUSE_SENSITIVITY`, 0.8. Each mouse's motion is kept
-  across focus changes, as GameInput adds it up only while the program has focus.
+- **The pointer:** a mouse's counts times `MOUSE_SENSITIVITY`, 0.8. Each mouse starts over as
+  focus goes, and only readings with relative positions move the pointer: the section after this
+  one says why.
 
 ## Only the user can check
 
@@ -405,5 +406,52 @@ these aren't machine-checked, and the user tries them by hand:
 - Minimizing and restoring, like with Win+D.
 - Alt+F4 closes, and MeshModeler with unsaved changes asks first; the taskbar's Close too.
 - Alt+Space and Alt alone do nothing.
-- The pointer's motion right after Alt+Tab back, which assumes GameInput adds up a mouse's motion
-  only while the program has focus, as its documentation says.
+- The pointer's motion and the wheel right after Alt+Tab back, with a real mouse, which the
+  checks with injected input in the section after this one can't stand for: that a real mouse's
+  readings, the wheel's too, have relative positions, as injected ones do.
+
+# What validating with real input found
+
+With the user away, and their leave to disturb the desktop, the release UiShowcase ran fullscreen on
+CVVNY2, in front, while a C program outside the repository sent it real input with `SendInput`,
+changed the foreground, and read what Windows said: the foreground, `GetClipCursor`,
+`GetCursorInfo` and `GetGUIThreadInfo`'s menu modes. Another printed every reading that GameInput
+gave a window of its own.
+
+## Measured
+
+| What the probe did                                  | What happened                                         |
+| --------------------------------------------------- | ----------------------------------------------------- |
+| Brought the window to the front                     | the cursor confined to the window, and hidden         |
+| Alt+Tab                                             | the cursor free and showing, where the pointer was    |
+| The Windows key, then Escape                        | free with the Start menu up, kept again after         |
+| Win+D, then brought the window back                 | free while minimized, kept again once restored        |
+| Alt+Space, and Alt alone                            | no menu mode, and no menu                             |
+| Posted `WM_CLOSE`, as the taskbar's Close does      | the program closed, and the cursor was free           |
+| Alt+F4 with `SendInput`                             | nothing: GameInput doesn't report injected keys       |
+
+GameInput 4.0.306 did four things that its documentation doesn't say:
+
+- As focus goes, it gives each mouse a reading with no positions, `GameInputMouseNoPosition`, and
+  totals and wheels of 0, whatever they were.
+- It goes on adding a mouse's motion and wheel turns up while the program doesn't have focus, and
+  its first reading after focus comes back has them: totals of (200, 150) and a wheel of 240, then
+  (30, 0) and 120 in another program, then (-100, 0) with focus, read (130, 150) and 360.
+- `SendInput`'s mouse input is one device, "Unidentified mouse (0000:0000)", which connects with
+  the first input sent, and the reading of that input never comes: its first reading in the stream
+  has the totals of the first two moves.
+- Until the process's first reading, `GetCurrentReading` gives a reading that isn't in the history,
+  a snapshot of a device at rest: `GetNextReading` and `GetPreviousReading` from it fail with
+  `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`.
+
+## Found and fixed
+
+- **The pointer jumped, and the wheel turned, around Alt+Tab.** The reader took a mouse's motion and
+  turns from its last reading, which focus didn't change, so the reading at rest as focus went
+  moved the pointer back by the mouse's totals and turned the wheel back by its wheels' totals, and
+  the first reading after focus came back moved and turned it forward again, by everything since,
+  in the other program too. Now each mouse starts over as focus goes, and a reading without
+  relative positions neither moves the pointer nor turns the wheel. The probe then saw the pointer
+  carry on from where it was after Alt+Tab, and Windows' cursor placed where the pointer was drawn.
+  Pinned by `reader.rs`'s `a_mouse_starts_over_across_focus_changes` and
+  `a_reading_with_only_absolute_positions_moves_nothing`.

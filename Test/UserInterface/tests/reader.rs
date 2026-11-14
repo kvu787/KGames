@@ -43,6 +43,7 @@ fn mouse(time: i64, buttons: GameInputMouseButtons, wheel: i64) -> (i64, Reading
         kinds: GameInputKindMouse,
         mouse: GameInputMouseState {
             buttons,
+            positions: GameInputMouseRelativePosition,
             wheelY: wheel,
             ..Default::default()
         },
@@ -56,6 +57,13 @@ fn mouse_at(time: i64, buttons: GameInputMouseButtons, x: i64, y: i64) -> (i64, 
     let (time, mut reading) = mouse(time, buttons, 0);
     reading.mouse.positionX = x;
     reading.mouse.positionY = y;
+    (time, reading)
+}
+
+// A reading of a mouse with its motion's and its wheel's totals.
+fn mouse_with(time: i64, x: i64, y: i64, wheel: i64) -> (i64, Reading) {
+    let (time, mut reading) = mouse_at(time, GameInputMouseNone, x, y);
+    reading.mouse.wheelY = wheel;
     (time, reading)
 }
 
@@ -359,18 +367,61 @@ fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
     assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 300, 200))), "{:?}", frame.events);
 }
 
-// A mouse's motion counts across focus changes: GameInput adds it up only
-// while the program has focus, so the first reading after focus comes back
-// moves the pointer by what moved since, and isn't taken as the mouse's
-// first, without motion. Its buttons go with focus.
+// GameInput's reading of each mouse as focus goes has no positions, and its
+// totals are 0, even if its time puts it before the focus change: it neither
+// moves the pointer nor turns the wheel. GameInput goes on adding a mouse's
+// motion and turns up without focus, so each mouse starts over as focus
+// goes: its first reading after focus comes back only says where its totals
+// are, and what moved in another program doesn't count. As measured with
+// GameInput 4.0.306: totals (200, 150) and wheel 240, a reading at rest with
+// 0s as focus went, (30, 0) and 120 without focus, then (-100, 0) with it,
+// read as (130, 150) and 360.
 #[test]
-fn a_mouse_s_motion_counts_across_focus_changes() {
+fn a_mouse_starts_over_across_focus_changes() {
     let mut reader = focused();
-    reader.read(&[mouse_at(10, GameInputMouseLeftButton, 0, 0)], &[], &window(None));
+    reader.read(&[mouse_with(10, 200, 150, 240)], &[], &window(None));
+    let at_rest = (19, Reading {
+        device: Some(MOUSE),
+        kinds: GameInputKindMouse,
+        ..Default::default()
+    });
+    let frame = reader.read(&[at_rest], &[], &window(Some((20, false))));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::PointerMoved(_) | Event::Wheel(_))), "{:?}", frame.events);
+    let frame = reader.read(&[mouse_with(50, 130, 150, 360)], &[], &window(Some((40, true))));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
+    assert_eq!(frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).last(), Some(&Event::PointerMoved(MIDDLE)));
+    let frame = reader.read(&[mouse_with(60, 137, 157, 240)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 7, 7))), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::Wheel(Point::new(0.0, -1.0))), "{:?}", frame.events);
+}
+
+// A mouse starts over as focus goes even when GameInput's reading at rest is
+// lost, as when a frame loses its place in GameInput's stream: what moved and
+// turned in another program, which GameInput's totals still have, doesn't
+// count.
+#[test]
+fn a_mouse_starts_over_as_focus_goes_without_its_reading_at_rest() {
+    let mut reader = focused();
+    reader.read(&[mouse_with(10, 200, 150, 240)], &[], &window(None));
     reader.read(&[], &[], &window(Some((20, false))));
-    let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 10, 0)], &[], &window(Some((40, true))));
+    let frame = reader.read(&[mouse_with(50, 230, 150, 360)], &[], &window(Some((40, true))));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
+    assert_eq!(frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).last(), Some(&Event::PointerMoved(MIDDLE)));
+}
+
+// Only relative positions move the pointer: a reading with only absolute
+// ones, like a pen's, doesn't, and the mouse's next reading with relative
+// ones starts over.
+#[test]
+fn a_reading_with_only_absolute_positions_moves_nothing() {
+    let mut reader = focused();
+    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
+    let (time, mut absolute) = mouse_at(20, GameInputMouseNone, 500, 500);
+    absolute.mouse.positions = GameInputMouseAbsolutePosition;
+    let frame = reader.read(&[(time, absolute), mouse_at(30, GameInputMouseNone, 510, 500)], &[], &window(None));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::PointerMoved(_))), "{:?}", frame.events);
+    let frame = reader.read(&[mouse_at(40, GameInputMouseNone, 520, 500)], &[], &window(None));
     assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 10, 0))), "{:?}", frame.events);
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonReleased(_))), "{:?}", frame.events);
 }
 
 // Each mouse's motion moves the pointer its counts times MOUSE_SENSITIVITY,
