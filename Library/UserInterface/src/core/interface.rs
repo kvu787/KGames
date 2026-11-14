@@ -57,10 +57,6 @@ pub struct Environment {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Request {
     ToggleVerticalSync,
-    // Alt+F4: close if the program says it may. A program's frame asks it in
-    // the step with the key; the unsupported setup's frames leave it to the
-    // main loop.
-    AskToClose,
     Close,
 }
 
@@ -248,10 +244,10 @@ impl Interface {
     // `sent` are messages from outside, like a test's, applied in the first
     // step, before the input's. Every step sees the frame's time, and the
     // frame's delta comes in its last step. Once a step closes the window,
-    // like with an Alt+F4 that the program allows, the frame's later steps
-    // don't happen: their input came after the program closed, and mustn't
-    // change what it closed with.
+    // with Context::close, the frame's later steps don't happen: their input
+    // came after the program closed, and mustn't change what it closed with.
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size) {
+        no_platform_keys(events);
         self.frame += 1;
         self.size = size;
         self.requests.clear();
@@ -327,15 +323,6 @@ impl Interface {
             let mut context = Context { inner: self, queue: &mut queue };
             program.update(message, &mut context);
         }
-        // Alt+F4 asks the program whether it may close once the step's
-        // messages are applied, so that what it shows if it may not, like a
-        // prompt about unsaved work, is in this step's view.
-        if let Some(index) = self.requests.iter().position(|request| *request == Request::AskToClose) {
-            self.requests.remove(index);
-            if program.may_close() {
-                self.requests.push(Request::Close);
-            }
-        }
         lap(&mut phases.update);
 
         // The step's tree, laid out, for the next step's input and for the
@@ -362,6 +349,7 @@ impl Interface {
     // Runs a frame of a tree that isn't a program's, like the unsupported
     // setup's: the interface's own keys, in steps, and drawing.
     pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size) {
+        no_platform_keys(events);
         self.frame += 1;
         self.size = size;
         self.requests.clear();
@@ -589,9 +577,6 @@ impl Interface {
             // it from this very frame; the loop re-reads the truth after.
             self.environment.vertical_sync = !self.environment.vertical_sync;
             self.requests.push(Request::ToggleVerticalSync);
-        }
-        if self.input.key_pressed(Key::F4) && self.input.key_down(Key::ALT) {
-            self.requests.push(Request::AskToClose);
         }
     }
 
@@ -1200,6 +1185,17 @@ impl Interface {
     }
 }
 
+// F1 and F12 are the platform's, which never reach the interface, as presses
+// or releases, whoever made the frame's events: the reader drops them, and
+// scripts can't press them.
+fn no_platform_keys(events: &[Event]) {
+    for event in events {
+        if let Event::KeyPressed(key) | Event::KeyReleased(key) = event {
+            assert!(!crate::input::reader::platform_key(*key), "F1 and F12 are the platform's, and never reach the interface, but the frame's events had {event:?}");
+        }
+    }
+}
+
 // The id of a cover over the area, which is no widget: a hash of where it
 // is, which no name hashes to.
 fn cover_id(rect: Rect) -> Id {
@@ -1305,8 +1301,8 @@ impl<M> Context<'_, M> {
         self.inner.requests.push(Request::ToggleVerticalSync);
     }
 
-    // Closes the window, whatever Program::may_close says, once the step's
-    // messages are applied: the frame's later steps don't happen.
+    // Closes the window once the step's messages are applied: the frame's
+    // later steps don't happen.
     pub fn close(&mut self) {
         self.inner.requests.push(Request::Close);
     }

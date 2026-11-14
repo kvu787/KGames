@@ -10,7 +10,7 @@
 //                    "Motors": ["LowFrequency", "HighFrequency"] } }
 //     { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "RightStick": [0, 0],
 //                    "LeftTrigger": 0, "RightTrigger": 1, "Buttons": ["A"] } }
-//     { "Keyboard": { "Id": 2, "Down": ["F1", "A"] } }
+//     { "Keyboard": { "Id": 2, "Down": ["F3", "A"] } }
 //     { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120],
 //                  "Buttons": ["Left"] } }
 //     { "Disconnect": 1 }
@@ -230,7 +230,7 @@ impl InputSource for ScriptedSource {
     }
 }
 
-// The key, as GameInput reports it held, from its name, like "F1" or "A".
+// The key, as GameInput reports it held, from its name, like "F3" or "A".
 // Its scan code comes from the keyboard layout, and has the 0xE0 prefix for
 // extended keys, like GameInput's.
 pub fn key_state(name: &str) -> Option<GameInputKeyState> {

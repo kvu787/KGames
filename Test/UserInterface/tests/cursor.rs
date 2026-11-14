@@ -58,6 +58,19 @@ fn a_confinement_that_windows_released_is_not_released_again() {
     assert_eq!(keeper.update(facts(false, SCREENS)), [Show, Place(AT_POINTER)]);
 }
 
+// F1 lets the cursor go while the window has focus, where the pointer is, as
+// focus going does, and keeps it again.
+#[test]
+fn f1_lets_the_cursor_go_and_keeps_it_again() {
+    let mut keeper = keeping();
+    let let_go = |clip| CursorFacts { mice: false, ..facts(true, clip) };
+    assert_eq!(keeper.update(let_go(AREA)), [Release, Show, Place(AT_POINTER)]);
+    assert!(!keeper.keeps());
+    assert_eq!(keeper.update(let_go(SCREENS)), []);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
+    assert!(keeper.keeps());
+}
+
 // The Start menu takes the foreground without Windows releasing the
 // confinement, so the window releases it.
 #[test]

@@ -239,7 +239,7 @@ fn a_modal_edit_is_applied_once_for_a_pointer_however_many_steps_a_frame_has() {
     app.key(Key::G);
     app.move_point(start + Point::new(50.0, 0.0));
     let version = app.program.document.version;
-    app.send(&vec![Event::KeyReleased(Key::F12); 5]);
+    app.send(&vec![Event::KeyReleased(Key::F11); 5]);
     assert_eq!(app.program.document.version, version);
     // A move of the pointer applies it again.
     app.move_point(start + Point::new(80.0, 0.0));
@@ -636,23 +636,6 @@ fn the_cards_fit_in_the_window() {
     let view = app.target("View");
     assert!(view.bottom() <= bottom && view.bottom() > bottom - 40.0, "{view:?}");
     assert!(view.right() < WINDOW_WIDTH - 400.0);
-}
-
-#[test]
-fn closing_with_changes_asks_first() {
-    let mut app = modeler("Close");
-    use user_interface::Program;
-    assert!(app.program.may_close());
-    app.key(Key::A);
-    assert!(!app.program.may_close());
-    app.frames(2);
-    assert_eq!(text(&app, "Prompt").as_deref(), Some("Unsaved"));
-    app.click("Unsaved/Close");
-    assert!(!app.closed());
-    assert!(!app.program.may_close());
-    app.frames(2);
-    app.click("Unsaved/Secondary");
-    assert!(app.closed());
 }
 
 // How long a frame takes with the pointer over a subdivided mesh, where the

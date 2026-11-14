@@ -166,7 +166,7 @@ fn status_items(ui: &Ui, input: &Result<Input, String>) -> Vec<Status> {
         Err(_) => ("GameInput isn't available".to_string(), String::new()),
     };
     let mut items = vec![
-        Status::shortcut("F1", "Rumble test"),
+        Status::shortcut("F3", "Rumble test"),
         Status::shortcut("F2", "Clear the log"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
@@ -222,7 +222,7 @@ fn gamepad(ui: &mut Ui, tree: &mut Tree<Message>, input: &Input, rect: Rect) {
     let rumble_dead_zone = input.rumble_dead_zone;
     let rumble = if input.rumble_enabled { "on" } else { "off" };
     let status_line = format!(
-        "Readings: {:.0}/s over the last 2 s   ·   Rumble test: {rumble} (F1)   ·   Motors: {}",
+        "Readings: {:.0}/s over the last 2 s   ·   Rumble test: {rumble} (F3)   ·   Motors: {}",
         view.rate.per_second(),
         rumble_motor_names(view.rumble_motors)
     );

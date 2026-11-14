@@ -1,122 +1,111 @@
-// Tests Alt+F4, which comes from GameInput's keys, as Windows' own handling of
-// it is swallowed: it asks the program whether it may close, in the step with
-// the key, once the step's messages are applied, so that what the program
-// shows if it may not, like a prompt about unsaved work, is in that step's
-// view, on the frame of the key.
+// Tests closing. F12 and the taskbar's Close quit at once, under the
+// interface, without asking the program (see application/run.rs): F12 never
+// reaches the interface, nor does F1, which keeps Windows' cursor or lets it
+// go. Alt+F4 is only two keys. A program can close itself with
+// Context::close, and the steps of its frame after the one that closes don't
+// happen.
 
 use user_interface::{Button, Context, Event, Headless, Key, Program, Rect, Tree, Ui};
 
-// A program that may close, or not, and shows a prompt when it says no, and
-// counts the presses of A that no widget takes.
+// A program that closes itself on Q, and counts the presses of A that no
+// widget takes, and the keys it was given.
 #[derive(Default)]
 struct Closing {
-    allowed: bool,
-    asked: u32,
-    prompt: bool,
     typed: u32,
+    keys: Vec<Key>,
+}
+
+#[derive(Clone)]
+enum Message {
+    Key(Key),
+    Close,
 }
 
 impl Program for Closing {
-    type Message = ();
+    type Message = Message;
 
     fn title(&self) -> String {
         "Closing".to_string()
     }
 
-    fn input(&self, ui: &Ui) -> Vec<()> {
-        if ui.key_pressed(Key::A) { vec![()] } else { Vec::new() }
-    }
-
-    fn update(&mut self, _message: (), _ui: &mut Context<()>) {
-        self.typed += 1;
-    }
-
-    fn view(&self, _ui: &mut Ui) -> Tree<()> {
-        let mut tree = Tree::new();
-        if self.prompt {
-            tree.add("Prompt", Rect::new(100.0, 100.0, 200.0, 32.0), Button::new("Save first?"));
+    fn input(&self, ui: &Ui) -> Vec<Message> {
+        let mut messages: Vec<Message> = ui.input().keys_pressed().iter().map(|key| Message::Key(*key)).collect();
+        if ui.key_pressed(Key::Q) {
+            messages.push(Message::Close);
         }
+        messages
+    }
+
+    fn update(&mut self, message: Message, ui: &mut Context<Message>) {
+        match message {
+            Message::Key(key) => {
+                self.keys.push(key);
+                if key == Key::A {
+                    self.typed += 1;
+                }
+            }
+            Message::Close => ui.close(),
+        }
+    }
+
+    fn view(&self, _ui: &mut Ui) -> Tree<Message> {
+        let mut tree = Tree::new();
+        tree.add("Button", Rect::new(100.0, 100.0, 200.0, 32.0), Button::new("Button"));
         tree
     }
-
-    fn may_close(&mut self) -> bool {
-        self.asked += 1;
-        self.prompt |= !self.allowed;
-        self.allowed
-    }
 }
 
-fn alt_f4() -> Vec<Event> {
-    vec![Event::KeyPressed(Key::ALT), Event::KeyPressed(Key::F4)]
-}
-
+// Alt+F4 is two keys, which the program gets like any others, and which
+// close nothing.
 #[test]
-fn alt_f4_closes_a_program_that_may_close() {
-    let mut app = Headless::new(Closing {
-        allowed: true,
-        ..Closing::default()
-    });
-    app.send(&alt_f4());
-    assert_eq!(app.program.asked, 1);
-    assert!(app.closed());
+fn alt_f4_is_only_two_keys() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::ALT), Event::KeyPressed(Key::F4), Event::KeyReleased(Key::F4), Event::KeyReleased(Key::ALT)]);
+    assert!(!app.closed());
+    assert_eq!(app.program.keys, [Key::ALT, Key::F4]);
 }
 
-// The steps after an Alt+F4 that closes don't happen: a key pressed after
-// it, in the same frame, came after the program said it may close, and
-// mustn't change what it closes with, like making its work unsaved.
+// The steps after one that closes the program don't happen: a key pressed
+// after it, in the same frame, came after the program closed, and mustn't
+// change what it closes with, like making its work unsaved.
 #[test]
-fn nothing_happens_after_an_alt_f4_that_closes() {
-    let mut app = Headless::new(Closing {
-        allowed: true,
-        ..Closing::default()
-    });
-    let mut events = alt_f4();
-    events.push(Event::KeyPressed(Key::A));
-    app.send(&events);
+fn nothing_happens_after_a_step_that_closes() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::Q), Event::KeyPressed(Key::A)]);
     assert!(app.closed());
     assert_eq!(app.program.typed, 0);
 }
 
-// A key before an Alt+F4 in the same frame happens, as it came first.
+// A key before the step that closes, in the same frame, happens, as it came
+// first.
 #[test]
-fn what_comes_before_an_alt_f4_that_closes_happens() {
-    let mut app = Headless::new(Closing {
-        allowed: true,
-        ..Closing::default()
-    });
-    let mut events = vec![Event::KeyPressed(Key::A), Event::KeyReleased(Key::A)];
-    events.extend(alt_f4());
-    app.send(&events);
+fn what_comes_before_a_step_that_closes_happens() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::A), Event::KeyReleased(Key::A), Event::KeyPressed(Key::Q)]);
     assert!(app.closed());
     assert_eq!(app.program.typed, 1);
 }
 
+// F1 and F12 are the platform's: whoever made a frame's events, they never
+// reach the interface, as presses or releases.
 #[test]
-fn alt_f4_that_the_program_refuses_shows_its_prompt_on_the_same_frame() {
-    let mut app = Headless::new(Closing::default());
-    app.send(&alt_f4());
-    assert_eq!(app.program.asked, 1);
-    assert!(!app.closed());
-    assert!(app.has_target("Prompt"));
+#[should_panic(expected = "F1 and F12 are the platform's")]
+fn f1_never_reaches_the_interface() {
+    Headless::new(Closing::default()).send(&[Event::KeyPressed(Key::F1)]);
 }
 
-// Two Alt+F4s in a frame ask twice, as two clicks on a window's close button
-// would, and never collapse into one.
 #[test]
-fn two_alt_f4s_in_a_frame_ask_twice() {
-    let mut app = Headless::new(Closing::default());
-    let mut events = alt_f4();
-    events.extend([Event::KeyReleased(Key::F4), Event::KeyPressed(Key::F4)]);
-    app.send(&events);
-    assert_eq!(app.program.asked, 2);
-    assert!(!app.closed());
+#[should_panic(expected = "F1 and F12 are the platform's")]
+fn f12_never_reaches_the_interface() {
+    Headless::new(Closing::default()).send(&[Event::KeyReleased(Key::F12)]);
 }
 
-// F4 alone, or Alt alone, is a key like any other.
+// A script can't press them either: one that does says so before it runs.
 #[test]
-fn f4_without_alt_asks_nothing() {
-    let mut app = Headless::new(Closing::default());
-    app.send(&[Event::KeyPressed(Key::F4), Event::KeyReleased(Key::F4), Event::KeyPressed(Key::ALT)]);
-    assert_eq!(app.program.asked, 0);
-    assert!(!app.has_target("Prompt"));
+fn a_script_can_t_press_f1_or_f12() {
+    for step in [r#"{ "Frame": 1, "Key": "F1" }"#, r#"{ "Frame": 1, "Key": "Ctrl+F12" }"#, r#"{ "Frame": 1, "Hold": ["W", "F1"] }"#] {
+        let script = format!(r#"{{ "Steps": [ {step} ] }}"#);
+        let error = user_interface::Script::parse(&script).unwrap_err();
+        assert!(error.contains("F1 and F12 are the platform's"), "{error}");
+    }
 }

@@ -1,14 +1,15 @@
 // A program's Win32 window. Its input comes from GameInput
 // (platform/input_devices.rs and input/reader.rs), not from its messages,
 // which it handles only to be a window: Windows' cursor over it, its size,
-// WM_CLOSE, the system keys that it swallows, and its background.
+// WM_CLOSE, which quits, the system keys that it swallows, and its
+// background.
 //
 // - It's borderless fullscreen on its display, the one supported setup.
 // - Windows' own window shortcuts do nothing in it: it swallows the system
 //   keys' messages, which Windows' default handling would turn into the
 //   menu's keyboard mode for Alt alone and F10, the window's menu for
-//   Alt+Space, and a close for Alt+F4. Alt+F4 comes from GameInput's keys
-//   instead (see core/interface.rs). The shortcuts that Windows handles
+//   Alt+Space, and a close for Alt+F4, which is only two keys to KGames. F12
+//   quits instead (see input/reader.rs). The shortcuts that Windows handles
 //   before any window sees them, like Alt+Tab and the Windows key, stay
 //   Windows'.
 // - It has focus while it's the foreground window and isn't minimized,
@@ -229,7 +230,8 @@ impl Window {
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
     // may have changed its confinement, if the frames read GameInput's mice,
-    // `mice`, and not a script's input, or none.
+    // and not a script's input, or none, and F1 last chose to keep it:
+    // `mice`.
     pub fn check_focus(&mut self, mice: bool) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
@@ -300,16 +302,9 @@ impl Window {
     }
 
     // Whether it was asked to close with WM_CLOSE, like by the taskbar's
-    // Close. Alt+F4 comes from GameInput's keys instead (see
-    // core/interface.rs).
+    // Close, which quits.
     pub fn close_requested(&self) -> bool {
         self.shared().close_requested.get()
-    }
-
-    // Keeps the window open after all, when the program says it may not
-    // close yet.
-    pub fn cancel_close(&mut self) {
-        self.shared().close_requested.set(false);
     }
 
     pub fn client_size(&self) -> (u32, u32) {

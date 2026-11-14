@@ -313,7 +313,7 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
     step(&mut input, PAD_ONE);
     step(&mut input, KEYS);
     input.update(true);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
     input.update(true);
@@ -321,17 +321,17 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
 
     // Minimized, the window doesn't have focus, and the main loop runs no
     // frames: the first frame after it's restored says that focus went and
-    // came back. F1, pressed in another window meanwhile, doesn't turn the
+    // came back. F3, pressed in another window meanwhile, doesn't turn the
     // rumble test off. GameInput turns the motors off without focus itself,
     // so the demo asks nothing new of them.
     wait(&mut input, 1000);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     wait(&mut input, 1000);
     input.focus_lost();
     input.update(true);
     assert!(input.rumble_enabled);
-    let presses = log(&input).iter().filter(|line| line.contains("F1")).count();
+    let presses = log(&input).iter().filter(|line| line.contains("F3")).count();
     assert_eq!(presses, 2, "{:?}", log(&input));
     assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
 }
@@ -347,14 +347,14 @@ fn focus_changes_go_among_the_readings_by_their_times() {
     step(&mut input, KEYS);
     source(&mut input).now = 1_000;
     input.update(false);
-    // Focus comes at 1,500, and F1 goes down at 2,000, before the frame.
+    // Focus comes at 1,500, and F3 goes down at 2,000, before the frame.
     source(&mut input).focus.push((1_500, true));
     source(&mut input).now = 2_000;
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     source(&mut input).now = 3_000;
     input.update(true);
-    assert_eq!(log(&input).iter().filter(|line| line.contains("F1 down")).count(), 1, "{:?}", log(&input));
-    // F1 goes up at 3,500, focus goes at 4,000, and F2 goes down at 4,500.
+    assert_eq!(log(&input).iter().filter(|line| line.contains("F3 down")).count(), 1, "{:?}", log(&input));
+    // F3 goes up at 3,500, focus goes at 4,000, and F2 goes down at 4,500.
     source(&mut input).now = 3_500;
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     source(&mut input).focus.push((4_000, false));
@@ -363,7 +363,7 @@ fn focus_changes_go_among_the_readings_by_their_times() {
     source(&mut input).now = 5_000;
     input.update(false);
     let lines = log(&input);
-    assert_eq!(lines.iter().filter(|line| line.contains("F1 up")).count(), 1, "{lines:?}");
+    assert_eq!(lines.iter().filter(|line| line.contains("F3 up")).count(), 1, "{lines:?}");
     assert!(!lines.iter().any(|line| line.contains("F2")), "{lines:?}");
 }
 
@@ -405,29 +405,29 @@ fn keys_held_when_the_window_gets_focus_are_ignored_until_let_go_of() {
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift"] } }"#);
     input.update(true);
     input.update(false);
-    // F1 held down in another window, and the Alt of the Alt+Tab that
+    // F3 held down in another window, and the Alt of the Alt+Tab that
     // switches back to the demo.
     wait(&mut input, 1000);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F3", "Alt"] } }"#);
     wait(&mut input, 1000);
     input.update(true);
     expect(&input, r#"{ "Keyboard": { "Keys": [] } }"#);
 
     wait(&mut input, 1000);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F1", "Alt", "A"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["Shift", "F3", "Alt", "A"] } }"#);
     input.update(true);
     expect(&input, r#"{ "Keyboard": { "Keys": ["A"] }, "Latest": ["A down"], "RumbleTest": false }"#);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     input.update(true);
     expect(&input, r#"{ "Keyboard": { "Keys": [] }, "Latest": ["A up"] }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     input.update(true);
     expect(&input, r#"{ "Latest": ["A up"], "RumbleTest": false }"#);
 
-    // Once let go of, F1 works again.
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    // Once let go of, F3 works again.
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     input.update(true);
-    expect(&input, r#"{ "Keyboard": { "Keys": ["F1"] }, "Latest": ["F1 down"], "RumbleTest": true }"#);
+    expect(&input, r#"{ "Keyboard": { "Keys": ["F3"] }, "Latest": ["F3 down"], "RumbleTest": true }"#);
 }
 
 // Without background input, which the library leaves off, GameInput gives no
@@ -607,7 +607,7 @@ fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     step(&mut input, PAD_ONE);
     step(&mut input, KEYS);
     input.update(true);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     input.update(true);
     assert!(input.rumble_enabled);
@@ -639,7 +639,7 @@ fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     assert!((rumble.highFrequency - 0.5).abs() < 1e-6, "{}", rumble.highFrequency);
 
     // Off, the test stops the motors, and the sticks no longer drive them.
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     input.update(true);
     assert!(!input.rumble_enabled);
     assert_eq!(source(&mut input).rumble(1).unwrap().highFrequency, 0.0);
@@ -653,7 +653,7 @@ fn gamepads_no_longer_listened_to_stop_rumbling() {
     step(&mut input, PAD_ONE);
     step(&mut input, KEYS);
     input.update(true);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     step(&mut input, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
     input.update(true);
     assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
@@ -668,16 +668,16 @@ fn shortcuts_run_once_for_each_press() {
     let mut input = input();
     step(&mut input, KEYS);
     input.update(true);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     input.update(true);
     assert!(input.rumble_enabled);
     // Held while another key goes down.
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1", "A"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3", "A"] } }"#);
     input.update(true);
     assert!(input.rumble_enabled);
     // Let go of and pressed again, between two frames.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F3"] } }"#);
     input.update(true);
     assert!(!input.rumble_enabled);
 
@@ -695,7 +695,7 @@ fn shortcuts_run_once_for_each_press() {
 
 #[test]
 fn keys_are_named_like_the_keyboard_layout_names_them() {
-    for name in ["A", "F1", "Left", "Delete"] {
+    for name in ["A", "F3", "Left", "Delete"] {
         assert_eq!(key_name(&key_state(name).unwrap()), name);
     }
     // The arrow keys have the prefix that sets them apart from the keypad's.

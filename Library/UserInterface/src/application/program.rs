@@ -68,13 +68,6 @@ pub trait Program {
         Ok(())
     }
 
-    // Whether the window may close now that it's asked to, like with Alt+F4
-    // or the taskbar's Close. A program with unsaved work can say no, ask
-    // with a dialog, and close with Context::close once the user says so.
-    fn may_close(&mut self) -> bool {
-        true
-    }
-
     // What scripts save and check, besides the interface's, as a JSON object.
     fn state(&self) -> json::Value {
         json::Value::Object(Vec::new())

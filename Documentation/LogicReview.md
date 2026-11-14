@@ -526,14 +526,16 @@ same results.
   relative mode keeps it in one pixel in the window's middle by default, where that's much rarer.
 - **Alt held from before focus, then F4.** GameInput doesn't report keys held as focus comes, so
   Alt+Tab in with Alt still held, then F4, doesn't close the program, which Windows' own Alt+F4
-  would.
+  would. Since then, Alt+F4 is only two keys, and F12 quits.
 - **Closing on the error page, or while minimized.** A program with unsaved work that says no to
   Alt+F4 or the taskbar's Close sets its prompt, which only shows once the setup is right or the
-  window is restored, so it can't be closed until then.
+  window is restored, so it can't be closed until then. Since then, F12 and the taskbar's Close
+  quit at once, without asking, and `Program::may_close` is gone.
 - **The click that gives focus, while it's held.** The window is focused, but doesn't keep the
   cursor yet, so Windows' arrow shows while the reader's pointer, not drawn, moves, and what's
   under it is hovered; once let go of, the pointer shows where the reader has it, not where the
-  click was.
+  click was. Since then, the mice's input reaches the interface only while the window keeps the
+  cursor, so the pointer stays where it was until then.
 - **A gamepad button held as focus comes.** The reader ignores it until it's let go of only if
   GameInput's reading of it as focus comes is stamped before the window's focus change, and its
   readings at rest as focus goes came 1.4 ms after. If a real gamepad shows the same as focus

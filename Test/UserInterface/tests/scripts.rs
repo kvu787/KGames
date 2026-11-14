@@ -30,9 +30,9 @@ fn scripts_say_what_is_wrong_with_them() {
     assert!(Script::parse(r#"{ "Steps": [ { "Frame": 1, "Fly": true } ] }"#).unwrap_err().contains("Fly"));
     assert!(Script::parse(r#"{ "Steps": [ { "Frame": 1, "Move": [1, 2], "Click": [1, 2] } ] }"#).is_err());
     // A step that's wrong fails as the script is read, before the run.
-    let error = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Key": "F1" }, { "Frame": 9, "Drag": { "From": [0, 0] } } ] }"#).unwrap_err();
+    let error = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Key": "F3" }, { "Frame": 9, "Drag": { "From": [0, 0] } } ] }"#).unwrap_err();
     assert!(error.contains("frame 9") && error.contains("Drag") && error.contains("To"), "{error}");
-    let script = Script::parse(r#"{ "FrameTime": 0.01, "Steps": [ { "Frame": 7, "Key": "F1" }, { "Frame": 3, "Key": "F2" } ] }"#).unwrap();
+    let script = Script::parse(r#"{ "FrameTime": 0.01, "Steps": [ { "Frame": 7, "Key": "F3" }, { "Frame": 3, "Key": "F2" } ] }"#).unwrap();
     assert_eq!(script.frame_time, 0.01);
     assert_eq!(script.last_frame(), 7);
 }

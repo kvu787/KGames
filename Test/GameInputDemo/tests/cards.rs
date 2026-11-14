@@ -217,7 +217,7 @@ fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input()
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency"] } }"#);
     step(&mut app, r#"{ "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } }"#);
-    step(&mut app, r#"{ "Keyboard": { "Id": 2, "Down": ["F1"] } }"#);
+    step(&mut app, r#"{ "Keyboard": { "Id": 2, "Down": ["F3"] } }"#);
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [1, 0] } }"#);
     assert!(input(&app).rumble_enabled);
     let rumble = |app: &mut Headless<Demo>| app.program.input.as_mut().unwrap().scripted().unwrap().rumble(1);

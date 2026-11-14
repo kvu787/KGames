@@ -17,7 +17,7 @@
     },
     { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "HID Keyboard Device (29EA:0360)", "Input": ["Keyboard", "Mouse"] } } },
     { "Frame": 1, "Program": { "Connect": { "Id": 4, "Name": "Razer DeathAdder V4 Pro (1532:00BF)", "Input": ["Mouse"] } } },
-    { "Frame": 2, "Program": { "Keyboard": { "Id": 3, "Down": ["F1"] } } },
+    { "Frame": 2, "Program": { "Keyboard": { "Id": 3, "Down": ["F3"] } } },
     { "Frame": 3, "Program": { "Keyboard": { "Id": 3, "Down": [] } } },
     { "Frame": 4, "Program": { "Mouse": { "Id": 4 } } },
     { "Frame": 5, "Program": { "Mouse": { "Id": 4, "Motion": [120, 40] } } },

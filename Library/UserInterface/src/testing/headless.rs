@@ -142,8 +142,6 @@ impl<P: Program> Headless<P> {
                 // made, so the frame that asked says the new setting; a
                 // window would switch its presenter here.
                 Request::ToggleVerticalSync => {}
-                // A program's frame asks it in the step with the key.
-                Request::AskToClose => self.closed |= self.program.may_close(),
                 Request::Close => self.closed = true,
             }
         }

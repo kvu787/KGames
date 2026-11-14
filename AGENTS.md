@@ -130,9 +130,10 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
 - Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/src/design/controls.rs`.
 - Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
+- `F1` toggles between keeping Windows' cursor in the window, hidden, and letting it go.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `Alt+F4` closes the program, once `Program::may_close` says it may. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
+- `F12` quits the program at once, without asking, and so does the taskbar's Close. `F1` and `F12` are `Library/UserInterface`'s, and never reach a program. `Alt+F4` is only two keys. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
 - Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the PerfBar along the top of every window shows.
 
 ## Supported window setup

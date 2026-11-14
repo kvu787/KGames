@@ -164,7 +164,6 @@ impl Command {
 pub enum Pending {
     New,
     Open,
-    Close,
 }
 
 // The dialog that's open.
@@ -506,8 +505,7 @@ impl Modeler {
         }
     }
 
-    // Does what was pending, now that the changes are saved or not. Closing
-    // is done by cards.rs, which has the Ui.
+    // Does what was pending, now that the changes are saved or not.
     pub fn proceed(&mut self, pending: Pending) {
         match pending {
             Pending::New => {
@@ -522,7 +520,6 @@ impl Modeler {
                 self.open_choice = self.saved_names.iter().position(|name| *name == self.document.name).or((!self.saved_names.is_empty()).then_some(0));
                 self.prompt = Some(Prompt::Open);
             }
-            Pending::Close => self.prompt = None,
         }
     }
 
@@ -764,13 +761,8 @@ fn object(members: Vec<(&str, Value)>) -> Value {
 
 impl Modeler {
     // Does what was pending once the changes are saved or not.
-    fn finish(&mut self, ui: &mut Context<Message>, pending: Pending) {
-        if pending == Pending::Close {
-            self.prompt = None;
-            ui.close();
-        } else {
-            self.proceed(pending);
-        }
+    fn finish(&mut self, _ui: &mut Context<Message>, pending: Pending) {
+        self.proceed(pending);
     }
 
     // A dialog's answer.
@@ -898,14 +890,6 @@ impl Program for Modeler {
             viewport.draw(gpu, frame, &self.scene)?;
         }
         Ok(())
-    }
-
-    fn may_close(&mut self) -> bool {
-        if self.document.dirty {
-            self.prompt = Some(Prompt::Unsaved(Pending::Close));
-            return false;
-        }
-        true
     }
 
     fn state(&self) -> Value {

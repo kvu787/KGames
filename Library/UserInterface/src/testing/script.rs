@@ -29,6 +29,7 @@ use crate::core::interface::Interface;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
 use crate::input::events::Event;
+use crate::input::reader::platform_key;
 use crate::testing::gestures::{self, Frames};
 
 pub const DEFAULT_FRAME_TIME: f64 = 1.0 / 60.0;
@@ -170,7 +171,9 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
             let Value::String(name) = value else {
                 return Err("needs a key's name, like \"F2\" or \"Ctrl+S\"".to_string());
             };
-            Action::Key(Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?)
+            let shortcut = Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?;
+            platform_free(&[shortcut.key])?;
+            Action::Key(shortcut)
         }
         "Hold" => {
             let Value::Array(names) = value else {
@@ -180,7 +183,9 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                 Value::String(name) => Key::parse(name).ok_or_else(|| format!("names no key: {name}")),
                 other => Err(format!("has {}, which isn't a key's name", other.describe())),
             });
-            Action::Hold(keys.collect::<Result<_, _>>()?)
+            let keys: Vec<Key> = keys.collect::<Result<_, _>>()?;
+            platform_free(&keys)?;
+            Action::Hold(keys)
         }
         "Type" => match value {
             Value::String(text) => Action::Type(gestures::type_text(text)?),
@@ -337,6 +342,15 @@ fn point(place: &Place, ui: &Interface) -> Result<Point, String> {
         Place::Target(name) => Ok(target(name)?.center()),
         Place::Window(point) => Ok(*point),
         Place::InTarget(name, fraction) => Ok(target(name)?.at_fraction(*fraction)),
+    }
+}
+
+// F1 and F12 are the platform's, which never reach the interface, so a
+// script can't press them.
+fn platform_free(keys: &[Key]) -> Result<(), String> {
+    match keys.iter().find(|key| platform_key(**key)) {
+        Some(key) => Err(format!("presses {}, but F1 and F12 are the platform's, which a script can't press", key.name())),
+        None => Ok(()),
     }
 }
 

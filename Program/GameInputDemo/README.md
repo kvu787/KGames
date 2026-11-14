@@ -58,14 +58,17 @@ Shortcuts, while the demo's window has focus:
 
 | Key   | Action                                                                 |
 | ----- | ---------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
+| `F1`  | Lets Windows' cursor go, or keeps it again, as in every KGames program |
 | `F2`  | Clear the event log                                                    |
+| `F3`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
 | `F9`  | Switches between the light and dark themes                             |
 | `F10` | Switches vertical sync on or off                                       |
+| `F12` | Quits, as in every KGames program                                      |
 
-The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F9` and `F10` are
+The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
 Library/UserInterface's, which reads them from the same readings, as in every KGames program, so the
-demo doesn't also switch on them, which would switch them back.
+demo doesn't also switch on them, which would switch them back. `F1` and `F12` are too, and the
+demo's cards show them as GameInput read them, like any key, but do nothing with them.
 
 ### Rumble test
 
@@ -394,7 +397,7 @@ readings:
     { "Frame": 1, "Program": { "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } } },
     { "Frame": 1, "Program": { "Connect": { "Id": 3, "Name": "Rodent", "Input": ["Mouse"] } } },
     { "Frame": 2, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.5, 0], "Buttons": ["A"] } } },
-    { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F1"] } } },
+    { "Frame": 2, "Program": { "Keyboard": { "Id": 2, "Down": ["F3"] } } },
     { "Frame": 3, "Program": { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120] } } },
     { "Frame": 4, "Program": { "Disconnect": 1 } },
     { "Frame": 5, "Expect": { "Listen": "Pad", "RumbleTest": true } }
@@ -415,7 +418,7 @@ readings are at the time of its frame.
 |              | `RightTrigger`                                                                  |
 | `Gamepad`    | `Id`, `LeftStick` and `RightStick` as `[x, y]`, `LeftTrigger`, `RightTrigger`,  |
 |              | and `Buttons`, named as the Gamepad card names them                             |
-| `Keyboard`   | `Id`, and the keys `Down`, like `F1`, `A` or `Left`                             |
+| `Keyboard`   | `Id`, and the keys `Down`, like `F3`, `A` or `Left`                             |
 | `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the Mouse card  |
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |

@@ -5,10 +5,11 @@
 // as actions that it carries out, so that every transition is tested
 // without a window that has focus (Test/UserInterface/tests/cursor.rs).
 //
-// - While the window has focus, and reads GameInput's mice, it keeps
-//   Windows' cursor inside its client area, hidden, and its frames draw the
-//   pointer exactly while it does. A run whose input is a script's, or that
-//   has none, leaves the cursor alone.
+// - While the window has focus, reads GameInput's mice, and F1 says so, it
+//   keeps Windows' cursor inside its client area, hidden, and its frames draw
+//   the pointer exactly while it does. F1 lets it go, where the interface's
+//   pointer is, and keeps it again (see input/reader.rs). A run whose input
+//   is a script's, or that has none, leaves the cursor alone.
 // - It starts to keep it only once no mouse button is held, by Windows'
 //   account of the mouse, which, unlike GameInput's, has a click that's
 //   still going on elsewhere, like the one that gave the window focus.
@@ -36,8 +37,9 @@ pub struct CursorFacts {
     // Whether the window has focus: it's the foreground window, and isn't
     // minimized.
     pub focused: bool,
-    // Whether the frames read GameInput's mice, which move the pointer: not
-    // a run whose input is a script's, or that has none.
+    // Whether the window keeps the cursor while it has focus: its frames read
+    // GameInput's mice, which move the pointer, not a script's input, or
+    // none, and F1 last chose to keep it.
     pub mice: bool,
     // The client area, in the screen's pixels, or none while the window is
     // minimized, whose client area is off the screen then.

@@ -20,6 +20,11 @@
 // a frame couldn't begin any sooner, and the input is still read as soon as
 // one can. F10 switches it on and off. Without it, frames present as soon as
 // they're drawn, and may tear, and the loop spins, for the lowest latency.
+//
+// F12 quits at once, and so does the taskbar's Close, which sends WM_CLOSE,
+// without asking the program, whether the window is minimized, shows the
+// error page, or neither. F1 keeps Windows' cursor, or lets it go, on the
+// frame of the press (see input/reader.rs).
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -140,13 +145,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut shown: Option<Tree<P::Message>> = None;
     let mut problems = Vec::new();
     loop {
+        // WM_CLOSE, like the taskbar's Close, quits at once.
         if !window.pump() {
-            // The window was asked to close. A program with unsaved work may
-            // say not yet, and close itself later with Ui::close.
-            if program.may_close() {
-                break;
-            }
-            window.cancel_close();
+            break;
         }
         // Not while minimized, whose client area is off the screen: the
         // setup is checked again once the window is restored.
@@ -155,8 +156,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
         // Focus, and Windows' cursor with it, on every pass, whatever woke
         // the loop, before it waits while minimized, so that losing focus
-        // lets the cursor go at once.
-        window.check_focus(mice);
+        // lets the cursor go at once. The window keeps the cursor only while
+        // F1 says so.
+        window.check_focus(mice && source.captured());
         // A minimized window runs no frames, and waits for messages. Its
         // input waits too: what came meanwhile, like losing focus as it
         // minimized, goes to the program in the first frame after it's
@@ -182,13 +184,17 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             continue;
         }
 
-        // The frame draws the pointer exactly while Windows' cursor is kept,
-        // hidden, as this pass's check left it, which a script's frames, and
-        // those without input, never do. And the input, read as late as it
-        // can be.
-        ui.draws_pointer = window.keeps_cursor();
+        // The input, read as late as it can be. F12 quits, and F1 keeps
+        // Windows' cursor or lets it go, on this frame. The frame draws the
+        // pointer exactly while Windows' cursor is kept, hidden, which a
+        // script's frames, and those without input, never do.
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
+        if input.quit {
+            break;
+        }
+        window.check_focus(mice && source.captured());
+        ui.draws_pointer = window.keeps_cursor();
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
         if problems.is_empty() {
@@ -207,11 +213,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
-                }
-                Request::AskToClose => {
-                    if program.may_close() {
-                        return finish(&mut gpu, source);
-                    }
                 }
                 Request::Close => return finish(&mut gpu, source),
             }
@@ -315,6 +316,8 @@ enum Source {
 // A frame's input, from its source.
 struct Input {
     events: Vec<Event>,
+    // Whether F12 was pressed, which quits.
+    quit: bool,
     // Seconds since the start.
     time: f64,
     // When GameInput got the newest reading that the frame took, for the
@@ -350,6 +353,15 @@ impl Source {
         })
     }
 
+    // Whether F1 last chose to keep Windows' cursor, which a script's input
+    // never touches.
+    fn captured(&self) -> bool {
+        match self {
+            Source::User { reader, .. } => reader.captured(),
+            Source::Script { .. } => true,
+        }
+    }
+
     // The devices, for programs that read them themselves.
     fn devices(&self) -> Option<Rc<RefCell<Devices>>> {
         match self {
@@ -370,6 +382,7 @@ impl Source {
                 let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), window, &focus_changes);
                 Ok(Input {
                     events: read.events,
+                    quit: read.quit,
                     time: start.get_or_insert_with(Instant::now).elapsed().as_secs_f64(),
                     input_time: read.input_time,
                     script: None,
@@ -384,6 +397,7 @@ impl Source {
                 }
                 Ok(Input {
                     events: script.events.clone(),
+                    quit: false,
                     time: number as f64 * runner.frame_time(),
                     input_time: None,
                     script: Some(script),
