@@ -323,9 +323,10 @@ that gives the window focus doing nothing in the program, which GameInput doesn'
 
 ## Decisions left to the user
 
-- **How far the pointer moves:** decided. A mouse's counts times `Settings.json`'s
-  `MouseSensitivity`, without acceleration. A port of SDL's emulation of Windows' pointer speed
-  and "Enhance pointer precision" came and went: a setting of the program's own is simpler.
+- **How far the pointer moves:** decided. A mouse's counts times `MOUSE_SENSITIVITY`, a constant
+  in `input/reader.rs`, 0.8, without acceleration. A port of SDL's emulation of Windows' pointer
+  speed and "Enhance pointer precision" came and went, and then a setting in `Settings.json`: a
+  constant is simpler.
 - **Where Windows' cursor shows as the window loses focus:** decided, as SDL does. Where the
   pointer was. It was the middle of the window.
 - **Where the pointer starts as the window gets focus:** decided, as SDL does. In the middle the

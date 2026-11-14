@@ -13,8 +13,7 @@
 //   the pointer is the reader's own, as SDL's relative mode keeps one: it
 //   starts in the middle of the window the first time the window gets focus,
 //   and carries on from where it was each time after, and each mouse's
-//   motion moves it, its counts times Settings.json's MouseSensitivity,
-//   inside the window, where the window keeps Windows' cursor, hidden, while
+//   motion moves it, its counts times MOUSE_SENSITIVITY, inside the window, where the window keeps Windows' cursor, hidden, while
 //   it has focus (see platform/window.rs). It moves in the stream's order, so a press happens
 //   where the pointer was as the button went down. Only mice's relative
 //   motion moves it, not the absolute positions of a pen or a touch screen.
@@ -49,6 +48,9 @@ use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button}
 use crate::input::events::Event;
 use crate::platform::input_devices::{Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
+
+// How far the pointer moves for each count of a mouse's motion, in pixels.
+pub const MOUSE_SENSITIVITY: f32 = 0.8;
 
 // What a frame read.
 #[derive(Clone, Debug, Default)]
@@ -92,8 +94,6 @@ pub struct InputReader {
     position: Point,
     placed: bool,
     size: Size,
-    // How far the pointer moves for each count of a mouse's motion.
-    mouse_sensitivity: f32,
     // Where the interface last heard the pointer was.
     pointer: Option<Point>,
 }
@@ -124,15 +124,8 @@ impl InputReader {
             position: Point::ZERO,
             placed: false,
             size: Size::default(),
-            mouse_sensitivity: 1.0,
             pointer: None,
         }
-    }
-
-    // How far the pointer moves for each count of a mouse's motion, in
-    // pixels: 1 until it's set.
-    pub fn set_mouse_sensitivity(&mut self, sensitivity: f32) {
-        self.mouse_sensitivity = sensitivity;
     }
 
     // The frame's events, from the devices' readings since the last frame, in
@@ -439,7 +432,7 @@ impl InputReader {
                 state.positionX.wrapping_sub(previous.positionX) as f32,
                 state.positionY.wrapping_sub(previous.positionY) as f32,
             );
-            let moved = Point::new(moved.x * self.mouse_sensitivity, moved.y * self.mouse_sensitivity);
+            let moved = Point::new(moved.x * MOUSE_SENSITIVITY, moved.y * MOUSE_SENSITIVITY);
             self.position = self.inside(self.position + moved);
             self.point(events);
         }

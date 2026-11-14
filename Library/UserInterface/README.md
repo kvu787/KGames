@@ -244,10 +244,10 @@ before, but reports gamepads' whole state, their held buttons too.
 - The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as SDL's
   relative mode keeps one: it starts in the middle of the window the first time the window gets
   focus, and carries on from where it was each time after, and each mouse's motion moves it, its
-  counts times `MouseSensitivity`, in parts of a pixel, in the stream's order, so a press lands
-  where the pointer was as its button went down, and a key after a move sees the pointer where it
-  went. Tests and scripts move it a count a pixel. Only mice's relative motion moves it, not a
-  pen's or a touch screen's absolute positions.
+  counts times `MOUSE_SENSITIVITY` in `input/reader.rs`, in parts of a pixel, in the stream's
+  order, so a press lands where the pointer was as its button went down, and a key after a move
+  sees the pointer where it went. Only mice's relative motion moves it, not a pen's or a touch
+  screen's absolute positions.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
   kept inside its client area, so that no click goes to another window, and the interface draws
   the pointer over everything, in the shape that the widget under it asks for with
@@ -345,15 +345,13 @@ default, and a notice under the app bar says what's wrong. `Headless::start` sta
 the theme that its `Startup`'s settings say, as a run does. Every program's `Settings.json` lists
 every one of the settings that every program has, which `Test/UserInterface` checks.
 
-| Setting            | Value                                                                    |
-| ------------------ | ------------------------------------------------------------------------ |
-| `Display`          | `"Primary"`, or the identifier of the display to open on                 |
-| `WindowMode`       | `"WindowedMaximized"`, by default, or `"BorderlessFullscreen"`           |
-| `VerticalSync`     | `true`, by default: frames wait for the screen's refresh, and never      |
-|                    | tear. `false`: frames present at once, and may tear                      |
-| `Theme`            | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
-| `MouseSensitivity` | `1.0`, by default: how far the pointer moves for each count of a         |
-|                    | mouse's motion, in pixels. Any number more than 0                        |
+| Setting        | Value                                                                    |
+| -------------- | ------------------------------------------------------------------------ |
+| `Display`      | `"Primary"`, or the identifier of the display to open on                 |
+| `WindowMode`   | `"WindowedMaximized"`, by default, or `"BorderlessFullscreen"`           |
+| `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
+|                | tear. `false`: frames present at once, and may tear                      |
+| `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
 
 | Argument               | What it does                                                              |
 | ---------------------- | ------------------------------------------------------------------------- |

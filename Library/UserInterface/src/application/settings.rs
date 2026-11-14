@@ -38,7 +38,7 @@ impl WindowMode {
 
 // The settings that every program has, which the library reads first, in
 // this order, before the program reads its own.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommonSettings {
     // "Primary", or the identifier of the display to open on.
     pub display: String,
@@ -49,9 +49,6 @@ pub struct CommonSettings {
     pub vertical_sync: bool,
     // The theme that the program starts in, which F9 switches.
     pub theme: ThemeKind,
-    // How far the pointer moves for each count of a mouse's motion, in
-    // pixels.
-    pub mouse_sensitivity: f32,
 }
 
 impl CommonSettings {
@@ -63,19 +60,11 @@ impl CommonSettings {
         let vertical_sync = settings.boolean("VerticalSync", true);
         let themes = [ThemeKind::Light, ThemeKind::Dark];
         let theme = settings.choice_of("Theme", ThemeKind::Light, &themes, |theme| theme.name());
-        let mouse_sensitivity = settings.number("MouseSensitivity", 1.0, |sensitivity| {
-            if sensitivity > 0.0 && sensitivity.is_finite() {
-                Ok(())
-            } else {
-                Err(format!("must be a number more than 0, not {sensitivity}"))
-            }
-        });
         CommonSettings {
             display,
             window_mode,
             vertical_sync,
             theme,
-            mouse_sensitivity: mouse_sensitivity as f32,
         }
     }
 }

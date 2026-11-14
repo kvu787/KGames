@@ -3,7 +3,6 @@
   "WindowMode": "BorderlessFullscreen",
   "VerticalSync": false,
   "Theme": "Light",
-  "MouseSensitivity": 0.75,
   "SimplePaintShader_Axles": {
     "BaseColor": [0.2159017, 0.21590173, 0.2159017],
     "Brightness": 0.5,

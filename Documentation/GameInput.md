@@ -317,8 +317,8 @@ first frame starts the same way, so every device's state is known from the start
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
 says, has nothing to do with the screen, and counts only while the program has focus. Each reading
-moves the pointer by its difference from that mouse's last reading times `Settings.json`'s
-`MouseSensitivity`, in the stream's order. The pointer starts in the middle of the window the
+moves the pointer by its difference from that mouse's last reading times `MOUSE_SENSITIVITY`, in
+the stream's order. The pointer starts in the middle of the window the
 first time the window gets focus, and carries on from where it was each time after.
 While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
 goes to another window, and the interface draws the pointer. `absolutePositionX` and
