@@ -5,7 +5,7 @@
 // are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
-use user_interface::input::reader::{InputReader, MOUSE_SENSITIVITY, WindowState};
+use user_interface::input::reader::{Connections, InputReader, MOUSE_SENSITIVITY, WindowState, connections};
 use user_interface::FocusChange;
 use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading, Size};
 
@@ -936,6 +936,37 @@ fn a_gamepad_is_connected_from_when_it_connects() {
     assert!(state.connected);
     let frame = reader.read(&[], &[GAMEPAD], &window(None));
     assert_eq!(frame.events.last(), Some(&Event::Gamepad(Default::default())));
+}
+
+// A device's last connection or disconnection in a frame says whether it's
+// connected: a gamepad that connects and then changes, like its XInput
+// index, in the same frame, is connected, one that disconnects and connects
+// again stays, and one that connects and disconnects is gone. A keyboard
+// that connects isn't a gamepad.
+#[test]
+fn a_device_s_last_connection_in_a_frame_counts() {
+    let device = |id: usize, kind: GameInputKind| user_interface::Device {
+        id,
+        supported_input: kind,
+        ..Default::default()
+    };
+    let events = [
+        (GameInputDeviceEventConnected, device(5, GameInputKindGamepad)),
+        (GameInputDeviceEventXInputIndexUpdated, device(5, GameInputKindGamepad)),
+        (GameInputDeviceEventDisconnected, device(6, GameInputKindGamepad)),
+        (GameInputDeviceEventConnected, device(6, GameInputKindGamepad)),
+        (GameInputDeviceEventConnected, device(7, GameInputKindGamepad)),
+        (GameInputDeviceEventDisconnected, device(7, GameInputKindGamepad)),
+        (GameInputDeviceEventConnected, device(8, GameInputKindKeyboard)),
+        (GameInputDeviceEventKeyboardLayoutUpdated, device(8, GameInputKindKeyboard)),
+    ];
+    assert_eq!(
+        connections(&events),
+        Connections {
+            gamepads: vec![5, 6],
+            disconnected: vec![7],
+        }
+    );
 }
 
 // GameInput starts with its device callback, reads frames, and stops,

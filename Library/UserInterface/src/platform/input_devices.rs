@@ -37,7 +37,7 @@ use crate::platform::clock;
 use crate::platform::window::FocusChange;
 
 // A gamepad, keyboard or mouse, with everything that GameInput says about it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Device {
     // Tells devices apart, and stays the same while a device is connected.
     pub id: usize,

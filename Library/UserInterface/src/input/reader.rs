@@ -54,7 +54,7 @@ use windows_api::*;
 use crate::drawing::geometry::{Point, Size};
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
-use crate::platform::input_devices::{Devices, Reading};
+use crate::platform::input_devices::{Device, Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
 
 // How far the pointer moves for each count of a mouse's motion, in pixels.
@@ -124,6 +124,34 @@ pub struct InputReader {
     pointer: Option<Point>,
 }
 
+// What a frame's device events say about devices' connections: the gamepads
+// that connected, and the devices that disconnected, by each device's last
+// connection or disconnection in the frame, so that one that disconnects and
+// connects again stays, and one that connects and then changes, like its
+// XInput index, is connected.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Connections {
+    pub gamepads: Vec<usize>,
+    pub disconnected: Vec<usize>,
+}
+
+pub fn connections(events: &[(GameInputDeviceEvent, Device)]) -> Connections {
+    let connection = |event: &GameInputDeviceEvent| *event == GameInputDeviceEventConnected || *event == GameInputDeviceEventDisconnected;
+    let mut connections = Connections::default();
+    for (index, (event, device)) in events.iter().enumerate() {
+        let later = events[index + 1..].iter().any(|(later, other)| other.id == device.id && connection(later));
+        if !connection(event) || later {
+            continue;
+        }
+        if *event == GameInputDeviceEventDisconnected {
+            connections.disconnected.push(device.id);
+        } else if device.supported_input & GameInputKindGamepad != 0 {
+            connections.gamepads.push(device.id);
+        }
+    }
+    connections
+}
+
 // What the window says for a frame: the size of its client area, and when it
 // got or lost focus.
 #[derive(Clone, Debug, Default)]
@@ -165,19 +193,11 @@ impl InputReader {
         let mut readings = Vec::new();
         let mut disconnected = Vec::new();
         if let Some(devices) = devices {
-            // By each device's last event in the frame, so that one that
-            // disconnects and connects again stays.
-            let events = devices.device_events();
-            for (index, (event, device)) in events.iter().enumerate() {
-                if events[index + 1..].iter().any(|(_, later)| later.id == device.id) {
-                    continue;
-                }
-                if *event == GameInputDeviceEventDisconnected {
-                    disconnected.push(device.id);
-                } else if *event == GameInputDeviceEventConnected && device.supported_input & GameInputKindGamepad != 0 {
-                    self.gamepad_connected(device.id);
-                }
+            let connections = connections(devices.device_events());
+            for gamepad in connections.gamepads {
+                self.gamepad_connected(gamepad);
             }
+            disconnected = connections.disconnected;
             for reading in devices.readings() {
                 readings.push((devices.qpc(reading.timestamp), reading.clone()));
             }
