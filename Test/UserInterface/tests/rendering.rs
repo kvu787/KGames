@@ -418,7 +418,7 @@ impl Program for Unsupported {
     fn view(&self, _ui: &mut Ui) -> Tree<()> {
         unsupported_setup(&[
             "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
-            "The window's client area is 1920 × 1080. It must be 2560 × 1440, the whole display.".to_string(),
+            "The window's client area is 1280 × 720 at (0, 0). It must be the whole display, 1920 × 1080 at (0, 0).".to_string(),
         ])
     }
 }

@@ -148,7 +148,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             }
             window.cancel_close();
         }
-        if window.take_setup_changed() {
+        // Not while minimized, whose client area is off the screen: the
+        // setup is checked again once the window is restored.
+        if !window.minimized() && window.take_setup_changed() {
             problems = window.setup_problems();
         }
         // Focus, and Windows' cursor with it, on every pass, whatever woke

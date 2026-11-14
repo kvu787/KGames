@@ -339,8 +339,9 @@ covers a 2560 × 1440 display at 100% scale, where logical and physical pixels a
 client area is the whole display, 2560 × 1440, `WINDOW_WIDTH` × `WINDOW_HEIGHT` in
 `design/tokens.rs`.
 
-In any other setup, the window says what's wrong instead of showing the program. It checks again
-whenever the window moves or changes size, or the displays, the scale or Windows' settings change.
+In any other setup, the window says what's wrong instead of showing the program, like a client
+area that's moved off the display. It checks again whenever the window moves or changes size, or
+the displays, the scale or Windows' settings change, once it isn't minimized.
 
 The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at

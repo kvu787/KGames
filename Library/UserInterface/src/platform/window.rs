@@ -335,7 +335,9 @@ impl Window {
     }
 
     // What's wrong with the setup, if anything. Programs support only
-    // borderless fullscreen on a 2560 × 1440 display at 100% scale.
+    // borderless fullscreen on a 2560 × 1440 display at 100% scale: the
+    // client area must be the whole display, where it is and its size, as a
+    // window can be moved, or the displays arranged anew under it.
     pub fn setup_problems(&self) -> Vec<String> {
         let mut problems = Vec::new();
         unsafe {
@@ -349,10 +351,16 @@ impl Window {
             if dpi != USER_DEFAULT_SCREEN_DPI as u32 {
                 problems.push(format!("The display's scale is {}%. It must be 100%.", dpi * 100 / USER_DEFAULT_SCREEN_DPI as u32));
             }
-            let (client_width, client_height) = self.client_size();
-            if (client_width as i32, client_height as i32) != (DISPLAY_WIDTH, DISPLAY_HEIGHT) {
+            let area = cursor_area(self.hwnd).unwrap_or_default();
+            if area != monitor {
                 problems.push(format!(
-                    "The window's client area is {client_width} × {client_height}. It must be {DISPLAY_WIDTH} × {DISPLAY_HEIGHT}, the whole display."
+                    "The window's client area is {} × {} at ({}, {}). It must be the whole display, {width} × {height} at ({}, {}).",
+                    area.right - area.left,
+                    area.bottom - area.top,
+                    area.left,
+                    area.top,
+                    monitor.left,
+                    monitor.top
                 ));
             }
         }
