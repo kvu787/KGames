@@ -18,9 +18,9 @@
     { "Frame": 9, "Key": "R" },
     { "Frame": 9, "Expect": { "Paused": true, "Position": [94.5437, -48.4802] } },
     { "Frame": 10, "Capture": "Following" },
-    { "Frame": 11, "Key": "F1" },
+    { "Frame": 11, "Key": "F2" },
     { "Frame": 11, "Expect": { "CardShown": false } },
-    { "Frame": 12, "Key": "F1" },
+    { "Frame": 12, "Key": "F2" },
     { "Frame": 12, "Expect": { "CardShown": true, "Interface": { "Targets": { "Play/Card": { "Kind": "Card" } } } } }
   ]
 }

@@ -206,15 +206,15 @@ fn the_camera_follows_the_car_and_zooms() {
     assert_eq!(app.program.game.camera.height, 150.0);
 }
 
-// F1 hides the card and shows it again, and the card fits in the page's
+// F2 hides the card and shows it again, and the card fits in the page's
 // bottom left corner, under the notices.
 #[test]
-fn f1_hides_the_card_which_fits_the_page() {
+fn f2_hides_the_card_which_fits_the_page() {
     let mut app = start();
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(!app.program.game.show_card);
     assert!(!app.has_target("Play/Card"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(app.program.game.show_card);
     let app = start_with(r#"{ "Vehicle": "Purple" }"#);
     let card = app.target("Play/Card");

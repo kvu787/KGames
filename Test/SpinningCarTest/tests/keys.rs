@@ -1,5 +1,5 @@
 // SpinningCarTest's keys, through its interface without a window: S keeps the
-// car in the middle or lets it move, F1 shows and hides the card, and holding
+// car in the middle or lets it move, F2 shows and hides the card, and holding
 // a key down doesn't do it again.
 
 use std::f32::consts::FRAC_PI_2;
@@ -29,15 +29,15 @@ fn s_keeps_the_car_in_the_middle_and_lets_it_move() {
 }
 
 #[test]
-fn f1_hides_and_shows_the_card() {
+fn f2_hides_and_shows_the_card() {
     let mut app = car();
     assert!(app.program.text_shown);
     assert_eq!(app.label(InfoCard::NAME).as_deref(), Some("Spinning Car Test"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(!app.program.text_shown);
     assert!(!app.has_target(InfoCard::NAME));
     // With Ctrl too.
-    app.key_with(Modifiers::CONTROL, Key::F1);
+    app.key_with(Modifiers::CONTROL, Key::F2);
     assert!(app.program.text_shown);
     assert!(app.has_target(InfoCard::NAME));
 }
@@ -46,7 +46,7 @@ fn f1_hides_and_shows_the_card() {
 #[test]
 fn holding_a_key_down_does_not_do_it_again() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::S), Event::KeyPressed(Key::F1)]);
+    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::S), Event::KeyPressed(Key::F2)]);
     assert!(toggles_stationary(&input));
     assert!(InfoCard::toggled(&input));
 
@@ -59,7 +59,7 @@ fn holding_a_key_down_does_not_do_it_again() {
 fn other_keys_do_nothing() {
     let mut app = car();
     // V doesn't turn on vertical sync, and Esc doesn't quit.
-    for key in [Key::V, Key::ESCAPE, Key::SPACE, Key::ENTER, Key::F2, Key::D] {
+    for key in [Key::V, Key::ESCAPE, Key::SPACE, Key::ENTER, Key::F3, Key::D] {
         app.key(key);
         assert!(app.program.text_shown, "{}", key.name());
         assert!(!app.program.stationary, "{}", key.name());
@@ -71,7 +71,7 @@ fn other_keys_do_nothing() {
 fn without_focus_the_keys_do_nothing() {
     let mut app = car();
     app.focus(false);
-    app.key(Key::S).key(Key::F1).key(Key::F10);
+    app.key(Key::S).key(Key::F2).key(Key::F10);
     assert!(!app.program.stationary);
     assert!(app.program.text_shown);
     assert!(app.vertical_sync());

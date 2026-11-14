@@ -11,7 +11,7 @@
 // | Menu                  | C                     | The fixed or the following camera    |
 // | RB and left stick     | The wheel             | Zooms                                |
 // | Y                     | Home                  | Zooms back to the camera's height    |
-// | View                  | F1                    | Shows or hides the card              |
+// | View                  | F2                    | Shows or hides the card              |
 //
 // Without the window's focus, the interface has no input at all, so the
 // controls are at rest.
@@ -97,7 +97,7 @@ impl Controls {
             zoom,
             notches,
             default_zoom: pressed(GamepadButtons::Y, Key::HOME),
-            toggle_card: pressed(GamepadButtons::VIEW, Key::F1),
+            toggle_card: pressed(GamepadButtons::VIEW, Key::F2),
         }
     }
 }

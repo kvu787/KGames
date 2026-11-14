@@ -351,7 +351,7 @@ impl Veehiicuul {
             Status::shortcut("Ctrl+Y", "Redo"),
         ];
         if self.mode == PLAY {
-            items.push(Status::shortcut("F1", if self.game.show_card { "Hide the card" } else { "Show the card" }));
+            items.push(Status::shortcut("F2", if self.game.show_card { "Hide the card" } else { "Show the card" }));
         } else {
             items.push(Status::shortcut("Space", "Pan, with a drag"));
             items.push(Status::shortcut("Wheel", "Zoom"));
@@ -634,7 +634,7 @@ const CONTROLS: [(&str, &[&str], &[&str]); 9] = [
     ("Camera", &["Menu"], &["C"]),
     ("Zoom", &["RB+Left stick"], &["Wheel"]),
     ("Zoom back", &["Y"], &["Home"]),
-    ("Hide this", &["View"], &["F1"]),
+    ("Hide this", &["View"], &["F2"]),
 ];
 // The label column's width in the card, the gap before the keyboard's
 // column, and a row of keycaps' height.

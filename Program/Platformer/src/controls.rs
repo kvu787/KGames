@@ -7,7 +7,7 @@
 // | A                     | Space, E, or up       | Jumps; held jumps higher    |
 // | X                     | R                     | Starts the run over         |
 // | LB and RB             | PageDown and PageUp   | The previous and next level |
-// | View                  | F1                    | Shows or hides the cards    |
+// | View                  | F2                    | Shows or hides the cards    |
 //
 // Without the window's focus, the interface has no input at all, so the
 // controls are at rest.
@@ -57,7 +57,7 @@ impl Controls {
                 pressed(GamepadButtons::LEFT_SHOULDER, Key::PAGE_DOWN),
                 pressed(GamepadButtons::RIGHT_SHOULDER, Key::PAGE_UP),
             ),
-            toggle_cards: pressed(GamepadButtons::VIEW, Key::F1),
+            toggle_cards: pressed(GamepadButtons::VIEW, Key::F2),
         }
     }
 }

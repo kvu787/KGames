@@ -1,4 +1,4 @@
-// What the test's own key does. The card handles F1, and Library/UserInterface
+// What the test's own key does. The card handles F2, and Library/UserInterface
 // F9 and F10.
 
 use user_interface::{Input, Key};

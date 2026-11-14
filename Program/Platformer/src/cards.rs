@@ -57,7 +57,7 @@ fn status_items(game: &Game) -> Vec<Status> {
         Status::shortcut("Space", "Jump, held jumps higher"),
         Status::shortcut("R", "Start over"),
         Status::shortcut("PageUp", "Next level"),
-        Status::shortcut("F1", if game.show_cards { "Hide the cards" } else { "Show the cards" }),
+        Status::shortcut("F2", if game.show_cards { "Hide the cards" } else { "Show the cards" }),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
         Status::Spacer,

@@ -2,7 +2,7 @@
 // which the scene never crosses: the program's name and what it shows, the
 // frame rate, the GPU, the display, whether the window has focus, the keys,
 // and what's wrong with Settings.json, if anything. MinimalSceneTest and
-// SpinningCarTest show one, and F1 shows and hides it.
+// SpinningCarTest show one, and F2 shows and hides it.
 
 use crate::application::program::Notice;
 use crate::core::interface::Ui;
@@ -26,7 +26,7 @@ pub struct InfoCard<'a> {
     // Fields after the display's, each a label and its value.
     pub rows: &'a [(&'a str, &'a str)],
     // The program's own keys, each with what it does, on a row under the
-    // library's: F1's, F9's and F10's.
+    // library's: F2's, F9's and F10's.
     pub keys: &'a [(&'a str, &'a str)],
 }
 
@@ -35,9 +35,9 @@ impl InfoCard<'_> {
     pub const NAME: &'static str = "InfoCard";
     pub const WIDTH: f32 = 480.0;
 
-    // Whether F1 went down in this step, which shows or hides the card.
+    // Whether F2 went down in this step, which shows or hides the card.
     pub fn toggled(input: &Input) -> bool {
-        input.key_pressed(Key::F1)
+        input.key_pressed(Key::F2)
     }
 }
 
@@ -59,7 +59,7 @@ impl<M: Clone + 'static> Tree<M> {
         let display = format!("{} {}", environment.display, environment.display_name);
         let mut rows = vec![("Frame rate", rate.as_str()), ("GPU", environment.gpu.as_str()), ("Display", display.trim())];
         rows.extend_from_slice(contents.rows);
-        let library_keys: &[(&str, &str)] = &[("F1", "Hide this"), ("F9", "Theme"), ("F10", "VSync")];
+        let library_keys: &[(&str, &str)] = &[("F2", "Hide this"), ("F9", "Theme"), ("F10", "VSync")];
         let key_rows: Vec<&[(&str, &str)]> = [library_keys, contents.keys].into_iter().filter(|keys| !keys.is_empty()).collect();
         // Each key's keycaps' width, and its action's.
         let key_widths: Vec<Vec<(f32, f32)>> = key_rows

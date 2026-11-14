@@ -54,7 +54,7 @@ window's height.
 | `Backspace`        | Deletes the character before a text field's caret                        |
 | `Enter`            | Takes what's typed in a number box or the hex field                      |
 | A right-click      | Opens the context menu, on the area for it                               |
-| `F1`               | Shows or hides the tooltips                                              |
+| `F2`               | Shows or hides the tooltips                                              |
 | `Ctrl+R`           | Resets every widget                                                      |
 | `F9`               | Switches between the light and dark themes, as the theme's switch, the   |
 |                    | button at the right of the menu bar and the View menu's Dark theme do    |

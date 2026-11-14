@@ -112,12 +112,12 @@ fn the_goal_frame_shows_the_banner_and_saves() {
 }
 
 #[test]
-fn f1_hides_the_cards_on_its_frame() {
+fn f2_hides_the_cards_on_its_frame() {
     let mut app = start("Cards");
     assert!(app.has_target("Run") && app.has_target("Events"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(!app.has_target("Run") && !app.has_target("Events"));
-    app.key(Key::F1);
+    app.key(Key::F2);
     assert!(app.has_target("Run"));
 }
 

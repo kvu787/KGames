@@ -51,7 +51,7 @@ fn menus() -> Vec<(&'static str, Vec<MenuItem<Message>>)> {
         MenuItem::separator(),
         command("Reset").icon(Icon::Refresh).accelerator("Ctrl+R"),
     ];
-    let theme = vec![command("Dark theme").accelerator("F9"), command("Tooltips").accelerator("F1")];
+    let theme = vec![command("Dark theme").accelerator("F9"), command("Tooltips").accelerator("F2")];
     let view = vec![
         command("VSync").accelerator("F10"),
         MenuItem::submenu("Theme", theme).icon(Icon::Color),
@@ -82,7 +82,7 @@ pub fn view(showcase: &Showcase, ui: &mut Ui) -> Tree<Message> {
     let environment = ui.environment().clone();
     let display = format!("{} {}", environment.display, environment.display_name);
     let status = vec![
-        Status::shortcut("F1", "Tooltips"),
+        Status::shortcut("F2", "Tooltips"),
         Status::shortcut("Ctrl+R", "Reset"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
@@ -162,7 +162,7 @@ fn toggles(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rec
                 .set_enabled(showcase.options_enabled);
         }
         area.cut_top(SPACE_S, 0.0);
-        card.add("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.tooltips, "Tooltips (F1)").on_change(Message::Tooltips));
+        card.add("Tooltips", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.tooltips, "Tooltips (F2)").on_change(Message::Tooltips));
         card.add("DarkTheme", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(dark, "Dark theme (F9)").on_change(|_| Message::ToggleTheme));
         card.add("Filling", area.cut_top(CONTROL_HEIGHT, 0.0), ToggleSwitch::new(showcase.filling, "Fill the progress bar").on_change(Message::Filling));
     });

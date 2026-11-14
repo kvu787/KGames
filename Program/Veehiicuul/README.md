@@ -91,7 +91,7 @@ keys and the gamepad's buttons do nothing while the window doesn't have focus.
 |                         |                        | the car                                                  |
 | RB and the left stick   | The wheel, on the view | Zooms, up or away from you to zoom in                    |
 | Y                       | Home                   | Zooms back to the camera's own height                    |
-| View                    | F1                     | Hides or shows the card                                  |
+| View                    | F2                     | Hides or shows the card                                  |
 |                         | F9                     | Switches between the light and dark themes               |
 |                         | F10                    | Switches vertical sync on or off                         |
 

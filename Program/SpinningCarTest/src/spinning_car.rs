@@ -1,5 +1,5 @@
 // The test, as a program that Library/UserInterface runs: where the car is,
-// what S and F1 do, the card over the scene, and the scene, which fills the
+// what S and F2 do, the card over the scene, and the scene, which fills the
 // window under the card. The car keeps time while the window is minimized.
 
 use graphics::{Frame, Gpu};
@@ -13,7 +13,7 @@ use crate::settings::SceneSettings;
 pub const NAME: &str = "Spinning Car Test";
 pub const DESCRIPTION: &str = "A car moving at 8 units and turning at 90 degrees per second";
 
-// What a frame's input means: F1, S, and the frame's time, which places the
+// What a frame's input means: F2, S, and the frame's time, which places the
 // car. The tick comes after the toggles, so the frame that presses S places
 // the car with the new state.
 #[derive(Clone, Copy, Debug, PartialEq)]

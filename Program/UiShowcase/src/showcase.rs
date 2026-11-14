@@ -226,7 +226,7 @@ impl Program for Showcase {
     // when it changes.
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let mut messages = Vec::new();
-        if ui.key_pressed(Key::F1) {
+        if ui.key_pressed(Key::F2) {
             messages.push(Message::ToggleTooltips);
         }
         if ui.shortcut(Modifiers::CONTROL, Key::R) {

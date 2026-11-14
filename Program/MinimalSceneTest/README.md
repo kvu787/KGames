@@ -36,7 +36,7 @@ be.
 
 | Key   | Action                                     |
 | ----- | ------------------------------------------ |
-| `F1`  | Shows or hides the card at the bottom left |
+| `F2`  | Shows or hides the card at the bottom left |
 | `F9`  | Switches between the light and dark themes |
 | `F10` | Switches vertical sync on or off           |
 
@@ -67,12 +67,12 @@ cargo test -p minimal_scene_test_tests
 Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
 ```
 
-The tests in `Test/MinimalSceneTest` check, without a window, the sphere's motion, what F1 and
+The tests in `Test/MinimalSceneTest` check, without a window, the sphere's motion, what F2 and
 the window's focus do, that the card stays out of the sphere's path, the settings file, and
 frames drawn offscreen with the GPU. The scripts in
 `Test/MinimalSceneTest/Scripts` run the real test on a fixed clock, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes, and check where
-the sphere is frame by frame, that a long frame counts a tenth of a second, and what F1 and the
+the sphere is frame by frame, that a long frame counts a tenth of a second, and what F2 and the
 window's focus do. The state that scripts save and check has `SpherePosition`,
 `SphereDirection` and `TextShown`, and the interface's, whose targets have the card as
 `InfoCard`, of kind `Card`, and what's wrong with `Settings.json` as `Notice/0`, `Notice/1` and

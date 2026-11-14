@@ -73,7 +73,7 @@ fn switches_turn_tooltips_and_the_dark_theme_on_and_off() {
     app.click("Tooltips");
     assert!(!app.ui.tooltips_enabled());
     // F9 is the library's, which the theme's switch follows.
-    app.key(Key::F9).key(Key::F1);
+    app.key(Key::F9).key(Key::F2);
     assert_eq!(app.ui.theme().kind, ThemeKind::Light);
     assert!(app.ui.tooltips_enabled());
     assert!(app.program.log.iter().any(|line| line == "Light theme"));
