@@ -10,7 +10,7 @@ use user_interface::{Gamepad, GamepadButtons, Headless, Key, Point, Startup};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::controls::Controls;
 use veehiicuul::game::PAUSE;
-use veehiicuul::program::Veehiicuul;
+use veehiicuul::program::{Message, PLAY, TRACK, Veehiicuul};
 use veehiicuul::track::Pose;
 
 // The game as it starts, with Settings.json's text, after its first frames.
@@ -381,6 +381,52 @@ fn a_crash_and_its_pause_take_the_frames_time() {
         }
         assert_eq!(game.crashes, 1);
     }
+}
+
+// A tick of no time, as every step of a frame but its last is, moves
+// nothing: not a car slower than braking stops at once, nor one that's
+// pushed.
+#[test]
+fn a_tick_of_no_time_moves_nothing() {
+    let mut app = start();
+    let game = &mut app.program.game;
+    game.update(&Controls::default(), 1.0);
+    assert!(!game.paused());
+    let brake = Controls {
+        brake: 1.0,
+        ..Controls::default()
+    };
+    let push = Controls {
+        push: [1.0, 0.0],
+        ..Controls::default()
+    };
+    for velocity in [[0.005, 0.0], [5.0, 0.0]] {
+        game.car.velocity = velocity;
+        let before = game.car;
+        game.update(&brake, 1.0);
+        game.update(&push, 1.0);
+        assert_eq!(game.car, before);
+    }
+}
+
+// The game doesn't run in the editors, so the first frame back in Play
+// moves it by that frame's own time, not by the time spent in an editor.
+#[test]
+fn the_first_frame_back_in_play_moves_by_its_own_time() {
+    let mut app = start();
+    app.send_message(Message::Mode(TRACK));
+    app.wait(1.0);
+    // RB and the left stick up, which zoom in Play.
+    app.set_gamepad(gamepad(Gamepad {
+        left_stick: Point::new(0.0, 1.0),
+        buttons: GamepadButtons(GamepadButtons::RIGHT_SHOULDER),
+        ..Gamepad::default()
+    }));
+    let before = (app.program.game.camera.height, app.time());
+    app.send_message(Message::Mode(PLAY));
+    let after = (app.program.game.camera.height, app.time());
+    let frame = after.1 - before.1;
+    assert!((before.0 - after.0 - camera::ZOOM_SPEED * frame).abs() < 1e-9, "{before:?} to {after:?}");
 }
 
 // Each frame moves the car by its own time, the time since the frame before,

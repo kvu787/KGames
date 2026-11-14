@@ -159,6 +159,13 @@ impl Game {
         self.last.is_some_and(|last| last - self.restarted <= PAUSE)
     }
 
+    // Starts the game's clock again at `seconds`, after time that it didn't
+    // run, like in an editor, so that its next frame moves it by that frame's
+    // own time, not by the time away.
+    pub fn resume(&mut self, seconds: f64) {
+        self.last = Some(seconds);
+    }
+
     // Puts the car on the start, at rest, at `seconds`.
     pub fn put_at_start(&mut self, seconds: f64) {
         let start = self.current_scene().track.start;
@@ -183,7 +190,10 @@ impl Game {
         self.vehicle = self.vehicle.min(self.document.vehicles.list.len() - 1);
     }
 
-    // Moves the game to a frame's time, `seconds`, with its controls.
+    // Moves the game to a frame's time, `seconds`, with its controls. A tick
+    // of no time, at the time of the last, moves nothing, as the steps of a
+    // frame before its last are, but the controls that do something once,
+    // like a restart, still do it.
     pub fn update(&mut self, controls: &Controls, seconds: f64) {
         let step = self.last.map_or(0.0, |last| (seconds - last).clamp(0.0, LONGEST_FRAME));
         self.last = Some(seconds);
@@ -212,7 +222,7 @@ impl Game {
         if controls.restart {
             self.put_at_start(seconds);
         }
-        if !self.paused() {
+        if !self.paused() && step > 0.0 {
             let push = camera::to_ground(controls.push);
             let acceleration = self.current_vehicle().acceleration;
             let footprint = self.footprint();

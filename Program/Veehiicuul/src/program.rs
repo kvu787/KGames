@@ -18,11 +18,12 @@
 // whether there are changes to save. drawing.rs draws the 3D view under all
 // of it, over the whole window.
 //
-// A frame's input becomes messages: the view's pointer and the cards'
-// controls from the widgets, then the shortcuts and, in Play, a Tick with
-// the frame's controls, and last Prepare, which commits a change when the
-// button is up and rebuilds what the 3D view shows. The frame then draws
-// from the state they made, so nothing shows a frame late.
+// Each step of a frame's input becomes messages: the view's pointer and the
+// cards' controls from the widgets, then the shortcuts, a Tick, which moves
+// the game's clock in the frame's last step and in Play drives the car by
+// it, and last Prepare, which commits a change when the button is up and
+// rebuilds what the 3D view shows. The frame then draws from the state they
+// made, so nothing shows a frame late.
 
 use std::path::{Path, PathBuf};
 
@@ -258,12 +259,14 @@ impl Veehiicuul {
         self.game.go_to_scene(self.game.document.scenes.len() - 1, seconds);
     }
 
-    // Goes to a tab. Going to Play puts the car at the start.
+    // Goes to a tab. Going to Play puts the car at the start, and starts the
+    // game's clock again, which doesn't run in the editors.
     pub fn go_to(&mut self, mode: usize, seconds: f64) {
         self.mode = mode;
         self.game.keep_in_document();
         if mode == PLAY {
             self.game.put_at_start(seconds);
+            self.game.resume(seconds);
         }
     }
 
