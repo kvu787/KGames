@@ -106,7 +106,8 @@ later frame's event, which question 4 is about.
 | Alt+F4                         | Nothing but the keys, Alt and F4, which mean nothing to the platform            |
 | Minimized                      | No call to `frame`; the next frame's delta is capped                            |
 | A setup that's wrong           | No call to `frame`, and its input is dropped; the platform draws the error page |
-| Windows' cursor                | Nothing: the platform confines it, hides it, and places it on release           |
+| Windows' cursor                | Nothing: the platform confines it and hides it while F1 keeps it                |
+| F1 having let the cursor go    | No mouse input; keyboards and gamepads still come                               |
 | F10 and vertical sync          | Nothing                                                                         |
 | The PerfBar                    | Nothing: it's drawn over the top 17 rows of the program's frame                 |
 | The taskbar's Close            | Open: question 10                                                               |
@@ -116,6 +117,14 @@ The program never hears of focus. Windows does Alt+Tab before any window sees it
 switches windows, but only the platform deals with that. As focus goes, GameInput's readings at
 rest let go of every key and button that was held, so the program sees them released, as if the
 user had let go.
+
+The platform still checks focus on every pass of its loop, as it does today, which costs about
+1.4 µs a pass. Focus goes in more ways than Alt+Tab: the Start menu, a notification that's
+clicked, a UAC prompt, Win+L, or another program coming to the front. Once it's gone, F1 and F12
+don't reach the platform either, as GameInput reads nothing without focus. Without the check, the
+platform would confine the cursor again on every pass while another window is in front. With it,
+the platform lets go of the cursor as focus goes. Ctrl+Alt+Delete, which no program can take,
+stays the way out of a program that's stuck.
 
 F1 and F12 are the platform's alone. The program is never sent them, neither as presses nor as
 releases. That has costs today:
@@ -177,11 +186,25 @@ crate's sources:
 - It draws a frame of 2560 × 1440, the only setup that programs support (see AGENTS.md).
 - `FrameInput` carries the mouse, the keyboard and the gamepads, and the frame's delta. What else
   it carries is question 12.
-- No typed text, for now. The keyboard is its keys going down and up, as GameInput reads them.
+- No typed text in `FrameInput`. The keyboard is its keys going down and up, as GameInput reads
+  them.
+- The UI library's text boxes and number boxes make ASCII of keys themselves, with a fixed table
+  of a US keyboard, which needs nothing of Windows, so it replays the same anywhere. The table
+  covers the letters, the digits, space, the 11 keys of punctuation, each with its form under
+  Shift, and the numpad's digits and `+ - * / .`. It has no Caps Lock, no accents and no key
+  repeat. It replaces today's `ToUnicodeEx` with Windows' layout and its Caps Lock.
+- The mouse is each mouse's raw motion, as GameInput counts it, its buttons and its wheel. The
+  pointer is the program's: the UI library moves it, with `MOUSE_SENSITIVITY`, keeps it in the
+  frame, and draws it.
+- While F1 has let the cursor go, the platform sends no mouse input, so the pointer stays where it
+  was while Windows' arrow moves. As F1 lets go, Windows' arrow shows where Windows had it, not at
+  the pointer, as the platform doesn't know where the pointer is. Today it's placed at the
+  pointer, SDL's way.
 - F12 quits, and F1 keeps Windows' cursor or lets it go. Both are the platform's, and the program
   is never sent anything of F1 or F12.
 - Alt+F4 and Alt+Tab mean nothing to the program. There are no events of focus or of closing.
-- Windows' cursor, focus and minimizing are the platform's, under the boundary.
+- Windows' cursor, focus and minimizing are the platform's, under the boundary. The platform
+  checks focus on every pass, as today.
 
 ### Open
 
@@ -223,8 +246,7 @@ Windows API above the boundary, in a crate of its own that question 6's check al
 
 - running a gamepad's motors, for GameInputDemo;
 - the theme, so that the platform's error page, PerfBar and background before the first frame
-  match F9, which stays the program's;
-- where the pointer is, if question 5 makes the pointer the program's.
+  match F9, which stays the program's.
 
 A request whose answer comes back as a later frame's event delays an effect by a frame, which
 AGENTS.md calls a bug. Files are the case in point: four programs read and write them today. The
@@ -237,21 +259,9 @@ options:
 Recommended: `Files`, passed to `frame` beside its input, as
 `frame(&mut self, input: &FrameInput, files: &mut dyn Files)`.
 
-**5. Who owns the pointer.** Today GameInput's reader, under the program, moves the pointer by
-each mouse's motion times `MOUSE_SENSITIVITY` and keeps it in the window. Events then carry its
-position. The options:
-
-- Keep it as it is: events carry the pointer's position.
-- Events carry each mouse's raw motion, and the UI library owns the pointer. Its sensitivity,
-  where it starts, keeping it in the frame, and drawing it all move up. The output says where the
-  pointer is, and the platform places Windows' cursor there when focus goes.
-
-Recommended: the platform's pointer, now that F1 is the platform's. The program never knows when
-Windows' cursor is let go. If the program drew the pointer, it would stay drawn, still, beside
-Windows' arrow while the cursor is let go. So the platform moves the pointer, and draws it over
-the frame only while it keeps the cursor. Events carry the pointer's position, and each mouse's
-raw motion too, for a game that turns a camera. This reverses the recommendation made before F1
-was decided, which was raw motion alone, with the UI library's pointer.
+**5. Who owns the pointer.** Decided: the program, from each mouse's raw motion (see Settled).
+Today GameInput's reader, under the program, moves the pointer and keeps it in the window, and
+events carry its position.
 
 **6. Keeping the boundary.** By AGENTS.md, a rule holds only if a machine check enforces it. So the
 crates split: the boundary's types, the crates above it, and the crates under it. A test reads
@@ -308,7 +318,7 @@ for now.
 - **Typed text.** A character isn't a key. It comes from the key, Windows' keyboard layout,
   Shift, Caps Lock, and dead keys, like the acute accent's key and then e for é. Without it, the
   UI library's text boxes and number boxes, which UiShowcase, MeshModeler and Veehiicuul's vehicle
-  editor use, type only what they make of keys themselves.
+  editor use, make ASCII of keys themselves (see Settled).
 - **Close requested.** F12 quits instead, under the boundary.
 - **Focus lost and gained.** GameInput's readings at rest let go of everything held as focus goes,
   so programs are correct without it. A game can't pause on Alt+Tab, though, since it can't tell
@@ -341,8 +351,7 @@ These aren't `FrameInput`'s at all:
 
 What's still open inside the four:
 
-- **The mouse:** its raw motion or a pointer's position (question 5). All mice count as one, as
-  today.
+- **The mice:** all of them as one, as today, which is recommended, or each on its own.
 - **The keyboard:** whether F10, the platform's, leaves the stream, as F1 and F12 do, so that every
   key has one owner. Keys held as focus came stay the platform's to hold back, as today.
 - **The gamepads:**
@@ -363,12 +372,9 @@ left to decide:
   that coming back needs F1. Recommended: the first, which is today's behavior. Windows lets go of
   a confinement when most windows come to the front, but not the Start menu, so the platform lets
   go itself either way.
-- **While it's let go.** Windows' arrow shows, and the program gets no mouse input, or the pointer
-  and Windows' arrow would move together. Keyboards and gamepads still reach it.
-- **Where the pointer is when F1 keeps the cursor again.** Where it was, or where Windows' arrow
-  is, if that's in the window. Recommended: where Windows' arrow is, so that the pointer appears
-  where the user is looking. As F1 lets go, Windows' cursor goes to the pointer, SDL's way, as
-  today.
+
+While it's let go, the program gets no mouse input (see Settled). When F1 keeps the cursor again,
+the pointer carries on from where it was, as nothing moved it.
 
 ## Replay
 
