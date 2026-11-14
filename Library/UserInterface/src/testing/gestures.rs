@@ -6,6 +6,7 @@
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Key, Modifiers, MouseButton};
 use crate::input::events::Event;
+use crate::input::typing::key_for;
 
 pub(crate) type Frames = Vec<Vec<Event>>;
 
@@ -58,4 +59,23 @@ pub(crate) fn key(modifiers: Modifiers, key: Key, held: &[Key]) -> Frames {
         keys.iter().map(|key| Event::KeyPressed(*key)).collect(),
         keys.iter().rev().map(|key| Event::KeyReleased(*key)).collect(),
     ]
+}
+
+// The keys that type the text, all in one frame: each character's key,
+// pressed and let go of, with Shift around it if it needs it. The text is
+// what the keys type on a US keyboard (see input/typing.rs), so a character
+// that none of them types is an error, which says which.
+pub(crate) fn type_text(text: &str) -> Result<Vec<Event>, String> {
+    let mut events = Vec::new();
+    for character in text.chars() {
+        let (key, shift) = key_for(character).ok_or_else(|| format!("can't type {character:?}, which no key of a US keyboard types"))?;
+        if shift {
+            events.push(Event::KeyPressed(Key::SHIFT));
+        }
+        events.extend([Event::KeyPressed(key), Event::KeyReleased(key)]);
+        if shift {
+            events.push(Event::KeyReleased(Key::SHIFT));
+        }
+    }
+    Ok(events)
 }

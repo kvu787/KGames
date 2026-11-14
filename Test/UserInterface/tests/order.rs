@@ -126,12 +126,10 @@ fn keys_and_their_text_apply_in_the_order_they_were_typed() {
     app.click("Field").type_text("xy");
     app.send(&[
         press(Key::A),
-        Event::Text('a'),
         Event::KeyReleased(Key::A),
         press(Key::BACKSPACE),
         Event::KeyReleased(Key::BACKSPACE),
         press(Key::B),
-        Event::Text('b'),
         Event::KeyReleased(Key::B),
     ]);
     assert_eq!(app.program.text, "xyb");
@@ -223,14 +221,21 @@ fn a_gamepad_button_tapped_within_a_frame_is_pressed() {
     assert!(!app.ui.gamepad().buttons.contains(GamepadButtons::A));
 }
 
-// Text typed after a key in one frame, like a script's Enter and then "2",
-// is a step after the key's: Enter takes what was typed before it, and the 2
+// A key typed after another in one frame, like a script's Enter and then
+// "2", is a step after it: Enter takes what was typed before it, and the 2
 // waits for the next Enter.
 #[test]
 fn text_typed_after_a_key_in_one_frame_comes_after_it() {
     let mut app = Headless::new(Order::default());
     app.click("Number").key(Key::BACKSPACE);
-    app.send(&[Event::Text('4'), press(Key::ENTER), Event::Text('2'), Event::KeyReleased(Key::ENTER)]);
+    app.send(&[
+        press(Key::DIGIT_4),
+        Event::KeyReleased(Key::DIGIT_4),
+        press(Key::ENTER),
+        press(Key::DIGIT_2),
+        Event::KeyReleased(Key::DIGIT_2),
+        Event::KeyReleased(Key::ENTER),
+    ]);
     assert_eq!(app.program.number, 4.0);
     app.key(Key::ENTER);
     assert_eq!(app.program.number, 42.0);
@@ -303,7 +308,7 @@ fn a_wheel_s_turns_add_up_to_notches_across_steps() {
 // press in the next frame does.
 #[test]
 fn a_press_in_a_field_lands_on_the_text_as_the_typing_before_it_scrolled_it() {
-    let typed = |count: usize| vec![Event::Text('w'); count];
+    let typed = |count: usize| (0..count).flat_map(|_| [press(Key::W), Event::KeyReleased(Key::W)]).collect::<Vec<Event>>();
     let mut apart = Headless::new(Order::default());
     apart.click("Field").send(&typed(60));
     let field = apart.target("Field");

@@ -277,20 +277,21 @@ fn a_focused_text_field_takes_the_keys_that_type() {
     let mut app = Headless::new(Test::default());
     app.key(Key::A);
     assert_eq!(app.program.shortcut, 1);
+    // A key types its character into the field, and isn't the program's.
     app.click("Field").type_text("ab cd").key(Key::A);
-    assert_eq!(app.program.text, "ab cd");
+    assert_eq!(app.program.text, "ab cda");
     assert_eq!(app.program.shortcut, 1);
     // Backspace deletes the character before the caret, and keys with Ctrl
     // are the program's.
     app.key(Key::BACKSPACE);
-    assert_eq!(app.program.text, "ab c");
+    assert_eq!(app.program.text, "ab cd");
     app.key_with(Modifiers::CONTROL, Key::A).key_with(Modifiers::CONTROL, Key::BACKSPACE);
-    assert_eq!((app.program.text.as_str(), app.program.shortcut), ("ab c", 2));
+    assert_eq!((app.program.text.as_str(), app.program.shortcut), ("ab cd", 2));
     // A press puts the caret where it is.
     let field = app.target("Field");
     let a = app.ui.fonts().measure("a", user_interface::tokens::BODY).width;
     app.click_point(Point::new(field.x + user_interface::controls::TEXT_BOX_PADDING.left + a + 1.0, field.center().y)).type_text("x");
-    assert_eq!(app.program.text, "axb c");
+    assert_eq!(app.program.text, "axb cd");
     // A press elsewhere takes focus away, and the keys are the program's
     // again.
     app.click_point(Point::new(5.0, 900.0)).key(Key::A);
@@ -305,7 +306,7 @@ fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
     let mut app = Headless::new(Test::default());
     app.click("Field");
     let center = app.target("Button").center();
-    app.queue(&[Event::Text('x'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    app.queue(&[Event::KeyPressed(Key::X), Event::KeyReleased(Key::X), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
     assert_eq!(focused(&app), Some(Value::Null));
     app.release();

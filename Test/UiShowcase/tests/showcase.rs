@@ -137,11 +137,11 @@ fn two_theme_toggles_in_one_frame_cancel() {
 // row shows Basalt, the first item with a "b", where it showed Aurora.
 #[test]
 fn a_press_after_a_letter_in_one_frame_lands_on_the_list_the_letter_filtered() {
-    use user_interface::Event;
+    use user_interface::{Event, Key};
     let mut app = showcase();
     app.click("Search");
     let center = app.target("Items/0").center();
-    app.queue(&[Event::Text('b'), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
+    app.queue(&[Event::KeyPressed(Key::B), Event::KeyReleased(Key::B), Event::PointerMoved(center), Event::ButtonPressed(MouseButton::Left)]).frame();
     assert_eq!(app.program.search, "b", "the letter reached the search box");
     assert_eq!(app.program.matches()[0], 1);
     assert_eq!(app.program.selected, Some(1), "the press selected what the row showed once the letter filtered the list");

@@ -34,6 +34,7 @@ pub mod input {
     pub mod devices;
     pub mod events;
     pub mod reader;
+    pub mod typing;
 }
 
 pub mod design {

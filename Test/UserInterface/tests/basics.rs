@@ -163,14 +163,12 @@ fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
         Event::PointerMoved(a),
         Event::ButtonPressed(MouseButton::Left),
         pressed(Key::A),
-        Event::Text('a'),
-        Event::Text('b'),
         Event::Gamepad(stick),
         Event::KeyReleased(Key::A),
         Event::PointerMoved(b),
     ];
     let steps = input.steps(&events);
-    assert_eq!(steps, [&events[0..2], &events[2..3], &events[3..4], &events[4..5], &events[5..7], &events[7..8]]);
+    assert_eq!(steps, [&events[0..2], &events[2..3], &events[3..5], &events[5..6]]);
     let events = [Event::ButtonReleased(MouseButton::Left), Event::Gamepad(stick)];
     assert_eq!(input.steps(&events), [&events[..]]);
     // A change of the gamepad's buttons does something, and a move of its
@@ -181,9 +179,6 @@ fn a_frame_s_events_come_in_steps_that_each_end_with_one_that_does_something() {
     };
     let events = [Event::Gamepad(holding_a), Event::Gamepad(moved), Event::Gamepad(stick)];
     assert_eq!(input.steps(&events), [&events[0..1], &events[1..3]]);
-    // Text that no key's press typed is a step of its own, a character each.
-    let events = [Event::Text('x'), Event::Text('y')];
-    assert_eq!(input.steps(&events), [&events[0..1], &events[1..2]]);
     // A frame without events is one step.
     assert_eq!(input.steps(&[]), [&[] as &[Event]]);
 }

@@ -196,9 +196,9 @@ Status: Not started.
 Status: Not started. Needs an exception in AGENTS.md, which says to read all input with
 GameInput.
 
-- **KGames:** text comes from `ToUnicodeEx` on GameInput's scan codes
-  ([reader.rs:546-587](../Library/UserInterface/src/input/reader.rs#L546)), so Chinese,
-  Japanese and Korean can't be typed.
+- **KGames:** text is ASCII, made from GameInput's keys with a fixed table of a US keyboard
+  ([typing.rs](../Library/UserInterface/src/input/typing.rs)), so nothing but ASCII can be typed,
+  Chinese, Japanese and Korean included.
 - **BUI:** `BUI/kit/intern/kit_ime_win32.c`, which comes from Chromium's `ImeInput` by way of
   Blender's GHOST, and `BUI/kit/intern/kit_ime.c`:
   - The candidate window is placed per language (`kit_ime_win32.c:119-143`).

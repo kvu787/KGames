@@ -239,9 +239,13 @@ none after that. As focus comes back, it doesn't report keys or mouse buttons th
 before, but reports gamepads' whole state, their held buttons too.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left
-  and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
-  and dead keys, but no IME. A held key doesn't repeat: GameInput's readings don't, and KGames
-  doesn't make repeats of its own.
+  and the right. A held key doesn't repeat: GameInput's readings don't, and KGames doesn't make
+  repeats of its own.
+- Typed text is ASCII, which the interface makes from the keys with a fixed table of a US keyboard,
+  in `input/typing.rs`, whatever Windows' keyboard layout is: the letters, the digits, space and the
+  punctuation, each with its form under Shift, and the numpad's digits and operators. It has no
+  Caps Lock, no accents and no IME, and a key held with Ctrl or Alt types nothing. A key's press
+  and the text it types are one step.
 - The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as SDL's
   relative mode keeps one: it starts in the middle of the window the first time the window gets
   focus, and carries on from where it was each time after, and each mouse's motion moves it, its
@@ -527,7 +531,7 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 | `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                              |
 | `Key`         | A key, like `"F2"` or `"Ctrl+S"`: pressed, and let go of the next frame          |
 | `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them        |
-| `Type`        | Text, as if typed                                                                |
+| `Type`        | Text, typed with the keys that type it on a US keyboard, Shift and all           |
 | `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,               |
 |               | `RightTrigger`, and `Buttons`                                                    |
 | `Focus`       | Whether the window has focus                                                     |

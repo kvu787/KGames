@@ -193,8 +193,8 @@ impl Window {
                 if message.message == WM_QUIT as u32 {
                     return false;
                 }
-                // No TranslateMessage: typed text comes from GameInput's keys,
-                // and translating the messages too would use up dead keys.
+                // No TranslateMessage: typed text comes from GameInput's keys
+                // (see input/typing.rs), not from WM_CHAR.
                 DispatchMessageW(&message);
             }
         }

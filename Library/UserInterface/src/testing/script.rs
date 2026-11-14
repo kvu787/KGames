@@ -60,7 +60,8 @@ enum Action {
     Scroll(Place, f32),
     Key(Shortcut),
     Hold(Vec<Key>),
-    Type(String),
+    // The keys that type the text.
+    Type(Vec<Event>),
     Gamepad(Gamepad),
     Focus(bool),
     Capture(String),
@@ -182,7 +183,7 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
             Action::Hold(keys.collect::<Result<_, _>>()?)
         }
         "Type" => match value {
-            Value::String(text) => Action::Type(text.clone()),
+            Value::String(text) => Action::Type(gestures::type_text(text)?),
             _ => return Err("needs text".to_string()),
         },
         "Gamepad" => Action::Gamepad(parse_gamepad(value)?),
@@ -257,7 +258,7 @@ impl ScriptRunner {
                     self.held = keys;
                     vec![events]
                 }
-                Action::Type(text) => vec![text.chars().map(Event::Text).collect()],
+                Action::Type(events) => vec![events],
                 Action::Focus(true) => vec![vec![Event::FocusGained(self.held.clone())]],
                 Action::Focus(false) => vec![vec![Event::FocusLost]],
                 Action::Gamepad(gamepad) => {

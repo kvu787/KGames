@@ -16,6 +16,7 @@
 
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
+use crate::input::typing::typed;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
@@ -26,7 +27,6 @@ pub enum Event {
     Wheel(Point),
     KeyPressed(Key),
     KeyReleased(Key),
-    Text(char),
     // With the keys held as focus came, which count once they're let go of.
     FocusGained(Vec<Key>),
     FocusLost,
@@ -64,7 +64,8 @@ pub struct Input {
     pub pointer_delta: Point,
     // Notches of the wheel in this step.
     pub wheel: Point,
-    // What was typed in this step.
+    // What was typed in this step: the ASCII that its key types (see
+    // input/typing.rs).
     pub text: String,
     pub gamepad: Gamepad,
     // The gamepad as the step before left it.
@@ -113,11 +114,10 @@ impl Input {
     // handles one at a time, each on the state that the steps before it
     // left, so that each event sees what the events before it did. Each
     // event that does something is the end of a step: a press or a release
-    // of a button or a key, the wheel, a character typed, focus coming or
-    // going, or a change of the gamepad's buttons. A key's press and the
-    // text it types are two steps, as Win32's WM_KEYDOWN and WM_CHAR are two
-    // messages, so that text a script types after a key, like Enter, never
-    // goes with the key. The events before it that only move something, the
+    // of a button or a key, the wheel, focus coming or going, or a change of
+    // the gamepad's buttons. A key's press and the text it types are one
+    // step, as the text is made from the key. The events before it that only
+    // move something, the
     // pointer or the gamepad's sticks, are its step's too, so that it
     // happens where they left the pointer. Those after the frame's last such
     // event are a step of their own if they move the pointer, so that the
@@ -237,6 +237,13 @@ impl Input {
                 }
                 self.keys_down[key.0 as usize] = true;
                 self.keys_pressed.push(*key);
+                let modifiers = self.modifiers();
+                if !modifiers.control
+                    && !modifiers.alt
+                    && let Some(character) = typed(*key, modifiers.shift)
+                {
+                    self.text.push(character);
+                }
             }
             Event::KeyReleased(key) => {
                 let index = key.0 as usize;
@@ -248,7 +255,6 @@ impl Input {
                     self.keys_released.push(*key);
                 }
             }
-            Event::Text(character) => self.text.push(*character),
             Event::Gamepad(reading) => {
                 if std::mem::replace(&mut self.ignore_next_gamepad, false) {
                     self.ignored_gamepad_buttons = reading.buttons.0;

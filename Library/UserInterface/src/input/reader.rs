@@ -5,10 +5,10 @@
 // times. Nothing here reorders the readings:
 //
 // - Keys come from keyboards' readings, which are the keys held down. Shift,
-//   Ctrl and Alt are the same keys on the left and the right. Typed text is
-//   the keys, translated with Windows' keyboard layout, with Shift, AltGr and
-//   dead keys. A held key doesn't repeat: GameInput's readings don't, and the
-//   reader doesn't make repeats of its own.
+//   Ctrl and Alt are the same keys on the left and the right. A held key
+//   doesn't repeat: GameInput's readings don't, and the reader doesn't make
+//   repeats of its own. Typed text isn't the reader's: the interface makes
+//   it from the keys (see input/typing.rs).
 // - The mouse's buttons, wheels and motion come from mice's readings, and
 //   the pointer is the reader's own, as SDL's relative mode keeps one: it
 //   starts in the middle of the window the first time the window gets focus,
@@ -71,8 +71,8 @@ pub struct FrameInput {
     pub input_time: Option<i64>,
 }
 
-// A keyboard's held keys, with their scan codes.
-type HeldKeys = Vec<(Key, u32)>;
+// A keyboard's held keys.
+type HeldKeys = Vec<Key>;
 
 // A mouse's buttons, and its motion's and wheels' running totals as its last
 // reading with relative positions had them, which the next one's motion and
@@ -98,10 +98,9 @@ pub struct InputReader {
     focused: bool,
     // When the window last got focus, as the counter's ticks.
     focus_time: i64,
-    // Each keyboard's held keys, with their scan codes, by device.
+    // Each keyboard's held keys, by device.
     keyboards: Vec<(Option<usize>, HeldKeys)>,
     keys_down: [bool; 256],
-    scan_codes: [u32; 256],
     // Each mouse, by device.
     mice: Vec<(Option<usize>, Mouse)>,
     // The mouse buttons held, as bits by Button, on any mouse.
@@ -170,7 +169,6 @@ impl InputReader {
             focus_time: i64::MIN,
             keyboards: Vec::new(),
             keys_down: [false; 256],
-            scan_codes: [0; 256],
             mice: Vec::new(),
             buttons_down: 0,
             ignored_buttons: 0,
@@ -418,7 +416,7 @@ impl InputReader {
     }
 
     fn keyboard(&mut self, reading: &Reading, events: &mut Vec<Event>) {
-        let keys: HeldKeys = reading.keys.iter().filter_map(|state| key(state).map(|key| (key, state.scanCode))).collect();
+        let keys: HeldKeys = reading.keys.iter().filter_map(key).collect();
         match self.keyboards.iter_mut().find(|(device, _)| *device == reading.device) {
             Some((_, held)) => *held = keys,
             None => self.keyboards.push((reading.device, keys)),
@@ -431,9 +429,8 @@ impl InputReader {
     fn update_keys(&mut self, events: &mut Vec<Event>) {
         let mut down = [false; 256];
         for (_, held) in &self.keyboards {
-            for (key, scan_code) in held {
+            for key in held {
                 down[key.0 as usize] = true;
-                self.scan_codes[key.0 as usize] = *scan_code;
             }
         }
         // Keys that change in one reading are let go of before Shift, Ctrl
@@ -455,10 +452,8 @@ impl InputReader {
             let held = down[code];
             if !self.keys_down[code] && held {
                 self.keys_down[code] = true;
-                let key = Key(code as u8);
                 if self.focused {
-                    events.push(Event::KeyPressed(key));
-                    self.text(key, self.scan_codes[code], events);
+                    events.push(Event::KeyPressed(Key(code as u8)));
                 }
             }
         }
@@ -536,52 +531,6 @@ impl InputReader {
                     self.point(events);
                     events.push(Event::ButtonReleased(button));
                 }
-            }
-        }
-    }
-
-    // The text that a key types, translated with Windows' keyboard layout,
-    // like WM_CHAR. Alt's keys type nothing, unless Ctrl is held with it,
-    // which is AltGr.
-    fn text(&self, key: Key, scan_code: u32, events: &mut Vec<Event>) {
-        let held = |key: Key| self.keys_down[key.0 as usize];
-        if held(Key::ALT) && !held(Key::CONTROL) {
-            return;
-        }
-        let mut state = [0u8; 256];
-        for (state, down) in state.iter_mut().zip(self.keys_down) {
-            if down {
-                *state = 0x80;
-            }
-        }
-        for (generic, left) in [(Key::SHIFT, 0xA0), (Key::CONTROL, 0xA2), (Key::ALT, 0xA4)] {
-            if held(generic) {
-                state[left] = 0x80;
-            }
-        }
-        // Caps Lock's and Num Lock's toggles are Windows', which keeps them as
-        // the window's messages come.
-        for toggle in [Key::CAPS_LOCK.0, 0x90, 0x91] {
-            if unsafe { GetKeyState(toggle as i32) } & 1 != 0 {
-                state[toggle as usize] |= 1;
-            }
-        }
-        let mut buffer = [0u16; 8];
-        let count = unsafe {
-            ToUnicodeEx(
-                key.0 as u32,
-                scan_code & 0xFF,
-                state.as_ptr(),
-                windows_core::PWSTR(buffer.as_mut_ptr()),
-                buffer.len() as i32,
-                0,
-                Some(GetKeyboardLayout(0)),
-            )
-        };
-        // Less than 0 for a dead key, which the next key's text has with it.
-        if count > 0 {
-            for character in char::decode_utf16(buffer[..count as usize].iter().copied()).flatten() {
-                events.push(Event::Text(character));
             }
         }
     }

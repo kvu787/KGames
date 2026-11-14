@@ -329,9 +329,11 @@ impl<P: Program> Headless<P> {
         self
     }
 
-    // Types the text, all in one frame.
+    // Types the text, all in one frame, with the keys that type it on a US
+    // keyboard: each character's key, with Shift if it needs it. A
+    // character that no key types fails the test.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
-        let typed: Vec<Event> = text.chars().map(Event::Text).collect();
+        let typed = gestures::type_text(text).unwrap_or_else(|error| panic!("{error}"));
         self.send(&typed)
     }
 

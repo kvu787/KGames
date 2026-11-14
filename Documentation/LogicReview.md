@@ -161,7 +161,9 @@ pins it.
   frame in the frame's last step, and the demo reads the devices then.
 - `Input::steps` took any text after a key's press as the key's, so a script's Enter and then
   typed text in one frame went together, and a number box took the text with the Enter. A key's
-  press and its text are two steps now, as Win32's `WM_KEYDOWN` and `WM_CHAR` are two messages.
+  press and its text were two steps then, as Win32's `WM_KEYDOWN` and `WM_CHAR` are two messages.
+  Since then, the text is made from the key, so they're one step, and Enter's own step comes
+  before the next key's.
 - Comments in the library and the programs still said "once a frame" or "the tree the user saw"
   where it's now a step's.
 
@@ -537,9 +539,10 @@ same results.
   readings at rest as focus goes came 1.4 ms after. If a real gamepad shows the same as focus
   comes, a button held through Alt+Tab counts as a press once back. The fix would ignore the
   buttons held in each gamepad's first reading after focus comes, if GameInput always sends one.
-- **Caps Lock and Num Lock** come from Windows' state as of the frame's messages, not from where
-  each key comes in the stream, so a frame that types a letter and then presses Caps Lock types it
-  in the new case.
+- **Caps Lock and Num Lock** came from Windows' state as of the frame's messages, not from where
+  each key comes in the stream, so a frame that typed a letter and then pressed Caps Lock typed it
+  in the new case. Since then, typed text is ASCII from a US keyboard's table, without Caps Lock,
+  so nothing is left to decide.
 
 ## Still open
 

@@ -110,26 +110,32 @@ fn step(reader: &mut InputReader, input: &mut Input, readings: &[(i64, Reading)]
 fn keys(events: &[Event]) -> Vec<Event> {
     events
         .iter()
-        .filter(|event| matches!(event, Event::KeyPressed { .. } | Event::KeyReleased(_) | Event::Text(_)))
+        .filter(|event| matches!(event, Event::KeyPressed { .. } | Event::KeyReleased(_)))
         .cloned()
         .collect()
 }
 
+// The reader gives keys, and no text: the interface makes the text from
+// them, with Shift as it's held, whatever Windows' keyboard layout is.
 #[test]
-fn a_key_press_types_the_character_that_the_layout_gives() {
+fn a_key_press_is_its_key_and_the_interface_types_its_text() {
     let mut reader = focused();
+    let mut input = Input::default();
+    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
+    let mut typed = String::new();
+    let mut type_frame = |events: &[Event]| {
+        for step in input.steps(events) {
+            input.begin(0.0, step);
+            typed.push_str(&input.text);
+        }
+    };
     let frame = reader.read(&[keyboard(10, &[A])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A), Event::Text('a')]);
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A)]);
+    type_frame(&frame.events);
     let frame = reader.read(&[keyboard(20, &[]), keyboard(30, &[LEFT_SHIFT]), keyboard(40, &[LEFT_SHIFT, A])], &[], &window(None));
-    assert_eq!(
-        keys(&frame.events),
-        vec![
-            Event::KeyReleased(Key::A),
-            Event::KeyPressed(Key::SHIFT),
-            Event::KeyPressed(Key::A),
-            Event::Text('A'),
-        ]
-    );
+    assert_eq!(keys(&frame.events), vec![Event::KeyReleased(Key::A), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::A)]);
+    type_frame(&frame.events);
+    assert_eq!(typed, "aA");
 }
 
 // Keys that one reading has go down after Shift, Ctrl and Alt, and come up
@@ -176,7 +182,7 @@ fn shift_is_one_key_on_the_left_and_the_right() {
 fn a_held_key_does_not_repeat() {
     let mut reader = focused();
     let frame = reader.read(&[keyboard(10, &[A])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A), Event::Text('a')]);
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A)]);
     let frame = reader.read(&[], &[], &window(None));
     assert_eq!(keys(&frame.events), Vec::new());
     let frame = reader.read(&[keyboard(10 + user_interface::clock::frequency() * 2, &[])], &[], &window(None));
