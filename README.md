@@ -100,8 +100,8 @@ programs' time goes, and [Memory](Documentation/Memory.md), where their memory g
 [BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
 derived from Blender's, as tasks with their status. [GameInput](Documentation/GameInput.md) has
 what was measured of how GameInput reads gamepads, and why KGames leaves its background input off.
-[FrameFunction](Documentation/FrameFunction.md) proposes making each program one function a frame,
-from the frame's input events to GPU commands, apart from the platform under it.
+[FrameInput](Documentation/FrameInput.md) proposes one value for a frame's input, its delta and its
+events from keyboards, mice and gamepads, with focus, Windows' cursor, F1 and F12 under it.
 
 ## Test
 
