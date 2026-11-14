@@ -124,8 +124,8 @@ impl Program for Demo {
             }
             // A frame can both lose focus and get it back, like when focus
             // goes to another window and back between two frames. Losing it
-            // drops what came meanwhile, stops the motors, and makes getting
-            // it back count as getting focus.
+            // drops what came meanwhile, and makes getting it back count as
+            // getting focus.
             Message::FocusLost => {
                 if let Ok(input) = &mut self.input {
                     input.focus_lost();

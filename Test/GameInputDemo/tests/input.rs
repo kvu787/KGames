@@ -319,24 +319,21 @@ fn input_while_minimized_is_dropped_and_restoring_counts_as_getting_focus() {
     input.update(true);
     assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
 
-    // Minimized, the window doesn't have focus, and the main loop says so.
-    // The motors stop.
-    wait(&mut input, 1000);
-    input.update(false);
-    assert!(source(&mut input).rumble(1).is_none());
-
-    // F1, pressed in another window while the demo is minimized, doesn't
-    // turn the rumble test off once it's restored.
+    // Minimized, the window doesn't have focus, and the main loop runs no
+    // frames: the first frame after it's restored says that focus went and
+    // came back. F1, pressed in another window meanwhile, doesn't turn the
+    // rumble test off. GameInput turns the motors off without focus itself,
+    // so the demo asks nothing new of them.
     wait(&mut input, 1000);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": [] } }"#);
     wait(&mut input, 1000);
+    input.focus_lost();
     input.update(true);
     assert!(input.rumble_enabled);
     let presses = log(&input).iter().filter(|line| line.contains("F1")).count();
     assert_eq!(presses, 2, "{:?}", log(&input));
-    // The sticks count as at rest until they move with focus.
-    assert!(source(&mut input).rumble(1).is_none());
+    assert_eq!(source(&mut input).rumble(1).unwrap().lowFrequency, 1.0);
 }
 
 // With the window's focus changes on the readings' clock, as the library's
@@ -629,15 +626,17 @@ fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     assert_eq!((rumble.lowFrequency, rumble.highFrequency), (0.0, 1.0));
     assert_eq!((rumble.leftTrigger, rumble.rightTrigger), (0.0, 0.0));
 
-    // Without focus the motors stop, and they stay stopped with focus
-    // until the sticks move again.
+    // Without focus, the demo asks nothing new of the motors: GameInput
+    // turns them off itself, and back on as the demo last asked as focus
+    // comes back, and the sticks drive them again from then on.
     input.update(false);
-    assert!(source(&mut input).rumble(1).is_none());
-    input.update(true);
-    assert!(source(&mut input).rumble(1).is_none());
-    step(&mut input, r#"{ "Gamepad": { "Id": 1, "RightStick": [1, 0] } }"#);
+    assert_eq!(source(&mut input).rumble(1).unwrap().highFrequency, 1.0);
     input.update(true);
     assert_eq!(source(&mut input).rumble(1).unwrap().highFrequency, 1.0);
+    step(&mut input, r#"{ "Gamepad": { "Id": 1, "RightStick": [0.55, 0] } }"#);
+    input.update(true);
+    let rumble = source(&mut input).rumble(1).unwrap();
+    assert!((rumble.highFrequency - 0.5).abs() < 1e-6, "{}", rumble.highFrequency);
 
     // Off, the test stops the motors, and the sticks no longer drive them.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F1"] } }"#);

@@ -652,12 +652,10 @@ impl Input {
         self.gamepad.rate.tick(now);
         self.keyboard.rate.tick(self.now);
         self.mouse.rate.tick(self.now);
-        // Without focus, the sticks don't drive the motors.
-        if focused {
-            self.update_rumble();
-        } else {
-            self.stop_rumble();
-        }
+        // Without focus, GameInput turns the motors off itself, and back on
+        // as the demo last asked as focus comes back, so the demo asks
+        // nothing new of them: the sticks aren't read.
+        self.update_rumble();
     }
 
     // The demo listens to the gamepad that connected last, from the first
@@ -846,9 +844,6 @@ impl Input {
             self.mouse.state.buttons = 0;
             let device = self.gamepad.device;
             self.view_gamepad(device);
-            for rumble in &mut self.rumbles {
-                rumble.sticks = [0.0; 2];
-            }
         }
     }
 
@@ -1223,20 +1218,6 @@ impl Input {
             if params != rumble.sent {
                 self.source.set_rumble(rumble.device, Some(&params));
                 rumble.sent = params;
-            }
-        }
-    }
-
-    // Stops every motor, for while the window doesn't have focus, or is
-    // minimized. Otherwise they would keep running at their last strength,
-    // as the sticks aren't read then. The sticks count as at rest from then
-    // on, so the motors start again only once a stick moves with focus.
-    fn stop_rumble(&mut self) {
-        let off = GameInputRumbleParams::default();
-        for rumble in &mut self.rumbles {
-            if rumble.sent != off {
-                self.source.set_rumble(rumble.device, None);
-                rumble.sent = off;
             }
         }
     }

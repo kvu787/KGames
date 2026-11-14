@@ -213,7 +213,7 @@ fn f11_switches_fullscreen_from_the_window_and_not_through_game_input() {
 }
 
 #[test]
-fn input_without_window_focus_is_dropped_and_stops_the_motors() {
+fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency"] } }"#);
     step(&mut app, r#"{ "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } }"#);
@@ -223,8 +223,10 @@ fn input_without_window_focus_is_dropped_and_stops_the_motors() {
     let rumble = |app: &mut Headless<Demo>| app.program.input.as_mut().unwrap().scripted().unwrap().rumble(1);
     assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
 
+    // GameInput turns the motors off without focus itself, so the demo asks
+    // nothing new of them.
     app.focus(false);
-    assert!(rumble(&mut app).is_none());
+    assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
     let count = input(&app).reading_count;
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["A"] } }"#);
     assert_eq!(input(&app).reading_count, count);
@@ -232,10 +234,12 @@ fn input_without_window_focus_is_dropped_and_stops_the_motors() {
 
     // With focus again, the button held from before doesn't count until
     // it's let go of, but the stick does.
+    // The stick drives the motor again.
     app.focus(true);
-    step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.5], "Buttons": ["A"] } }"#);
-    assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.5);
+    step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.55], "Buttons": ["A"] } }"#);
+    assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.55);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
+    assert!((rumble(&mut app).unwrap().lowFrequency - 0.5).abs() < 1e-6);
 }
 
 // The demo reads the devices once a frame, in the frame's last step, with
