@@ -42,7 +42,7 @@ pub enum Event {
 | Keys going down and up, as GameInput reads them   | Typed text: the UI library makes ASCII of keys                 |
 | The mice's motion, buttons and wheels, all as one | The pointer: the UI library moves it, from the mice's motion   |
 | The gamepads, all as one, as today                | Focus: the platform's alone                                    |
-| The frame's delta                                 | Closing: F12 quits, and it's the platform's                    |
+| The frame's delta                                 | Closing: F12 and the taskbar's Close quit, under the program   |
 |                                                   | F1 and F12: never sent, neither as presses nor as releases     |
 |                                                   | Time since the program started: the UI library sums the deltas |
 
@@ -50,10 +50,16 @@ Today's events that go: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
 
 ## The platform
 
-- **F1** keeps Windows' cursor, confined to the window and hidden, or lets it go. While it's let
-  go, `FrameInput` has no mouse events, so that the pointer doesn't move apart from Windows'
-  arrow. Keyboards and gamepads still come.
-- **F12** quits at once, without asking.
+- **F1** keeps Windows' cursor, confined to the window and hidden, or lets it go.
+  - It's kept from when the window first has focus, so that a program is ready to use as it
+    opens.
+  - Focus going lets go of the cursor without changing what F1 last chose. Focus coming keeps it
+    again if F1 chose that, as today.
+  - While it's let go, `FrameInput` has no mouse events, so that the pointer doesn't move apart
+    from Windows' arrow. Keyboards and gamepads still come.
+- **F12** quits at once, without asking. So does the taskbar's Close, which sends `WM_CLOSE`, so
+  that closing works one way, whether the window is minimized, on the error page or neither.
+  `Program::may_close` goes.
 - **Focus** is checked on every pass of the main loop, as today, which costs about 1.4 µs a pass.
   As focus goes, the platform lets go of the cursor, and puts in a `KeyUp` or `MouseButtonUp` for
   everything still held, and the gamepads at rest, so that nothing stays held. Keys and gamepad
@@ -94,8 +100,8 @@ Today's events that go: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
 - F1 shows and hides the info card in MinimalSceneTest and SpinningCarTest
   ([info_card.rs](../Library/UserInterface/src/widgets/info_card.rs)), and starts GameInputDemo's
   rumble test. Both move to other keys.
-- F12 quits without asking. MeshModeler asks first today, in `may_close`, when it has unsaved
-  changes, so it would lose them.
+- F12 and the taskbar's Close quit without asking. MeshModeler asks first today, in `may_close`,
+  when it has unsaved changes, so it would lose them.
 - F12 is Windows' key for debuggers. While a debugger is attached to the program, F12 breaks into
   it, as `RegisterHotKey`'s documentation says. Without one, F12 is an ordinary key.
 - As F1 lets Windows' cursor go, Windows' arrow shows where Windows had it, not at the pointer,
@@ -114,17 +120,6 @@ Today's events that go: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
   | `Event::PointerMoved`                          | 32               | `MouseMoved`, worked out to land on the point    |
   | Scripts' `Type` steps                          | 3 files          | Keys                                             |
   | Scripts' `Focus` steps                         | 4 files          | Gone                                             |
-
-## Open
-
-1. **The taskbar's Close,** which sends `WM_CLOSE`. Either it quits at once, as F12 does, and
-   `Program::may_close` goes; or it asks the program first, as today. Recommended: quit at once,
-   so that closing works one way, whether the window is minimized, on the error page or neither.
-2. **F1 at start.** Either Windows' cursor is kept from when the window first has focus, or it's
-   let go until the first F1. Recommended: kept, so that a program is ready to use as it opens.
-3. **F1 as focus goes and comes.** Either focus going lets go of the cursor without changing what
-   F1 last chose, and focus coming keeps it again if F1 chose that; or focus going counts as F1,
-   so that coming back needs F1. Recommended: the first, which is today's behavior.
 
 ## Later, not in this change
 
