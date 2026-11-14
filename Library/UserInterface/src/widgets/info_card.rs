@@ -26,7 +26,7 @@ pub struct InfoCard<'a> {
     // Fields after the display's, each a label and its value.
     pub rows: &'a [(&'a str, &'a str)],
     // The program's own keys, each with what it does, on a row under the
-    // library's: F1's, F9's, F10's and F11's.
+    // library's: F1's, F9's and F10's.
     pub keys: &'a [(&'a str, &'a str)],
 }
 
@@ -59,7 +59,7 @@ impl<M: Clone + 'static> Tree<M> {
         let display = format!("{} {}", environment.display, environment.display_name);
         let mut rows = vec![("Frame rate", rate.as_str()), ("GPU", environment.gpu.as_str()), ("Display", display.trim())];
         rows.extend_from_slice(contents.rows);
-        let library_keys: &[(&str, &str)] = &[("F1", "Hide this"), ("F9", "Theme"), ("F10", "VSync"), ("F11", "Fullscreen")];
+        let library_keys: &[(&str, &str)] = &[("F1", "Hide this"), ("F9", "Theme"), ("F10", "VSync")];
         let key_rows: Vec<&[(&str, &str)]> = [library_keys, contents.keys].into_iter().filter(|keys| !keys.is_empty()).collect();
         // Each key's keycaps' width, and its action's.
         let key_widths: Vec<Vec<(f32, f32)>> = key_rows

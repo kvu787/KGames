@@ -167,7 +167,7 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
         "Scroll" => Action::Scroll(place(member("At")?)?, number(value.get("Notches")).ok_or("needs Notches, a number")? as f32),
         "Key" => {
             let Value::String(name) = value else {
-                return Err("needs a key's name, like \"F11\" or \"Ctrl+S\"".to_string());
+                return Err("needs a key's name, like \"F2\" or \"Ctrl+S\"".to_string());
             };
             Action::Key(Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?)
         }

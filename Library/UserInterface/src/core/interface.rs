@@ -56,7 +56,6 @@ pub struct Environment {
 // What a program asks of its window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Request {
-    ToggleFullscreen,
     ToggleVerticalSync,
     Close,
 }
@@ -159,7 +158,6 @@ pub struct Interface {
     pub(crate) draw: DrawList,
     pub(crate) input: Input,
     size: Size,
-    fullscreen: bool,
     // The targets of the tree that's laid out, which the next step's input
     // is on, until that step's layout: the tree the user saw, between
     // frames.
@@ -214,7 +212,6 @@ impl Interface {
             draw: DrawList::default(),
             input: Input::default(),
             size: Size::default(),
-            fullscreen: false,
             targets: Vec::new(),
             hovered: None,
             active: None,
@@ -247,11 +244,9 @@ impl Interface {
     // `sent` are messages from outside, like a test's, applied in the first
     // step, before the input's. Every step sees the frame's time, and the
     // frame's delta comes in its last step.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size, fullscreen: bool) {
+    pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size) {
         self.frame += 1;
         self.size = size;
-        self.fullscreen = fullscreen;
         self.requests.clear();
         self.fonts.begin_frame();
         if let Some(performance) = &mut self.performance {
@@ -347,10 +342,9 @@ impl Interface {
 
     // Runs a frame of a tree that isn't a program's, like the unsupported
     // setup's: the interface's own keys, in steps, and drawing.
-    pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size, fullscreen: bool) {
+    pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size) {
         self.frame += 1;
         self.size = size;
-        self.fullscreen = fullscreen;
         self.requests.clear();
         self.fonts.begin_frame();
         let delta = (time - self.input.time).max(0.0) as f32;
@@ -576,9 +570,6 @@ impl Interface {
             // it from this very frame; the loop re-reads the truth after.
             self.environment.vertical_sync = !self.environment.vertical_sync;
             self.requests.push(Request::ToggleVerticalSync);
-        }
-        if self.input.key_pressed(Key::F11) {
-            self.requests.push(Request::ToggleFullscreen);
         }
     }
 
@@ -887,10 +878,6 @@ impl Interface {
         if self.performance.is_some() { crate::design::tokens::PERF_BAR_HEIGHT } else { 0.0 }
     }
 
-    pub fn fullscreen(&self) -> bool {
-        self.fullscreen
-    }
-
     // Whether frames wait for the screen's refresh.
     pub fn vertical_sync(&self) -> bool {
         self.environment.vertical_sync
@@ -995,7 +982,7 @@ impl Interface {
 
     // Whether a text field with focus takes the key: every key pressed
     // without Ctrl, but the function keys. Ctrl's shortcuts, like Ctrl+S,
-    // and F9, F10 and F11, stay the program's and the window's.
+    // and F9 and F10, stay the program's and the window's.
     fn is_typed(&self, key: Key) -> bool {
         self.typing && !key.is_function() && !self.input.modifiers().control
     }
@@ -1177,7 +1164,6 @@ impl Interface {
         Value::Object(vec![
             ("Theme".to_string(), Value::from(self.theme.kind.name())),
             ("Size".to_string(), Value::from(vec![self.size.width as f64, self.size.height as f64])),
-            ("Fullscreen".to_string(), Value::from(self.fullscreen)),
             ("VerticalSync".to_string(), Value::from(self.environment.vertical_sync)),
             ("WindowFocused".to_string(), Value::from(self.input.focused)),
             ("Pointer".to_string(), pointer),
@@ -1289,10 +1275,6 @@ impl<M> Context<'_, M> {
     // step's view on.
     pub fn toggle_theme(&mut self) {
         self.inner.toggle_theme();
-    }
-
-    pub fn toggle_fullscreen(&mut self) {
-        self.inner.requests.push(Request::ToggleFullscreen);
     }
 
     // Switches vertical sync, as F10 does, from the next frame on.

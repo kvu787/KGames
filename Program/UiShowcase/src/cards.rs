@@ -1,7 +1,7 @@
 // The showcase's page: an app bar with its icon and title, a menu row under
 // it with a menu bar in line with the icon and the cards, five columns of cards
 // that show every widget, and a status bar. The cards at the bottom of their
-// columns take the 71 pixels that borderless fullscreen adds.
+// columns take what's left of the window's height.
 //
 // `view` describes the page from the showcase's state, and changes nothing:
 // each widget carries the message that the input on it sends.
@@ -54,7 +54,6 @@ fn menus() -> Vec<(&'static str, Vec<MenuItem<Message>>)> {
     let theme = vec![command("Dark theme").accelerator("F9"), command("Tooltips").accelerator("F1")];
     let view = vec![
         command("VSync").accelerator("F10"),
-        command("Fullscreen").icon(Icon::FullScreen).accelerator("F11"),
         MenuItem::submenu("Theme", theme).icon(Icon::Color),
         MenuItem::separator(),
         MenuItem::new("Disabled").enabled(false),
@@ -87,7 +86,6 @@ pub fn view(showcase: &Showcase, ui: &mut Ui) -> Tree<Message> {
         Status::shortcut("Ctrl+R", "Reset"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
-        Status::shortcut("F11", "Fullscreen"),
         Status::Spacer,
         Status::indicator(Severity::Success, fps),
         Status::text(environment.gpu.clone()),

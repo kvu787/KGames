@@ -25,8 +25,6 @@
     { "Frame": 91, "Click": "Menu/Mesh/Menu/Add/Menu/UV sphere" },
     { "Frame": 93, "Expect": { "Undo": "Add UV sphere", "Mesh": { "Faces": 294 } } },
     { "Frame": 94, "Key": "Home" },
-    { "Frame": 96, "Key": "F11" },
-    { "Frame": 110, "Expect": { "Interface": { "Fullscreen": true } } },
-    { "Frame": 110, "Capture": "Fullscreen" }
+    { "Frame": 96, "Capture": "FrameAll" }
   ]
 }

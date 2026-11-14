@@ -5,7 +5,7 @@
 // and a window without focus. And the 3D view, drawn offscreen with the GPU.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image};
-use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Point, Startup};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::controls::Controls;
@@ -207,7 +207,7 @@ fn the_camera_follows_the_car_and_zooms() {
 }
 
 // F1 hides the card and shows it again, and the card fits in the page's
-// bottom left corner, under the notices, at either height.
+// bottom left corner, under the notices.
 #[test]
 fn f1_hides_the_card_which_fits_the_page() {
     let mut app = start();
@@ -216,15 +216,11 @@ fn f1_hides_the_card_which_fits_the_page() {
     assert!(!app.has_target("Play/Card"));
     app.key(Key::F1);
     assert!(app.program.game.show_card);
-    let mut app = start_with(r#"{ "Vehicle": "Purple" }"#);
-    for fullscreen in [false, true] {
-        app.set_fullscreen(fullscreen);
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let card = app.target("Play/Card");
-        assert!(card.width < WINDOW_WIDTH / 2.0 && card.height < height / 2.0, "{card:?}");
-        assert_eq!((card.x, card.bottom()), (PAGE_PADDING, height - STATUS_BAR_HEIGHT - PAGE_PADDING));
-        assert!(card.y > app.target("Notice/0").bottom(), "{card:?}");
-    }
+    let app = start_with(r#"{ "Vehicle": "Purple" }"#);
+    let card = app.target("Play/Card");
+    assert!(card.width < WINDOW_WIDTH / 2.0 && card.height < WINDOW_HEIGHT / 2.0, "{card:?}");
+    assert_eq!((card.x, card.bottom()), (PAGE_PADDING, WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING));
+    assert!(card.y > app.target("Notice/0").bottom(), "{card:?}");
 }
 
 // Settings that name a scene or a vehicle that isn't there start the game

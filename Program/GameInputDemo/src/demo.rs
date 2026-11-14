@@ -3,7 +3,7 @@
 //
 // The demo reads its input from the devices that Library/UserInterface reads
 // with GameInput, or from a script's Program steps in a scripted run, its
-// shortcuts F1 and F2 too. F10 and F11 are the library's, from the same
+// shortcuts F1 and F2 too. F9 and F10 are the library's, from the same
 // readings. Without GameInput the window still opens, and the library's
 // notice under the app bar says why there's no input.
 

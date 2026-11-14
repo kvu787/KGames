@@ -13,9 +13,9 @@
 //
 // The resolved image is kept, and the sphere is drawn again only when the
 // material changes. Every frame copies the image, as each frame starts
-// cleared to the window's background. The image is as big as the view is in
-// borderless fullscreen, its largest, around the card's color, so that it
-// fills the view, and a smaller view shows its middle.
+// cleared to the window's background. The image is as big as the view,
+// around the card's color, so that it fills the view, and a smaller view,
+// like in a smaller frame, shows its middle.
 
 use graphics::{DescriptorHeap, Frame, Gpu, UploadBuffer, create_texture, transition};
 use math::Matrix;
@@ -29,8 +29,7 @@ use windows_core::Result;
 static VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 static PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
 
-// The image's size in pixels: the preview card's view in borderless
-// fullscreen. Maximized, the view is 71 pixels shorter.
+// The image's size in pixels: the preview card's view.
 pub const IMAGE_WIDTH: u32 = 1152;
 pub const IMAGE_HEIGHT: u32 = 1239;
 const SAMPLE_COUNT: u32 = 4;

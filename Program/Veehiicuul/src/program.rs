@@ -355,7 +355,6 @@ impl Veehiicuul {
         }
         items.push(Status::shortcut("F9", "Theme"));
         items.push(Status::shortcut("F10", "VSync"));
-        items.push(Status::shortcut("F11", "Fullscreen"));
         items.push(Status::Spacer);
         if !self.status.is_empty() {
             items.push(Status::text(&self.status));

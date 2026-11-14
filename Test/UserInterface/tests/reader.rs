@@ -72,10 +72,10 @@ fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
     (time, reading)
 }
 
-// The window, maximized, which may get or lose focus at a time.
+// The window, which may get or lose focus at a time.
 fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
-        size: Size::new(2560.0, 1369.0),
+        size: Size::new(2560.0, 1440.0),
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
     }
 }
@@ -335,8 +335,8 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_) | Event::ButtonReleased(_))));
 }
 
-// The middle of the maximized window, where the pointer starts.
-const MIDDLE: Point = Point::new(1280.0, 684.5);
+// The middle of the window, where the pointer starts.
+const MIDDLE: Point = Point::new(1280.0, 720.0);
 
 // Where a mouse's motion of x and y counts moves the pointer from a point,
 // as the reader works it out.
@@ -345,9 +345,9 @@ fn moved(from: Point, x: i64, y: i64) -> Point {
 }
 
 // The pointer is the reader's own, from GameInput's mice alone, and starts in
-// the middle of the window the first time the window gets focus, in parts of
-// a pixel, not on the pixels' grid, and carries on from where it was each
-// time that focus comes back, as SDL's relative mode carries its own on.
+// the middle of the window the first time the window gets focus, and carries
+// on from where it was each time that focus comes back, as SDL's relative
+// mode carries its own on.
 #[test]
 fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
     let mut reader = reader();
@@ -369,7 +369,7 @@ fn the_mouse_moves_the_pointer_its_counts_times_the_mouse_sensitivity() {
     let moves: Vec<&Event> = frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).collect();
     let first = moved(MIDDLE, 2, -1);
     assert_eq!(moves, [&Event::PointerMoved(first), &Event::PointerMoved(moved(first, 40, 0))]);
-    assert_eq!(first, Point::new(1280.0 + 2.0 * 0.8, 684.5 - 0.8));
+    assert_eq!(first, Point::new(1280.0 + 2.0 * 0.8, 720.0 - 0.8));
 }
 
 // Each mouse's motion moves the pointer in the stream's order, so that a
@@ -451,9 +451,9 @@ fn the_pointer_stays_inside_the_window() {
     let mut reader = focused();
     reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, -5000, 5000)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(0.0, 1368.0))), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(0.0, 1439.0))), "{:?}", frame.events);
     let frame = reader.read(&[mouse_at(30, GameInputMouseNone, -4999, 4999)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(moved(Point::new(0.0, 1368.0), 1, -1))), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(moved(Point::new(0.0, 1439.0), 1, -1))), "{:?}", frame.events);
     // A smaller window takes it in.
     let smaller = WindowState {
         size: Size::new(1000.0, 500.0),

@@ -9,8 +9,8 @@
 // what it does:
 //
 //     let mut app = Headless::new(program);
-//     app.click("Save").key(Key::F11);
-//     assert!(app.fullscreen());
+//     app.click("Save").key(Key::F10);
+//     assert!(!app.vertical_sync());
 //
 // The frame shows all that the input did: a click's press opens a popup
 // whose items the next input can point at, and a message's every effect is
@@ -23,7 +23,7 @@ use crate::application::program::{Program, Startup};
 use crate::core::interface::{Interface, Request};
 use crate::core::tree::Tree;
 use crate::design::theme::ThemeKind;
-use crate::design::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use crate::design::tokens::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
@@ -38,20 +38,20 @@ pub struct Headless<P: Program> {
     // The tree the last frame showed, which the next frame's input is on.
     shown: Option<Tree<P::Message>>,
     frame: u64,
-    fullscreen: bool,
     pending: Vec<Event>,
     // Messages a test sends, applied in the next frame before the input's.
     sent: Vec<P::Message>,
     gamepad: Gamepad,
     renderer: Option<Renderer>,
-    // A window of a size other than the supported setups', like a test's of
+    // A window of a size other than the supported setup's, like a test's of
     // the unsupported setup.
     custom_size: Option<Size>,
     closed: bool,
 }
 
 impl<P: Program> Headless<P> {
-    // The program in a maximized window that has focus, in the light theme.
+    // The program in a window that has focus, in the light theme, in the
+    // supported setup.
     pub fn new(program: P) -> Self {
         Self::with_theme(program, ThemeKind::Light)
     }
@@ -63,7 +63,6 @@ impl<P: Program> Headless<P> {
             ui: Interface::new(fonts, theme),
             shown: None,
             frame: 0,
-            fullscreen: false,
             pending: vec![Event::FocusGained(Vec::new())],
             sent: Vec::new(),
             gamepad: Gamepad::default(),
@@ -101,17 +100,7 @@ impl<P: Program> Headless<P> {
     }
 
     pub fn size(&self) -> Size {
-        self.custom_size
-            .unwrap_or_else(|| Size::new(WINDOW_WIDTH, if self.fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT }))
-    }
-
-    pub fn fullscreen(&self) -> bool {
-        self.fullscreen
-    }
-
-    pub fn set_fullscreen(&mut self, fullscreen: bool) -> &mut Self {
-        self.fullscreen = fullscreen;
-        self.run_frame()
+        self.custom_size.unwrap_or(Size::new(WINDOW_WIDTH, WINDOW_HEIGHT))
     }
 
     // Whether frames would wait for vertical sync, which a test's frames
@@ -146,10 +135,9 @@ impl<P: Program> Headless<P> {
         let sent = std::mem::take(&mut self.sent);
         let size = self.size();
         let time = self.time();
-        self.ui.frame(&mut self.program, &mut self.shown, &events, sent, time, size, self.fullscreen);
+        self.ui.frame(&mut self.program, &mut self.shown, &events, sent, time, size);
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
-                Request::ToggleFullscreen => self.fullscreen = !self.fullscreen,
                 // The environment already switched when the request was
                 // made, so the frame that asked says the new setting; a
                 // window would switch its presenter here.

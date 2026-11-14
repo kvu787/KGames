@@ -461,7 +461,7 @@ impl<M: 'static> Widget<M> for UnsupportedSetup {
             lines.push(line);
             height += line + SPACE_XS;
         }
-        let advice = "Programs run on a 2560 × 1440 display at 100% scale, with a 48-pixel taskbar at its bottom, maximized or in borderless fullscreen with F11.";
+        let advice = "Programs run in borderless fullscreen on a 2560 × 1440 display at 100% scale.";
         let advice_height = ctx.fonts().measure_wrapped(advice, BODY, width - SPACE_L * 2.0).height;
         height += SPACE_S + advice_height;
         let rect = bounds.centered(Size::new(width, height)).round();

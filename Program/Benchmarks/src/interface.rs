@@ -2,7 +2,7 @@
 // update costs the CPU, without a window, through Headless, steady and with
 // the pointer moving; what recording the frame's drawing costs the CPU; and
 // what drawing it costs the GPU, timed with timestamp queries, into a target
-// the size of the maximized window's client area. And the parts of a frame
+// the size of the window's client area. And the parts of a frame
 // that every program pays for: text layout and the glyph atlas, the input
 // reader, and the PerfBar's bookkeeping.
 
@@ -12,7 +12,7 @@ use graphics::{AdapterChoice, Gpu, GpuTimer, Offscreen};
 use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameInputKindMouse, GameInputMouseState};
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::performance::{Frame, Performance};
-use user_interface::tokens::{BODY, CAPTION, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{BODY, CAPTION, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Event, FocusChange, Font, Fonts, Headless, Point, Program, Reading, Size, Startup, TextStyle, Weight, clock};
 
 use crate::harness::{Budget, Measurement, measure, measure_timed};
@@ -141,7 +141,7 @@ fn moving<S: Subject>(subject: &S, budget: Budget) -> Measurement {
         step += 1;
         let t = step as f32 * 0.017;
         let x = (t.sin() * 0.5 + 0.5) * WINDOW_WIDTH;
-        let y = ((t * 0.7).cos() * 0.5 + 0.5) * MAXIMIZED_HEIGHT;
+        let y = ((t * 0.7).cos() * 0.5 + 0.5) * WINDOW_HEIGHT;
         app.send(&[Event::PointerMoved(Point::new(x, y))]);
     })
     // `send` runs two frames.
@@ -158,10 +158,10 @@ fn first<S: Subject>(subject: &S, budget: Budget) -> Measurement {
 }
 
 // What the GPU takes to draw the last frame into a target the size of the
-// maximized window's client area, and what the CPU takes to record it.
+// window's client area, and what the CPU takes to record it.
 fn draw<S: Subject>(subject: &S, gpu: &mut Gpu, budget: Budget) -> Vec<Measurement> {
     let mut app = subject.make();
-    let mut target = Offscreen::new(gpu, WINDOW_WIDTH as u32, MAXIMIZED_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
+    let mut target = Offscreen::new(gpu, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, [0.0; 4]).expect("an offscreen target");
     let mut timer = GpuTimer::new(gpu, 1).expect("a GPU timer");
     let background = app.ui.theme().background;
     let clear = [background.r, background.g, background.b, 1.0];
@@ -271,7 +271,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     let mut reader = InputReader::new(true);
     let now = clock::now();
     let window = WindowState {
-        size: Size::new(WINDOW_WIDTH, MAXIMIZED_HEIGHT),
+        size: Size::new(WINDOW_WIDTH, WINDOW_HEIGHT),
         focus_changes: vec![FocusChange { time: now, gained: true }],
     };
     reader.read(&[], &[], &window);

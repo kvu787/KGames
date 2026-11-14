@@ -15,10 +15,9 @@
 //   - It opens with --no-input, so it doesn't start GameInput, or the helper
 //     process that GameInput starts to read keyboards and mice. Without
 //     focus, it would ignore all input anyway.
-//   - It opens with --theme Light and --window-mode WindowedMaximized,
-//     whatever its settings say, so that its scripts and screenshots start
-//     the same way whatever someone set for themselves. --arguments can say
-//     otherwise.
+//   - It opens with --theme Light, whatever its settings say, so that its
+//     scripts and screenshots start the same way whatever someone set for
+//     themselves. --arguments can say otherwise.
 //   - The screenshot comes from PrintWindow, which works while the window is
 //     behind others, and doesn't activate it.
 //   - It runs in a job that ends it if this program stops partway.
@@ -200,19 +199,19 @@ static void Run(string[] arguments) {
         exe = Path.Combine(target, debugBuild ? "debug" : "release", $"{package}.exe");
     }
     var sync = verticalSync ? " --vsync" : " --no-vsync";
-    // Light and windowed maximized, whatever the program's settings say, so that every run starts
-    // the same way. --arguments come after these, so they can say otherwise.
-    const string LightAndWindowedMaximized = " --theme Light --window-mode WindowedMaximized";
+    // Light, whatever the program's settings say, so that every run starts the same way.
+    // --arguments come after this, so they can say otherwise.
+    const string Light = " --theme Light";
 
     if (scripts.Count > 0) {
-        RunScripts(program, exe, display, sync + LightAndWindowedMaximized + extraArguments, scripts, Path.Combine(output, program), timeout);
+        RunScripts(program, exe, display, sync + Light + extraArguments, scripts, Path.Combine(output, program), timeout);
         return;
     }
 
     // The program has no console, but writes why it couldn't start to standard error.
     var outputLog = Path.Combine(output, $"{program}Output.log");
     var errorLog = Path.Combine(output, $"{program}Errors.log");
-    var options = winUi ? "" : $" --no-input{sync}{LightAndWindowedMaximized}";
+    var options = winUi ? "" : $" --no-input{sync}{Light}";
     using var process = ProgramProcess.Start($"\"{exe}\" --display \"{display}\" --no-activate{options}{extraArguments}", outputLog, errorLog, keepOpen);
     // From the start, as a window could take focus as soon as it opens.
     using var watch = new FocusWatch(process);

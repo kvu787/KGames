@@ -2,7 +2,7 @@
 // Windows' cursor. The window is made hidden and never shown, so nothing
 // opens on a display, and nothing takes focus.
 
-use user_interface::{ClipHolder, Theme, ThemeKind, Window, WindowMode, clip_holder, keeps_cursor_in};
+use user_interface::{ClipHolder, Theme, ThemeKind, Window, clip_holder, keeps_cursor_in};
 use windows_api::*;
 
 // Until its first frame is presented, a window shows what it paints with GDI.
@@ -18,7 +18,7 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
         let expected = r as u32 | (g as u32) << 8 | (b as u32) << 16;
         unsafe {
             let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
-            let window = Window::create("Background", monitor, WindowMode::WindowedMaximized, background).unwrap();
+            let window = Window::create("Background", monitor, background).unwrap();
             let (width, height) = window.client_size();
             let screen = GetDC(None);
             let memory = CreateCompatibleDC(Some(screen));
@@ -46,7 +46,7 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
 fn a_minimized_window_keeps_no_cursor() {
     unsafe {
         let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
-        let window = Window::create("Cursor", monitor, WindowMode::WindowedMaximized, Theme::light().background).unwrap();
+        let window = Window::create("Cursor", monitor, Theme::light().background).unwrap();
         let (width, height) = window.client_size();
         let area = window.cursor_area().expect("the client area");
         assert_eq!((area.right - area.left, area.bottom - area.top), (width as i32, height as i32));
@@ -59,14 +59,11 @@ fn a_minimized_window_keeps_no_cursor() {
 
 // The window keeps Windows' cursor in its client area while it has focus, but
 // starts to only once no mouse button is held, like the click that gave it
-// focus on its title bar's minimize or close button, which Windows tracks
-// until it's let go of there: kept in the client area, the cursor would never
-// be let go of on the button, and the window would neither minimize nor
-// close. A button held while it keeps the cursor, like for a drag, doesn't
+// focus. A button held while it keeps the cursor, like for a drag, doesn't
 // let it go, and a minimized window keeps none.
 #[test]
 fn the_click_that_gives_the_window_focus_is_let_go_of_before_the_window_keeps_the_cursor() {
-    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    let area = RECT { left: 0, top: 0, right: 2560, bottom: 1440 };
     assert_eq!(keeps_cursor_in(true, true, false, Some(area), true), None);
     assert_eq!(keeps_cursor_in(true, true, false, Some(area), false), Some(area));
     assert_eq!(keeps_cursor_in(true, true, true, Some(area), true), Some(area));
@@ -79,7 +76,7 @@ fn the_click_that_gives_the_window_focus_is_let_go_of_before_the_window_keeps_th
 // mustn't keep the cursor of someone using that program then.
 #[test]
 fn a_window_with_focus_that_isn_t_the_foreground_window_keeps_no_cursor() {
-    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    let area = RECT { left: 0, top: 0, right: 2560, bottom: 1440 };
     assert_eq!(keeps_cursor_in(true, false, false, Some(area), false), None);
     assert_eq!(keeps_cursor_in(true, false, true, Some(area), false), None);
 }
@@ -91,7 +88,7 @@ fn a_window_with_focus_that_isn_t_the_foreground_window_keeps_no_cursor() {
 // program's alone.
 #[test]
 fn the_window_lets_go_only_of_the_cursor_s_confinement_that_it_holds() {
-    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    let area = RECT { left: 0, top: 0, right: 2560, bottom: 1440 };
     let free = RECT { left: -2560, top: 0, right: 5120, bottom: 1440 };
     let other = RECT { left: 2560, top: 0, right: 5120, bottom: 1440 };
     assert_eq!(clip_holder(area, area, free), ClipHolder::Window);

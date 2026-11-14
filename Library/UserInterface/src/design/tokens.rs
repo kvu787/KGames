@@ -201,7 +201,7 @@ pub const CARD_HEADER_GAP: f32 = SPACE_S;
 pub const FORM_LABEL_GAP: f32 = SPACE_XS;
 pub const FORM_ROW_GAP: f32 = SPACE_M;
 
-// The two supported window setups' client areas.
+// The window's client area in the one supported setup: borderless
+// fullscreen on a 2560 × 1440 display.
 pub const WINDOW_WIDTH: f32 = 2560.0;
-pub const MAXIMIZED_HEIGHT: f32 = 1369.0;
-pub const FULLSCREEN_HEIGHT: f32 = 1440.0;
+pub const WINDOW_HEIGHT: f32 = 1440.0;

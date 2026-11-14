@@ -158,12 +158,10 @@ fn without_focus_nothing_moves() {
 
 #[test]
 fn the_run_card_fits_and_the_targets_stay_on_the_page() {
-    for fullscreen in [false, true] {
-        let mut app = start("Fits");
-        app.set_fullscreen(fullscreen).frame();
-        for target in app.ui.targets().iter().filter(|target| target.listed) {
-            let rect = target.rect;
-            assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0, "{} at {rect:?}", target.name);
-        }
+    let mut app = start("Fits");
+    app.frame();
+    for target in app.ui.targets().iter().filter(|target| target.listed) {
+        let rect = target.rect;
+        assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0, "{} at {rect:?}", target.name);
     }
 }

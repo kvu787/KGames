@@ -2,7 +2,7 @@
 // real layout, which user_interface::Headless builds without a window or a
 // GPU: picking as a press goes down and box selection, modal moves and
 // extrusions, loop cuts, painting, creases, subdivision, undo, and where the
-// cards go at both supported window heights.
+// cards go in the supported window.
 
 use std::path::{Path, PathBuf};
 
@@ -10,7 +10,7 @@ use json::Value;
 use math::Vector3;
 use mesh_modeler::modeler::{Command, Message, Modeler, PaintEdit};
 use polygon_mesh::Edge;
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Event, Headless, Key, Modifiers, MouseButton, Point, ThemeKind};
 
 fn folder(test: &str) -> PathBuf {
@@ -625,19 +625,16 @@ fn f9_and_the_view_menu_switch_the_theme_once() {
 }
 
 #[test]
-fn the_cards_fit_at_both_window_heights() {
-    for (height, fullscreen) in [(MAXIMIZED_HEIGHT, false), (FULLSCREEN_HEIGHT, true)] {
-        let mut app = modeler(if fullscreen { "Fullscreen" } else { "Maximized" });
-        app.set_fullscreen(fullscreen).frames(2);
-        assert_eq!(app.size().height, height);
-        let bottom = height - STATUS_BAR_HEIGHT - PAGE_PADDING;
-        for name in ["Paint/Light", "Clear crease", "AddPrimitive", "Grid"] {
-            assert!(app.target(name).bottom() <= bottom, "{name} at {:?} is below {bottom}", app.target(name));
-        }
-        let view = app.target("View");
-        assert!(view.bottom() <= bottom && view.bottom() > bottom - 40.0, "{view:?}");
-        assert!(view.right() < WINDOW_WIDTH - 400.0);
+fn the_cards_fit_in_the_window() {
+    let app = modeler("Fit");
+    assert_eq!(app.size().height, WINDOW_HEIGHT);
+    let bottom = WINDOW_HEIGHT - STATUS_BAR_HEIGHT - PAGE_PADDING;
+    for name in ["Paint/Light", "Clear crease", "AddPrimitive", "Grid"] {
+        assert!(app.target(name).bottom() <= bottom, "{name} at {:?} is below {bottom}", app.target(name));
     }
+    let view = app.target("View");
+    assert!(view.bottom() <= bottom && view.bottom() > bottom - 40.0, "{view:?}");
+    assert!(view.right() < WINDOW_WIDTH - 400.0);
 }
 
 #[test]

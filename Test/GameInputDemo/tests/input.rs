@@ -681,11 +681,11 @@ fn shortcuts_run_once_for_each_press() {
     input.update(true);
     assert!(!input.rumble_enabled);
 
-    // F11 is the library's, which reads the same readings, so to the demo
+    // F10 is the library's, which reads the same readings, so to the demo
     // it's only a key, which is logged.
-    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F11"] } }"#);
+    step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F10"] } }"#);
     input.update(true);
-    assert!(log(&input)[0].starts_with("Keys: F11 down"), "{:?}", log(&input));
+    assert!(log(&input)[0].starts_with("Keys: F10 down"), "{:?}", log(&input));
 
     // The log is cleared after the key press is logged.
     step(&mut input, r#"{ "Keyboard": { "Id": 3, "Down": ["F2"] } }"#);

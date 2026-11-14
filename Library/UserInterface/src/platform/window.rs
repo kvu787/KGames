@@ -3,8 +3,7 @@
 // which it handles only to be a window: its focus, Windows' cursor over it,
 // its size and its close button.
 //
-// - It's maximized or borderless fullscreen, the two supported setups, and
-//   switches between them without taking focus.
+// - It's borderless fullscreen on its display, the one supported setup.
 // - It says when it gets and loses focus, on the clock that input is timed
 //   on, as input without focus is ignored. The time is when it handles the
 //   message, which Windows sends it once the focus has moved, so it can be
@@ -16,18 +15,13 @@
 //   without being the foreground window, whose cursor it mustn't keep. It
 //   starts to keep it only once no mouse button is held, by Windows' account
 //   of the mouse, which, unlike GameInput's, has the click that gave the
-//   window focus: Windows tracks a click on the title bar's minimize or close
-//   button until it's let go of there, which a cursor kept in the client area
-//   never is. The cursor's confinement is shared by every program, so the
+//   window focus. The cursor's confinement is shared by every program, so the
 //   window releases it only if it still holds it, as the program that gets
 //   focus may have taken it first. As the window loses focus, like with
 //   Alt+Tab, it lets the cursor go where the interface's pointer was, where
 //   it shows, as SDL does, unless that program has taken it.
 // - It says when its setup may have changed: when it moves or changes size,
-//   or the displays, their scale or the taskbar change.
-// - It asks for a dark title bar in the dark theme, as Windows 11's apps
-//   have, with DWMWA_USE_IMMERSIVE_DARK_MODE, which Microsoft's documentation
-//   describes as drawing the frame dark while Windows' own dark mode is on.
+//   or the displays, their scale or Windows' settings change.
 // - Until its first frame is presented, it shows the theme's background,
 //   which it fills with GDI whenever Windows asks it to paint, and as soon as
 //   it shows. A window that paints nothing shows white, which would flash
@@ -39,20 +33,17 @@ use std::cell::Cell;
 use std::ptr::NonNull;
 
 use windows_api::*;
-use windows_core::{BOOL, Error, PCWSTR, Result, w};
+use windows_core::{Error, PCWSTR, Result, w};
 
-use crate::application::settings::WindowMode;
 use crate::drawing::geometry::Color;
 use crate::platform::clock;
 
 // RunInBackground finds programs' windows by this class.
 const CLASS: PCWSTR = w!("MainWindow");
 
-// The one supported display and its taskbar.
+// The one supported display.
 pub const DISPLAY_WIDTH: i32 = 2560;
 pub const DISPLAY_HEIGHT: i32 = 1440;
-pub const TASKBAR_HEIGHT: i32 = 48;
-pub const MAXIMIZED_CLIENT_HEIGHT: i32 = 1369;
 
 // The window got focus, or lost it, at a time on the counter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,9 +56,8 @@ pub struct FocusChange {
 //
 // The window procedure runs inside the Windows calls that send the window
 // messages, while one of the window's methods is running, like
-// DispatchMessageW in `pump`, SetWindowPos in `apply_mode` and `show`, and
-// ShowWindow. It runs inside its own calls too, like DefWindowProcW. So both
-// only ever hold
+// DispatchMessageW in `pump`, SetWindowPos in `show`, and ShowWindow. It
+// runs inside its own calls too, like DefWindowProcW. So both only ever hold
 // `&Shared`, which may overlap, and change it through its cells. A
 // `&mut Shared` on either side would alias the other's reference, which is
 // undefined behavior even when it works.
@@ -105,31 +95,27 @@ pub struct Window {
     // invalidate GWLP_USERDATA's copy, which the window procedure goes on
     // using. Drop frees it, after the window is destroyed.
     shared: NonNull<Shared>,
-    mode: WindowMode,
-    dark_title_bar: Option<bool>,
 }
 
 impl Window {
-    // A program's window on the monitor, hidden until shown, which shows
-    // `background`, the theme's, until its first frame is presented.
-    pub fn create(title: &str, monitor: HMONITOR, mode: WindowMode, background: Color) -> Result<Window> {
+    // A program's window, borderless over the whole monitor, hidden until
+    // shown, which shows `background`, the theme's, until its first frame is
+    // presented.
+    pub fn create(title: &str, monitor: HMONITOR, background: Color) -> Result<Window> {
         unsafe {
             prepare_process();
             register_class()?;
-            // Where it would be if it were ever restored: half the work area,
-            // in its middle.
-            let work = monitor_info(monitor).rcWork;
-            let (width, height) = ((work.right - work.left) / 2, (work.bottom - work.top) / 2);
+            let area = monitor_info(monitor).rcMonitor;
             let title = wide(title);
             let hwnd = CreateWindowExW(
                 WS_EX_APPWINDOW as u32,
                 CLASS,
                 PCWSTR(title.as_ptr()),
-                WS_OVERLAPPEDWINDOW as u32,
-                work.left + width / 2,
-                work.top + height / 2,
-                width,
-                height,
+                WS_POPUP,
+                area.left,
+                area.top,
+                area.right - area.left,
+                area.bottom - area.top,
                 None,
                 None,
                 Some(GetModuleHandleW(None)),
@@ -138,9 +124,7 @@ impl Window {
             if hwnd.0.is_null() {
                 return Err(Error::from_thread());
             }
-            let mut window = Window::wrap(hwnd, background);
-            window.apply_mode(mode, false);
-            Ok(window)
+            Ok(Window::wrap(hwnd, background))
         }
     }
 
@@ -159,12 +143,7 @@ impl Window {
             });
             let shared = NonNull::new_unchecked(Box::into_raw(shared));
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as isize);
-            Window {
-                hwnd,
-                shared,
-                mode: WindowMode::WindowedMaximized,
-                dark_title_bar: None,
-            }
+            Window { hwnd, shared }
         }
     }
 
@@ -199,74 +178,6 @@ impl Window {
                 let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), 0, 0, 0, 0, flags);
             }
             let _ = UpdateWindow(self.hwnd);
-        }
-    }
-
-    pub fn mode(&self) -> WindowMode {
-        self.mode
-    }
-
-    // Switches between maximized and borderless fullscreen, on the monitor
-    // that the window is on, without taking focus.
-    pub fn set_mode(&mut self, mode: WindowMode) {
-        if mode != self.mode {
-            self.apply_mode(mode, true);
-        }
-    }
-
-    fn apply_mode(&mut self, mode: WindowMode, visible: bool) {
-        self.mode = mode;
-        unsafe {
-            let info = monitor_info(MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST as u32));
-            let visible = if visible { WS_VISIBLE as u32 } else { 0 };
-            let flags = (SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER) as u32;
-            let (style, area) = match mode {
-                WindowMode::BorderlessFullscreen => (WS_POPUP | visible, info.rcMonitor),
-                WindowMode::WindowedMaximized => {
-                    // Maximized as Windows would, but without activating, which
-                    // Windows has no documented way to do: ShowWindow's
-                    // SW_SHOWMAXIMIZED activates the window. So the style says
-                    // maximized, though the documentation doesn't list
-                    // WS_MAXIMIZE among the styles that may change after the
-                    // window is made, and the window takes the work area, with
-                    // the frame's borders past its edges, which leaves the
-                    // title bar at its top.
-                    let dpi = GetDpiForWindow(self.hwnd).max(USER_DEFAULT_SCREEN_DPI as u32);
-                    let mut frame = RECT::default();
-                    let _ = AdjustWindowRectExForDpi(&mut frame, WS_OVERLAPPEDWINDOW as u32, false, WS_EX_APPWINDOW as u32, dpi);
-                    let border = frame.right;
-                    let work = info.rcWork;
-                    let area = RECT {
-                        left: work.left - border,
-                        top: work.top - border,
-                        right: work.right + border,
-                        bottom: work.bottom + border,
-                    };
-                    (WS_OVERLAPPEDWINDOW as u32 | WS_MAXIMIZE as u32 | visible, area)
-                }
-            };
-            SetWindowLongPtrW(self.hwnd, GWL_STYLE, style as isize);
-            let _ = SetWindowPos(self.hwnd, None, area.left, area.top, area.right - area.left, area.bottom - area.top, flags);
-        }
-        self.shared().setup_changed.set(true);
-    }
-
-    // Dark or light, as the theme is, like the title bars of Windows 11's
-    // apps. DWM draws the dark one; its documentation promises it while
-    // Windows' own dark mode is on.
-    pub fn set_dark_title_bar(&mut self, dark: bool) {
-        if self.dark_title_bar == Some(dark) {
-            return;
-        }
-        self.dark_title_bar = Some(dark);
-        let value = BOOL::from(dark);
-        unsafe {
-            let _ = DwmSetWindowAttribute(
-                self.hwnd,
-                DWMWA_USE_IMMERSIVE_DARK_MODE as u32,
-                &value as *const BOOL as *const core::ffi::c_void,
-                size_of::<BOOL>() as u32,
-            );
         }
     }
 
@@ -310,9 +221,8 @@ impl Window {
 
     // Keeps Windows' cursor inside the client area where keeps_cursor_in
     // says, every frame, as Windows lets go of a cursor's confinement when
-    // other windows come and go, the client area moves when the window
-    // switches between maximized and fullscreen, and a click that gave the
-    // window focus is let go of.
+    // other windows come and go, and a click that gave the window focus is
+    // let go of.
     pub fn keep_cursor(&mut self) {
         unsafe { keep_cursor(self.hwnd, self.shared()) };
     }
@@ -373,9 +283,8 @@ impl Window {
         self.shared().setup_changed.replace(false)
     }
 
-    // What's wrong with the setup, if anything. Programs support only a
-    // 2560 × 1440 display at 100% scale with a 48-pixel taskbar at its
-    // bottom, and the window maximized or borderless fullscreen.
+    // What's wrong with the setup, if anything. Programs support only
+    // borderless fullscreen on a 2560 × 1440 display at 100% scale.
     pub fn setup_problems(&self) -> Vec<String> {
         let mut problems = Vec::new();
         unsafe {
@@ -390,32 +299,10 @@ impl Window {
                 problems.push(format!("The display's scale is {}%. It must be 100%.", dpi * 100 / USER_DEFAULT_SCREEN_DPI as u32));
             }
             let (client_width, client_height) = self.client_size();
-            let client = (client_width as i32, client_height as i32);
-            match self.mode {
-                WindowMode::WindowedMaximized => {
-                    let work = info.rcWork;
-                    let taskbar_right = work.left == monitor.left
-                        && work.top == monitor.top
-                        && work.right == monitor.right
-                        && monitor.bottom - work.bottom == TASKBAR_HEIGHT;
-                    if !taskbar_right {
-                        problems.push(format!("The taskbar must be {TASKBAR_HEIGHT} pixels tall, at the bottom of the display."));
-                    }
-                    if !IsZoomed(self.hwnd).as_bool() {
-                        problems.push("The window must be maximized, or borderless fullscreen with F11.".to_string());
-                    } else if client != (DISPLAY_WIDTH, MAXIMIZED_CLIENT_HEIGHT) {
-                        problems.push(format!(
-                            "The window's client area is {client_width} × {client_height}. Windowed maximized, it must be {DISPLAY_WIDTH} × {MAXIMIZED_CLIENT_HEIGHT}."
-                        ));
-                    }
-                }
-                WindowMode::BorderlessFullscreen => {
-                    if client != (DISPLAY_WIDTH, DISPLAY_HEIGHT) {
-                        problems.push(format!(
-                            "The window's client area is {client_width} × {client_height}. In borderless fullscreen, it must be {DISPLAY_WIDTH} × {DISPLAY_HEIGHT}."
-                        ));
-                    }
-                }
+            if (client_width as i32, client_height as i32) != (DISPLAY_WIDTH, DISPLAY_HEIGHT) {
+                problems.push(format!(
+                    "The window's client area is {client_width} × {client_height}. It must be {DISPLAY_WIDTH} × {DISPLAY_HEIGHT}, the whole display."
+                ));
             }
         }
         problems
@@ -540,10 +427,8 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
 // the foreground window, as a window can get focus without being it, when
 // Windows won't let it take the foreground from the program that has it. It
 // starts to keep it only once no mouse button is held, like the click that
-// gave it focus on its title bar's minimize or close button, which Windows
-// tracks until it's let go of there, where a cursor kept in the client area
-// would never be let go of. A button held while it keeps it, like for a drag,
-// doesn't let it go.
+// gave it focus. A button held while it keeps it, like for a drag, doesn't
+// let it go.
 pub fn keeps_cursor_in(focused: bool, foreground: bool, keeps: bool, area: Option<RECT>, button_held: bool) -> Option<RECT> {
     if focused && foreground && (keeps || !button_held) { area } else { None }
 }

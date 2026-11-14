@@ -79,7 +79,6 @@ pub enum Command {
     ToggleGrid,
     ToggleTheme,
     VerticalSync,
-    Fullscreen,
 }
 
 // Each command's label, which menus show and return, and its shortcuts, of
@@ -143,7 +142,6 @@ pub const COMMANDS: &[(Command, &str, &[&str])] = &[
     (Command::ToggleGrid, "Grid", &["Shift+G"]),
     (Command::ToggleTheme, "Dark theme", &["F9"]),
     (Command::VerticalSync, "VSync", &["F10"]),
-    (Command::Fullscreen, "Fullscreen", &["F11"]),
 ];
 
 impl Command {
@@ -458,7 +456,6 @@ impl Modeler {
             Command::ToggleGrid => self.grid = !self.grid,
             Command::ToggleTheme => ui.toggle_theme(),
             Command::VerticalSync => ui.toggle_vertical_sync(),
-            Command::Fullscreen => ui.toggle_fullscreen(),
         }
     }
 

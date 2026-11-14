@@ -10,8 +10,9 @@
 // reaches the screen. While the window is minimized, the loop waits for
 // messages instead, which stops it drawing.
 //
-// Programs start in the theme, window mode and vertical sync that their
-// Settings.json says, unless the command line says otherwise.
+// Programs start in the theme and vertical sync that their Settings.json
+// says, unless the command line says otherwise, in borderless fullscreen,
+// the one supported setup.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
@@ -31,10 +32,9 @@ use graphics::{AdapterChoice, Gpu, Image, Presenter, Readback, write_png};
 
 use crate::application::performance::{Frame, Performance};
 use crate::application::program::{Arguments, Notice, Options, Program, Startup};
-use crate::application::settings::{Settings, WindowMode};
+use crate::application::settings::Settings;
 use crate::core::interface::{Environment, Interface, Request};
 use crate::core::tree::Tree;
-use crate::design::theme::ThemeKind;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
@@ -112,8 +112,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         });
     }
 
-    let mut window = Window::create(&program.title(), display.monitor, common.window_mode, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
-    window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
+    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and
@@ -183,13 +182,12 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         let input = source.read(&mut window, &ui, &mut program)?;
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
-        let fullscreen = window.mode() == WindowMode::BorderlessFullscreen;
         if problems.is_empty() {
-            ui.frame(&mut program, &mut shown, &input.events, Vec::new(), input.time, size, fullscreen);
+            ui.frame(&mut program, &mut shown, &input.events, Vec::new(), input.time, size);
         } else {
             // The error instead of the program, until the setup is right.
             shown = None;
-            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.events, input.time, size, fullscreen);
+            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.events, input.time, size);
         }
         // Where Windows' cursor shows as the window loses focus.
         if let Some(at) = ui.pointer() {
@@ -197,7 +195,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
         for request in std::mem::take(&mut ui.requests) {
             match request {
-                Request::ToggleFullscreen => window.set_mode(window.mode().other()),
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
@@ -205,7 +202,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::Close => return finish(&mut gpu, source),
             }
         }
-        window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
         if program.title() != title {
             title = program.title();
             window.set_title(&title);

@@ -1,7 +1,6 @@
 // SpinningCarTest's keys, through its interface without a window: S keeps the
-// car in the middle or lets it move, F1 shows and hides the card, F11
-// switches between maximized and borderless fullscreen, and holding a key
-// down doesn't do it again.
+// car in the middle or lets it move, F1 shows and hides the card, and holding
+// a key down doesn't do it again.
 
 use std::f32::consts::FRAC_PI_2;
 
@@ -43,21 +42,6 @@ fn f1_hides_and_shows_the_card() {
     assert!(app.has_target(InfoCard::NAME));
 }
 
-#[test]
-fn f11_switches_between_maximized_and_borderless_fullscreen() {
-    let mut app = car();
-    assert!(!app.fullscreen());
-    app.key(Key::F11);
-    assert!(app.fullscreen());
-    assert_eq!(app.ui.size().height, 1440.0);
-    // The card stays at the bottom left.
-    assert_eq!(app.target(InfoCard::NAME).bottom(), 1440.0 - 16.0);
-    app.key(Key::F11);
-    assert!(!app.fullscreen());
-    assert!(app.program.text_shown);
-    assert!(!app.program.stationary);
-}
-
 // A held key doesn't repeat, so holding S down toggles once.
 #[test]
 fn holding_a_key_down_does_not_do_it_again() {
@@ -79,7 +63,7 @@ fn other_keys_do_nothing() {
         app.key(key);
         assert!(app.program.text_shown, "{}", key.name());
         assert!(!app.program.stationary, "{}", key.name());
-        assert!(!app.fullscreen(), "{}", key.name());
+        assert!(app.vertical_sync(), "{}", key.name());
     }
 }
 
@@ -87,10 +71,10 @@ fn other_keys_do_nothing() {
 fn without_focus_the_keys_do_nothing() {
     let mut app = car();
     app.focus(false);
-    app.key(Key::S).key(Key::F1).key(Key::F11);
+    app.key(Key::S).key(Key::F1).key(Key::F10);
     assert!(!app.program.stationary);
     assert!(app.program.text_shown);
-    assert!(!app.fullscreen());
+    assert!(app.vertical_sync());
     // The car keeps moving.
     assert_eq!(app.program.placement, car_placement(app.time(), false));
     app.focus(true);

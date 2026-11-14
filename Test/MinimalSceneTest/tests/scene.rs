@@ -5,7 +5,7 @@ use minimal_scene_test::moving_sphere::MovingSphere;
 use minimal_scene_test::scene::{BACKGROUND, Motion, SPHERE_RADIUS, TRAVEL_DISTANCE, VIEW_HEIGHT, sphere_center, to_screen};
 use minimal_scene_test::settings::SceneSettings;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
-use user_interface::tokens::{FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, WINDOW_WIDTH};
+use user_interface::tokens::{PAGE_PADDING, PERF_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, InfoCard, Rect, Theme};
 
 fn sphere() -> Headless<MovingSphere> {
@@ -95,21 +95,18 @@ fn clearance(center: [f32; 2], radius: f32, rect: Rect) -> f32 {
 }
 
 #[test]
-fn the_card_is_at_the_bottom_left_out_of_the_sphere_s_path_at_both_heights() {
-    let mut app = sphere();
-    for fullscreen in [false, true] {
-        app.set_fullscreen(fullscreen);
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        let card = app.target(InfoCard::NAME);
-        assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, InfoCard::WIDTH));
-        let radius = SPHERE_RADIUS * height / VIEW_HEIGHT;
-        let mut closest = f32::MAX;
-        for step in -700..=700 {
-            let center = to_screen(sphere_center(step as f32 / 100.0), WINDOW_WIDTH, height);
-            closest = closest.min(clearance(center, radius, card));
-        }
-        assert!(closest > 50.0, "the sphere comes within {closest} pixels of the card at {height} pixels high");
+fn the_card_is_at_the_bottom_left_out_of_the_sphere_s_path() {
+    let app = sphere();
+    let height = WINDOW_HEIGHT;
+    let card = app.target(InfoCard::NAME);
+    assert_eq!((card.x, card.bottom(), card.width), (PAGE_PADDING, height - PAGE_PADDING, InfoCard::WIDTH));
+    let radius = SPHERE_RADIUS * height / VIEW_HEIGHT;
+    let mut closest = f32::MAX;
+    for step in -700..=700 {
+        let center = to_screen(sphere_center(step as f32 / 100.0), WINDOW_WIDTH, height);
+        closest = closest.min(clearance(center, radius, card));
     }
+    assert!(closest > 50.0, "the sphere comes within {closest} pixels of the card");
 }
 
 fn close(a: [u8; 4], b: [u8; 4]) -> bool {
@@ -117,32 +114,26 @@ fn close(a: [u8; 4], b: [u8; 4]) -> bool {
 }
 
 #[test]
-fn a_frame_draws_the_scene_under_the_card_at_both_heights() {
+fn a_frame_draws_the_scene_under_the_card() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = sphere();
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/TestOutput");
     std::fs::create_dir_all(&folder).unwrap();
     let background = BACKGROUND.map(|channel| (channel * 255.0).round() as u8);
-    // Back to maximized, after the depth buffer was made for fullscreen.
-    for fullscreen in [false, true, false] {
-        app.set_fullscreen(fullscreen);
-        let image = app.render(&mut gpu).unwrap();
-        let name = if fullscreen { "Fullscreen" } else { "Maximized" };
-        write_png(&folder.join(format!("MinimalSceneTest{name}.png")), &image).unwrap();
-        let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-        assert_eq!((image.width, image.height), (WINDOW_WIDTH as u32, height as u32));
+    let image = app.render(&mut gpu).unwrap();
+    write_png(&folder.join("MinimalSceneTest.png"), &image).unwrap();
+    assert_eq!((image.width, image.height), (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32));
 
-        // The background, at the top right corner under the PerfBar, which
-        // nothing covers.
-        let corner = (2550, PERF_BAR_HEIGHT as u32 + 10);
-        assert!(close(image.pixel(corner.0, corner.1), background), "{:?}", image.pixel(corner.0, corner.1));
-        // The sphere, in front of the cube, in its blue.
-        let [x, y] = to_screen(sphere_center(app.program.motion.position), WINDOW_WIDTH, height);
-        let [red, green, blue, _] = image.pixel(x as u32, y as u32);
-        assert!(blue > 200 && blue > green && green > red, "{:?}", [red, green, blue]);
-        // The card, opaque, right of its title.
-        let card = app.target(InfoCard::NAME);
-        let fill = image.pixel(card.right() as u32 - 24, card.y as u32 + 24);
-        assert!(close(fill, Theme::light().acrylic.to_bytes()), "{fill:?}");
-    }
+    // The background, at the top right corner under the PerfBar, which
+    // nothing covers.
+    let corner = (2550, PERF_BAR_HEIGHT as u32 + 10);
+    assert!(close(image.pixel(corner.0, corner.1), background), "{:?}", image.pixel(corner.0, corner.1));
+    // The sphere, in front of the cube, in its blue.
+    let [x, y] = to_screen(sphere_center(app.program.motion.position), WINDOW_WIDTH, WINDOW_HEIGHT);
+    let [red, green, blue, _] = image.pixel(x as u32, y as u32);
+    assert!(blue > 200 && blue > green && green > red, "{:?}", [red, green, blue]);
+    // The card, opaque, right of its title.
+    let card = app.target(InfoCard::NAME);
+    let fill = image.pixel(card.right() as u32 - 24, card.y as u32 + 24);
+    assert!(close(fill, Theme::light().acrylic.to_bytes()), "{fill:?}");
 }

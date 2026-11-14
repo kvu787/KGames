@@ -1,10 +1,10 @@
 // Tests the showcase without a window: what each widget does with input, in
-// the cards' real layout, at both window heights and in both themes.
+// the cards' real layout, and in both themes.
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
 use user_interface::controls::{MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
-use user_interface::tokens::{APP_BAR_HEIGHT, FULLSCREEN_HEIGHT, MAXIMIZED_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY};
+use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY, WINDOW_HEIGHT};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Startup, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
@@ -16,16 +16,13 @@ fn interface(app: &Headless<Showcase>, member: &str) -> Option<Value> {
 }
 
 #[test]
-fn every_widget_fits_in_the_window_at_both_heights_and_in_both_themes() {
+fn every_widget_fits_in_the_window_in_both_themes() {
     for theme in [ThemeKind::Light, ThemeKind::Dark] {
-        for fullscreen in [false, true] {
-            let mut app = Headless::with_theme(Showcase::default(), theme);
-            app.set_fullscreen(fullscreen).frame();
-            let height = if fullscreen { FULLSCREEN_HEIGHT } else { MAXIMIZED_HEIGHT };
-            for target in app.ui.targets().iter().filter(|target| target.listed) {
-                let rect = target.rect;
-                assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= height, "{} is at {rect:?}", target.name);
-            }
+        let mut app = Headless::with_theme(Showcase::default(), theme);
+        app.frame();
+        for target in app.ui.targets().iter().filter(|target| target.listed) {
+            let rect = target.rect;
+            assert!(rect.x >= 0.0 && rect.y >= 0.0 && rect.right() <= 2560.0 && rect.bottom() <= WINDOW_HEIGHT, "{} is at {rect:?}", target.name);
         }
     }
 }
@@ -365,15 +362,6 @@ fn f10_and_the_view_menu_switch_vertical_sync() {
     assert_eq!(interface(&app, "VerticalSync"), Some(Value::Bool(false)));
     app.click("Menu/View").click("Menu/View/Menu/VSync");
     assert!(app.vertical_sync());
-}
-
-#[test]
-fn f11_switches_to_fullscreen_and_back() {
-    let mut app = showcase();
-    app.key(Key::F11);
-    assert!(app.fullscreen());
-    app.key(Key::F11);
-    assert!(!app.fullscreen());
 }
 
 #[test]

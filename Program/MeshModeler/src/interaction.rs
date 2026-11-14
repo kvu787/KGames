@@ -44,9 +44,9 @@ pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     } else if modeler.prompt.is_none() && !ui.any_popup() && !ui.modal() {
         let modifiers = ui.input().modifiers();
         for (command, _, shortcuts) in COMMANDS {
-            // The library switches the theme with F9, vertical sync with F10,
-            // and fullscreen with F11, itself.
-            if matches!(command, Command::ToggleTheme | Command::VerticalSync | Command::Fullscreen) {
+            // The library switches the theme with F9 and vertical sync with
+            // F10 itself.
+            if matches!(command, Command::ToggleTheme | Command::VerticalSync) {
                 continue;
             }
             for text in *shortcuts {

@@ -55,7 +55,7 @@ fn a_frame_draws_the_background_the_widgets_and_their_text() {
         let image = app.render(&mut gpu).unwrap();
         let theme = Theme::new(kind);
         save(&image, &format!("Page{}", kind.name()));
-        assert_eq!((image.width, image.height), (2560, 1369));
+        assert_eq!((image.width, image.height), (2560, 1440));
         assert!(close(image.pixel(1000, 1000), theme.background.to_bytes()), "{:?}", image.pixel(1000, 1000));
         // The card is its fill over the background.
         assert!(close(image.pixel(400, 220), theme.card_opaque().to_bytes()), "{:?}", image.pixel(400, 220));
@@ -418,7 +418,7 @@ impl Program for Unsupported {
     fn view(&self, _ui: &mut Ui) -> Tree<()> {
         unsupported_setup(&[
             "The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string(),
-            "The window must be maximized, or borderless fullscreen with F11.".to_string(),
+            "The window's client area is 1920 × 1080. It must be 2560 × 1440, the whole display.".to_string(),
         ])
     }
 }

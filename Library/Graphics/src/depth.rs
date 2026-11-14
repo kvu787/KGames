@@ -1,7 +1,6 @@
 // A depth buffer as big as the frame, for 3D views. It's made again when the
-// frame's size changes, like between the two window setups' heights, which
-// is safe because the GPU has finished the last frame by the time the next
-// one is drawn.
+// frame's size changes, which is safe because the GPU has finished the last
+// frame by the time the next one is drawn.
 
 use windows_api::*;
 use windows_core::Result;

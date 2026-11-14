@@ -80,8 +80,8 @@ impl Presenter {
             // DXGI would otherwise watch the window's messages, and switch it
             // to fullscreen with SetFullscreenState on Alt+Enter, which
             // changes the display's mode, as Direct3D 12 has no exclusive
-            // fullscreen. The programs handle their window themselves: F11
-            // switches to borderless fullscreen.
+            // fullscreen. The programs handle their window themselves, which
+            // is borderless fullscreen.
             gpu.factory
                 .MakeWindowAssociation(window, (DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER) as u32)
                 .ok()?;
