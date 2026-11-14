@@ -2,7 +2,7 @@
 // Windows' cursor. The window is made hidden and never shown, so nothing
 // opens on a display, and nothing takes focus.
 
-use user_interface::{Theme, ThemeKind, Window, WindowMode};
+use user_interface::{Theme, ThemeKind, Window, WindowMode, keeps_cursor_in};
 use windows_api::*;
 
 // Until its first frame is presented, a window shows what it paints with GDI.
@@ -55,4 +55,21 @@ fn a_minimized_window_keeps_no_cursor() {
         assert!(IsIconic(window.hwnd()).as_bool());
         assert!(window.cursor_area().is_none());
     }
+}
+
+// The window keeps Windows' cursor in its client area while it has focus, but
+// starts to only once no mouse button is held, like the click that gave it
+// focus on its title bar's minimize or close button, which Windows tracks
+// until it's let go of there: kept in the client area, the cursor would never
+// be let go of on the button, and the window would neither minimize nor
+// close. A button held while it keeps the cursor, like for a drag, doesn't
+// let it go, and a minimized window keeps none.
+#[test]
+fn the_click_that_gives_the_window_focus_is_let_go_of_before_the_window_keeps_the_cursor() {
+    let area = RECT { left: 0, top: 23, right: 2560, bottom: 1392 };
+    assert_eq!(keeps_cursor_in(true, false, Some(area), true), None);
+    assert_eq!(keeps_cursor_in(true, false, Some(area), false), Some(area));
+    assert_eq!(keeps_cursor_in(true, true, Some(area), true), Some(area));
+    assert_eq!(keeps_cursor_in(false, true, Some(area), false), None);
+    assert_eq!(keeps_cursor_in(true, true, None, false), None);
 }

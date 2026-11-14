@@ -9,12 +9,15 @@
 //   on, as input without focus is ignored. The time is when it handles the
 //   message, which Windows sends it once the focus has moved, so it can be
 //   a little after.
-// - While it has focus, Windows' cursor is hidden over it and kept inside its
-//   client area, as games do: the interface keeps a pointer of its own, which
-//   GameInput's mice move, and draws it (see input/reader.rs). As the window
-//   gets focus and loses it, Windows' cursor goes to the middle of its client
-//   area, where the interface's pointer starts, so that it shows there once
-//   the window is left, like with Alt+Tab.
+// - While it has focus, it keeps Windows' cursor inside its client area,
+//   hidden, as games do: the interface keeps a pointer of its own, which
+//   GameInput's mice move, and draws it (see input/reader.rs). It starts to
+//   keep it only once no mouse button is held, by Windows' account of the
+//   mouse, which, unlike GameInput's, has the click that gave the window
+//   focus: Windows tracks a click on the title bar's minimize or close button
+//   until it's let go of there, which a cursor kept in the client area never
+//   is. As the window loses focus, like with Alt+Tab, it lets the cursor go
+//   in the middle of its client area, where it shows.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
@@ -69,7 +72,9 @@ struct Shared {
     minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
-    // Windows' arrow, which its cursor is over the window without focus.
+    // Whether the window keeps Windows' cursor, hidden, in its client area.
+    keeps_cursor: Cell<bool>,
+    // Windows' arrow, which its cursor is over the window while it isn't kept.
     arrow: HCURSOR,
     // What the window shows until its first frame is presented.
     background: COLORREF,
@@ -140,6 +145,7 @@ impl Window {
                 minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
+                keeps_cursor: Cell::new(false),
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
             });
@@ -285,14 +291,13 @@ impl Window {
         self.shared().focus_changes.take()
     }
 
-    // Keeps Windows' cursor inside the client area while the window has
-    // focus, every frame, as Windows lets go of a cursor's confinement when
-    // other windows come and go, and the client area moves when the window
-    // switches between maximized and fullscreen.
-    pub fn confine_cursor(&mut self) {
-        if self.focused() {
-            unsafe { confine(self.hwnd) };
-        }
+    // Keeps Windows' cursor inside the client area where keeps_cursor_in
+    // says, every frame, as Windows lets go of a cursor's confinement when
+    // other windows come and go, the client area moves when the window
+    // switches between maximized and fullscreen, and a click that gave the
+    // window focus is let go of.
+    pub fn keep_cursor(&mut self) {
+        unsafe { keep_cursor(self.hwnd, self.shared()) };
     }
 
     // Where Windows' cursor is kept and centered: the client area, in the
@@ -507,12 +512,49 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     }
 }
 
-// Keeps Windows' cursor inside the client area, unless the window is
-// minimized.
-unsafe fn confine(hwnd: HWND) {
+// Where the window keeps Windows' cursor, if anywhere: in its client area,
+// the area, which a minimized window has none of, while it has focus. It
+// starts to keep it only once no mouse button is held, like the click that
+// gave it focus on its title bar's minimize or close button, which Windows
+// tracks until it's let go of there, where a cursor kept in the client area
+// would never be let go of. A button held while it keeps it, like for a drag,
+// doesn't let it go.
+pub fn keeps_cursor_in(focused: bool, keeps: bool, area: Option<RECT>, button_held: bool) -> Option<RECT> {
+    if focused && (keeps || !button_held) { area } else { None }
+}
+
+// Whether a mouse button is held, by Windows' account of the mouse, which has
+// the click that gave the window focus, as GameInput's doesn't.
+fn mouse_button_held() -> bool {
+    [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2]
+        .into_iter()
+        .any(|button| unsafe { GetAsyncKeyState(button) } < 0)
+}
+
+// Keeps Windows' cursor inside the client area, hidden, where keeps_cursor_in
+// says, and lets it go where it doesn't.
+unsafe fn keep_cursor(hwnd: HWND, shared: &Shared) {
     unsafe {
-        if let Some(area) = cursor_area(hwnd) {
-            let _ = ClipCursor(Some(&area));
+        let (focused, keeps) = (shared.focused.get(), shared.keeps_cursor.get());
+        // Without focus, there's nothing to keep, or let go of.
+        if !focused && !keeps {
+            return;
+        }
+        let area = keeps_cursor_in(focused, keeps, cursor_area(hwnd), focused && !keeps && mouse_button_held());
+        match area {
+            Some(area) => {
+                let _ = ClipCursor(Some(&area));
+                // Hidden at once, as Windows asks for its shape only as it
+                // moves.
+                if !shared.keeps_cursor.replace(true) {
+                    SetCursor(None);
+                }
+            }
+            None => {
+                if shared.keeps_cursor.replace(false) {
+                    let _ = ClipCursor(None);
+                }
+            }
         }
     }
 }
@@ -543,14 +585,17 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
         match message {
             WM_SETFOCUS => {
                 shared.focus_changed(true);
-                center_cursor(hwnd);
-                confine(hwnd);
+                keep_cursor(hwnd, shared);
                 LRESULT(0)
             }
+            // Windows' cursor, if kept, is let go of in the middle of the
+            // client area, where it shows once the window is left.
             WM_KILLFOCUS => {
                 shared.focus_changed(false);
-                let _ = ClipCursor(None);
-                center_cursor(hwnd);
+                if shared.keeps_cursor.get() {
+                    keep_cursor(hwnd, shared);
+                    center_cursor(hwnd);
+                }
                 LRESULT(0)
             }
             WM_SYSCOMMAND => {
@@ -561,11 +606,11 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                     DefWindowProcW(hwnd, message as u32, wparam, lparam)
                 }
             }
-            // Hidden over the client area while the window has focus, where
-            // the interface draws its own pointer, and the arrow without.
+            // Hidden over the client area while the window keeps it, where
+            // the interface draws its own pointer, and the arrow otherwise.
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    let cursor = if shared.focused.get() { None } else { Some(shared.arrow) };
+                    let cursor = if shared.keeps_cursor.get() { None } else { Some(shared.arrow) };
                     SetCursor(cursor);
                     LRESULT(1)
                 } else {
@@ -574,6 +619,8 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             }
             WM_SIZE => {
                 shared.minimized.set(wparam.0 as i32 == SIZE_MINIMIZED);
+                // A minimized window keeps no cursor, even with focus.
+                keep_cursor(hwnd, shared);
                 shared.setup_changed.set(true);
                 LRESULT(0)
             }

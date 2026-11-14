@@ -390,6 +390,11 @@ pub unsafe fn FillRect(hdc: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32 {
     unsafe { FillRect(hdc, lprc, hbr) }
 }
 #[inline]
+pub unsafe fn GetAsyncKeyState(vkey: i32) -> i16 {
+    windows_core::link!("user32.dll" "system" fn GetAsyncKeyState(vkey : i32) -> i16);
+    unsafe { GetAsyncKeyState(vkey) }
+}
+#[inline]
 pub unsafe fn GetClientRect(hwnd: HWND, lprect: *mut RECT) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn GetClientRect(hwnd : HWND, lprect : *mut RECT) -> windows_core::BOOL);
     unsafe { GetClientRect(hwnd, lprect as _) }
@@ -9296,6 +9301,11 @@ pub struct TRACE_LOGFILE_HEADER_1_0 {
     pub CpuSpeedInMHz: u32,
 }
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_LBUTTON: i32 = 1;
+pub const VK_MBUTTON: i32 = 4;
+pub const VK_RBUTTON: i32 = 2;
+pub const VK_XBUTTON1: i32 = 5;
+pub const VK_XBUTTON2: i32 = 6;
 pub const WAIT_OBJECT_0: i32 = 0;
 pub const WHEEL_DELTA: i32 = 120;
 pub const WICBITMAPENCODERCACHEOPTION_FORCE_DWORD: WICBitmapEncoderCacheOption = 2147483647;

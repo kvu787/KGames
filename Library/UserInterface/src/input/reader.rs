@@ -215,9 +215,8 @@ impl InputReader {
                 events.push(Event::FocusGained(held));
                 self.ignored_buttons = self.buttons_down;
                 self.gamepad_ignored = self.combined_gamepad().buttons.0;
-                // The pointer starts in the middle of the window, on the
-                // pixel where the window puts Windows' cursor as it gets
-                // focus.
+                // The pointer starts on the pixel in the middle of the
+                // window.
                 let middle = Point::new((self.size.width / 2.0).floor(), (self.size.height / 2.0).floor());
                 self.position = self.inside(middle);
                 self.pointer = None;

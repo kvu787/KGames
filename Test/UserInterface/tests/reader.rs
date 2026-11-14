@@ -336,8 +336,8 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
 }
 
 // The pointer is the reader's own, from GameInput's mice alone, and starts on
-// the pixel in the middle of the window, where the window puts Windows'
-// cursor as it gets focus, each time that it does.
+// the pixel in the middle of the window as the window gets focus, each time
+// that it does.
 #[test]
 fn the_pointer_starts_in_the_middle_of_the_window_as_it_gets_focus() {
     let middle = Event::PointerMoved(Point::new(1280.0, 684.0));

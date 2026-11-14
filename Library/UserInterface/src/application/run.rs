@@ -223,7 +223,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         gpu.report_messages();
         // Windows' cursor kept inside the window while it has focus, once a
         // frame, after it's presented, where it doesn't hold up the input.
-        window.confine_cursor();
+        window.keep_cursor();
         if let Some(script) = input.script
             && source.check(script, image, || state(&program, &ui))?
         {

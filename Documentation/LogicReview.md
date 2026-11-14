@@ -271,7 +271,9 @@ and scripts to the window.
   focus, so a press lands where it was as the button went down, and a key after a move sees it
   where it went. While the window has focus, Windows' cursor is hidden and kept inside it, and the
   interface draws the pointer, a frame's input latency behind the mouse, where Windows' own cursor
-  is drawn by the hardware. As focus comes and goes, Windows' cursor goes to the middle of the
+  is drawn by the hardware. The window starts to keep the cursor only once no mouse button is
+  held, by Windows' account, which has the click that gave it focus, so that a click on the title
+  bar's minimize or close button works. As focus goes, Windows' cursor goes to the middle of the
   window. Nothing reads where Windows' cursor is.
 
 ## Still open

@@ -81,16 +81,23 @@ SW_SHOW
 WM_PAINT
 
 // Input, which comes from GameInput: Windows' cursor, which is hidden and
-// kept inside the window while it has focus, typed text from keys with the
-// keyboard layout, and Caps Lock's toggle
+// kept inside the window while it has focus, once Windows' mouse buttons are
+// let go of, typed text from keys with the keyboard layout, and Caps Lock's
+// toggle
 ClientToScreen
 ClipCursor
+GetAsyncKeyState
 GetKeyboardLayout
 GetKeyState
 IsIconic
 MAPVK_VSC_TO_VK_EX
 SetCursorPos
 ToUnicodeEx
+VK_LBUTTON
+VK_MBUTTON
+VK_RBUTTON
+VK_XBUTTON1
+VK_XBUTTON2
 HTCLIENT
 WHEEL_DELTA
 WM_KILLFOCUS
