@@ -3,7 +3,7 @@
 Shows every widget of [Library/UserInterface](../../Library/UserInterface/README.md), the Fluent 2
 user interface library of every KGames GUI program, and what the input does to each, in the light
 theme or the dark one. Like every KGames GUI program, it ignores input without focus, and supports
-the two window setups in [Library/UserInterface](../../Library/UserInterface/README.md#window-setups).
+the one window setup in [Library/UserInterface](../../Library/UserInterface/README.md#window-setup).
 
 ## What it shows
 
@@ -39,8 +39,8 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 |                            | keycaps and badges; a tooltip of lines; and a log of what happened       |
 
 The menu bar's File, View and Help menus have icons, keyboard accelerators, a separator, a
-submenu and a disabled item. The cards at the bottom of their columns take the 71 more pixels of
-borderless fullscreen.
+submenu and a disabled item. The cards at the bottom of their columns take what's left of the
+window's height.
 
 ## Input
 
@@ -59,7 +59,6 @@ borderless fullscreen.
 | `F9`               | Switches between the light and dark themes, as the theme's switch, the   |
 |                    | button at the right of the menu bar and the View menu's Dark theme do    |
 | `F10`              | Switches vertical sync on or off, as the View menu's VSync does          |
-| `F11`              | Switches between maximized and borderless fullscreen                     |
 | A gamepad          | Shows in the Interface card                                              |
 
 The first press on the window while it doesn't have focus only gives it focus.
@@ -88,8 +87,8 @@ widget, a press that slides off a button, drags past a slider's ends, the wheel,
 boxes' lists and what closes them, typing and deleting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
-double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9`, `F10`, `F11`,
-and a window without focus. They also check that every widget fits both window heights, in both themes.
+double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9`, `F10`, and a
+window without focus. They also check that every widget fits the window, in both themes.
 
 The scripts in `Test/UiShowcase/Scripts` run the same kinds of input through the real window and
 renderer, pressing widgets by name. The state that scripts save and check has what each widget shows,

@@ -172,9 +172,9 @@ Status: Proposed, as a session card.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
 - **Do:** with `Headless` on UiShowcase, press F9 twice, open and close a menu, lose and regain
-  focus, and press F11 twice if `Headless` supports it, and compare whole frames, leaving out the
-  PerfBar, the way `a_press_draws_all_it_did_on_its_own_frame` does. A frame that doesn't come
-  back identical is a bug, fixed with the test pinning it.
+  focus, and compare whole frames, leaving out the PerfBar, the way
+  `a_press_draws_all_it_did_on_its_own_frame` does. A frame that doesn't come back identical is a
+  bug, fixed with the test pinning it.
 - **Done when:** the tests pass, with any fixes they force.
 
 ### 5. Turn the IME off for KGames' windows

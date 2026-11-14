@@ -8,8 +8,8 @@ edits are [Library/PolygonMesh](../../Library/PolygonMesh/README.md)'s.
 
 Like every KGames GUI program, it's built on
 [Library/UserInterface](../../Library/UserInterface/README.md), after Fluent 2, in its light
-theme, ignores input without focus, and supports the two
-[window setups](../../Library/UserInterface/README.md#window-setups).
+theme, ignores input without focus, and supports the one
+[window setup](../../Library/UserInterface/README.md#window-setup).
 
 ## What it shows
 
@@ -60,7 +60,7 @@ theme, ignores input without focus, and supports the two
 | `Numpad1`, `3`, `7`    | Looks from the front, the right or the top; with `Ctrl`, the other side       |
 | `Ctrl+Z`, `Ctrl+Y`     | Undoes and redoes, up to 200 steps                                            |
 | `Ctrl+N`, `O`, `S`     | New, Open and Save; `Ctrl+Shift+S` saves as, `Ctrl+E` exports OBJ             |
-| `F9`, `F10`, `F11`     | Dark theme, vertical sync, and borderless fullscreen                          |
+| `F9`, `F10`            | Dark theme and vertical sync                                                  |
 
 Moving, rotating, scaling, insetting and the move after an extrusion are modal, as in Blender:
 
@@ -118,9 +118,8 @@ The tests in `Test/MeshModeler` drive the modeler through its real layout, which
 `user_interface::Headless` builds without a window or a GPU: clicks, Shift and Alt clicks and
 boxes in the view, the camera, modal moves, rotations with snapping, extrusions and insets and
 their cancelling, loop cuts, the Paint tool, creases, subdivision, the menus, the dialogs,
-saving, opening and exporting, and closing with changes. They check that the cards fit both
-window heights, and draw frames offscreen with the GPU, with either shader, subdivided and
-selected.
+saving, opening and exporting, and closing with changes. They check that the cards fit the
+window, and draw frames offscreen with the GPU, with either shader, subdivided and selected.
 
 The scripts in `Test/MeshModeler/Scripts` run the same kinds of input through the real window,
 as [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. A scripted

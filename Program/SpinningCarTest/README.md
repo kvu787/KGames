@@ -6,8 +6,8 @@ are painted with [SimplePaint](../../Library/SimplePaint/README.md), and the gro
 are lit by one light, like in the C++ scene that the test is a port of. Every frame draws all of
 it. Like every KGames GUI program, it's built on
 [Library/UserInterface](../../Library/UserInterface/README.md), with Win32 and Direct3D 12,
-ignores input without focus, and supports the two
-[window setups](../../Library/UserInterface/README.md#window-setups).
+ignores input without focus, and supports the one
+[window setup](../../Library/UserInterface/README.md#window-setup).
 
 ## Scene
 
@@ -28,13 +28,12 @@ ignores input without focus, and supports the two
 |            | +X and +Z. `Shaders/FlatShading.hlsl` draws them                           |
 | Background | #4c4c4c                                                                    |
 | Frames     | Through Library/UserInterface's main loop, paced for the lowest latency.   |
-|            | Maximized or borderless fullscreen, and waiting for vertical sync or not,  |
-|            | as `Settings.json` says, until `F11` or `F10` switches them                |
+|            | Waiting for vertical sync or not, as `Settings.json` says, until `F10`     |
+|            | switches it                                                                |
 
 Every frame draws the whole scene, with one depth buffer as big as the window: the ground and the
 cube, in colors that are stored as they are, then the car and the sphere, whose linear colors are
-encoded to sRGB. The view is as wide as the window, at either supported height, and the card
-goes over it.
+encoded to sRGB. The view is as big as the window, and the card goes over it.
 
 ## Use
 
@@ -43,7 +42,6 @@ goes over it.
 | `F1`  | Shows or hides the card at the bottom left              |
 | `F9`  | Switches between the light and dark themes              |
 | `F10` | Switches vertical sync on or off                        |
-| `F11` | Switches between maximized and borderless fullscreen    |
 | `S`   | Keeps the car in the middle, facing +X, or lets it move |
 
 The card floats over the scene at the bottom left, which the car never crosses, and is as tall as
@@ -87,12 +85,12 @@ Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 
 The tests in `Test/SpinningCarTest` check, without a window, the car's path and turn, the
-stationary car, what S, F1, F11 and the window's focus do, that the card stays out of the car's
-path at both heights, the settings file, and frames drawn offscreen with the GPU. `Test/Meshes`
+stationary car, what S, F1 and the window's focus do, that the card stays out of the car's
+path, the settings file, and frames drawn offscreen with the GPU. `Test/Meshes`
 checks that the car mesh is what SimplePaint accepts. The scripts in
 `Test/SpinningCarTest/Scripts` run the real test on a fixed clock, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes, and check where
-the car is frame by frame, and what S, F1, F11 and the window's focus do. The state that scripts
+the car is frame by frame, and what S, F1 and the window's focus do. The state that scripts
 save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`, and the interface's,
 whose targets have the card as `InfoCard`, of kind `Card`, and what's wrong with `Settings.json`
 as `Notice/0`, `Notice/1` and so on.

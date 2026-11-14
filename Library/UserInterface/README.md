@@ -53,7 +53,7 @@ impl Program for Volume {
 
     fn view(&self, ui: &mut Ui) -> Tree<Message> {
         let mut tree = Tree::new();
-        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F11", "Fullscreen")]));
+        let shell = tree.shell(ui, AppBar::new(Icon::Volume, "Volume"), false, Some(vec![Status::shortcut("F10", "VSync")]));
         tree.card(ui, None, shell.page.left_strip(400.0).top_strip(200.0), Card::new("Output"), |_, card, area| {
             let mut area = area.content;
             let slider = Slider::new(self.level, 0.0, 100.0).step(1.0).header("Level").show_value(0).on_change(Message::Set);
@@ -254,13 +254,12 @@ before, but reports gamepads' whole state, their held buttons too.
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
   `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
-  window starts to keep the cursor only once the click that gave it focus is let go of, so that
-  one on the title bar's minimize or close button works. As it loses focus, like with Alt+Tab,
-  Windows' cursor goes where the pointer was, as SDL puts it, where it shows once the window is
-  left, unless the program that got focus has confined the cursor already, whose confinement the
-  window leaves alone. So the title bar's buttons and the taskbar can't be reached with the mouse
-  while the window has focus: Alt+Tab or the Windows key leave it. Scripts' and tests' frames
-  don't draw the pointer, and `Headless::draw_pointer` makes a test's draw it.
+  window starts to keep the cursor only once the click that gave it focus is let go of. As it
+  loses focus, like with Alt+Tab, Windows' cursor goes where the pointer was, as SDL puts it, where
+  it shows once the window is left, unless the program that got focus has confined the cursor
+  already, whose confinement the window leaves alone. So other windows and the taskbar can't be
+  reached with the mouse while the window has focus: Alt+Tab or the Windows key leave it. Scripts'
+  and tests' frames don't draw the pointer, and `Headless::draw_pointer` makes a test's draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
@@ -296,18 +295,15 @@ before, but reports gamepads' whole state, their held buttons too.
   buttons until they're let go of. A reading from before the window got focus is input without
   it, even if GameInput is late with it and it comes in a later frame.
 - `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
-  The frame that `F9` is pressed in is all in the new theme, and the title bar asks for it too,
-  which DWM draws, as its documentation promises while Windows' own dark mode is on. A program's
-  own command for it calls `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme
-  for the rest of that frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which
-  it is. Every widget, card and color role follows by itself, as long as the program colors with
-  `ui.theme()` each frame.
+  The frame that `F9` is pressed in is all in the new theme. A program's own command for it calls
+  `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
+  frame, `view` too, so no frame mixes the two; `ui.theme().kind` says which it is. Every widget,
+  card and color role follows by itself, as long as the program colors with `ui.theme()` each
+  frame.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
-- `F11` switches between maximized and borderless fullscreen. A program's own command for it calls
-  `ui.toggle_fullscreen()`.
-- `F9`, `F10` and `F11` are the library's in every program, even while a text field has focus or a
+- `F9` and `F10` are the library's in every program, even while a text field has focus or a
   dialog is open, so a program mustn't also use them for something else.
 - With `Options::gamepad`, `ui.gamepad()` is every gamepad at once: a button is held while any
   gamepad holds it, a trigger is pulled as far as any pulls it, and each stick is the one pushed
@@ -317,24 +313,21 @@ before, but reports gamepads' whole state, their held buttons too.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
   frame's readings and device events from `startup.devices`, which the interface reads them with.
 
-## Window setups
+## Window setup
 
-Programs support exactly two window setups, both on a 2560 × 1440 display at 100% scale, where
-logical and physical pixels are the same, with a 48-pixel taskbar at the bottom:
-
-| Setup                 | Client area | What makes it                                             |
-| --------------------- | ----------- | --------------------------------------------------------- |
-| Windowed maximized    | 2560 × 1369 | The 2560 × 1392 work area, less the title bar's 23 pixels |
-| Borderless fullscreen | 2560 × 1440 | A window without a frame that covers the display          |
+Programs support exactly one window setup: borderless fullscreen, a window without a frame that
+covers a 2560 × 1440 display at 100% scale, where logical and physical pixels are the same. Its
+client area is the whole display, 2560 × 1440, `WINDOW_WIDTH` × `WINDOW_HEIGHT` in
+`design/tokens.rs`.
 
 In any other setup, the window says what's wrong instead of showing the program. It checks again
-whenever the window moves or changes size, or the displays, the scale or the taskbar change.
+whenever the window moves or changes size, or the displays, the scale or Windows' settings change.
 
 The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at
-`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the two client
-areas, which leaves the program 2560 × 1352 maximized and 2560 × 1423 in borderless fullscreen;
-they differ by 71 pixels of height. A 3D view may still fill the window, under the PerfBar.
+`ui.content_top()`, with the app bar at its top. Lay out cards in fixed pixels for the client
+area, which leaves the program 2560 × 1423. A 3D view may still fill the window, under the
+PerfBar.
 
 ## Settings and the command line
 
@@ -348,25 +341,22 @@ every one of the settings that every program has, which `Test/UserInterface` che
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | `Display`      | `"Primary"`, or the identifier of the display to open on                 |
-| `WindowMode`   | `"WindowedMaximized"`, by default, or `"BorderlessFullscreen"`           |
 | `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
 |                | tear. `false`: frames present at once, and may tear                      |
 | `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
 
-| Argument               | What it does                                                              |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `--display <id>`       | Opens on the display, which must be connected. `Primary` for the primary  |
-| `--no-activate`        | Opens beneath the other windows, without taking focus, in efficiency mode |
-| `--no-input`           | Doesn't start GameInput, so the program reads no input at all             |
-| `--vsync`              | Waits for vertical sync, whatever `VerticalSync` says                     |
-| `--no-vsync`           | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
-| `--theme <theme>`      | Starts `Light` or `Dark`, whatever `Theme` says                           |
-| `--window-mode <mode>` | Starts `WindowedMaximized` or `BorderlessFullscreen`, whatever            |
-|                        | `WindowMode` says                                                         |
-| `--script <path>`      | Runs a script instead of the user's input, with `--output <folder>`       |
+| Argument          | What it does                                                              |
+| ----------------- | ------------------------------------------------------------------------- |
+| `--display <id>`  | Opens on the display, which must be connected. `Primary` for the primary  |
+| `--no-activate`   | Opens beneath the other windows, without taking focus, in efficiency mode |
+| `--no-input`      | Doesn't start GameInput, so the program reads no input at all             |
+| `--vsync`         | Waits for vertical sync, whatever `VerticalSync` says                     |
+| `--no-vsync`      | Doesn't wait for vertical sync, whatever `VerticalSync` says              |
+| `--theme <theme>` | Starts `Light` or `Dark`, whatever `Theme` says                           |
+| `--script <path>` | Runs a script instead of the user's input, with `--output <folder>`       |
 
-What the command line says goes into `startup.common` too, so a program sees the theme, window mode
-and vertical sync that it starts in. Of an argument given twice, the last one says.
+What the command line says goes into `startup.common` too, so a program sees the theme and vertical
+sync that it starts in. Of an argument given twice, the last one says.
 
 ## Input latency
 
@@ -388,9 +378,8 @@ soon as one can. `F10` switches it on and off while the program runs. With it of
 as soon as they're drawn, and may tear, and the loop spins, so that the input that reaches the
 screen is as fresh as it can be.
 
-RunInBackground's test runs also start light and windowed maximized, with `--theme Light` and
-`--window-mode WindowedMaximized`, whatever the program's settings say, so that scripts start the
-same way whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`,
+RunInBackground's test runs also start light, with `--theme Light`, whatever the program's
+settings say, so that scripts start the same way whatever someone set for themselves. They use `--no-activate`, `--vsync` and `--no-input`,
 so that they share the computer lightly with someone using it, like playing a game: the window opens
 beneath the others and the process asks Windows for efficiency mode, where a window that someone
 uses asks for full execution speed; frames wait for vertical sync, whatever the program's settings
@@ -480,8 +469,8 @@ real pipeline:
 let mut app = Headless::new(Volume { level: 50.0 });
 app.click("Mute");
 assert_eq!(app.program.level, 0.0);
-app.key(Key::F11);
-assert!(app.fullscreen());
+app.key(Key::F10);
+assert!(!app.vertical_sync());
 ```
 
 `render` draws the last frame offscreen with the GPU, with the program's 3D, for tests that check
@@ -515,7 +504,7 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 | `DoubleClick` | A point: two clicks, a frame apart                                               |
 | `Drag`        | `{ "From", "To", "Frames", "Button" }`: a press, a move a frame, and a release   |
 | `Scroll`      | `{ "At": point, "Notches": n }`, up for more than 0                              |
-| `Key`         | A key, like `"F11"` or `"Ctrl+S"`: pressed, and let go of the next frame         |
+| `Key`         | A key, like `"F2"` or `"Ctrl+S"`: pressed, and let go of the next frame          |
 | `Hold`        | The keys to hold from now on, like `["W", "Shift"]`; `[]` lets go of them        |
 | `Type`        | Text, as if typed                                                                |
 | `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,               |
@@ -526,7 +515,7 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 |               | millionth                                                                        |
 | `Program`     | A step for the program's `script`                                                |
 
-The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`, `Fullscreen`,
+The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`,
 `VerticalSync`, `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
 `Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,
 `Enabled` and `Label`, by name. Menu items are named after their menu and label, like
@@ -549,9 +538,8 @@ writes its files in its output folder, through `startup.data_folder`.
 | `src/core/interface.rs`          | The interface: a frame's steps, each step's input against the tree laid    |
 |                                  | out before it, messages, layout, focus, popups, tooltips, widget memory,   |
 |                                  | and the frame's phases                                                     |
-| `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its two setups, and  |
-|                                  | their check,                                                               |
-|                                  | and the theme's background that it shows until its first frame             |
+| `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its setup and its    |
+|                                  | check, and the theme's background that it shows until its first frame      |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |

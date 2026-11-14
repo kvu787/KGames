@@ -4,8 +4,8 @@ A scene for checking how smoothly frames reach the screen: a sphere moves back a
 units per second, between the top left and bottom right corners of the screen, above a ground
 plane and past a cube, seen by an orthographic camera. Like every KGames GUI program, it's built
 on [Library/UserInterface](../../Library/UserInterface/README.md), with Win32 and Direct3D 12,
-ignores input without focus, and supports the two
-[window setups](../../Library/UserInterface/README.md#window-setups).
+ignores input without focus, and supports the one
+[window setup](../../Library/UserInterface/README.md#window-setup).
 
 ## Scene
 
@@ -24,22 +24,21 @@ ignores input without focus, and supports the two
 |            | and the cube's paint their color on faces that face up, and the sphere's    |
 |            | has equal Dark and Light Points, a constant color                           |
 | Background | #4c4c4c                                                                     |
-| Frames     | Maximized or not, and waiting for vertical sync or not, as `Settings.json`  |
-|            | says, until `F11` or `F10` switches them. Without antialiasing              |
+| Frames     | Waiting for vertical sync or not, as `Settings.json` says, until `F10`      |
+|            | switches it. Without antialiasing                                           |
 
-The scene fills the window at either height, with its own depth buffer, and the card goes over
-it. Library/UserInterface's main loop reads the input and the time right before it draws a
-frame, and presents as soon as the GPU and DXGI can take one, so the sphere's position is as
-fresh as it can be.
+The scene fills the window, with its own depth buffer, and the card goes over it.
+Library/UserInterface's main loop reads the input and the time right before it draws a frame, and
+presents as soon as the GPU and DXGI can take one, so the sphere's position is as fresh as it can
+be.
 
 ## Use
 
-| Key   | Action                                               |
-| ----- | ---------------------------------------------------- |
-| `F1`  | Shows or hides the card at the bottom left           |
-| `F9`  | Switches between the light and dark themes           |
-| `F10` | Switches vertical sync on or off                     |
-| `F11` | Switches between maximized and borderless fullscreen |
+| Key   | Action                                     |
+| ----- | ------------------------------------------ |
+| `F1`  | Shows or hides the card at the bottom left |
+| `F9`  | Switches between the light and dark themes |
+| `F10` | Switches vertical sync on or off           |
 
 The card floats over the scene at the bottom left, which the sphere never crosses, and is as tall
 as what it says: the test's name and what the scene shows, the frame rate, the GPU, the display,
@@ -68,13 +67,13 @@ cargo test -p minimal_scene_test_tests
 Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
 ```
 
-The tests in `Test/MinimalSceneTest` check, without a window, the sphere's motion, what F1, F11
-and the window's focus do, that the card stays out of the sphere's path at both heights, the
-settings file, and frames drawn offscreen with the GPU. The scripts in
+The tests in `Test/MinimalSceneTest` check, without a window, the sphere's motion, what F1 and
+the window's focus do, that the card stays out of the sphere's path, the settings file, and
+frames drawn offscreen with the GPU. The scripts in
 `Test/MinimalSceneTest/Scripts` run the real test on a fixed clock, as
 [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes, and check where
-the sphere is frame by frame, that a long frame counts a tenth of a second, and what F1, F11 and
-the window's focus do. The state that scripts save and check has `SpherePosition`,
+the sphere is frame by frame, that a long frame counts a tenth of a second, and what F1 and the
+window's focus do. The state that scripts save and check has `SpherePosition`,
 `SphereDirection` and `TextShown`, and the interface's, whose targets have the card as
 `InfoCard`, of kind `Card`, and what's wrong with `Settings.json` as `Notice/0`, `Notice/1` and
 so on.

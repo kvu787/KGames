@@ -132,22 +132,18 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `F11` toggles between windowed and borderless fullscreen.
 - Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the PerfBar along the top of every window shows.
 
-## Supported window setups
+## Supported window setup
 
-Programs only support the user's own setup, to keep development simple. They support exactly two window setups, both on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same:
-
-- **Windowed maximized**, with a client area of 2560 × 1369. The taskbar takes 48 pixels at the bottom of the monitor, which leaves a 2560 × 1392 work area. The title bar takes the top 23 pixels of that, so the client area runs from screen y = 23 down to the bottom of the work area: 1392 − 23 = 1369.
-- **Borderless fullscreen**, with a client area of 2560 × 1440 that covers the whole monitor. `F11` switches between the two.
+Programs only support the user's own setup, to keep development simple. They support exactly one window setup: **borderless fullscreen** on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same, with a client area of 2560 × 1440 that covers the whole monitor.
 
 In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/UserInterface` does the check.
 
 So:
 
-- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of these two client areas, from `ui.content_top()`: 2560 × 1352 and 2560 × 1423. The only difference between the two is 71 pixels of height.
-- Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window at either height.
+- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of the client area, from `ui.content_top()`: 2560 × 1423.
+- Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window.
 
 ## Non-disruptive workflow
 
@@ -161,7 +157,7 @@ While working:
 How:
 
 - Run builds, tests and anything else that keeps the CPU busy with `Program\RunLightly\RunLightly.ps1 <command>`, like `Program\RunLightly\RunLightly.ps1 cargo test --workspace`. It runs the command, and every process that it starts, only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time, at low I/O and memory priority, in efficiency mode, and with their GPU work after other processes', so that a game the user is playing keeps its cores and its frame rate. It's slower than running the command directly. Give it `cargo` as the command itself, not a script that runs cargo: rustup's cargo puts itself in a job of its own, which RunLightly can't take it out of afterwards.
-- Run a GUI program with `Program\RunInBackground\RunInBackground.ps1 <program>`, like `Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo`, from the root of the repository. It builds the program, opens it on CVVNY2 without activating it, without GameInput, in the light theme and windowed maximized whatever the program's `Settings.json` says, and with vertical sync, so that it draws at most one frame a refresh and is light on a computer that someone's playing games on, saves a screenshot of what it draws to `target\RunInBackground\<program>.png`, and closes it. Read the screenshot to see the result.
+- Run a GUI program with `Program\RunInBackground\RunInBackground.ps1 <program>`, like `Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo`, from the root of the repository. It builds the program, opens it on CVVNY2 without activating it, without GameInput, in the light theme whatever the program's `Settings.json` says, and with vertical sync, so that it draws at most one frame a refresh and is light on a computer that someone's playing games on, saves a screenshot of what it draws to `target\RunInBackground\<program>.png`, and closes it. Read the screenshot to see the result.
 - With `--debug-build`, the D3D12 debug layer's warnings and errors go to `target\RunInBackground\<program>Errors.log`. Check it after changing how a program draws.
 - Don't start a GUI program any other way, like with `cargo run`. The `HumanRun.cmd` and `HumanRun.ps1` in a program's folder are for the user to launch it and use it. Never run them. Without `--no-activate`, a program's window takes focus. Without `--display CVVNY2`, it opens on the display in its `Settings.json`, or on the primary display if that one isn't connected.
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.

@@ -10,18 +10,17 @@ KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInte
 whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, list,
 scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
 
-## Supported window setups
+## Supported window setup
 
-The demo supports exactly the two window setups that every KGames program does, both on a
-2560 × 1440 monitor at 100% scaling: maximized, with a 2560 × 1369 client area, and borderless
-fullscreen, with 2560 × 1440 (see
-[Library/UserInterface](../../Library/UserInterface/README.md#window-setups)). The cards have fixed
-places in pixels, and the 71 pixels that fullscreen adds go to the bottom row of cards and to the
-event log. In any other setup, the window shows what's wrong instead of the cards.
+The demo supports exactly the one window setup that every KGames program does: borderless
+fullscreen on a 2560 × 1440 monitor at 100% scaling, with a 2560 × 1440 client area (see
+[Library/UserInterface](../../Library/UserInterface/README.md#window-setup)). The cards have fixed
+places in pixels, and the bottom row of cards and the event log get what's left of the height. In
+any other setup, the window shows what's wrong instead of the cards.
 
 ## What it shows
 
-- **Title bar**: the GPU that draws.
+- **Window title**, which the taskbar and Alt+Tab show: the GPU that draws.
 - **App bar**: whether the window has focus, which the demo needs to read input, and the frame rate
   with the time per frame. Under it, anything wrong with the [settings file](#settings-file), or
   GameInput not being available, as info bars that close.
@@ -57,17 +56,16 @@ event log. In any other setup, the window shows what's wrong instead of the card
 
 Shortcuts, while the demo's window has focus:
 
-| Key   | Action                                                                                    |
-| ----- | ----------------------------------------------------------------------------------------- |
-| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors                    |
-| `F2`  | Clear the event log                                                                       |
-| `F9`  | Switches between the light and dark themes                                                |
-| `F10` | Switches vertical sync on or off                                                          |
-| `F11` | Switches between maximized and borderless fullscreen, for the lowest latency              |
+| Key   | Action                                                                 |
+| ----- | ---------------------------------------------------------------------- |
+| `F1`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
+| `F2`  | Clear the event log                                                    |
+| `F9`  | Switches between the light and dark themes                             |
+| `F10` | Switches vertical sync on or off                                       |
 
-The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F9`, `F10` and `F11`
-are Library/UserInterface's, which reads them from the same readings, as in every KGames program, so
-the demo doesn't also switch on them, which would switch them back.
+The demo reads `F1` and `F2` from GameInput's readings, like any other key. `F9` and `F10` are
+Library/UserInterface's, which reads them from the same readings, as in every KGames program, so the
+demo doesn't also switch on them, which would switch them back.
 
 ### Rumble test
 
@@ -213,7 +211,6 @@ it doesn't exist, the demo writes it with the defaults:
 ```json
 {
   "Display": "Primary",
-  "WindowMode": "WindowedMaximized",
   "VerticalSync": true,
   "Theme": "Light",
   "RumbleTestInnerDeadZone": 0.1
@@ -223,22 +220,20 @@ it doesn't exist, the demo writes it with the defaults:
 | Setting                   | Value                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `Display`                 | `"Primary"`, or the identifier of the display to open on                    |
-| `WindowMode`              | `"WindowedMaximized"` or `"BorderlessFullscreen"`, the two supported setups |
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
 | `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first four are the settings that every KGames program has, which
+The first three are the settings that every KGames program has, which
 [Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 
 - If `Display` names a display that isn't connected, the demo opens on the primary display, and a
   notice under the app bar says so.
-- `F11` switches between the two window modes, whichever the demo opened in.
 - A setting that's missing keeps its default. So does one that's wrong, and a notice under the app
   bar says what's wrong with it. If the file isn't valid JSON, it says where, and the demo uses the
-  defaults. Values that are words, like `"WindowedMaximized"`, ignore case, but setting names don't.
+  defaults. Values that are words, like `"Dark"`, ignore case, but setting names don't.
 - The demo never changes the file once it exists. Delete it to get the defaults back.
 
 `--display` and an identifier on the command line overrides `Display`. `--display Primary` opens on
@@ -349,11 +344,9 @@ machine, an RTX 5090 Laptop GPU and a Core Ultra 9 275HX, a whole frame takes ab
 
 Without vertical sync, when Windows flips the demo's frames straight to the screen, a frame can
 replace the one being scanned out mid-refresh, which can show as tearing. Otherwise, the desktop
-compositor shows the newest frame at its next refresh. `F11`, or
-`"WindowMode": "BorderlessFullscreen"`, makes the window cover its monitor, which lets Windows flip
-the frames straight to the screen, instead of the compositor copying them into its own frame. That
-saves up to a refresh, and lets frames tear. In a window, Windows can only do that if the GPU
-supports multiplane overlays.
+compositor shows the newest frame at its next refresh. The window covers its monitor, in
+borderless fullscreen, which lets Windows flip the frames straight to the screen, instead of the
+compositor copying them into its own frame. That saves up to a refresh, and lets frames tear.
 
 What it doesn't do:
 
@@ -428,7 +421,8 @@ readings are at the time of its frame.
 | `Disconnect` | The device's `Id`                                                               |
 
 The window's own keys and mouse are the script's `Key`, `Click`, `Move` and other steps, which the
-combo box, the Devices card's rows and `F11` read, like `{ "Frame": 10, "Key": "F11" }`.
+combo box, the Devices card's rows and the library's `F9` and `F10` read, like
+`{ "Frame": 2, "Key": "F9" }`.
 
 The state that scripts save and check has what the cards show, the log's 10 newest lines, and the
 rumble that the demo sends each gamepad. The main loop adds the interface's, as `Interface`. Its
@@ -447,7 +441,7 @@ nothing on it.
 | --------------- | ------------------------------------------------------------------------------- |
 | `DeviceTooltip` | Rests the pointer on two devices' rows, and shows their tooltips                |
 | `Gamepad`       | Presses buttons and moves sticks and triggers, lets go, and disconnects         |
-| `Keyboard`      | Holds keys, clears the log with `F2`, and switches fullscreen with `F11`        |
+| `Keyboard`      | Holds keys, clears the log with `F2`, and logs `F10`, which is the library's    |
 | `Mouse`         | Moves a mouse, presses its buttons, and turns its wheel                         |
 | `Overview`      | Gives every card something to show, for a look at the whole window              |
 | `Picker`        | Picks gamepads with the combo box, with clicks and keys, and closes its list    |
