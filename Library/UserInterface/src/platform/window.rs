@@ -17,18 +17,10 @@
 //   the foreground window. It says when that changes, on the clock that
 //   input is timed on, as input without focus is ignored, at the time the
 //   check finds it, so it can be a little after.
-// - While it has focus and is the foreground window, it keeps Windows' cursor
-//   inside its client area, hidden, as games do: the interface keeps a
-//   pointer of its own, which GameInput's mice move, and draws it exactly
-//   while the cursor is kept (see input/reader.rs). A window can get focus
-//   without being the foreground window, whose cursor it mustn't keep. It
-//   starts to keep it only once no mouse button is held, by Windows' account
-//   of the mouse, which, unlike GameInput's, has the click that gave the
-//   window focus. The cursor's confinement is shared by every program, so the
-//   window releases it only if it still holds it, as the program that gets
-//   focus may have taken it first. As the window loses focus, like with
-//   Alt+Tab, it lets the cursor go where the interface's pointer was, where
-//   it shows, as SDL does, unless that program has taken it.
+// - While it has focus, it keeps Windows' cursor inside its client area,
+//   hidden, and lets it go as focus goes and as the window closes, as
+//   platform/cursor.rs decides on the facts that the window gathers from
+//   Windows as it checks its focus.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or Windows' settings change.
 // - Until its first frame is presented, it shows the theme's background,
@@ -44,8 +36,9 @@ use std::ptr::NonNull;
 use windows_api::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
-use crate::drawing::geometry::Color;
+use crate::drawing::geometry::{Color, Point};
 use crate::platform::clock;
+use crate::platform::cursor::{CursorAction, CursorFacts, CursorKeeper};
 
 // RunInBackground finds programs' windows by this class.
 const CLASS: PCWSTR = w!("MainWindow");
@@ -75,11 +68,10 @@ struct Shared {
     focused: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
-    // Where the interface's pointer last was, in the client area's pixels.
-    pointer: Cell<Option<POINT>>,
-    // Where the window keeps Windows' cursor, hidden, if it does.
-    kept: Cell<Option<Kept>>,
-    // Windows' arrow, which its cursor is over the window while it isn't kept.
+    // Whether Windows' cursor is hidden over the client area.
+    cursor_hidden: Cell<bool>,
+    // Windows' arrow, which its cursor is over the window while it isn't
+    // hidden.
     arrow: HCURSOR,
     // What the window shows until its first frame is presented.
     background: COLORREF,
@@ -103,6 +95,7 @@ pub struct Window {
     // invalidate GWLP_USERDATA's copy, which the window procedure goes on
     // using. Drop frees it, after the window is destroyed.
     shared: NonNull<Shared>,
+    cursor: CursorKeeper,
 }
 
 impl Window {
@@ -143,14 +136,17 @@ impl Window {
                 focused: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
-                pointer: Cell::new(None),
-                kept: Cell::new(None),
+                cursor_hidden: Cell::new(false),
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
             });
             let shared = NonNull::new_unchecked(Box::into_raw(shared));
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as isize);
-            Window { hwnd, shared }
+            Window {
+                hwnd,
+                shared,
+                cursor: CursorKeeper::default(),
+            }
         }
     }
 
@@ -218,42 +214,72 @@ impl Window {
     }
 
     // Where the interface's pointer is, in the client area, where Windows'
-    // cursor shows as the window loses focus.
-    pub fn set_pointer(&mut self, at: crate::drawing::geometry::Point) {
-        self.shared().pointer.set(Some(POINT {
+    // cursor shows as it's let go of.
+    pub fn set_pointer(&mut self, at: Point) {
+        self.cursor.set_pointer(POINT {
             x: at.x.floor() as i32,
             y: at.y.floor() as i32,
-        }));
+        });
     }
 
     // Whether the window has focus: whether it's the foreground window and
     // isn't minimized, which the main loop asks on every pass, so that
     // losing it, like with Alt+Tab, the Windows key or minimizing, is found
     // at once, without waiting for a frame. Says when that changes, at the
-    // time it finds it. Windows' cursor goes with it: let go of as the window
-    // loses focus, where the interface's pointer was, unless the program
-    // that got focus has taken it, and kept inside the client area where
-    // keeps_cursor_in says, each pass, as Windows lets go of a cursor's
-    // confinement when other windows come and go, and a click that gave the
-    // window focus is let go of.
+    // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
+    // decides, on every pass while the window keeps it, as something else
+    // may have changed its confinement.
     pub fn check_focus(&mut self) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
             let shared = self.shared();
             if focused != shared.focused.get() {
                 shared.focus_changed(focused);
-                if !focused && let_go(shared).is_some_and(|holder| holder != ClipHolder::Other) {
-                    place_cursor(self.hwnd, shared);
+            }
+            if focused || self.cursor.keeps() {
+                let facts = CursorFacts {
+                    focused,
+                    area: cursor_area(self.hwnd),
+                    button_held: focused && !self.cursor.keeps() && mouse_button_held(),
+                    clip: clip(),
+                };
+                let actions = self.cursor.update(facts);
+                self.carry_out(&actions);
+            }
+        }
+    }
+
+    // Does what platform/cursor.rs decided with Windows' cursor.
+    fn carry_out(&self, actions: &[CursorAction]) {
+        let shared = self.shared();
+        for action in actions {
+            unsafe {
+                match *action {
+                    CursorAction::Confine(area) => {
+                        let _ = ClipCursor(Some(&area));
+                    }
+                    CursorAction::Release => {
+                        let _ = ClipCursor(None);
+                    }
+                    // Hidden at once, as Windows asks for its shape only as
+                    // it moves.
+                    CursorAction::Hide => {
+                        shared.cursor_hidden.set(true);
+                        SetCursor(None);
+                    }
+                    CursorAction::Show => shared.cursor_hidden.set(false),
+                    CursorAction::Place(at) => {
+                        let _ = SetCursorPos(at.x, at.y);
+                    }
                 }
             }
-            keep_cursor(self.hwnd, shared);
         }
     }
 
     // Whether the window keeps Windows' cursor, hidden, so that its frames
     // draw the pointer instead.
     pub fn keeps_cursor(&self) -> bool {
-        self.shared().kept.get().is_some()
+        self.cursor.keeps()
     }
 
     // Where Windows' cursor is kept and centered: the client area, in the
@@ -335,6 +361,12 @@ impl Window {
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
+            // Windows' cursor, let go of as the window closes, like with
+            // Alt+F4, or a panic's unwinding, which Windows doesn't do for
+            // the window, while it can still be let go of where the pointer
+            // was.
+            let actions = self.cursor.let_go(clip(), cursor_area(self.hwnd));
+            self.carry_out(&actions);
             SetWindowLongPtrW(self.hwnd, GWLP_USERDATA, 0);
             let _ = DestroyWindow(self.hwnd);
             // Nothing can read it now: the window procedure finds no pointer,
@@ -445,49 +477,6 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     }
 }
 
-// Where the window keeps Windows' cursor, if anywhere: in its client area,
-// the area, which a minimized window has none of, while it has focus and is
-// the foreground window, as a window can get focus without being it, when
-// Windows won't let it take the foreground from the program that has it. It
-// starts to keep it only once no mouse button is held, like the click that
-// gave it focus. A button held while it keeps it, like for a drag, doesn't
-// let it go.
-pub fn keeps_cursor_in(focused: bool, foreground: bool, keeps: bool, area: Option<RECT>, button_held: bool) -> Option<RECT> {
-    if focused && foreground && (keeps || !button_held) { area } else { None }
-}
-
-// Where the window keeps the cursor, and the cursor's confinement as it was
-// before, which was none, as Windows' documentation has a program save it.
-#[derive(Clone, Copy, Debug)]
-struct Kept {
-    area: RECT,
-    free: RECT,
-}
-
-// Who holds the cursor's confinement as the window lets the cursor go.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ClipHolder {
-    // The window, which releases it.
-    Window,
-    // Nobody: Windows released it, as it can as focus moves.
-    Nobody,
-    // Another program, which took it as it got focus, before the window
-    // heard that it lost focus, as the two hear of it in no fixed order.
-    Other,
-}
-
-// Who holds the confinement `clip`, which GetClipCursor gives, when the
-// window kept the cursor in `area`, and the confinement was `free` before.
-pub fn clip_holder(clip: RECT, area: RECT, free: RECT) -> ClipHolder {
-    if clip == area {
-        ClipHolder::Window
-    } else if clip == free {
-        ClipHolder::Nobody
-    } else {
-        ClipHolder::Other
-    }
-}
-
 // The cursor's confinement, or the whole of the screens, without one.
 unsafe fn clip() -> RECT {
     let mut clip = RECT::default();
@@ -501,68 +490,6 @@ fn mouse_button_held() -> bool {
     [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2]
         .into_iter()
         .any(|button| unsafe { GetAsyncKeyState(button) } < 0)
-}
-
-// Keeps Windows' cursor inside the client area, hidden, where keeps_cursor_in
-// says, and lets it go where it doesn't.
-unsafe fn keep_cursor(hwnd: HWND, shared: &Shared) {
-    unsafe {
-        let (focused, kept) = (shared.focused.get(), shared.kept.get());
-        // Without focus, there's nothing to keep, or let go of.
-        if !focused && kept.is_none() {
-            return;
-        }
-        let foreground = GetForegroundWindow() == hwnd;
-        let held = focused && foreground && kept.is_none() && mouse_button_held();
-        match keeps_cursor_in(focused, foreground, kept.is_some(), cursor_area(hwnd), held) {
-            Some(area) => {
-                let clip = clip();
-                if clip != area {
-                    let _ = ClipCursor(Some(&area));
-                }
-                let free = kept.map_or(clip, |kept| kept.free);
-                shared.kept.set(Some(Kept { area, free }));
-                // Hidden at once, as Windows asks for its shape only as it
-                // moves.
-                if kept.is_none() {
-                    SetCursor(None);
-                }
-            }
-            None => {
-                let_go(shared);
-            }
-        }
-    }
-}
-
-// Lets Windows' cursor go, if the window keeps it, and releases its
-// confinement if the window still holds it. Says who held it.
-unsafe fn let_go(shared: &Shared) -> Option<ClipHolder> {
-    unsafe {
-        let kept = shared.kept.take()?;
-        let holder = clip_holder(clip(), kept.area, kept.free);
-        if holder == ClipHolder::Window {
-            let _ = ClipCursor(None);
-        }
-        Some(holder)
-    }
-}
-
-// Puts Windows' cursor where the interface's pointer was, or in the middle of
-// the client area if it was nowhere yet, unless the window is minimized.
-unsafe fn place_cursor(hwnd: HWND, shared: &Shared) {
-    unsafe {
-        if let Some(area) = cursor_area(hwnd) {
-            let middle = POINT {
-                x: (area.right - area.left) / 2,
-                y: (area.bottom - area.top) / 2,
-            };
-            let at = shared.pointer.get().unwrap_or(middle);
-            let x = (area.left + at.x).clamp(area.left, (area.right - 1).max(area.left));
-            let y = (area.top + at.y).clamp(area.top, (area.bottom - 1).max(area.top));
-            let _ = SetCursorPos(x, y);
-        }
-    }
 }
 
 fn low_word(value: isize) -> i32 {
@@ -589,7 +516,7 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             // the interface draws its own pointer, and the arrow otherwise.
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    let cursor = if shared.kept.get().is_some() { None } else { Some(shared.arrow) };
+                    let cursor = if shared.cursor_hidden.get() { None } else { Some(shared.arrow) };
                     SetCursor(cursor);
                     LRESULT(1)
                 } else {

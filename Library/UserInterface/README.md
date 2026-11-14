@@ -255,11 +255,14 @@ before, but reports gamepads' whole state, their held buttons too.
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
   `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
   window starts to keep the cursor only once the click that gave it focus is let go of. As it
-  loses focus, like with Alt+Tab, Windows' cursor goes where the pointer was, as SDL puts it, where
-  it shows once the window is left, unless the program that got focus has confined the cursor
-  already, whose confinement the window leaves alone. So other windows and the taskbar can't be
-  reached with the mouse while the window has focus: Alt+Tab or the Windows key leave it. Scripts'
-  and tests' frames don't draw the pointer, and `Headless::draw_pointer` makes a test's draw it.
+  loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
+  goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
+  program that got focus has confined the cursor already, whose confinement the window leaves
+  alone, or the window is minimized. `platform/cursor.rs` decides all of it, on what Windows says
+  as the main loop checks focus on every pass, and `Test/UserInterface/tests/cursor.rs` tests it.
+  So other windows and the taskbar can't be reached with the mouse while the window has focus:
+  Alt+Tab or the Windows key leave it. Scripts' and tests' frames don't draw the pointer, and
+  `Headless::draw_pointer` makes a test's draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
