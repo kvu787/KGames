@@ -4,6 +4,13 @@
 // its size and its close button.
 //
 // - It's borderless fullscreen on its display, the one supported setup.
+// - Windows' own window shortcuts do nothing in it: it swallows the system
+//   keys' messages, which Windows' default handling would turn into the
+//   menu's keyboard mode for Alt alone and F10, the window's menu for
+//   Alt+Space, and a close for Alt+F4. Alt+F4 comes from GameInput's keys
+//   instead (see core/interface.rs). The shortcuts that Windows handles
+//   before any window sees them, like Alt+Tab and the Windows key, stay
+//   Windows'.
 // - It says when it gets and loses focus, on the clock that input is timed
 //   on, as input without focus is ignored. The time is when it handles the
 //   message, which Windows sends it once the focus has moved, so it can be
@@ -571,14 +578,12 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 }
                 LRESULT(0)
             }
-            WM_SYSCOMMAND => {
-                // Alt alone would open the window's menu, which takes the keys.
-                if (wparam.0 & 0xFFF0) as i32 == SC_KEYMENU {
-                    LRESULT(0)
-                } else {
-                    DefWindowProcW(hwnd, message as u32, wparam, lparam)
-                }
-            }
+            // Windows' own window shortcuts do nothing: its default handling
+            // of the system keys' messages would turn Alt alone and F10 into
+            // the menu's keyboard mode, Alt+Space into the window's menu, and
+            // Alt+F4 into a close. Alt+F4 comes from GameInput's keys instead
+            // (see core/interface.rs).
+            WM_SYSKEYDOWN | WM_SYSKEYUP | WM_SYSCHAR => LRESULT(0),
             // Hidden over the client area while the window keeps it, where
             // the interface draws its own pointer, and the arrow otherwise.
             WM_SETCURSOR => {

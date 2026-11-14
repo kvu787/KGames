@@ -9013,7 +9013,6 @@ pub struct RECTL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
-pub const SC_KEYMENU: i32 = 61696;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SECURITY_ATTRIBUTES {
@@ -9281,7 +9280,9 @@ pub const WM_SETCURSOR: i32 = 32;
 pub const WM_SETFOCUS: i32 = 7;
 pub const WM_SETTINGCHANGE: i32 = 26;
 pub const WM_SIZE: i32 = 5;
-pub const WM_SYSCOMMAND: i32 = 274;
+pub const WM_SYSCHAR: i32 = 262;
+pub const WM_SYSKEYDOWN: i32 = 260;
+pub const WM_SYSKEYUP: i32 = 261;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WNDCLASSEXW {
