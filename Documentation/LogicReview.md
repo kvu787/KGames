@@ -417,7 +417,9 @@ With the user away, and their leave to disturb the desktop, the release UiShowca
 CVVNY2, in front, while a C program outside the repository sent it real input with `SendInput`,
 changed the foreground, and read what Windows said: the foreground, `GetClipCursor`,
 `GetCursorInfo` and `GetGUIThreadInfo`'s menu modes. Another printed every reading that GameInput
-gave a window of its own.
+gave a window of its own. Three adversarial reviews, which only read, went over the window, focus
+and the cursor, the input path from GameInput's stream to the steps, and the docs and comments
+against the code.
 
 ## Measured
 
@@ -431,7 +433,7 @@ gave a window of its own.
 | Posted `WM_CLOSE`, as the taskbar's Close does      | the program closed, and the cursor was free           |
 | Alt+F4 with `SendInput`                             | nothing: GameInput doesn't report injected keys       |
 
-GameInput 4.0.306 did four things that its documentation doesn't say:
+GameInput 4.0.306 did five things that its documentation doesn't say:
 
 - As focus goes, it gives each mouse a reading with no positions, `GameInputMouseNoPosition`, and
   totals and wheels of 0, whatever they were.
@@ -444,6 +446,28 @@ GameInput 4.0.306 did four things that its documentation doesn't say:
 - Until the process's first reading, `GetCurrentReading` gives a reading that isn't in the history,
   a snapshot of a device at rest: `GetNextReading` and `GetPreviousReading` from it fail with
   `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`.
+- Its readings at rest as focus goes are stamped about 1.4 ms after `GetForegroundWindow` says
+  that the window lost it, as a probe that checked without sleeping saw, three times out of three.
+
+`ClipCursor` keeps a confinement within the virtual screen, here (-2560, 0) to (5120, 1440), as a
+probe that confined the cursor and read `GetClipCursor` back saw:
+
+| Confined to                       | `GetClipCursor` gave                     |
+| --------------------------------- | ---------------------------------------- |
+| (-2560, 0) to (0, 1440)           | the same                                 |
+| (4000, 0) to (6560, 1440)         | (4000, 0) to (5120, 1440)                |
+| (-2560, 500) to (0, 1940)         | (-2560, 500) to (0, 1440)                |
+| (-3000, -100) to (-500, 1000)     | (-2560, 0) to (-500, 1000)               |
+| (100, 100) to (100, 100), empty   | the same: the cursor pinned to a point   |
+| (100, 100) to (50, 50), inverted  | the virtual screen: no confinement       |
+
+The main loop checks focus and the cursor on every pass, which spins without vertical sync. Timed
+a million times each, `GetForegroundWindow` and `IsIconic` took 2 to 3 ns, `GetClientRect` and
+`ClientToScreen` 8 ns, the four `GetSystemMetrics` 270 ns, and `GetClipCursor` 1.1 µs, so a pass
+with focus costs about 1.4 µs: 0.4% of a core at 3,000 passes a second.
+
+After the fixes below, the checks of the first table ran again on the release UiShowcase, with the
+same results.
 
 ## Found and fixed
 
@@ -456,3 +480,80 @@ GameInput 4.0.306 did four things that its documentation doesn't say:
   carry on from where it was after Alt+Tab, and Windows' cursor placed where the pointer was drawn.
   Pinned by `reader.rs`'s `a_mouse_starts_over_across_focus_changes` and
   `a_reading_with_only_absolute_positions_moves_nothing`.
+- **A walk that lost its place lost the taps that the history still had.** It handed out only each
+  device's newest reading, so after a frame longer than the history lasts, a key tapped in its last
+  70 ms was lost though GameInput still had it, and the first frame with input after the program
+  started, whose walks start from GameInput's snapshot outside the history, kept only each device's
+  newest. Now it hands out every reading in the history after the last one handed out. Pinned by
+  `a_tap_still_in_the_history_counts_after_losing_the_place` and
+  `the_walk_starts_from_the_state_at_rest_that_gameinput_gives_before_any_reading`.
+- **A key right after focus came saw no pointer.** The reader told the interface where the pointer
+  was only at the frame's end. Pinned by `a_key_right_after_focus_comes_sees_the_pointer`.
+- **A gamepad that connected and then changed in the same frame wasn't connected.** The reader
+  went by each device's last event of any kind, like an XInput index update. Pinned by
+  `a_device_s_last_connection_in_a_frame_counts`.
+- **The steps after an Alt+F4 that closed still ran,** and could change what the program closed
+  with without asking again. Pinned by `close.rs`'s `nothing_happens_after_an_alt_f4_that_closes`.
+- **Veehiicuul drove the car in a tick of no time,** every step of a frame but its last, and its
+  first frame back in Play from an editor moved by the time away, up to `LONGEST_FRAME`. This
+  document's first sections had found its ticks sound. Pinned by `a_tick_of_no_time_moves_nothing`
+  and `the_first_frame_back_in_play_moves_by_its_own_time`.
+- **A client area past the virtual screen's edge never held its own confinement,** by the table
+  above, so the window confined the cursor again on every pass, and left it confined as focus
+  went. An empty client area pinned the cursor to a point, hidden. A confinement left from before
+  the window kept the cursor made Windows' release read as another program's, so the cursor wasn't
+  placed where the pointer was. And scripted runs, and runs without input, kept the cursor when
+  their window came to the front. Pinned by `cursor.rs`'s
+  `a_client_area_past_the_screens_edge_keeps_its_part_on_them`,
+  `an_empty_client_area_keeps_nothing`, `a_confinement_left_from_before_is_not_nobody_s`,
+  `a_release_is_to_the_screens_as_they_are` and `without_mice_the_cursor_is_left_alone`.
+- **A window moved off its display had no error page,** as the setup check compared sizes only.
+  Pinned by `window.rs`'s `a_window_moved_off_its_display_says_so`.
+- **The rendering tests failed now and then,** as a debug build's `CreateDXGIFactory2` with its
+  debug layer failed with `DXGI_ERROR_INVALID_CALL` while another test's thread made a device: 3 of
+  30 runs failed, and none of 40 once Graphics made devices one at a time. The rendering tests are
+  the reproduction; stress tests that made devices on many threads at once never failed.
+- **Docs and comments** that the code no longer kept true, in 20 places, most from before the
+  simplification of the window.
+
+## Decisions left to the user
+
+- **Where Windows' hidden cursor is kept.** In the whole client area, where it goes its own way,
+  apart from the pointer, so a window that's always on top over the client area, like Task
+  Manager's, gets the clicks and the wheel under it, and shows Windows' arrow there. SDL's
+  relative mode keeps it in one pixel in the window's middle by default, where that's much rarer.
+- **Alt held from before focus, then F4.** GameInput doesn't report keys held as focus comes, so
+  Alt+Tab in with Alt still held, then F4, doesn't close the program, which Windows' own Alt+F4
+  would.
+- **Closing on the error page, or while minimized.** A program with unsaved work that says no to
+  Alt+F4 or the taskbar's Close sets its prompt, which only shows once the setup is right or the
+  window is restored, so it can't be closed until then.
+- **The click that gives focus, while it's held.** The window is focused, but doesn't keep the
+  cursor yet, so Windows' arrow shows while the reader's pointer, not drawn, moves, and what's
+  under it is hovered; once let go of, the pointer shows where the reader has it, not where the
+  click was.
+- **A gamepad button held as focus comes.** The reader ignores it until it's let go of only if
+  GameInput's reading of it as focus comes is stamped before the window's focus change, and its
+  readings at rest as focus goes came 1.4 ms after. If a real gamepad shows the same as focus
+  comes, a button held through Alt+Tab counts as a press once back. The fix would ignore the
+  buttons held in each gamepad's first reading after focus comes, if GameInput always sends one.
+- **Caps Lock and Num Lock** come from Windows' state as of the frame's messages, not from where
+  each key comes in the stream, so a frame that types a letter and then presses Caps Lock types it
+  in the new case.
+
+## Still open
+
+- Whether `GetForegroundWindow` can give no window for a moment while the window stays in front,
+  which would let the cursor go and keep it again: not seen.
+- Whether releasing the confinement can fail, like as the secure desktop or the lock screen comes,
+  which nothing tries again: not measured, as agents don't lock the machine.
+- Whether the window stays the foreground window when another virtual desktop is shown with
+  Win+Ctrl+arrows, which would keep the cursor confined there: not measured, as it would change
+  the user's desktops.
+
+## Only the user can check, after this
+
+- A gamepad button held through Alt+Tab out and back: whether it counts as a press once back.
+- A real mouse's motion and wheel right after Alt+Tab back, and the laptop's touchpad, which
+  GameInput should give as a mouse with relative positions.
+- Alt+F4 closes, and MeshModeler with unsaved changes asks first.
