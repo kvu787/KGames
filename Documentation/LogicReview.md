@@ -284,3 +284,57 @@ and scripts to the window.
   after an Alt+Tab back.
 - GameInputDemo's log merges a run of motion only with its newest line, so two devices moving at
   once cut each other's runs short, as they did before the stream walk.
+
+# What reviewing the pointer against established practice found
+
+KGames draws its own pointer, at a position of its own that GameInput's mice move, and hides and
+confines Windows' cursor while the window has focus. The review compared it with Microsoft's
+documentation (SetCursor, WM_SETCURSOR, ClipCursor and GetClipCursor, "Taking Advantage of
+High-Definition Mouse Movement", and GameInput's mouse state), with Microsoft's DirectXTK `Mouse`,
+and with SDL 3's and Godot 4.8's Windows code. Neither engine draws a cursor of its own on Windows.
+The closest practice is SDL's relative mode: a position of its own, kept in the window, that raw
+motion moves, unscaled by default. Microsoft's documentation has a pointer that a menu uses follow
+Windows' cursor, with the user's speed and acceleration, and raw motion move a camera.
+
+## Found and fixed
+
+- The window kept the cursor as it got focus, while a click on the title bar's minimize or close
+  button that gave it focus was still held, so that click was never let go of on the button. It
+  keeps it only once no mouse button is held, as SDL does.
+- A minimized window that got focus kept the cursor in its client area, which is off the screen
+  then.
+- A window can get focus without being the foreground window, as SDL's code notes, and it kept the
+  cursor then. It keeps it only while it's the foreground window.
+- The window released the cursor's confinement as it lost focus whoever held it, and the program
+  that got focus may have confined it first, as the two hear of the change in no fixed order. It
+  releases only its own, saving the confinement before it confines, as Microsoft's documentation
+  has a program do, and moves the cursor to its middle only if no other program holds one.
+- A frame drew the pointer whenever the window had focus, while the window hid Windows' cursor only
+  once it kept it, after the frame was presented, so a frame could show both or neither. The
+  window keeps the cursor, or not, as the frame reads its input, and the frame draws the pointer
+  exactly when it does.
+
+## Examined and sound
+
+Hiding the cursor with SetCursor(NULL) in WM_SETCURSOR over the client area, with no class cursor,
+as Microsoft's documentation, SDL and Godot do; the arrow over the frame; confining to the client
+area on the screen, and again as it moves or changes size; the pointer clamped to the client area,
+as SDL's is; the pointer drawn last, over everything, from the frame's newest input; and the click
+that gives the window focus doing nothing in the program, which GameInput doesn't report.
+
+## Decisions left to the user
+
+- **How far the pointer moves:** a count a pixel, as SDL's relative mode does by default, which is
+  Windows' default speed without "Enhance pointer precision", which is on by default. Microsoft's
+  documentation has a pointer follow the user's speed and acceleration, which SDL can apply to raw
+  motion by reading them from Windows.
+- **Where Windows' cursor shows as the window loses focus:** in the middle of the window, as asked.
+  SDL puts it where its own pointer was, and Godot's captured mode leaves it in the middle, where
+  it keeps it.
+- **Where the pointer starts as the window gets focus:** in the middle. SDL's relative mode carries
+  its own position on from where it was.
+- **Devices with absolute positions,** like pens, touch screens, Remote Desktop and virtual
+  machines, which GameInput gives as `absolutePositionX` and `absolutePositionY`, in units that its
+  documentation doesn't give: they don't move the pointer. SDL handles each.
+- **The size of the pointer:** fixed, where Windows' cursor follows the size that the user sets in
+  its accessibility settings.
