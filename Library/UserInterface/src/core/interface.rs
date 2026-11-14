@@ -36,7 +36,7 @@ use crate::drawing::hashing::{QuickMap, QuickSet};
 use crate::drawing::painter::{DrawList, Layer, Painter};
 use crate::drawing::text::{Fonts, TextStyle};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
-use crate::input::events::{Event, Input};
+use crate::input::events::{Event, FrameInput, Input};
 
 // What the program runs on, for its bars and its title.
 #[derive(Clone, Debug, Default)]
@@ -242,12 +242,15 @@ impl Interface {
     // the step before left, then the drawing of the last step's tree.
     // `shown` is the tree the user saw, which this leaves as the new one.
     // `sent` are messages from outside, like a test's, applied in the first
-    // step, before the input's. Every step sees the frame's time, and the
-    // frame's delta comes in its last step. Once a step closes the window,
-    // with Context::close, the frame's later steps don't happen: their input
-    // came after the program closed, and mustn't change what it closed with.
-    pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size) {
+    // step, before the input's. Every step sees the frame's time, the
+    // frames' deltas added up, and the frame's delta comes in its last step.
+    // Once a step closes the window, with Context::close, the frame's later
+    // steps don't happen: their input came after the program closed, and
+    // mustn't change what it closed with.
+    pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, input: &FrameInput, sent: Vec<P::Message>, size: Size) {
+        let events = &input.events;
         no_platform_keys(events);
+        let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
         self.input.resize(size);
@@ -260,7 +263,7 @@ impl Interface {
         let mut phases = FramePhases::default();
         let mut applied = 0;
         let mut sent = Some(sent);
-        let delta = (time - self.input.time).max(0.0) as f32;
+        let delta = input.delta.max(0.0) as f32;
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
@@ -349,14 +352,16 @@ impl Interface {
 
     // Runs a frame of a tree that isn't a program's, like the unsupported
     // setup's: the interface's own keys, in steps, and drawing.
-    pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, events: &[Event], time: f64, size: Size) {
+    pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, input: &FrameInput, size: Size) {
+        let events = &input.events;
         no_platform_keys(events);
+        let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
         self.input.resize(size);
         self.requests.clear();
         self.fonts.begin_frame();
-        let delta = (time - self.input.time).max(0.0) as f32;
+        let delta = input.delta.max(0.0) as f32;
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
@@ -888,8 +893,8 @@ impl Interface {
         self.environment.vertical_sync
     }
 
-    // Seconds since the program started, on the frames' clock, which runs
-    // at a fixed rate for scripts and tests.
+    // Seconds since the program started: the frames' deltas added up, which
+    // come at a fixed rate for scripts and tests.
     pub fn time(&self) -> f64 {
         self.input.time
     }

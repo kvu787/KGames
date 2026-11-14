@@ -68,9 +68,10 @@ use crate::input::events::Event;
 use crate::platform::input_devices::{Device, Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
 
-// What a frame read.
+// What a frame read: the frame's events, for its FrameInput (see
+// input/events.rs), and what the platform does with the rest.
 #[derive(Clone, Debug, Default)]
-pub struct FrameInput {
+pub struct FrameRead {
     pub events: Vec<Event>,
     // The time of the newest reading that the frame took, as the counter's
     // ticks, if it took any: where its input latency starts.
@@ -217,7 +218,7 @@ impl InputReader {
 
     // The frame's events, from the devices' readings since the last frame, in
     // the stream's order, and the window's focus changes.
-    pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameInput {
+    pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameRead {
         let state = WindowState {
             focus_changes: focus_changes.to_vec(),
             keeps_cursor: window.keeps_cursor(),
@@ -240,8 +241,8 @@ impl InputReader {
     // The frame's events from its readings, in the stream's order, each with
     // its time on the counter, from the devices that disconnected, and from
     // what the window says.
-    pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState) -> FrameInput {
-        let mut frame = FrameInput::default();
+    pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState) -> FrameRead {
+        let mut frame = FrameRead::default();
         // The window keeps the cursor or lets it go between frames, as it
         // checks its focus. While it has focus, letting it go stops the
         // mice's input.
@@ -367,7 +368,7 @@ impl InputReader {
     // A reading, at its time on the counter: a keyboard's, a mouse's or a
     // gamepad's, or a device's with more than one of them, like a keyboard
     // with a trackball, which is each.
-    fn reading(&mut self, time: i64, reading: &Reading, frame: &mut FrameInput) {
+    fn reading(&mut self, time: i64, reading: &Reading, frame: &mut FrameRead) {
         // A reading from before the window got focus is handled as input
         // without focus, whenever it comes.
         let focused = self.focused;

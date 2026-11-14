@@ -1,6 +1,8 @@
-// A frame's input: the events since the last frame, from GameInput's
-// readings, or made up by a script or a test, in the order they happened.
-// The interface takes them in steps (see `Input::steps`), each of which it
+// A frame's input, FrameInput: the time since the frame before, and the
+// events since then, from GameInput's readings, or made up by a script or a
+// test, in the order they happened, which is all that the interface and
+// programs get of the devices and the clock. The interface takes the events
+// in steps (see `Input::steps`), each of which it
 // handles on the state that the steps before it left, and gathers each
 // step's events into what happened in the step and what's held. Programs
 // and widgets read it the same way whatever made it.
@@ -26,6 +28,16 @@ use crate::input::typing::typed;
 
 // How far the pointer moves for each count of the mice's motion, in pixels.
 pub const MOUSE_SENSITIVITY: f64 = 0.8;
+
+// A frame's input.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FrameInput {
+    // Seconds since the frame before, which the frame's last step has as
+    // Ui::delta, and which Ui::time adds up.
+    pub delta: f64,
+    // What happened since the frame before, in the order it happened.
+    pub events: Vec<Event>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {

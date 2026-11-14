@@ -43,7 +43,7 @@ use crate::core::tree::Tree;
 use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
-use crate::input::events::Event;
+use crate::input::events::FrameInput;
 use crate::input::reader::InputReader;
 use crate::platform::clock;
 use crate::platform::input_devices::Devices;
@@ -198,11 +198,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
         if problems.is_empty() {
-            ui.frame(&mut program, &mut shown, &input.events, Vec::new(), input.time, size);
+            ui.frame(&mut program, &mut shown, &input.frame, Vec::new(), size);
         } else {
             // The error instead of the program, until the setup is right.
             shown = None;
-            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.events, input.time, size);
+            ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.frame, size);
         }
         // Where Windows' cursor shows as the window loses focus.
         if let Some(at) = ui.pointer() {
@@ -301,8 +301,9 @@ enum Source {
         // None with --no-input.
         devices: Option<Rc<RefCell<Devices>>>,
         reader: Box<InputReader>,
-        // When the first frame read its input, which time counts from.
-        start: Option<Instant>,
+        // When the last frame read its input, which the next one's delta is
+        // from: none before the first, whose delta is 0.
+        last: Option<Instant>,
     },
     Script {
         runner: ScriptRunner,
@@ -313,13 +314,12 @@ enum Source {
     },
 }
 
-// A frame's input, from its source.
+// A frame's input, from its source, and what the platform does with the
+// rest of what it read.
 struct Input {
-    events: Vec<Event>,
+    frame: FrameInput,
     // Whether F12 was pressed, which quits.
     quit: bool,
-    // Seconds since the start.
-    time: f64,
     // When GameInput got the newest reading that the frame took, for the
     // input latency.
     input_time: Option<i64>,
@@ -349,7 +349,7 @@ impl Source {
         Ok(Source::User {
             devices,
             reader: Box::new(InputReader::new(gamepad)),
-            start: None,
+            last: None,
         })
     }
 
@@ -375,15 +375,16 @@ impl Source {
     fn read<P: Program>(&mut self, window: &mut Window, ui: &Interface, program: &mut P) -> Result<Input, String> {
         let focus_changes = window.take_focus_changes();
         match self {
-            Source::User { devices, reader, start } => {
+            Source::User { devices, reader, last } => {
                 if let Some(devices) = devices {
                     devices.borrow_mut().read(&focus_changes);
                 }
                 let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), window, &focus_changes);
+                let now = Instant::now();
+                let delta = last.replace(now).map_or(0.0, |last| (now - last).as_secs_f64());
                 Ok(Input {
-                    events: read.events,
+                    frame: FrameInput { delta, events: read.events },
                     quit: read.quit,
-                    time: start.get_or_insert_with(Instant::now).elapsed().as_secs_f64(),
                     input_time: read.input_time,
                     script: None,
                 })
@@ -396,9 +397,11 @@ impl Source {
                     program.script(step).map_err(|error| format!("Frame {number}: Program step: {error}"))?;
                 }
                 Ok(Input {
-                    events: script.events.clone(),
+                    frame: FrameInput {
+                        delta: if number == 0 { 0.0 } else { runner.frame_time() },
+                        events: script.events.clone(),
+                    },
                     quit: false,
-                    time: number as f64 * runner.frame_time(),
                     input_time: None,
                     script: Some(script),
                 })

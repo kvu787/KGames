@@ -8,7 +8,7 @@
 // on that frame.
 
 use user_interface::{
-    Button, ComboBox, Context, Cursor, Dialog, DialogResult, Event, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point,
+    Button, ComboBox, Context, Cursor, Dialog, DialogResult, Event, FrameInput, Gamepad, GamepadButtons, Headless, Key, MenuItem, Modifiers, MouseButton, NumberBox, Point,
     Program, Rect, TextBox, Tree, Ui,
 };
 
@@ -259,6 +259,24 @@ fn a_frame_s_time_passes_once_after_its_events() {
     app.program.ticks.clear();
     app.frame();
     assert_eq!(app.program.ticks, [((app.time() - now) as f32, app.time(), true)]);
+}
+
+// A frame's input is its delta and its events: the frame's last step has its
+// delta, whatever it is, like at 100 frames a second or after a long frame,
+// and the frame's time is the deltas added up. A frame of no time has a
+// delta of 0.
+#[test]
+fn a_frame_s_time_is_its_delta_added_to_the_frames_before() {
+    let mut app = Headless::new(Order::default());
+    let before = app.time();
+    for delta in [0.01, 0.01, 0.023, 0.0, 0.25] {
+        app.program.ticks.clear();
+        app.frame_input(FrameInput { delta, events: vec![press(Key::Q)] });
+        let ticks = &app.program.ticks;
+        assert_eq!(ticks.last(), Some(&(delta as f32, app.time(), true)), "{delta}");
+        assert!(ticks[..ticks.len() - 1].iter().all(|(tick, _, last)| *tick == 0.0 && !last), "{delta}");
+    }
+    assert!((app.time() - before - 0.293).abs() < 1e-12, "{}", app.time() - before);
 }
 
 // A frame can have any number of steps, like a burst of wheel readings after

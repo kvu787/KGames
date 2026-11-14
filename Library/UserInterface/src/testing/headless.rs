@@ -28,7 +28,7 @@ use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
-use crate::input::events::{Event, moved_pointer};
+use crate::input::events::{Event, FrameInput, moved_pointer};
 use crate::testing::gestures::{self, Frames, Made};
 use crate::testing::script::DEFAULT_FRAME_TIME;
 
@@ -117,8 +117,10 @@ impl<P: Program> Headless<P> {
         self.frame
     }
 
+    // The frames' deltas added up, as Ui::time has them, at a 60th of a
+    // second a frame.
     pub fn time(&self) -> f64 {
-        self.frame as f64 * DEFAULT_FRAME_TIME
+        self.ui.time()
     }
 
     // How many messages the last frame applied, counting those that
@@ -128,13 +130,17 @@ impl<P: Program> Headless<P> {
     }
 
     fn run_frame(&mut self) -> &mut Self {
+        self.run_frame_of(DEFAULT_FRAME_TIME)
+    }
+
+    fn run_frame_of(&mut self, delta: f64) -> &mut Self {
         self.frame += 1;
         let mut events = std::mem::take(&mut self.pending);
         events.push(Event::Gamepad(self.gamepad));
         let sent = std::mem::take(&mut self.sent);
         let size = self.size();
-        let time = self.time();
-        self.ui.frame(&mut self.program, &mut self.shown, &events, sent, time, size);
+        let input = FrameInput { delta, events };
+        self.ui.frame(&mut self.program, &mut self.shown, &input, sent, size);
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
                 // The environment already switched when the request was
@@ -150,6 +156,14 @@ impl<P: Program> Headless<P> {
     // Runs a frame with whatever input is pending.
     pub fn frame(&mut self) -> &mut Self {
         self.run_frame()
+    }
+
+    // Runs a frame with the input as it is, its delta and its events, after
+    // whatever input is pending, like a frame at 100 a second, or a long
+    // one.
+    pub fn frame_input(&mut self, input: FrameInput) -> &mut Self {
+        self.pending.extend(input.events);
+        self.run_frame_of(input.delta)
     }
 
     pub fn frames(&mut self, count: usize) -> &mut Self {

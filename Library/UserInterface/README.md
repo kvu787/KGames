@@ -96,8 +96,11 @@ A message sent from `update`, with `Context::send`, joins the same step's queue.
 `input` sends every step, queued last, is the place for what runs after everything else, like
 committing an edit once the button is up, or rebuilding what a 3D view shows.
 
-Every step of a frame sees the frame's time, `ui.time()`, so an event's time doesn't hang on what
-follows it in the frame. The frame's delta, `ui.delta()`, comes in its last step, after its
+A frame's input is a `FrameInput`: its delta, the seconds since the frame before, and its events,
+in the order they happened, which is all that the interface and programs get of the devices and the
+clock. Every step of a frame sees the frame's time, `ui.time()`, the frames' deltas added up, so an
+event's time doesn't hang on what follows it in the frame. The frame's delta, `ui.delta()`, comes
+in its last step, after its
 events, and is 0 in the steps before it, so a simulation that `input` ticks every step, and moves
 by `ui.delta()`, moves once a frame, by the frame's time, with every event of the frame applied
 before it moves. A simulation that keeps a clock of its own takes `ui.time()` in the frame's last
@@ -106,8 +109,8 @@ only if a tick of no time moves nothing: a simulation skips its step when no tim
 takes the step's one-off presses, like a jump, as Platformer does. `ui.last_step()` says whether a
 step is its frame's last, for what a program does once a frame, after all of its input, like
 reading the devices' readings itself, as GameInputDemo does. A frame without input, or with one
-event that does something, like a press, is one step, like most frames; a key that types is two,
-its press and its text.
+event that does something, like a press or a key, is one step, like most frames. A key's press and
+the text it types are one step.
 
 ## The design system
 
@@ -499,8 +502,9 @@ no input latency.
 makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
 real layout. Each input method runs one frame with the input, whose output came from it, so a test
 asserts on exactly what that input made. `queue` only queues events, for `frame` to run, and
-`send_message` and `queue_message` feed the program messages directly, for testing `update` on the
-real pipeline:
+`queue_move` the mice's motion to a place among them; `frame_input` runs a frame of a delta of the
+test's own, like at 100 frames a second; and `send_message` and `queue_message` feed the program
+messages directly, for testing `update` on the real pipeline:
 
 ```rust
 let mut app = Headless::new(Volume { level: 50.0 });
@@ -517,7 +521,7 @@ pixels, and `record` draws it into a frame of the caller's, for timing frames in
 **Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
 instead of from the user, and saves frames and its state. RunInBackground runs them (see its
 [README](../../Program/RunInBackground/README.md#scripts)). A script is a JSON object with its
-`Steps`, each at a `Frame`. Frame 0 gives the window focus and draws what frame 1's steps point at.
+`Steps`, each at a `Frame`. Frame 0 draws what frame 1's steps point at.
 
 ```json
 {
