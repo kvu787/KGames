@@ -1,6 +1,6 @@
-// Tests the program's window before its first frame. The window is made
-// hidden and never shown, so nothing opens on a display, and nothing takes
-// focus.
+// Tests the program's window before its first frame, and where it keeps
+// Windows' cursor. The window is made hidden and never shown, so nothing
+// opens on a display, and nothing takes focus.
 
 use user_interface::{Theme, ThemeKind, Window, WindowMode};
 use windows_api::*;
@@ -34,5 +34,25 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
             ReleaseDC(None, screen);
             assert_eq!(pixels, vec![expected; points.len()], "{kind:?}: the client area at {points:?}, as 0x00BBGGRR");
         }
+    }
+}
+
+// Windows' cursor is kept in, and centered on, the client area on the
+// screen, and a minimized window has none: its client area is off the screen
+// then, where a cursor kept in it would be lost, and Windows can give a
+// minimized window focus, as it does as one is restored. Minimized here by
+// its style, as showing it would put it on the taskbar.
+#[test]
+fn a_minimized_window_keeps_no_cursor() {
+    unsafe {
+        let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
+        let window = Window::create("Cursor", monitor, WindowMode::WindowedMaximized, Theme::light().background).unwrap();
+        let (width, height) = window.client_size();
+        let area = window.cursor_area().expect("the client area");
+        assert_eq!((area.right - area.left, area.bottom - area.top), (width as i32, height as i32));
+        let style = GetWindowLongPtrW(window.hwnd(), GWL_STYLE);
+        SetWindowLongPtrW(window.hwnd(), GWL_STYLE, style | WS_MINIMIZE as isize);
+        assert!(IsIconic(window.hwnd()).as_bool());
+        assert!(window.cursor_area().is_none());
     }
 }

@@ -290,9 +290,16 @@ impl Window {
     // other windows come and go, and the client area moves when the window
     // switches between maximized and fullscreen.
     pub fn confine_cursor(&mut self) {
-        if self.focused() && !self.minimized() {
+        if self.focused() {
             unsafe { confine(self.hwnd) };
         }
+    }
+
+    // Where Windows' cursor is kept and centered: the client area, in the
+    // screen's pixels, or none while the window is minimized, whose client
+    // area is off the screen then, where a cursor kept in it would be lost.
+    pub fn cursor_area(&self) -> Option<RECT> {
+        unsafe { cursor_area(self.hwnd) }
     }
 
     pub fn focused(&self) -> bool {
@@ -480,39 +487,43 @@ unsafe fn fill(hdc: HDC, rect: &RECT, color: COLORREF) {
     }
 }
 
-// The client area, in the screen's pixels.
-unsafe fn client_on_screen(hwnd: HWND) -> RECT {
+// See Window::cursor_area. Windows can give a minimized window focus, as it
+// does as one is restored, before it's restored.
+unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     unsafe {
+        if IsIconic(hwnd).as_bool() {
+            return None;
+        }
         let mut client = RECT::default();
         let _ = GetClientRect(hwnd, &mut client);
         let mut origin = POINT::default();
         let _ = ClientToScreen(hwnd, &mut origin);
-        RECT {
+        Some(RECT {
             left: origin.x,
             top: origin.y,
             right: origin.x + client.right,
             bottom: origin.y + client.bottom,
-        }
+        })
     }
 }
 
-// Keeps Windows' cursor inside the client area.
+// Keeps Windows' cursor inside the client area, unless the window is
+// minimized.
 unsafe fn confine(hwnd: HWND) {
     unsafe {
-        let client = client_on_screen(hwnd);
-        let _ = ClipCursor(Some(&client));
+        if let Some(area) = cursor_area(hwnd) {
+            let _ = ClipCursor(Some(&area));
+        }
     }
 }
 
 // Puts Windows' cursor in the middle of the client area, unless the window is
-// minimized, and has none.
+// minimized.
 unsafe fn center_cursor(hwnd: HWND) {
     unsafe {
-        if IsIconic(hwnd).as_bool() {
-            return;
+        if let Some(area) = cursor_area(hwnd) {
+            let _ = SetCursorPos(area.left + (area.right - area.left) / 2, area.top + (area.bottom - area.top) / 2);
         }
-        let client = client_on_screen(hwnd);
-        let _ = SetCursorPos(client.left + (client.right - client.left) / 2, client.top + (client.bottom - client.top) / 2);
     }
 }
 
