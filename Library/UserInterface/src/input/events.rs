@@ -50,9 +50,9 @@ struct ButtonState {
 
 #[derive(Clone, Debug)]
 pub struct Input {
-    // Seconds since the program started, and since the step before: the
-    // time since the last frame in a frame's last step, and 0 in the steps
-    // before it, so that time passes once a frame, after its events.
+    // Seconds since the program started, the frame's in each of its steps,
+    // and since the last frame, in a frame's last step, and 0 in the steps
+    // before it, so that a simulation moves once a frame, after its events.
     pub time: f64,
     pub delta: f32,
     pub focused: bool,

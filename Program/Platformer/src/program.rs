@@ -19,8 +19,8 @@ use crate::NAME;
 // What a step of a frame's input means.
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Once a step: the step's controls, which move the game on by the time
-    // since the step before, the frame's time in its last step.
+    // Once a step: the step's controls, which move the game on by the
+    // step's `ui.delta()`, the frame's time in its last step, and 0 before.
     Tick(Controls),
     // The app bar: a level to go to, and starting the run over.
     GoLevel(usize),
@@ -29,6 +29,11 @@ pub enum Message {
 
 pub struct Platformer {
     pub game: Game,
+    // The game's clock: the last frame's time in a frame's steps before its
+    // last, and the frame's time in its last, which has the frame's delta,
+    // so that the game moves once a frame, by the frame's delta, after the
+    // frame's input.
+    clock: f64,
 }
 
 impl Platformer {
@@ -47,6 +52,7 @@ impl Platformer {
         };
         Platformer {
             game: Game::new(levels, progress, save_path),
+            clock: 0.0,
         }
     }
 }
@@ -64,7 +70,12 @@ impl Program for Platformer {
 
     fn update(&mut self, message: Message, ui: &mut Context<Message>) {
         match message {
-            Message::Tick(controls) => self.game.update(&controls, ui.time()),
+            Message::Tick(controls) => {
+                if ui.last_step() {
+                    self.clock = ui.time();
+                }
+                self.game.update(&controls, self.clock);
+            }
             Message::GoLevel(level) => self.game.go_to_level(level),
             Message::Restart => self.game.restart(),
         }

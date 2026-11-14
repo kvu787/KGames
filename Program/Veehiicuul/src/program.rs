@@ -81,8 +81,9 @@ pub enum Message {
     Terrain(TerrainMsg),
     Track(TrackMsg),
     Vehicle(VehicleMsg),
-    // Once a step of a frame's input in Play: the controls drive the car,
-    // by the time since the step before, which only a frame's last step has.
+    // Once a step of a frame's input: the game's clock moves on to the
+    // frame's time in the frame's last step, the one with its delta, and in
+    // Play, the controls drive the car by it.
     Tick(Controls),
     // Once a step, after everything else in it: keeps the game in the
     // document, commits a change once the button is up, shapes the track,
@@ -112,6 +113,11 @@ pub struct Veehiicuul {
     unsaved_now: bool,
     // The wheel's notches over Play's view in this step, for its Tick.
     pending_notches: f64,
+    // The game's clock: the last frame's time in a frame's steps before its
+    // last, and the frame's time from its last step's Tick, the step that has
+    // the frame's delta, so that the game moves once a frame, by the frame's
+    // delta, after the frame's input.
+    clock: f64,
     // Where Save writes: the game's folder, or a script's output folder.
     save_folder: PathBuf,
     // What the last save, or anything else, said.
@@ -143,6 +149,7 @@ impl Veehiicuul {
             undo: Vec::new(),
             redo: Vec::new(),
             pending_notches: 0.0,
+            clock: 0.0,
             save_folder,
             status: String::new(),
             drawing: None,
@@ -449,9 +456,7 @@ impl Program for Veehiicuul {
         if ui.shortcut(Modifiers::CONTROL, Key::Y) {
             messages.push(Message::Redo);
         }
-        if self.mode == PLAY {
-            messages.push(Message::Tick(Controls::read(ui, 0.0)));
-        }
+        messages.push(Message::Tick(Controls::read(ui, 0.0)));
         messages.push(Message::Prepare);
         messages
     }
@@ -460,16 +465,16 @@ impl Program for Veehiicuul {
         match message {
             Message::Mode(mode) => {
                 if mode != self.mode {
-                    self.go_to(mode, ctx.time());
+                    self.go_to(mode, self.clock);
                 }
             }
             Message::Save => self.save(),
             Message::Undo => self.undo(),
             Message::Redo => self.redo(),
-            Message::NewScene => self.new_scene(ctx.time()),
+            Message::NewScene => self.new_scene(self.clock),
             Message::GoScene(scene) => {
                 if scene != self.game.scene {
-                    self.game.go_to_scene(scene, ctx.time());
+                    self.game.go_to_scene(scene, self.clock);
                     let current = self.game.current_scene();
                     self.viewport = Viewport::new(current.camera_center, current.camera_height);
                 }
@@ -490,9 +495,12 @@ impl Program for Veehiicuul {
             }
             Message::Vehicle(message) => self.vehicle_editor.apply(message, &mut self.game.document, &self.game.models, &mut self.game.vehicle),
             Message::Tick(mut controls) => {
+                if ctx.last_step() {
+                    self.clock = ctx.time();
+                }
                 if self.mode == PLAY {
                     controls.notches = std::mem::take(&mut self.pending_notches);
-                    self.game.update(&controls, ctx.time());
+                    self.game.update(&controls, self.clock);
                 }
             }
             Message::Prepare => {

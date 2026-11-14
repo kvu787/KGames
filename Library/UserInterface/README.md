@@ -97,10 +97,13 @@ A message sent from `update`, with `Context::send`, joins the same step's queue.
 `input` sends every step, queued last, is the place for what runs after everything else, like
 committing an edit once the button is up, or rebuilding what a 3D view shows.
 
-A frame's time passes in its last step, after its events. In the steps before it, `ui.delta()` is
-0 and `ui.time()` is the last frame's, so a simulation that `input` ticks every step moves once a
-frame, by the frame's time, with every event of the frame applied before it moves. That holds only
-if a tick of no time moves nothing: a simulation skips its step when no time passed, and still
+Every step of a frame sees the frame's time, `ui.time()`, so an event's time doesn't hang on what
+follows it in the frame. The frame's delta, `ui.delta()`, comes in its last step, after its
+events, and is 0 in the steps before it, so a simulation that `input` ticks every step, and moves
+by `ui.delta()`, moves once a frame, by the frame's time, with every event of the frame applied
+before it moves. A simulation that keeps a clock of its own takes `ui.time()` in the frame's last
+step, as Platformer's and Veehiicuul's do, so that it moves by exactly the frame's delta. That holds
+only if a tick of no time moves nothing: a simulation skips its step when no time passed, and still
 takes the step's one-off presses, like a jump, as Platformer does. `ui.last_step()` says whether a
 step is its frame's last, for what a program does once a frame, after all of its input, like
 reading the devices' readings itself, as GameInputDemo does. A frame without input, or with one

@@ -11,7 +11,8 @@
 // Then the last step's tree is drawn. So a second click in a frame lands on
 // the menu that the first one opened, and every widget shows all that the
 // input did, whatever order the tree lists them in, on the frame of the
-// input. The frame's time passes in its last step, after its events.
+// input. Every step sees the frame's time, and the frame's delta comes in its
+// last step, after its events.
 //
 // Widgets are named, like "Volume" or "Devices/3". A name is what a widget is
 // known by from one frame to the next, for what it keeps, like a caret, and
@@ -194,8 +195,8 @@ pub struct Interface {
     pub(crate) performance: Option<crate::application::performance::Performance>,
     // How many messages the last frame applied, over all its steps.
     pub(crate) messages_applied: usize,
-    // Whether the step running is its frame's last, in which the frame's
-    // time passes.
+    // Whether the step running is its frame's last, which has the frame's
+    // delta.
     last_step: bool,
     phases: FramePhases,
 }
@@ -239,7 +240,8 @@ impl Interface {
     // the step before left, then the drawing of the last step's tree.
     // `shown` is the tree the user saw, which this leaves as the new one.
     // `sent` are messages from outside, like a test's, applied in the first
-    // step, before the input's. The frame's time passes in its last step.
+    // step, before the input's. Every step sees the frame's time, and the
+    // frame's delta comes in its last step.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size, fullscreen: bool) {
         self.frame += 1;
@@ -254,12 +256,13 @@ impl Interface {
         let mut phases = FramePhases::default();
         let mut applied = 0;
         let mut sent = Some(sent);
+        let delta = (time - self.input.time).max(0.0) as f32;
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
             self.last_step = index == last;
-            let step_time = if self.last_step { time } else { self.input.time };
-            let tree = self.step(program, shown.as_ref(), step, sent.take().unwrap_or_default(), step_time, &mut applied, &mut phases);
+            let step_delta = if self.last_step { delta } else { 0.0 };
+            let tree = self.step(program, shown.as_ref(), step, sent.take().unwrap_or_default(), time, step_delta, &mut applied, &mut phases);
             *shown = Some(tree);
         }
         self.messages_applied = applied;
@@ -278,8 +281,9 @@ impl Interface {
     // left for the others; the messages; and the step's tree, laid out,
     // which this returns. `applied` counts the frame's messages so far.
     #[allow(clippy::too_many_arguments)]
-    fn step<P: Program>(&mut self, program: &mut P, shown: Option<&Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, applied: &mut usize, phases: &mut FramePhases) -> Tree<P::Message> {
+    fn step<P: Program>(&mut self, program: &mut P, shown: Option<&Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, delta: f32, applied: &mut usize, phases: &mut FramePhases) -> Tree<P::Message> {
         self.input.begin(time, events);
+        self.input.delta = delta;
 
         // The input, on the tree it came on.
         let started = std::time::Instant::now();
@@ -344,12 +348,13 @@ impl Interface {
         self.fullscreen = fullscreen;
         self.requests.clear();
         self.fonts.begin_frame();
+        let delta = (time - self.input.time).max(0.0) as f32;
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
         for (index, step) in steps.into_iter().enumerate() {
             self.last_step = index == last;
-            let step_time = if self.last_step { time } else { self.input.time };
-            self.input.begin(step_time, step);
+            self.input.begin(time, step);
+            self.input.delta = if self.last_step { delta } else { 0.0 };
             self.begin_input();
             self.end_input();
             if let Some(theme) = self.next_theme.take() {
@@ -913,12 +918,13 @@ impl Interface {
     }
 
     // Seconds since the last frame, in a frame's last step, and 0 in the
-    // steps before it: time passes once a frame, after its events.
+    // steps before it, so that a simulation moves once a frame, after its
+    // events.
     pub fn delta(&self) -> f32 {
         self.input.delta
     }
 
-    // Whether this is the frame's last step, in which its time passes, after
+    // Whether this is the frame's last step, which has the frame's delta, after
     // all of the frame's input: for what a program does once a frame, like
     // reading the devices' readings itself (see Startup::devices), which
     // come once a frame, with the window's focus as the frame leaves it.

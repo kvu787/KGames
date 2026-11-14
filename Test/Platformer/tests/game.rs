@@ -36,6 +36,23 @@ fn a_jump_press_rises_on_its_own_frame() {
     assert_eq!(state(&app, "Grounded"), Value::Bool(false));
 }
 
+// A frame's steps before its last see the frame's time and no delta, so the
+// game moves once a frame, by the frame's time, however many steps the frame
+// has: running for a frame with steps before the press of F that starts the
+// run goes as far as running for a frame of the press alone, on that same
+// frame.
+#[test]
+fn the_game_moves_once_a_frame_however_many_steps_it_has() {
+    use user_interface::Event;
+    let mut plain = start("StepsPlain");
+    let mut stepped = start("StepsStepped");
+    plain.send(&[Event::KeyPressed(Key::F)]);
+    stepped.send(&[Event::KeyReleased(Key::Q), Event::KeyReleased(Key::W), Event::KeyPressed(Key::F)]);
+    assert!(stepped.program.game.player.velocity[0] > 0.0, "the run starts on the press's frame");
+    assert_eq!(stepped.program.game.player.position, plain.program.game.player.position);
+    assert_eq!(stepped.program.game.simulated, plain.program.game.simulated);
+}
+
 // ESDF: S and F run, E jumps, each on its own frame, and A, D and W do
 // nothing.
 #[test]

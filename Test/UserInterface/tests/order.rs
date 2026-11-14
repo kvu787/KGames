@@ -236,9 +236,10 @@ fn text_typed_after_a_key_in_one_frame_comes_after_it() {
     assert_eq!(app.program.number, 42.0);
 }
 
-// The frame's time passes once, in its last step, after its events: the
-// steps before it see no time pass, and the last frame's time, so that a
-// simulation that `input` ticks moves once a frame, by the frame's time.
+// Every step of a frame sees the frame's time, so that an event's time
+// doesn't hang on what follows it in the frame, and the frame's delta comes
+// in its last step, after its events, and 0 in the steps before it, so that
+// a simulation that `input` ticks moves once a frame, by the frame's time.
 // `last_step` says which step is the last, for what a program does once a
 // frame.
 #[test]
@@ -248,7 +249,7 @@ fn a_frame_s_time_passes_once_after_its_events() {
     app.program.ticks.clear();
     app.send(&[press(Key::Q), Event::KeyReleased(Key::Q), press(Key::W)]);
     let now = app.time();
-    assert_eq!(app.program.ticks, [(0.0, before, false), (0.0, before, false), ((now - before) as f32, now, true)]);
+    assert_eq!(app.program.ticks, [(0.0, now, false), (0.0, now, false), ((now - before) as f32, now, true)]);
     // A frame of one step: its time passes in it.
     app.program.ticks.clear();
     app.frame();

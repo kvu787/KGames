@@ -13,12 +13,12 @@
 // `input` adds its own; `update` applies them all, and any they send in
 // turn, until none are left; then `view` describes the step's tree, which is
 // laid out for the next step. The last step's tree is drawn. So every widget
-// shows what every message did, on the frame of the input. The frame's time
-// passes in its last step, after its events: in the steps before it,
-// `Ui::delta` is 0 and `Ui::time` the last frame's, so that a simulation
-// that `input` ticks moves once a frame, by the frame's time, as long as a
-// tick of no time moves nothing. `Ui::last_step` says which step is the
-// frame's last, for what a program does once a frame.
+// shows what every message did, on the frame of the input. Every step sees
+// the frame's time, `Ui::time`, and the frame's delta, `Ui::delta`, comes in
+// its last step, after its events, and is 0 in the steps before it, so that a
+// simulation that `input` ticks by `Ui::delta` moves once a frame, by the
+// frame's time, as long as a tick of no time moves nothing. `Ui::last_step`
+// says which step is the frame's last, for what a program does once a frame.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -41,9 +41,8 @@ pub trait Program {
     fn title(&self) -> String;
 
     // The step's messages from what isn't a widget: the keys that no widget
-    // took, the time since the step before, which is the time since the last
-    // frame in the frame's last step and 0 before it, the gamepad, and the
-    // devices. Once a step, after the widgets' messages and before the
+    // took, the frame's delta, which comes in the frame's last step and is 0
+    // before it, the gamepad, and the devices. Once a step, after the widgets' messages and before the
     // messages are applied.
     fn input(&self, _ui: &Ui) -> Vec<Self::Message> {
         Vec::new()
