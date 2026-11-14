@@ -62,7 +62,8 @@ pub struct FrameInput {
 pub struct FrameOutput {
     // What to draw, in order.
     pub commands: Vec<Command>,
-    // What else the program asks of the platform, like to close.
+    // What else the program asks of the platform, like to run a gamepad's
+    // motors.
     pub requests: Vec<Request>,
     // Named areas, like each widget's, for tests and scripts to point at.
     // The platform ignores them.
@@ -98,18 +99,34 @@ later frame's event, which question 4 is about.
 
 | What                           | What the program sees                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------- |
-| Focus going                    | A release for everything held, then `FocusLost`; no events until focus is back  |
-| Focus coming                   | `FocusGained`; keys held as it came count only once they're let go of, as today |
+| F1                             | Nothing: the platform keeps Windows' cursor, or lets it go (see question 13)    |
+| F12                            | Nothing: the program quits at once                                              |
+| Focus going, like with Alt+Tab | Releases of what was held, from GameInput's readings at rest; no event of focus |
+| Focus coming                   | Nothing; keys held as it came count only once they're let go of, as today       |
+| Alt+F4                         | Nothing but the keys, Alt and F4, which mean nothing to the platform            |
 | Minimized                      | No call to `frame`; the next frame's delta is capped                            |
-| A setup that's wrong           | No call to `frame`; the platform draws the error page                           |
+| A setup that's wrong           | No call to `frame`, and its input is dropped; the platform draws the error page |
 | Windows' cursor                | Nothing: the platform confines it, hides it, and places it on release           |
 | F10 and vertical sync          | Nothing                                                                         |
 | The PerfBar                    | Nothing: it's drawn over the top 17 rows of the program's frame                 |
-| Alt+F4 and the taskbar's Close | `CloseRequested`; the program closes with a `Close` request                     |
+| The taskbar's Close            | Open: question 10                                                               |
 | Windows' window shortcuts      | Nothing, as today                                                               |
 
-`FocusLost` stays an event so that a game can pause on it. The releases before it mean that a
-program doesn't need to follow focus to let go of what was held.
+The program never hears of focus. Windows does Alt+Tab before any window sees it, so it still
+switches windows, but only the platform deals with that. As focus goes, GameInput's readings at
+rest let go of every key and button that was held, so the program sees them released, as if the
+user had let go.
+
+F1 and F12 are the platform's alone. The program is never sent them, neither as presses nor as
+releases. That has costs today:
+
+- F1 shows and hides the info card in MinimalSceneTest and SpinningCarTest
+  ([info_card.rs](../Library/UserInterface/src/widgets/info_card.rs)), and starts GameInputDemo's
+  rumble test. Both move to other keys.
+- F12 quits without asking. MeshModeler asks first today, in `may_close`, when it has unsaved
+  changes, so it would lose them unless it saves as it goes.
+- F12 is Windows' key for debuggers. While a debugger is attached to the program, F12 breaks into
+  it, as `RegisterHotKey`'s documentation says. Without one, F12 is an ordinary key.
 
 ## Where KGames is today
 
@@ -160,8 +177,11 @@ crate's sources:
 - It draws a frame of 2560 × 1440, the only setup that programs support (see AGENTS.md).
 - `FrameInput` carries the mouse, the keyboard and the gamepads, and the frame's delta. What else
   it carries is question 12.
-- Windows' cursor, focus, minimizing, Alt+F4 and `WM_CLOSE` work as they do today, from under the
-  boundary.
+- No typed text, for now. The keyboard is its keys going down and up, as GameInput reads them.
+- F12 quits, and F1 keeps Windows' cursor or lets it go. Both are the platform's, and the program
+  is never sent anything of F1 or F12.
+- Alt+F4 and Alt+Tab mean nothing to the program. There are no events of focus or of closing.
+- Windows' cursor, focus and minimizing are the platform's, under the boundary.
 
 ### Open
 
@@ -201,7 +221,6 @@ Windows API above the boundary, in a crate of its own that question 6's check al
 
 **4. What else a program asks for, and the law of the frame.** These requests carry no answer:
 
-- `Close`;
 - running a gamepad's motors, for GameInputDemo;
 - the theme, so that the platform's error page, PerfBar and background before the first frame
   match F9, which stays the program's;
@@ -227,8 +246,12 @@ position. The options:
   where it starts, keeping it in the frame, and drawing it all move up. The output says where the
   pointer is, and the platform places Windows' cursor there when focus goes.
 
-Recommended: raw motion. A game that turns a camera wants a mouse's motion, not a pointer kept in
-the window, and the platform gets simpler. The cost is the pointer's position in every output.
+Recommended: the platform's pointer, now that F1 is the platform's. The program never knows when
+Windows' cursor is let go. If the program drew the pointer, it would stay drawn, still, beside
+Windows' arrow while the cursor is let go. So the platform moves the pointer, and draws it over
+the frame only while it keeps the cursor. Events carry the pointer's position, and each mouse's
+raw motion too, for a game that turns a camera. This reverses the recommendation made before F1
+was decided, which was raw motion alone, with the UI library's pointer.
 
 **6. Keeping the boundary.** By AGENTS.md, a rule holds only if a machine check enforces it. So the
 crates split: the boundary's types, the crates above it, and the crates under it. A test reads
@@ -263,10 +286,15 @@ motors. Its tests then make up devices without GameInput, as its scripts do now.
 Only programs that ask for these events get them, as only those that ask get the gamepad today,
 with `Options::gamepad`.
 
-**10. Closing while no frame runs.** While the window is minimized, or the error page shows,
-`frame` isn't called, so a program can't answer `CloseRequested` with a dialog. Either the event
-waits until frames run again, which is roughly today's behavior, or the platform closes without
-asking. LogicReview.md left this to the user; record the answer here.
+**10. The taskbar's Close.** F12 quits at once, even on the error page. The taskbar's Close sends
+`WM_CLOSE`, which can come while the window is minimized. The options:
+
+- Quit at once, as F12 does.
+- Ignore it, so that only F12 quits. Task Manager can still end the program.
+
+Recommended: quit at once. No frame has to run, so it works the same while minimized and on the
+error page. With it, the decision on closing while no frame runs, which LogicReview.md left to the
+user, goes away.
 
 **11. Which program comes first.** Recommended: Platformer. It has no D3D12, it is a game rather
 than a form, and it reads and writes a file of its own, in `progress.rs`, which tries out `Files`.
@@ -274,16 +302,17 @@ than a form, and it reads and writes a file of its own, in `progress.rs`, which 
 **12. What else `FrameInput` carries.** Past the mouse, the keyboard, the gamepads and the delta,
 these are left.
 
-The four can't say these, so each would be an event of its own:
+The four can't say these, and each would have been an event of its own. Decided: none of them,
+for now.
 
 - **Typed text.** A character isn't a key. It comes from the key, Windows' keyboard layout,
-  Shift, Caps Lock, and dead keys, like the acute accent's key and then e for é. The layout is the
-  OS's, so the platform turns keys into `Text`. Any text box needs it.
-- **Close requested.** The taskbar's Close is `WM_CLOSE`, not a key. Alt+F4 is keys, which could be
-  read above the boundary, or the platform could turn both into one `CloseRequested`.
-- **Focus lost and gained.** The platform lets go of everything held as focus goes, so programs
-  are correct without it. Without it, though, a game can't pause on Alt+Tab, since it can't tell
-  that from no one touching anything. UiShowcase and GameInputDemo show it, too.
+  Shift, Caps Lock, and dead keys, like the acute accent's key and then e for é. Without it, the
+  UI library's text boxes and number boxes, which UiShowcase, MeshModeler and Veehiicuul's vehicle
+  editor use, type only what they make of keys themselves.
+- **Close requested.** F12 quits instead, under the boundary.
+- **Focus lost and gained.** GameInput's readings at rest let go of everything held as focus goes,
+  so programs are correct without it. A game can't pause on Alt+Tab, though, since it can't tell
+  that from no one touching anything. UiShowcase and GameInputDemo show focus today.
 
 Programs read these today, but they could go. Recommended: leave them out.
 
@@ -314,8 +343,8 @@ What's still open inside the four:
 
 - **The mouse:** its raw motion or a pointer's position (question 5). All mice count as one, as
   today.
-- **The keyboard:** whether F10, the platform's, leaves the stream, so that every key has one
-  owner. Keys held as focus came stay the platform's to hold back, as today.
+- **The keyboard:** whether F10, the platform's, leaves the stream, as F1 and F12 do, so that every
+  key has one owner. Keys held as focus came stay the platform's to hold back, as today.
 - **The gamepads:**
   - all of them as one, as `Ui::gamepad` has them today, or each on its own, which local
     multiplayer needs;
@@ -323,6 +352,23 @@ What's still open inside the four:
     change of the buttons and the sticks as the frame ends.
 - **The delta:** 0 on the first frame, and capped after a long one. Veehiicuul caps it at 0.1
   seconds today.
+
+**13. What F1 does, exactly.** F1 keeps Windows' cursor, confined and hidden, or lets it go. What's
+left to decide:
+
+- **At start.** Kept from when the window first has focus, or let go until the first F1.
+  Recommended: kept, so that a program is ready to use as it opens.
+- **As focus goes and comes.** Either focus going lets go of the cursor without changing what F1
+  last chose, and focus coming keeps it again if F1 chose that; or focus going counts as F1, so
+  that coming back needs F1. Recommended: the first, which is today's behavior. Windows lets go of
+  a confinement when most windows come to the front, but not the Start menu, so the platform lets
+  go itself either way.
+- **While it's let go.** Windows' arrow shows, and the program gets no mouse input, or the pointer
+  and Windows' arrow would move together. Keyboards and gamepads still reach it.
+- **Where the pointer is when F1 keeps the cursor again.** Where it was, or where Windows' arrow
+  is, if that's in the window. Recommended: where Windows' arrow is, so that the pointer appears
+  where the user is looking. As F1 lets go, Windows' cursor goes to the pointer, SDL's way, as
+  today.
 
 ## Replay
 
@@ -346,8 +392,8 @@ real program remain only for what's under the boundary.
 Comparing exact lists of commands breaks every test that draws whenever a padding token changes.
 So tests check commands in these ways:
 
-- **Invariants, over every frame of every test.** Nothing is drawn outside its clip, the pointer
-  is drawn last, no command uses a freed resource, and every resource uploaded is used.
+- **Invariants, over every frame of every test.** Nothing is drawn outside its clip, no command
+  uses a freed resource, and every resource uploaded is used.
 - **Targets.** Tests and scripts point at, and check, the named targets that the output carries,
   as they do with `Interface.Targets` today.
 - **Golden lists.** A few frames' commands are compared in full.
