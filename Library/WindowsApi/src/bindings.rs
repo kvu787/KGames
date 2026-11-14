@@ -1,15 +1,4 @@
 #[inline]
-pub unsafe fn AdjustWindowRectExForDpi(
-    lprect: *mut RECT,
-    dwstyle: u32,
-    bmenu: bool,
-    dwexstyle: u32,
-    dpi: u32,
-) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn AdjustWindowRectExForDpi(lprect : *mut RECT, dwstyle : u32, bmenu : windows_core::BOOL, dwexstyle : u32, dpi : u32) -> windows_core::BOOL);
-    unsafe { AdjustWindowRectExForDpi(lprect as _, dwstyle, bmenu.into(), dwexstyle, dpi) }
-}
-#[inline]
 pub unsafe fn BeginPaint(hwnd: HWND, lppaint: *mut PAINTSTRUCT) -> HDC {
     windows_core::link!("user32.dll" "system" fn BeginPaint(hwnd : HWND, lppaint : *mut PAINTSTRUCT) -> HDC);
     unsafe { BeginPaint(hwnd, lppaint as _) }
@@ -328,16 +317,6 @@ pub unsafe fn DisplayConfigGetDeviceInfo(
     unsafe { DisplayConfigGetDeviceInfo(requestpacket as _) }
 }
 #[inline]
-pub unsafe fn DwmSetWindowAttribute(
-    hwnd: HWND,
-    dwattribute: u32,
-    pvattribute: *const core::ffi::c_void,
-    cbattribute: u32,
-) -> windows_core::HRESULT {
-    windows_core::link!("dwmapi.dll" "system" fn DwmSetWindowAttribute(hwnd : HWND, dwattribute : u32, pvattribute : *const core::ffi::c_void, cbattribute : u32) -> windows_core::HRESULT);
-    unsafe { DwmSetWindowAttribute(hwnd, dwattribute, pvattribute, cbattribute) }
-}
-#[inline]
 pub unsafe fn EnableTraceEx2(
     traceid: CONTROLTRACE_ID,
     providerid: *const windows_core::GUID,
@@ -554,11 +533,6 @@ pub unsafe fn GetWindowLongW(hwnd: HWND, nindex: i32) -> i32 {
 pub unsafe fn IsIconic(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn IsIconic(hwnd : HWND) -> windows_core::BOOL);
     unsafe { IsIconic(hwnd) }
-}
-#[inline]
-pub unsafe fn IsZoomed(hwnd: HWND) -> windows_core::BOOL {
-    windows_core::link!("user32.dll" "system" fn IsZoomed(hwnd : HWND) -> windows_core::BOOL);
-    unsafe { IsZoomed(hwnd) }
 }
 #[inline]
 pub unsafe fn LoadCursorW<P1>(hinstance: Option<HINSTANCE>, lpcursorname: P1) -> HCURSOR
@@ -2710,34 +2684,6 @@ impl DISPLAYCONFIG_VIDEO_SIGNAL_INFO_0_0 {
 pub struct DPI_AWARENESS_CONTEXT(pub *mut core::ffi::c_void);
 pub const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
     DPI_AWARENESS_CONTEXT(-4 as _);
-pub const DWMWA_ALLOW_NCPAINT: DWMWINDOWATTRIBUTE = 4;
-pub const DWMWA_BORDER_COLOR: DWMWINDOWATTRIBUTE = 34;
-pub const DWMWA_BORDER_MARGINS: DWMWINDOWATTRIBUTE = 40;
-pub const DWMWA_CAPTION_BUTTON_BOUNDS: DWMWINDOWATTRIBUTE = 5;
-pub const DWMWA_CAPTION_COLOR: DWMWINDOWATTRIBUTE = 35;
-pub const DWMWA_CLOAK: DWMWINDOWATTRIBUTE = 13;
-pub const DWMWA_CLOAKED: DWMWINDOWATTRIBUTE = 14;
-pub const DWMWA_DISALLOW_PEEK: DWMWINDOWATTRIBUTE = 11;
-pub const DWMWA_EXCLUDED_FROM_PEEK: DWMWINDOWATTRIBUTE = 12;
-pub const DWMWA_EXTENDED_FRAME_BOUNDS: DWMWINDOWATTRIBUTE = 9;
-pub const DWMWA_FLIP3D_POLICY: DWMWINDOWATTRIBUTE = 8;
-pub const DWMWA_FORCE_ICONIC_REPRESENTATION: DWMWINDOWATTRIBUTE = 7;
-pub const DWMWA_FREEZE_REPRESENTATION: DWMWINDOWATTRIBUTE = 15;
-pub const DWMWA_HAS_ICONIC_BITMAP: DWMWINDOWATTRIBUTE = 10;
-pub const DWMWA_LAST: DWMWINDOWATTRIBUTE = 41;
-pub const DWMWA_NCRENDERING_ENABLED: DWMWINDOWATTRIBUTE = 1;
-pub const DWMWA_NCRENDERING_POLICY: DWMWINDOWATTRIBUTE = 2;
-pub const DWMWA_NONCLIENT_RTL_LAYOUT: DWMWINDOWATTRIBUTE = 6;
-pub const DWMWA_PASSIVE_UPDATE_MODE: DWMWINDOWATTRIBUTE = 16;
-pub const DWMWA_REDIRECTIONBITMAP_ALPHA: DWMWINDOWATTRIBUTE = 39;
-pub const DWMWA_SYSTEMBACKDROP_TYPE: DWMWINDOWATTRIBUTE = 38;
-pub const DWMWA_TEXT_COLOR: DWMWINDOWATTRIBUTE = 36;
-pub const DWMWA_TRANSITIONS_FORCEDISABLED: DWMWINDOWATTRIBUTE = 3;
-pub const DWMWA_USE_HOSTBACKDROPBRUSH: DWMWINDOWATTRIBUTE = 17;
-pub const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = 20;
-pub const DWMWA_VISIBLE_FRAME_BORDER_THICKNESS: DWMWINDOWATTRIBUTE = 37;
-pub const DWMWA_WINDOW_CORNER_PREFERENCE: DWMWINDOWATTRIBUTE = 33;
-pub type DWMWINDOWATTRIBUTE = i32;
 pub type DWRITE_FACTORY_TYPE = i32;
 pub const DWRITE_FACTORY_TYPE_ISOLATED: DWRITE_FACTORY_TYPE = 1;
 pub const DWRITE_FACTORY_TYPE_SHARED: DWRITE_FACTORY_TYPE = 0;
@@ -9077,12 +9023,10 @@ pub struct SECURITY_ATTRIBUTES {
 }
 pub const SIZE_MINIMIZED: i32 = 1;
 pub const STILL_ACTIVE: i32 = 259;
-pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;
 pub const SWP_NOMOVE: i32 = 2;
 pub const SWP_NOOWNERZORDER: i32 = 512;
 pub const SWP_NOSIZE: i32 = 1;
-pub const SWP_NOZORDER: i32 = 4;
 pub const SW_SHOW: i32 = 5;
 pub const SW_SHOWNA: i32 = 8;
 #[repr(C)]
@@ -9408,9 +9352,6 @@ impl Default for WNODE_HEADER_1 {
 pub struct WPARAM(pub usize);
 pub const WS_EX_APPWINDOW: i32 = 262144;
 pub const WS_EX_NOACTIVATE: i32 = 134217728;
-pub const WS_MAXIMIZE: i32 = 16777216;
 pub const WS_MINIMIZE: i32 = 536870912;
-pub const WS_OVERLAPPEDWINDOW: i32 = 13565952;
 pub const WS_POPUP: u32 = 2147483648;
-pub const WS_VISIBLE: i32 = 268435456;
 pub type _TDH_IN_TYPE = i32;

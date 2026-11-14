@@ -8,7 +8,6 @@
 // in Library/GameInput instead.
 
 // Window and message loop
-AdjustWindowRectExForDpi
 CreateWindowExW
 DefWindowProcW
 DispatchMessageW
@@ -17,7 +16,6 @@ GetDpiForWindow
 GetModuleHandleW
 GetMonitorInfoW
 GetWindowLongPtrW
-IsZoomed
 LoadCursorW
 MonitorFromWindow
 PeekMessageW
@@ -34,10 +32,8 @@ IDC_ARROW
 MONITOR_DEFAULTTONEAREST
 PM_REMOVE
 SC_KEYMENU
-SWP_FRAMECHANGED
 SWP_NOACTIVATE
 SWP_NOOWNERZORDER
-SWP_NOZORDER
 SW_SHOWNA
 USER_DEFAULT_SCREEN_DPI
 WM_DISPLAYCHANGE
@@ -47,11 +43,8 @@ WM_QUIT
 WM_SETTINGCHANGE
 WM_SIZE
 WM_SYSCOMMAND
-WS_MAXIMIZE
 WS_MINIMIZE
-WS_OVERLAPPEDWINDOW
 WS_POPUP
-WS_VISIBLE
 MONITORINFO
 RECT
 
@@ -310,10 +303,6 @@ WM_ERASEBKGND
 WM_SETCURSOR
 WM_SETFOCUS
 WS_EX_APPWINDOW
-
-// Library/UserInterface's rewrite: a dark title bar in the dark theme
-DwmSetWindowAttribute
-DWMWINDOWATTRIBUTE
 
 // Windows that test runs open beneath the others, and that a click never
 // activates
