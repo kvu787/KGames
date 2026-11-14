@@ -106,6 +106,23 @@ fn expectations_match_what_they_name() {
     assert_eq!(check(r#"{ "List": [1] }"#).len(), 1);
 }
 
+// A script's drag, run frame by frame, moves the pointer to each of its
+// points from where the frame before left it, as the motion that takes it
+// there.
+#[test]
+fn a_drag_lands_on_each_of_its_points_frame_by_frame() {
+    let mut app = Headless::new(Page);
+    let script = Script::parse(r#"{ "Steps": [ { "Frame": 1, "Drag": { "From": [100, 300], "To": [400, 600], "Frames": 3 } } ] }"#).unwrap();
+    let mut runner = ScriptRunner::new(script);
+    let mut pointers = Vec::new();
+    for number in 0..=4 {
+        let events = runner.frame(number, &app.ui).unwrap().events;
+        app.send(&events);
+        pointers.push(app.pointer());
+    }
+    assert_eq!(pointers[1..], [Point::new(100.0, 300.0), Point::new(200.0, 400.0), Point::new(300.0, 500.0), Point::new(400.0, 600.0)]);
+}
+
 #[test]
 fn a_point_can_be_a_place_in_a_target() {
     let app = Headless::new(Page);

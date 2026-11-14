@@ -60,8 +60,8 @@ enum Action {
     Scroll(Place, f32),
     Key(Shortcut),
     Hold(Vec<Key>),
-    // The keys that type the text.
-    Type(Vec<Event>),
+    // Text that the keys type, which the script was read with.
+    Type(String),
     Gamepad(Gamepad),
     Capture(String),
     Expect(Value),
@@ -186,7 +186,10 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
             Action::Hold(keys)
         }
         "Type" => match value {
-            Value::String(text) => Action::Type(gestures::type_text(text)?),
+            Value::String(text) => {
+                gestures::type_text(text, false)?;
+                Action::Type(text.clone())
+            }
             _ => return Err("needs text".to_string()),
         },
         "Gamepad" => Action::Gamepad(parse_gamepad(value)?),
@@ -253,7 +256,10 @@ impl ScriptRunner {
                     self.held = keys;
                     vec![gestures::made(&events)]
                 }
-                Action::Type(events) => vec![gestures::made(&events)],
+                Action::Type(text) => {
+                    let typed = gestures::type_text(&text, self.held.contains(&Key::SHIFT))?;
+                    vec![gestures::made(&typed)]
+                }
                 Action::Gamepad(gamepad) => {
                     self.gamepad = gamepad;
                     Vec::new()

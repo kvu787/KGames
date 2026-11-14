@@ -368,10 +368,10 @@ impl Window {
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
-            // Windows' cursor, let go of as the window closes, like with
-            // Alt+F4, or a panic's unwinding, which Windows doesn't do for
-            // the window, while it can still be let go of where the pointer
-            // was.
+            // Windows' cursor, let go of as the window closes, like with F12
+            // or the taskbar's Close, or a panic's unwinding, which Windows
+            // doesn't do for the window, while it can still be let go of
+            // where the pointer was.
             let actions = self.cursor.let_go(cursor_facts(self.hwnd));
             self.carry_out(&actions);
             SetWindowLongPtrW(self.hwnd, GWLP_USERDATA, 0);
@@ -532,8 +532,8 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             // Windows' own window shortcuts do nothing: its default handling
             // of the system keys' messages would turn Alt alone and F10 into
             // the menu's keyboard mode, Alt+Space into the window's menu, and
-            // Alt+F4 into a close. Alt+F4 comes from GameInput's keys instead
-            // (see core/interface.rs).
+            // Alt+F4 into a close. Alt+F4 is only two keys to KGames, and F12
+            // quits instead (see input/reader.rs).
             WM_SYSKEYDOWN | WM_SYSKEYUP | WM_SYSCHAR => LRESULT(0),
             // Hidden over the client area while the window keeps it, where
             // the interface draws its own pointer, and the arrow otherwise.

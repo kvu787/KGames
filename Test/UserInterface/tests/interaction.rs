@@ -348,6 +348,26 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
     assert_eq!((app.program.choice, app.ui.popup_name()), (2, None));
 }
 
+// While the window doesn't keep Windows' cursor, as focus went or F1 let it
+// go, the pointer is away: nothing is under it, no tooltip shows, and the
+// popups that were open close as it goes. Back, it's where it was.
+#[test]
+fn nothing_is_under_the_pointer_while_it_is_away() {
+    let mut app = Headless::new(Test::default());
+    app.move_point(Point::new(60.0, PERF_BAR + 30.0)).wait(TOOLTIP_DELAY * 2.0);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (Some("Button"), Some("Button")));
+    app.pointer_away(true);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (None, None));
+    app.wait(TOOLTIP_DELAY * 2.0);
+    assert_eq!((app.ui.hovered_name(), app.ui.tooltip_name()), (None, None));
+    app.pointer_away(false);
+    assert_eq!(app.ui.hovered_name(), Some("Button"));
+    app.click("Combo");
+    assert_eq!(app.ui.popup_name(), Some("Combo"));
+    app.pointer_away(true);
+    assert_eq!(app.ui.popup_name(), None);
+}
+
 #[test]
 fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     let mut app = Headless::new(Test::default());

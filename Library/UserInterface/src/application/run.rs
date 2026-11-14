@@ -184,17 +184,22 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             continue;
         }
 
-        // The input, read as late as it can be. F12 quits, and F1 keeps
-        // Windows' cursor or lets it go, on this frame. The frame draws the
-        // pointer exactly while Windows' cursor is kept, hidden, which a
-        // script's frames, and those without input, never do.
+        // The input, read as late as it can be. F1 keeps Windows' cursor or
+        // lets it go on this frame: an F1 that keeps it again keeps it
+        // before the frame, so that the frame draws the pointer, and one that
+        // lets it go lets it go after it, where the frame's input left the
+        // pointer. The frame draws the pointer exactly while Windows' cursor
+        // is kept, hidden, which a script's frames, and those without input,
+        // never do, and while it isn't kept, the pointer is away.
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
-        if input.quit {
-            break;
+        let keep = mice && source.captured();
+        if keep {
+            window.check_focus(keep);
         }
-        window.check_focus(mice && source.captured());
-        ui.draws_pointer = window.keeps_cursor();
+        let kept = keep && window.keeps_cursor();
+        ui.draws_pointer = kept;
+        ui.set_pointer_away(mice && !kept);
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
         if problems.is_empty() {
@@ -204,10 +209,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             shown = None;
             ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.frame, size);
         }
-        // Where Windows' cursor shows as the window loses focus.
+        // Where Windows' cursor shows as it's let go of.
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
+        window.check_focus(keep);
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleVerticalSync => {
@@ -216,6 +222,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 }
                 Request::Close => return finish(&mut gpu, source),
             }
+        }
+        // F12 quits, once the frame has had the input that came before it.
+        if input.quit {
+            return finish(&mut gpu, source);
         }
         if program.title() != title {
             title = program.title();

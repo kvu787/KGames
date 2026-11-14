@@ -102,20 +102,25 @@ pub(crate) fn key(modifiers: Modifiers, key: Key, held: &[Key]) -> Frames {
 }
 
 // The keys that type the text, all in one frame: each character's key,
-// pressed and let go of, with Shift around it if it needs it. The text is
-// what the keys type on a US keyboard (see input/typing.rs), so a character
-// that none of them types is an error, which says which.
-pub(crate) fn type_text(text: &str) -> Result<Vec<Event>, String> {
+// pressed and let go of, with Shift down for those that need it and up for
+// those that don't, and as `shift_held` says it was once the text is typed,
+// so that a Shift that a test or a script holds stays held. The text is what
+// the keys type on a US keyboard (see input/typing.rs), so a character that
+// none of them types is an error, which says which.
+pub(crate) fn type_text(text: &str, shift_held: bool) -> Result<Vec<Event>, String> {
+    let shift = |down: bool| if down { Event::KeyPressed(Key::SHIFT) } else { Event::KeyReleased(Key::SHIFT) };
     let mut events = Vec::new();
+    let mut shift_down = shift_held;
     for character in text.chars() {
-        let (key, shift) = key_for(character).ok_or_else(|| format!("can't type {character:?}, which no key of a US keyboard types"))?;
-        if shift {
-            events.push(Event::KeyPressed(Key::SHIFT));
+        let (key, needs_shift) = key_for(character).ok_or_else(|| format!("can't type {character:?}, which no key of a US keyboard types"))?;
+        if needs_shift != shift_down {
+            events.push(shift(needs_shift));
+            shift_down = needs_shift;
         }
         events.extend([Event::KeyPressed(key), Event::KeyReleased(key)]);
-        if shift {
-            events.push(Event::KeyReleased(Key::SHIFT));
-        }
+    }
+    if shift_down != shift_held {
+        events.push(shift(shift_held));
     }
     Ok(events)
 }

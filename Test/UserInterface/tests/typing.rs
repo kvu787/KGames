@@ -137,6 +137,40 @@ fn a_test_types_text_with_its_keys() {
     assert_eq!(app.program.typed, "Hi, 42!");
 }
 
+// A Shift that the test holds stays held after the text is typed, and the
+// characters that need no Shift are typed without it.
+#[test]
+fn typing_keeps_a_held_shift() {
+    let mut app = Headless::new(Typing::default());
+    app.hold(Key::SHIFT).type_text("aB!c");
+    assert_eq!(app.program.typed, "aB!c");
+    assert!(app.ui.input().key_down(Key::SHIFT));
+    app.release_key(Key::SHIFT).type_text("AB");
+    assert_eq!(app.program.typed, "aB!cAB");
+    assert!(!app.ui.input().key_down(Key::SHIFT));
+}
+
+// A script's Type step after a Hold of Shift keeps it held too.
+#[test]
+fn a_script_types_with_a_held_shift() {
+    let app = Headless::new(Typing::default());
+    let script = user_interface::Script::parse(r#"{ "Steps": [ { "Frame": 1, "Hold": ["Shift"] }, { "Frame": 2, "Type": "aB" } ] }"#).unwrap();
+    let mut runner = user_interface::ScriptRunner::new(script);
+    runner.frame(1, &app.ui).unwrap();
+    let typed: Vec<Event> = runner.frame(2, &app.ui).unwrap().events.into_iter().filter(|event| !matches!(event, Event::Gamepad(_))).collect();
+    assert_eq!(
+        typed,
+        [
+            Event::KeyReleased(Key::SHIFT),
+            Event::KeyPressed(Key::A),
+            Event::KeyReleased(Key::A),
+            Event::KeyPressed(Key::SHIFT),
+            Event::KeyPressed(Key::B),
+            Event::KeyReleased(Key::B),
+        ]
+    );
+}
+
 #[test]
 #[should_panic(expected = "can't type 'é'")]
 fn a_test_can_t_type_what_no_key_types() {

@@ -197,6 +197,13 @@ pub struct Interface {
     // window's frames do while it keeps Windows' cursor, hidden, and not a
     // script's or a test's, whose captures never showed Windows' cursor.
     pub(crate) draws_pointer: bool,
+    // Whether the pointer is away: a window's frames are while it doesn't
+    // keep Windows' cursor, as focus went, F1 let it go, or the click that
+    // gave the window focus is still held, and the user points with
+    // Windows' arrow instead. Then nothing is under the pointer, no tooltip
+    // shows, and the popups that were open close as it goes. The program
+    // never hears why.
+    pointer_away: bool,
     // Whether the step running is its frame's last, which has the frame's
     // delta.
     last_step: bool,
@@ -233,6 +240,7 @@ impl Interface {
             performance: None,
             messages_applied: 0,
             draws_pointer: false,
+            pointer_away: false,
             last_step: true,
             phases: FramePhases::default(),
         }
@@ -343,6 +351,16 @@ impl Interface {
         self.layout(&tree);
         lap(&mut phases.layout);
         tree
+    }
+
+    // Whether the pointer is away from the frames that come, as the window
+    // doesn't keep Windows' cursor: the popups that were open close as it
+    // goes.
+    pub(crate) fn set_pointer_away(&mut self, away: bool) {
+        if away && !self.pointer_away {
+            self.popups.clear();
+        }
+        self.pointer_away = away;
     }
 
     // What the parts of the last frame cost the CPU, over all its steps.
@@ -827,6 +845,9 @@ impl Interface {
     // The target that the pointer is on, with the topmost target under it:
     // that one, or only the target with a press while there is one.
     fn under_pointer(&self, topmost: Option<Id>) -> Option<Id> {
+        if self.pointer_away {
+            return None;
+        }
         match self.active {
             Some((active, _)) => (topmost == Some(active)).then_some(active),
             None => topmost,

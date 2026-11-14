@@ -117,8 +117,8 @@ impl<P: Program> Headless<P> {
         self.frame
     }
 
-    // The frames' deltas added up, as Ui::time has them, at a 60th of a
-    // second a frame.
+    // The frames' deltas added up, as Ui::time has them: a 60th of a second
+    // a frame, but for those of frame_input.
     pub fn time(&self) -> f64 {
         self.ui.time()
     }
@@ -367,15 +367,24 @@ impl<P: Program> Headless<P> {
     }
 
     // Types the text, all in one frame, with the keys that type it on a US
-    // keyboard: each character's key, with Shift if it needs it. A
-    // character that no key types fails the test.
+    // keyboard: each character's key, with Shift if it needs it, and a Shift
+    // that the test holds still held after. A character that no key types
+    // fails the test.
     pub fn type_text(&mut self, text: &str) -> &mut Self {
-        let typed = gestures::type_text(text).unwrap_or_else(|error| panic!("{error}"));
+        let typed = gestures::type_text(text, self.ui.input().key_down(Key::SHIFT)).unwrap_or_else(|error| panic!("{error}"));
         self.send(&typed)
     }
 
     pub fn set_gamepad(&mut self, gamepad: Gamepad) -> &mut Self {
         self.gamepad = gamepad;
+        self.run_frame()
+    }
+
+    // Takes the pointer away, as a window's frames do while it doesn't keep
+    // Windows' cursor, like once focus went or F1 let it go, or brings it
+    // back, and runs a frame.
+    pub fn pointer_away(&mut self, away: bool) -> &mut Self {
+        self.ui.set_pointer_away(away);
         self.run_frame()
     }
 
