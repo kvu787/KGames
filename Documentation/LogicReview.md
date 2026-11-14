@@ -266,15 +266,14 @@ and scripts to the window.
   release that GameInput hadn't delivered yet. They can come back when they're wanted.
 - **When focus changes:** at the time the window handles `WM_SETFOCUS`, after GameInput's own switch,
   so input in between counts as without focus.
-- **The pointer:** decided. It's KGames' own, as a game's is: GameInput's mice move it, a count a
-  pixel, in the stream's order, from the middle of the window, where it starts as the window gets
-  focus, so a press lands where it was as the button went down, and a key after a move sees it
-  where it went. While the window has focus, Windows' cursor is hidden and kept inside it, and the
+- **The pointer:** decided. It's KGames' own, as a game's is: GameInput's mice move it, in the
+  stream's order, so a press lands where it was as the button went down, and a key after a move
+  sees it where it went. While the window has focus, Windows' cursor is hidden and kept inside it, and the
   interface draws the pointer, a frame's input latency behind the mouse, where Windows' own cursor
   is drawn by the hardware. The window starts to keep the cursor only once no mouse button is
   held, by Windows' account, which has the click that gave it focus, so that a click on the title
-  bar's minimize or close button works. As focus goes, Windows' cursor goes to the middle of the
-  window. Nothing reads where Windows' cursor is.
+  bar's minimize or close button works. Nothing reads where Windows' cursor is. The review below
+  settled the rest.
 
 ## Still open
 
@@ -324,17 +323,21 @@ that gives the window focus doing nothing in the program, which GameInput doesn'
 
 ## Decisions left to the user
 
-- **How far the pointer moves:** a count a pixel, as SDL's relative mode does by default, which is
-  Windows' default speed without "Enhance pointer precision", which is on by default. Microsoft's
-  documentation has a pointer follow the user's speed and acceleration, which SDL can apply to raw
-  motion by reading them from Windows.
-- **Where Windows' cursor shows as the window loses focus:** in the middle of the window, as asked.
-  SDL puts it where its own pointer was, and Godot's captured mode leaves it in the middle, where
-  it keeps it.
-- **Where the pointer starts as the window gets focus:** in the middle. SDL's relative mode carries
-  its own position on from where it was.
+- **How far the pointer moves:** decided, as SDL does. By Windows' pointer speed and "Enhance
+  pointer precision", which `input/ballistics.rs` ports from SDL's system scale, so that the
+  pointer moves as Windows' cursor would, as Microsoft's documentation has a pointer do. It was a
+  count a pixel, which is SDL's relative mode's default.
+- **Where Windows' cursor shows as the window loses focus:** decided, as SDL does. Where the
+  pointer was. It was the middle of the window.
+- **Where the pointer starts as the window gets focus:** decided, as SDL does. In the middle the
+  first time, and where it was after that. It was the middle each time.
+- **Where the pointer is:** decided. Anywhere, in parts of a pixel, as the scaled motion moves it,
+  and drawn there with antialiased edges, not on the pixels' grid.
 - **Devices with absolute positions,** like pens, touch screens, Remote Desktop and virtual
   machines, which GameInput gives as `absolutePositionX` and `absolutePositionY`, in units that its
-  documentation doesn't give: they don't move the pointer. SDL handles each.
-- **The size of the pointer:** fixed, where Windows' cursor follows the size that the user sets in
-  its accessibility settings.
+  documentation doesn't give: they don't move the pointer, which the user doesn't need yet. SDL
+  handles each.
+- **How the pointer looks:** decided. Unlike Windows' cursors, so that the two are easy to tell
+  apart: in the theme's accent with an edge in `text_on_accent`, and its arrow a dart. Its size is
+  fixed, where Windows' cursor follows the size that the user sets in its accessibility
+  settings.
