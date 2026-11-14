@@ -414,7 +414,7 @@ fn a_mouse_starts_over_across_focus_changes() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::PointerMoved(_) | Event::Wheel(_))), "{:?}", frame.events);
     let frame = reader.read(&[mouse_with(50, 130, 150, 360)], &[], &window(Some((40, true))));
     assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
-    assert_eq!(frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).last(), Some(&Event::PointerMoved(MIDDLE)));
+    assert_eq!(frame.events.iter().rfind(|event| matches!(event, Event::PointerMoved(_))), Some(&Event::PointerMoved(MIDDLE)));
     let frame = reader.read(&[mouse_with(60, 137, 157, 240)], &[], &window(None));
     assert!(frame.events.contains(&Event::PointerMoved(moved(MIDDLE, 7, 7))), "{:?}", frame.events);
     assert!(frame.events.contains(&Event::Wheel(Point::new(0.0, -1.0))), "{:?}", frame.events);
@@ -431,7 +431,7 @@ fn a_mouse_starts_over_as_focus_goes_without_its_reading_at_rest() {
     reader.read(&[], &[], &window(Some((20, false))));
     let frame = reader.read(&[mouse_with(50, 230, 150, 360)], &[], &window(Some((40, true))));
     assert!(!frame.events.iter().any(|event| matches!(event, Event::Wheel(_))), "{:?}", frame.events);
-    assert_eq!(frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).last(), Some(&Event::PointerMoved(MIDDLE)));
+    assert_eq!(frame.events.iter().rfind(|event| matches!(event, Event::PointerMoved(_))), Some(&Event::PointerMoved(MIDDLE)));
 }
 
 // Only relative positions move the pointer: a reading with only absolute
