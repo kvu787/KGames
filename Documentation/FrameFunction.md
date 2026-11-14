@@ -430,7 +430,8 @@ Each step is a series of commits of its own, and every test and script passes af
    `prepare`, `render` and `Gpu` leave `Program`.
 4. **Devices and files.** `Startup::devices` becomes events and requests, and files go through
    `Files`.
-5. **The pointer** moves above the boundary, if question 5 says so.
+5. **The pointer and typed text move above the boundary.** The UI library moves the pointer from
+   each mouse's raw motion, and makes ASCII of keys.
 6. **The crates split,** and the dependency check comes in.
 7. **The first program written against `frame`** directly.
 8. **The tests move to frames.** `Headless` becomes a loop over `frame`.
