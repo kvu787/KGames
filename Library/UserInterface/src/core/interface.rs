@@ -57,6 +57,10 @@ pub struct Environment {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Request {
     ToggleVerticalSync,
+    // Alt+F4: close if the program says it may. A program's frame asks it in
+    // the step with the key; the unsupported setup's frames leave it to the
+    // main loop.
+    AskToClose,
     Close,
 }
 
@@ -317,6 +321,15 @@ impl Interface {
             let mut context = Context { inner: self, queue: &mut queue };
             program.update(message, &mut context);
         }
+        // Alt+F4 asks the program whether it may close once the step's
+        // messages are applied, so that what it shows if it may not, like a
+        // prompt about unsaved work, is in this step's view.
+        if let Some(index) = self.requests.iter().position(|request| *request == Request::AskToClose) {
+            self.requests.remove(index);
+            if program.may_close() {
+                self.requests.push(Request::Close);
+            }
+        }
         lap(&mut phases.update);
 
         // The step's tree, laid out, for the next step's input and for the
@@ -570,6 +583,9 @@ impl Interface {
             // it from this very frame; the loop re-reads the truth after.
             self.environment.vertical_sync = !self.environment.vertical_sync;
             self.requests.push(Request::ToggleVerticalSync);
+        }
+        if self.input.key_pressed(Key::F4) && self.input.key_down(Key::ALT) {
+            self.requests.push(Request::AskToClose);
         }
     }
 

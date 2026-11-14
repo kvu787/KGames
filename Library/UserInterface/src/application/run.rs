@@ -199,6 +199,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
                 }
+                Request::AskToClose => {
+                    if program.may_close() {
+                        return finish(&mut gpu, source);
+                    }
+                }
                 Request::Close => return finish(&mut gpu, source),
             }
         }
