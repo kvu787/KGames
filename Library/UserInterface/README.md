@@ -292,8 +292,11 @@ before, but reports gamepads' whole state, their held buttons too.
   driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
   its presses in a frame are two.
 - Without focus, the window has no input at all, including the gamepad's. As focus goes,
-  everything held is let go of on that step: keys and mouse buttons are released, the gamepad
-  goes to rest, and `ui.input().focus_lost` says why. The click that gives it focus does only
+  everything still held is let go of on that step: keys and mouse buttons are released, the
+  gamepad goes to rest, and `ui.input().focus_lost` says why. GameInput's readings at rest as
+  focus goes may come first, and let go of what they say on their own steps, as any reading
+  does. The pointer is where it is from the step after the one that focus comes in. The click
+  that gives it focus does only
   that, and keys and gamepad buttons held when it gets focus count once they're let go of:
   GameInput doesn't report the keys and the click, and the interface ignores the gamepad's held
   buttons until they're let go of. A reading from before the window got focus is input without

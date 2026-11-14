@@ -6,10 +6,12 @@
 // the same way whatever made it.
 //
 // Without window focus there's no input at all. As focus goes, everything
-// held is let go of on that step: keys and mouse buttons are released, the
-// gamepad goes to rest, and `focus_lost` says why. Keys and gamepad buttons
-// held when focus comes count only once they're let go of, so that the Alt
-// of an Alt+Tab, or a button pressed in another program, does nothing here.
+// still held is let go of on that step: keys and mouse buttons are released,
+// the gamepad goes to rest, and `focus_lost` says why. GameInput's readings
+// at rest as focus goes may come before it, and then let go of what they
+// say on their own steps, as any reading does. Keys and gamepad buttons held
+// when focus comes count only once they're let go of, so that the Alt of an
+// Alt+Tab, or a button pressed in another program, does nothing here.
 
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};

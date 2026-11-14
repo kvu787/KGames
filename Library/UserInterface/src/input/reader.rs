@@ -253,7 +253,10 @@ impl InputReader {
                     self.position = Point::new(self.size.width / 2.0, self.size.height / 2.0);
                 }
                 self.position = self.inside(self.position);
+                // The interface hears where the pointer is right away, so
+                // that a key or a button after focus came is where it is.
                 self.pointer = None;
+                self.point(events);
                 // The interface takes the gamepad event right after focus
                 // comes as what's held then, which counts once it's let go
                 // of. Its buttons that count are none, as the reader ignores
