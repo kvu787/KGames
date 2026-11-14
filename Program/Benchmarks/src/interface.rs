@@ -13,7 +13,7 @@ use user_interface::game_input::{GameInputKeyState, GameInputKindKeyboard, GameI
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::performance::{Frame, Performance};
 use user_interface::tokens::{BODY, CAPTION, MAXIMIZED_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Event, FocusChange, Font, Fonts, Headless, Point, Program, Reading, Startup, TextStyle, Weight, clock};
+use user_interface::{Event, FocusChange, Font, Fonts, Headless, Point, Program, Reading, Size, Startup, TextStyle, Weight, clock};
 
 use crate::harness::{Budget, Measurement, measure, measure_timed};
 
@@ -271,8 +271,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     let mut reader = InputReader::new(true);
     let now = clock::now();
     let window = WindowState {
-        cursor: Point::new(100.0, 50.0),
-        inside: true,
+        size: Size::new(WINDOW_WIDTH, MAXIMIZED_HEIGHT),
         focus_changes: vec![FocusChange { time: now, gained: true }],
     };
     reader.read(&[], &[], &window);

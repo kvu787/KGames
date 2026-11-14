@@ -17,8 +17,6 @@ use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
     PointerMoved(Point),
-    // The pointer left the window with no button held.
-    PointerLeft,
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
@@ -130,7 +128,7 @@ impl Input {
         let mut index = 0;
         while index < events.len() {
             let acts = match &events[index] {
-                Event::PointerMoved(_) | Event::PointerLeft => false,
+                Event::PointerMoved(_) => false,
                 Event::Gamepad(gamepad) => std::mem::replace(&mut self.step_gamepad_buttons, gamepad.buttons.0) != gamepad.buttons.0,
                 _ => true,
             };
@@ -143,7 +141,7 @@ impl Input {
             start = index;
         }
         let rest = &events[start..];
-        let moves_pointer = rest.iter().any(|event| matches!(event, Event::PointerMoved(_) | Event::PointerLeft));
+        let moves_pointer = rest.iter().any(|event| matches!(event, Event::PointerMoved(_)));
         if steps.is_empty() || moves_pointer {
             steps.push(rest);
         } else if !rest.is_empty() {
@@ -209,11 +207,6 @@ impl Input {
             }
             _ if !self.focused => {}
             Event::PointerMoved(point) => self.pointer = Some(*point),
-            Event::PointerLeft => {
-                if !self.any_button_down() {
-                    self.pointer = None;
-                }
-            }
             Event::ButtonPressed(button) => {
                 let time = self.time;
                 let position = self.pointer.unwrap_or_default();

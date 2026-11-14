@@ -1,7 +1,7 @@
 // A program's Win32 window. Its input comes from GameInput
 // (platform/input_devices.rs and input/reader.rs), not from its messages,
-// which it handles only to be a window: its focus, its cursor, its size and
-// its close button.
+// which it handles only to be a window: its focus, Windows' cursor over it,
+// its size and its close button.
 //
 // - It's maximized or borderless fullscreen, the two supported setups, and
 //   switches between them without taking focus.
@@ -9,8 +9,12 @@
 //   on, as input without focus is ignored. The time is when it handles the
 //   message, which Windows sends it once the focus has moved, so it can be
 //   a little after.
-// - Drags keep going past its edges, as it captures the mouse while a button
-//   is held.
+// - While it has focus, Windows' cursor is hidden over it and kept inside its
+//   client area, as games do: the interface keeps a pointer of its own, which
+//   GameInput's mice move, and draws it (see input/reader.rs). As the window
+//   gets focus and loses it, Windows' cursor goes to the middle of its client
+//   area, where the interface's pointer starts, so that it shows there once
+//   the window is left, like with Alt+Tab.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
@@ -30,8 +34,7 @@ use windows_api::*;
 use windows_core::{BOOL, Error, PCWSTR, Result, w};
 
 use crate::application::settings::WindowMode;
-use crate::core::interaction::Cursor;
-use crate::drawing::geometry::{Color, Point};
+use crate::drawing::geometry::Color;
 use crate::platform::clock;
 
 // RunInBackground finds programs' windows by this class.
@@ -42,19 +45,6 @@ pub const DISPLAY_WIDTH: i32 = 2560;
 pub const DISPLAY_HEIGHT: i32 = 1440;
 pub const TASKBAR_HEIGHT: i32 = 48;
 pub const MAXIMIZED_CLIENT_HEIGHT: i32 = 1369;
-
-const CURSORS: [Cursor; 10] = [
-    Cursor::Arrow,
-    Cursor::Text,
-    Cursor::Hand,
-    Cursor::Move,
-    Cursor::ResizeHorizontal,
-    Cursor::ResizeVertical,
-    Cursor::ResizeDiagonal,
-    Cursor::ResizeAntidiagonal,
-    Cursor::Crosshair,
-    Cursor::NotAllowed,
-];
 
 // The window got focus, or lost it, at a time on the counter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,9 +57,9 @@ pub struct FocusChange {
 //
 // The window procedure runs inside the Windows calls that send the window
 // messages, while one of the window's methods is running, like
-// DispatchMessageW in `pump`, SetWindowPos in `apply_mode` and `show`,
-// ShowWindow, SetCapture and ReleaseCapture. It runs inside its own calls
-// too, like ReleaseCapture and DefWindowProcW. So both only ever hold
+// DispatchMessageW in `pump`, SetWindowPos in `apply_mode` and `show`, and
+// ShowWindow. It runs inside its own calls too, like DefWindowProcW. So both
+// only ever hold
 // `&Shared`, which may overlap, and change it through its cells. A
 // `&mut Shared` on either side would alias the other's reference, which is
 // undefined behavior even when it works.
@@ -79,9 +69,8 @@ struct Shared {
     minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
-    // Whether the cursor was on the client area when last asked.
-    cursor_inside: Cell<bool>,
-    cursor: Cell<HCURSOR>,
+    // Windows' arrow, which its cursor is over the window without focus.
+    arrow: HCURSOR,
     // What the window shows until its first frame is presented.
     background: COLORREF,
 }
@@ -105,7 +94,6 @@ pub struct Window {
     // using. Drop frees it, after the window is destroyed.
     shared: NonNull<Shared>,
     mode: WindowMode,
-    cursors: [HCURSOR; CURSORS.len()],
     dark_title_bar: Option<bool>,
 }
 
@@ -146,27 +134,13 @@ impl Window {
 
     unsafe fn wrap(hwnd: HWND, background: Color) -> Window {
         unsafe {
-            let cursors = [
-                IDC_ARROW,
-                IDC_IBEAM,
-                IDC_HAND,
-                IDC_SIZEALL,
-                IDC_SIZEWE,
-                IDC_SIZENS,
-                IDC_SIZENWSE,
-                IDC_SIZENESW,
-                IDC_CROSS,
-                IDC_NO,
-            ]
-            .map(|cursor| LoadCursorW(None, cursor));
             let shared = Box::new(Shared {
                 focus_changes: Cell::new(Vec::new()),
                 focused: Cell::new(false),
                 minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
-                cursor_inside: Cell::new(false),
-                cursor: Cell::new(cursors[0]),
+                arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
             });
             let shared = NonNull::new_unchecked(Box::into_raw(shared));
@@ -175,7 +149,6 @@ impl Window {
                 hwnd,
                 shared,
                 mode: WindowMode::WindowedMaximized,
-                cursors,
                 dark_title_bar: None,
             }
         }
@@ -312,31 +285,13 @@ impl Window {
         self.shared().focus_changes.take()
     }
 
-    // Where Windows' cursor is, in the client area's pixels, and whether it's
-    // on the client area, with no other window over it there.
-    pub fn cursor(&mut self) -> (Point, bool) {
-        let mut point = POINT::default();
-        unsafe {
-            let _ = GetCursorPos(&mut point);
-            let over = WindowFromPoint(point) == self.hwnd;
-            let _ = ScreenToClient(self.hwnd, &mut point);
-            let (width, height) = self.client_size();
-            let inside = over && point.x >= 0 && point.y >= 0 && (point.x as u32) < width && (point.y as u32) < height;
-            self.shared().cursor_inside.set(inside);
-            (Point::new(point.x as f32, point.y as f32), inside)
-        }
-    }
-
-    // Captures the mouse, so that a drag keeps going past the window's edges,
-    // or lets it go.
-    pub fn set_capture(&mut self, capture: bool) {
-        unsafe {
-            let captured = GetCapture() == self.hwnd;
-            if capture && !captured {
-                SetCapture(self.hwnd);
-            } else if !capture && captured {
-                let _ = ReleaseCapture();
-            }
+    // Keeps Windows' cursor inside the client area while the window has
+    // focus, every frame, as Windows lets go of a cursor's confinement when
+    // other windows come and go, and the client area moves when the window
+    // switches between maximized and fullscreen.
+    pub fn confine_cursor(&mut self) {
+        if self.focused() && !self.minimized() {
+            unsafe { confine(self.hwnd) };
         }
     }
 
@@ -375,21 +330,6 @@ impl Window {
         let title = wide(title);
         unsafe {
             let _ = SetWindowTextW(self.hwnd, PCWSTR(title.as_ptr()));
-        }
-    }
-
-    pub fn set_cursor(&mut self, cursor: Cursor) {
-        let index = CURSORS.iter().position(|known| *known == cursor).unwrap_or(0);
-        let cursor = self.cursors[index];
-        let shared = self.shared();
-        if shared.cursor.get() != cursor {
-            shared.cursor.set(cursor);
-            // The pointer may be still, so set it now, not at its next move.
-            if shared.focused.get() && shared.cursor_inside.get() {
-                unsafe {
-                    SetCursor(Some(cursor));
-                }
-            }
         }
     }
 
@@ -540,6 +480,42 @@ unsafe fn fill(hdc: HDC, rect: &RECT, color: COLORREF) {
     }
 }
 
+// The client area, in the screen's pixels.
+unsafe fn client_on_screen(hwnd: HWND) -> RECT {
+    unsafe {
+        let mut client = RECT::default();
+        let _ = GetClientRect(hwnd, &mut client);
+        let mut origin = POINT::default();
+        let _ = ClientToScreen(hwnd, &mut origin);
+        RECT {
+            left: origin.x,
+            top: origin.y,
+            right: origin.x + client.right,
+            bottom: origin.y + client.bottom,
+        }
+    }
+}
+
+// Keeps Windows' cursor inside the client area.
+unsafe fn confine(hwnd: HWND) {
+    unsafe {
+        let client = client_on_screen(hwnd);
+        let _ = ClipCursor(Some(&client));
+    }
+}
+
+// Puts Windows' cursor in the middle of the client area, unless the window is
+// minimized, and has none.
+unsafe fn center_cursor(hwnd: HWND) {
+    unsafe {
+        if IsIconic(hwnd).as_bool() {
+            return;
+        }
+        let client = client_on_screen(hwnd);
+        let _ = SetCursorPos(client.left + (client.right - client.left) / 2, client.top + (client.bottom - client.top) / 2);
+    }
+}
+
 fn low_word(value: isize) -> i32 {
     (value & 0xFFFF) as u16 as i16 as i32
 }
@@ -556,11 +532,14 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
         match message {
             WM_SETFOCUS => {
                 shared.focus_changed(true);
+                center_cursor(hwnd);
+                confine(hwnd);
                 LRESULT(0)
             }
             WM_KILLFOCUS => {
                 shared.focus_changed(false);
-                let _ = ReleaseCapture();
+                let _ = ClipCursor(None);
+                center_cursor(hwnd);
                 LRESULT(0)
             }
             WM_SYSCOMMAND => {
@@ -571,9 +550,12 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                     DefWindowProcW(hwnd, message as u32, wparam, lparam)
                 }
             }
+            // Hidden over the client area while the window has focus, where
+            // the interface draws its own pointer, and the arrow without.
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    SetCursor(Some(shared.cursor.get()));
+                    let cursor = if shared.focused.get() { None } else { Some(shared.arrow) };
+                    SetCursor(cursor);
                     LRESULT(1)
                 } else {
                     DefWindowProcW(hwnd, message as u32, wparam, lparam)

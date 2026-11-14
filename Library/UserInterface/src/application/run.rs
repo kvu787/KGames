@@ -104,6 +104,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     });
     let mut program = create(&mut startup)?;
     ui.notices = startup.take_notices();
+    // The window's frames draw the pointer, as Windows' cursor is hidden over
+    // the window while it has focus. A script's don't.
+    ui.draws_pointer = !scripted;
     if !scripted && let Err(error) = startup.settings.write_if_missing() {
         ui.notices.push(Notice {
             severity: Severity::Warning,
@@ -198,7 +201,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::Close => return finish(&mut gpu, source),
             }
         }
-        window.set_cursor(ui.cursor());
         window.set_dark_title_bar(ui.theme().kind == ThemeKind::Dark);
         if program.title() != title {
             title = program.title();
@@ -219,6 +221,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             });
         }
         gpu.report_messages();
+        // Windows' cursor kept inside the window while it has focus, once a
+        // frame, after it's presented, where it doesn't hold up the input.
+        window.confine_cursor();
         if let Some(script) = input.script
             && source.check(script, image, || state(&program, &ui))?
         {

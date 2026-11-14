@@ -1,13 +1,13 @@
 // Tests how GameInput's readings become the interface's events: keys and
-// their text, the mouse's buttons and wheel, the gamepad, focus,
-// and the time of a frame's newest input, which its input latency starts at.
-// The readings, the cursor and the focus changes are made up, with times on
-// the performance counter.
+// their text, the mouse's buttons, wheel and motion, which moves the pointer,
+// the gamepad, focus, and the time of a frame's newest input, which its input
+// latency starts at. The readings, the window's size and the focus changes
+// are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::FocusChange;
-use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading};
+use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading, Size};
 
 const KEYBOARD: usize = 1;
 const MOUSE: usize = 2;
@@ -51,6 +51,14 @@ fn mouse(time: i64, buttons: GameInputMouseButtons, wheel: i64) -> (i64, Reading
     (time, reading)
 }
 
+// A reading of a mouse whose motion adds up to the position, in counts.
+fn mouse_at(time: i64, buttons: GameInputMouseButtons, x: i64, y: i64) -> (i64, Reading) {
+    let (time, mut reading) = mouse(time, buttons, 0);
+    reading.mouse.positionX = x;
+    reading.mouse.positionY = y;
+    (time, reading)
+}
+
 fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
     let reading = Reading {
         device: Some(GAMEPAD),
@@ -64,11 +72,10 @@ fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
     (time, reading)
 }
 
-// The window with the cursor on it, which may get or lose focus at a time.
+// The window, maximized, which may get or lose focus at a time.
 fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
-        cursor: Point::new(100.0, 50.0),
-        inside: true,
+        size: Size::new(2560.0, 1369.0),
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
     }
 }
@@ -328,42 +335,118 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_) | Event::ButtonReleased(_))));
 }
 
+// The pointer is the reader's own, from GameInput's mice alone, and starts on
+// the pixel in the middle of the window, where the window puts Windows'
+// cursor as it gets focus, each time that it does.
 #[test]
-fn a_press_while_the_cursor_is_off_the_window_is_another_window_s() {
-    let mut reader = focused();
-    let off = WindowState {
-        inside: false,
-        ..window(None)
-    };
-    let frame = reader.read(&[mouse(10, GameInputMouseLeftButton, 0)], &[], &off);
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_))));
-    assert!(frame.events.contains(&Event::PointerLeft));
-    let frame = reader.read(&[mouse(20, GameInputMouseNone, 0)], &[], &window(None));
-    assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonReleased(_))));
+fn the_pointer_starts_in_the_middle_of_the_window_as_it_gets_focus() {
+    let middle = Event::PointerMoved(Point::new(1280.0, 684.0));
+    let mut reader = reader();
+    let frame = reader.read(&[], &[], &window(Some((1, true))));
+    assert!(frame.events.contains(&middle), "{:?}", frame.events);
+    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(11, GameInputMouseNone, 300, 200)], &[], &window(None));
+    reader.read(&[], &[], &window(Some((20, false))));
+    let frame = reader.read(&[], &[], &window(Some((40, true))));
+    assert!(frame.events.contains(&middle), "{:?}", frame.events);
 }
 
+// Each mouse's motion moves the pointer a count a pixel, in the stream's
+// order, so that a press and a release each happen where the pointer was as
+// the button went down or up. A mouse's first reading has no motion: its
+// position adds up from wherever GameInput started it.
 #[test]
-fn a_press_on_the_window_is_where_the_cursor_is_and_holds_the_pointer_past_its_edge() {
-    let mut reader = reader();
-    let moved = WindowState {
-        cursor: Point::new(300.0, 200.0),
-        ..window(Some((1, true)))
+fn the_mouse_moves_the_pointer_a_count_a_pixel_in_the_stream_s_order() {
+    let mut reader = focused();
+    let frame = reader.read(
+        &[
+            mouse_at(10, GameInputMouseNone, 5000, 7000),
+            mouse_at(11, GameInputMouseLeftButton, 5010, 6995),
+            mouse_at(12, GameInputMouseLeftButton, 5030, 6995),
+            mouse_at(13, GameInputMouseNone, 5030, 6995),
+        ],
+        &[],
+        &window(None),
+    );
+    let pointer = |events: &[Event]| {
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::PointerMoved(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_)))
+            .cloned()
+            .collect::<Vec<_>>()
     };
-    let frame = reader.read(&[mouse(10, GameInputMouseLeftButton, 0)], &[], &moved);
-    let moved = frame.events.iter().position(|event| *event == Event::PointerMoved(Point::new(300.0, 200.0)));
-    let pressed = frame.events.iter().position(|event| *event == Event::ButtonPressed(MouseButton::Left));
-    assert!(moved.is_some() && pressed.is_some() && moved < pressed);
-    assert!(reader.capturing());
-    let past = WindowState {
-        cursor: Point::new(-20.0, 50.0),
-        inside: false,
+    assert_eq!(
+        pointer(&frame.events),
+        vec![
+            Event::PointerMoved(Point::new(1290.0, 679.0)),
+            Event::ButtonPressed(MouseButton::Left),
+            Event::PointerMoved(Point::new(1310.0, 679.0)),
+            Event::ButtonReleased(MouseButton::Left),
+        ]
+    );
+}
+
+// What comes after a move in the stream sees the pointer where it went, like
+// a key that acts on what the pointer is over.
+#[test]
+fn a_key_sees_the_pointer_where_the_mouse_moved_it() {
+    let mut reader = focused();
+    let frame = reader.read(
+        &[
+            mouse_at(10, GameInputMouseNone, 0, 0),
+            mouse_at(11, GameInputMouseNone, 10, 0),
+            keyboard(12, &[A]),
+            mouse_at(13, GameInputMouseNone, 20, 0),
+        ],
+        &[],
+        &window(None),
+    );
+    let at = |event: &Event| frame.events.iter().position(|other| other == event).unwrap_or_else(|| panic!("no {event:?} in {:?}", frame.events));
+    assert!(at(&Event::PointerMoved(Point::new(1290.0, 684.0))) < at(&Event::KeyPressed(Key::A)));
+    assert!(at(&Event::KeyPressed(Key::A)) < at(&Event::PointerMoved(Point::new(1300.0, 684.0))));
+}
+
+// Two mice move the one pointer, each by its own motion.
+#[test]
+fn each_mouse_moves_the_pointer_by_its_own_motion() {
+    let mut reader = focused();
+    let other = |time: i64, x: i64, y: i64| {
+        let (time, mut reading) = mouse_at(time, GameInputMouseNone, x, y);
+        reading.device = Some(MOUSE + 10);
+        (time, reading)
+    };
+    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), other(11, 900, 900)], &[], &window(None));
+    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 10, 0), other(21, 900, 920)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1290.0, 704.0))), "{:?}", frame.events);
+}
+
+// The pointer stays in the window, as Windows' cursor, which the window keeps
+// inside it, does: motion past an edge is lost, and motion back moves it off
+// the edge at once.
+#[test]
+fn the_pointer_stays_inside_the_window() {
+    let mut reader = focused();
+    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
+    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, -5000, 5000)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(0.0, 1368.0))), "{:?}", frame.events);
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, -4999, 4999)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1.0, 1367.0))), "{:?}", frame.events);
+    // A smaller window takes it in.
+    let smaller = WindowState {
+        size: Size::new(1000.0, 500.0),
         focus_changes: Vec::new(),
     };
-    let frame = reader.read(&[], &[], &past);
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(-20.0, 50.0))));
-    let frame = reader.read(&[mouse(30, GameInputMouseNone, 0)], &[], &past);
-    assert!(frame.events.contains(&Event::ButtonReleased(MouseButton::Left)));
-    assert!(!reader.capturing());
+    reader.read(&[mouse_at(40, GameInputMouseNone, 5000, -4999)], &[], &window(None));
+    let frame = reader.read(&[], &[], &smaller);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(999.0, 0.0))), "{:?}", frame.events);
+}
+
+// A mouse's motion is a running total, which goes around an i64's ends.
+#[test]
+fn the_motion_goes_around_an_i64_s_ends() {
+    let mut reader = focused();
+    reader.read(&[mouse_at(10, GameInputMouseNone, i64::MAX - 1, i64::MIN + 1)], &[], &window(None));
+    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, i64::MIN + 1, i64::MAX - 1)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1283.0, 681.0))), "{:?}", frame.events);
 }
 
 #[test]
@@ -668,7 +751,6 @@ fn keys_and_buttons_go_with_focus_without_a_reading_at_rest() {
     let mut reader = focused();
     reader.read(&[keyboard(10, &[A]), mouse(11, GameInputMouseLeftButton, 0)], &[], &window(None));
     reader.read(&[], &[], &window(Some((20, false))));
-    assert!(!reader.capturing());
     let frame = reader.read(&[keyboard(50, &[A]), mouse(51, GameInputMouseLeftButton, 0)], &[], &window(Some((40, true))));
     assert!(frame.events.contains(&Event::FocusGained(Vec::new())), "{:?}", frame.events);
     assert!(frame.events.contains(&Event::KeyPressed(Key::A)));

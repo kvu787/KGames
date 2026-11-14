@@ -79,22 +79,17 @@ GWLP_USERDATA
 SW_SHOW
 WM_PAINT
 
-// Input, which comes from GameInput: where Windows' cursor is, capturing the
-// mouse for drags, typed text from keys with the keyboard layout, Windows'
-// key repeat settings, and Caps Lock's toggle
-GetCapture
-GetCursorPos
+// Input, which comes from GameInput: Windows' cursor, which is hidden and
+// kept inside the window while it has focus, typed text from keys with the
+// keyboard layout, and Caps Lock's toggle
+ClientToScreen
+ClipCursor
 GetKeyboardLayout
 GetKeyState
+IsIconic
 MAPVK_VSC_TO_VK_EX
-ReleaseCapture
-ScreenToClient
-SetCapture
-SPI_GETKEYBOARDDELAY
-SPI_GETKEYBOARDSPEED
-SystemParametersInfoW
+SetCursorPos
 ToUnicodeEx
-WindowFromPoint
 HTCLIENT
 WHEEL_DELTA
 WM_KILLFOCUS
@@ -284,12 +279,6 @@ DWRITE_TEXT_ALIGNMENT
 DWRITE_TEXT_METRICS
 DWRITE_WORD_WRAPPING
 DestroyWindow
-IDC_CROSS
-IDC_HAND
-IDC_IBEAM
-IDC_SIZEALL
-IDC_SIZENS
-IDC_SIZEWE
 IDWriteFactory::CreateTextFormat
 IDWriteFactory::CreateTextLayout
 IDWritePixelSnapping
@@ -311,13 +300,9 @@ WM_SETCURSOR
 WM_SETFOCUS
 WS_EX_APPWINDOW
 
-// Library/UserInterface's rewrite: a dark title bar in the dark theme, and
-// the cursors for diagonal resizing and for what can't be done
+// Library/UserInterface's rewrite: a dark title bar in the dark theme
 DwmSetWindowAttribute
 DWMWINDOWATTRIBUTE
-IDC_NO
-IDC_SIZENESW
-IDC_SIZENWSE
 
 // Windows that test runs open beneath the others, and that a click never
 // activates

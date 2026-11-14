@@ -241,10 +241,19 @@ before, but reports gamepads' whole state, their held buttons too.
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
   and dead keys, but no IME. A held key doesn't repeat: GameInput's readings don't, and KGames
   doesn't make repeats of its own.
-- The mouse's buttons and wheels come from mice. The pointer is where Windows' cursor is, so it
-  moves at Windows' pointer speed, and a press while the cursor isn't on the window is another
-  window's. Windows keeps no cursor on GameInput's clock, so the cursor is read once a frame, and a
-  press lands where it is as the frame reads its input.
+- The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as a game's
+  is: it starts in the middle of the window as the window gets focus, and each mouse's motion
+  moves it, a count a pixel, which is Windows' default pointer speed without "Enhance pointer
+  precision", in the stream's order, so a press lands where the pointer was as its button went
+  down, and a key after a move sees the pointer where it went. Only mice's relative motion moves
+  it, not a pen's or a touch screen's absolute positions.
+- While the window has focus, Windows' cursor is hidden over it and kept inside its client area, so
+  that no click goes to another window, and the interface draws the pointer over everything, in
+  the shape that the widget under it asks for with `Widget::cursor`. As the window gets focus and
+  as it loses it, like with Alt+Tab, Windows' cursor goes to the middle of the window, where it
+  shows once the window is left. So the title bar's buttons and the taskbar can't be reached with
+  the mouse while the window has focus: Alt+Tab or the Windows key leave it. Scripts' and tests'
+  frames don't draw the pointer, and `Headless::draw_pointer` makes a test's draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
@@ -256,8 +265,7 @@ before, but reports gamepads' whole state, their held buttons too.
   which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
   opens, an item is chosen, and a right press opens a context menu. Sliding off before letting go
   doesn't take a press back. `Hit::pressed` is a left press, and `ViewInput::pressed` is a click
-  in a 3D view. While a button is held, the window captures the
-  mouse, so a drag keeps going past its edges.
+  in a 3D view. The pointer stays inside the window, so a drag ends only with its release.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
   and a press anywhere else takes it away, once the field has taken what was typed before it.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
@@ -534,7 +542,8 @@ writes its files in its output folder, through `startup.data_folder`.
 | `src/core/interface.rs`          | The interface: a frame's steps, each step's input against the tree laid    |
 |                                  | out before it, messages, layout, focus, popups, tooltips, widget memory,   |
 |                                  | and the frame's phases                                                     |
-| `src/platform/window.rs`         | The Win32 window, its focus, its cursor, its two setups, and their check,  |
+| `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its two setups, and  |
+|                                  | their check,                                                               |
 |                                  | and the theme's background that it shows until its first frame             |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |

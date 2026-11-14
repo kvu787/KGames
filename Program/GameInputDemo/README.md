@@ -119,8 +119,8 @@ GameInput reports the devices that are already connected when the demo starts as
 starts on the last gamepad of those. The combo box only ever shows and lists gamepads that are
 connected. While none is, the combo box shows `None`, and a note after it says that no gamepad is
 connected. While `None` is picked with gamepads connected, the note says that gamepad input is
-ignored. The combo box is the library's, which reads the mouse's buttons from GameInput too, and the
-pointer from where Windows' cursor is in the window.
+ignored. The combo box is the library's, which reads the mouse from GameInput too: its buttons, and
+its motion, which moves the pointer.
 
 ### Device tooltips
 
