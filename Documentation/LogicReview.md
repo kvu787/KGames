@@ -341,3 +341,69 @@ that gives the window focus doing nothing in the program, which GameInput doesn'
   apart: in the theme's accent with an edge in `text_on_accent`, and its arrow a dart. Its size is
   fixed, where Windows' cursor follows the size that the user sets in its accessibility
   settings.
+
+# What simplifying the window, focus and the cursor decided
+
+The user narrowed what programs support, to make the window, focus and Windows' cursor simpler and
+sound, and asked for the cursor's transitions to be right above all.
+
+## Measured
+
+A C probe, outside the repository, confined the cursor from one process and changed the foreground
+from another, with a real Alt+Tab, then read `GetClipCursor`, on Windows 11 26300:
+
+| What happened while a process confined the cursor                       | The confinement after |
+| ----------------------------------------------------------------------- | --------------------- |
+| Alt+Tab, while the process handled its messages                         | released by Windows   |
+| Alt+Tab, while its thread was stuck, handling none                      | released by Windows   |
+| Another window brought to the front without Alt+Tab, thread stuck       | released by Windows   |
+| The Windows key opened the Start menu                                   | still confined        |
+| The process exited while the Start menu had the foreground              | still confined        |
+| A process that wasn't the foreground window confined it                 | confined              |
+
+So Windows releases a confinement when a normal window is activated, whatever the process that set
+it is doing, but not for the Start menu, and not when that process ends; and it doesn't stop a
+program in the background from confining the cursor.
+
+## Decided
+
+- **One window setup:** borderless fullscreen on a 2560 × 1440 display at 100%. The windowed
+  maximized setup, F11, the `WindowMode` setting and `--window-mode` went.
+- **Windows' own window shortcuts do nothing:** the window swallows the system keys' messages, so
+  Alt and F10 don't open the menu's keyboard mode, Alt+Space doesn't open the window's menu, and
+  Windows doesn't close it on Alt+F4. Alt+F4 comes from GameInput's keys, and asks
+  `Program::may_close` in the step with the key, so that a prompt about unsaved work is in that
+  frame. The shortcuts that Windows handles before any window sees them, like Alt+Tab and the
+  Windows key, stay Windows'. The window's `WM_CLOSE` stays as it was, so the taskbar's Close works.
+- **Focus:** the window has focus while it's the foreground window and isn't minimized, which the
+  main loop checks on every pass, whatever woke it, and not from Windows' focus messages, which a
+  window can get without being the foreground window. A focus change is timed when the check finds
+  it.
+- **Windows' cursor:** `platform/cursor.rs` decides what the window does with it, on facts that the
+  window gathers on each check, and its tests run whole sequences. The window keeps the cursor,
+  hidden, while it has focus, once no mouse button is held; confines it again when something else
+  changed its confinement; and lets it go as focus goes and as the window closes, releasing only its
+  own confinement, and putting the cursor where the pointer was unless another program confined it
+  or the window is minimized. There's no thread of its own for this: if the main thread is stuck,
+  the cursor stays confined until it recovers, or a normal window is activated, like with Alt+Tab,
+  or Ctrl+Alt+Del.
+- **Minimized:** the main loop runs no frames and waits for messages; the program hears what came
+  meanwhile, like losing focus, in the first frame after the window is restored. GameInput turns
+  gamepads' motors off without focus itself, and back on as the program last asked when focus comes
+  back.
+- **The pointer:** a mouse's counts times `MOUSE_SENSITIVITY`, 0.8. Each mouse's motion is kept
+  across focus changes, as GameInput adds it up only while the program has focus.
+
+## Only the user can check
+
+Tests never take focus, and Windows acts on a window's system keys only while it has focus, so
+these aren't machine-checked, and the user tries them by hand:
+
+- Alt+Tab out and back: the cursor shows where the pointer was, and is confined and hidden again
+  on return.
+- The Windows key: the Start menu opens, and the cursor is free.
+- Minimizing and restoring, like with Win+D.
+- Alt+F4 closes, and MeshModeler with unsaved changes asks first; the taskbar's Close too.
+- Alt+Space and Alt alone do nothing.
+- The pointer's motion right after Alt+Tab back, which assumes GameInput adds up a mouse's motion
+  only while the program has focus, as its documentation says.
