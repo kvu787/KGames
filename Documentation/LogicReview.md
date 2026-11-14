@@ -252,9 +252,9 @@ and scripts to the window.
   any pulls it, each stick the one pushed furthest. The mask of buttons held as focus came is on
   the combination, so a button that one gamepad held then doesn't count from another until both
   let go.
-- **The time of a frame's steps before its last:** the last frame's time, so that a simulation
-  moves once a frame. A press then gets the last frame's time if something follows it in the
-  frame, and this frame's if it's the frame's last event, for a double-click's and a tooltip's
+- **The time of a frame's steps before its last:** decided. Every step sees the frame's time, and
+  only the last has the frame's delta, so that a simulation moves once a frame, by `ui.delta()`.
+  A press gets the frame's time wherever it is in the frame, for a double-click's and a tooltip's
   timing.
 - **What a frame of many steps costs:** each step runs `view`, the layout and the programs' messages,
   like Veehiicuul's and MeshModeler's `Prepare`, so a burst of wheel readings, or a held key's
@@ -266,7 +266,13 @@ and scripts to the window.
   release that GameInput hadn't delivered yet. They can come back when they're wanted.
 - **When focus changes:** at the time the window handles `WM_SETFOCUS`, after GameInput's own switch,
   so input in between counts as without focus.
-- **The cursor**, read once a frame, as Windows has none on GameInput's clock.
+- **The pointer:** decided. It's KGames' own, as a game's is: GameInput's mice move it, a count a
+  pixel, in the stream's order, from the middle of the window, where it starts as the window gets
+  focus, so a press lands where it was as the button went down, and a key after a move sees it
+  where it went. While the window has focus, Windows' cursor is hidden and kept inside it, and the
+  interface draws the pointer, a frame's input latency behind the mouse, where Windows' own cursor
+  is drawn by the hardware. As focus comes and goes, Windows' cursor goes to the middle of the
+  window. Nothing reads where Windows' cursor is.
 
 ## Still open
 

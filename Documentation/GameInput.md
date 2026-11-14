@@ -314,6 +314,15 @@ offers for event-driven input, like a menu, without promising that it gets every
 first frame starts the same way, so every device's state is known from the start.
 `Test/UserInterface/tests/reader.rs` pins the walk.
 
+The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
+`positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
+says, has nothing to do with the screen, and counts only while the program has focus. Each reading
+moves the pointer by its difference from that mouse's last reading, a count a pixel, in the
+stream's order, from the middle of the window, where the pointer starts as the window gets focus.
+While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
+goes to another window, and the interface draws the pointer. `absolutePositionX` and
+`absolutePositionY`, which a pen or a touch screen may give, aren't read.
+
 ## What changed in KGames
 
 | Commit    | What                                                                                                 |
@@ -335,6 +344,7 @@ first frame starts the same way, so every device's state is known from the start
 | `f372be4` | `RegisterReadingCallback` unbound                                                                    |
 | `74ed8a8` | A frame that loses its place starts every device over from its newest reading                        |
 | `6b6f913` | GameInputDemo puts the window's focus changes among its readings by their times                      |
+| `25dd7d2` | The pointer moves by GameInput's mice alone, in the stream's order, and Windows' cursor is hidden    |
 
 What was considered and not done:
 
