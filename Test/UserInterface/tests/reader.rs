@@ -5,6 +5,7 @@
 // are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
+use user_interface::input::ballistics::{PointerSpeed, WINDOWS_CURVE};
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::FocusChange;
 use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading, Size};
@@ -335,19 +336,40 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_) | Event::ButtonReleased(_))));
 }
 
-// The pointer is the reader's own, from GameInput's mice alone, and starts on
-// the pixel in the middle of the window as the window gets focus, each time
-// that it does.
+// The pointer is the reader's own, from GameInput's mice alone, and starts in
+// the middle of the window the first time the window gets focus, in parts of
+// a pixel, not on the pixels' grid, and carries on from where it was each
+// time that focus comes back, as SDL's relative mode carries its own on.
 #[test]
-fn the_pointer_starts_in_the_middle_of_the_window_as_it_gets_focus() {
-    let middle = Event::PointerMoved(Point::new(1280.0, 684.0));
+fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
     let mut reader = reader();
     let frame = reader.read(&[], &[], &window(Some((1, true))));
-    assert!(frame.events.contains(&middle), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1280.0, 684.5))), "{:?}", frame.events);
     reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(11, GameInputMouseNone, 300, 200)], &[], &window(None));
     reader.read(&[], &[], &window(Some((20, false))));
     let frame = reader.read(&[], &[], &window(Some((40, true))));
-    assert!(frame.events.contains(&middle), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1580.0, 884.5))), "{:?}", frame.events);
+}
+
+// Each mouse's motion moves the pointer by Windows' pointer speed and
+// acceleration, as they're set, in parts of a pixel: slowly, with "Enhance
+// pointer precision", by less than a pixel a count.
+#[test]
+fn the_mouse_moves_the_pointer_by_windows_pointer_speed_and_acceleration() {
+    let mut reader = focused();
+    reader.set_pointer_speed(PointerSpeed { speed: 20, acceleration: None });
+    reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
+    let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 2, -1)], &[], &window(None));
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1287.0, 681.0))), "{:?}", frame.events);
+    reader.set_pointer_speed(PointerSpeed {
+        speed: 10,
+        acceleration: Some(WINDOWS_CURVE),
+    });
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 3, -1)], &[], &window(None));
+    let Some(Event::PointerMoved(at)) = frame.events.iter().find(|event| matches!(event, Event::PointerMoved(_))) else {
+        panic!("no move in {:?}", frame.events);
+    };
+    assert!((at.x - 1287.5689).abs() < 1e-3 && at.y == 681.0, "{at:?}");
 }
 
 // Each mouse's motion moves the pointer a count a pixel, in the stream's
@@ -377,9 +399,9 @@ fn the_mouse_moves_the_pointer_a_count_a_pixel_in_the_stream_s_order() {
     assert_eq!(
         pointer(&frame.events),
         vec![
-            Event::PointerMoved(Point::new(1290.0, 679.0)),
+            Event::PointerMoved(Point::new(1290.0, 679.5)),
             Event::ButtonPressed(MouseButton::Left),
-            Event::PointerMoved(Point::new(1310.0, 679.0)),
+            Event::PointerMoved(Point::new(1310.0, 679.5)),
             Event::ButtonReleased(MouseButton::Left),
         ]
     );
@@ -401,8 +423,8 @@ fn a_key_sees_the_pointer_where_the_mouse_moved_it() {
         &window(None),
     );
     let at = |event: &Event| frame.events.iter().position(|other| other == event).unwrap_or_else(|| panic!("no {event:?} in {:?}", frame.events));
-    assert!(at(&Event::PointerMoved(Point::new(1290.0, 684.0))) < at(&Event::KeyPressed(Key::A)));
-    assert!(at(&Event::KeyPressed(Key::A)) < at(&Event::PointerMoved(Point::new(1300.0, 684.0))));
+    assert!(at(&Event::PointerMoved(Point::new(1290.0, 684.5))) < at(&Event::KeyPressed(Key::A)));
+    assert!(at(&Event::KeyPressed(Key::A)) < at(&Event::PointerMoved(Point::new(1300.0, 684.5))));
 }
 
 // Two mice move the one pointer, each by its own motion.
@@ -416,7 +438,7 @@ fn each_mouse_moves_the_pointer_by_its_own_motion() {
     };
     reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), other(11, 900, 900)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 10, 0), other(21, 900, 920)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1290.0, 704.0))), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1290.0, 704.5))), "{:?}", frame.events);
 }
 
 // The pointer stays in the window, as Windows' cursor, which the window keeps
@@ -446,7 +468,7 @@ fn the_motion_goes_around_an_i64_s_ends() {
     let mut reader = focused();
     reader.read(&[mouse_at(10, GameInputMouseNone, i64::MAX - 1, i64::MIN + 1)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, i64::MIN + 1, i64::MAX - 1)], &[], &window(None));
-    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1283.0, 681.0))), "{:?}", frame.events);
+    assert!(frame.events.contains(&Event::PointerMoved(Point::new(1283.0, 681.5))), "{:?}", frame.events);
 }
 
 #[test]

@@ -241,23 +241,27 @@ before, but reports gamepads' whole state, their held buttons too.
   and the right. Typed text is the keys translated with Windows' keyboard layout, with Shift, AltGr
   and dead keys, but no IME. A held key doesn't repeat: GameInput's readings don't, and KGames
   doesn't make repeats of its own.
-- The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as a game's
-  is: it starts in the middle of the window as the window gets focus, and each mouse's motion
-  moves it, a count a pixel, which is Windows' default pointer speed without "Enhance pointer
-  precision", in the stream's order, so a press lands where the pointer was as its button went
-  down, and a key after a move sees the pointer where it went. Only mice's relative motion moves
-  it, not a pen's or a touch screen's absolute positions.
+- The mouse's buttons, wheels and motion come from mice. The pointer is KGames' own, as SDL's
+  relative mode keeps one: it starts in the middle of the window the first time the window gets
+  focus, and carries on from where it was each time after, and each mouse's motion moves it by
+  Windows' pointer speed and "Enhance pointer precision", as Windows moves its own cursor, which
+  `input/ballistics.rs` ports from SDL, in parts of a pixel, in the stream's order, so a press
+  lands where the pointer was as its button went down, and a key after a move sees the pointer
+  where it went. Tests and scripts move it a count a pixel. Only mice's relative motion moves it,
+  not a pen's or a touch screen's absolute positions.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
   kept inside its client area, so that no click goes to another window, and the interface draws
   the pointer over everything, in the shape that the widget under it asks for with
-  `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. The window starts to
-  keep the cursor only once the click that gave it focus is let go of, so that one on the title
-  bar's minimize or close button works. As it loses focus, like with Alt+Tab, Windows' cursor goes
-  to the middle of the window, where it shows once the window is left, unless the program that
-  got focus has confined the cursor already, whose confinement the window leaves alone. So the title bar's buttons and
-  the taskbar can't be reached with the mouse while the window has focus: Alt+Tab or the Windows
-  key leave it. Scripts' and tests' frames don't draw the pointer, and `Headless::draw_pointer`
-  makes a test's draw it.
+  `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
+  pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
+  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
+  window starts to keep the cursor only once the click that gave it focus is let go of, so that
+  one on the title bar's minimize or close button works. As it loses focus, like with Alt+Tab,
+  Windows' cursor goes where the pointer was, as SDL puts it, where it shows once the window is
+  left, unless the program that got focus has confined the cursor already, whose confinement the
+  window leaves alone. So the title bar's buttons and the taskbar can't be reached with the mouse
+  while the window has focus: Alt+Tab or the Windows key leave it. Scripts' and tests' frames
+  don't draw the pointer, and `Headless::draw_pointer` makes a test's draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the

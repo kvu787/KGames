@@ -712,6 +712,33 @@ pub unsafe fn QueryPerformanceFrequency(lpfrequency: *mut i64) -> windows_core::
     unsafe { QueryPerformanceFrequency(lpfrequency as _) }
 }
 #[inline]
+pub unsafe fn RegGetValueW<P1, P2>(
+    hkey: HKEY,
+    lpsubkey: P1,
+    lpvalue: P2,
+    dwflags: u32,
+    pdwtype: Option<*mut u32>,
+    pvdata: Option<*mut core::ffi::c_void>,
+    pcbdata: Option<*mut u32>,
+) -> LSTATUS
+where
+    P1: windows_core::Param<windows_core::PCWSTR>,
+    P2: windows_core::Param<windows_core::PCWSTR>,
+{
+    windows_core::link!("advapi32.dll" "system" fn RegGetValueW(hkey : HKEY, lpsubkey : windows_core::PCWSTR, lpvalue : windows_core::PCWSTR, dwflags : u32, pdwtype : *mut u32, pvdata : *mut core::ffi::c_void, pcbdata : *mut u32) -> LSTATUS);
+    unsafe {
+        RegGetValueW(
+            hkey,
+            lpsubkey.param().abi(),
+            lpvalue.param().abi(),
+            dwflags,
+            pdwtype.unwrap_or(core::mem::zeroed()) as _,
+            pvdata.unwrap_or(core::mem::zeroed()) as _,
+            pcbdata.unwrap_or(core::mem::zeroed()) as _,
+        )
+    }
+}
+#[inline]
 pub unsafe fn RegisterClassExW(param0: *const WNDCLASSEXW) -> ATOM {
     windows_core::link!("user32.dll" "system" fn RegisterClassExW(param0 : *const WNDCLASSEXW) -> ATOM);
     unsafe { RegisterClassExW(param0) }
@@ -839,6 +866,16 @@ where
 {
     windows_core::link!("advapi32.dll" "system" fn StartTraceW(traceid : *mut CONTROLTRACE_ID, instancename : windows_core::PCWSTR, properties : *mut EVENT_TRACE_PROPERTIES) -> u32);
     unsafe { StartTraceW(traceid as _, instancename.param().abi(), properties as _) }
+}
+#[inline]
+pub unsafe fn SystemParametersInfoW(
+    uiaction: u32,
+    uiparam: u32,
+    pvparam: *mut core::ffi::c_void,
+    fwinini: u32,
+) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn SystemParametersInfoW(uiaction : u32, uiparam : u32, pvparam : *mut core::ffi::c_void, fwinini : u32) -> windows_core::BOOL);
+    unsafe { SystemParametersInfoW(uiaction, uiparam, pvparam as _, fwinini) }
 }
 #[inline]
 pub unsafe fn TdhGetEventInformation(
@@ -3685,6 +3722,10 @@ pub struct HICON(pub *mut core::ffi::c_void);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HINSTANCE(pub *mut core::ffi::c_void);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct HKEY(pub *mut core::ffi::c_void);
+pub const HKEY_CURRENT_USER: HKEY = HKEY(-2147483647 as _);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct HKL(pub *mut core::ffi::c_void);
@@ -8862,6 +8903,9 @@ pub struct LPARAM(pub isize);
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct LRESULT(pub isize);
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct LSTATUS(pub i32);
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LUID {
@@ -9067,6 +9111,7 @@ pub struct RECTL {
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct RETURN_TYPE(pub u32);
+pub const RRF_RT_REG_BINARY: i32 = 8;
 pub const SC_KEYMENU: i32 = 61696;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -9076,6 +9121,10 @@ pub struct SECURITY_ATTRIBUTES {
     pub bInheritHandle: windows_core::BOOL,
 }
 pub const SIZE_MINIMIZED: i32 = 1;
+pub const SPI_GETMOUSE: i32 = 3;
+pub const SPI_GETMOUSESPEED: i32 = 112;
+pub const SPI_SETMOUSE: i32 = 4;
+pub const SPI_SETMOUSESPEED: i32 = 113;
 pub const STILL_ACTIVE: i32 = 259;
 pub const SWP_FRAMECHANGED: i32 = 32;
 pub const SWP_NOACTIVATE: i32 = 16;

@@ -193,6 +193,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             shown = None;
             ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.events, input.time, size, fullscreen);
         }
+        // Where Windows' cursor shows as the window loses focus.
+        if let Some(at) = ui.pointer() {
+            window.set_pointer(at);
+        }
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleFullscreen => window.set_mode(window.mode().other()),

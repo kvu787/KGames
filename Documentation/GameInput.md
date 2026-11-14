@@ -317,8 +317,10 @@ first frame starts the same way, so every device's state is known from the start
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
 says, has nothing to do with the screen, and counts only while the program has focus. Each reading
-moves the pointer by its difference from that mouse's last reading, a count a pixel, in the
-stream's order, from the middle of the window, where the pointer starts as the window gets focus.
+moves the pointer by its difference from that mouse's last reading, in the stream's order, scaled
+by Windows' pointer speed and "Enhance pointer precision", as SDL scales raw motion, since
+GameInput's has neither. The pointer starts in the middle of the window the first time the window
+gets focus, and carries on from where it was each time after.
 While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
 goes to another window, and the interface draws the pointer. `absolutePositionX` and
 `absolutePositionY`, which a pen or a touch screen may give, aren't read.

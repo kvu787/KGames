@@ -21,8 +21,10 @@
 //   never is. The cursor's confinement is shared by every program, so the
 //   window releases it only if it still holds it, as the program that gets
 //   focus may have taken it first. As the window loses focus, like with
-//   Alt+Tab, it lets the cursor go in the middle of its client area, where it
-//   shows, unless that program has taken it.
+//   Alt+Tab, it lets the cursor go where the interface's pointer was, where
+//   it shows, as SDL does, unless that program has taken it.
+// - It says when the user changes Windows' pointer speed or acceleration,
+//   which the pointer moves by (see platform/mouse_settings.rs).
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
@@ -77,6 +79,10 @@ struct Shared {
     minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
+    // Whether Windows' pointer speed or acceleration may have changed.
+    mouse_settings_changed: Cell<bool>,
+    // Where the interface's pointer last was, in the client area's pixels.
+    pointer: Cell<Option<POINT>>,
     // Where the window keeps Windows' cursor, hidden, if it does.
     kept: Cell<Option<Kept>>,
     // Windows' arrow, which its cursor is over the window while it isn't kept.
@@ -150,6 +156,8 @@ impl Window {
                 minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
+                mouse_settings_changed: Cell::new(true),
+                pointer: Cell::new(None),
                 kept: Cell::new(None),
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
@@ -294,6 +302,21 @@ impl Window {
     // The focus changes since the last call, oldest first.
     pub fn take_focus_changes(&mut self) -> Vec<FocusChange> {
         self.shared().focus_changes.take()
+    }
+
+    // Whether Windows' pointer speed or acceleration may have changed since
+    // the last call, or this is the first.
+    pub fn take_mouse_settings_changed(&self) -> bool {
+        self.shared().mouse_settings_changed.take()
+    }
+
+    // Where the interface's pointer is, in the client area, where Windows'
+    // cursor shows as the window loses focus.
+    pub fn set_pointer(&mut self, at: crate::drawing::geometry::Point) {
+        self.shared().pointer.set(Some(POINT {
+            x: at.x.floor() as i32,
+            y: at.y.floor() as i32,
+        }));
     }
 
     // Keeps Windows' cursor inside the client area where keeps_cursor_in
@@ -628,12 +651,19 @@ unsafe fn let_go(shared: &Shared) -> Option<ClipHolder> {
     }
 }
 
-// Puts Windows' cursor in the middle of the client area, unless the window is
-// minimized.
-unsafe fn center_cursor(hwnd: HWND) {
+// Puts Windows' cursor where the interface's pointer was, or in the middle of
+// the client area if it was nowhere yet, unless the window is minimized.
+unsafe fn place_cursor(hwnd: HWND, shared: &Shared) {
     unsafe {
         if let Some(area) = cursor_area(hwnd) {
-            let _ = SetCursorPos(area.left + (area.right - area.left) / 2, area.top + (area.bottom - area.top) / 2);
+            let middle = POINT {
+                x: (area.right - area.left) / 2,
+                y: (area.bottom - area.top) / 2,
+            };
+            let at = shared.pointer.get().unwrap_or(middle);
+            let x = (area.left + at.x).clamp(area.left, (area.right - 1).max(area.left));
+            let y = (area.top + at.y).clamp(area.top, (area.bottom - 1).max(area.top));
+            let _ = SetCursorPos(x, y);
         }
     }
 }
@@ -657,13 +687,13 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
                 keep_cursor(hwnd, shared);
                 LRESULT(0)
             }
-            // Windows' cursor, if kept, is let go of in the middle of the
-            // client area, where it shows once the window is left, unless
+            // Windows' cursor, if kept, is let go of where the interface's
+            // pointer was, where it shows once the window is left, unless
             // the program that got focus has taken it already.
             WM_KILLFOCUS => {
                 shared.focus_changed(false);
                 if let_go(shared).is_some_and(|holder| holder != ClipHolder::Other) {
-                    center_cursor(hwnd);
+                    place_cursor(hwnd, shared);
                 }
                 LRESULT(0)
             }
@@ -695,6 +725,9 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             }
             WM_MOVE | WM_DISPLAYCHANGE | WM_SETTINGCHANGE => {
                 shared.setup_changed.set(true);
+                if message == WM_SETTINGCHANGE && [SPI_SETMOUSE, SPI_SETMOUSESPEED].contains(&(wparam.0 as i32)) {
+                    shared.mouse_settings_changed.set(true);
+                }
                 DefWindowProcW(hwnd, message as u32, wparam, lparam)
             }
             WM_DPICHANGED => {

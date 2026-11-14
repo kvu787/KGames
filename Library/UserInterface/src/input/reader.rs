@@ -10,11 +10,12 @@
 //   dead keys. A held key doesn't repeat: GameInput's readings don't, and the
 //   reader doesn't make repeats of its own.
 // - The mouse's buttons, wheels and motion come from mice's readings, and
-//   the pointer is the reader's own, as games keep one: it starts in the
-//   middle of the window as the window gets focus, and each mouse's motion
-//   moves it, a count a pixel, as Windows' cursor moves at its default speed
-//   without "Enhance pointer precision", inside the window, where the window
-//   keeps Windows' cursor, hidden, while it has focus (see
+//   the pointer is the reader's own, as SDL's relative mode keeps one: it
+//   starts in the middle of the window the first time the window gets focus,
+//   and carries on from where it was each time after, and each mouse's
+//   motion moves it, by Windows' pointer speed and acceleration, as Windows
+//   moves its own cursor (see input/ballistics.rs), inside the window, where
+//   the window keeps Windows' cursor, hidden, while it has focus (see
 //   platform/window.rs). It moves in the stream's order, so a press happens
 //   where the pointer was as the button went down. Only mice's relative
 //   motion moves it, not the absolute positions of a pen or a touch screen.
@@ -45,6 +46,7 @@ use game_input::*;
 use windows_api::*;
 
 use crate::drawing::geometry::{Point, Size};
+use crate::input::ballistics::{Ballistics, PointerSpeed};
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
 use crate::platform::input_devices::{Devices, Reading};
@@ -86,10 +88,14 @@ pub struct InputReader {
     gamepad_ignored: u32,
     // The buttons that the last Gamepad event told the interface of.
     gamepad_sent: u32,
-    // The pointer, in the client area's pixels, and the client area's size,
-    // which it stays inside.
+    // The pointer, in the client area's pixels and parts of them, once the
+    // window has had focus, and the client area's size, which it stays
+    // inside, from 0 to its width or height less 1, as SDL keeps its own.
     position: Point,
+    placed: bool,
     size: Size,
+    // How far a mouse's motion moves the pointer.
+    ballistics: Ballistics,
     // Where the interface last heard the pointer was.
     pointer: Option<Point>,
 }
@@ -118,14 +124,27 @@ impl InputReader {
             gamepad_ignored: 0,
             gamepad_sent: 0,
             position: Point::ZERO,
+            placed: false,
             size: Size::default(),
+            ballistics: Ballistics::default(),
             pointer: None,
         }
+    }
+
+    // How far a mouse's motion moves the pointer: a count a pixel until it's
+    // set, which tests and scripts keep.
+    pub fn set_pointer_speed(&mut self, speed: PointerSpeed) {
+        self.ballistics = Ballistics::new(speed);
     }
 
     // The frame's events, from the devices' readings since the last frame, in
     // the stream's order, and the window's focus changes.
     pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameInput {
+        // Windows' pointer speed and acceleration, as the first frame finds
+        // them, and again whenever the user changes them.
+        if window.take_mouse_settings_changed() {
+            self.set_pointer_speed(crate::platform::mouse_settings::read());
+        }
         let (width, height) = window.client_size();
         let state = WindowState {
             size: Size::new(width as f32, height as f32),
@@ -215,10 +234,13 @@ impl InputReader {
                 events.push(Event::FocusGained(held));
                 self.ignored_buttons = self.buttons_down;
                 self.gamepad_ignored = self.combined_gamepad().buttons.0;
-                // The pointer starts on the pixel in the middle of the
-                // window.
-                let middle = Point::new((self.size.width / 2.0).floor(), (self.size.height / 2.0).floor());
-                self.position = self.inside(middle);
+                // The pointer starts in the middle of the window, and carries
+                // on from where it was after that. It's anywhere, not on the
+                // pixels' grid, as the motion moves it by parts of a pixel.
+                if !std::mem::replace(&mut self.placed, true) {
+                    self.position = Point::new(self.size.width / 2.0, self.size.height / 2.0);
+                }
+                self.position = self.inside(self.position);
                 self.pointer = None;
                 // The interface takes the gamepad event right after focus
                 // comes as what's held then, which counts once it's let go
@@ -420,10 +442,7 @@ impl InputReader {
             return;
         };
         if self.focused {
-            let moved = Point::new(
-                state.positionX.wrapping_sub(previous.positionX) as f32,
-                state.positionY.wrapping_sub(previous.positionY) as f32,
-            );
+            let moved = self.ballistics.apply(state.positionX.wrapping_sub(previous.positionX), state.positionY.wrapping_sub(previous.positionY));
             self.position = self.inside(self.position + moved);
             self.point(events);
         }
