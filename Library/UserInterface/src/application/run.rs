@@ -132,6 +132,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
+    // Whether the frames read GameInput's mice, which move the pointer, and
+    // so whether the window keeps Windows' cursor while it has focus: not
+    // with a script's input, or without input.
+    let mice = matches!(source, Source::User { devices: Some(_), .. });
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     let mut problems = Vec::new();
@@ -150,7 +154,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         // Focus, and Windows' cursor with it, on every pass, whatever woke
         // the loop, before it waits while minimized, so that losing focus
         // lets the cursor go at once.
-        window.check_focus();
+        window.check_focus(mice);
         // A minimized window runs no frames, and waits for messages. Its
         // input waits too: what came meanwhile, like losing focus as it
         // minimized, goes to the program in the first frame after it's
@@ -177,9 +181,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
 
         // The frame draws the pointer exactly while Windows' cursor is kept,
-        // hidden, as this pass's check left it, which a script's frames never
-        // do. And the input, read as late as it can be.
-        ui.draws_pointer = !scripted && window.keeps_cursor();
+        // hidden, as this pass's check left it, which a script's frames, and
+        // those without input, never do. And the input, read as late as it
+        // can be.
+        ui.draws_pointer = window.keeps_cursor();
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
         let (width, height) = presenter.size();

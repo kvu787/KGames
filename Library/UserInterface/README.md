@@ -250,7 +250,8 @@ before, but reports gamepads' whole state, their held buttons too.
   sees the pointer where it went. Only mice's relative motion moves it, not a pen's or a touch
   screen's absolute positions.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
-  kept inside its client area, so that no click goes to another window, and the interface draws
+  kept inside its client area, as far as it's on the screens, so that no click goes to a window
+  beside it, and the interface draws
   the pointer over everything, in the shape that the widget under it asks for with
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
@@ -261,9 +262,12 @@ before, but reports gamepads' whole state, their held buttons too.
   program that got focus has confined the cursor already, whose confinement the window leaves
   alone, or the window is minimized. `platform/cursor.rs` decides all of it, on what Windows says
   as the main loop checks focus on every pass, and `Test/UserInterface/tests/cursor.rs` tests it.
-  So other windows and the taskbar can't be reached with the mouse while the window has focus:
-  Alt+Tab or the Windows key leave it. Scripts' and tests' frames don't draw the pointer, and
-  `Headless::draw_pointer` makes a test's draw it.
+  So the windows beside it and the taskbar can't be reached with the mouse while the window has
+  focus: Alt+Tab or the Windows key leave it. A window that's always on top over it, like Task
+  Manager's can be, still gets the clicks under Windows' hidden cursor, which goes its own way
+  inside the client area, apart from the pointer. A run whose input is a script's, or that has
+  none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
+  makes a test's frames draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the

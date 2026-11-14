@@ -228,8 +228,9 @@ impl Window {
     // at once, without waiting for a frame. Says when that changes, at the
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
-    // may have changed its confinement.
-    pub fn check_focus(&mut self) {
+    // may have changed its confinement, if the frames read GameInput's mice,
+    // `mice`, and not a script's input, or none.
+    pub fn check_focus(&mut self, mice: bool) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
             let shared = self.shared();
@@ -239,9 +240,9 @@ impl Window {
             if focused || self.cursor.keeps() {
                 let facts = CursorFacts {
                     focused,
-                    area: cursor_area(self.hwnd),
+                    mice,
                     button_held: focused && !self.cursor.keeps() && mouse_button_held(),
-                    clip: clip(),
+                    ..cursor_facts(self.hwnd)
                 };
                 let actions = self.cursor.update(facts);
                 self.carry_out(&actions);
@@ -282,9 +283,10 @@ impl Window {
         self.cursor.keeps()
     }
 
-    // Where Windows' cursor is kept and centered: the client area, in the
-    // screen's pixels, or none while the window is minimized, whose client
-    // area is off the screen then, where a cursor kept in it would be lost.
+    // Where Windows' cursor is kept, and placed as it's let go of: the client
+    // area, in the screen's pixels, or none while the window is minimized,
+    // whose client area is off the screen then, where a cursor kept in it
+    // would be lost.
     pub fn cursor_area(&self) -> Option<RECT> {
         unsafe { cursor_area(self.hwnd) }
     }
@@ -365,7 +367,7 @@ impl Drop for Window {
             // Alt+F4, or a panic's unwinding, which Windows doesn't do for
             // the window, while it can still be let go of where the pointer
             // was.
-            let actions = self.cursor.let_go(clip(), cursor_area(self.hwnd));
+            let actions = self.cursor.let_go(cursor_facts(self.hwnd));
             self.carry_out(&actions);
             SetWindowLongPtrW(self.hwnd, GWLP_USERDATA, 0);
             let _ = DestroyWindow(self.hwnd);
@@ -477,11 +479,27 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     }
 }
 
-// The cursor's confinement, or the whole of the screens, without one.
-unsafe fn clip() -> RECT {
-    let mut clip = RECT::default();
-    let _ = unsafe { GetClipCursor(&mut clip) };
-    clip
+// What Windows says about the window's client area, the cursor's
+// confinement, and the screens, for platform/cursor.rs, without focus.
+unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
+    unsafe {
+        let mut clip = RECT::default();
+        let _ = GetClipCursor(&mut clip);
+        let (left, top) = (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN));
+        CursorFacts {
+            focused: false,
+            mice: false,
+            area: cursor_area(hwnd),
+            button_held: false,
+            clip,
+            screens: RECT {
+                left,
+                top,
+                right: left + GetSystemMetrics(SM_CXVIRTUALSCREEN),
+                bottom: top + GetSystemMetrics(SM_CYVIRTUALSCREEN),
+            },
+        }
+    }
 }
 
 // Whether a mouse button is held, by Windows' account of the mouse, which has

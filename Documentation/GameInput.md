@@ -332,7 +332,7 @@ positions. So the reader takes motion and turns only from readings with relative
 each mouse starts over as focus goes: its first reading after focus comes back only says where its
 sums are, and what moved in another program never counts.
 While the window has focus, Windows' cursor is hidden over it and kept inside it, so that no click
-goes to another window, and the interface draws the pointer. `absolutePositionX` and
+goes to a window beside it, and the interface draws the pointer. `absolutePositionX` and
 `absolutePositionY`, which a pen or a touch screen may give, aren't read.
 
 ## What changed in KGames

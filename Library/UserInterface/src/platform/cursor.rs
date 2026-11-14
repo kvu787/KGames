@@ -5,11 +5,17 @@
 // as actions that it carries out, so that every transition is tested
 // without a window that has focus (Test/UserInterface/tests/cursor.rs).
 //
-// - While the window has focus, it keeps Windows' cursor inside its client
-//   area, hidden, and its frames draw the pointer exactly while it does.
+// - While the window has focus, and reads GameInput's mice, it keeps
+//   Windows' cursor inside its client area, hidden, and its frames draw the
+//   pointer exactly while it does. A run whose input is a script's, or that
+//   has none, leaves the cursor alone.
 // - It starts to keep it only once no mouse button is held, by Windows'
 //   account of the mouse, which, unlike GameInput's, has a click that's
 //   still going on elsewhere, like the one that gave the window focus.
+// - Windows keeps a confinement within the screens, the virtual screen,
+//   which GetClipCursor gives without one, so the window confines the cursor
+//   to the part of its client area that's on the screens, and keeps nothing
+//   if none of it is, as a window with an empty client area has none.
 // - The cursor's confinement is shared by every program, and a program in
 //   the background can confine it too, so the window confines it again
 //   whenever something else changed it while it keeps it, and releases it
@@ -30,14 +36,19 @@ pub struct CursorFacts {
     // Whether the window has focus: it's the foreground window, and isn't
     // minimized.
     pub focused: bool,
+    // Whether the frames read GameInput's mice, which move the pointer: not
+    // a run whose input is a script's, or that has none.
+    pub mice: bool,
     // The client area, in the screen's pixels, or none while the window is
     // minimized, whose client area is off the screen then.
     pub area: Option<RECT>,
     // Whether a mouse button is held, by Windows' account of the mouse.
     pub button_held: bool,
-    // The cursor's confinement, as GetClipCursor gives it: the whole of the
-    // screens without one.
+    // The cursor's confinement, as GetClipCursor gives it.
     pub clip: RECT,
+    // The screens, the virtual screen: the confinement without one, and what
+    // Windows keeps one within.
+    pub screens: RECT,
 }
 
 // What the window does with Windows' cursor.
@@ -69,29 +80,34 @@ pub enum ClipHolder {
 }
 
 // Who holds the confinement `clip` when the window kept the cursor in
-// `area`, and the confinement was `free` before, as Windows' documentation
-// has a program save it.
-pub fn clip_holder(clip: RECT, area: RECT, free: RECT) -> ClipHolder {
-    if clip == area {
+// `kept`, with the screens as they are now.
+pub fn clip_holder(clip: RECT, kept: RECT, screens: RECT) -> ClipHolder {
+    if clip == kept {
         ClipHolder::Window
-    } else if clip == free {
+    } else if clip == screens {
         ClipHolder::Nobody
     } else {
         ClipHolder::Other
     }
 }
 
-// Where the window keeps the cursor, and the confinement as it was before.
-#[derive(Clone, Copy, Debug)]
-struct Kept {
-    area: RECT,
-    free: RECT,
+// The part of `area` on the screens, which a confinement to `area` is, or
+// none if it's empty.
+pub fn on_screens(area: RECT, screens: RECT) -> Option<RECT> {
+    let part = RECT {
+        left: area.left.max(screens.left),
+        top: area.top.max(screens.top),
+        right: area.right.min(screens.right),
+        bottom: area.bottom.min(screens.bottom),
+    };
+    (part.left < part.right && part.top < part.bottom).then_some(part)
 }
 
 // What the window does with Windows' cursor, and what it has done.
 #[derive(Clone, Debug, Default)]
 pub struct CursorKeeper {
-    kept: Option<Kept>,
+    // Where the window keeps the cursor, in the screen's pixels.
+    kept: Option<RECT>,
     // Where the interface's pointer last was, in the client area's pixels.
     pointer: Option<POINT>,
 }
@@ -111,44 +127,41 @@ impl CursorKeeper {
 
     // What to do with the cursor, on what Windows says now.
     pub fn update(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
+        let keep = facts.area.filter(|_| facts.mice).and_then(|area| on_screens(area, facts.screens));
         let mut actions = Vec::new();
-        match (facts.focused, facts.area, self.kept) {
-            (true, Some(area), Some(kept)) => {
-                if facts.clip != area {
-                    actions.push(CursorAction::Confine(area));
+        match (facts.focused, keep) {
+            (true, Some(keep)) if self.kept.is_some() || !facts.button_held => {
+                if facts.clip != keep {
+                    actions.push(CursorAction::Confine(keep));
                 }
-                self.kept = Some(Kept { area, ..kept });
-            }
-            (true, Some(area), None) if !facts.button_held => {
-                if facts.clip != area {
-                    actions.push(CursorAction::Confine(area));
+                if self.kept.replace(keep).is_none() {
+                    actions.push(CursorAction::Hide);
                 }
-                actions.push(CursorAction::Hide);
-                self.kept = Some(Kept { area, free: facts.clip });
             }
-            (true, Some(_), None) => {}
-            _ => actions = self.let_go(facts.clip, facts.area),
+            (true, Some(_)) => {}
+            _ => actions = self.let_go(facts),
         }
         actions
     }
 
     // Lets the cursor go, if the window keeps it, as focus goes or the window
     // closes: releases the confinement if the window still holds it, and
-    // puts the cursor where the pointer was, or in the middle of the area if
-    // it was nowhere yet, unless another program has confined it, or there's
-    // no area.
-    pub fn let_go(&mut self, clip: RECT, area: Option<RECT>) -> Vec<CursorAction> {
+    // puts the cursor where the pointer was, or in the middle of the client
+    // area if it was nowhere yet, on the screens, unless another program has
+    // confined it, or there's no client area on the screens.
+    pub fn let_go(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
         let Some(kept) = self.kept.take() else {
             return Vec::new();
         };
-        let holder = clip_holder(clip, kept.area, kept.free);
+        let holder = clip_holder(facts.clip, kept, facts.screens);
         let mut actions = Vec::new();
         if holder == ClipHolder::Window {
             actions.push(CursorAction::Release);
         }
         actions.push(CursorAction::Show);
         if holder != ClipHolder::Other
-            && let Some(area) = area
+            && let Some(area) = facts.area
+            && let Some(visible) = on_screens(area, facts.screens)
         {
             let middle = POINT {
                 x: (area.right - area.left) / 2,
@@ -156,8 +169,8 @@ impl CursorKeeper {
             };
             let at = self.pointer.unwrap_or(middle);
             actions.push(CursorAction::Place(POINT {
-                x: (area.left + at.x).clamp(area.left, (area.right - 1).max(area.left)),
-                y: (area.top + at.y).clamp(area.top, (area.bottom - 1).max(area.top)),
+                x: (area.left + at.x).clamp(visible.left, visible.right - 1),
+                y: (area.top + at.y).clamp(visible.top, visible.bottom - 1),
             }));
         }
         actions

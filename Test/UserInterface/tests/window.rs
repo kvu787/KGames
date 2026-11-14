@@ -37,8 +37,8 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
     }
 }
 
-// Windows' cursor is kept in, and centered on, the client area on the
-// screen, and a minimized window has none: its client area is off the screen
+// Windows' cursor is kept in, and placed in, the client area on the screen,
+// and a minimized window has none: its client area is off the screen
 // then, where a cursor kept in it would be lost, and Windows can give a
 // minimized window focus, as it does as one is restored. Minimized here by
 // its style, as showing it would put it on the taskbar.

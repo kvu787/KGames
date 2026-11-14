@@ -3,7 +3,7 @@
 // sequences, without a window, as one with focus is what the facts describe,
 // and tests never take focus.
 
-use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, clip_holder};
+use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, clip_holder, on_screens};
 use windows_api::{POINT, RECT};
 
 use CursorAction::{Confine, Hide, Place, Release, Show};
@@ -15,7 +15,14 @@ const SCREENS: RECT = RECT { left: -2560, top: 0, right: 5120, bottom: 1440 };
 const OTHER: RECT = RECT { left: 2560, top: 0, right: 5120, bottom: 1440 };
 
 fn facts(focused: bool, clip: RECT) -> CursorFacts {
-    CursorFacts { focused, area: Some(AREA), button_held: false, clip }
+    CursorFacts {
+        focused,
+        mice: true,
+        area: Some(AREA),
+        button_held: false,
+        clip,
+        screens: SCREENS,
+    }
 }
 
 // A keeper that keeps the cursor, with the pointer at (100, 200).
@@ -85,7 +92,7 @@ fn a_changed_confinement_is_confined_again() {
 #[test]
 fn minimizing_lets_the_cursor_go_without_placing_it() {
     let mut keeper = keeping();
-    let minimized = CursorFacts { focused: false, area: None, button_held: false, clip: AREA };
+    let minimized = CursorFacts { area: None, ..facts(false, AREA) };
     assert_eq!(keeper.update(minimized), [Release, Show]);
 }
 
@@ -95,8 +102,8 @@ fn minimizing_lets_the_cursor_go_without_placing_it() {
 #[test]
 fn closing_lets_the_cursor_go() {
     let mut keeper = keeping();
-    assert_eq!(keeper.let_go(AREA, Some(AREA)), [Release, Show, Place(AT_POINTER)]);
-    assert_eq!(keeper.let_go(AREA, Some(AREA)), []);
+    assert_eq!(keeper.let_go(facts(false, AREA)), [Release, Show, Place(AT_POINTER)]);
+    assert_eq!(keeper.let_go(facts(false, AREA)), []);
 }
 
 // The window starts to keep the cursor only once no mouse button is held,
@@ -126,11 +133,75 @@ fn the_cursor_is_placed_inside_the_area() {
 }
 
 // The confinement is shared by every program, and the window tells whose it
-// is by what it was before the window confined it, as Windows' documentation
-// has a program save it.
+// is by where it kept the cursor, and by the screens, which are the
+// confinement without one.
 #[test]
 fn whose_confinement_it_is() {
     assert_eq!(clip_holder(AREA, AREA, SCREENS), ClipHolder::Window);
     assert_eq!(clip_holder(SCREENS, AREA, SCREENS), ClipHolder::Nobody);
     assert_eq!(clip_holder(OTHER, AREA, SCREENS), ClipHolder::Other);
+}
+
+// Windows keeps a confinement within the screens: a client area that goes
+// past their edge, as on a display set up wrong, is confined to its part on
+// them, which is the window's own confinement from then on, and the cursor
+// is let go of on them.
+#[test]
+fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
+    let area = RECT { left: 4000, top: 0, right: 6560, bottom: 1440 };
+    let part = RECT { left: 4000, top: 0, right: 5120, bottom: 1440 };
+    assert_eq!(on_screens(area, SCREENS), Some(part));
+    let past = |focused, clip| CursorFacts { area: Some(area), ..facts(focused, clip) };
+    let mut keeper = CursorKeeper::default();
+    keeper.set_pointer(POINT { x: 2000, y: 700 });
+    assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide]);
+    assert_eq!(keeper.update(past(true, part)), []);
+    assert_eq!(keeper.update(past(false, part)), [Release, Show, Place(POINT { x: 5119, y: 700 })]);
+}
+
+// A confinement that another program left, like one that ended while the
+// Start menu was up, which Windows doesn't release, isn't taken for nobody's
+// as the window lets the cursor go: Windows' release, to the screens, is.
+#[test]
+fn a_confinement_left_from_before_is_not_nobody_s() {
+    let mut keeper = CursorKeeper::default();
+    keeper.set_pointer(AT_POINTER);
+    assert_eq!(keeper.update(facts(true, OTHER)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(false, SCREENS)), [Show, Place(AT_POINTER)]);
+}
+
+// The screens can change while the window keeps the cursor, like with a
+// display that's connected: Windows' release is to the screens as they are
+// then.
+#[test]
+fn a_release_is_to_the_screens_as_they_are() {
+    let mut keeper = keeping();
+    let wider = RECT { right: 7680, ..SCREENS };
+    let after = CursorFacts { screens: wider, ..facts(false, wider) };
+    assert_eq!(keeper.update(after), [Show, Place(AT_POINTER)]);
+}
+
+// A client area with nothing on the screens, like an empty one, keeps
+// nothing: a confinement to it would pin the cursor to a point, hidden.
+#[test]
+fn an_empty_client_area_keeps_nothing() {
+    let mut keeper = CursorKeeper::default();
+    let empty = CursorFacts { area: Some(RECT { left: 100, top: 100, right: 100, bottom: 100 }), ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(empty), []);
+    assert!(!keeper.keeps());
+    let off = CursorFacts { area: Some(RECT { left: 6000, top: 0, right: 8560, bottom: 1440 }), ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(off), []);
+    assert!(!keeper.keeps());
+}
+
+// A run whose input is a script's, or that has none, doesn't read GameInput's
+// mice, so nothing moves the pointer, and the window leaves Windows' cursor
+// alone, with focus too.
+#[test]
+fn without_mice_the_cursor_is_left_alone() {
+    let mut keeper = CursorKeeper::default();
+    let without = |focused, clip| CursorFacts { mice: false, ..facts(focused, clip) };
+    assert_eq!(keeper.update(without(true, SCREENS)), []);
+    assert!(!keeper.keeps());
+    assert_eq!(keeper.update(without(false, SCREENS)), []);
 }
