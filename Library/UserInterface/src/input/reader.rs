@@ -76,7 +76,8 @@ pub struct FrameRead {
     // The time of the newest reading that the frame took, as the counter's
     // ticks, if it took any: where its input latency starts.
     pub input_time: Option<i64>,
-    // Whether F12 was pressed, which quits.
+    // Whether F12 was pressed, which quits: the frame's events are what
+    // came before it, which happen, and nothing after it does.
     pub quit: bool,
 }
 
@@ -129,8 +130,10 @@ pub struct InputReader {
     // Whether F1 last chose to keep Windows' cursor, which it does from the
     // start.
     captured: bool,
-    // Whether the window keeps Windows' cursor as the frame reads.
+    // Whether the window keeps Windows' cursor as the frame reads, and as the
+    // frame's reads end.
     keeping: bool,
+    keeps_after: bool,
     // Whether F12 was pressed in the frame.
     quit: bool,
 }
@@ -188,6 +191,7 @@ impl InputReader {
             gamepad_sent: 0,
             captured: true,
             keeping: false,
+            keeps_after: false,
             quit: false,
         }
     }
@@ -244,15 +248,24 @@ impl InputReader {
     pub fn read(&mut self, readings: &[(i64, Reading)], disconnected: &[usize], window: &WindowState) -> FrameRead {
         let mut frame = FrameRead::default();
         // The window keeps the cursor or lets it go between frames, as it
-        // checks its focus. While it has focus, letting it go stops the
-        // mice's input.
-        if self.mouse_open() && !window.keeps_cursor {
-            self.close_mouse(&mut frame.events);
+        // checks its focus: what it says is as of the frame's end. Without a
+        // focus change in the frame, letting it go, while the window has
+        // focus, stops the mice's input from the frame's start, as the
+        // cursor went before any of the frame's readings could reach the
+        // screen. With one, the cursor went as the focus changed, which the
+        // reader takes in the stream's order: losing focus lets go of
+        // everything held there, and gaining it keeps the cursor as the
+        // window does as the frame ends.
+        self.keeps_after = window.keeps_cursor;
+        if window.focus_changes.is_empty() {
+            if self.mouse_open() && !window.keeps_cursor {
+                self.close_mouse(&mut frame.events);
+            }
+            self.keeping = window.keeps_cursor;
         }
-        self.keeping = window.keeps_cursor;
         // The window's focus changes go before the first reading that's
         // later, and the readings keep the stream's order, whatever their
-        // times.
+        // times. F12 quits, so nothing after it happens.
         let mut changes = window.focus_changes.clone();
         changes.sort_by_key(|change| change.time);
         let mut changes = changes.into_iter().peekable();
@@ -261,10 +274,18 @@ impl InputReader {
                 self.focus_change(change, &mut frame.events);
             }
             self.reading(*time, reading, &mut frame);
+            if self.quit {
+                frame.quit = std::mem::take(&mut self.quit);
+                return frame;
+            }
         }
         for change in changes {
             self.focus_change(change, &mut frame.events);
         }
+        if self.mouse_open() && !window.keeps_cursor {
+            self.close_mouse(&mut frame.events);
+        }
+        self.keeping = window.keeps_cursor;
 
         // A device that's unplugged lets go of what it held: a gamepad's
         // state goes, and a keyboard's keys and a mouse's buttons are
@@ -290,7 +311,6 @@ impl InputReader {
         if self.gamepad && self.focused {
             self.send_gamepad(&mut frame.events);
         }
-        frame.quit = std::mem::take(&mut self.quit);
         frame
     }
 
@@ -300,6 +320,7 @@ impl InputReader {
             if !self.focused {
                 self.focused = true;
                 self.focus_time = change.time;
+                self.keeping = self.keeps_after;
                 // What's held now was pressed without focus, which the
                 // interface gets nothing of until it's let go of.
                 self.ignored_buttons = self.buttons_down;
@@ -388,7 +409,9 @@ impl InputReader {
             }
             self.gamepads_changed(&mut frame.events);
         }
-        let counts = kinds & (GameInputKindKeyboard | GameInputKindMouse) != 0 || (self.gamepad && kinds & GameInputKindGamepad != 0);
+        // Input that reaches the interface, where the input latency starts:
+        // not the mice's while their input is stopped.
+        let counts = kinds & GameInputKindKeyboard != 0 || (kinds & GameInputKindMouse != 0 && self.mouse_open()) || (self.gamepad && kinds & GameInputKindGamepad != 0);
         if self.focused && counts {
             frame.input_time = Some(frame.input_time.map_or(time, |newest| newest.max(time)));
         }

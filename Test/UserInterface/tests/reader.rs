@@ -84,11 +84,13 @@ fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
 }
 
 // The window, which may get or lose focus at a time, and keeps Windows'
-// cursor.
+// cursor, as the window says it does at the frame's end: not once it lost
+// focus, as the window lets the cursor go as it finds that, before the
+// frame's readings are read.
 fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
-        keeps_cursor: true,
+        keeps_cursor: focus.is_none_or(|(_, gained)| gained),
     }
 }
 
@@ -445,6 +447,63 @@ fn the_mice_reach_the_interface_only_while_the_window_keeps_the_cursor() {
     assert_eq!(buttons(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
     let frame = reader.read(&[], &[], &letting_go(None));
     assert_eq!(buttons(&frame.events), [Event::ButtonReleased(MouseButton::Left)]);
+}
+
+// A frame that loses focus keeps the input from before the loss, in the
+// stream's order, though the window let the cursor go before the frame's
+// readings were read: a click before the loss counts, and what was held is
+// let go of after it, buttons first, then keys.
+#[test]
+fn a_frame_that_loses_focus_keeps_what_came_before_in_order() {
+    let mut reader = focused();
+    reader.read(&[mouse_at(5, GameInputMouseNone, 0, 0), mouse_at(6, GameInputMouseLeftButton, 0, 0)], &[], &window(None));
+    let frame = reader.read(
+        &[keyboard(10, &[A]), mouse_at(12, GameInputMouseLeftButton | GameInputMouseRightButton, 10, 0)],
+        &[],
+        &window(Some((20, false))),
+    );
+    let kept: Vec<Event> = frame.events.iter().filter(|event| !matches!(event, Event::Gamepad(_))).cloned().collect();
+    assert_eq!(
+        kept,
+        [
+            Event::KeyPressed(Key::A),
+            Event::MouseMoved { x: 10.0, y: 0.0 },
+            Event::ButtonPressed(MouseButton::Right),
+            Event::ButtonReleased(MouseButton::Left),
+            Event::ButtonReleased(MouseButton::Right),
+            Event::KeyReleased(Key::A),
+        ]
+    );
+}
+
+// F12 quits once the frame's input before it has happened: a Ctrl+S just
+// before it saves. Nothing after it happens.
+#[test]
+fn f12_quits_after_what_came_before_it_and_nothing_after_it() {
+    const LEFT_CONTROL_S: (u8, u32) = (0x53, 0x1F);
+    let mut reader = focused();
+    let frame = reader.read(
+        &[keyboard(10, &[LEFT_CONTROL]), keyboard(20, &[LEFT_CONTROL, LEFT_CONTROL_S]), keyboard(30, &[LEFT_CONTROL, LEFT_CONTROL_S, F12]), keyboard(40, &[A])],
+        &[],
+        &window(None),
+    );
+    assert!(frame.quit);
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
+}
+
+// The input latency starts at input that reaches the interface: not at the
+// mice's while their input is stopped, as while the click that gave the
+// window focus is held, or F1 let the cursor go.
+#[test]
+fn the_mice_s_stopped_input_doesn_t_start_the_input_latency() {
+    let mut reader = reader();
+    reader.read(&[], &[], &letting_go(Some((1, true))));
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(20, GameInputMouseNone, 30, 0)], &[], &letting_go(None));
+    assert_eq!(frame.input_time, None);
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 40, 0), keyboard(40, &[A])], &[], &letting_go(None));
+    assert_eq!(frame.input_time, Some(40));
+    let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 50, 0)], &[], &window(None));
+    assert_eq!(frame.input_time, Some(50));
 }
 
 // Focus going lets Windows' cursor go without changing what F1 last chose,
