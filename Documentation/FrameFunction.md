@@ -51,9 +51,10 @@ widgets, messages or steps, and a game that wants none of them writes `frame` di
 
 ```rust
 pub struct FrameInput {
-    // Seconds since the program started, and since the frame before, capped.
+    // Seconds since the frame before, capped.
+    pub delta: f64,
+    // Open: seconds since the program started (see question 12).
     pub time: f64,
-    pub delta: f32,
     // What happened since the frame before, in the order it happened.
     pub events: Vec<Event>,
 }
@@ -157,6 +158,8 @@ crate's sources:
 
 - A program is one function a frame, `frame`, from the frame's input events to GPU commands.
 - It draws a frame of 2560 × 1440, the only setup that programs support (see AGENTS.md).
+- `FrameInput` carries the mouse, the keyboard and the gamepads, and the frame's delta. What else
+  it carries is question 12.
 - Windows' cursor, focus, minimizing, Alt+F4 and `WM_CLOSE` work as they do today, from under the
   boundary.
 
@@ -267,6 +270,59 @@ asking. LogicReview.md left this to the user; record the answer here.
 
 **11. Which program comes first.** Recommended: Platformer. It has no D3D12, it is a game rather
 than a form, and it reads and writes a file of its own, in `progress.rs`, which tries out `Files`.
+
+**12. What else `FrameInput` carries.** Past the mouse, the keyboard, the gamepads and the delta,
+these are left.
+
+The four can't say these, so each would be an event of its own:
+
+- **Typed text.** A character isn't a key. It comes from the key, Windows' keyboard layout,
+  Shift, Caps Lock, and dead keys, like the acute accent's key and then e for é. The layout is the
+  OS's, so the platform turns keys into `Text`. Any text box needs it.
+- **Close requested.** The taskbar's Close is `WM_CLOSE`, not a key. Alt+F4 is keys, which could be
+  read above the boundary, or the platform could turn both into one `CloseRequested`.
+- **Focus lost and gained.** The platform lets go of everything held as focus goes, so programs
+  are correct without it. Without it, though, a game can't pause on Alt+Tab, since it can't tell
+  that from no one touching anything. UiShowcase and GameInputDemo show it, too.
+
+Programs read these today, but they could go. Recommended: leave them out.
+
+- **Time since the program started.** `ui.time()` has 9 uses, like UiShowcase's progress,
+  Platformer's clock and SpinningCarTest's tick. A program can sum the deltas, and the sum leaves
+  out the time spent minimized, which is what a game wants. The delta is then an `f64`, so that a
+  sum over hours doesn't drift.
+- **What the platform knows of itself:** the GPU's name, the display, vertical sync, and the
+  frame's statistics and input latency.
+  - Today UiShowcase's, SimplePaintDemo's and GameInputDemo's cards show them, and MeshModeler has
+    a menu item for vertical sync.
+  - They differ from run to run, so a program that shows them can't be replayed exactly.
+  - The PerfBar shows vertical sync and the input latency already, and F10 switches vertical sync.
+- **Each event's time.** Events keep their order, which is all that anything needs today.
+  GameInput stamps each reading, if a game ever needs time within a frame, like a rhythm game.
+- **Raw devices,** for GameInputDemo: each device's connection, name and identifiers, and every
+  reading as GameInput gave it. It's the only program that needs them. Decide when it's converted,
+  as question 9 says.
+
+These aren't `FrameInput`'s at all:
+
+- `Settings.json`, the command line and the data folder: the program gets them once, as it's
+  created.
+- Files: `Files`, from question 4, as their answers come in the same frame.
+- Devices that scripts make up: just events, made up.
+
+What's still open inside the four:
+
+- **The mouse:** its raw motion or a pointer's position (question 5). All mice count as one, as
+  today.
+- **The keyboard:** whether F10, the platform's, leaves the stream, so that every key has one
+  owner. Keys held as focus came stay the platform's to hold back, as today.
+- **The gamepads:**
+  - all of them as one, as `Ui::gamepad` has them today, or each on its own, which local
+    multiplayer needs;
+  - every reading, about 77 a frame from an 8,000 Hz gamepad at 100 frames a second, or only each
+    change of the buttons and the sticks as the frame ends.
+- **The delta:** 0 on the first frame, and capped after a long one. Veehiicuul caps it at 0.1
+  seconds today.
 
 ## Replay
 
