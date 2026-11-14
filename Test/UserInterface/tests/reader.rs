@@ -669,44 +669,98 @@ fn a_frame_hands_out_every_reading_after_the_last_once_in_the_stream_s_order() {
     assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![], false));
 }
 
-// The first walk hands out each device's newest reading: those that left the
-// history first, whose order the history no longer has, then those in it, in
-// the stream's order, so that every device's state is known from the start.
+// The first walk hands out what the history has, in the stream's order,
+// after the newest reading of each device that has none in it, which left
+// the history, whose order the history no longer has, so that every device's
+// state is known from the start.
 #[test]
-fn the_first_walk_hands_out_each_device_s_newest_reading() {
+fn the_first_walk_hands_out_the_history() {
     let stream = Stream {
         readings: vec![(MICE, 1), (KEYS, 2), (PAD, 3), (KEYS, 4), (PAD, 5)],
         kept: 4,
     };
     let mut walker = user_interface::Walker::default();
-    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS, MICE]), (vec![(MICE, 1), (KEYS, 4), (PAD, 5)], false));
+    assert_eq!(
+        walk(&mut walker, &stream, &[PAD, KEYS, MICE]),
+        (vec![(MICE, 1), (KEYS, 2), (PAD, 3), (KEYS, 4), (PAD, 5)], false)
+    );
 }
 
 // A frame that took longer than GameInput's history lasts loses its place in
-// the stream. It starts each device over from its newest reading: a key let
-// go of in the readings that left the history is let go of, rather than held
-// until the keyboard reads again, while a gamepad that reads thousands of
-// times a second filled the history. Only the readings in between are lost,
-// and nothing is handed out twice.
+// the stream. It starts over from the history's start: a key let go of in
+// the readings that left the history is let go of, rather than held until the
+// keyboard reads again, while a gamepad that reads thousands of times a
+// second filled the history. Only the readings that left the history are
+// lost, and nothing is handed out twice.
 #[test]
-fn a_frame_that_loses_its_place_starts_each_device_over_from_its_newest_reading() {
+fn a_frame_that_loses_its_place_starts_over_from_the_history_s_start() {
     let mut stream = Stream { readings: vec![(KEYS, 1)], kept: 3 };
     let mut walker = user_interface::Walker::default();
     assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(KEYS, 1)], false));
     // The key let go of, then the gamepad's readings, which push it out.
     stream.readings.extend([(KEYS, 0), (PAD, 10), (PAD, 11), (PAD, 12), (PAD, 13), (PAD, 14)]);
-    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(KEYS, 0), (PAD, 14)], true));
+    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(KEYS, 0), (PAD, 12), (PAD, 13), (PAD, 14)], true));
     stream.readings.push((PAD, 15));
     assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(PAD, 15)], false));
     // Losing its place again with nothing new from the keyboard: its newest
     // reading went out already, and isn't handed out again.
     stream.readings.extend([(PAD, 16), (PAD, 17), (PAD, 18), (PAD, 19)]);
-    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(PAD, 19)], true));
+    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(PAD, 17), (PAD, 18), (PAD, 19)], true));
+}
+
+// A key tapped while a frame took longer than the history lasts isn't lost
+// if the history still has it, though the last reading handed out left it.
+#[test]
+fn a_tap_still_in_the_history_counts_after_losing_the_place() {
+    let mut stream = Stream { readings: vec![(KEYS, 1)], kept: 4 };
+    let mut walker = user_interface::Walker::default();
+    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(KEYS, 1)], false));
+    stream.readings.extend([(PAD, 10), (KEYS, 2), (KEYS, 3), (PAD, 11)]);
+    assert_eq!(walk(&mut walker, &stream, &[PAD, KEYS]), (vec![(PAD, 10), (KEYS, 2), (KEYS, 3), (PAD, 11)], true));
+}
+
+// Until the process has its first reading, GameInput's newest reading isn't
+// in the history: it's a device's state at rest, from which GetNextReading
+// and GetPreviousReading fail, as measured with GameInput 4.0.306. Each walk
+// starts over until the first reading, and the walk that finds the first
+// readings hands out all of them, a key's tap among them.
+#[test]
+fn the_walk_starts_from_the_state_at_rest_that_gameinput_gives_before_any_reading() {
+    // GameInput as it starts: a device's state at rest, outside the history,
+    // until there are readings.
+    struct Starting(Stream);
+    const AT_REST: usize = 1000;
+    impl user_interface::Stream for Starting {
+        type Reading = usize;
+        type Device = u8;
+        fn current(&self, device: Option<&u8>) -> Result<usize, windows_core::HRESULT> {
+            self.0.current(device).or(Ok(AT_REST + device.copied().unwrap_or(MICE) as usize))
+        }
+        fn next(&self, after: &usize, device: Option<&u8>) -> Result<usize, windows_core::HRESULT> {
+            if *after >= AT_REST { Err(GAMEINPUT_E_REFERENCE_READING_TOO_OLD) } else { self.0.next(after, device) }
+        }
+        fn previous(&self, before: &usize) -> Result<usize, windows_core::HRESULT> {
+            if *before >= AT_REST { Err(GAMEINPUT_E_REFERENCE_READING_TOO_OLD) } else { self.0.previous(before) }
+        }
+        fn device(&self, reading: &usize) -> Option<u8> {
+            if *reading >= AT_REST { Some((*reading - AT_REST) as u8) } else { self.0.device(reading) }
+        }
+    }
+    let mut stream = Starting(Stream { readings: Vec::new(), kept: 100 });
+    let mut walker = user_interface::Walker::default();
+    assert_eq!(walker.walk(&stream, &[KEYS, MICE]).readings, [AT_REST + MICE as usize]);
+    assert_eq!(walker.walk(&stream, &[KEYS, MICE]).readings, Vec::<usize>::new());
+    // A key's tap and the mouse's motion, in one frame.
+    stream.0.readings.extend([(KEYS, 1), (KEYS, 0), (MICE, 5)]);
+    assert_eq!(walker.walk(&stream, &[KEYS, MICE]).readings, [0, 1, 2]);
+    stream.0.readings.push((KEYS, 7));
+    let walked = walker.walk(&stream, &[KEYS, MICE]);
+    assert_eq!((walked.readings, walked.restarted), (vec![3], false));
 }
 
 // A walk that loses its place with readings after the last one handed out
-// still in the history hands out each device's newest of those, in the
-// stream's order, and not the ones before the last reading handed out.
+// still in the history hands out all of those, in the stream's order, and not
+// the ones before the last reading handed out.
 #[test]
 fn a_restart_in_the_history_hands_out_only_what_came_after_the_last_reading() {
     // A stream whose next readings fail, as GetNextReading may for other
@@ -734,7 +788,7 @@ fn a_restart_in_the_history_hands_out_only_what_came_after_the_last_reading() {
     assert_eq!(walked.readings, [0, 1]);
     stream.0.readings.extend([(PAD, 3), (KEYS, 4), (PAD, 5)]);
     let walked = walker.walk(&stream, &[PAD, KEYS]);
-    assert_eq!((walked.readings, walked.restarted), (vec![3, 4], true));
+    assert_eq!((walked.readings, walked.restarted), (vec![2, 3, 4], true));
     // Without a newest reading at all, there's nothing to start from.
     let empty = Stream { readings: Vec::new(), kept: 100 };
     let mut walker = user_interface::Walker::default();

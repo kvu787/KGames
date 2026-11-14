@@ -304,15 +304,18 @@ walks it once, filtered to gamepad, keyboard and mouse input together, from the 
 handed out, with `GetNextReading`, until `GAMEINPUT_E_READING_NOT_FOUND` says there's nothing
 newer. The reading objects are where the walk is: GameInput's readings are singletons, which
 compare by pointer, while two readings can have the same timestamp. A frame that took longer than
-the history lasts loses its place. Microsoft's sample walks one device, and starts that device over
-from its newest reading; KGames walks every device, so it starts each over from its newest reading,
-which it hands out unless it already has, those in the history in the stream's order, after those
-older than it. So no device keeps what it held before, like a key that was let go of in the
-readings that were lost, and only those readings are lost. KGames accepts that loss, for keeping
-GameInput's own order, and doesn't register a reading callback, which Microsoft's documentation
-offers for event-driven input, like a menu, without promising that it gets every reading. The
-first frame starts the same way, so every device's state is known from the start.
-`Test/UserInterface/tests/reader.rs` pins the walk.
+the history lasts loses its place. Microsoft's sample starts the one device that it walks over
+from its newest reading; KGames starts over from the history's start, and hands out every reading
+in it after the last one handed out, in the stream's order, after the newest reading of each
+device that has none left in it, unless it already has. So only the readings that left the history
+are lost, and no device keeps what it held before them, like a key that was let go of in them.
+KGames accepts that loss, for keeping GameInput's own order, and doesn't register a reading
+callback, which Microsoft's documentation offers for event-driven input, like a menu, without
+promising that it gets every reading. The first frame starts the same way, so every device's state
+is known from the start. Until the process has its first reading, `GetCurrentReading` gives a
+reading that isn't in the history, a device's state at rest, from which `GetNextReading` fails with
+`GAMEINPUT_E_REFERENCE_READING_TOO_OLD`, as measured with GameInput 4.0.306, so each frame starts
+over until then, and loses nothing. `Test/UserInterface/tests/reader.rs` pins the walk.
 
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation
@@ -383,9 +386,13 @@ What was considered and not done:
   directly.
 - **Whether GameInput's reading of a gamepad as focus comes always has a timestamp from before the
   window's focus change.** It did the five times logged, 2.4 to 40 ms before the frame that saw the
-  change. A reading that comes in a later frame is still from before focus by its timestamp, but
-  if its timestamp were ever after the window's focus change, a button held as focus came would
-  count as a press.
+  change, when the window timed focus changes as it handled `WM_SETFOCUS`. A reading that comes in
+  a later frame is still from before focus by its timestamp, but if its timestamp were ever after
+  the window's focus change, a button held as focus came would count as a press. The window now
+  times a focus change when the main loop sees the foreground change, and a probe that checked the
+  foreground without sleeping saw GameInput's readings at rest as focus went stamped 1.4 ms after
+  it saw the change, three times out of three, with GameInput 4.0.306, so a gamepad's reading as
+  focus comes may well be stamped after it too. Only a real gamepad can tell.
 - **The Android mode**, which wasn't measured.
 - **How fresh readings are with background input off**, which wasn't measured.
 - **What GameInput does with keys held as focus comes on other keyboards**, which only one keyboard

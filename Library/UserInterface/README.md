@@ -224,8 +224,9 @@ So a frame hands out every reading since the last one once, in the stream's orde
 after it changes: the readings aren't sorted, merged or told apart by their times, which GameInput
 says can't tell readings apart. GameInput's history is short, about 513 readings, about 70 ms of a
 gamepad that reads thousands of times a second, so a frame that takes longer than that loses its
-place, and starts each device over from its newest reading, so that none keeps what it held
-before, like a key let go of in the readings that were lost. Only those readings are lost.
+place, and starts over from the history's start, after the newest reading of each device that has
+none left in it. Only the readings that left the history are lost, and no device keeps what it
+held before them, like a key let go of in them.
 
 The library leaves GameInput's background input off, as it is by default, so GameInput gives a
 program input only while it has focus. On, it would give input without focus too, but GameInput

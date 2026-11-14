@@ -265,9 +265,9 @@ library makes its events from, from `startup.devices`. Every frame, the library:
    every reading since the last frame once, in the stream's order. GameInput keeps only about 513
    readings, under a tenth of a second of a gamepad's at thousands a second, so after a frame that
    took longer than that, the last reading handed out has left the history, and `GetNextReading`
-   fails. The library then starts each device over from its newest reading, as Microsoft's sample
-   does for the one device it walks, so that no device keeps what it held before, and only the
-   readings in between are lost.
+   fails. The library then starts over from the history's start, after the newest reading of each
+   device that has none left in it, so that only the readings that left the history are lost, and
+   no device keeps what it held before them.
 
 Then the demo:
 

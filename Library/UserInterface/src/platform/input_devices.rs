@@ -20,11 +20,12 @@
 // The history is short: about 513 readings, which is about 70 ms of a gamepad
 // that reports thousands of times a second, measured on the development
 // machine with GameInput 4.0.306. A frame that takes longer than that loses
-// its place in the stream, and starts over from each device's newest reading
-// (see `Walker`), so that no device keeps what it held before, and only the
-// readings that left the history in between are lost. Readings' times are GameInput's microseconds, which `qpc` turns
-// into the performance counter's ticks, on the clock that frames, the window's
-// focus changes and the display's flips are timed on.
+// its place in the stream, and starts over from the history's start (see
+// `Walker`), so that only the readings that left the history in between are
+// lost, and no device keeps what it held before them. Readings' times are
+// GameInput's microseconds, which `qpc` turns into the performance counter's
+// ticks, on the clock that frames, the window's focus changes and the
+// display's flips are timed on.
 
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
@@ -114,7 +115,7 @@ pub struct Devices {
     // Where the walk of the stream is.
     walker: Walker<IGameInput>,
     // How many times a frame's walk lost its place in the stream, and started
-    // over from the newest reading.
+    // over from the history's start.
     restarts: u64,
     // Every device seen, as GameInput's object and as data. GameInput keeps
     // one object per device, so the object's address tells devices apart.
@@ -345,7 +346,8 @@ pub trait Stream {
 pub struct Walked<R> {
     // The readings to hand out, in the stream's order.
     pub readings: Vec<R>,
-    // Whether the walk lost its place and started over, losing readings.
+    // Whether the walk lost its place and started over, which loses the
+    // readings that left the history meanwhile, if any did.
     pub restarted: bool,
 }
 
@@ -356,15 +358,21 @@ pub struct Walked<R> {
 //   stream's order, until GAMEINPUT_E_READING_NOT_FOUND says there's nothing
 //   newer.
 // - The first walk, and one that loses its place, on any other failure, like
-//   the last reading having left GameInput's history, start from the newest
-//   reading. Microsoft's sample walks one device, and starts that device over
-//   from its newest reading; this walks every device, so it starts each over
-//   from its newest reading, which it hands out unless it already has: those
-//   in the history after the last reading handed out in the stream's order,
-//   after those older than the history, whose order the history no longer
-//   has. So no device keeps what it held before the readings that were lost,
-//   like a key that was let go of in them. Only the readings in between are
-//   lost, which a frame that took longer than the history lasts can't help.
+//   the last reading having left GameInput's history, start over: they hand
+//   out every reading in the history after the last reading handed out, or
+//   all of it, in the stream's order, after the newest reading of each device
+//   that has none in it, which is older than the history, whose order the
+//   history no longer has, unless it was handed out already. Microsoft's
+//   sample starts over from the newest reading of the one device it walks;
+//   this keeps what the history still has, so only the readings that left it
+//   are lost, which a frame that took longer than the history lasts can't
+//   help, and no device keeps what it held before them, like a key that was
+//   let go of in them.
+// - Until the process has its first reading, GetCurrentReading gives one
+//   that isn't in the history, a device's state at rest, from which
+//   GetNextReading and GetPreviousReading fail, as measured with GameInput
+//   4.0.306, so each walk starts over until then, and loses nothing: the
+//   history holds no reading from before it.
 // - If there's no newest reading, the next walk starts as the first did.
 //
 // Readings are known by their objects, which GameInput's readings compare
@@ -432,17 +440,18 @@ impl<S: Stream> Walker<S> {
         readings.push(reading);
     }
 
-    // Starts the walk from the newest reading, after `from`, the last reading
-    // handed out, if any: each device's newest reading that isn't handed out
-    // yet, those older than the history first, then those in it, in the
-    // stream's order, the newest last.
+    // Starts the walk over, after `from`, the last reading handed out, if any:
+    // the newest reading of each device that has none in the history, which
+    // is older than it, then every reading in the history after `from`, in
+    // the stream's order, the newest last, leaving out those handed out
+    // already.
     fn start(&mut self, stream: &S, devices: &[S::Device], from: Option<&S::Reading>) -> Vec<S::Reading> {
         let Ok(newest) = stream.current(None) else {
             self.last = None;
             return Vec::new();
         };
-        // Each device's newest reading in the history, met walking back from
-        // the newest reading, as far as `from` or the history's start.
+        // The readings in the history, met walking back from the newest, as
+        // far as `from` or the history's start.
         let mut met: Vec<(Option<S::Device>, S::Reading)> = vec![(stream.device(&newest), newest.clone())];
         let mut reading = newest.clone();
         while Some(&reading) != from {
@@ -452,10 +461,7 @@ impl<S: Stream> Walker<S> {
             if Some(&previous) == from {
                 break;
             }
-            let device = stream.device(&previous);
-            if !met.iter().any(|(known, _)| *known == device) {
-                met.push((device, previous.clone()));
-            }
+            met.push((stream.device(&previous), previous.clone()));
             reading = previous;
         }
         met.reverse();
