@@ -6,12 +6,14 @@
 
 use user_interface::{Button, Context, Event, Headless, Key, Program, Rect, Tree, Ui};
 
-// A program that may close, or not, and shows a prompt when it says no.
+// A program that may close, or not, and shows a prompt when it says no, and
+// counts the presses of A that no widget takes.
 #[derive(Default)]
 struct Closing {
     allowed: bool,
     asked: u32,
     prompt: bool,
+    typed: u32,
 }
 
 impl Program for Closing {
@@ -21,7 +23,13 @@ impl Program for Closing {
         "Closing".to_string()
     }
 
-    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+    fn input(&self, ui: &Ui) -> Vec<()> {
+        if ui.key_pressed(Key::A) { vec![()] } else { Vec::new() }
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {
+        self.typed += 1;
+    }
 
     fn view(&self, _ui: &mut Ui) -> Tree<()> {
         let mut tree = Tree::new();
@@ -51,6 +59,36 @@ fn alt_f4_closes_a_program_that_may_close() {
     app.send(&alt_f4());
     assert_eq!(app.program.asked, 1);
     assert!(app.closed());
+}
+
+// The steps after an Alt+F4 that closes don't happen: a key pressed after
+// it, in the same frame, came after the program said it may close, and
+// mustn't change what it closes with, like making its work unsaved.
+#[test]
+fn nothing_happens_after_an_alt_f4_that_closes() {
+    let mut app = Headless::new(Closing {
+        allowed: true,
+        ..Closing::default()
+    });
+    let mut events = alt_f4();
+    events.push(Event::KeyPressed(Key::A));
+    app.send(&events);
+    assert!(app.closed());
+    assert_eq!(app.program.typed, 0);
+}
+
+// A key before an Alt+F4 in the same frame happens, as it came first.
+#[test]
+fn what_comes_before_an_alt_f4_that_closes_happens() {
+    let mut app = Headless::new(Closing {
+        allowed: true,
+        ..Closing::default()
+    });
+    let mut events = vec![Event::KeyPressed(Key::A), Event::KeyReleased(Key::A)];
+    events.extend(alt_f4());
+    app.send(&events);
+    assert!(app.closed());
+    assert_eq!(app.program.typed, 1);
 }
 
 #[test]

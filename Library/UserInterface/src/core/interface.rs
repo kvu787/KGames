@@ -247,7 +247,10 @@ impl Interface {
     // `shown` is the tree the user saw, which this leaves as the new one.
     // `sent` are messages from outside, like a test's, applied in the first
     // step, before the input's. Every step sees the frame's time, and the
-    // frame's delta comes in its last step.
+    // frame's delta comes in its last step. Once a step closes the window,
+    // like with an Alt+F4 that the program allows, the frame's later steps
+    // don't happen: their input came after the program closed, and mustn't
+    // change what it closed with.
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, events: &[Event], sent: Vec<P::Message>, time: f64, size: Size) {
         self.frame += 1;
         self.size = size;
@@ -268,6 +271,9 @@ impl Interface {
             let step_delta = if self.last_step { delta } else { 0.0 };
             let tree = self.step(program, shown.as_ref(), step, sent.take().unwrap_or_default(), time, step_delta, &mut applied, &mut phases);
             *shown = Some(tree);
+            if self.requests.contains(&Request::Close) {
+                break;
+            }
         }
         self.messages_applied = applied;
 
@@ -1299,7 +1305,8 @@ impl<M> Context<'_, M> {
         self.inner.requests.push(Request::ToggleVerticalSync);
     }
 
-    // Closes the window, whatever Program::may_close says.
+    // Closes the window, whatever Program::may_close says, once the step's
+    // messages are applied: the frame's later steps don't happen.
     pub fn close(&mut self) {
         self.inner.requests.push(Request::Close);
     }

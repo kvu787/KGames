@@ -312,7 +312,8 @@ before, but reports gamepads' whole state, their held buttons too.
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
 - `Alt+F4` asks the program whether it may close, with `Program::may_close`, as the window's
   close does, in the step with the key, once its messages are applied, so that what the program
-  shows if it may not, like a prompt about unsaved work, is in that step's view. It comes from
+  shows if it may not, like a prompt about unsaved work, is in that step's view. If it may, the
+  frame's later steps don't happen, as after a step that calls `Context::close`. It comes from
   GameInput's keys: Windows' own window shortcuts do nothing in the window, which swallows the
   system keys' messages, so Alt and F10 don't open the menu's keyboard mode, Alt+Space doesn't
   open the window's menu, and Windows doesn't close the window on Alt+F4. The shortcuts that
