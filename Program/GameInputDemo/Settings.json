@@ -3,5 +3,6 @@
   "WindowMode": "WindowedMaximized",
   "VerticalSync": true,
   "Theme": "Light",
+  "MouseSensitivity": 1.0,
   "RumbleTestInnerDeadZone": 0.1
 }

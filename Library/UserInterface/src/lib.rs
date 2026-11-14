@@ -25,12 +25,10 @@ mod application {
 mod platform {
     pub mod clock;
     pub mod input_devices;
-    pub mod mouse_settings;
     pub mod window;
 }
 
 pub mod input {
-    pub mod ballistics;
     pub mod devices;
     pub mod events;
     pub mod reader;

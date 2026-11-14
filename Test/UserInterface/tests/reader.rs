@@ -5,7 +5,6 @@
 // are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
-use user_interface::input::ballistics::{PointerSpeed, WINDOWS_CURVE};
 use user_interface::input::reader::{InputReader, WindowState};
 use user_interface::FocusChange;
 use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading, Size};
@@ -351,25 +350,19 @@ fn the_pointer_starts_in_the_middle_and_carries_on_from_where_it_was() {
     assert!(frame.events.contains(&Event::PointerMoved(Point::new(1580.0, 884.5))), "{:?}", frame.events);
 }
 
-// Each mouse's motion moves the pointer by Windows' pointer speed and
-// acceleration, as they're set, in parts of a pixel: slowly, with "Enhance
-// pointer precision", by less than a pixel a count.
+// Each mouse's motion moves the pointer its counts times the sensitivity,
+// in parts of a pixel, however fast the mouse moves.
 #[test]
-fn the_mouse_moves_the_pointer_by_windows_pointer_speed_and_acceleration() {
+fn the_mouse_moves_the_pointer_its_counts_times_the_mouse_sensitivity() {
     let mut reader = focused();
-    reader.set_pointer_speed(PointerSpeed { speed: 20, acceleration: None });
+    reader.set_mouse_sensitivity(3.5);
     reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0)], &[], &window(None));
     let frame = reader.read(&[mouse_at(20, GameInputMouseNone, 2, -1)], &[], &window(None));
     assert!(frame.events.contains(&Event::PointerMoved(Point::new(1287.0, 681.0))), "{:?}", frame.events);
-    reader.set_pointer_speed(PointerSpeed {
-        speed: 10,
-        acceleration: Some(WINDOWS_CURVE),
-    });
-    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 3, -1)], &[], &window(None));
-    let Some(Event::PointerMoved(at)) = frame.events.iter().find(|event| matches!(event, Event::PointerMoved(_))) else {
-        panic!("no move in {:?}", frame.events);
-    };
-    assert!((at.x - 1287.5689).abs() < 1e-3 && at.y == 681.0, "{at:?}");
+    reader.set_mouse_sensitivity(0.25);
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 3, -1), mouse_at(31, GameInputMouseNone, 43, -1)], &[], &window(None));
+    let moves: Vec<&Event> = frame.events.iter().filter(|event| matches!(event, Event::PointerMoved(_))).collect();
+    assert_eq!(moves, [&Event::PointerMoved(Point::new(1287.25, 681.0)), &Event::PointerMoved(Point::new(1297.25, 681.0))]);
 }
 
 // Each mouse's motion moves the pointer a count a pixel, in the stream's

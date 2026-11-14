@@ -227,10 +227,11 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
         window_mode: WindowMode::WindowedMaximized,
         vertical_sync: true,
         theme: ThemeKind::Light,
+        mouse_sensitivity: 1.0,
     };
     assert_eq!((defaults, problems.len()), (light.clone(), 0));
     // Words ignore case.
-    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "WindowMode": "borderlessfullscreen", "VerticalSync": false, "Theme": "dark" }"#);
+    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "WindowMode": "borderlessfullscreen", "VerticalSync": false, "Theme": "dark", "MouseSensitivity": 2.5 }"#);
     assert_eq!(
         dark,
         CommonSettings {
@@ -238,6 +239,7 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
             window_mode: WindowMode::BorderlessFullscreen,
             vertical_sync: false,
             theme: ThemeKind::Dark,
+            mouse_sensitivity: 2.5,
         }
     );
     assert!(problems.is_empty(), "{problems:?}");
@@ -253,6 +255,10 @@ fn the_settings_every_program_has_start_its_theme_window_and_vertical_sync() {
     let (old, problems) = read(r#"{ "WindowMode": "Maximized" }"#);
     assert_eq!(old.window_mode, WindowMode::WindowedMaximized);
     assert_eq!(problems, ["WindowMode must be \"WindowedMaximized\" or \"BorderlessFullscreen\", not \"Maximized\", so it's the default."]);
+    // A sensitivity that doesn't move the pointer forward is the default.
+    let (still, problems) = read(r#"{ "MouseSensitivity": 0 }"#);
+    assert_eq!(still.mouse_sensitivity, 1.0);
+    assert_eq!(problems, ["MouseSensitivity must be a number more than 0, not 0, so it's the default."]);
 }
 
 #[test]
@@ -266,7 +272,7 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     startup.settings.boolean("Own", false);
     startup.settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    let expected = "{\n  \"Display\": \"Primary\",\n  \"WindowMode\": \"WindowedMaximized\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Own\": false\n}\n";
+    let expected = "{\n  \"Display\": \"Primary\",\n  \"WindowMode\": \"WindowedMaximized\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"MouseSensitivity\": 1.0,\n  \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }
@@ -289,7 +295,7 @@ fn every_programs_settings_file_has_the_settings_every_program_has() {
         let mut settings = Settings::from_text(&text);
         CommonSettings::read(&mut settings);
         assert!(settings.problems().is_empty(), "{}: {:?}", path.display(), settings.problems());
-        for name in ["Display", "WindowMode", "VerticalSync", "Theme"] {
+        for name in ["Display", "WindowMode", "VerticalSync", "Theme", "MouseSensitivity"] {
             assert!(members.iter().any(|(member, _)| member == name), "{} doesn't have {name}", path.display());
         }
     }

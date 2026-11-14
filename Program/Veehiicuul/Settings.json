@@ -3,6 +3,7 @@
   "WindowMode": "WindowedMaximized",
   "VerticalSync": true,
   "Theme": "Light",
+  "MouseSensitivity": 1.0,
   "Scene": "Ribeye",
   "Vehicle": "Yellow",
   "Camera": "Fixed",

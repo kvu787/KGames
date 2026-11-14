@@ -13,10 +13,9 @@
 //   the pointer is the reader's own, as SDL's relative mode keeps one: it
 //   starts in the middle of the window the first time the window gets focus,
 //   and carries on from where it was each time after, and each mouse's
-//   motion moves it, by Windows' pointer speed and acceleration, as Windows
-//   moves its own cursor (see input/ballistics.rs), inside the window, where
-//   the window keeps Windows' cursor, hidden, while it has focus (see
-//   platform/window.rs). It moves in the stream's order, so a press happens
+//   motion moves it, its counts times Settings.json's MouseSensitivity,
+//   inside the window, where the window keeps Windows' cursor, hidden, while
+//   it has focus (see platform/window.rs). It moves in the stream's order, so a press happens
 //   where the pointer was as the button went down. Only mice's relative
 //   motion moves it, not the absolute positions of a pen or a touch screen.
 // - Each gamepad keeps its own state, from its own readings, and the
@@ -46,7 +45,6 @@ use game_input::*;
 use windows_api::*;
 
 use crate::drawing::geometry::{Point, Size};
-use crate::input::ballistics::{Ballistics, PointerSpeed};
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
 use crate::input::events::Event;
 use crate::platform::input_devices::{Devices, Reading};
@@ -94,8 +92,8 @@ pub struct InputReader {
     position: Point,
     placed: bool,
     size: Size,
-    // How far a mouse's motion moves the pointer.
-    ballistics: Ballistics,
+    // How far the pointer moves for each count of a mouse's motion.
+    mouse_sensitivity: f32,
     // Where the interface last heard the pointer was.
     pointer: Option<Point>,
 }
@@ -126,25 +124,20 @@ impl InputReader {
             position: Point::ZERO,
             placed: false,
             size: Size::default(),
-            ballistics: Ballistics::default(),
+            mouse_sensitivity: 1.0,
             pointer: None,
         }
     }
 
-    // How far a mouse's motion moves the pointer: a count a pixel until it's
-    // set, which tests and scripts keep.
-    pub fn set_pointer_speed(&mut self, speed: PointerSpeed) {
-        self.ballistics = Ballistics::new(speed);
+    // How far the pointer moves for each count of a mouse's motion, in
+    // pixels: 1 until it's set.
+    pub fn set_mouse_sensitivity(&mut self, sensitivity: f32) {
+        self.mouse_sensitivity = sensitivity;
     }
 
     // The frame's events, from the devices' readings since the last frame, in
     // the stream's order, and the window's focus changes.
     pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameInput {
-        // Windows' pointer speed and acceleration, as the first frame finds
-        // them, and again whenever the user changes them.
-        if window.take_mouse_settings_changed() {
-            self.set_pointer_speed(crate::platform::mouse_settings::read());
-        }
         let (width, height) = window.client_size();
         let state = WindowState {
             size: Size::new(width as f32, height as f32),
@@ -442,7 +435,11 @@ impl InputReader {
             return;
         };
         if self.focused {
-            let moved = self.ballistics.apply(state.positionX.wrapping_sub(previous.positionX), state.positionY.wrapping_sub(previous.positionY));
+            let moved = Point::new(
+                state.positionX.wrapping_sub(previous.positionX) as f32,
+                state.positionY.wrapping_sub(previous.positionY) as f32,
+            );
+            let moved = Point::new(moved.x * self.mouse_sensitivity, moved.y * self.mouse_sensitivity);
             self.position = self.inside(self.position + moved);
             self.point(events);
         }

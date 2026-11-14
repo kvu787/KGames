@@ -88,6 +88,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     startup.arguments = arguments.own.clone();
     startup.devices = source.devices();
     let common = startup.common.clone();
+    source.set_mouse_sensitivity(common.mouse_sensitivity);
     let displays = displays::enumerate().map_err(|error| format!("Couldn't find the displays: {error}"))?;
     let display = choose_display(&displays, &arguments, &mut startup)?;
 
@@ -346,6 +347,13 @@ impl Source {
             reader: Box::new(InputReader::new(gamepad)),
             start: None,
         })
+    }
+
+    // How far the pointer moves for each count of a mouse's motion.
+    fn set_mouse_sensitivity(&mut self, sensitivity: f32) {
+        if let Source::User { reader, .. } = self {
+            reader.set_mouse_sensitivity(sensitivity);
+        }
     }
 
     // The devices, for programs that read them themselves.

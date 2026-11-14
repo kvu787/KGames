@@ -323,10 +323,9 @@ that gives the window focus doing nothing in the program, which GameInput doesn'
 
 ## Decisions left to the user
 
-- **How far the pointer moves:** decided, as SDL does. By Windows' pointer speed and "Enhance
-  pointer precision", which `input/ballistics.rs` ports from SDL's system scale, so that the
-  pointer moves as Windows' cursor would, as Microsoft's documentation has a pointer do. It was a
-  count a pixel, which is SDL's relative mode's default.
+- **How far the pointer moves:** decided. A mouse's counts times `Settings.json`'s
+  `MouseSensitivity`, without acceleration. A port of SDL's emulation of Windows' pointer speed
+  and "Enhance pointer precision" came and went: a setting of the program's own is simpler.
 - **Where Windows' cursor shows as the window loses focus:** decided, as SDL does. Where the
   pointer was. It was the middle of the window.
 - **Where the pointer starts as the window gets focus:** decided, as SDL does. In the middle the

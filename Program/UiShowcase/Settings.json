@@ -2,5 +2,6 @@
   "Display": "Primary",
   "WindowMode": "WindowedMaximized",
   "VerticalSync": true,
-  "Theme": "Light"
+  "Theme": "Light",
+  "MouseSensitivity": 1.0
 }

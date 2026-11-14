@@ -23,8 +23,6 @@
 //   focus may have taken it first. As the window loses focus, like with
 //   Alt+Tab, it lets the cursor go where the interface's pointer was, where
 //   it shows, as SDL does, unless that program has taken it.
-// - It says when the user changes Windows' pointer speed or acceleration,
-//   which the pointer moves by (see platform/mouse_settings.rs).
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or the taskbar change.
 // - It asks for a dark title bar in the dark theme, as Windows 11's apps
@@ -79,8 +77,6 @@ struct Shared {
     minimized: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
-    // Whether Windows' pointer speed or acceleration may have changed.
-    mouse_settings_changed: Cell<bool>,
     // Where the interface's pointer last was, in the client area's pixels.
     pointer: Cell<Option<POINT>>,
     // Where the window keeps Windows' cursor, hidden, if it does.
@@ -156,7 +152,6 @@ impl Window {
                 minimized: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
-                mouse_settings_changed: Cell::new(true),
                 pointer: Cell::new(None),
                 kept: Cell::new(None),
                 arrow: LoadCursorW(None, IDC_ARROW),
@@ -302,12 +297,6 @@ impl Window {
     // The focus changes since the last call, oldest first.
     pub fn take_focus_changes(&mut self) -> Vec<FocusChange> {
         self.shared().focus_changes.take()
-    }
-
-    // Whether Windows' pointer speed or acceleration may have changed since
-    // the last call, or this is the first.
-    pub fn take_mouse_settings_changed(&self) -> bool {
-        self.shared().mouse_settings_changed.take()
     }
 
     // Where the interface's pointer is, in the client area, where Windows'
@@ -725,9 +714,6 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             }
             WM_MOVE | WM_DISPLAYCHANGE | WM_SETTINGCHANGE => {
                 shared.setup_changed.set(true);
-                if message == WM_SETTINGCHANGE && [SPI_SETMOUSE, SPI_SETMOUSESPEED].contains(&(wparam.0 as i32)) {
-                    shared.mouse_settings_changed.set(true);
-                }
                 DefWindowProcW(hwnd, message as u32, wparam, lparam)
             }
             WM_DPICHANGED => {
