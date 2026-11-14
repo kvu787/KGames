@@ -1,147 +1,130 @@
-// The pointer, which the interface draws over everything while the window has
-// focus, at the reader's pointer, in the shape that the widget under it asks
-// for (see Widget::cursor). Windows' own cursor is hidden over the window
-// then (see platform/window.rs). Its colors are Windows' cursors', black with
-// a white edge, not the theme's, so that it shows on whatever is under it, in
-// either theme.
+// The pointer, which the interface draws over everything while the window
+// keeps Windows' cursor, hidden (see platform/window.rs), at the reader's
+// pointer, in the shape that the widget under it asks for (see
+// Widget::cursor). It looks unlike Windows' cursors, so that the two are easy
+// to tell apart: filled with the theme's accent, edged in text_on_accent,
+// which is made to show on it, white in the light theme and black in the
+// dark, so that it shows on whatever is under it, and its arrow is a dart,
+// without the tail of Windows' arrow.
+//
+// It's drawn where the pointer is, in parts of a pixel, as shapes with
+// antialiased edges, not on the pixels' grid. Each shape's edge is drawn
+// first, the edges of all its parts, then their fills over them, so that its
+// parts join without an edge between them.
 
 use crate::core::interaction::Cursor;
 use crate::drawing::geometry::{Color, Point, Rect};
 use crate::drawing::painter::Painter;
 
-const INK: Color = Color::BLACK;
-const EDGE: Color = Color::WHITE;
+// The pointer's colors: its fill, and the edge around it.
+#[derive(Clone, Copy)]
+struct Colors {
+    fill: Color,
+    edge: Color,
+}
 
-// The arrow, a pixel a character, B in ink and W in the edge's color, with
-// its hot spot at its top left: a head, and a tail that leans right.
-const ARROW: [&str; 20] = [
-    "B",
-    "BB",
-    "BWB",
-    "BWWB",
-    "BWWWB",
-    "BWWWWB",
-    "BWWWWWB",
-    "BWWWWWWB",
-    "BWWWWWWWB",
-    "BWWWWWWWWB",
-    "BWWWWWWWWWB",
-    "BWWWWWWWWWWB",
-    "BWWWWWWBBBBB",
-    "BWWWBWWB",
-    "BWWB BWWB",
-    "BWB  BWWB",
-    "BB    BWWB",
-    "B     BWWB",
-    "       BWWB",
-    "        BB",
-];
+// How far the edge reaches past the fill.
+const EDGE: f32 = 1.5;
 
-// A hand that points up, with its hot spot at the top left of its
-// fingertip, 7 pixels in.
-const HAND: [&str; 20] = [
-    "       BB",
-    "      BWWB",
-    "      BWWB",
-    "      BWWB",
-    "      BWWB",
-    "      BWWBBB",
-    "      BWWBWWBBB",
-    "      BWWBWWBWWBB",
-    " BB   BWWBWWBWWBWB",
-    "BWWB  BWWWWWWWWWWB",
-    "BWWWB BWWWWWWWWWWB",
-    " BWWWWWWWWWWWWWWWB",
-    "  BWWWWWWWWWWWWWWB",
-    "  BWWWWWWWWWWWWWWB",
-    "   BWWWWWWWWWWWWWB",
-    "    BWWWWWWWWWWWWB",
-    "    BWWWWWWWWWWWB",
-    "     BWWWWWWWWWWB",
-    "     BWWWWWWWWWWB",
-    "     BBBBBBBBBBBB",
-];
-const HAND_HOT_SPOT: f32 = 7.0;
+// The dart's corners from its tip, its hot spot: it points up and to the
+// left, symmetric about the diagonal, with a notch in its back.
+const DART_TIP: (f32, f32) = (0.0, 0.0);
+const DART_RIGHT: (f32, f32) = (15.0, 6.0);
+const DART_NOTCH: (f32, f32) = (8.5, 8.5);
+const DART_LEFT: (f32, f32) = (6.0, 15.0);
 
-// Draws the pointer's cursor with its hot spot on the pixel at the point.
+// Draws the pointer's cursor with its hot spot at the point.
 pub(crate) fn draw_pointer(painter: &mut Painter, at: Point, cursor: Cursor) {
-    let pixel = Point::new(at.x.floor(), at.y.floor());
-    // The hot spot's pixel's middle, so that a line a pixel wide along it,
-    // or three, covers whole pixels, as a cursor's do.
-    let at = Point::new(pixel.x + 0.5, pixel.y + 0.5);
+    let theme = painter.theme();
+    let colors = Colors {
+        fill: theme.accent,
+        edge: theme.text_on_accent,
+    };
     let point = |x: f32, y: f32| Point::new(at.x + x, at.y + y);
     match cursor {
-        Cursor::Arrow => pixels(painter, pixel, &ARROW),
-        Cursor::Hand => pixels(painter, Point::new(pixel.x - HAND_HOT_SPOT, pixel.y), &HAND),
+        Cursor::Arrow => dart(painter, at, colors),
+        Cursor::Hand => hand(painter, at, colors),
         Cursor::Text => {
             // An I-beam, with its hot spot in its middle.
             let strokes = [((0.0, -8.0), (0.0, 8.0)), ((-3.0, -8.0), (3.0, -8.0)), ((-3.0, 8.0), (3.0, 8.0))];
-            edged_lines(painter, &strokes.map(|((x0, y0), (x1, y1))| (point(x0, y0), point(x1, y1))));
+            edged_lines(painter, &strokes.map(|((x0, y0), (x1, y1))| (point(x0, y0), point(x1, y1))), colors);
         }
-        Cursor::Move => double_arrows(painter, at, &[(Point::new(1.0, 0.0), 9.0), (Point::new(0.0, 1.0), 9.0)]),
-        Cursor::ResizeHorizontal => double_arrows(painter, at, &[(Point::new(1.0, 0.0), 9.0)]),
-        Cursor::ResizeVertical => double_arrows(painter, at, &[(Point::new(0.0, 1.0), 9.0)]),
-        Cursor::ResizeDiagonal => double_arrows(painter, at, &[(Point::new(1.0, 1.0), 7.0)]),
-        Cursor::ResizeAntidiagonal => double_arrows(painter, at, &[(Point::new(1.0, -1.0), 7.0)]),
+        Cursor::Move => double_arrows(painter, at, &[(Point::new(1.0, 0.0), 9.0), (Point::new(0.0, 1.0), 9.0)], colors),
+        Cursor::ResizeHorizontal => double_arrows(painter, at, &[(Point::new(1.0, 0.0), 9.0)], colors),
+        Cursor::ResizeVertical => double_arrows(painter, at, &[(Point::new(0.0, 1.0), 9.0)], colors),
+        Cursor::ResizeDiagonal => double_arrows(painter, at, &[(Point::new(1.0, 1.0), 7.0)], colors),
+        Cursor::ResizeAntidiagonal => double_arrows(painter, at, &[(Point::new(1.0, -1.0), 7.0)], colors),
         Cursor::Crosshair => {
             let strokes = [((-9.0, 0.0), (9.0, 0.0)), ((0.0, -9.0), (0.0, 9.0))];
-            edged_lines(painter, &strokes.map(|((x0, y0), (x1, y1))| (point(x0, y0), point(x1, y1))));
+            edged_lines(painter, &strokes.map(|((x0, y0), (x1, y1))| (point(x0, y0), point(x1, y1))), colors);
         }
         Cursor::NotAllowed => {
-            painter.ring(at, 8.0, 4.0, EDGE);
-            painter.line(point(-5.0, -5.0), point(5.0, 5.0), 4.0, EDGE);
-            painter.ring(at, 8.0, 2.0, INK);
-            painter.line(point(-5.0, -5.0), point(5.0, 5.0), 2.0, INK);
+            // A ring is inside its radius: the edge's reaches past it each way.
+            painter.ring(at, 8.0 + EDGE, 2.0 + EDGE * 2.0, colors.edge);
+            painter.line(point(-5.0, -5.0), point(5.0, 5.0), 2.0 + EDGE * 2.0, colors.edge);
+            painter.ring(at, 8.0, 2.0, colors.fill);
+            painter.line(point(-5.0, -5.0), point(5.0, 5.0), 2.0, colors.fill);
         }
     }
 }
 
-// Pixel art, its top left at the point: each row's runs of ink and of the
-// edge's color, a rectangle a run.
-fn pixels(painter: &mut Painter, origin: Point, rows: &[&str]) {
-    for (y, row) in rows.iter().enumerate() {
-        let row = row.as_bytes();
-        let mut start = 0;
-        while start < row.len() {
-            let end = start + row[start..].iter().take_while(|&&pixel| pixel == row[start]).count();
-            let color = match row[start] {
-                b'B' => Some(INK),
-                b'W' => Some(EDGE),
-                _ => None,
-            };
-            if let Some(color) = color {
-                painter.fill(Rect::new(origin.x + start as f32, origin.y + y as f32, (end - start) as f32, 1.0), color);
-            }
-            start = end;
-        }
-    }
+// The dart: its edge, round-ended lines along its outline, which round its
+// corners, and its fill, two convex halves that overlap down its middle, as
+// the painter fills only convex polygons, and two that only met there would
+// leave a seam of their antialiased edges.
+fn dart(painter: &mut Painter, at: Point, colors: Colors) {
+    let corner = |(x, y): (f32, f32)| Point::new(at.x + x, at.y + y);
+    let [tip, right, notch, left] = [DART_TIP, DART_RIGHT, DART_NOTCH, DART_LEFT].map(corner);
+    painter.polyline(&[tip, right, notch, left, tip], EDGE * 2.0, colors.edge);
+    // Halfway along each side from the tip: the halves reach across the
+    // middle to them.
+    let halfway = |to: Point| Point::new((tip.x + to.x) / 2.0, (tip.y + to.y) / 2.0);
+    painter.polygon(&[tip, right, notch, halfway(left)], colors.fill);
+    painter.polygon(&[tip, halfway(right), notch, left], colors.fill);
 }
 
-// Lines in ink, each over a wider one in the edge's color.
-fn edged_lines(painter: &mut Painter, strokes: &[(Point, Point)]) {
+// A hand that points up, with its hot spot at its fingertip: four fingers and
+// a thumb, round-ended lines, and a palm.
+fn hand(painter: &mut Painter, at: Point, colors: Colors) {
+    let point = |x: f32, y: f32| Point::new(at.x + x, at.y + y);
+    let fingers = [
+        (point(0.0, 1.75), point(0.0, 10.0), 3.5),
+        (point(4.25, 5.75), point(4.25, 11.0), 3.5),
+        (point(8.0, 6.75), point(8.0, 11.0), 3.5),
+        (point(11.5, 8.5), point(11.5, 11.5), 3.0),
+        (point(-5.0, 9.5), point(-1.5, 13.5), 3.5),
+    ];
+    let palm = Rect::new(at.x - 1.75, at.y + 10.0, 14.75, 7.5);
+    for (from, to, width) in fingers {
+        painter.line(from, to, width + EDGE * 2.0, colors.edge);
+    }
+    painter.shape(palm.expand(EDGE), 3.0 + EDGE, colors.edge, None);
+    for (from, to, width) in fingers {
+        painter.line(from, to, width, colors.fill);
+    }
+    painter.shape(palm, 3.0, colors.fill, None);
+}
+
+// Lines in the fill's color, each over a wider one in the edge's: 2 pixels
+// wide, which cover a pixel whole wherever they are, where a line a pixel wide
+// on the line between two pixels covers half of each.
+fn edged_lines(painter: &mut Painter, strokes: &[(Point, Point)], colors: Colors) {
     for (from, to) in strokes {
-        painter.line(*from, *to, 3.0, EDGE);
+        painter.line(*from, *to, 2.0 + EDGE * 2.0, colors.edge);
     }
     for (from, to) in strokes {
-        painter.line(*from, *to, 1.0, INK);
+        painter.line(*from, *to, 2.0, colors.fill);
     }
 }
 
 // Arrows both ways through the point, each `reach` along its direction each
-// way, with their heads: all their edges, then all their ink, so that one's
-// edge never covers another's ink. A diagonal one has a wider edge, and
-// heavier ink, which slant across pixels and would show only part of each.
-fn double_arrows(painter: &mut Painter, at: Point, arrows: &[(Point, f32)]) {
+// way, with their heads: all their edges, then all their fill, so that one's
+// edge never covers another's fill.
+fn double_arrows(painter: &mut Painter, at: Point, arrows: &[(Point, f32)], colors: Colors) {
     for edge in [true, false] {
         for &(direction, reach) in arrows {
-            let diagonal = direction.x != 0.0 && direction.y != 0.0;
-            let margin = match (edge, diagonal) {
-                (false, _) => 0.0,
-                (true, false) => 1.0,
-                (true, true) => 1.75,
-            };
-            let ink = if diagonal { 1.5 } else { 1.0 };
-            let color = if edge { EDGE } else { INK };
+            let margin = if edge { EDGE } else { 0.0 };
+            let color = if edge { colors.edge } else { colors.fill };
             let length = (direction.x * direction.x + direction.y * direction.y).sqrt();
             let along = Point::new(direction.x / length, direction.y / length);
             let across = Point::new(-along.y, along.x);
@@ -153,7 +136,7 @@ fn double_arrows(painter: &mut Painter, at: Point, arrows: &[(Point, f32)]) {
                 painter.polygon(&[at_distance(tip, 0.0), at_distance(back, half), at_distance(back, -half)], color);
             }
             let shaft = if edge { reach } else { reach - 3.0 };
-            painter.line(at_distance(-shaft, 0.0), at_distance(shaft, 0.0), ink + 2.0 * margin, color);
+            painter.line(at_distance(-shaft, 0.0), at_distance(shaft, 0.0), 1.5 + 2.0 * margin, color);
         }
     }
 }
