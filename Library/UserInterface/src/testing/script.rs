@@ -16,8 +16,7 @@
 // Frame N's steps happen before frame N's update, which sees them as input,
 // except Capture and Expect, which happen after it. Frame N is at N times
 // FrameTime seconds, a 60th of a second unless the script says. Frame 0,
-// before the first step, gives the window focus and draws what steps can
-// point at. The program exits after the last step's frame, and fails if an
+// before the first step, draws what steps can point at. The program exits after the last step's frame, and fails if an
 // expectation wasn't met.
 
 use std::collections::BTreeMap;
@@ -34,8 +33,8 @@ use crate::testing::gestures::{self, Frames};
 
 pub const DEFAULT_FRAME_TIME: f64 = 1.0 / 60.0;
 
-const ACTIONS: [&str; 15] = [
-    "Move", "Press", "Release", "Click", "DoubleClick", "Drag", "Scroll", "Key", "Hold", "Type", "Gamepad", "Focus", "Capture", "Expect", "Program",
+const ACTIONS: [&str; 14] = [
+    "Move", "Press", "Release", "Click", "DoubleClick", "Drag", "Scroll", "Key", "Hold", "Type", "Gamepad", "Capture", "Expect", "Program",
 ];
 
 // Where a step points: a target's middle, by its name; a place in the
@@ -64,7 +63,6 @@ enum Action {
     // The keys that type the text.
     Type(Vec<Event>),
     Gamepad(Gamepad),
-    Focus(bool),
     Capture(String),
     Expect(Value),
     Program(Value),
@@ -192,10 +190,6 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
             _ => return Err("needs text".to_string()),
         },
         "Gamepad" => Action::Gamepad(parse_gamepad(value)?),
-        "Focus" => match value {
-            Value::Bool(focused) => Action::Focus(*focused),
-            other => return Err(format!("must be true or false, not {}", other.describe())),
-        },
         "Capture" => match value {
             Value::String(name) => Action::Capture(name.clone()),
             _ => return Err("needs a name for the files".to_string()),
@@ -238,9 +232,6 @@ impl ScriptRunner {
     // at.
     pub fn frame(&mut self, frame: u64, ui: &Interface) -> Result<ScriptFrame, String> {
         let mut output = ScriptFrame::default();
-        if frame == 0 {
-            output.events.push(Event::FocusGained(Vec::new()));
-        }
         if let Some(events) = self.scheduled.remove(&frame) {
             output.events.extend(events);
         }
@@ -264,8 +255,6 @@ impl ScriptRunner {
                     vec![events]
                 }
                 Action::Type(events) => vec![events],
-                Action::Focus(true) => vec![vec![Event::FocusGained(self.held.clone())]],
-                Action::Focus(false) => vec![vec![Event::FocusLost]],
                 Action::Gamepad(gamepad) => {
                     self.gamepad = gamepad;
                     Vec::new()

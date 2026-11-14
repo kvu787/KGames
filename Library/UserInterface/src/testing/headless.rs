@@ -50,8 +50,7 @@ pub struct Headless<P: Program> {
 }
 
 impl<P: Program> Headless<P> {
-    // The program in a window that has focus, in the light theme, in the
-    // supported setup.
+    // The program, in the light theme, in the supported setup.
     pub fn new(program: P) -> Self {
         Self::with_theme(program, ThemeKind::Light)
     }
@@ -63,7 +62,7 @@ impl<P: Program> Headless<P> {
             ui: Interface::new(fonts, theme),
             shown: None,
             frame: 0,
-            pending: vec![Event::FocusGained(Vec::new())],
+            pending: Vec::new(),
             sent: Vec::new(),
             gamepad: Gamepad::default(),
             renderer: None,
@@ -342,15 +341,11 @@ impl<P: Program> Headless<P> {
 
     // Draws the pointer, as a window's frames do while it keeps Windows'
     // cursor, which a test's frames don't, so that what they draw is what a
-    // script captures.
-    pub fn draw_pointer(&mut self) -> &mut Self {
-        self.ui.draws_pointer = true;
+    // script captures, or stops drawing it, as a window's frames do once it
+    // lets the cursor go.
+    pub fn draw_pointer(&mut self, draws: bool) -> &mut Self {
+        self.ui.draws_pointer = draws;
         self.run_frame()
-    }
-
-    // Gives the window focus, or takes it away.
-    pub fn focus(&mut self, focused: bool) -> &mut Self {
-        self.send(&[if focused { Event::FocusGained(Vec::new()) } else { Event::FocusLost }])
     }
 
     // Draws the last frame offscreen, as the window would, with the

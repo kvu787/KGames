@@ -158,11 +158,12 @@ the user held keys and buttons across them:
 
 So for keyboards and mice, GameInput does what its documentation promises: programs need nothing
 of their own for gaining and losing focus. For gamepads it reports the state, and the library's
-interface ignores a gamepad's buttons held as focus comes until they're let go of, as
+reader ignores a gamepad's buttons held as focus comes until they're let go of, as
 GameInputDemo's masks do. Both go by the readings' timestamps, so a reading from before the
 window got focus is input without it even if it comes in a later frame. As focus goes, the
-interface lets go of everything held on that frame, keys with a release like mouse buttons,
-whichever comes first of GameInput's readings at rest and the window's focus change.
+reader lets go of everything held on that frame, keys with a release like mouse buttons,
+whichever comes first of GameInput's readings at rest and the window's focus change, and the
+interface never hears of focus itself.
 `Test/UserInterface/tests/reader.rs` and `Test/GameInputDemo/tests/input.rs` pin these, with
 readings shaped like GameInput's: a key held as focus goes is released once, and counts again once
 it's pressed with focus back, like an Alt+Tab away, a click back and an Alt+F4, and a gamepad

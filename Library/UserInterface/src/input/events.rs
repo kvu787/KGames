@@ -1,18 +1,15 @@
 // A frame's input: the events since the last frame, from GameInput's
-// readings and the window's focus, or made up by a script or a test, in the
-// order they happened. The interface
-// takes them in steps (see `Input::steps`), each of which it handles on the
-// state that the steps before it left, and gathers each step's events into
-// what happened in the step and what's held. Programs and widgets read it
-// the same way whatever made it.
+// readings, or made up by a script or a test, in the order they happened.
+// The interface takes them in steps (see `Input::steps`), each of which it
+// handles on the state that the steps before it left, and gathers each
+// step's events into what happened in the step and what's held. Programs
+// and widgets read it the same way whatever made it.
 //
-// Without window focus there's no input at all. As focus goes, everything
-// still held is let go of on that step: keys and mouse buttons are released,
-// the gamepad goes to rest, and `focus_lost` says why. GameInput's readings
-// at rest as focus goes may come before it, and then let go of what they
-// say on their own steps, as any reading does. Keys and gamepad buttons held
-// when focus comes count only once they're let go of, so that the Alt of an
-// Alt+Tab, or a button pressed in another program, does nothing here.
+// The window's focus isn't input: the reader (input/reader.rs) gives no
+// events without it, lets go of everything held as it goes, with releases
+// and the gamepad at rest, and holds back what's held as it comes, until
+// it's let go of. So a program never hears of focus, and nothing it holds
+// is ever stuck.
 
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
@@ -27,9 +24,6 @@ pub enum Event {
     Wheel(Point),
     KeyPressed(Key),
     KeyReleased(Key),
-    // With the keys held as focus came, which count once they're let go of.
-    FocusGained(Vec<Key>),
-    FocusLost,
     Gamepad(Gamepad),
 }
 
@@ -56,9 +50,6 @@ pub struct Input {
     // before it, so that a simulation moves once a frame, after its events.
     pub time: f64,
     pub delta: f32,
-    pub focused: bool,
-    // Focus went away in this step, which ends presses and drags.
-    pub focus_lost: bool,
     pub pointer: Option<Point>,
     // How far the pointer moved in this step.
     pub pointer_delta: Point,
@@ -75,9 +66,6 @@ pub struct Input {
     // This step's presses.
     keys_pressed: Vec<Key>,
     keys_released: Vec<Key>,
-    ignored_keys: [bool; 256],
-    ignored_gamepad_buttons: u32,
-    ignore_next_gamepad: bool,
     // The gamepad's buttons as the last Gamepad event that `steps` saw had
     // them, which tells a change of them, which is a step, from a reading
     // of the sticks, which isn't.
@@ -89,8 +77,6 @@ impl Default for Input {
         Self {
             time: 0.0,
             delta: 0.0,
-            focused: false,
-            focus_lost: false,
             pointer: None,
             pointer_delta: Point::ZERO,
             wheel: Point::ZERO,
@@ -101,9 +87,6 @@ impl Default for Input {
             keys_down: [false; 256],
             keys_pressed: Vec::new(),
             keys_released: Vec::new(),
-            ignored_keys: [false; 256],
-            ignored_gamepad_buttons: 0,
-            ignore_next_gamepad: false,
             step_gamepad_buttons: 0,
         }
     }
@@ -114,8 +97,8 @@ impl Input {
     // handles one at a time, each on the state that the steps before it
     // left, so that each event sees what the events before it did. Each
     // event that does something is the end of a step: a press or a release
-    // of a button or a key, the wheel, focus coming or going, or a change of
-    // the gamepad's buttons. A key's press and the text it types are one
+    // of a button or a key, the wheel, or a change of the gamepad's
+    // buttons. A key's press and the text it types are one
     // step, as the text is made from the key. The events before it that only
     // move something, the
     // pointer or the gamepad's sticks, are its step's too, so that it
@@ -166,7 +149,6 @@ impl Input {
         self.text.clear();
         self.keys_pressed.clear();
         self.keys_released.clear();
-        self.focus_lost = false;
         self.previous_gamepad = self.gamepad;
         let before = self.pointer;
         for event in events {
@@ -180,35 +162,6 @@ impl Input {
 
     fn apply(&mut self, event: &Event) {
         match event {
-            Event::FocusGained(held) => {
-                self.focused = true;
-                for key in held {
-                    self.ignored_keys[key.0 as usize] = true;
-                }
-                self.ignore_next_gamepad = true;
-            }
-            Event::FocusLost => {
-                self.focused = false;
-                self.focus_lost = true;
-                for button in &mut self.buttons {
-                    if button.down {
-                        button.down = false;
-                        button.released = true;
-                    }
-                }
-                for code in 0..=255u8 {
-                    if std::mem::replace(&mut self.keys_down[code as usize], false) {
-                        self.keys_released.push(Key(code));
-                    }
-                }
-                self.ignored_keys = [false; 256];
-                self.pointer = None;
-                self.gamepad = Gamepad {
-                    connected: self.gamepad.connected,
-                    ..Gamepad::default()
-                };
-            }
-            _ if !self.focused => {}
             Event::PointerMoved(point) => self.pointer = Some(*point),
             Event::ButtonPressed(button) => {
                 let time = self.time;
@@ -232,9 +185,6 @@ impl Input {
             }
             Event::Wheel(notches) => self.wheel += *notches,
             Event::KeyPressed(key) => {
-                if self.ignored_keys[key.0 as usize] {
-                    return;
-                }
                 self.keys_down[key.0 as usize] = true;
                 self.keys_pressed.push(*key);
                 let modifiers = self.modifiers();
@@ -247,24 +197,12 @@ impl Input {
             }
             Event::KeyReleased(key) => {
                 let index = key.0 as usize;
-                if std::mem::replace(&mut self.ignored_keys[index], false) {
-                    return;
-                }
                 if self.keys_down[index] {
                     self.keys_down[index] = false;
                     self.keys_released.push(*key);
                 }
             }
-            Event::Gamepad(reading) => {
-                if std::mem::replace(&mut self.ignore_next_gamepad, false) {
-                    self.ignored_gamepad_buttons = reading.buttons.0;
-                }
-                // A button that's let go of counts again from then on.
-                self.ignored_gamepad_buttons &= reading.buttons.0;
-                let mut reading = *reading;
-                reading.buttons.0 &= !self.ignored_gamepad_buttons;
-                self.gamepad = reading;
-            }
+            Event::Gamepad(reading) => self.gamepad = *reading,
         }
     }
 

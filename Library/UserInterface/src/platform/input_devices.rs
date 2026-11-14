@@ -129,6 +129,8 @@ pub struct Devices {
     readings: Vec<Reading>,
     device_events: Vec<(GameInputDeviceEvent, Device)>,
     focus_changes: Vec<(u64, bool)>,
+    // Whether the window has focus, as the last focus change left it.
+    focused: bool,
     frame: u64,
 }
 
@@ -172,6 +174,7 @@ impl Devices {
             readings: Vec::new(),
             device_events: Vec::new(),
             focus_changes: Vec::new(),
+            focused: false,
             frame: 0,
         };
         devices.calibrate();
@@ -226,6 +229,9 @@ impl Devices {
             self.calibrate();
         }
         self.focus_changes = focus_changes.iter().map(|change| (self.microseconds(change.time), change.gained)).collect();
+        if let Some(last) = focus_changes.last() {
+            self.focused = last.gained;
+        }
         self.device_events.clear();
         let events: Vec<_> = unsafe { (*self.queue).lock().unwrap().drain(..).collect() };
         for (event, object) in events {
@@ -277,6 +283,13 @@ impl Devices {
     // on GameInput's clock, as its readings' timestamps are.
     pub fn focus_changes(&self) -> &[(u64, bool)] {
         &self.focus_changes
+    }
+
+    // Whether the window has focus as the frame's read leaves it, for
+    // programs that read the readings themselves: the interface never hears
+    // of focus.
+    pub fn focused(&self) -> bool {
+        self.focused
     }
 
     // Runs a gamepad's motors, or stops them with None.

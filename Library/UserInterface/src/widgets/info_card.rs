@@ -1,19 +1,19 @@
 // The card that a test program floats over its scene's bottom left corner,
 // which the scene never crosses: the program's name and what it shows, the
-// frame rate, the GPU, the display, whether the window has focus, the keys,
-// and what's wrong with Settings.json, if anything. MinimalSceneTest and
+// frame rate, the GPU, the display, the keys, and what's wrong with
+// Settings.json, if anything. MinimalSceneTest and
 // SpinningCarTest show one, and F2 shows and hides it.
 
 use crate::application::program::Notice;
 use crate::core::interface::Ui;
 use crate::core::tree::Tree;
-use crate::design::tokens::{BODY, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, ICON, PAGE_PADDING, SPACE_L, SPACE_M, SPACE_S, SPACE_XS};
-use crate::drawing::geometry::{Insets, Rect};
+use crate::design::tokens::{BODY, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, PAGE_PADDING, SPACE_L, SPACE_M, SPACE_S, SPACE_XS};
+use crate::drawing::geometry::Rect;
 use crate::input::devices::Key;
 use crate::input::events::Input;
 use crate::widgets::card::Card;
-use crate::widgets::info_bar::{InfoBar, Severity};
-use crate::widgets::text::{Field, KEYCAP_HEIGHT, Keycaps, StatusIcon, Text};
+use crate::widgets::info_bar::InfoBar;
+use crate::widgets::text::{Field, KEYCAP_HEIGHT, Keycaps, Text};
 
 // The column of the fields' labels.
 const LABEL_WIDTH: f32 = 96.0;
@@ -69,37 +69,26 @@ impl<M: Clone + 'static> Tree<M> {
         let notices = ui.notices().to_vec();
         let width = InfoCard::WIDTH;
         let notice_heights: Vec<f32> = notices.iter().map(|notice| info_bar::<M>(notice).height(ui, width - CARD_PADDING * 2.0)).collect();
-        let window_focused = ui.window_focused();
 
         // The card sizes itself to its content, which goes from its top, so
         // its top is as far above the window's bottom as the card is tall:
-        // under its header, the description, the fields, the window's focus
-        // and the rows of keys, SPACE_M apart, then each notice, SPACE_M under
-        // what's above it.
+        // under its header, the description, the fields and the rows of
+        // keys, SPACE_M apart, then each notice, SPACE_M under what's above
+        // it.
         let line = BODY.line_height;
         let fields = rows.len() as f32 * (line + SPACE_XS) - SPACE_XS;
         let keys_height = key_rows.len() as f32 * (SPACE_M + KEYCAP_HEIGHT);
         let notices_height: f32 = notice_heights.iter().map(|height| SPACE_M + height).sum();
-        let content = line + SPACE_M + fields + SPACE_M + line + keys_height + notices_height;
+        let content = line + SPACE_M + fields + keys_height + notices_height;
         let height = CARD_PADDING * 2.0 + CARD_HEADER_HEIGHT + CARD_HEADER_GAP + content;
         let rect = Rect::new(PAGE_PADDING, ui.size().height - PAGE_PADDING - height, width, height);
         self.sized_card(ui, Some(InfoCard::NAME), rect, Card::new(contents.title).floating(), |_, card, area| {
             let mut area = area.content;
             card.draw(area.cut_top(line, SPACE_M), Text::label(contents.description).secondary());
-            for (label, value) in &rows {
-                card.draw(area.cut_top(line, SPACE_XS), Field::new(*label, LABEL_WIDTH, *value));
+            for (index, (label, value)) in rows.iter().enumerate() {
+                let gap = if index + 1 < rows.len() { SPACE_XS } else { 0.0 };
+                card.draw(area.cut_top(line, gap), Field::new(*label, LABEL_WIDTH, *value));
             }
-            area.cut_top(SPACE_M - SPACE_XS, 0.0);
-
-            // Whether the window has focus, with an info bar's status icon.
-            let focus = area.cut_top(line, 0.0);
-            let (severity, says) = if window_focused {
-                (Severity::Success, "The window has focus")
-            } else {
-                (Severity::Warning, "No focus, so input is ignored")
-            };
-            card.draw(Rect::new(focus.x, focus.y, ICON, focus.height), StatusIcon::new(severity, ICON));
-            card.draw(focus.pad(Insets::new(ICON + SPACE_S, 0.0, 0.0, 0.0)), Text::label(says));
 
             // Each key on its keycap, and what it does.
             for (keys, widths) in key_rows.iter().zip(&key_widths) {

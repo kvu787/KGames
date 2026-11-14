@@ -53,7 +53,8 @@ fn steps_make_input_on_their_frames() {
     .unwrap();
     let mut runner = ScriptRunner::new(script);
     let mut frame = |number| runner.frame(number, &app.ui).unwrap().events;
-    assert_eq!(frame(0)[0], Event::FocusGained(Vec::new()));
+    // Frame 0 has nothing but the gamepad, which reads every frame.
+    assert!(matches!(frame(0)[..], [Event::Gamepad(_)]));
     let first = frame(1);
     assert_eq!(first[0], Event::PointerMoved(app.target("Save").center()));
     assert_eq!(first[1], Event::ButtonPressed(MouseButton::Left));

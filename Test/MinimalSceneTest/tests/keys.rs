@@ -26,7 +26,7 @@ fn f2_hides_and_shows_the_card() {
 #[test]
 fn holding_f2_down_does_not_show_and_hide_the_card_again() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::F2)]);
+    input.begin(0.0, &[Event::KeyPressed(Key::F2)]);
     assert!(InfoCard::toggled(&input));
 
     let mut app = sphere();
@@ -43,20 +43,4 @@ fn other_keys_do_nothing() {
         assert!(app.program.text_shown, "{}", key.name());
         assert!(app.vertical_sync(), "{}", key.name());
     }
-}
-
-#[test]
-fn without_focus_the_keys_do_nothing() {
-    let mut app = sphere();
-    app.focus(false);
-    app.key(Key::F2).key(Key::F10);
-    assert!(app.program.text_shown);
-    assert!(app.vertical_sync());
-    // The sphere keeps moving.
-    let position = app.program.motion.position;
-    app.wait(0.25);
-    assert!(app.program.motion.position > position);
-    app.focus(true);
-    app.key(Key::F2);
-    assert!(!app.program.text_shown);
 }

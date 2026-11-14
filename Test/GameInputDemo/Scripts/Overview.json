@@ -37,7 +37,7 @@
         "Keyboard": { "Device": "HID Keyboard Device (29EA:0360)", "Keys": ["Shift", "W", "D"] },
         "Mouse": { "Device": "Razer DeathAdder V4 Pro (1532:00BF)", "Buttons": ["Right"] },
         "Gamepad": { "Device": "Xbox Controller (045E:0B13)", "Buttons": ["A", "RB", "Up"] },
-        "Interface": { "WindowFocused": true, "Popup": null }
+        "Interface": { "Popup": null }
       }
     },
     { "Frame": 9, "Capture": "Overview" }

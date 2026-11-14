@@ -58,7 +58,6 @@ fn the_numpad_types_its_digits_and_operators() {
 // A frame's text, as the interface's steps type it from the keys.
 fn text_of(events: &[Event]) -> String {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
     let mut text = String::new();
     for step in input.steps(events) {
         input.begin(0.0, step);
@@ -94,7 +93,6 @@ fn the_interface_types_with_shift_and_never_with_ctrl_or_alt() {
 #[test]
 fn a_key_s_press_and_its_text_are_one_step() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
     let events = [Event::KeyPressed(Key::X), Event::KeyReleased(Key::X)];
     let steps = input.steps(&events);
     assert_eq!(steps, [&events[0..1], &events[1..2]]);

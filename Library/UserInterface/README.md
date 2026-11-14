@@ -303,16 +303,18 @@ before, but reports gamepads' whole state, their held buttons too.
   `ui.input()` has all of the step's input, for programs that read keys themselves, like for
   driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
   its presses in a frame are two.
-- Without focus, the window has no input at all, including the gamepad's. As focus goes,
-  everything still held is let go of on that step: keys and mouse buttons are released, the
-  gamepad goes to rest, and `ui.input().focus_lost` says why. GameInput's readings at rest as
-  focus goes may come first, and let go of what they say on their own steps, as any reading
-  does. The pointer is where it is from the step after the one that focus comes in. The click
-  that gives it focus does only
-  that, and keys and gamepad buttons held when it gets focus count once they're let go of:
-  GameInput doesn't report the keys and the click, and the interface ignores the gamepad's held
-  buttons until they're let go of. A reading from before the window got focus is input without
-  it, even if GameInput is late with it and it comes in a later frame.
+- The window's focus isn't input, and a program never hears of it. Without focus, the window
+  has no input at all, including the gamepad's. As focus goes, the reader lets go of everything
+  still held on that step: a release for each key and mouse button whose press the interface
+  got, and the gamepad at rest, so a program sees them let go of, as if the user had, and
+  nothing stays held. GameInput's readings at rest as focus goes may come first, and let go of
+  what they say on their own steps, as any reading does. The click that gives the window focus
+  does only that, and keys and gamepad buttons held when it gets focus count once they're let go
+  of, and their releases are never given: GameInput doesn't report the keys and the click, and
+  the reader ignores the gamepad's held buttons until they're let go of. A reading from before
+  the window got focus is input without it, even if GameInput is late with it and it comes in a
+  later frame. A program that reads GameInput's readings itself, like GameInputDemo, gets the
+  window's focus from `Devices::focused` and `Devices::focus_changes`.
 - `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
   The frame that `F9` is pressed in is all in the new theme. A program's own command for it calls
   `ui.toggle_theme()` in `update`, and `ui.theme()` reports the new theme for the rest of that
@@ -542,14 +544,13 @@ instead of from the user, and saves frames and its state. RunInBackground runs t
 | `Type`        | Text, typed with the keys that type it on a US keyboard, Shift and all           |
 | `Gamepad`     | The gamepad from now on: `LeftStick`, `RightStick`, `LeftTrigger`,               |
 |               | `RightTrigger`, and `Buttons`                                                    |
-| `Focus`       | Whether the window has focus                                                     |
 | `Capture`     | A name: saves the frame as `<name>.png` and the state as `<name>.json`           |
 | `Expect`      | What the state must have: every member it names must match, numbers to a         |
 |               | millionth                                                                        |
 | `Program`     | A step for the program's `script`                                                |
 
 The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`,
-`VerticalSync`, `WindowFocused`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
+`VerticalSync`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
 `Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,
 `Enabled` and `Label`, by name. Menu items are named after their menu and label, like
 `Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. A scripted run reads and

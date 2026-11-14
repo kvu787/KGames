@@ -112,7 +112,7 @@ pub fn view(ui: &mut Ui, input: &Result<Input, String>) -> Tree<Message> {
         false,
         Some(status),
     );
-    app_bar_status(ui, &mut tree, shell.commands);
+    app_bar_status(ui, &mut tree, shell.commands, input.as_ref().is_ok_and(|input| input.focused()));
     // Without GameInput, a notice says why, and there's nothing to show.
     let Ok(input) = input else {
         return tree;
@@ -132,14 +132,14 @@ pub fn view(ui: &mut Ui, input: &Result<Input, String>) -> Tree<Message> {
 }
 
 // After the app bar's title: whether the window has focus, which the demo
-// needs to read input, and the frame rate.
-fn app_bar_status(ui: &mut Ui, tree: &mut Tree<Message>, mut bar: Rect) {
+// needs to read input, as its source says, and the frame rate.
+fn app_bar_status(ui: &mut Ui, tree: &mut Tree<Message>, mut bar: Rect, focused: bool) {
     let stats = ui.stats();
     let rate = format!("{:.0} frames a second · {:.2} ms a frame", stats.frames_per_second, stats.frame_time);
     let width = ui.measure(&rate, CAPTION).width.ceil();
     tree.draw(bar.cut_right(width, SPACE_XXL), Text::caption(rate));
 
-    let (status, severity) = if ui.window_focused() {
+    let (status, severity) = if focused {
         ("Focused: reading input", Severity::Success)
     } else {
         ("Not focused: input is ignored", Severity::Warning)

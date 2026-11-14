@@ -596,6 +596,17 @@ impl Input {
         self.source.as_scripted()
     }
 
+    // Whether the window has focus as the frame leaves it, and whether it
+    // lost it since the last frame, as the source says.
+    pub fn source_focus(&mut self) -> (bool, bool) {
+        self.source.focus()
+    }
+
+    // Whether the window has focus, as the last update left it.
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+
     fn seconds(&self, timestamp: u64) -> f64 {
         timestamp.saturating_sub(self.start_timestamp) as f64 / 1_000_000.0
     }

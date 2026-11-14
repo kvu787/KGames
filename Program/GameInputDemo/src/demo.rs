@@ -29,9 +29,6 @@ pub enum Message {
     Tick,
     // The combo box picked which gamepad to listen to.
     Listen(Listen),
-    // The window lost focus, in a step of the frame's input, which the
-    // frame's Tick takes even if the window got it back since.
-    FocusLost,
 }
 
 pub struct Demo {
@@ -88,9 +85,6 @@ impl Program for Demo {
 
     fn input(&self, ui: &Ui) -> Vec<Message> {
         let mut messages = Vec::new();
-        if ui.input().focus_lost {
-            messages.push(Message::FocusLost);
-        }
         if ui.last_step() {
             messages.push(Message::Tick);
         }
@@ -120,16 +114,17 @@ impl Program for Demo {
                     if let Some(scripted) = input.scripted() {
                         scripted.now = scripted.now.max(microseconds(ui.time()));
                     }
-                    input.update(ui.window_focused());
-                }
-            }
-            // A frame can both lose focus and get it back, like when focus
-            // goes to another window and back between two frames. Losing it
-            // drops what came meanwhile, and makes getting it back count as
-            // getting focus.
-            Message::FocusLost => {
-                if let Ok(input) = &mut self.input {
-                    input.focus_lost();
+                    // The interface never hears of focus, so the source
+                    // says. A frame can both lose focus and get it back,
+                    // like when focus goes to another window and back
+                    // between two frames: losing it drops what came
+                    // meanwhile, and makes getting it back count as getting
+                    // focus.
+                    let (focused, lost) = input.source_focus();
+                    if lost {
+                        input.focus_lost();
+                    }
+                    input.update(focused);
                 }
             }
         }

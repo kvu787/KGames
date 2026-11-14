@@ -46,7 +46,7 @@ fn f2_hides_and_shows_the_card() {
 #[test]
 fn holding_a_key_down_does_not_do_it_again() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::KeyPressed(Key::S), Event::KeyPressed(Key::F2)]);
+    input.begin(0.0, &[Event::KeyPressed(Key::S), Event::KeyPressed(Key::F2)]);
     assert!(toggles_stationary(&input));
     assert!(InfoCard::toggled(&input));
 
@@ -65,19 +65,4 @@ fn other_keys_do_nothing() {
         assert!(!app.program.stationary, "{}", key.name());
         assert!(app.vertical_sync(), "{}", key.name());
     }
-}
-
-#[test]
-fn without_focus_the_keys_do_nothing() {
-    let mut app = car();
-    app.focus(false);
-    app.key(Key::S).key(Key::F2).key(Key::F10);
-    assert!(!app.program.stationary);
-    assert!(app.program.text_shown);
-    assert!(app.vertical_sync());
-    // The car keeps moving.
-    assert_eq!(app.program.placement, car_placement(app.time(), false));
-    app.focus(true);
-    app.key(Key::S);
-    assert!(app.program.stationary);
 }

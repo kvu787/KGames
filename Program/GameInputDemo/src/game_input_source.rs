@@ -94,6 +94,11 @@ impl InputSource for GameInputSource {
             .collect()
     }
 
+    // The library's devices say, with the times of their focus changes.
+    fn focus(&mut self) -> (bool, bool) {
+        (self.devices.borrow().focused(), false)
+    }
+
     fn focus_changes(&mut self) -> Vec<(u64, bool)> {
         let devices = self.devices.borrow();
         if devices.frame() == self.focus_frame {

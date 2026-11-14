@@ -365,16 +365,6 @@ fn f10_and_the_view_menu_switch_vertical_sync() {
 }
 
 #[test]
-fn without_focus_nothing_responds() {
-    let mut app = showcase();
-    app.focus(false).click("Standard").key(Key::F9);
-    assert_eq!(app.program.presses[0], 0);
-    assert_eq!(app.ui.theme().kind, ThemeKind::Light);
-    app.focus(true).click("Standard");
-    assert_eq!(app.program.presses[0], 1);
-}
-
-#[test]
 fn the_interface_card_shows_held_keys_and_the_gamepad() {
     let mut app = showcase();
     app.hold(Key::W);

@@ -46,8 +46,8 @@ encoded to sRGB. The view is as big as the window, and the card goes over it.
 
 The card floats over the scene at the bottom left, which the car never crosses, and is as tall as
 what it says: the test's name and what the scene shows, the frame rate, the GPU, the display,
-whether the car moves, whether the window has focus, with an info bar's status icon, the keys on
-keycaps, and what's wrong with `Settings.json`, if anything, as warning info bars.
+whether the car moves, the keys on keycaps, and what's wrong with `Settings.json`, if anything, as
+warning info bars.
 
 ```powershell
 cargo run --release

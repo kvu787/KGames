@@ -1,8 +1,8 @@
 // Play through its frames, as the main loop runs them, with input that the
 // tests make up, without a window, with Library/UserInterface's Headless:
 // driving with the gamepad and the keys, braking, crashing, the vehicles,
-// the scenes, the camera, the card, settings that name what isn't there,
-// and a window without focus. And the 3D view, drawn offscreen with the GPU.
+// the scenes, the camera, the card, and settings that name what isn't
+// there. And the 3D view, drawn offscreen with the GPU.
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
@@ -240,21 +240,6 @@ fn settings_that_name_what_is_not_there_make_notices() {
         ]
     );
     assert!(app.has_target("Notice/2"));
-    assert!(!app.program.game.camera.follow);
-}
-
-// Without the window's focus, the keys and the gamepad do nothing.
-#[test]
-fn without_focus_nothing_moves_the_car() {
-    let mut app = start();
-    app.focus(false).hold(Key::UP);
-    app.set_gamepad(gamepad(Gamepad {
-        right_stick: Point::new(0.0, 1.0),
-        buttons: GamepadButtons(GamepadButtons::MENU),
-        ..Gamepad::default()
-    }));
-    app.frames(30);
-    assert_eq!(speed(&app), 0.0);
     assert!(!app.program.game.camera.follow);
 }
 

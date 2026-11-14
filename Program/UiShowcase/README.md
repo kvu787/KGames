@@ -33,9 +33,9 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 | Color                      | A color picker's spectrum and value slider, a hex field, and a palette   |
 | List                       | 120 items that scroll, of which the search shows those it matches, one   |
 |                            | can be selected, and a double-click opens one                            |
-| Interface                  | Whether the window has focus, the pointer, the widget under it, the one  |
-|                            | with the press, the one with focus, the open popup, the tooltip and the  |
-|                            | dialog; the keys held; the gamepad's sticks, triggers and buttons;       |
+| Interface                  | The pointer, the widget under it, the one with the press, the one with   |
+|                            | keyboard focus, the open popup, the tooltip and the dialog; the keys     |
+|                            | held; the gamepad's sticks, triggers and buttons;                        |
 |                            | keycaps and badges; a tooltip of lines; and a log of what happened       |
 
 The menu bar's File, View and Help menus have icons, keyboard accelerators, a separator, a
@@ -87,8 +87,8 @@ widget, a press that slides off a button, drags past a slider's ends, the wheel,
 boxes' lists and what closes them, typing and deleting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
-double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9`, `F10`, and a
-window without focus. They also check that every widget fits the window, in both themes.
+double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9` and `F10`. They
+also check that every widget fits the window, in both themes.
 
 The scripts in `Test/UiShowcase/Scripts` run the same kinds of input through the real window and
 renderer, pressing widgets by name. The state that scripts save and check has what each widget shows,

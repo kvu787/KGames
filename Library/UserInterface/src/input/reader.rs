@@ -48,16 +48,20 @@
 //   the click that gave the window focus is held, before the window keeps
 //   it. As the mice's input stops, the buttons it pressed are let go of.
 //
-// Without focus, the window gets no input, and GameInput gives none, as the
-// library leaves its background input off (see platform/input_devices.rs):
-// as focus goes, it gives each device a reading at rest, which lets go of
-// everything held, and the reader forgets the keys and mouse buttons held
-// itself, in case that reading was lost. GameInput doesn't report keys and
-// mouse buttons held from before focus at all, like the click that gives the
-// window focus, but reports a gamepad's whole state, whose held buttons the
-// reader ignores until they're let go of. A reading from before the window
-// got focus is input without it even when it comes in a later frame than the
-// focus change, like that reading of a gamepad if GameInput is late with it.
+// The window's focus isn't the interface's: it gets no events of focus, and
+// none without it. GameInput gives none either, as the library leaves its
+// background input off (see platform/input_devices.rs): as focus goes, it
+// gives each device a reading at rest, which lets go of everything held.
+// The reader lets go of it all itself, in case that reading was lost: a
+// release for each key and mouse button whose press the interface got, and
+// the gamepad at rest, so that nothing stays held. GameInput doesn't report
+// keys and mouse buttons held from before focus at all, like the click that
+// gives the window focus, but reports a gamepad's whole state, whose held
+// buttons the reader ignores until they're let go of. The interface gets a
+// key's or a button's release only if it got its press. A reading from
+// before the window got focus is input without it even when it comes in a
+// later frame than the focus change, like that reading of a gamepad if
+// GameInput is late with it.
 
 use game_input::*;
 use windows_api::*;
@@ -112,6 +116,8 @@ pub struct InputReader {
     // Each keyboard's held keys, by device.
     keyboards: Vec<(Option<usize>, HeldKeys)>,
     keys_down: [bool; 256],
+    // The keys whose presses the interface got, whose releases it gets.
+    keys_sent: [bool; 256],
     // Each mouse, by device.
     mice: Vec<(Option<usize>, Mouse)>,
     // The mouse buttons held, as bits by Button, on any mouse.
@@ -188,6 +194,7 @@ impl InputReader {
             focus_time: i64::MIN,
             keyboards: Vec::new(),
             keys_down: [false; 256],
+            keys_sent: [false; 256],
             mice: Vec::new(),
             buttons_down: 0,
             ignored_buttons: 0,
@@ -304,7 +311,7 @@ impl InputReader {
         }
 
         self.point(&mut frame.events);
-        if self.gamepad {
+        if self.gamepad && self.focused {
             self.send_gamepad(&mut frame.events);
         }
         frame.quit = std::mem::take(&mut self.quit);
@@ -317,8 +324,8 @@ impl InputReader {
             if !self.focused {
                 self.focused = true;
                 self.focus_time = change.time;
-                let held = (0..=255u8).filter(|code| self.keys_down[*code as usize]).map(Key).collect();
-                events.push(Event::FocusGained(held));
+                // What's held now was pressed without focus, which the
+                // interface gets nothing of until it's let go of.
                 self.ignored_buttons = self.buttons_down;
                 self.gamepad_ignored = self.combined_gamepad().buttons.0;
                 // The pointer starts in the middle of the window, and carries
@@ -332,18 +339,36 @@ impl InputReader {
                 // that a key or a button after focus came is where it is.
                 self.pointer = None;
                 self.point(events);
-                // The interface takes the gamepad event right after focus
-                // comes as what's held then, which counts once it's let go
-                // of. Its buttons that count are none, as the reader ignores
-                // all that are held, so that a press after this, in the same
-                // frame, is a press.
+                // The gamepad as it is, without the buttons held, which count
+                // once they're let go of, so that a press after this, in the
+                // same frame, is a press.
                 if self.gamepad {
                     self.send_gamepad(events);
                 }
             }
         } else if self.focused {
+            // Everything held is let go of, on this step: the buttons that
+            // the mice pressed, the keys whose presses the interface got,
+            // others before Shift, Ctrl and Alt, as in update_keys, and the
+            // gamepad, which goes to rest.
+            if self.mouse_open() {
+                self.close_mouse(events);
+            }
+            let modifiers = [Key::SHIFT.0, Key::CONTROL.0, Key::ALT.0];
+            let others = (0..=255u8).filter(|code| !modifiers.contains(code));
+            for code in others.chain(modifiers) {
+                if std::mem::replace(&mut self.keys_sent[code as usize], false) {
+                    events.push(Event::KeyReleased(Key(code)));
+                }
+            }
+            if self.gamepad {
+                events.push(Event::Gamepad(Gamepad {
+                    connected: !self.gamepads.is_empty(),
+                    ..Gamepad::default()
+                }));
+                self.gamepad_sent = 0;
+            }
             self.focused = false;
-            events.push(Event::FocusLost);
             self.pointer = None;
             // Keys and mouse buttons go with focus: GameInput gives each
             // device a reading at rest as focus goes, and none of what's
@@ -353,6 +378,7 @@ impl InputReader {
             // motion and wheels without focus.
             self.keyboards.clear();
             self.keys_down = [false; 256];
+            self.keys_sent = [false; 256];
             for (_, mouse) in &mut self.mice {
                 *mouse = Mouse::default();
             }
@@ -434,7 +460,7 @@ impl InputReader {
     fn gamepads_changed(&mut self, events: &mut Vec<Event>) {
         let held = self.combined_gamepad().buttons.0;
         self.gamepad_ignored = if self.focused { self.gamepad_ignored & held } else { held };
-        if self.gamepad && self.gamepad_buttons() != self.gamepad_sent {
+        if self.gamepad && self.focused && self.gamepad_buttons() != self.gamepad_sent {
             self.send_gamepad(events);
         }
     }
@@ -498,7 +524,7 @@ impl InputReader {
             let held = down[code];
             if self.keys_down[code] && !held {
                 self.keys_down[code] = false;
-                if self.focused && !platform_key(Key(code as u8)) {
+                if std::mem::replace(&mut self.keys_sent[code], false) {
                     events.push(Event::KeyReleased(Key(code as u8)));
                 }
             }
@@ -516,7 +542,10 @@ impl InputReader {
                             self.captured = !self.captured;
                         }
                         Key::F12 => self.quit = true,
-                        key => events.push(Event::KeyPressed(key)),
+                        key => {
+                            events.push(Event::KeyPressed(key));
+                            self.keys_sent[code] = true;
+                        }
                     }
                 }
             }

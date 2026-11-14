@@ -1,6 +1,7 @@
-// Tests how GameInput's readings become the interface's events: keys and
-// their text, the mouse's buttons, wheel and motion, which moves the pointer,
-// the gamepad, focus, and the time of a frame's newest input, which its input
+// Tests how GameInput's readings become the interface's events: keys, the
+// mouse's buttons, wheel and motion, which moves the pointer, the gamepad,
+// what the window's focus does to them, which the interface never hears of,
+// F1 and F12, and the time of a frame's newest input, which its input
 // latency starts at. The readings, the window's size and the focus changes
 // are made up, with times on the performance counter.
 
@@ -142,7 +143,6 @@ fn keys(events: &[Event]) -> Vec<Event> {
 fn a_key_press_is_its_key_and_the_interface_types_its_text() {
     let mut reader = focused();
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
     let mut typed = String::new();
     let mut type_frame = |events: &[Event]| {
         for step in input.steps(events) {
@@ -173,7 +173,6 @@ fn a_reading_s_keys_go_down_after_its_modifiers_and_up_before_them() {
     assert!(control.is_some() && backspace.is_some() && control < backspace, "{:?}", frame.events);
     // In the interface's steps, the Backspace's has Ctrl held.
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new())]);
     let mut seen = false;
     for step in input.steps(&frame.events) {
         input.begin(0.0, step);
@@ -221,7 +220,7 @@ fn a_gamepad_button_pressed_and_let_go_of_within_a_frame_is_two_changes() {
     assert_eq!(buttons, [vec!["A"], vec![], vec![]]);
     // Into the interface's input, a step at a time: one step has the press.
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::Gamepad(Default::default())]);
+    input.begin(0.0, &[Event::Gamepad(Default::default())]);
     let pressed = input.steps(&frame.events).into_iter().filter(|step| {
         input.begin(0.0, step);
         input.gamepad_pressed(GamepadButtons::A)
@@ -246,6 +245,9 @@ fn a_device_s_reading_in_the_frame_it_is_unplugged_doesn_t_bring_it_back() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::KeyReleased(_) | Event::ButtonReleased(_))));
 }
 
+// Without focus, keys count for nothing, and one held as focus comes, whose
+// press the interface never got, gives no release as it's let go of, and
+// counts once it's pressed again. The interface hears nothing of focus.
 #[test]
 fn without_focus_keys_count_for_nothing_and_ones_held_when_it_comes_count_once_let_go() {
     let mut reader = reader();
@@ -253,18 +255,20 @@ fn without_focus_keys_count_for_nothing_and_ones_held_when_it_comes_count_once_l
     assert_eq!(keys(&frame.events), Vec::new());
     assert_eq!(frame.input_time, None);
     let frame = reader.read(&[], &[], &window(Some((20, true))));
-    assert!(frame.events.contains(&Event::FocusGained(vec![Key::A])));
+    assert_eq!(keys(&frame.events), Vec::new());
+    let frame = reader.read(&[keyboard(30, &[])], &[], &window(None));
+    assert_eq!(keys(&frame.events), Vec::new());
+    let frame = reader.read(&[keyboard(40, &[A])], &[], &window(None));
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A)]);
 }
 
+// A key pressed before focus came and let go of after it, in one frame,
+// counts for nothing, and one pressed after it counts.
 #[test]
 fn readings_and_focus_changes_happen_in_the_order_of_their_times() {
     let mut reader = reader();
-    // Pressed before focus came, and let go after, in one frame.
-    let frame = reader.read(&[keyboard(10, &[A]), keyboard(30, &[])], &[], &window(Some((20, true))));
-    assert_eq!(frame.events.iter().filter(|event| matches!(event, Event::FocusGained(_))).count(), 1);
-    assert!(frame.events.contains(&Event::FocusGained(vec![Key::A])));
-    assert!(!frame.events.contains(&Event::KeyPressed(Key::A)));
-    assert!(frame.events.contains(&Event::KeyReleased(Key::A)));
+    let frame = reader.read(&[keyboard(10, &[A]), keyboard(30, &[]), keyboard(40, &[A])], &[], &window(Some((20, true))));
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A)]);
 }
 
 // Without background input, which the library leaves off, GameInput gives no
@@ -286,7 +290,7 @@ fn a_key_held_as_focus_goes_counts_again_once_pressed_with_focus_back() {
         reader.read(&[keyboard(at_rest, &[])], &[], &window(Some((20, false))));
         // GameInput doesn't report keys that are held as focus comes back.
         let frame = reader.read(&[], &[], &window(Some((40, true))));
-        assert!(frame.events.contains(&Event::FocusGained(Vec::new())));
+        assert_eq!(keys(&frame.events), Vec::new());
         let frame = reader.read(&[keyboard(50, &[ALT, F4])], &[], &window(None));
         assert_eq!(
             keys(&frame.events),
@@ -300,7 +304,8 @@ fn a_key_held_as_focus_goes_counts_again_once_pressed_with_focus_back() {
 // button held, whether GameInput's reading at rest comes before the window
 // loses focus or after. A program that acts on a release, like one that ends
 // a drag, sees it either way: on the step of the reading at rest, if it came
-// first, or on the step that focus goes in, where `focus_lost` says why.
+// first, or on the step that focus goes in, which the reader lets go of
+// everything in.
 #[test]
 fn a_key_held_as_focus_goes_is_released_once_on_that_frame() {
     const ALT: (u8, u32) = (0xA4, 0x38);
@@ -313,11 +318,10 @@ fn a_key_held_as_focus_goes_is_released_once_on_that_frame() {
         let mut released = Vec::new();
         for events in input.steps(&frame.events) {
             input.begin(0.03, events);
-            released.extend(input.keys_released().iter().map(|key| (*key, input.focus_lost)));
+            released.extend(input.keys_released().iter().copied());
         }
-        let why = at_rest > 20;
-        assert_eq!(released, [(Key::ALT, why)], "with GameInput's reading at rest at {at_rest}");
-        assert!(!input.focused && !input.key_down(Key::ALT), "with GameInput's reading at rest at {at_rest}");
+        assert_eq!(released, [Key::ALT], "with GameInput's reading at rest at {at_rest}");
+        assert!(!input.key_down(Key::ALT), "with GameInput's reading at rest at {at_rest}");
         step(&mut reader, &mut input, &[], None, 40);
         assert_eq!(input.keys_released(), [], "with GameInput's reading at rest at {at_rest}");
     }
@@ -338,7 +342,6 @@ fn a_gamepad_button_held_as_focus_comes_counts_once_let_go_of() {
     // held as focus comes back.
     step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
     step(&mut reader, &mut input, &[gamepad(39, GameInputGamepadA)], Some((40, true)), 40);
-    assert!(input.focused);
     assert!(!input.gamepad.buttons.contains(GamepadButtons::A));
     // Let go of, then pressed: it counts.
     step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
@@ -357,7 +360,6 @@ fn a_gamepad_reading_from_before_focus_counts_as_without_it_even_when_it_comes_l
     let mut input = Input::default();
     step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
     step(&mut reader, &mut input, &[], Some((40, true)), 40);
-    assert!(input.focused);
     step(&mut reader, &mut input, &[gamepad(39, GameInputGamepadA)], None, 48);
     assert!(!input.gamepad.buttons.contains(GamepadButtons::A) && !input.gamepad_pressed(GamepadButtons::A));
     step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
@@ -944,15 +946,31 @@ fn a_frame_s_events_are_in_the_stream_s_order_not_its_times() {
 }
 
 // A focus change goes among the readings before the first one that's later,
-// and the readings keep their order around it.
+// and the readings keep their order around it: A, pressed before focus went,
+// is let go of as it goes, and B, pressed after, is without focus.
 #[test]
 fn a_focus_change_goes_before_the_first_later_reading() {
-    let mut reader = reader();
-    let frame = reader.read(&[keyboard(10, &[A]), keyboard(30, &[]), keyboard(40, &[A])], &[], &window(Some((20, true))));
-    let gained = frame.events.iter().position(|event| matches!(event, Event::FocusGained(_)));
-    let released = frame.events.iter().position(|event| *event == Event::KeyReleased(Key::A));
-    let pressed = frame.events.iter().position(|event| *event == Event::KeyPressed(Key::A));
-    assert!(gained.is_some() && gained < released && released < pressed, "{:?}", frame.events);
+    const B: (u8, u32) = (0x42, 0x30);
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(10, &[A]), keyboard(30, &[A, B])], &[], &window(Some((20, false))));
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A), Event::KeyReleased(Key::A)]);
+}
+
+// As focus goes, the gamepad goes to rest, once, and without focus it says
+// nothing, however its sticks and buttons move.
+#[test]
+fn the_gamepad_goes_to_rest_as_focus_goes_and_says_nothing_without_it() {
+    let mut reader = focused();
+    reader.read(&[gamepad(10, GameInputGamepadA)], &[], &window(None));
+    let frame = reader.read(&[], &[], &window(Some((20, false))));
+    let gamepads: Vec<&Event> = frame.events.iter().filter(|event| matches!(event, Event::Gamepad(_))).collect();
+    let at_rest = user_interface::Gamepad {
+        connected: true,
+        ..Default::default()
+    };
+    assert_eq!(gamepads, [&Event::Gamepad(at_rest)]);
+    let frame = reader.read(&[gamepad(30, GameInputGamepadB), gamepad(40, GameInputGamepadNone)], &[], &window(None));
+    assert!(!frame.events.iter().any(|event| matches!(event, Event::Gamepad(_))), "{:?}", frame.events);
 }
 
 // A reading of a device with more than one kind of input, like a keyboard
@@ -1029,9 +1047,10 @@ fn a_gamepad_press_right_after_focus_comes_is_a_press() {
 fn keys_and_buttons_go_with_focus_without_a_reading_at_rest() {
     let mut reader = focused();
     reader.read(&[keyboard(10, &[A]), mouse(11, GameInputMouseLeftButton, 0)], &[], &window(None));
-    reader.read(&[], &[], &window(Some((20, false))));
+    let frame = reader.read(&[], &[], &window(Some((20, false))));
+    assert_eq!(keys(&frame.events), vec![Event::KeyReleased(Key::A)]);
+    assert_eq!(buttons(&frame.events), vec![Event::ButtonReleased(MouseButton::Left)]);
     let frame = reader.read(&[keyboard(50, &[A]), mouse(51, GameInputMouseLeftButton, 0)], &[], &window(Some((40, true))));
-    assert!(frame.events.contains(&Event::FocusGained(Vec::new())), "{:?}", frame.events);
     assert!(frame.events.contains(&Event::KeyPressed(Key::A)));
     assert!(frame.events.contains(&Event::ButtonPressed(MouseButton::Left)));
 }

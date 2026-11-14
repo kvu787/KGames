@@ -476,7 +476,6 @@ fn list(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) 
 fn interface(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) {
     let pointer = ui.pointer().map_or("Not in the window".to_string(), |point| format!("{:.0}, {:.0}", point.x, point.y));
     let rows = [
-        ("Window focus", if ui.window_focused() { "Yes".to_string() } else { "No".to_string() }),
         ("Pointer", pointer),
         ("Under the pointer", ui.hovered_name().unwrap_or("None").to_string()),
         ("Pressed", ui.pressed_name().unwrap_or("None").to_string()),

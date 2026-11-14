@@ -96,15 +96,16 @@ fn a_press_on_a_setting_s_row_selects_it() {
     assert_eq!(app.program.editor.parameters, Parameters::default(), "a press on the name changes nothing");
 }
 
+// A release ends a drag, like the one that the reader gives as the window
+// loses focus.
 #[test]
-fn losing_focus_ends_a_drag() {
+fn a_release_ends_a_drag() {
     let mut app = demo(Parameters::default(), nowhere());
     let half = along(&app, "Shift", 0.5);
     app.press_point(half);
     assert_eq!(app.program.editor.dragging, Some(4));
-    app.focus(false);
+    app.release();
     assert_eq!(app.program.editor.dragging, None);
-    app.focus(true);
     let far = along(&app, "Shift", 0.9);
     app.move_point(far);
     assert_eq!(app.program.editor.parameters.shift, 0.5);

@@ -501,27 +501,27 @@ fn side_by_side(images: &[Image]) -> Image {
     Image { width, height, pixels }
 }
 
-// The window draws its own pointer while it has focus, as Windows' cursor is
-// hidden over it then, in the shape that the widget under it asks for, in the
-// theme's accent with an edge in text_on_accent, unlike Windows' cursors, and
-// only near its hot spot. Without focus, Windows' cursor shows, and the window
-// draws none.
+// The window draws its own pointer while it keeps Windows' cursor, hidden,
+// in the shape that the widget under it asks for, in the theme's accent with
+// an edge in text_on_accent, unlike Windows' cursors, and only near its hot
+// spot. Once it lets the cursor go, as focus goes or F1 lets it, Windows'
+// cursor shows, and the window draws none.
 #[test]
-fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the_window_has_focus() {
+fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the_window_keeps_the_cursor() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut problems = Vec::new();
     for kind in [ThemeKind::Light, ThemeKind::Dark] {
         let mut app = Headless::with_theme(Shapes, kind);
-        app.draw_pointer();
+        app.draw_pointer(true);
         let theme = Theme::new(kind);
         let (fill, edge) = (theme.accent.to_bytes(), theme.text_on_accent.to_bytes());
         let mut shapes = Vec::new();
         for (index, cursor) in CURSORS.into_iter().enumerate() {
             let name = format!("Shape{index}");
-            app.focus(true).move_to(&name);
+            app.draw_pointer(true).move_to(&name);
             assert_eq!(app.ui.cursor(), cursor);
             let with = app.render(&mut gpu).unwrap();
-            app.focus(false);
+            app.draw_pointer(false);
             let without = app.render(&mut gpu).unwrap();
             let at = app.target(&name).center();
             let near = Rect::new(at.x - 13.0, at.y - 13.0, 31.0, 34.0);
@@ -561,7 +561,7 @@ fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the
 fn the_pointer_is_drawn_where_it_is_in_parts_of_a_pixel() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = Headless::new(Shapes);
-    app.draw_pointer();
+    app.draw_pointer(true);
     let at = app.target("Shape0").center();
     app.move_point(at);
     let whole = app.render(&mut gpu).unwrap();

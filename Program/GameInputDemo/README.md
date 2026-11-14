@@ -422,6 +422,8 @@ readings are at the time of its frame.
 | `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the Mouse card  |
 |              | names them                                                                      |
 | `Disconnect` | The device's `Id`                                                               |
+| `Focus`      | `true` or `false`: gives the window focus or takes it away, which it has from   |
+|              | the start, at the frame's time                                                  |
 
 The window's own keys and mouse are the script's `Key`, `Click`, `Move` and other steps, which the
 combo box, the Devices card's rows and the library's `F9` and `F10` read, like

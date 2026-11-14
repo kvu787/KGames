@@ -225,7 +225,7 @@ fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input()
 
     // GameInput turns the motors off without focus itself, so the demo asks
     // nothing new of them.
-    app.focus(false);
+    step(&mut app, r#"{ "Focus": false }"#);
     assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
     let count = input(&app).reading_count;
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["A"] } }"#);
@@ -235,7 +235,7 @@ fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input()
     // With focus again, the button held from before doesn't count until
     // it's let go of, but the stick does.
     // The stick drives the motor again.
-    app.focus(true);
+    step(&mut app, r#"{ "Focus": true }"#);
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 0.55], "Buttons": ["A"] } }"#);
     assert_eq!(input(&app).gamepad.state.leftThumbstickY, 0.55);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
@@ -243,31 +243,34 @@ fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input()
 }
 
 // The demo reads the devices once a frame, in the frame's last step, with
-// the window's focus as the frame leaves it: in a frame with a key's press
-// and then the window losing focus, what the devices read came without
-// focus, and is dropped, as in a frame that only loses focus.
+// the window's focus as its source says the frame leaves it, as the
+// interface never hears of focus: in a frame with keys' presses and the
+// window losing focus, what the devices read came without focus, and is
+// dropped, as in a frame that only loses focus.
 #[test]
 fn a_frame_that_loses_focus_after_other_input_drops_what_the_devices_read() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
     let count = input(&app).reading_count;
     app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
-    app.send(&[Event::KeyPressed(Key::Q), Event::FocusLost]);
+    app.program.script(&json::parse(r#"{ "Focus": false }"#).unwrap()).unwrap();
+    app.send(&[Event::KeyPressed(Key::Q), Event::KeyReleased(Key::Q)]);
     assert_eq!(input(&app).reading_count, count);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }
 
 // A frame that loses focus and gets it back, like when focus goes to another
 // window and back between two frames, drops what came meanwhile, and what's
-// held then counts only once it's let go of, whichever steps of the frame's
-// input the loss and the gain are in.
+// held then counts only once it's let go of.
 #[test]
 fn a_frame_that_loses_focus_and_gets_it_back_drops_what_came_meanwhile() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"] } }"#);
     let count = input(&app).reading_count;
     app.program.script(&json::parse(r#"{ "Gamepad": { "Id": 1, "Buttons": ["A"] } }"#).unwrap()).unwrap();
-    app.send(&[Event::FocusLost, Event::FocusGained(Vec::new())]);
+    app.program.script(&json::parse(r#"{ "Focus": false }"#).unwrap()).unwrap();
+    app.program.script(&json::parse(r#"{ "Focus": true }"#).unwrap()).unwrap();
+    app.frame();
     assert_eq!(input(&app).reading_count, count);
     assert_eq!(input(&app).gamepad.state.buttons, 0);
 }

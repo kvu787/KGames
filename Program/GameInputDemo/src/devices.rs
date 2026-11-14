@@ -377,6 +377,13 @@ pub trait InputSource {
         Vec::new()
     }
 
+    // Whether the window has focus as the frame leaves it, and whether it
+    // lost it since the last call, even if it got it back, for a source whose
+    // focus changes have no times. The interface never hears of focus, so
+    // the demo asks its source: the library's devices, or a test's or a
+    // script's steps.
+    fn focus(&mut self) -> (bool, bool);
+
     // The readings since the last call, of every kind, in the order the
     // input happened in. input.rs compares each with the same device's
     // reading before it, which it keeps itself.

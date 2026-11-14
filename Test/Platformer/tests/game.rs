@@ -148,15 +148,6 @@ fn r_restarts_the_run_on_its_frame() {
 }
 
 #[test]
-fn without_focus_nothing_moves() {
-    let mut app = start("Focus");
-    let before = app.program.game.player.position;
-    app.focus(false).hold(Key::RIGHT).hold(Key::SPACE).frames(10);
-    assert_eq!(app.program.game.player.position[0], before[0], "the keys went nowhere");
-    assert!(app.program.game.player.grounded);
-}
-
-#[test]
 fn the_run_card_fits_and_the_targets_stay_on_the_page() {
     let mut app = start("Fits");
     app.frame();

@@ -116,7 +116,7 @@ fn keys_have_names_that_parse_back() {
 #[test]
 fn events_fold_into_a_frame_of_input() {
     let mut input = Input::default();
-    input.begin(0.0, &[Event::FocusGained(Vec::new()), Event::PointerMoved(Point::new(5.0, 5.0)), Event::ButtonPressed(MouseButton::Left)]);
+    input.begin(0.0, &[Event::PointerMoved(Point::new(5.0, 5.0)), Event::ButtonPressed(MouseButton::Left)]);
     assert!(input.button_pressed(MouseButton::Left) && input.button_down(MouseButton::Left));
     assert_eq!(input.clicks(MouseButton::Left), 1);
     input.begin(0.1, &[Event::ButtonReleased(MouseButton::Left)]);
@@ -124,15 +124,13 @@ fn events_fold_into_a_frame_of_input() {
     // A second press, soon and close by, is a double-click.
     input.begin(0.2, &[Event::ButtonPressed(MouseButton::Left)]);
     assert_eq!(input.clicks(MouseButton::Left), 2);
-    // Without focus there's no input, and losing it lets go of everything,
-    // with a release.
-    input.begin(0.3, &[Event::KeyPressed(Key::W), Event::FocusLost, Event::KeyPressed(Key::A)]);
-    assert!(input.focus_lost && !input.key_down(Key::W) && !input.key_down(Key::A) && !input.button_down(MouseButton::Left));
-    assert!(input.key_released(Key::W) && input.button_released(MouseButton::Left));
-    // Keys held when focus comes count once they're let go of.
-    input.begin(0.4, &[Event::FocusGained(vec![Key::ALT]), Event::KeyPressed(Key::ALT)]);
-    assert!(!input.key_down(Key::ALT));
-    input.begin(0.5, &[Event::KeyReleased(Key::ALT), Event::KeyPressed(Key::ALT)]);
+    // A release of what isn't held, which the reader never gives, changes
+    // nothing.
+    input.begin(0.3, &[Event::ButtonReleased(MouseButton::Left), Event::KeyReleased(Key::ALT)]);
+    assert!(input.button_released(MouseButton::Left) && !input.key_released(Key::ALT));
+    input.begin(0.4, &[Event::ButtonReleased(MouseButton::Left)]);
+    assert!(!input.button_released(MouseButton::Left));
+    input.begin(0.5, &[Event::KeyPressed(Key::ALT)]);
     assert!(input.key_down(Key::ALT));
     input.begin(0.6, &[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
     assert!(input.shortcut_pressed(Shortcut::new(Modifiers::new(true, false, true), Key::S)));

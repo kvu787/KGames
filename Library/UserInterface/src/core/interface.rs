@@ -375,9 +375,6 @@ impl Interface {
     // tree it came on, and what the keys do before any widget hears them.
     fn begin_input(&mut self) {
         self.press_consumed = [false; 3];
-        if self.input.focus_lost {
-            self.popups.clear();
-        }
 
         // The pointer is on the topmost target under it, or only on the
         // target with a press while there is one. A dialog leaves nothing
@@ -540,7 +537,7 @@ impl Interface {
         {
             hit.held = true;
             hit.held_button = Some(button);
-            if button == MouseButton::Left && (self.input.button_released(button) || self.input.focus_lost) {
+            if button == MouseButton::Left && self.input.button_released(button) {
                 hit.released = true;
             }
         }
@@ -723,7 +720,6 @@ impl Interface {
         }
         // The pointer, over everything.
         if self.draws_pointer
-            && self.input.focused
             && let Some(at) = self.input.pointer
         {
             let cursor = self.cursor;
@@ -937,14 +933,9 @@ impl Interface {
     // Whether this is the frame's last step, which has the frame's delta, after
     // all of the frame's input: for what a program does once a frame, like
     // reading the devices' readings itself (see Startup::devices), which
-    // come once a frame, with the window's focus as the frame leaves it.
+    // come once a frame.
     pub fn last_step(&self) -> bool {
         self.last_step
-    }
-
-    // Whether the window has focus. Without it there's no input at all.
-    pub fn window_focused(&self) -> bool {
-        self.input.focused
     }
 
     pub fn pointer(&self) -> Option<Point> {
@@ -1172,7 +1163,6 @@ impl Interface {
             ("Theme".to_string(), Value::from(self.theme.kind.name())),
             ("Size".to_string(), Value::from(vec![self.size.width as f64, self.size.height as f64])),
             ("VerticalSync".to_string(), Value::from(self.environment.vertical_sync)),
-            ("WindowFocused".to_string(), Value::from(self.input.focused)),
             ("Pointer".to_string(), pointer),
             ("Hovered".to_string(), name(self.hovered_name())),
             ("Pressed".to_string(), name(self.pressed_name())),
