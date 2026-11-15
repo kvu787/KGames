@@ -39,9 +39,14 @@
 // - The mice's input reaches the interface only while the window keeps
 //   Windows' cursor, hidden (see platform/cursor.rs): not while it doesn't,
 //   when Windows' arrow moves and the pointer would move apart from it, like
-//   while the click that gave the window focus is held, before the window
-//   keeps it. As the mice's input stops, the buttons it pressed are let go
-//   of.
+//   while a click that was going on elsewhere as the window got focus is
+//   held, before the window keeps it. A click on the window that gives it
+//   focus keeps it at once, so the mice's motion moves the pointer while
+//   that click is held, though the click itself does only that. As the
+//   mice's input starts, the pointer is placed where the window placed it
+//   as it started to keep the cursor, where Windows' cursor was, or the
+//   middle (see platform/cursor.rs), with Event::PointerPlaced, and as it
+//   stops, the buttons it pressed are let go of.
 //
 // The window's focus isn't the interface's: it gets no events of focus, and
 // none without it. GameInput gives none either, as the library leaves its
@@ -130,6 +135,9 @@ pub struct InputReader {
     // frame's reads end.
     keeping: bool,
     keeps_after: bool,
+    // Where the window placed the pointer as it last started to keep the
+    // cursor, since the last frame, if it did: see WindowState.
+    placed: Option<Point>,
     // Whether F12 was pressed in the frame.
     quit: bool,
 }
@@ -162,12 +170,27 @@ pub fn connections(events: &[(GameInputDeviceEvent, Device)]) -> Connections {
     connections
 }
 
-// What the window says for a frame: when it got or lost focus, and whether
-// it keeps Windows' cursor.
+// What the window says for a frame: when it got or lost focus, whether it
+// keeps Windows' cursor, and where it placed the pointer, in the client area,
+// as it last started to keep the cursor, if it did since the last frame:
+// where Windows' cursor was, or the middle. The pointer goes there as the
+// mice's input starts.
 #[derive(Clone, Debug, Default)]
 pub struct WindowState {
     pub focus_changes: Vec<FocusChange>,
     pub keeps_cursor: bool,
+    pub pointer_placed: Option<Point>,
+}
+
+impl WindowState {
+    // What the window says for the frame that reads its input now.
+    pub fn take(window: &mut Window) -> Self {
+        Self {
+            focus_changes: window.take_focus_changes(),
+            keeps_cursor: window.keeps_cursor(),
+            pointer_placed: window.take_pointer_placed(),
+        }
+    }
 }
 
 impl InputReader {
@@ -187,6 +210,7 @@ impl InputReader {
             gamepad_sent: 0,
             keeping: false,
             keeps_after: false,
+            placed: None,
             quit: false,
         }
     }
@@ -209,13 +233,17 @@ impl InputReader {
         self.ignored_buttons = self.buttons_down;
     }
 
+    // The mice's input starts, as the window started to keep the cursor: the
+    // pointer is placed where Windows' cursor was then.
+    fn open_mouse(&mut self, events: &mut Vec<Event>) {
+        if let Some(at) = self.placed {
+            events.push(Event::PointerPlaced(at));
+        }
+    }
+
     // The frame's events, from the devices' readings since the last frame, in
-    // the stream's order, and the window's focus changes.
-    pub fn frame(&mut self, devices: Option<&Devices>, window: &Window, focus_changes: &[FocusChange]) -> FrameRead {
-        let state = WindowState {
-            focus_changes: focus_changes.to_vec(),
-            keeps_cursor: window.keeps_cursor(),
-        };
+    // the stream's order, and what the window says.
+    pub fn frame(&mut self, devices: Option<&Devices>, window: &WindowState) -> FrameRead {
         let mut readings = Vec::new();
         let mut disconnected = Vec::new();
         if let Some(devices) = devices {
@@ -228,7 +256,7 @@ impl InputReader {
                 readings.push((devices.qpc(reading.timestamp), reading.clone()));
             }
         }
-        self.read(&readings, &disconnected, &state)
+        self.read(&readings, &disconnected, window)
     }
 
     // The frame's events from its readings, in the stream's order, each with
@@ -244,13 +272,19 @@ impl InputReader {
         // screen. With one, the cursor went as the focus changed, which the
         // reader takes in the stream's order: losing focus lets go of
         // everything held there, and gaining it keeps the cursor as the
-        // window does as the frame ends.
+        // window does as the frame ends. Where the window started to keep it,
+        // the mice's input starts with the pointer where Windows' cursor was:
+        // from the frame's start, or as focus comes.
         self.keeps_after = window.keeps_cursor;
+        self.placed = window.pointer_placed;
         if window.focus_changes.is_empty() {
             if self.mouse_open() && !window.keeps_cursor {
                 self.close_mouse(&mut frame.events);
             }
             self.keeping = window.keeps_cursor;
+            if self.mouse_open() {
+                self.open_mouse(&mut frame.events);
+            }
         }
         // The window's focus changes go before the first reading that's
         // later, and the readings keep the stream's order, whatever their
@@ -310,6 +344,9 @@ impl InputReader {
                 self.focused = true;
                 self.focus_time = change.time;
                 self.keeping = self.keeps_after;
+                if self.keeping {
+                    self.open_mouse(events);
+                }
                 // What's held now was pressed without focus, which the
                 // interface gets nothing of until it's let go of.
                 self.ignored_buttons = self.buttons_down;

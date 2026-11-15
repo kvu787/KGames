@@ -9,9 +9,22 @@
 //   the run decides once, it keeps Windows' cursor inside its client area,
 //   hidden, and its frames draw the pointer exactly while it does. A run
 //   whose input is a script's, or that has none, leaves the cursor alone.
-// - It starts to keep it only once no mouse button is held, by Windows'
-//   account of the mouse, which, unlike GameInput's, has a click that's
-//   still going on elsewhere, like the one that gave the window focus.
+// - It starts to keep it at once if a click on the window gave it focus, as
+//   the button goes down, while it's held, which Windows says by asking the
+//   window with WM_MOUSEACTIVATE whether the click activates it. Otherwise
+//   it starts only once no mouse button is held, by Windows' account of the
+//   mouse, which, unlike GameInput's, has a click that's still going on
+//   elsewhere as the window gets focus, like a drag in another program, or
+//   one onto the window's taskbar button, which brings it to the front, that
+//   the cursor mustn't be kept from.
+// - As it starts to keep it, the interface's pointer is placed where
+//   Windows' cursor is, so that it shows where the user clicked, or left the
+//   cursor, and not where it was as focus last went. If Windows' cursor is
+//   outside the area that it's confined to, like on another display as
+//   Alt+Tab gives the window focus, the pointer is placed in the middle of
+//   the client area instead, where it starts with the mice's first event
+//   too, and not at the area's edge, where the confinement puts Windows'
+//   cursor, hidden.
 // - Windows keeps a confinement within the screens, the virtual screen,
 //   which GetClipCursor gives without one, so the window confines the cursor
 //   to the part of its client area that's on the screens, and keeps nothing
@@ -41,6 +54,11 @@ pub struct CursorFacts {
     pub area: Option<RECT>,
     // Whether a mouse button is held, by Windows' account of the mouse.
     pub button_held: bool,
+    // Whether a click on the window gave it focus since the last check: the
+    // button held, if one is, is that click's.
+    pub clicked: bool,
+    // Where Windows' cursor is, in the screen's pixels.
+    pub cursor: POINT,
     // The cursor's confinement, as GetClipCursor gives it.
     pub clip: RECT,
     // The screens, the virtual screen: the confinement without one, and what
@@ -61,6 +79,9 @@ pub enum CursorAction {
     Show,
     // Puts it there, in the screen's pixels, with SetCursorPos.
     Place(POINT),
+    // Puts the interface's pointer there, in the client area's pixels, as
+    // the mice's input starts: where Windows' cursor is, or the middle.
+    PlacePointer(POINT),
 }
 
 // Who holds the cursor's confinement as the window lets the cursor go.
@@ -100,6 +121,22 @@ pub fn on_screens(area: RECT, screens: RECT) -> Option<RECT> {
     (part.left < part.right && part.top < part.bottom).then_some(part)
 }
 
+// The middle of `area`, in the screen's pixels.
+fn middle(area: RECT) -> POINT {
+    POINT {
+        x: area.left + (area.right - area.left) / 2,
+        y: area.top + (area.bottom - area.top) / 2,
+    }
+}
+
+// The pixel of `part` nearest to `at`, in the screen's pixels.
+fn nearest(at: POINT, part: RECT) -> POINT {
+    POINT {
+        x: at.x.clamp(part.left, part.right - 1),
+        y: at.y.clamp(part.top, part.bottom - 1),
+    }
+}
+
 // What the window does with Windows' cursor, and what it has done.
 #[derive(Clone, Debug)]
 pub struct CursorKeeper {
@@ -134,15 +171,23 @@ impl CursorKeeper {
 
     // What to do with the cursor, on what Windows says now.
     pub fn update(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
-        let keep = facts.area.filter(|_| self.mice).and_then(|area| on_screens(area, facts.screens));
+        let keep = facts.area.filter(|_| self.mice).and_then(|area| Some((area, on_screens(area, facts.screens)?)));
         let mut actions = Vec::new();
         match (facts.focused, keep) {
-            (true, Some(keep)) if self.kept.is_some() || !facts.button_held => {
+            (true, Some((area, keep))) if self.kept.is_some() || !facts.button_held || facts.clicked => {
                 if facts.clip != keep {
                     actions.push(CursorAction::Confine(keep));
                 }
                 if self.kept.replace(keep).is_none() {
                     actions.push(CursorAction::Hide);
+                    // Where Windows' cursor is, or the middle if it's
+                    // outside, as far as that's on the screens.
+                    let inside = nearest(facts.cursor, keep) == facts.cursor;
+                    let at = if inside { facts.cursor } else { nearest(middle(area), keep) };
+                    actions.push(CursorAction::PlacePointer(POINT {
+                        x: at.x - area.left,
+                        y: at.y - area.top,
+                    }));
                 }
             }
             (true, Some(_)) => {}
@@ -170,15 +215,14 @@ impl CursorKeeper {
             && let Some(area) = facts.area
             && let Some(visible) = on_screens(area, facts.screens)
         {
-            let middle = POINT {
-                x: (area.right - area.left) / 2,
-                y: (area.bottom - area.top) / 2,
+            let at = match self.pointer {
+                Some(pointer) => POINT {
+                    x: area.left + pointer.x,
+                    y: area.top + pointer.y,
+                },
+                None => middle(area),
             };
-            let at = self.pointer.unwrap_or(middle);
-            actions.push(CursorAction::Place(POINT {
-                x: (area.left + at.x).clamp(visible.left, visible.right - 1),
-                y: (area.top + at.y).clamp(visible.top, visible.bottom - 1),
-            }));
+            actions.push(CursorAction::Place(nearest(at, visible)));
         }
         actions
     }

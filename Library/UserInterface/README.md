@@ -251,22 +251,32 @@ before, but reports gamepads' whole state, their held buttons too.
 - The mouse's buttons, wheels and motion come from mice, the motion as `Event::MouseMoved`, in
   GameInput's counts. The pointer is the interface's, as SDL's relative mode keeps one: it starts
   in the middle of the window with the mice's first event, and carries on from where it is after
-  that, and the motion moves it, its counts times `MOUSE_SENSITIVITY` in `input/events.rs`, in
-  parts of a pixel, worked out in f64, inside the window, in the events' order, so a press lands
-  where the pointer was as its button went down, and a key after a move sees the pointer where it
-  went. Only mice's relative motion moves it, not a pen's or a touch screen's absolute positions.
-  Tests and scripts point at places, which become the motion that takes the pointer there from
-  where it is, and lands on the place exactly.
+  that, except that as the window starts to keep Windows' cursor, below, it's placed where
+  Windows' cursor is, or in the middle if that's outside the window, as `Event::PointerPlaced`,
+  which isn't motion and isn't in `Input::pointer_delta`. The motion moves it, its counts times
+  `MOUSE_SENSITIVITY` in `input/events.rs`, in parts of a pixel, worked out in f64, inside the
+  window, in the events' order, so a press lands where the pointer was as its button went down,
+  and a key after a move sees the pointer where it went. Only mice's relative motion moves it,
+  not a pen's or a touch screen's absolute positions. Tests and scripts point at places, which
+  become the motion that takes the pointer there from where it is, and lands on the place exactly.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
   kept inside its client area, as far as it's on the screens, so that no click goes to a window
   beside it, and the interface draws
   the pointer over everything, in the shape that the widget under it asks for with
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
-  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
-  window starts to keep the cursor only once the click that gave it focus is let go of. While the
+  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. A
+  click on the window that gives it focus keeps the cursor as its button goes down, which Windows
+  says with `WM_MOUSEACTIVATE`. A click that was going on elsewhere as the window got focus, like a
+  drag in another program, or onto the window's taskbar button, which brings it to the front,
+  puts that off until it's let go of, so that the drag isn't kept on the window. While the
   window doesn't keep the cursor, the mice's input doesn't reach the interface, so the pointer
   stays where it was, undrawn, and the buttons that the mice pressed are let go of as that starts.
+  As the window starts to keep the cursor again, the pointer is placed where Windows' cursor is,
+  so it shows where the click that gave the window focus was, or where the cursor was left, and
+  not where focus last went. If Windows' cursor is outside the client area, like on another
+  display as Alt+Tab gives the window focus, the pointer is placed in the middle of the client
+  area instead, and not at its edge, where the confinement puts Windows' cursor, hidden.
   The pointer is away then: nothing is under it, no tooltip shows, and the popups that were open
   close as it goes, though the program never hears why. As it
   loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
@@ -313,9 +323,10 @@ before, but reports gamepads' whole state, their held buttons too.
   got, and the gamepad at rest, so a program sees them let go of, as if the user had, and
   nothing stays held. GameInput's readings at rest as focus goes may come first, and let go of
   what they say on their own steps, as any reading does. The click that gives the window focus
-  does only that, and keys and gamepad buttons held when it gets focus count once they're let go
-  of, and their releases are never given: GameInput doesn't report the keys and the click, and
-  the reader ignores the gamepad's held buttons until they're let go of. A reading from before
+  does only that, though the mice's motion moves the pointer while it's held, as the window keeps
+  the cursor from its press. Keys and gamepad buttons held when it gets focus count once they're
+  let go of, and their releases are never given: GameInput doesn't report the keys and the click,
+  and the reader ignores the gamepad's held buttons until they're let go of. A reading from before
   the window got focus is input without it, even if GameInput is late with it and it comes in a
   later frame. A program that reads GameInput's readings itself, like GameInputDemo, gets the
   window's focus from `Devices::focused` and `Devices::focus_changes`.

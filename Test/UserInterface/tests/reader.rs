@@ -91,11 +91,21 @@ fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
         keeps_cursor: focus.is_none_or(|(_, gained)| gained),
+        pointer_placed: None,
     }
 }
 
-// The window, which doesn't keep Windows' cursor, like while the click that
-// gave it focus is held.
+// The window, which started to keep Windows' cursor since the last frame,
+// with the cursor there in the client area.
+fn placing(focus: Option<(i64, bool)>, at: Point) -> WindowState {
+    WindowState {
+        pointer_placed: Some(at),
+        ..window(focus)
+    }
+}
+
+// The window, which doesn't keep Windows' cursor, like while a click that was
+// going on elsewhere as it got focus is held.
 fn letting_go(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         keeps_cursor: false,
@@ -108,7 +118,11 @@ fn buttons(events: &[Event]) -> Vec<Event> {
 }
 
 fn mouse_events(events: &[Event]) -> Vec<Event> {
-    events.iter().filter(|event| matches!(event, Event::MouseMoved { .. } | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_))).cloned().collect()
+    events
+        .iter()
+        .filter(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_)))
+        .cloned()
+        .collect()
 }
 
 fn reader() -> InputReader {
@@ -369,15 +383,34 @@ fn a_gamepad_reading_from_before_focus_counts_as_without_it_even_when_it_comes_l
     assert!(input.gamepad_pressed(GamepadButtons::A));
 }
 
+// A click on the window that gives it focus keeps Windows' cursor at once, as
+// its button goes down, so the window keeps it in the frame that gets focus:
+// the click does nothing in the program, its press and its release neither,
+// as GameInput reports its press from before focus, which the focus change is
+// timed after, as the window finds it after Windows activated it for the
+// click, or doesn't report it at all. The mice's motion while it's held
+// moves the pointer.
 #[test]
 fn the_click_that_gives_the_window_focus_does_only_that() {
-    let mut reader = reader();
-    let frame = reader.read(
+    let mut released = reader();
+    let frame = released.read(
         &[mouse(10, GameInputMouseLeftButton, 0), mouse(30, GameInputMouseNone, 0)],
         &[],
         &window(Some((20, true))),
     );
     assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_) | Event::ButtonReleased(_))));
+
+    let mut held = reader();
+    let frame = held.read(
+        &[mouse_at(10, GameInputMouseLeftButton, 0, 0), mouse_at(30, GameInputMouseLeftButton, 10, 0), mouse_at(40, GameInputMouseLeftButton, 25, 5)],
+        &[],
+        &window(Some((20, true))),
+    );
+    assert_eq!(mouse_events(&frame.events), [Event::MouseMoved { x: 10.0, y: 0.0 }, Event::MouseMoved { x: 15.0, y: 5.0 }]);
+    let frame = held.read(&[mouse_at(50, GameInputMouseNone, 25, 5)], &[], &window(None));
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = held.read(&[mouse_at(60, GameInputMouseLeftButton, 25, 5)], &[], &window(None));
+    assert_eq!(mouse_events(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
 }
 
 // F12 is the platform's: the reader gives neither its press nor its release,
@@ -426,9 +459,52 @@ fn letting_the_cursor_go_with_focus_stops_the_mice_s_input_and_lets_go_of_their_
     assert_eq!(buttons(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
 }
 
+// As the window gets focus and keeps Windows' cursor, the mice's input starts
+// with the pointer placed where the cursor was then, as focus comes: after
+// the readings from before it, and before the motion after it, which moves
+// the pointer from there. A frame without a placement places nothing.
+#[test]
+fn the_pointer_is_placed_where_the_cursor_was_as_focus_comes() {
+    let at = Point::new(300.0, 400.0);
+    let mut reader = reader();
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), keyboard(15, &[A]), mouse_at(30, GameInputMouseNone, 10, 0)], &[], &placing(Some((20, true)), at));
+    let mice_and_keys: Vec<Event> = frame.events.iter().filter(|event| !matches!(event, Event::Gamepad(_))).cloned().collect();
+    assert_eq!(mice_and_keys, [Event::PointerPlaced(at), Event::MouseMoved { x: 10.0, y: 0.0 }]);
+    let frame = reader.read(&[mouse_at(40, GameInputMouseNone, 15, 0)], &[], &window(None));
+    assert_eq!(mouse_events(&frame.events), [Event::MouseMoved { x: 5.0, y: 0.0 }]);
+}
+
+// A click that was going on elsewhere as the window got focus puts off
+// keeping the cursor until it's let go of: the mice's input starts in the
+// frame after that, with the pointer placed at its start, where the cursor
+// was as the window started to keep it, before the frame's motion.
+#[test]
+fn the_pointer_is_placed_as_the_window_starts_to_keep_the_cursor_after_focus() {
+    let at = Point::new(50.0, 60.0);
+    let mut reader = reader();
+    reader.read(&[], &[], &letting_go(Some((1, true))));
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(20, GameInputMouseNone, 30, 0)], &[], &letting_go(None));
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 35, 0)], &[], &placing(None, at));
+    assert_eq!(mouse_events(&frame.events), [Event::PointerPlaced(at), Event::MouseMoved { x: 5.0, y: 0.0 }]);
+}
+
+// Without focus, or while the window doesn't keep the cursor, nothing is
+// placed.
+#[test]
+fn the_pointer_is_placed_only_as_the_mice_s_input_starts() {
+    let at = Point::new(50.0, 60.0);
+    let mut reader = reader();
+    let frame = reader.read(&[], &[], &WindowState { keeps_cursor: false, ..placing(None, at) });
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = reader.read(&[], &[], &WindowState { keeps_cursor: false, ..placing(Some((10, true)), at) });
+    assert_eq!(mouse_events(&frame.events), []);
+}
+
 // The mice's input reaches the interface only while the window keeps
-// Windows' cursor: not while the click that gave the window focus is held,
-// and the window doesn't keep it yet, though the keys do. And as the window
+// Windows' cursor: not while a click that was going on elsewhere as the
+// window got focus is held, and the window doesn't keep it yet, though the
+// keys do. And as the window
 // lets the cursor go, the buttons the mice pressed are let go of.
 #[test]
 fn the_mice_reach_the_interface_only_while_the_window_keeps_the_cursor() {
@@ -486,8 +562,8 @@ fn f12_quits_after_what_came_before_it_and_nothing_after_it() {
 }
 
 // The input latency starts at input that reaches the interface: not at the
-// mice's while their input is stopped, as while the click that gave the
-// window focus is held.
+// mice's while their input is stopped, as while a click that was going on
+// elsewhere as the window got focus is held.
 #[test]
 fn the_mice_s_stopped_input_doesn_t_start_the_input_latency() {
     let mut reader = reader();

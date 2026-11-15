@@ -29,6 +29,10 @@ pub enum Event {
     // A real mouse moves by whole counts; a test may move by parts of one,
     // to land the pointer on a point.
     MouseMoved { x: f64, y: f64 },
+    // The pointer put at a point, as the mice's input starts: where Windows'
+    // cursor was as the window started to keep it, or the middle if that was
+    // outside the window. Not motion.
+    PointerPlaced(Point),
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
@@ -59,8 +63,9 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
 - **Windows' cursor** is kept, confined to the window and hidden, while the window has focus, so
   that a program is ready to use as it opens. While the window doesn't keep the cursor,
   `FrameInput` has no mouse events, so that the pointer doesn't move apart from Windows' arrow,
-  and the buttons that the mice pressed are let go of as that starts, like while the click that
-  gave the window focus is held, before the window keeps it. Keyboards and gamepads still come.
+  and the buttons that the mice pressed are let go of as that starts, like while a click that was
+  going on elsewhere as the window got focus is held, before the window keeps it. A click on the
+  window that gives it focus keeps it as its button goes down. Keyboards and gamepads still come.
 - **F12** quits at once, without asking, once the frame has had the input that came before it,
   like a Ctrl+S just before it, and nothing after it happens. So does the taskbar's Close, which
   sends `WM_CLOSE`, so that closing works one way, whether the window is minimized, on the error
@@ -89,7 +94,9 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
 
 - **The pointer** moves by `MouseMoved` times `MOUSE_SENSITIVITY`, worked out in f64, kept within
   the frame's 2560 × 1440. There's no pointer until the mice's first event, which starts it in the
-  middle. Tests and scripts point at places, which
+  middle. `PointerPlaced` puts it where Windows' cursor was as the window started to keep it, like
+  as it gets focus, or in the middle if that was outside the window, without counting in
+  `pointer_delta`. Tests and scripts point at places, which
   [gestures.rs](../Library/UserInterface/src/testing/gestures.rs) turns into the motion that lands
   on them exactly. `Headless::queue_move` queues such a move among a test's own events.
 - **Typed text** is ASCII, made from keys with a fixed table of a US keyboard, in

@@ -21,7 +21,9 @@
 // - While it has focus, if its frames read GameInput's mice, it keeps
 //   Windows' cursor inside its client area, hidden, and lets it go as focus
 //   goes and as the window closes, as platform/cursor.rs decides on the
-//   facts that the window gathers from Windows as it checks its focus.
+//   facts that the window gathers from Windows as it checks its focus, like
+//   whether a click on it gave it focus, which it hears of in
+//   WM_MOUSEACTIVATE.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or Windows' settings change.
 // - Until its first frame is presented, it shows the theme's background,
@@ -69,6 +71,11 @@ struct Shared {
     focused: Cell<bool>,
     close_requested: Cell<bool>,
     setup_changed: Cell<bool>,
+    // Whether a click on the window, without focus, activated it since the
+    // last check of its focus: Windows sends WM_MOUSEACTIVATE as the button
+    // goes down, inside the PeekMessageW that activates the window, so the
+    // check after it finds the focus that the click gave.
+    clicked: Cell<bool>,
     // Whether Windows' cursor is hidden over the client area.
     cursor_hidden: Cell<bool>,
     // Windows' arrow, which its cursor is over the window while it isn't
@@ -97,6 +104,10 @@ pub struct Window {
     // using. Drop frees it, after the window is destroyed.
     shared: NonNull<Shared>,
     cursor: CursorKeeper,
+    // Where the interface's pointer is placed, in the client area, as the
+    // window last started to keep Windows' cursor since the last frame read
+    // its input.
+    pointer_placed: Option<POINT>,
 }
 
 impl Window {
@@ -138,6 +149,7 @@ impl Window {
                 focused: Cell::new(false),
                 close_requested: Cell::new(false),
                 setup_changed: Cell::new(true),
+                clicked: Cell::new(false),
                 cursor_hidden: Cell::new(false),
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
@@ -148,6 +160,7 @@ impl Window {
                 hwnd,
                 shared,
                 cursor: CursorKeeper::new(mice),
+                pointer_placed: None,
             }
         }
     }
@@ -215,6 +228,13 @@ impl Window {
         self.shared().focus_changes.take()
     }
 
+    // Where the interface's pointer is placed, in the client area, as the
+    // window last started to keep Windows' cursor since the last call, if it
+    // did: where the cursor was, or the middle (see platform/cursor.rs).
+    pub fn take_pointer_placed(&mut self) -> Option<Point> {
+        self.pointer_placed.take().map(|at| Point::new(at.x as f32, at.y as f32))
+    }
+
     // Where the interface's pointer is, in the client area, where Windows'
     // cursor shows as it's let go of.
     pub fn set_pointer(&mut self, at: Point) {
@@ -230,11 +250,14 @@ impl Window {
     // at once, without waiting for a frame. Says when that changes, at the
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
-    // may have changed its confinement.
+    // may have changed its confinement. A click on the window that didn't
+    // give it focus by this check, like one on a window that mustn't take
+    // focus, counts for nothing after it.
     pub fn check_focus(&mut self) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
             let shared = self.shared();
+            let clicked = shared.clicked.replace(false);
             if focused != shared.focused.get() {
                 shared.focus_changed(focused);
             }
@@ -242,6 +265,7 @@ impl Window {
                 let facts = CursorFacts {
                     focused,
                     button_held: focused && !self.cursor.keeps() && mouse_button_held(),
+                    clicked,
                     ..cursor_facts(self.hwnd)
                 };
                 let actions = self.cursor.update(facts);
@@ -250,10 +274,11 @@ impl Window {
         }
     }
 
-    // Does what platform/cursor.rs decided with Windows' cursor.
-    fn carry_out(&self, actions: &[CursorAction]) {
-        let shared = self.shared();
+    // Does what platform/cursor.rs decided with Windows' cursor, and the
+    // pointer.
+    fn carry_out(&mut self, actions: &[CursorAction]) {
         for action in actions {
+            let shared = self.shared();
             unsafe {
                 match *action {
                     CursorAction::Confine(area) => {
@@ -272,6 +297,8 @@ impl Window {
                     CursorAction::Place(at) => {
                         let _ = SetCursorPos(at.x, at.y);
                     }
+                    // For the next frame's input (see input/reader.rs).
+                    CursorAction::PlacePointer(at) => self.pointer_placed = Some(at),
                 }
             }
         }
@@ -482,17 +509,21 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     }
 }
 
-// What Windows says about the window's client area, the cursor's
+// What Windows says about the window's client area, the cursor and its
 // confinement, and the screens, for platform/cursor.rs, without focus.
 unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
     unsafe {
         let mut clip = RECT::default();
         let _ = GetClipCursor(&mut clip);
+        let mut cursor = POINT::default();
+        let _ = GetCursorPos(&mut cursor);
         let (left, top) = (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN));
         CursorFacts {
             focused: false,
             area: cursor_area(hwnd),
             button_held: false,
+            clicked: false,
+            cursor,
             clip,
             screens: RECT {
                 left,
@@ -505,7 +536,7 @@ unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
 }
 
 // Whether a mouse button is held, by Windows' account of the mouse, which has
-// the click that gave the window focus, as GameInput's doesn't.
+// a click that was going on as the window got focus, as GameInput's doesn't.
 fn mouse_button_held() -> bool {
     [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2]
         .into_iter()
@@ -576,6 +607,13 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             WM_CLOSE => {
                 shared.close_requested.set(true);
                 LRESULT(0)
+            }
+            // A click on the window without focus, which activates it, as
+            // Windows' default handling says, unless the window mustn't take
+            // focus: the cursor is kept at once, while it's held.
+            WM_MOUSEACTIVATE => {
+                shared.clicked.set(true);
+                DefWindowProcW(hwnd, message as u32, wparam, lparam)
             }
             _ => DefWindowProcW(hwnd, message as u32, wparam, lparam),
         }

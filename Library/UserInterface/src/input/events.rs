@@ -16,11 +16,13 @@
 // The pointer is the interface's: the mice's motion moves it, in GameInput's
 // counts times MOUSE_SENSITIVITY, inside the frame, as SDL's relative mode
 // keeps one. It starts in the frame's middle with the first of the mice's
-// events, and carries on from where it is after that. It moves in the
-// events' order, so a press happens where the pointer was as the button
-// went down. It's worked out in f64, so that a test's motion, worked out
-// from where the pointer is to a point, lands on that point exactly (see
-// testing/gestures.rs).
+// events, and carries on from where it is after that, except where it's
+// placed: a window places it where Windows' cursor is, or in the middle if
+// that's outside the window, as it starts to keep the cursor, like as it
+// gets focus (see platform/cursor.rs), which isn't motion. It moves in the events' order, so a press happens where the
+// pointer was as the button went down. It's worked out in f64, so that a
+// test's motion, worked out from where the pointer is to a point, lands on
+// that point exactly (see testing/gestures.rs).
 
 use crate::drawing::geometry::{Point, Size};
 use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton, Shortcut};
@@ -45,6 +47,12 @@ pub enum Event {
     // real mouse moves by whole counts; a test may move by parts of one, to
     // land the pointer on a point.
     MouseMoved { x: f64, y: f64 },
+    // The pointer put at a point in the frame, inside it, as the mice's input
+    // starts: where Windows' cursor was as the window started to keep it, or
+    // the middle if that was outside the window.
+    // Unlike motion, it's no part of `Input::pointer_delta`, so a drag or a
+    // camera that the pointer turns doesn't jump with it.
+    PointerPlaced(Point),
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
@@ -81,7 +89,8 @@ pub struct Input {
     // middle of.
     pub size: Size,
     pub pointer: Option<Point>,
-    // How far the pointer moved in this step.
+    // How far the mice's motion moved the pointer in this step, without
+    // where it was placed.
     pub pointer_delta: Point,
     // Notches of the wheel in this step.
     pub wheel: Point,
@@ -131,7 +140,7 @@ impl Input {
     // of a button or a key, the wheel, or a change of the gamepad's
     // buttons. A key's press and the text it types are one
     // step, as the text is made from the key. The events before it that only
-    // move something, the
+    // move or place something, the
     // pointer or the gamepad's sticks, are its step's too, so that it
     // happens where they left the pointer. Those after the frame's last such
     // event are a step of their own if they move the pointer, so that the
@@ -145,7 +154,7 @@ impl Input {
         let mut index = 0;
         while index < events.len() {
             let acts = match &events[index] {
-                Event::MouseMoved { .. } => false,
+                Event::MouseMoved { .. } | Event::PointerPlaced(_) => false,
                 Event::Gamepad(gamepad) => std::mem::replace(&mut self.step_gamepad_buttons, gamepad.buttons.0) != gamepad.buttons.0,
                 _ => true,
             };
@@ -158,7 +167,7 @@ impl Input {
             start = index;
         }
         let rest = &events[start..];
-        let moves_pointer = rest.iter().any(|event| matches!(event, Event::MouseMoved { .. }));
+        let moves_pointer = rest.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_)));
         if steps.is_empty() || moves_pointer {
             steps.push(rest);
         } else if !rest.is_empty() {
@@ -182,11 +191,17 @@ impl Input {
         self.keys_released.clear();
         self.previous_gamepad = self.gamepad;
         let before = self.pointer;
+        // How far the step's placements took the pointer, which isn't motion.
+        let mut placed = Point::ZERO;
         for event in events {
+            let from = self.pointer;
             self.apply(event);
+            if let (Event::PointerPlaced(_), Some(from), Some(to)) = (event, from, self.pointer) {
+                placed += to - from;
+            }
         }
         self.pointer_delta = match (self.pointer, before) {
-            (Some(now), Some(before)) => now - before,
+            (Some(now), Some(before)) => now - before - placed,
             _ => Point::ZERO,
         };
     }
@@ -198,6 +213,7 @@ impl Input {
         }
         match event {
             Event::MouseMoved { x, y } => self.pointer = Some(moved_pointer(self.pointer, *x, *y, self.size)),
+            Event::PointerPlaced(at) => self.pointer = Some(moved_pointer(Some(*at), 0.0, 0.0, self.size)),
             Event::ButtonPressed(button) => {
                 let time = self.time;
                 let position = self.pointer.unwrap_or_default();

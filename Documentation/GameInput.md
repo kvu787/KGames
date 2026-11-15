@@ -323,7 +323,9 @@ The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A
 says, has nothing to do with the screen. Each reading with relative positions is the motion of its
 difference from that mouse's last such reading, in the stream's order, which the interface moves
 the pointer by, times `MOUSE_SENSITIVITY`. The pointer starts in the middle of the window with the
-mice's first input, and carries on from where it was after that, focus or not.
+mice's first input, and carries on from where it was after that, except that as the window starts
+to keep Windows' cursor, like as it gets focus, the pointer is placed where Windows' cursor is, or
+in the middle of the window if Windows' cursor is outside it, like on another display.
 
 Microsoft's documentation says that the sum counts only the motion that the program gets while it
 has focus. Measured with GameInput 4.0.306, with input that `SendInput` injected, it doesn't: the
