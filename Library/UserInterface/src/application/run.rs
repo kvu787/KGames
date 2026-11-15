@@ -23,8 +23,7 @@
 //
 // F12 quits at once, and so does the taskbar's Close, which sends WM_CLOSE,
 // without asking the program, whether the window is minimized, shows the
-// error page, or neither. F1 keeps Windows' cursor, or lets it go, on the
-// frame of the press (see input/reader.rs).
+// error page, or neither.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -117,7 +116,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         });
     }
 
-    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    // Whether the frames read GameInput's mice, which move the pointer, and
+    // so whether the window keeps Windows' cursor while it has focus: not
+    // with a script's input, or without input.
+    let mice = matches!(source, Source::User { devices: Some(_), .. });
+    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background, mice).map_err(|error| format!("Couldn't open the window: {error}"))?;
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and
@@ -137,10 +140,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
-    // Whether the frames read GameInput's mice, which move the pointer, and
-    // so whether the window keeps Windows' cursor while it has focus: not
-    // with a script's input, or without input.
-    let mice = matches!(source, Source::User { devices: Some(_), .. });
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     let mut problems = Vec::new();
@@ -156,9 +155,8 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
         // Focus, and Windows' cursor with it, on every pass, whatever woke
         // the loop, before it waits while minimized, so that losing focus
-        // lets the cursor go at once. The window keeps the cursor only while
-        // F1 says so.
-        window.check_focus(mice && source.captured());
+        // lets the cursor go at once.
+        window.check_focus();
         // A minimized window runs no frames, and waits for messages. Its
         // input waits too: what came meanwhile, like losing focus as it
         // minimized, goes to the program in the first frame after it's
@@ -184,20 +182,14 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             continue;
         }
 
-        // The input, read as late as it can be. F1 keeps Windows' cursor or
-        // lets it go on this frame: an F1 that keeps it again keeps it
-        // before the frame, so that the frame draws the pointer, and one that
-        // lets it go lets it go after it, where the frame's input left the
-        // pointer. The frame draws the pointer exactly while Windows' cursor
-        // is kept, hidden, which a script's frames, and those without input,
-        // never do, and while it isn't kept, the pointer is away.
+        // The input, read as late as it can be. The frame draws the pointer
+        // exactly while Windows' cursor is kept, hidden, as this pass's check
+        // left it, and as the reader read the mice by, which a script's
+        // frames, and those without input, never do, and while it isn't
+        // kept, the pointer is away.
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
-        let keep = mice && source.captured();
-        if keep {
-            window.check_focus(keep);
-        }
-        let kept = keep && window.keeps_cursor();
+        let kept = window.keeps_cursor();
         ui.draws_pointer = kept;
         ui.set_pointer_away(mice && !kept);
         let (width, height) = presenter.size();
@@ -213,7 +205,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
-        window.check_focus(keep);
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleVerticalSync => {
@@ -361,15 +352,6 @@ impl Source {
             reader: Box::new(InputReader::new(gamepad)),
             last: None,
         })
-    }
-
-    // Whether F1 last chose to keep Windows' cursor, which a script's input
-    // never touches.
-    fn captured(&self) -> bool {
-        match self {
-            Source::User { reader, .. } => reader.captured(),
-            Source::Script { .. } => true,
-        }
     }
 
     // The devices, for programs that read them themselves.

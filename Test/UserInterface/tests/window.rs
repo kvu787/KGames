@@ -18,7 +18,7 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
         let expected = r as u32 | (g as u32) << 8 | (b as u32) << 16;
         unsafe {
             let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
-            let window = Window::create("Background", monitor, background).unwrap();
+            let window = Window::create("Background", monitor, background, true).unwrap();
             let (width, height) = window.client_size();
             let screen = GetDC(None);
             let memory = CreateCompatibleDC(Some(screen));
@@ -46,7 +46,7 @@ fn a_window_shows_its_themes_background_before_its_first_frame() {
 fn a_minimized_window_keeps_no_cursor() {
     unsafe {
         let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
-        let window = Window::create("Cursor", monitor, Theme::light().background).unwrap();
+        let window = Window::create("Cursor", monitor, Theme::light().background, true).unwrap();
         let (width, height) = window.client_size();
         let area = window.cursor_area().expect("the client area");
         assert_eq!((area.right - area.left, area.bottom - area.top), (width as i32, height as i32));
@@ -65,7 +65,7 @@ fn a_minimized_window_keeps_no_cursor() {
 fn a_window_moved_off_its_display_says_so() {
     unsafe {
         let monitor = MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32);
-        let window = Window::create("Moved", monitor, Theme::light().background).unwrap();
+        let window = Window::create("Moved", monitor, Theme::light().background, true).unwrap();
         let about_the_client_area = |problems: &[String]| problems.iter().any(|problem| problem.starts_with("The window's client area"));
         assert!(!about_the_client_area(&window.setup_problems()), "{:?}", window.setup_problems());
         let area = window.cursor_area().unwrap();

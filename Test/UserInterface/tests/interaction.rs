@@ -348,9 +348,9 @@ fn a_popup_takes_the_pointer_from_what_is_under_it() {
     assert_eq!((app.program.choice, app.ui.popup_name()), (2, None));
 }
 
-// While the window doesn't keep Windows' cursor, as focus went or F1 let it
-// go, the pointer is away: nothing is under it, no tooltip shows, and the
-// popups that were open close as it goes. Back, it's where it was.
+// While the window doesn't keep Windows' cursor, as focus went, the pointer
+// is away: nothing is under it, no tooltip shows, and the popups that were
+// open close as it goes. Back, it's where it was.
 #[test]
 fn nothing_is_under_the_pointer_while_it_is_away() {
     let mut app = Headless::new(Test::default());

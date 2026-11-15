@@ -504,8 +504,8 @@ fn side_by_side(images: &[Image]) -> Image {
 // The window draws its own pointer while it keeps Windows' cursor, hidden,
 // in the shape that the widget under it asks for, in the theme's accent with
 // an edge in text_on_accent, unlike Windows' cursors, and only near its hot
-// spot. Once it lets the cursor go, as focus goes or F1 lets it, Windows'
-// cursor shows, and the window draws none.
+// spot. Once it lets the cursor go, as focus goes, Windows' cursor shows,
+// and the window draws none.
 #[test]
 fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the_window_keeps_the_cursor() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();

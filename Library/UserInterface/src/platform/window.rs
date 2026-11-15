@@ -18,10 +18,10 @@
 //   the foreground window. It says when that changes, on the clock that
 //   input is timed on, as input without focus is ignored, at the time the
 //   check finds it, so it can be a little after.
-// - While it has focus, it keeps Windows' cursor inside its client area,
-//   hidden, and lets it go as focus goes and as the window closes, as
-//   platform/cursor.rs decides on the facts that the window gathers from
-//   Windows as it checks its focus.
+// - While it has focus, if its frames read GameInput's mice, it keeps
+//   Windows' cursor inside its client area, hidden, and lets it go as focus
+//   goes and as the window closes, as platform/cursor.rs decides on the
+//   facts that the window gathers from Windows as it checks its focus.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or Windows' settings change.
 // - Until its first frame is presented, it shows the theme's background,
@@ -102,8 +102,9 @@ pub struct Window {
 impl Window {
     // A program's window, borderless over the whole monitor, hidden until
     // shown, which shows `background`, the theme's, until its first frame is
-    // presented.
-    pub fn create(title: &str, monitor: HMONITOR, background: Color) -> Result<Window> {
+    // presented, and keeps Windows' cursor while it has focus if its frames
+    // read GameInput's mice: `mice`.
+    pub fn create(title: &str, monitor: HMONITOR, background: Color, mice: bool) -> Result<Window> {
         unsafe {
             prepare_process();
             register_class()?;
@@ -126,11 +127,11 @@ impl Window {
             if hwnd.0.is_null() {
                 return Err(Error::from_thread());
             }
-            Ok(Window::wrap(hwnd, background))
+            Ok(Window::wrap(hwnd, background, mice))
         }
     }
 
-    unsafe fn wrap(hwnd: HWND, background: Color) -> Window {
+    unsafe fn wrap(hwnd: HWND, background: Color, mice: bool) -> Window {
         unsafe {
             let shared = Box::new(Shared {
                 focus_changes: Cell::new(Vec::new()),
@@ -146,7 +147,7 @@ impl Window {
             Window {
                 hwnd,
                 shared,
-                cursor: CursorKeeper::default(),
+                cursor: CursorKeeper::new(mice),
             }
         }
     }
@@ -229,10 +230,8 @@ impl Window {
     // at once, without waiting for a frame. Says when that changes, at the
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
-    // may have changed its confinement, if the frames read GameInput's mice,
-    // and not a script's input, or none, and F1 last chose to keep it:
-    // `mice`.
-    pub fn check_focus(&mut self, mice: bool) {
+    // may have changed its confinement.
+    pub fn check_focus(&mut self) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
             let shared = self.shared();
@@ -242,7 +241,6 @@ impl Window {
             if focused || self.cursor.keeps() {
                 let facts = CursorFacts {
                     focused,
-                    mice,
                     button_held: focused && !self.cursor.keeps() && mouse_button_held(),
                     ..cursor_facts(self.hwnd)
                 };
@@ -493,7 +491,6 @@ unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
         let (left, top) = (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN));
         CursorFacts {
             focused: false,
-            mice: false,
             area: cursor_area(hwnd),
             button_held: false,
             clip,
