@@ -1,12 +1,13 @@
 # The frame's input
 
 > **Built**, in commits 854d36b to 9e69a59. Where the build went its own way from the design, the
-> section "Where the build differs" says so. Keep this document true with the code.
+> section "Where the build differs" says so, and "Changed since" says what changed after it. Keep
+> this document true with the code.
 
 A frame's input is one value, `FrameInput`: the frame's delta, and its events in the order they
 happened, from the keyboards, the mice and the gamepads. The platform, under the UI library, makes
 it from GameInput's readings, and the UI library and programs read only it. Focus, Windows' cursor,
-F1, F12 and minimizing stay under it, and programs never hear of them.
+F12 and minimizing stay under it, and programs never hear of them.
 
 The change is only the input. Programs still describe their interface with `view`, apply messages
 with `update`, and draw their 3D with `render`.
@@ -45,7 +46,7 @@ pub enum Event {
 | The mice's motion, buttons and wheels, all as one | The pointer: the UI library moves it, from the mice's motion   |
 | The gamepads, all as one                          | Focus: the platform's alone                                    |
 | The frame's delta                                 | Closing: F12 and the taskbar's Close quit, under the program   |
-|                                                   | F1 and F12: never sent, neither as presses nor as releases     |
+|                                                   | F12: never sent, neither as a press nor as a release           |
 |                                                   | Time since the program started: the UI library sums the deltas |
 
 The events that went: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
@@ -55,25 +56,19 @@ The events that went: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
 In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
 [run.rs](../Library/UserInterface/src/application/run.rs):
 
-- **F1** keeps Windows' cursor, confined to the window and hidden, or lets it go.
-  - It's kept from when the window first has focus, so that a program is ready to use as it
-    opens.
-  - Focus going lets go of the cursor without changing what F1 last chose. Focus coming keeps it
-    again if F1 chose that.
-  - While the window doesn't keep the cursor, `FrameInput` has no mouse events, so that the
-    pointer doesn't move apart from Windows' arrow, and the buttons that the mice pressed are let
-    go of as that starts. That holds while F1 has let it go, and while the click that gave the
-    window focus is held, before the window keeps it. Keyboards and gamepads still come.
-  - An F1 that lets the cursor go places Windows' arrow where the frame's input left the pointer,
-    after the frame. One that keeps it again keeps it before the frame, which draws the pointer.
+- **Windows' cursor** is kept, confined to the window and hidden, while the window has focus, so
+  that a program is ready to use as it opens. While the window doesn't keep the cursor,
+  `FrameInput` has no mouse events, so that the pointer doesn't move apart from Windows' arrow,
+  and the buttons that the mice pressed are let go of as that starts, like while the click that
+  gave the window focus is held, before the window keeps it. Keyboards and gamepads still come.
 - **F12** quits at once, without asking, once the frame has had the input that came before it,
   like a Ctrl+S just before it, and nothing after it happens. So does the taskbar's Close, which
   sends `WM_CLOSE`, so that closing works one way, whether the window is minimized, on the error
   page or neither. `Program::may_close` is gone. A program can still close itself with
   `Context::close`.
-- **F1 and F12 never reach the interface.** The reader drops their presses and releases, the
-  interface stops the program if a frame's events have them, whoever made them, and a script that
-  presses them says so before it runs.
+- **F12 never reaches the interface.** The reader drops its presses and releases, the interface
+  stops the program if a frame's events have it, whoever made them, and a script that presses it
+  says so before it runs.
 - **Focus** is checked on every pass of the main loop, which costs about 1.4 µs a pass. As focus
   goes, the platform lets go of the cursor, and the reader puts in a `KeyReleased` or
   `ButtonReleased` for each key or button whose press it gave, and the gamepads at rest, so that
@@ -81,7 +76,7 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
   of, and their releases are never given. The program never hears of focus.
 - **Alt+F4** is two keys, which mean nothing. **Alt+Tab** is Windows', which switches windows
   before any window sees it.
-- **Without focus** GameInput reads nothing, so F1 and F12 don't work either. Focus goes in more
+- **Without focus** GameInput reads nothing, so F12 doesn't work either. Focus goes in more
   ways than Alt+Tab, like the Start menu, a notification that's clicked, a UAC prompt or Win+L,
   which is why the platform still checks it. Ctrl+Alt+Delete, which no program can take, is the
   way out of a program that's stuck.
@@ -120,13 +115,14 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
   said it would show where Windows had it, as the platform wouldn't know where the pointer is, but
   the main loop reads the pointer from the interface, as it did before.
 - **The pointer isn't drawn while the window doesn't keep the cursor.** The design said it would
-  stay drawn where it was while F1 has let the cursor go. It isn't, as before, so that Windows'
+  stay drawn where it was while F1 had let the cursor go. It isn't, as before, so that Windows'
   arrow is the only one that shows, and the pointer is away: nothing is under it, no tooltip
   shows, and the popups that were open close as it goes, as they did as focus went. The program
-  still never hears of F1 or focus.
+  still never hears of focus.
 - **More programs used F1** than the design counted. UiShowcase's tooltips, Veehiicuul's and
   Platformer's cards, and the info card in MinimalSceneTest and SpinningCarTest moved to F2.
-  GameInputDemo's rumble test moved to F3, as its F2 already cleared the log.
+  GameInputDemo's rumble test moved to F3, as its F2 already cleared the log. They stayed there
+  when F1 went.
 - **GameInputDemo** gets the window's focus from its input source: `Devices::focused` and
   `Devices::focus_changes` for GameInput, and a `Focus` program step for scripts and tests, as
   the interface's `Focus` script step is gone.
@@ -137,9 +133,18 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
   had unsaved changes, and loses them now.
 - F12 is Windows' key for debuggers. While a debugger is attached to the program, F12 breaks into
   it, as `RegisterHotKey`'s documentation says. Without one, F12 is an ordinary key.
-- A button held as focus goes, or as F1 lets the cursor go, is let go of as the program sees it.
-  Widgets act on a press, not a release, so a release only ends a drag.
+- A button held as focus goes is let go of as the program sees it. Widgets act on a press, not a
+  release, so a release only ends a drag.
 - Only ASCII can be typed, in a US keyboard's layout, whatever Windows' layout is.
+
+## Changed since
+
+- **F1 went.** It let Windows' cursor go while the window kept focus, and kept it again. Alt+Tab
+  and the Windows key already let it go, as they leave the window, and while F1 had let it go,
+  Windows' arrow over the window clicked nothing, even after focus went and came back. Now
+  Windows' cursor is kept while the window has focus, as above, F1 is a key like any other, and
+  F12 is the platform's only key. The main loop checks focus once a pass, as it did before F1,
+  without the checks around the frame that F1's presses needed.
 
 ## Later, not in this change
 

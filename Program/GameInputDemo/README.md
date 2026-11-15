@@ -58,7 +58,6 @@ Shortcuts, while the demo's window has focus:
 
 | Key   | Action                                                                 |
 | ----- | ---------------------------------------------------------------------- |
-| `F1`  | Lets Windows' cursor go, or keeps it again, as in every KGames program |
 | `F2`  | Clear the event log                                                    |
 | `F3`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
 | `F9`  | Switches between the light and dark themes                             |
@@ -67,8 +66,8 @@ Shortcuts, while the demo's window has focus:
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
 Library/UserInterface's, which reads them from the same readings, as in every KGames program, so the
-demo doesn't also switch on them, which would switch them back. `F1` and `F12` are too, and the
-demo's cards show them as GameInput read them, like any key, but do nothing with them.
+demo doesn't also switch on them, which would switch them back. `F12` is too, and the demo's cards
+show it as GameInput read it, like any key, but do nothing with it.
 
 ### Rumble test
 
@@ -92,7 +91,7 @@ the demo applies a dead zone.
 
 Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
 A click anywhere else in the window, or the pointer going away, as the window loses focus, like
-when it's minimized, or F1 lets Windows' cursor go, closes the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
+when it's minimized, closes the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
 text field does, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |

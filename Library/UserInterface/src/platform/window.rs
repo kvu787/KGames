@@ -230,8 +230,7 @@ impl Window {
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
     // may have changed its confinement, if the frames read GameInput's mice,
-    // and not a script's input, or none, and F1 last chose to keep it:
-    // `mice`.
+    // `mice`, and not a script's input, or none.
     pub fn check_focus(&mut self, mice: bool) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();

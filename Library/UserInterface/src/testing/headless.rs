@@ -381,8 +381,8 @@ impl<P: Program> Headless<P> {
     }
 
     // Takes the pointer away, as a window's frames do while it doesn't keep
-    // Windows' cursor, like once focus went or F1 let it go, or brings it
-    // back, and runs a frame.
+    // Windows' cursor, like once focus went, or brings it back, and runs a
+    // frame.
     pub fn pointer_away(&mut self, away: bool) -> &mut Self {
         self.ui.set_pointer_away(away);
         self.run_frame()

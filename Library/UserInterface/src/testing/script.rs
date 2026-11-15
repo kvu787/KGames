@@ -28,7 +28,6 @@ use crate::core::interface::Interface;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
 use crate::input::events::Event;
-use crate::input::reader::platform_key;
 use crate::testing::gestures::{self, Frames, Made};
 
 pub const DEFAULT_FRAME_TIME: f64 = 1.0 / 60.0;
@@ -170,7 +169,7 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                 return Err("needs a key's name, like \"F2\" or \"Ctrl+S\"".to_string());
             };
             let shortcut = Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?;
-            platform_free(&[shortcut.key])?;
+            without_f12(&[shortcut.key])?;
             Action::Key(shortcut)
         }
         "Hold" => {
@@ -182,7 +181,7 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                 other => Err(format!("has {}, which isn't a key's name", other.describe())),
             });
             let keys: Vec<Key> = keys.collect::<Result<_, _>>()?;
-            platform_free(&keys)?;
+            without_f12(&keys)?;
             Action::Hold(keys)
         }
         "Type" => match value {
@@ -340,13 +339,13 @@ fn point(place: &Place, ui: &Interface) -> Result<Point, String> {
     }
 }
 
-// F1 and F12 are the platform's, which never reach the interface, so a
-// script can't press them.
-fn platform_free(keys: &[Key]) -> Result<(), String> {
-    match keys.iter().find(|key| platform_key(**key)) {
-        Some(key) => Err(format!("presses {}, but F1 and F12 are the platform's, which a script can't press", key.name())),
-        None => Ok(()),
+// F12 is the platform's, which quits, and never reaches the interface, so a
+// script can't press it.
+fn without_f12(keys: &[Key]) -> Result<(), String> {
+    if keys.contains(&Key::F12) {
+        return Err("presses F12, but F12 is the platform's, which a script can't press".to_string());
     }
+    Ok(())
 }
 
 fn number(value: Option<&Value>) -> Option<f64> {

@@ -1,9 +1,8 @@
 // Tests closing. F12 and the taskbar's Close quit at once, under the
 // interface, without asking the program (see application/run.rs): F12 never
-// reaches the interface, nor does F1, which keeps Windows' cursor or lets it
-// go. Alt+F4 is only two keys. A program can close itself with
-// Context::close, and the steps of its frame after the one that closes don't
-// happen.
+// reaches the interface. Alt+F4 is only two keys, and F1 one. A program can
+// close itself with Context::close, and the steps of its frame after the one
+// that closes don't happen.
 
 use user_interface::{Button, Context, Event, Headless, Key, Program, Rect, Tree, Ui};
 
@@ -86,26 +85,41 @@ fn what_comes_before_a_step_that_closes_happens() {
     assert_eq!(app.program.typed, 1);
 }
 
-// F1 and F12 are the platform's: whoever made a frame's events, they never
-// reach the interface, as presses or releases.
+// F1 is a key, which the program gets like any other, and which closes
+// nothing.
 #[test]
-#[should_panic(expected = "F1 and F12 are the platform's")]
-fn f1_never_reaches_the_interface() {
-    Headless::new(Closing::default()).send(&[Event::KeyPressed(Key::F1)]);
+fn f1_is_only_a_key() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::F1), Event::KeyReleased(Key::F1)]);
+    assert!(!app.closed());
+    assert_eq!(app.program.keys, [Key::F1]);
+}
+
+// F12 is the platform's: whoever made a frame's events, it never reaches the
+// interface, as a press or a release.
+#[test]
+#[should_panic(expected = "F12 is the platform's")]
+fn f12_never_reaches_the_interface_as_a_press() {
+    Headless::new(Closing::default()).send(&[Event::KeyPressed(Key::F12)]);
 }
 
 #[test]
-#[should_panic(expected = "F1 and F12 are the platform's")]
-fn f12_never_reaches_the_interface() {
+#[should_panic(expected = "F12 is the platform's")]
+fn f12_never_reaches_the_interface_as_a_release() {
     Headless::new(Closing::default()).send(&[Event::KeyReleased(Key::F12)]);
 }
 
-// A script can't press them either: one that does says so before it runs.
+// A script can't press it either: one that does says so before it runs. It
+// can press F1.
 #[test]
-fn a_script_can_t_press_f1_or_f12() {
-    for step in [r#"{ "Frame": 1, "Key": "F1" }"#, r#"{ "Frame": 1, "Key": "Ctrl+F12" }"#, r#"{ "Frame": 1, "Hold": ["W", "F1"] }"#] {
+fn a_script_can_t_press_f12() {
+    for step in [r#"{ "Frame": 1, "Key": "F12" }"#, r#"{ "Frame": 1, "Key": "Ctrl+F12" }"#, r#"{ "Frame": 1, "Hold": ["W", "F12"] }"#] {
         let script = format!(r#"{{ "Steps": [ {step} ] }}"#);
         let error = user_interface::Script::parse(&script).unwrap_err();
-        assert!(error.contains("F1 and F12 are the platform's"), "{error}");
+        assert!(error.contains("F12 is the platform's"), "{error}");
+    }
+    for step in [r#"{ "Frame": 1, "Key": "F1" }"#, r#"{ "Frame": 1, "Hold": ["W", "F1"] }"#] {
+        let script = format!(r#"{{ "Steps": [ {step} ] }}"#);
+        assert!(user_interface::Script::parse(&script).is_ok(), "{step}");
     }
 }

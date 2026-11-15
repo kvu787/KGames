@@ -264,13 +264,11 @@ before, but reports gamepads' whole state, their held buttons too.
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
   `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
-  window starts to keep the cursor only once the click that gave it focus is let go of. `F1`
-  lets the cursor go, where the pointer is, and keeps it again: the window keeps it from the
-  start, and focus going and coming doesn't change what `F1` last chose. While the window doesn't
-  keep the cursor, the mice's input doesn't reach the interface, so the pointer stays where it
-  was, undrawn, and the buttons that the mice pressed are let go of as that starts. The pointer is
-  away then: nothing is under it, no tooltip shows, and the popups that were open close as it
-  goes, though the program never hears why. As it
+  window starts to keep the cursor only once the click that gave it focus is let go of. While the
+  window doesn't keep the cursor, the mice's input doesn't reach the interface, so the pointer
+  stays where it was, undrawn, and the buttons that the mice pressed are let go of as that starts.
+  The pointer is away then: nothing is under it, no tooltip shows, and the popups that were open
+  close as it goes, though the program never hears why. As it
   loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
   goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
   program that got focus has confined the cursor already, whose confinement the window leaves
@@ -279,8 +277,7 @@ before, but reports gamepads' whole state, their held buttons too.
   So the windows beside it and the taskbar can't be reached with the mouse while the window has
   focus: Alt+Tab or the Windows key leave it. A window that's always on top over it, like Task
   Manager's can be, still gets the clicks under Windows' hidden cursor, which goes its own way
-  inside the client area, apart from the pointer, and `F1` lets the cursor go to reach anything
-  else. A run whose input is a script's, or that has
+  inside the client area, apart from the pointer. A run whose input is a script's, or that has
   none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
   makes a test's frames draw it.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
@@ -334,10 +331,10 @@ before, but reports gamepads' whole state, their held buttons too.
 - `F12` quits at once, without asking the program, and so does the taskbar's Close, which sends
   `WM_CLOSE`, whether the window is minimized, shows the error page, or neither. A program closes
   itself with `Context::close`, and the steps of its frame after the one that closes don't happen.
-- `F1` and `F12` are the platform's, under the interface: the reader takes them from GameInput's
-  keys, and no program gets them, as presses or releases. The interface stops the program if a
-  frame's events have them, whoever made the events, and a script that presses them says so before
-  it runs.
+- `F12` is the platform's, under the interface: the reader takes it from GameInput's keys, and no
+  program gets it, as a press or a release. The interface stops the program if a frame's events
+  have it, whoever made the events, and a script that presses it says so before it runs. `F1` is a
+  key like any other.
 - `Alt+F4` is only two keys. Windows' own window shortcuts do nothing in the window, which
   swallows the system keys' messages, so Alt and F10 don't open the menu's keyboard mode,
   Alt+Space doesn't open the window's menu, and Windows doesn't close the window on Alt+F4. The

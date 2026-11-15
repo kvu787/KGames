@@ -1,8 +1,8 @@
 // Tests how GameInput's readings become the interface's events: keys, the
 // mouse's buttons, wheel and motion, which moves the pointer, the gamepad,
 // what the window's focus does to them, which the interface never hears of,
-// F1 and F12, and the time of a frame's newest input, which its input
-// latency starts at. The readings, the window's size and the focus changes
+// F12, and the time of a frame's newest input, which its input latency
+// starts at. The readings, the window's size and the focus changes
 // are made up, with times on the performance counter.
 
 use user_interface::game_input::*;
@@ -95,7 +95,7 @@ fn window(focus: Option<(i64, bool)>) -> WindowState {
 }
 
 // The window, which doesn't keep Windows' cursor, like while the click that
-// gave it focus is held, or once F1 let it go.
+// gave it focus is held.
 fn letting_go(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         keeps_cursor: false,
@@ -380,55 +380,49 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
     assert!(!frame.events.iter().any(|event| matches!(event, Event::ButtonPressed(_) | Event::ButtonReleased(_))));
 }
 
-// F1 and F12 are the platform's: the reader gives neither their presses nor
-// their releases. F1 lets Windows' cursor go, and keeps it again, and F12
-// quits.
+// F12 is the platform's: the reader gives neither its press nor its release,
+// and it quits. F1 is a key like any other.
 #[test]
-fn f1_and_f12_are_the_platform_s() {
+fn f12_is_the_platform_s_and_f1_is_a_key() {
     let mut reader = focused();
-    assert!(reader.captured());
     let frame = reader.read(&[keyboard(10, &[F1]), keyboard(20, &[])], &[], &window(None));
-    assert_eq!(keys(&frame.events), Vec::new());
-    assert!(!reader.captured() && !frame.quit);
-    let frame = reader.read(&[keyboard(30, &[F1]), keyboard(40, &[F1, A]), keyboard(50, &[A])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A)]);
-    assert!(reader.captured() && !frame.quit);
-    let frame = reader.read(&[keyboard(60, &[F12])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyReleased(Key::A)]);
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::F1), Event::KeyReleased(Key::F1)]);
+    assert!(!frame.quit);
+    let frame = reader.read(&[keyboard(30, &[A]), keyboard(40, &[F12])], &[], &window(None));
+    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A), Event::KeyReleased(Key::A)]);
     assert!(frame.quit);
-    let frame = reader.read(&[keyboard(70, &[])], &[], &window(None));
+    let frame = reader.read(&[keyboard(50, &[])], &[], &window(None));
     assert_eq!(keys(&frame.events), Vec::new());
     assert!(!frame.quit);
 }
 
-// Without focus, F1 and F12 do nothing: their presses aren't input.
+// Without focus, F12 does nothing: its press isn't input.
 #[test]
-fn f1_and_f12_without_focus_do_nothing() {
+fn f12_without_focus_does_nothing() {
     let mut reader = reader();
-    let frame = reader.read(&[keyboard(10, &[F1, F12])], &[], &window(None));
-    assert!(reader.captured() && !frame.quit);
+    let frame = reader.read(&[keyboard(10, &[F12])], &[], &window(None));
+    assert!(!frame.quit);
 }
 
-// As F1 lets Windows' cursor go, the mice's input stops: the button that it
-// pressed is let go of, on the step of the F1, and what the mice do after it
-// doesn't reach the interface, until F1 keeps the cursor again. A button
-// held as that happens counts once it's let go of.
+// As the window lets Windows' cursor go while it has focus, like as its
+// client area leaves the screens, the mice's input stops from the frame's
+// start, as the cursor went before any of the frame's readings could reach
+// the screen: the button that they pressed is let go of, and what they do
+// doesn't reach the interface, until the window keeps the cursor again. A
+// button held as it does counts only once it's let go of.
 #[test]
-fn f1_stops_the_mice_s_input_and_lets_go_of_their_buttons() {
+fn letting_the_cursor_go_with_focus_stops_the_mice_s_input_and_lets_go_of_their_buttons() {
     let mut reader = focused();
     reader.read(&[mouse_at(5, GameInputMouseNone, 0, 0)], &[], &window(None));
-    let frame = reader.read(&[mouse_at(10, GameInputMouseLeftButton, 0, 0), keyboard(20, &[F1]), mouse_at(30, GameInputMouseLeftButton, 10, 0)], &[], &window(None));
-    assert_eq!(mouse_events(&frame.events), [Event::ButtonPressed(MouseButton::Left), Event::ButtonReleased(MouseButton::Left)]);
-    assert!(!reader.captured());
-    // The window lets the cursor go as the frame ends.
-    let frame = reader.read(&[mouse_at(40, GameInputMouseNone, 20, 0), mouse_at(50, GameInputMouseRightButton, 20, 0), mouse(60, GameInputMouseRightButton, 120)], &[], &letting_go(None));
-    assert_eq!(mouse_events(&frame.events), Vec::new());
-    // F1 again, with the right button held: the window keeps the cursor from
-    // the next frame, and the held button counts only once it's let go of.
-    let frame = reader.read(&[keyboard(70, &[]), keyboard(80, &[F1])], &[], &letting_go(None));
-    assert!(reader.captured());
-    assert_eq!(mouse_events(&frame.events), Vec::new());
-    let frame = reader.read(&[mouse_at(90, GameInputMouseNone, 20, 0), mouse_at(100, GameInputMouseLeftButton, 20, 0)], &[], &window(None));
+    let frame = reader.read(&[mouse_at(10, GameInputMouseLeftButton, 0, 0)], &[], &window(None));
+    assert_eq!(mouse_events(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
+    let frame = reader.read(
+        &[mouse_at(20, GameInputMouseLeftButton, 10, 0), mouse_at(30, GameInputMouseRightButton, 20, 0), mouse(40, GameInputMouseRightButton, 120)],
+        &[],
+        &letting_go(None),
+    );
+    assert_eq!(mouse_events(&frame.events), [Event::ButtonReleased(MouseButton::Left)]);
+    let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 20, 0), mouse_at(60, GameInputMouseLeftButton, 20, 0)], &[], &window(None));
     assert_eq!(buttons(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
 }
 
@@ -493,7 +487,7 @@ fn f12_quits_after_what_came_before_it_and_nothing_after_it() {
 
 // The input latency starts at input that reaches the interface: not at the
 // mice's while their input is stopped, as while the click that gave the
-// window focus is held, or F1 let the cursor go.
+// window focus is held.
 #[test]
 fn the_mice_s_stopped_input_doesn_t_start_the_input_latency() {
     let mut reader = reader();
@@ -504,21 +498,6 @@ fn the_mice_s_stopped_input_doesn_t_start_the_input_latency() {
     assert_eq!(frame.input_time, Some(40));
     let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 50, 0)], &[], &window(None));
     assert_eq!(frame.input_time, Some(50));
-}
-
-// Focus going lets Windows' cursor go without changing what F1 last chose,
-// so focus coming back keeps it again only if F1 chose that.
-#[test]
-fn focus_doesn_t_change_what_f1_chose() {
-    let mut reader = focused();
-    reader.read(&[keyboard(10, &[F1]), keyboard(20, &[])], &[], &window(None));
-    reader.read(&[], &[], &window(Some((30, false))));
-    reader.read(&[], &[], &window(Some((40, true))));
-    assert!(!reader.captured());
-    reader.read(&[keyboard(50, &[F1]), keyboard(60, &[])], &[], &window(None));
-    reader.read(&[], &[], &window(Some((70, false))));
-    reader.read(&[], &[], &window(Some((80, true))));
-    assert!(reader.captured());
 }
 
 // The mice's motion in a frame's events, in counts.

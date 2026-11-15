@@ -34,15 +34,14 @@
 // - A gamepad is known from when it connects, and a device that's unplugged
 //   lets go of what it held after the frame's readings, as GameInput doesn't
 //   say when it went.
-// - F1 and F12 are the platform's, and never reach the interface, as presses
-//   or releases. F1 keeps Windows' cursor, or lets it go (see
-//   platform/cursor.rs), and F12 quits. The cursor is kept from the start,
-//   and focus going lets it go without changing what F1 last chose.
+// - F12 is the platform's, and never reaches the interface, as a press or a
+//   release: it quits.
 // - The mice's input reaches the interface only while the window keeps
-//   Windows' cursor, hidden, as F1 chooses: not while it's let go, when
-//   Windows' arrow moves and the pointer would move apart from it, nor while
-//   the click that gave the window focus is held, before the window keeps
-//   it. As the mice's input stops, the buttons it pressed are let go of.
+//   Windows' cursor, hidden (see platform/cursor.rs): not while it doesn't,
+//   when Windows' arrow moves and the pointer would move apart from it, like
+//   while the click that gave the window focus is held, before the window
+//   keeps it. As the mice's input stops, the buttons it pressed are let go
+//   of.
 //
 // The window's focus isn't the interface's: it gets no events of focus, and
 // none without it. GameInput gives none either, as the library leaves its
@@ -127,9 +126,6 @@ pub struct InputReader {
     gamepad_ignored: u32,
     // The buttons that the last Gamepad event told the interface of.
     gamepad_sent: u32,
-    // Whether F1 last chose to keep Windows' cursor, which it does from the
-    // start.
-    captured: bool,
     // Whether the window keeps Windows' cursor as the frame reads, and as the
     // frame's reads end.
     keeping: bool,
@@ -189,23 +185,16 @@ impl InputReader {
             gamepads: Vec::new(),
             gamepad_ignored: 0,
             gamepad_sent: 0,
-            captured: true,
             keeping: false,
             keeps_after: false,
             quit: false,
         }
     }
 
-    // Whether F1 last chose to keep Windows' cursor, which the window keeps
-    // while it has focus.
-    pub fn captured(&self) -> bool {
-        self.captured
-    }
-
     // Whether the mice's input reaches the interface: while the window has
-    // focus, F1 keeps Windows' cursor, and the window keeps it.
+    // focus and keeps Windows' cursor.
     fn mouse_open(&self) -> bool {
-        self.focused && self.captured && self.keeping
+        self.focused && self.keeping
     }
 
     // The mice's input stops: the buttons it pressed are let go of, and
@@ -504,12 +493,6 @@ impl InputReader {
                 self.keys_down[code] = true;
                 if self.focused {
                     match Key(code as u8) {
-                        Key::F1 => {
-                            if self.mouse_open() {
-                                self.close_mouse(events);
-                            }
-                            self.captured = !self.captured;
-                        }
                         Key::F12 => self.quit = true,
                         key => {
                             events.push(Event::KeyPressed(key));
@@ -593,12 +576,6 @@ impl InputReader {
             }
         }
     }
-}
-
-// Whether the key is one of the platform's, F1 or F12, which never reach the
-// interface.
-pub fn platform_key(key: Key) -> bool {
-    key == Key::F1 || key == Key::F12
 }
 
 // The interface's key for a key that GameInput reads: its virtual key, with

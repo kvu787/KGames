@@ -198,10 +198,10 @@ pub struct Interface {
     // script's or a test's, whose captures never showed Windows' cursor.
     pub(crate) draws_pointer: bool,
     // Whether the pointer is away: a window's frames are while it doesn't
-    // keep Windows' cursor, as focus went, F1 let it go, or the click that
-    // gave the window focus is still held, and the user points with
-    // Windows' arrow instead. Then nothing is under the pointer, no tooltip
-    // shows, and the popups that were open close as it goes. The program
+    // keep Windows' cursor, as focus went, or the click that gave the window
+    // focus is still held, and the user points with Windows' arrow instead.
+    // Then nothing is under the pointer, no tooltip shows, and the popups
+    // that were open close as it goes. The program
     // never hears why.
     pointer_away: bool,
     // Whether the step running is its frame's last, which has the frame's
@@ -257,7 +257,7 @@ impl Interface {
     // mustn't change what it closed with.
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, input: &FrameInput, sent: Vec<P::Message>, size: Size) {
         let events = &input.events;
-        no_platform_keys(events);
+        no_f12(events);
         let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
@@ -372,7 +372,7 @@ impl Interface {
     // setup's: the interface's own keys, in steps, and drawing.
     pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, input: &FrameInput, size: Size) {
         let events = &input.events;
-        no_platform_keys(events);
+        no_f12(events);
         let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
@@ -1203,14 +1203,15 @@ impl Interface {
     }
 }
 
-// F1 and F12 are the platform's, which never reach the interface, as presses
-// or releases, whoever made the frame's events: the reader drops them, and
-// scripts can't press them.
-fn no_platform_keys(events: &[Event]) {
+// F12 is the platform's, which quits, and never reaches the interface, as a
+// press or a release, whoever made the frame's events: the reader drops it,
+// and scripts can't press it.
+fn no_f12(events: &[Event]) {
     for event in events {
-        if let Event::KeyPressed(key) | Event::KeyReleased(key) = event {
-            assert!(!crate::input::reader::platform_key(*key), "F1 and F12 are the platform's, and never reach the interface, but the frame's events had {event:?}");
-        }
+        assert!(
+            !matches!(event, Event::KeyPressed(Key::F12) | Event::KeyReleased(Key::F12)),
+            "F12 is the platform's, and never reaches the interface, but the frame's events had {event:?}"
+        );
     }
 }
 
