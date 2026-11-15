@@ -17,6 +17,18 @@ This decision was primarily motivated by my experience working with those depend
 - Avoid maintenance burden, bugs, churn, etc introduced by new versions of dependencies that don't benefit my specific usage.
 - Make it easier to configure a non-disruptive agent workflow.
 
+# References
+
+- SDL 3
+- Godot Engine
+- Blender
+- GLFW
+- winit
+- Bevy Engine
+- iced
+- DirectXTK12
+- Mindustry
+
 # Design
 
 - Folders
