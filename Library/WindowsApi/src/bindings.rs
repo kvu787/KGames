@@ -394,6 +394,11 @@ pub unsafe fn GetCurrentProcessId() -> u32 {
     unsafe { GetCurrentProcessId() }
 }
 #[inline]
+pub unsafe fn GetCursorPos(lppoint: *mut POINT) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn GetCursorPos(lppoint : *mut POINT) -> windows_core::BOOL);
+    unsafe { GetCursorPos(lppoint as _) }
+}
+#[inline]
 pub unsafe fn GetDC(hwnd: Option<HWND>) -> HDC {
     windows_core::link!("user32.dll" "system" fn GetDC(hwnd : HWND) -> HDC);
     unsafe { GetDC(hwnd.unwrap_or(core::mem::zeroed()) as _) }

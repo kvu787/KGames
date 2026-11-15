@@ -77,13 +77,15 @@ WM_PAINT
 // Input, which comes from GameInput: Windows' cursor, which is hidden and
 // kept inside the window while it's the foreground window and has focus, at
 // once if a click on the window gave it focus, and otherwise once Windows'
-// mouse buttons are let go of, and let go of only by the window that keeps
-// it, within the screens, which Windows keeps a confinement to, typed text
-// from keys with the keyboard layout, and Caps Lock's toggle
+// mouse buttons are let go of, with the pointer placed where it is, and let
+// go of only by the window that keeps it, within the screens, which Windows
+// keeps a confinement to, typed text from keys with the keyboard layout, and
+// Caps Lock's toggle
 ClientToScreen
 ClipCursor
 GetAsyncKeyState
 GetClipCursor
+GetCursorPos
 GetForegroundWindow
 GetKeyboardLayout
 GetKeyState

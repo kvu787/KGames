@@ -6,7 +6,7 @@
 use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, clip_holder, on_screens};
 use windows_api::{POINT, RECT};
 
-use CursorAction::{Confine, Hide, Place, Release, Show};
+use CursorAction::{Confine, Hide, Place, PlacePointer, Release, Show};
 
 // The window's client area on the screen, the whole of the screens, which is
 // the confinement without one, and another program's window.
@@ -14,12 +14,17 @@ const AREA: RECT = RECT { left: 0, top: 0, right: 2560, bottom: 1440 };
 const SCREENS: RECT = RECT { left: -2560, top: 0, right: 5120, bottom: 1440 };
 const OTHER: RECT = RECT { left: 2560, top: 0, right: 5120, bottom: 1440 };
 
+// Where Windows' cursor is, in the area, where the pointer is placed as the
+// window starts to keep it.
+const AT_CURSOR: POINT = POINT { x: 300, y: 400 };
+
 fn facts(focused: bool, clip: RECT) -> CursorFacts {
     CursorFacts {
         focused,
         area: Some(AREA),
         button_held: false,
         clicked: false,
+        cursor: AT_CURSOR,
         clip,
         screens: SCREENS,
     }
@@ -29,7 +34,7 @@ fn facts(focused: bool, clip: RECT) -> CursorFacts {
 fn keeping() -> CursorKeeper {
     let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(POINT { x: 100, y: 200 });
-    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
     keeper
 }
 
@@ -46,7 +51,7 @@ fn alt_tab_out_and_back() {
     assert_eq!(keeper.update(facts(false, AREA)), [Release, Show, Place(AT_POINTER)]);
     assert!(!keeper.keeps());
     assert_eq!(keeper.update(facts(false, SCREENS)), []);
-    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
 }
 
 // Windows releases the confinement itself when a normal window is activated,
@@ -118,7 +123,7 @@ fn a_held_button_puts_off_keeping_the_cursor_but_doesn_t_let_it_go() {
     assert_eq!(keeper.update(held(SCREENS)), []);
     assert!(!keeper.keeps());
     assert_eq!(keeper.update(held(SCREENS)), []);
-    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
     assert_eq!(keeper.update(held(AREA)), []);
     assert!(keeper.keeps());
 }
@@ -129,7 +134,7 @@ fn a_held_button_puts_off_keeping_the_cursor_but_doesn_t_let_it_go() {
 fn a_click_on_the_window_keeps_the_cursor_as_it_goes_down() {
     let mut keeper = CursorKeeper::new(true);
     let click = CursorFacts { button_held: true, clicked: true, ..facts(true, SCREENS) };
-    assert_eq!(keeper.update(click), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(click), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
     assert!(keeper.keeps());
     let held = CursorFacts { button_held: true, ..facts(true, AREA) };
     assert_eq!(keeper.update(held), []);
@@ -137,10 +142,31 @@ fn a_click_on_the_window_keeps_the_cursor_as_it_goes_down() {
     assert!(keeper.keeps());
 }
 
+// As the window starts to keep the cursor, the pointer is placed where
+// Windows' cursor is, in the client area's pixels, and only then: not while
+// the window keeps it. A cursor outside the area, like on another display as
+// Alt+Tab gives the window focus, is placed where the confinement puts it, at
+// the area's nearest edge.
+#[test]
+fn the_pointer_is_placed_where_the_cursor_is_as_the_window_starts_to_keep_it() {
+    let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
+    let at = |x, y| CursorFacts { area: Some(shifted), cursor: POINT { x, y }, ..facts(true, SCREENS) };
+    let kept = on_screens(shifted, SCREENS).unwrap();
+    let away = CursorFacts { focused: false, clip: kept, ..at(0, 0) };
+    let mut keeper = CursorKeeper::new(true);
+    assert_eq!(keeper.update(at(700, 650)), [Confine(kept), Hide, PlacePointer(POINT { x: 600, y: 600 })]);
+    assert_eq!(keeper.update(CursorFacts { clip: kept, ..at(900, 900) }), []);
+    keeper.update(away);
+    assert_eq!(keeper.update(at(-1000, 20)), [Confine(kept), Hide, PlacePointer(POINT { x: 0, y: 0 })]);
+    keeper.update(away);
+    assert_eq!(keeper.update(at(4000, 1439)), [Confine(kept), Hide, PlacePointer(POINT { x: 2559, y: 1389 })]);
+}
+
 // A click on a window that doesn't get focus from it, like one that mustn't
-// take focus, keeps nothing, and the check that hears of it is the only one
-// it counts in: focus that comes later, with a button held elsewhere, waits
-// for it to be let go of.
+// take focus, keeps nothing. The window says that it clicked only on the
+// check after it (see platform/window.rs), and the keeper doesn't remember
+// it: focus that comes later, with a button held elsewhere, waits for it to
+// be let go of.
 #[test]
 fn a_click_counts_only_on_the_check_that_hears_of_it() {
     let mut keeper = CursorKeeper::new(true);
@@ -186,7 +212,7 @@ fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
     let past = |focused, clip| CursorFacts { area: Some(area), ..facts(focused, clip) };
     let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(POINT { x: 2000, y: 700 });
-    assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide]);
+    assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide, PlacePointer(POINT { x: 0, y: 400 })]);
     assert_eq!(keeper.update(past(true, part)), []);
     assert_eq!(keeper.update(past(false, part)), [Release, Show, Place(POINT { x: 5119, y: 700 })]);
 }
@@ -198,7 +224,7 @@ fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
 fn a_confinement_left_from_before_is_not_nobody_s() {
     let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(AT_POINTER);
-    assert_eq!(keeper.update(facts(true, OTHER)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(true, OTHER)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
     assert_eq!(keeper.update(facts(false, SCREENS)), [Show, Place(AT_POINTER)]);
 }
 
@@ -235,7 +261,7 @@ fn a_client_area_that_leaves_the_screens_lets_the_cursor_go_with_focus() {
     let off = CursorFacts { area: Some(RECT { left: 6000, top: 0, right: 8560, bottom: 1440 }), ..facts(true, AREA) };
     assert_eq!(keeper.update(off), [Release, Show]);
     assert!(!keeper.keeps());
-    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
     assert!(keeper.keeps());
 }
 

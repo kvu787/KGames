@@ -17,6 +17,11 @@
 //   elsewhere as the window gets focus, like a drag in another program, or
 //   one onto the window's taskbar button, which brings it to the front, that
 //   the cursor mustn't be kept from.
+// - As it starts to keep it, the interface's pointer is placed where
+//   Windows' cursor is, so that it shows where the user clicked, or left the
+//   cursor, and not where it was as focus last went: inside the area that the
+//   cursor is confined to, which a confinement puts the cursor in too, like
+//   from another display as Alt+Tab gives the window focus.
 // - Windows keeps a confinement within the screens, the virtual screen,
 //   which GetClipCursor gives without one, so the window confines the cursor
 //   to the part of its client area that's on the screens, and keeps nothing
@@ -49,6 +54,8 @@ pub struct CursorFacts {
     // Whether a click on the window gave it focus since the last check: the
     // button held, if one is, is that click's.
     pub clicked: bool,
+    // Where Windows' cursor is, in the screen's pixels.
+    pub cursor: POINT,
     // The cursor's confinement, as GetClipCursor gives it.
     pub clip: RECT,
     // The screens, the virtual screen: the confinement without one, and what
@@ -69,6 +76,9 @@ pub enum CursorAction {
     Show,
     // Puts it there, in the screen's pixels, with SetCursorPos.
     Place(POINT),
+    // Puts the interface's pointer there, in the client area's pixels, as
+    // the mice's input starts.
+    PlacePointer(POINT),
 }
 
 // Who holds the cursor's confinement as the window lets the cursor go.
@@ -142,15 +152,19 @@ impl CursorKeeper {
 
     // What to do with the cursor, on what Windows says now.
     pub fn update(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
-        let keep = facts.area.filter(|_| self.mice).and_then(|area| on_screens(area, facts.screens));
+        let keep = facts.area.filter(|_| self.mice).and_then(|area| Some((area, on_screens(area, facts.screens)?)));
         let mut actions = Vec::new();
         match (facts.focused, keep) {
-            (true, Some(keep)) if self.kept.is_some() || !facts.button_held || facts.clicked => {
+            (true, Some((area, keep))) if self.kept.is_some() || !facts.button_held || facts.clicked => {
                 if facts.clip != keep {
                     actions.push(CursorAction::Confine(keep));
                 }
                 if self.kept.replace(keep).is_none() {
                     actions.push(CursorAction::Hide);
+                    actions.push(CursorAction::PlacePointer(POINT {
+                        x: facts.cursor.x.clamp(keep.left, keep.right - 1) - area.left,
+                        y: facts.cursor.y.clamp(keep.top, keep.bottom - 1) - area.top,
+                    }));
                 }
             }
             (true, Some(_)) => {}

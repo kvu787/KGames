@@ -104,6 +104,10 @@ pub struct Window {
     // using. Drop frees it, after the window is destroyed.
     shared: NonNull<Shared>,
     cursor: CursorKeeper,
+    // Where the interface's pointer is placed, in the client area, as the
+    // window last started to keep Windows' cursor since the last frame read
+    // its input.
+    pointer_placed: Option<POINT>,
 }
 
 impl Window {
@@ -156,6 +160,7 @@ impl Window {
                 hwnd,
                 shared,
                 cursor: CursorKeeper::new(mice),
+                pointer_placed: None,
             }
         }
     }
@@ -223,6 +228,13 @@ impl Window {
         self.shared().focus_changes.take()
     }
 
+    // Where the interface's pointer is placed, in the client area: where
+    // Windows' cursor was as the window last started to keep it since the
+    // last call, if it did.
+    pub fn take_pointer_placed(&mut self) -> Option<Point> {
+        self.pointer_placed.take().map(|at| Point::new(at.x as f32, at.y as f32))
+    }
+
     // Where the interface's pointer is, in the client area, where Windows'
     // cursor shows as it's let go of.
     pub fn set_pointer(&mut self, at: Point) {
@@ -262,10 +274,11 @@ impl Window {
         }
     }
 
-    // Does what platform/cursor.rs decided with Windows' cursor.
-    fn carry_out(&self, actions: &[CursorAction]) {
-        let shared = self.shared();
+    // Does what platform/cursor.rs decided with Windows' cursor, and the
+    // pointer.
+    fn carry_out(&mut self, actions: &[CursorAction]) {
         for action in actions {
+            let shared = self.shared();
             unsafe {
                 match *action {
                     CursorAction::Confine(area) => {
@@ -284,6 +297,8 @@ impl Window {
                     CursorAction::Place(at) => {
                         let _ = SetCursorPos(at.x, at.y);
                     }
+                    // For the next frame's input (see input/reader.rs).
+                    CursorAction::PlacePointer(at) => self.pointer_placed = Some(at),
                 }
             }
         }
@@ -494,18 +509,21 @@ unsafe fn cursor_area(hwnd: HWND) -> Option<RECT> {
     }
 }
 
-// What Windows says about the window's client area, the cursor's
+// What Windows says about the window's client area, the cursor and its
 // confinement, and the screens, for platform/cursor.rs, without focus.
 unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
     unsafe {
         let mut clip = RECT::default();
         let _ = GetClipCursor(&mut clip);
+        let mut cursor = POINT::default();
+        let _ = GetCursorPos(&mut cursor);
         let (left, top) = (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN));
         CursorFacts {
             focused: false,
             area: cursor_area(hwnd),
             button_held: false,
             clicked: false,
+            cursor,
             clip,
             screens: RECT {
                 left,

@@ -231,6 +231,7 @@ impl<P: Program> Headless<P> {
         let size = self.size();
         self.pending.iter().fold(self.ui.pointer(), |pointer, event| match event {
             Event::MouseMoved { x, y } => Some(moved_pointer(pointer, *x, *y, size)),
+            Event::PointerPlaced(at) => Some(moved_pointer(Some(*at), 0.0, 0.0, size)),
             Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_) => Some(pointer.unwrap_or_else(|| moved_pointer(None, 0.0, 0.0, size))),
             _ => pointer,
         })

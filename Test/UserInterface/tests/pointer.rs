@@ -73,6 +73,38 @@ fn the_pointer_stays_inside_the_frame() {
     assert_eq!(input.pointer, Some(Point::new(999.0, 0.0)));
 }
 
+// A window places the pointer where Windows' cursor was as it starts to keep
+// it, which starts the pointer too, and isn't motion: a step's delta is only
+// its motion, before the placement and after it, so a drag or a camera that
+// the pointer turns doesn't jump. A place outside the frame is its nearest
+// point inside.
+#[test]
+fn a_placed_pointer_goes_there_without_moving() {
+    let mut input = new_input();
+    input.begin(0.0, &[Event::PointerPlaced(Point::new(300.0, 400.0))]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(300.0, 400.0)), Point::ZERO));
+    input.begin(0.0, &[moved(10.0, 0.0)]);
+    assert_eq!(input.pointer, Some(Point::new(308.0, 400.0)));
+    input.begin(0.0, &[moved(5.0, 0.0), Event::PointerPlaced(Point::new(300.0, 400.0)), moved(10.0, -5.0)]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(308.0, 396.0)), Point::new(12.0, -4.0)));
+    input.begin(0.0, &[Event::PointerPlaced(Point::new(5000.0, -20.0))]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(2559.0, 0.0)), Point::ZERO));
+}
+
+// A placement only moves the pointer, as motion does: it's in the step of the
+// press after it, which lands where it put the pointer, and one after a
+// frame's last press is a step of its own.
+#[test]
+fn a_placement_is_in_the_step_of_what_comes_after_it() {
+    let mut input = new_input();
+    let place = Event::PointerPlaced(Point::new(10.0, 20.0));
+    let press = Event::ButtonPressed(MouseButton::Left);
+    let events = [place.clone(), press.clone()];
+    assert_eq!(input.steps(&events), vec![&events[..]]);
+    let events = [press, place];
+    assert_eq!(input.steps(&events), vec![&events[..1], &events[1..]]);
+}
+
 // The motion that a test or a script makes to point at a place lands on it
 // exactly, wherever the pointer is, in pixels or parts of them, and a place
 // outside the frame is as far as the pointer goes toward it.
@@ -134,4 +166,19 @@ fn headless_moves_land_exactly() {
     app.release();
     app.click("Button");
     assert_eq!(app.program.clicks, 2);
+}
+
+// A placed pointer is on what's under it in the frame that places it, and a
+// press after it in that frame lands where it put the pointer.
+#[test]
+fn a_placed_pointer_is_on_what_s_under_it_at_once() {
+    let mut app = Headless::new(Pointing::default());
+    app.frame();
+    let button = app.target("Button").center();
+    app.send(&[Event::PointerPlaced(button)]);
+    assert_eq!((app.pointer(), app.ui.hovered_name()), (button, Some("Button")));
+    app.send(&[Event::PointerPlaced(Point::new(5.0, 900.0)), Event::ButtonPressed(MouseButton::Left)]);
+    assert_eq!((app.ui.hovered_name(), app.program.clicks), (None, 0));
+    app.send(&[Event::ButtonReleased(MouseButton::Left), Event::PointerPlaced(button), Event::ButtonPressed(MouseButton::Left)]);
+    assert_eq!(app.program.clicks, 1);
 }

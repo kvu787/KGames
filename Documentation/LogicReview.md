@@ -277,7 +277,8 @@ and scripts to the window.
   held, by Windows' account, which has the click that gave it focus, so that a click on the title
   bar's minimize or close button works. Nothing reads where Windows' cursor is. The review below
   settled the rest. Since changed: a click on the window, which has no title bar now, keeps the
-  cursor as its button goes down.
+  cursor as its button goes down, and as the window starts to keep the cursor it reads where
+  Windows' cursor is, and places the pointer there.
 
 ## Still open
 
@@ -540,7 +541,9 @@ same results.
   cursor yet, so Windows' arrow shows while the reader's pointer, not drawn, moves, and what's
   under it is hovered; once let go of, the pointer shows where the reader has it, not where the
   click was. Since then, the mice's input reaches the interface only while the window keeps the
-  cursor, so the pointer stays where it was until then.
+  cursor, so the pointer stays where it was until then. Since changed again: a click on the window
+  keeps the cursor as it goes down, and the pointer is placed where Windows' cursor is as the
+  window starts to keep it, so it shows where the click was.
 - **A gamepad button held as focus comes.** The reader ignores it until it's let go of only if
   GameInput's reading of it as focus comes is stamped before the window's focus change, and its
   readings at rest as focus goes came 1.4 ms after. If a real gamepad shows the same as focus

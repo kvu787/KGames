@@ -251,10 +251,13 @@ before, but reports gamepads' whole state, their held buttons too.
 - The mouse's buttons, wheels and motion come from mice, the motion as `Event::MouseMoved`, in
   GameInput's counts. The pointer is the interface's, as SDL's relative mode keeps one: it starts
   in the middle of the window with the mice's first event, and carries on from where it is after
-  that, and the motion moves it, its counts times `MOUSE_SENSITIVITY` in `input/events.rs`, in
-  parts of a pixel, worked out in f64, inside the window, in the events' order, so a press lands
-  where the pointer was as its button went down, and a key after a move sees the pointer where it
-  went. Only mice's relative motion moves it, not a pen's or a touch screen's absolute positions.
+  that, except that as the window starts to keep Windows' cursor, below, it's placed where
+  Windows' cursor is, as `Event::PointerPlaced`, which isn't motion and isn't in
+  `Input::pointer_delta`. The motion moves it, its counts times `MOUSE_SENSITIVITY` in
+  `input/events.rs`, in parts of a pixel, worked out in f64, inside the window, in the events'
+  order, so a press lands where the pointer was as its button went down, and a key after a move
+  sees the pointer where it went. Only mice's relative motion moves it, not a pen's or a touch
+  screen's absolute positions.
   Tests and scripts point at places, which become the motion that takes the pointer there from
   where it is, and lands on the place exactly.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
@@ -270,6 +273,9 @@ before, but reports gamepads' whole state, their held buttons too.
   puts that off until it's let go of, so that the drag isn't kept on the window. While the
   window doesn't keep the cursor, the mice's input doesn't reach the interface, so the pointer
   stays where it was, undrawn, and the buttons that the mice pressed are let go of as that starts.
+  As the window starts to keep the cursor again, the pointer is placed where Windows' cursor is,
+  inside the client area, where the confinement puts the cursor too, so it shows where the click
+  that gave the window focus was, or where the cursor was left, and not where focus last went.
   The pointer is away then: nothing is under it, no tooltip shows, and the popups that were open
   close as it goes, though the program never hears why. As it
   loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor

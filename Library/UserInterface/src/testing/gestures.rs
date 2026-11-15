@@ -37,6 +37,7 @@ pub(crate) fn events(made: Vec<Made>, mut pointer: Option<Point>, size: Size) ->
             };
             match event {
                 Event::MouseMoved { x, y } => pointer = Some(moved_pointer(pointer, x, y, size)),
+                Event::PointerPlaced(at) => pointer = Some(moved_pointer(Some(at), 0.0, 0.0, size)),
                 Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_) if pointer.is_none() => pointer = Some(moved_pointer(None, 0.0, 0.0, size)),
                 _ => {}
             }

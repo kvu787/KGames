@@ -91,6 +91,16 @@ fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
         keeps_cursor: focus.is_none_or(|(_, gained)| gained),
+        pointer_placed: None,
+    }
+}
+
+// The window, which started to keep Windows' cursor since the last frame,
+// with the cursor there in the client area.
+fn placing(focus: Option<(i64, bool)>, at: Point) -> WindowState {
+    WindowState {
+        pointer_placed: Some(at),
+        ..window(focus)
     }
 }
 
@@ -108,7 +118,11 @@ fn buttons(events: &[Event]) -> Vec<Event> {
 }
 
 fn mouse_events(events: &[Event]) -> Vec<Event> {
-    events.iter().filter(|event| matches!(event, Event::MouseMoved { .. } | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_))).cloned().collect()
+    events
+        .iter()
+        .filter(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_)))
+        .cloned()
+        .collect()
 }
 
 fn reader() -> InputReader {
@@ -443,6 +457,48 @@ fn letting_the_cursor_go_with_focus_stops_the_mice_s_input_and_lets_go_of_their_
     assert_eq!(mouse_events(&frame.events), [Event::ButtonReleased(MouseButton::Left)]);
     let frame = reader.read(&[mouse_at(50, GameInputMouseNone, 20, 0), mouse_at(60, GameInputMouseLeftButton, 20, 0)], &[], &window(None));
     assert_eq!(buttons(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
+}
+
+// As the window gets focus and keeps Windows' cursor, the mice's input starts
+// with the pointer placed where the cursor was then, as focus comes: after
+// the readings from before it, and before the motion after it, which moves
+// the pointer from there. A frame without a placement places nothing.
+#[test]
+fn the_pointer_is_placed_where_the_cursor_was_as_focus_comes() {
+    let at = Point::new(300.0, 400.0);
+    let mut reader = reader();
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), keyboard(15, &[A]), mouse_at(30, GameInputMouseNone, 10, 0)], &[], &placing(Some((20, true)), at));
+    let mice_and_keys: Vec<Event> = frame.events.iter().filter(|event| !matches!(event, Event::Gamepad(_))).cloned().collect();
+    assert_eq!(mice_and_keys, [Event::PointerPlaced(at), Event::MouseMoved { x: 10.0, y: 0.0 }]);
+    let frame = reader.read(&[mouse_at(40, GameInputMouseNone, 15, 0)], &[], &window(None));
+    assert_eq!(mouse_events(&frame.events), [Event::MouseMoved { x: 5.0, y: 0.0 }]);
+}
+
+// A click that was going on elsewhere as the window got focus puts off
+// keeping the cursor until it's let go of: the mice's input starts in the
+// frame after that, with the pointer placed at its start, where the cursor
+// was as the window started to keep it, before the frame's motion.
+#[test]
+fn the_pointer_is_placed_as_the_window_starts_to_keep_the_cursor_after_focus() {
+    let at = Point::new(50.0, 60.0);
+    let mut reader = reader();
+    reader.read(&[], &[], &letting_go(Some((1, true))));
+    let frame = reader.read(&[mouse_at(10, GameInputMouseNone, 0, 0), mouse_at(20, GameInputMouseNone, 30, 0)], &[], &letting_go(None));
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = reader.read(&[mouse_at(30, GameInputMouseNone, 35, 0)], &[], &placing(None, at));
+    assert_eq!(mouse_events(&frame.events), [Event::PointerPlaced(at), Event::MouseMoved { x: 5.0, y: 0.0 }]);
+}
+
+// Without focus, or while the window doesn't keep the cursor, nothing is
+// placed.
+#[test]
+fn the_pointer_is_placed_only_as_the_mice_s_input_starts() {
+    let at = Point::new(50.0, 60.0);
+    let mut reader = reader();
+    let frame = reader.read(&[], &[], &WindowState { keeps_cursor: false, ..placing(None, at) });
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = reader.read(&[], &[], &WindowState { keeps_cursor: false, ..placing(Some((10, true)), at) });
+    assert_eq!(mouse_events(&frame.events), []);
 }
 
 // The mice's input reaches the interface only while the window keeps

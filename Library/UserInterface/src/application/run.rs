@@ -43,7 +43,7 @@ use crate::drawing::geometry::Size;
 use crate::drawing::renderer::Renderer;
 use crate::drawing::text::Fonts;
 use crate::input::events::FrameInput;
-use crate::input::reader::InputReader;
+use crate::input::reader::{InputReader, WindowState};
 use crate::platform::clock;
 use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
@@ -365,13 +365,13 @@ impl Source {
     // The frame's input. A script's steps for the program happen here, before
     // the frame.
     fn read<P: Program>(&mut self, window: &mut Window, ui: &Interface, program: &mut P) -> Result<Input, String> {
-        let focus_changes = window.take_focus_changes();
+        let state = WindowState::take(window);
         match self {
             Source::User { devices, reader, last } => {
                 if let Some(devices) = devices {
-                    devices.borrow_mut().read(&focus_changes);
+                    devices.borrow_mut().read(&state.focus_changes);
                 }
-                let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), window, &focus_changes);
+                let read = reader.frame(devices.as_ref().map(|devices| devices.borrow()).as_deref(), &state);
                 let now = Instant::now();
                 let delta = last.replace(now).map_or(0.0, |last| (now - last).as_secs_f64());
                 Ok(Input {
