@@ -17,7 +17,6 @@ const OTHER: RECT = RECT { left: 2560, top: 0, right: 5120, bottom: 1440 };
 fn facts(focused: bool, clip: RECT) -> CursorFacts {
     CursorFacts {
         focused,
-        mice: true,
         area: Some(AREA),
         button_held: false,
         clip,
@@ -27,7 +26,7 @@ fn facts(focused: bool, clip: RECT) -> CursorFacts {
 
 // A keeper that keeps the cursor, with the pointer at (100, 200).
 fn keeping() -> CursorKeeper {
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(POINT { x: 100, y: 200 });
     assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
     keeper
@@ -111,7 +110,7 @@ fn closing_lets_the_cursor_go() {
 // button held while it keeps it, like for a drag, changes nothing.
 #[test]
 fn a_held_button_puts_off_keeping_the_cursor_but_doesn_t_let_it_go() {
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     let held = |clip| CursorFacts { button_held: true, ..facts(true, clip) };
     assert_eq!(keeper.update(held(SCREENS)), []);
     assert!(!keeper.keeps());
@@ -124,7 +123,7 @@ fn a_held_button_puts_off_keeping_the_cursor_but_doesn_t_let_it_go() {
 // yet, and inside the area wherever the pointer was.
 #[test]
 fn the_cursor_is_placed_inside_the_area() {
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     keeper.update(facts(true, SCREENS));
     assert_eq!(keeper.update(facts(false, AREA)), [Release, Show, Place(POINT { x: 1280, y: 720 })]);
     keeper.update(facts(true, SCREENS));
@@ -152,7 +151,7 @@ fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
     let part = RECT { left: 4000, top: 0, right: 5120, bottom: 1440 };
     assert_eq!(on_screens(area, SCREENS), Some(part));
     let past = |focused, clip| CursorFacts { area: Some(area), ..facts(focused, clip) };
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(POINT { x: 2000, y: 700 });
     assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide]);
     assert_eq!(keeper.update(past(true, part)), []);
@@ -164,7 +163,7 @@ fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
 // as the window lets the cursor go: Windows' release, to the screens, is.
 #[test]
 fn a_confinement_left_from_before_is_not_nobody_s() {
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(AT_POINTER);
     assert_eq!(keeper.update(facts(true, OTHER)), [Confine(AREA), Hide]);
     assert_eq!(keeper.update(facts(false, SCREENS)), [Show, Place(AT_POINTER)]);
@@ -185,7 +184,7 @@ fn a_release_is_to_the_screens_as_they_are() {
 // nothing: a confinement to it would pin the cursor to a point, hidden.
 #[test]
 fn an_empty_client_area_keeps_nothing() {
-    let mut keeper = CursorKeeper::default();
+    let mut keeper = CursorKeeper::new(true);
     let empty = CursorFacts { area: Some(RECT { left: 100, top: 100, right: 100, bottom: 100 }), ..facts(true, SCREENS) };
     assert_eq!(keeper.update(empty), []);
     assert!(!keeper.keeps());
@@ -209,12 +208,12 @@ fn a_client_area_that_leaves_the_screens_lets_the_cursor_go_with_focus() {
 
 // A run whose input is a script's, or that has none, doesn't read GameInput's
 // mice, so nothing moves the pointer, and the window leaves Windows' cursor
-// alone, with focus too.
+// alone, with focus too, and as it closes.
 #[test]
 fn without_mice_the_cursor_is_left_alone() {
-    let mut keeper = CursorKeeper::default();
-    let without = |focused, clip| CursorFacts { mice: false, ..facts(focused, clip) };
-    assert_eq!(keeper.update(without(true, SCREENS)), []);
+    let mut keeper = CursorKeeper::new(false);
+    assert_eq!(keeper.update(facts(true, SCREENS)), []);
     assert!(!keeper.keeps());
-    assert_eq!(keeper.update(without(false, SCREENS)), []);
+    assert_eq!(keeper.update(facts(false, SCREENS)), []);
+    assert_eq!(keeper.let_go(facts(false, SCREENS)), []);
 }

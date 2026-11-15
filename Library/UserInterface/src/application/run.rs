@@ -116,7 +116,11 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         });
     }
 
-    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    // Whether the frames read GameInput's mice, which move the pointer, and
+    // so whether the window keeps Windows' cursor while it has focus: not
+    // with a script's input, or without input.
+    let mice = matches!(source, Source::User { devices: Some(_), .. });
+    let mut window = Window::create(&program.title(), display.monitor, ui.theme().background, mice).map_err(|error| format!("Couldn't open the window: {error}"))?;
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and
@@ -136,10 +140,6 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     let mut title = program.title();
     window.show(!arguments.no_activate);
 
-    // Whether the frames read GameInput's mice, which move the pointer, and
-    // so whether the window keeps Windows' cursor while it has focus: not
-    // with a script's input, or without input.
-    let mice = matches!(source, Source::User { devices: Some(_), .. });
     // The tree the last frame showed, which the next frame's input is on.
     let mut shown: Option<Tree<P::Message>> = None;
     let mut problems = Vec::new();
@@ -156,7 +156,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         // Focus, and Windows' cursor with it, on every pass, whatever woke
         // the loop, before it waits while minimized, so that losing focus
         // lets the cursor go at once.
-        window.check_focus(mice);
+        window.check_focus();
         // A minimized window runs no frames, and waits for messages. Its
         // input waits too: what came meanwhile, like losing focus as it
         // minimized, goes to the program in the first frame after it's

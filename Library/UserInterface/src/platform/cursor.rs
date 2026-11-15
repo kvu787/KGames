@@ -5,10 +5,10 @@
 // as actions that it carries out, so that every transition is tested
 // without a window that has focus (Test/UserInterface/tests/cursor.rs).
 //
-// - While the window has focus, and reads GameInput's mice, it keeps
-//   Windows' cursor inside its client area, hidden, and its frames draw the
-//   pointer exactly while it does. A run whose input is a script's, or that
-//   has none, leaves the cursor alone.
+// - While the window has focus, and its frames read GameInput's mice, which
+//   the run decides once, it keeps Windows' cursor inside its client area,
+//   hidden, and its frames draw the pointer exactly while it does. A run
+//   whose input is a script's, or that has none, leaves the cursor alone.
 // - It starts to keep it only once no mouse button is held, by Windows'
 //   account of the mouse, which, unlike GameInput's, has a click that's
 //   still going on elsewhere, like the one that gave the window focus.
@@ -36,9 +36,6 @@ pub struct CursorFacts {
     // Whether the window has focus: it's the foreground window, and isn't
     // minimized.
     pub focused: bool,
-    // Whether the frames read GameInput's mice, which move the pointer: not
-    // a run whose input is a script's, or that has none.
-    pub mice: bool,
     // The client area, in the screen's pixels, or none while the window is
     // minimized, whose client area is off the screen then.
     pub area: Option<RECT>,
@@ -104,8 +101,12 @@ pub fn on_screens(area: RECT, screens: RECT) -> Option<RECT> {
 }
 
 // What the window does with Windows' cursor, and what it has done.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct CursorKeeper {
+    // Whether the frames read GameInput's mice, which move the pointer, so
+    // that the window keeps the cursor while it has focus: not a run whose
+    // input is a script's, or that has none.
+    mice: bool,
     // Where the window keeps the cursor, in the screen's pixels.
     kept: Option<RECT>,
     // Where the interface's pointer last was, in the client area's pixels.
@@ -113,6 +114,12 @@ pub struct CursorKeeper {
 }
 
 impl CursorKeeper {
+    // A keeper for a run whose frames read GameInput's mice, or don't, which
+    // keeps nothing yet.
+    pub fn new(mice: bool) -> Self {
+        Self { mice, kept: None, pointer: None }
+    }
+
     // Whether the window keeps Windows' cursor, hidden, so that its frames
     // draw the pointer.
     pub fn keeps(&self) -> bool {
@@ -127,7 +134,7 @@ impl CursorKeeper {
 
     // What to do with the cursor, on what Windows says now.
     pub fn update(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
-        let keep = facts.area.filter(|_| facts.mice).and_then(|area| on_screens(area, facts.screens));
+        let keep = facts.area.filter(|_| self.mice).and_then(|area| on_screens(area, facts.screens));
         let mut actions = Vec::new();
         match (facts.focused, keep) {
             (true, Some(keep)) if self.kept.is_some() || !facts.button_held => {
