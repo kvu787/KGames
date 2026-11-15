@@ -9,9 +9,14 @@
 //   the run decides once, it keeps Windows' cursor inside its client area,
 //   hidden, and its frames draw the pointer exactly while it does. A run
 //   whose input is a script's, or that has none, leaves the cursor alone.
-// - It starts to keep it only once no mouse button is held, by Windows'
-//   account of the mouse, which, unlike GameInput's, has a click that's
-//   still going on elsewhere, like the one that gave the window focus.
+// - It starts to keep it at once if a click on the window gave it focus, as
+//   the button goes down, while it's held, which Windows says by asking the
+//   window with WM_MOUSEACTIVATE whether the click activates it. Otherwise
+//   it starts only once no mouse button is held, by Windows' account of the
+//   mouse, which, unlike GameInput's, has a click that's still going on
+//   elsewhere as the window gets focus, like a drag in another program, or
+//   one onto the window's taskbar button, which brings it to the front, that
+//   the cursor mustn't be kept from.
 // - Windows keeps a confinement within the screens, the virtual screen,
 //   which GetClipCursor gives without one, so the window confines the cursor
 //   to the part of its client area that's on the screens, and keeps nothing
@@ -41,6 +46,9 @@ pub struct CursorFacts {
     pub area: Option<RECT>,
     // Whether a mouse button is held, by Windows' account of the mouse.
     pub button_held: bool,
+    // Whether a click on the window gave it focus since the last check: the
+    // button held, if one is, is that click's.
+    pub clicked: bool,
     // The cursor's confinement, as GetClipCursor gives it.
     pub clip: RECT,
     // The screens, the virtual screen: the confinement without one, and what
@@ -137,7 +145,7 @@ impl CursorKeeper {
         let keep = facts.area.filter(|_| self.mice).and_then(|area| on_screens(area, facts.screens));
         let mut actions = Vec::new();
         match (facts.focused, keep) {
-            (true, Some(keep)) if self.kept.is_some() || !facts.button_held => {
+            (true, Some(keep)) if self.kept.is_some() || !facts.button_held || facts.clicked => {
                 if facts.clip != keep {
                     actions.push(CursorAction::Confine(keep));
                 }

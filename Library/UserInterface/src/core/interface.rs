@@ -198,8 +198,9 @@ pub struct Interface {
     // script's or a test's, whose captures never showed Windows' cursor.
     pub(crate) draws_pointer: bool,
     // Whether the pointer is away: a window's frames are while it doesn't
-    // keep Windows' cursor, as focus went, or the click that gave the window
-    // focus is still held, and the user points with Windows' arrow instead.
+    // keep Windows' cursor, as focus went, or a click that was going on
+    // elsewhere as the window got focus is still held, and the user points
+    // with Windows' arrow instead.
     // Then nothing is under the pointer, no tooltip shows, and the popups
     // that were open close as it goes. The program
     // never hears why.

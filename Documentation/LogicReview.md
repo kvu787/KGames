@@ -276,7 +276,8 @@ and scripts to the window.
   is drawn by the hardware. The window starts to keep the cursor only once no mouse button is
   held, by Windows' account, which has the click that gave it focus, so that a click on the title
   bar's minimize or close button works. Nothing reads where Windows' cursor is. The review below
-  settled the rest.
+  settled the rest. Since changed: a click on the window, which has no title bar now, keeps the
+  cursor as its button goes down.
 
 ## Still open
 
@@ -302,7 +303,9 @@ Windows' cursor, with the user's speed and acceleration, and raw motion move a c
 
 - The window kept the cursor as it got focus, while a click on the title bar's minimize or close
   button that gave it focus was still held, so that click was never let go of on the button. It
-  keeps it only once no mouse button is held, as SDL does.
+  keeps it only once no mouse button is held, as SDL does. Since changed: the window has no title
+  bar now, and a click on it that gives it focus keeps the cursor as its button goes down; a click
+  that was going on elsewhere still waits.
 - A minimized window that got focus kept the cursor in its client area, which is off the screen
   then.
 - A window can get focus without being the foreground window, as SDL's code notes, and it kept the
@@ -389,7 +392,9 @@ program in the background from confining the cursor.
   own confinement, and putting the cursor where the pointer was unless another program confined it
   or the window is minimized. There's no thread of its own for this: if the main thread is stuck,
   the cursor stays confined until it recovers, or a normal window is activated, like with Alt+Tab,
-  or Ctrl+Alt+Del.
+  or Ctrl+Alt+Del. Since changed: a click on the window that gives it focus keeps the cursor as
+  its button goes down, which Windows says with `WM_MOUSEACTIVATE`, and only a click that was going
+  on elsewhere as the window got focus puts that off until no mouse button is held.
 - **Minimized:** the main loop runs no frames and waits for messages; the program hears what came
   meanwhile, like losing focus, in the first frame after the window is restored. GameInput turns
   gamepads' motors off without focus itself, and back on as the program last asked when focus comes

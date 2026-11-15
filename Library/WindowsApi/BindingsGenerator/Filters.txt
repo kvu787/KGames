@@ -75,10 +75,11 @@ SW_SHOW
 WM_PAINT
 
 // Input, which comes from GameInput: Windows' cursor, which is hidden and
-// kept inside the window while it's the foreground window and has focus, once
-// Windows' mouse buttons are let go of, and let go of only by the window that
-// keeps it, within the screens, which Windows keeps a confinement to, typed
-// text from keys with the keyboard layout, and Caps Lock's toggle
+// kept inside the window while it's the foreground window and has focus, at
+// once if a click on the window gave it focus, and otherwise once Windows'
+// mouse buttons are let go of, and let go of only by the window that keeps
+// it, within the screens, which Windows keeps a confinement to, typed text
+// from keys with the keyboard layout, and Caps Lock's toggle
 ClientToScreen
 ClipCursor
 GetAsyncKeyState
@@ -102,6 +103,7 @@ VK_XBUTTON1
 VK_XBUTTON2
 HTCLIENT
 WHEEL_DELTA
+WM_MOUSEACTIVATE
 
 // The performance counter, which input, frames and the display's flips are
 // timed on

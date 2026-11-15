@@ -39,9 +39,11 @@
 // - The mice's input reaches the interface only while the window keeps
 //   Windows' cursor, hidden (see platform/cursor.rs): not while it doesn't,
 //   when Windows' arrow moves and the pointer would move apart from it, like
-//   while the click that gave the window focus is held, before the window
-//   keeps it. As the mice's input stops, the buttons it pressed are let go
-//   of.
+//   while a click that was going on elsewhere as the window got focus is
+//   held, before the window keeps it. A click on the window that gives it
+//   focus keeps it at once, so the mice's motion moves the pointer while
+//   that click is held, though the click itself does only that. As the
+//   mice's input stops, the buttons it pressed are let go of.
 //
 // The window's focus isn't the interface's: it gets no events of focus, and
 // none without it. GameInput gives none either, as the library leaves its

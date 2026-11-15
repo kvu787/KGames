@@ -263,8 +263,11 @@ before, but reports gamepads' whole state, their held buttons too.
   the pointer over everything, in the shape that the widget under it asks for with
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
   pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
-  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. The
-  window starts to keep the cursor only once the click that gave it focus is let go of. While the
+  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. A
+  click on the window that gives it focus keeps the cursor as its button goes down, which Windows
+  says with `WM_MOUSEACTIVATE`. A click that was going on elsewhere as the window got focus, like a
+  drag in another program, or onto the window's taskbar button, which brings it to the front,
+  puts that off until it's let go of, so that the drag isn't kept on the window. While the
   window doesn't keep the cursor, the mice's input doesn't reach the interface, so the pointer
   stays where it was, undrawn, and the buttons that the mice pressed are let go of as that starts.
   The pointer is away then: nothing is under it, no tooltip shows, and the popups that were open
@@ -313,9 +316,10 @@ before, but reports gamepads' whole state, their held buttons too.
   got, and the gamepad at rest, so a program sees them let go of, as if the user had, and
   nothing stays held. GameInput's readings at rest as focus goes may come first, and let go of
   what they say on their own steps, as any reading does. The click that gives the window focus
-  does only that, and keys and gamepad buttons held when it gets focus count once they're let go
-  of, and their releases are never given: GameInput doesn't report the keys and the click, and
-  the reader ignores the gamepad's held buttons until they're let go of. A reading from before
+  does only that, though the mice's motion moves the pointer while it's held, as the window keeps
+  the cursor from its press. Keys and gamepad buttons held when it gets focus count once they're
+  let go of, and their releases are never given: GameInput doesn't report the keys and the click,
+  and the reader ignores the gamepad's held buttons until they're let go of. A reading from before
   the window got focus is input without it, even if GameInput is late with it and it comes in a
   later frame. A program that reads GameInput's readings itself, like GameInputDemo, gets the
   window's focus from `Devices::focused` and `Devices::focus_changes`.

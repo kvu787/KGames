@@ -19,6 +19,7 @@ fn facts(focused: bool, clip: RECT) -> CursorFacts {
         focused,
         area: Some(AREA),
         button_held: false,
+        clicked: false,
         clip,
         screens: SCREENS,
     }
@@ -105,18 +106,50 @@ fn closing_lets_the_cursor_go() {
     assert_eq!(keeper.let_go(facts(false, AREA)), []);
 }
 
-// The window starts to keep the cursor only once no mouse button is held,
-// like the click that gave it focus, which may be going on elsewhere. A
-// button held while it keeps it, like for a drag, changes nothing.
+// A button held as the window gets focus, from a click that isn't on it,
+// like a drag in another program, or onto the window's taskbar button, which
+// brings it to the front, puts off keeping the cursor until it's let go of,
+// so the drag isn't kept on the window. A button held while it keeps it,
+// like for a drag, changes nothing.
 #[test]
 fn a_held_button_puts_off_keeping_the_cursor_but_doesn_t_let_it_go() {
     let mut keeper = CursorKeeper::new(true);
     let held = |clip| CursorFacts { button_held: true, ..facts(true, clip) };
     assert_eq!(keeper.update(held(SCREENS)), []);
     assert!(!keeper.keeps());
+    assert_eq!(keeper.update(held(SCREENS)), []);
     assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide]);
     assert_eq!(keeper.update(held(AREA)), []);
     assert!(keeper.keeps());
+}
+
+// A click on the window that gives it focus keeps the cursor as the button
+// goes down, while it's held, and its release changes nothing.
+#[test]
+fn a_click_on_the_window_keeps_the_cursor_as_it_goes_down() {
+    let mut keeper = CursorKeeper::new(true);
+    let click = CursorFacts { button_held: true, clicked: true, ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(click), [Confine(AREA), Hide]);
+    assert!(keeper.keeps());
+    let held = CursorFacts { button_held: true, ..facts(true, AREA) };
+    assert_eq!(keeper.update(held), []);
+    assert_eq!(keeper.update(facts(true, AREA)), []);
+    assert!(keeper.keeps());
+}
+
+// A click on a window that doesn't get focus from it, like one that mustn't
+// take focus, keeps nothing, and the check that hears of it is the only one
+// it counts in: focus that comes later, with a button held elsewhere, waits
+// for it to be let go of.
+#[test]
+fn a_click_counts_only_on_the_check_that_hears_of_it() {
+    let mut keeper = CursorKeeper::new(true);
+    let click = CursorFacts { button_held: false, clicked: true, ..facts(false, SCREENS) };
+    assert_eq!(keeper.update(click), []);
+    assert!(!keeper.keeps());
+    let held = CursorFacts { button_held: true, ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(held), []);
+    assert!(!keeper.keeps());
 }
 
 // The cursor is placed in the middle of the area if the pointer was nowhere

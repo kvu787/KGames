@@ -59,8 +59,9 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
 - **Windows' cursor** is kept, confined to the window and hidden, while the window has focus, so
   that a program is ready to use as it opens. While the window doesn't keep the cursor,
   `FrameInput` has no mouse events, so that the pointer doesn't move apart from Windows' arrow,
-  and the buttons that the mice pressed are let go of as that starts, like while the click that
-  gave the window focus is held, before the window keeps it. Keyboards and gamepads still come.
+  and the buttons that the mice pressed are let go of as that starts, like while a click that was
+  going on elsewhere as the window got focus is held, before the window keeps it. A click on the
+  window that gives it focus keeps it as its button goes down. Keyboards and gamepads still come.
 - **F12** quits at once, without asking, once the frame has had the input that came before it,
   like a Ctrl+S just before it, and nothing after it happens. So does the taskbar's Close, which
   sends `WM_CLOSE`, so that closing works one way, whether the window is minimized, on the error
