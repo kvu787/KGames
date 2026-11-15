@@ -30,7 +30,8 @@ pub enum Event {
     // to land the pointer on a point.
     MouseMoved { x: f64, y: f64 },
     // The pointer put at a point, as the mice's input starts: where Windows'
-    // cursor was as the window started to keep it. Not motion.
+    // cursor was as the window started to keep it, or the middle if that was
+    // outside the window. Not motion.
     PointerPlaced(Point),
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
@@ -94,7 +95,8 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
 - **The pointer** moves by `MouseMoved` times `MOUSE_SENSITIVITY`, worked out in f64, kept within
   the frame's 2560 × 1440. There's no pointer until the mice's first event, which starts it in the
   middle. `PointerPlaced` puts it where Windows' cursor was as the window started to keep it, like
-  as it gets focus, without counting in `pointer_delta`. Tests and scripts point at places, which
+  as it gets focus, or in the middle if that was outside the window, without counting in
+  `pointer_delta`. Tests and scripts point at places, which
   [gestures.rs](../Library/UserInterface/src/testing/gestures.rs) turns into the motion that lands
   on them exactly. `Headless::queue_move` queues such a move among a test's own events.
 - **Typed text** is ASCII, made from keys with a fixed table of a US keyboard, in

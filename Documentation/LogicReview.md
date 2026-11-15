@@ -278,7 +278,8 @@ and scripts to the window.
   bar's minimize or close button works. Nothing reads where Windows' cursor is. The review below
   settled the rest. Since changed: a click on the window, which has no title bar now, keeps the
   cursor as its button goes down, and as the window starts to keep the cursor it reads where
-  Windows' cursor is, and places the pointer there.
+  Windows' cursor is, and places the pointer there, or in the middle if the cursor is outside the
+  window.
 
 ## Still open
 

@@ -228,9 +228,9 @@ impl Window {
         self.shared().focus_changes.take()
     }
 
-    // Where the interface's pointer is placed, in the client area: where
-    // Windows' cursor was as the window last started to keep it since the
-    // last call, if it did.
+    // Where the interface's pointer is placed, in the client area, as the
+    // window last started to keep Windows' cursor since the last call, if it
+    // did: where the cursor was, or the middle (see platform/cursor.rs).
     pub fn take_pointer_placed(&mut self) -> Option<Point> {
         self.pointer_placed.take().map(|at| Point::new(at.x as f32, at.y as f32))
     }

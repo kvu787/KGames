@@ -17,9 +17,9 @@
 // counts times MOUSE_SENSITIVITY, inside the frame, as SDL's relative mode
 // keeps one. It starts in the frame's middle with the first of the mice's
 // events, and carries on from where it is after that, except where it's
-// placed: a window places it where Windows' cursor is as it starts to keep
-// the cursor, like as it gets focus (see input/reader.rs), which isn't
-// motion. It moves in the events' order, so a press happens where the
+// placed: a window places it where Windows' cursor is, or in the middle if
+// that's outside the window, as it starts to keep the cursor, like as it
+// gets focus (see platform/cursor.rs), which isn't motion. It moves in the events' order, so a press happens where the
 // pointer was as the button went down. It's worked out in f64, so that a
 // test's motion, worked out from where the pointer is to a point, lands on
 // that point exactly (see testing/gestures.rs).
@@ -48,7 +48,8 @@ pub enum Event {
     // land the pointer on a point.
     MouseMoved { x: f64, y: f64 },
     // The pointer put at a point in the frame, inside it, as the mice's input
-    // starts: where Windows' cursor was as the window started to keep it.
+    // starts: where Windows' cursor was as the window started to keep it, or
+    // the middle if that was outside the window.
     // Unlike motion, it's no part of `Input::pointer_delta`, so a drag or a
     // camera that the pointer turns doesn't jump with it.
     PointerPlaced(Point),

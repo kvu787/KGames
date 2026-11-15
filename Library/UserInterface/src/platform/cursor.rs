@@ -19,9 +19,12 @@
 //   the cursor mustn't be kept from.
 // - As it starts to keep it, the interface's pointer is placed where
 //   Windows' cursor is, so that it shows where the user clicked, or left the
-//   cursor, and not where it was as focus last went: inside the area that the
-//   cursor is confined to, which a confinement puts the cursor in too, like
-//   from another display as Alt+Tab gives the window focus.
+//   cursor, and not where it was as focus last went. If Windows' cursor is
+//   outside the area that it's confined to, like on another display as
+//   Alt+Tab gives the window focus, the pointer is placed in the middle of
+//   the client area instead, where it starts with the mice's first event
+//   too, and not at the area's edge, where the confinement puts Windows'
+//   cursor, hidden.
 // - Windows keeps a confinement within the screens, the virtual screen,
 //   which GetClipCursor gives without one, so the window confines the cursor
 //   to the part of its client area that's on the screens, and keeps nothing
@@ -77,7 +80,7 @@ pub enum CursorAction {
     // Puts it there, in the screen's pixels, with SetCursorPos.
     Place(POINT),
     // Puts the interface's pointer there, in the client area's pixels, as
-    // the mice's input starts.
+    // the mice's input starts: where Windows' cursor is, or the middle.
     PlacePointer(POINT),
 }
 
@@ -116,6 +119,22 @@ pub fn on_screens(area: RECT, screens: RECT) -> Option<RECT> {
         bottom: area.bottom.min(screens.bottom),
     };
     (part.left < part.right && part.top < part.bottom).then_some(part)
+}
+
+// The middle of `area`, in the screen's pixels.
+fn middle(area: RECT) -> POINT {
+    POINT {
+        x: area.left + (area.right - area.left) / 2,
+        y: area.top + (area.bottom - area.top) / 2,
+    }
+}
+
+// The pixel of `part` nearest to `at`, in the screen's pixels.
+fn nearest(at: POINT, part: RECT) -> POINT {
+    POINT {
+        x: at.x.clamp(part.left, part.right - 1),
+        y: at.y.clamp(part.top, part.bottom - 1),
+    }
 }
 
 // What the window does with Windows' cursor, and what it has done.
@@ -161,9 +180,13 @@ impl CursorKeeper {
                 }
                 if self.kept.replace(keep).is_none() {
                     actions.push(CursorAction::Hide);
+                    // Where Windows' cursor is, or the middle if it's
+                    // outside, as far as that's on the screens.
+                    let inside = nearest(facts.cursor, keep) == facts.cursor;
+                    let at = if inside { facts.cursor } else { nearest(middle(area), keep) };
                     actions.push(CursorAction::PlacePointer(POINT {
-                        x: facts.cursor.x.clamp(keep.left, keep.right - 1) - area.left,
-                        y: facts.cursor.y.clamp(keep.top, keep.bottom - 1) - area.top,
+                        x: at.x - area.left,
+                        y: at.y - area.top,
                     }));
                 }
             }
@@ -192,15 +215,14 @@ impl CursorKeeper {
             && let Some(area) = facts.area
             && let Some(visible) = on_screens(area, facts.screens)
         {
-            let middle = POINT {
-                x: (area.right - area.left) / 2,
-                y: (area.bottom - area.top) / 2,
+            let at = match self.pointer {
+                Some(pointer) => POINT {
+                    x: area.left + pointer.x,
+                    y: area.top + pointer.y,
+                },
+                None => middle(area),
             };
-            let at = self.pointer.unwrap_or(middle);
-            actions.push(CursorAction::Place(POINT {
-                x: (area.left + at.x).clamp(visible.left, visible.right - 1),
-                y: (area.top + at.y).clamp(visible.top, visible.bottom - 1),
-            }));
+            actions.push(CursorAction::Place(nearest(at, visible)));
         }
         actions
     }

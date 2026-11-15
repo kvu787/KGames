@@ -143,10 +143,8 @@ fn a_click_on_the_window_keeps_the_cursor_as_it_goes_down() {
 }
 
 // As the window starts to keep the cursor, the pointer is placed where
-// Windows' cursor is, in the client area's pixels, and only then: not while
-// the window keeps it. A cursor outside the area, like on another display as
-// Alt+Tab gives the window focus, is placed where the confinement puts it, at
-// the area's nearest edge.
+// Windows' cursor is, in the client area's pixels, up to the area's edges,
+// and only then: not while the window keeps it.
 #[test]
 fn the_pointer_is_placed_where_the_cursor_is_as_the_window_starts_to_keep_it() {
     let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
@@ -156,10 +154,33 @@ fn the_pointer_is_placed_where_the_cursor_is_as_the_window_starts_to_keep_it() {
     let mut keeper = CursorKeeper::new(true);
     assert_eq!(keeper.update(at(700, 650)), [Confine(kept), Hide, PlacePointer(POINT { x: 600, y: 600 })]);
     assert_eq!(keeper.update(CursorFacts { clip: kept, ..at(900, 900) }), []);
-    keeper.update(away);
-    assert_eq!(keeper.update(at(-1000, 20)), [Confine(kept), Hide, PlacePointer(POINT { x: 0, y: 0 })]);
-    keeper.update(away);
-    assert_eq!(keeper.update(at(4000, 1439)), [Confine(kept), Hide, PlacePointer(POINT { x: 2559, y: 1389 })]);
+    for ((x, y), placed) in [((100, 50), POINT { x: 0, y: 0 }), ((2659, 1439), POINT { x: 2559, y: 1389 })] {
+        keeper.update(away);
+        assert_eq!(keeper.update(at(x, y)), [Confine(kept), Hide, PlacePointer(placed)]);
+    }
+}
+
+// A cursor outside the area that the window keeps it in, like on another
+// display as Alt+Tab gives the window focus, places the pointer in the middle
+// of the client area, and not at the area's edge, where the confinement puts
+// Windows' cursor: the middle of the part on the screens if the middle isn't
+// on them.
+#[test]
+fn the_pointer_is_placed_in_the_middle_if_the_cursor_is_outside() {
+    let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
+    let at = |x, y| CursorFacts { area: Some(shifted), cursor: POINT { x, y }, ..facts(true, SCREENS) };
+    let kept = on_screens(shifted, SCREENS).unwrap();
+    let away = CursorFacts { focused: false, clip: kept, ..at(0, 0) };
+    let middle = POINT { x: 1280, y: 720 };
+    let mut keeper = CursorKeeper::new(true);
+    for (x, y) in [(-1000, 20), (4000, 700), (2660, 700), (99, 700), (700, 49), (700, 1440)] {
+        assert_eq!(keeper.update(at(x, y)), [Confine(kept), Hide, PlacePointer(middle)], "from ({x}, {y})");
+        keeper.update(away);
+    }
+    let past = RECT { left: 4000, top: 0, right: 6560, bottom: 1440 };
+    let part = on_screens(past, SCREENS).unwrap();
+    let off = CursorFacts { area: Some(past), cursor: POINT { x: 0, y: 0 }, ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(off), [Confine(part), Hide, PlacePointer(POINT { x: 1119, y: 720 })]);
 }
 
 // A click on a window that doesn't get focus from it, like one that mustn't
@@ -212,7 +233,7 @@ fn a_client_area_past_the_screens_edge_keeps_its_part_on_them() {
     let past = |focused, clip| CursorFacts { area: Some(area), ..facts(focused, clip) };
     let mut keeper = CursorKeeper::new(true);
     keeper.set_pointer(POINT { x: 2000, y: 700 });
-    assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide, PlacePointer(POINT { x: 0, y: 400 })]);
+    assert_eq!(keeper.update(past(true, SCREENS)), [Confine(part), Hide, PlacePointer(POINT { x: 1119, y: 720 })]);
     assert_eq!(keeper.update(past(true, part)), []);
     assert_eq!(keeper.update(past(false, part)), [Release, Show, Place(POINT { x: 5119, y: 700 })]);
 }

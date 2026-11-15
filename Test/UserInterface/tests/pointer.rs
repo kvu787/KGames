@@ -73,8 +73,9 @@ fn the_pointer_stays_inside_the_frame() {
     assert_eq!(input.pointer, Some(Point::new(999.0, 0.0)));
 }
 
-// A window places the pointer where Windows' cursor was as it starts to keep
-// it, which starts the pointer too, and isn't motion: a step's delta is only
+// A window places the pointer where Windows' cursor was, or in the middle, as
+// it starts to keep the cursor, which starts the pointer too, and isn't
+// motion: a step's delta is only
 // its motion, before the placement and after it, so a drag or a camera that
 // the pointer turns doesn't jump. A place outside the frame is its nearest
 // point inside.

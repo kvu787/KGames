@@ -43,8 +43,9 @@
 //   held, before the window keeps it. A click on the window that gives it
 //   focus keeps it at once, so the mice's motion moves the pointer while
 //   that click is held, though the click itself does only that. As the
-//   mice's input starts, the pointer is placed where Windows' cursor was as
-//   the window started to keep it, with Event::PointerPlaced, and as it
+//   mice's input starts, the pointer is placed where the window placed it
+//   as it started to keep the cursor, where Windows' cursor was, or the
+//   middle (see platform/cursor.rs), with Event::PointerPlaced, and as it
 //   stops, the buttons it pressed are let go of.
 //
 // The window's focus isn't the interface's: it gets no events of focus, and
@@ -170,9 +171,10 @@ pub fn connections(events: &[(GameInputDeviceEvent, Device)]) -> Connections {
 }
 
 // What the window says for a frame: when it got or lost focus, whether it
-// keeps Windows' cursor, and where Windows' cursor was, in the client area,
-// as it last started to keep it, if it did since the last frame, which is
-// where the pointer is placed as the mice's input starts.
+// keeps Windows' cursor, and where it placed the pointer, in the client area,
+// as it last started to keep the cursor, if it did since the last frame:
+// where Windows' cursor was, or the middle. The pointer goes there as the
+// mice's input starts.
 #[derive(Clone, Debug, Default)]
 pub struct WindowState {
     pub focus_changes: Vec<FocusChange>,
