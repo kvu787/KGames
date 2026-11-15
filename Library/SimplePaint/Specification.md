@@ -17,7 +17,7 @@ SimplePaint makes it easy to color 3D models in a way that looks good from any a
 
 All parameters are finite. There is no ordering constraint on Dark Point and Light Point. Reversed ranges are valid; equal endpoints inside (0, 1) produce constant color. Rotation is accepted only in [0, 360) degrees: 360 degrees is rejected even though its direction is mathematically equivalent to zero.
 
-The surface is opaque and unlit. The output is linear RGB, with alpha 1 in the supplied DX12 adapter. Paint depends only on the material and the oriented surface normal in the orthographic camera frame. It has no light, camera-position, perspective, texture, or distance inputs.
+The surface is opaque and has no lights. The output is linear RGB, with alpha 1 in the supplied DX12 adapter. Paint depends only on the material and the oriented surface normal in the orthographic camera frame. It has no light, camera-position, perspective, texture, or distance inputs.
 
 ## Normals and the camera frame
 

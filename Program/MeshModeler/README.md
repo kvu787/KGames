@@ -3,8 +3,8 @@
 A polygon mesh modeler, after Blender's edit mode: select vertices, edges or faces, move,
 rotate and scale them, extrude, inset, cut loops, fill, merge and delete, crease edges, and see
 the mesh subdivided by Catmull-Clark. Faces are colored with paints, which the view shades
-with [SimplePaint](../../Library/SimplePaint/README.md) or with flat lighting. The mesh and its
-edits are [Library/PolygonMesh](../../Library/PolygonMesh/README.md)'s.
+with [SimplePaint](../../Library/SimplePaint/README.md), or draws unlit, in their base colors.
+The mesh and its edits are [Library/PolygonMesh](../../Library/PolygonMesh/README.md)'s.
 
 Like every KGames GUI program, it's built on
 [Library/UserInterface](../../Library/UserInterface/README.md), after Fluent 2, in its light
@@ -23,7 +23,7 @@ theme, ignores input without focus, and supports the one
 - **View**: the mesh, orthographic, over a grid with the X axis in red and Z in blue, with its
   cage's edges, the selection in the accent color, creased edges in pink, and what's under the
   pointer. Subdivided, the view shows the smooth surface inside the cage.
-- **Shading**: SimplePaint or flat, the levels of subdivision, smooth shading, X-ray and the
+- **Shading**: SimplePaint or unlit, the levels of subdivision, smooth shading, X-ray and the
   grid.
 - **Paints**: up to 16 paints, with how many faces each has. The one picked is what the Paint
   tool and new primitives use, and its color, name and SimplePaint settings are under the list.
@@ -54,7 +54,7 @@ theme, ignores input without focus, and supports the one
 | `Shift+E`, `Alt+E`     | Creases the selected edges by the Edit card's sharpness, or clears them       |
 | `Ctrl+P`               | Paints the selected faces with the paint picked                               |
 | `Ctrl+0` to `Ctrl+4`   | Shows the mesh subdivided by Catmull-Clark that many levels                   |
-| `Shift+Z`, `Shift+S`   | Switches between SimplePaint and flat shading, and smooth shading             |
+| `Shift+Z`, `Shift+S`   | Switches between SimplePaint and the unlit shader, and smooth shading         |
 | `Alt+Z`, `Shift+G`     | X-ray, which shows the cage through the mesh, and the grid                    |
 | `Home`, `Period`       | Frames the whole mesh, or the selection                                       |
 | `Numpad1`, `3`, `7`    | Looks from the front, the right or the top; with `Ctrl`, the other side       |
@@ -139,8 +139,8 @@ Each frame, the modeler builds its cards, and then its scene: when the mesh, its
 its shading changed, it triangulates the mesh or its subdivided surface again, with normals
 smooth across edges up to 30 degrees, and uploads the triangles. The view's card leaves a hole
 for the view, where `render` clears the frame to the card's color and draws the mesh with a
-depth buffer, through the frame's sRGB view, with SimplePaint's shader or the flat one, for all
-16 paints at once. Then it draws the overlay through the frame's plain view: the grid, the cage
+depth buffer, through the frame's sRGB view, with SimplePaint's shader or its unlit one, which
+draws each face in its paint's base color, for all 16 paints at once. Then it draws the overlay through the frame's plain view: the grid, the cage
 and the selection, as quads that the vertex shader sizes in pixels, tested against the mesh's
 depth, pulled a little toward the camera, and what shows through the mesh, untested.
 SimplePaint only paints orthographic views, so the camera is orthographic, and zooms by how
@@ -161,9 +161,8 @@ much of the world the view's height shows.
 | `src/camera.rs`        | The orthographic camera, and mapping between the world and pixels         |
 | `src/overlay.rs`       | What's drawn over the mesh: the grid, the cage and the selection          |
 | `src/viewport.rs`      | Draws the mesh and the overlay into the view with Direct3D 12             |
-| `Shaders/Flat.hlsl`    | Flat lighting of the paints' base colors                                  |
 | `Shaders/Overlay.hlsl` | Lines, dots and triangles over the mesh, tested against its depth         |
-| `build.rs`             | Compiles SimplePaint's shaders and the modeler's for 16 paints            |
+| `build.rs`             | Compiles SimplePaint's shaders for 16 paints, and the overlay's           |
 | `HumanRun.ps1`         | Builds the modeler and runs it on the primary display, for people         |
 | `HumanRun.cmd`         | Runs `HumanRun.ps1`, for double-clicking in File Explorer                 |
 | `Settings.json`        | The settings that every program has                                       |

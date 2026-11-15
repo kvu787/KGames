@@ -1,8 +1,11 @@
 # SimplePaint shader
 
 SimplePaint is the shader that KGames' programs color 3D models with. It makes it easy to color
-3D models in a way that looks good from any angle: it's an unlit, opaque, orthographic-only
-surface shader that paints a surface from its normal relative to the camera.
+3D models in a way that looks good from any angle: it's an opaque, orthographic-only surface
+shader, without lights, that paints a surface from its normal relative to the camera. A model
+that isn't painted with it is drawn with `Shaders/Unlit.hlsl`, beside it, which
+[Usage.md](Usage.md#unlit-models) describes: each triangle in its material's color, and nothing
+else.
 
 [Specification.md](Specification.md) defines the mathematics, supported inputs, GPU layout,
 and verification criteria. The Rust/HLSL sources implement that contract, and
@@ -60,8 +63,8 @@ names in `DEP_SIMPLE_PAINT_SHADERS`. [Usage.md](Usage.md#use-from-a-rust-package
 `direct3d12::Pipeline` creates the adapter's pipeline for a render target, and
 `direct3d12::Mesh` validates a mesh, copies it into the GPU's own memory once with
 `Gpu::run`, and draws it with its constant buffers. The copy waits for the GPU, so make
-meshes at setup. Both work with a host's own shader that takes the same vertices and binds `b0`
-and `b1` the same way, like SpinningCarTest's `FlatShading.hlsl`.
+meshes at setup. Both work with `Shaders/Unlit.hlsl` too, which takes the same vertices and
+binds `b0` and `b1` the same way, with an array of `direct3d12::UnlitColor` at `b1`.
 
 ## Validate geometry and transforms
 
@@ -84,9 +87,10 @@ there is no positive facing cutoff.
 | `src/material.rs`               | Parameters, validation, coefficients, GPU ABI              |
 | `src/geometry.rs`               | Host-independent mesh validation, and the adapter's vertex |
 | `src/orthographic.rs`           | Validated transforms for the adapter's vertex stage        |
-| `src/direct3d12.rs`             | The adapter's pipeline, and meshes in GPU memory           |
+| `src/direct3d12.rs`             | The shaders' pipelines, and meshes in GPU memory           |
 | `Shaders/SimplePaintCore.hlsli` | Reusable paint math without bindings                       |
 | `Shaders/SimplePaint.hlsl`      | Configurable DX12 VS/PS adapter, with its root signature   |
+| `Shaders/Unlit.hlsl`            | The unlit shader, for the models that aren't painted       |
 | `build.rs`                      | Tells dependents' build scripts where the shaders are      |
 
 The facing-lobe and anchored color-curve mathematical construction is credited to Kevin Vu.

@@ -1,5 +1,6 @@
-// Compiles SimplePaint's production shaders for the GPU test, with six
-// materials, so that the test exercises the material array's stride.
+// Compiles SimplePaint's production shaders for the GPU tests: SimplePaint's
+// with six materials, so that the test exercises the material array's
+// stride, and the unlit one with three colors, for the same reason.
 
 use std::path::PathBuf;
 
@@ -19,4 +20,5 @@ fn main() {
         ],
         "SimplePaint",
     );
+    shader_compiler::build_vertex_and_pixel(&shaders.join("Unlit.hlsl"), &["-O3", "-WX", "-D", "UNLIT_COLOR_COUNT=3"], "Unlit");
 }

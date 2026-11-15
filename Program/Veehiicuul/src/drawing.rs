@@ -1,8 +1,9 @@
 // Draws the 3D view every frame, over the whole window, before the interface
 // draws its bars and cards over it: the background's color, then what's flat
-// on the ground, without a depth buffer, as each part goes over the ones
-// before (the terrain, then the track), and then the models, painted with
-// SimplePaint, with one: the car, the parked vehicles and the decorations.
+// on the ground, in its colors with SimplePaint's unlit shader, without a
+// depth buffer, as each part goes over the ones before (the terrain, then
+// the track), and then the models, painted with SimplePaint, with one: the
+// car, the parked vehicles and the decorations.
 //
 // Each model is copied to the GPU once, at the start. The terrain and the
 // track change as the editors change them, so their meshes are in upload
@@ -13,7 +14,7 @@
 use graphics::{DEPTH_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer};
 use math::Matrix;
 use meshes::Mesh as Triangles;
-use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
+use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, UnlitColor, materials_size, unlit_colors_size};
 use simple_paint::orthographic::{build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material, Parameters, Vertex};
 use windows_api::*;
@@ -27,13 +28,13 @@ use crate::track::{Shape, Track};
 
 static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 static PAINT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-static GROUND_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/GroundVertex.cso"));
-static GROUND_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/GroundPixel.cso"));
+static UNLIT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitVertex.cso"));
+static UNLIT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitPixel.cso"));
 
 // A model's materials, as SIMPLE_PAINT_MATERIAL_COUNT in build.rs says.
 const MATERIALS_SIZE: usize = materials_size(MOST_SLOTS);
-// The ground's colors, as Ground.hlsl takes them.
-const COLORS_SIZE: usize = size_of::<[[f32; 4]; ground::COLOR_COUNT]>().next_multiple_of(CONSTANT_BUFFER_ALIGNMENT);
+// The ground's colors, as UNLIT_COLOR_COUNT in build.rs says.
+const COLORS_SIZE: usize = unlit_colors_size(ground::COLOR_COUNT);
 // The constants start with the ground's transforms and colors, then each
 // model drawn's transforms and materials.
 const COLORS_OFFSET: usize = OBJECT_SIZE;
@@ -165,7 +166,7 @@ impl Drawing {
                 cull_mode: D3D12_CULL_MODE_NONE,
             };
             let paint = Pipeline::new(&device, PAINT_VERTEX_SHADER, PAINT_PIXEL_SHADER, &target(Some(DEPTH_FORMAT)))?;
-            let ground = Pipeline::new(&device, GROUND_VERTEX_SHADER, GROUND_PIXEL_SHADER, &target(None))?;
+            let ground = Pipeline::new(&device, UNLIT_VERTEX_SHADER, UNLIT_PIXEL_SHADER, &target(None))?;
             let mut meshes = Vec::with_capacity(models.list.len());
             for model in &models.list {
                 meshes.push(Mesh::new(gpu, &model.vertices, &model.indices, MOST_SLOTS as u32)?);
@@ -212,7 +213,7 @@ impl Drawing {
                 self.track_of = Some(ground.track.clone());
             }
             self.constants.write(0, &[transforms(Matrix::IDENTITY)?]);
-            let colors = ground::colors(ground.terrain, ground.track).map(|color| {
+            let colors: [UnlitColor; ground::COLOR_COUNT] = ground::colors(ground.terrain, ground.track).map(|color| {
                 let [red, green, blue] = color.map(linear);
                 [red, green, blue, 1.0]
             });

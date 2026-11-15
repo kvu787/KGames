@@ -29,9 +29,6 @@ pub const MAXIMUM_LEVELS: u32 = 4;
 // Smooth shading splits normals at edges sharper than this, as Blender's auto
 // smooth does, so that a cube stays flat and a sphere is smooth.
 pub const SMOOTH_ANGLE_DEGREES: f32 = 30.0;
-// The light of the flat shader, toward the camera's upper left, and how much
-// of a paint's color is ambient.
-const LIGHT: [f32; 4] = [-0.37, 0.56, 0.74, 0.35];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
@@ -136,7 +133,7 @@ pub const COMMANDS: &[(Command, &str, &[&str])] = &[
     (Command::Level(2), "2 levels", &["Ctrl+2"]),
     (Command::Level(3), "3 levels", &["Ctrl+3"]),
     (Command::Level(4), "4 levels", &["Ctrl+4"]),
-    (Command::ToggleShader, "Flat shader", &["Shift+Z"]),
+    (Command::ToggleShader, "Unlit shader", &["Shift+Z"]),
     (Command::ToggleSmooth, "Smooth shading", &["Shift+S"]),
     (Command::ToggleXray, "X-ray", &["Alt+Z"]),
     (Command::ToggleGrid, "Grid", &["Shift+G"]),
@@ -446,8 +443,8 @@ impl Modeler {
             Command::Level(levels) => self.levels = levels.min(MAXIMUM_LEVELS),
             Command::ToggleShader => {
                 self.shader = match self.shader {
-                    Shader::SimplePaint => Shader::Flat,
-                    Shader::Flat => Shader::SimplePaint,
+                    Shader::SimplePaint => Shader::Unlit,
+                    Shader::Unlit => Shader::SimplePaint,
                 }
             }
             Command::ToggleSmooth => self.smooth = !self.smooth,
@@ -480,7 +477,7 @@ impl Modeler {
     // Whether the command's toggle is on, for its menu item's check.
     pub fn checked(&self, command: Command) -> Option<bool> {
         Some(match command {
-            Command::ToggleShader => self.shader == Shader::Flat,
+            Command::ToggleShader => self.shader == Shader::Unlit,
             Command::ToggleSmooth => self.smooth,
             Command::ToggleXray => self.xray,
             Command::ToggleGrid => self.grid,
@@ -650,7 +647,6 @@ impl Modeler {
             self.scene.materials[index] = paint.material();
             self.scene.colors[index] = paint.linear_color();
         }
-        self.scene.light = LIGHT;
         let look = Look {
             theme,
             surface: self.surface.as_ref(),

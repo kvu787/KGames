@@ -346,6 +346,7 @@ version = "0.1.0"
 dependencies = [
  "graphics",
  "math",
+ "meshes",
  "shader_compiler",
  "simple_paint",
  "windows-core",

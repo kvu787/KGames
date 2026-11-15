@@ -3,7 +3,8 @@
 // the road, with its islands cut out of it, so that the terrain shows in
 // them, then the barriers beside every edge, away from the road, and the
 // start line across the road. The scene's background shows where nothing
-// else is. Each part is a flat color, which Ground.hlsl draws.
+// else is. Each part is a flat color, which SimplePaint's unlit shader
+// draws.
 
 use meshes::Mesh;
 use simple_paint::Vertex;
@@ -12,14 +13,14 @@ use crate::files::{Color, srgb};
 use crate::terrain::{PALETTE_SIZE, Terrain};
 use crate::track::{Shape, Track};
 
-// The meshes' materials, which are Ground.hlsl's colors: the terrain's
+// The meshes' materials, which are the unlit shader's colors: the terrain's
 // palette, then the track's.
 pub const ROAD: u32 = 64;
 // The barriers alternate between these.
 pub const BARRIERS: [u32; 2] = [65, 66];
 // So do the start line's squares.
 pub const START_LINE: [u32; 2] = [67, 68];
-// As Ground.hlsl's MaterialCount says.
+// As UNLIT_COLOR_COUNT in build.rs says.
 pub const COLOR_COUNT: usize = 72;
 
 // The start line's rows of squares, along the road.

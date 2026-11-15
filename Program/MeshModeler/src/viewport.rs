@@ -1,4 +1,4 @@
-// Draws the view: the mesh, painted with SimplePaint or flat-lit, into the
+// Draws the view: the mesh, painted with SimplePaint or unlit, into the
 // view's part of the frame through its sRGB view, with a depth buffer; then
 // the overlay over it, the cage's edges and vertices, selected faces and the
 // floor's grid, through the frame's plain view, tested against the mesh's
@@ -13,7 +13,7 @@ use graphics::{DEPTH_FORMAT, TARGET_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Fra
 use math::Matrix;
 use polygon_mesh::Triangles;
 use simple_paint::GpuMaterial;
-use simple_paint::direct3d12::{OBJECT_SIZE, Pipeline, Target, materials_size};
+use simple_paint::direct3d12::{OBJECT_SIZE, Pipeline, Target, UnlitColor, materials_size, unlit_colors_size};
 use simple_paint::orthographic::ObjectTransforms;
 use user_interface::Rect;
 use windows_api::*;
@@ -23,8 +23,8 @@ use crate::paint::MAXIMUM_PAINTS;
 
 const PAINT_VERTEX: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 const PAINT_PIXEL: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-const FLAT_VERTEX: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatVertex.cso"));
-const FLAT_PIXEL: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatPixel.cso"));
+const UNLIT_VERTEX: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitVertex.cso"));
+const UNLIT_PIXEL: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitPixel.cso"));
 const OVERLAY_VERTEX: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/OverlayVertex.cso"));
 const OVERLAY_PIXEL: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/OverlayPixel.cso"));
 
@@ -34,14 +34,15 @@ const ALIGNMENT: usize = 256;
 pub enum Shader {
     #[default]
     SimplePaint,
-    Flat,
+    // Each face in its paint's base color, and nothing else.
+    Unlit,
 }
 
 impl Shader {
     pub fn name(self) -> &'static str {
         match self {
             Shader::SimplePaint => "SimplePaint",
-            Shader::Flat => "Flat",
+            Shader::Unlit => "Unlit",
         }
     }
 }
@@ -66,14 +67,6 @@ pub const KIND_LINE: u32 = 0;
 pub const KIND_POINT: u32 = 1;
 pub const KIND_TRIANGLE: u32 = 2;
 
-// The flat shader's constants at b1.
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-struct FlatConstants {
-    light: [f32; 4],
-    colors: [[f32; 4]; MAXIMUM_PAINTS],
-}
-
 // What a frame of the view draws, which the program updates as it builds the
 // interface.
 pub struct Scene {
@@ -88,10 +81,8 @@ pub struct Scene {
     pub triangles: Triangles,
     pub version: u64,
     pub materials: [GpuMaterial; MAXIMUM_PAINTS],
-    // The flat shader's: the paints' linear colors, and the light toward the
-    // camera's upper left, with how much of the color is ambient as w.
-    pub colors: [[f32; 4]; MAXIMUM_PAINTS],
-    pub light: [f32; 4],
+    // The unlit shader's: the paints' base colors, linear.
+    pub colors: [UnlitColor; MAXIMUM_PAINTS],
     pub overlay: Vec<OverlayItem>,
     pub xray: Vec<OverlayItem>,
 }
@@ -112,7 +103,6 @@ impl Default for Scene {
             version: 0,
             materials: [GpuMaterial::default(); MAXIMUM_PAINTS],
             colors: [[0.0; 4]; MAXIMUM_PAINTS],
-            light: [0.0; 4],
             overlay: Vec::new(),
             xray: Vec::new(),
         }
@@ -127,7 +117,7 @@ struct OverlayPipeline {
 
 pub struct Viewport {
     paint: Pipeline,
-    flat: Pipeline,
+    unlit: Pipeline,
     overlay: OverlayPipeline,
     depth: DepthBuffer,
     geometry: Option<UploadBuffer>,
@@ -150,7 +140,7 @@ impl Viewport {
             };
             Ok(Self {
                 paint: Pipeline::new(&gpu.device, PAINT_VERTEX, PAINT_PIXEL, &target)?,
-                flat: Pipeline::new(&gpu.device, FLAT_VERTEX, FLAT_PIXEL, &target)?,
+                unlit: Pipeline::new(&gpu.device, UNLIT_VERTEX, UNLIT_PIXEL, &target)?,
                 overlay: overlay_pipeline(&gpu.device)?,
                 depth: DepthBuffer::new(gpu)?,
                 geometry: None,
@@ -192,14 +182,10 @@ impl Viewport {
         let depth = self.depth.view(gpu, frame)?;
 
         // This frame's constants and overlay.
-        let flat = FlatConstants {
-            light: scene.light,
-            colors: scene.colors,
-        };
         let transforms_at = 0;
         let materials_at = OBJECT_SIZE;
-        let flat_at = materials_at + materials_size(MAXIMUM_PAINTS);
-        let matrix_at = flat_at + size_of::<FlatConstants>().next_multiple_of(ALIGNMENT);
+        let colors_at = materials_at + materials_size(MAXIMUM_PAINTS);
+        let matrix_at = colors_at + unlit_colors_size(MAXIMUM_PAINTS);
         let overlay_at = matrix_at + ALIGNMENT;
         let overlay_bytes = size_of_val(scene.overlay.as_slice()).next_multiple_of(ALIGNMENT);
         let xray_at = overlay_at + overlay_bytes.max(ALIGNMENT);
@@ -210,7 +196,7 @@ impl Viewport {
         let data = self.frame_data.as_ref().unwrap();
         data.write(transforms_at, &[scene.transforms]);
         data.write(materials_at, &scene.materials);
-        data.write(flat_at, &[flat]);
+        data.write(colors_at, &scene.colors);
         data.write(matrix_at, &[scene.world_to_clip.0]);
         data.write(overlay_at, &scene.overlay);
         data.write(xray_at, &scene.xray);
@@ -243,7 +229,7 @@ impl Viewport {
                 commands.OMSetRenderTargets(1, Some(&frame.srgb_view), false, Some(&depth));
                 let (pipeline, shading) = match scene.shader {
                     Shader::SimplePaint => (&self.paint, materials_at),
-                    Shader::Flat => (&self.flat, flat_at),
+                    Shader::Unlit => (&self.unlit, colors_at),
                 };
                 pipeline.bind(commands);
                 commands.SetGraphicsRootConstantBufferView(0, data.gpu_address(transforms_at));

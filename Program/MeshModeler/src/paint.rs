@@ -1,5 +1,5 @@
 // The paints that color the mesh: each face's material is a paint, which is a
-// name and SimplePaint's parameters. The flat shader colors with the same
+// name and SimplePaint's parameters. The unlit shader colors with the same
 // paints' base colors. A document has up to MAXIMUM_PAINTS, which is how many
 // the shaders are compiled for.
 
@@ -48,7 +48,7 @@ impl Paint {
         }
     }
 
-    // The base color in linear light, for the flat shader.
+    // The base color in linear light, for the unlit shader.
     pub fn linear_color(&self) -> [f32; 4] {
         let [r, g, b] = self.color().to_linear();
         [r, g, b, 1.0]

@@ -1,12 +1,13 @@
-// The scene: the green ground and the red cube, in flat colors, then a car
-// that moves back and forth along X at 8 units per second while it turns at
-// 90 degrees per second, and a sphere that stays put, both painted with
-// SimplePaint, all with one depth buffer. Every frame draws all of it.
+// The scene: the green ground and the red cube, each in its one color,
+// unlit, then a car that moves back and forth along X at 8 units per second
+// while it turns at 90 degrees per second, and a sphere that stays put, both
+// painted with SimplePaint, all with one depth buffer. Every frame draws all
+// of it.
 
 use graphics::{DEPTH_FORMAT, TARGET_FORMAT, TARGET_SRGB_FORMAT, DepthBuffer, Frame, Gpu, UploadBuffer};
 use math::Matrix;
 use meshes::car as car_mesh;
-use simple_paint::direct3d12::{CONSTANT_BUFFER_ALIGNMENT, Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
+use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, UnlitColor, materials_size, unlit_colors_size};
 use simple_paint::orthographic::{Projection, build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material};
 use user_interface::Rect;
@@ -17,23 +18,21 @@ use crate::settings::SceneSettings;
 
 static PAINT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
 static PAINT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintPixel.cso"));
-static FLAT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatShadingVertex.cso"));
-static FLAT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/FlatShadingPixel.cso"));
+static UNLIT_VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitVertex.cso"));
+static UNLIT_PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/UnlitPixel.cso"));
 
 // The car's five materials, then the sphere's, as SIMPLE_PAINT_MATERIAL_COUNT
 // in build.rs says.
 const MATERIAL_COUNT: usize = 6;
 const SPHERE_MATERIAL: u32 = car_mesh::MATERIAL_COUNT;
-// The ground's color, then the cube's, as FlatShading.hlsl's MaterialCount
-// says.
-const FLAT_MATERIAL_COUNT: usize = 2;
+// The ground's color, then the cube's, as UNLIT_COLOR_COUNT in build.rs says.
+const UNLIT_COLOR_COUNT: usize = 2;
 // The car, the sphere, the ground and the cube.
 const OBJECT_COUNT: usize = 4;
 // Where the constants have the materials, after each object's transforms,
-// and the flat shading, after the materials.
+// and the ground's and the cube's colors, after the materials.
 const MATERIALS_OFFSET: usize = OBJECT_SIZE * OBJECT_COUNT;
-const SHADING_OFFSET: usize = MATERIALS_OFFSET + materials_size(MATERIAL_COUNT);
-const SHADING_SIZE: usize = size_of::<Shading>().next_multiple_of(CONSTANT_BUFFER_ALIGNMENT);
+const COLORS_OFFSET: usize = MATERIALS_OFFSET + materials_size(MATERIAL_COUNT);
 // The camera looks down at the origin from 45 degrees above the horizon, and
 // 45 degrees from +Z toward +X, 5 units away, at a view 5 units tall.
 const CAMERA_PITCH: f32 = std::f32::consts::FRAC_PI_4;
@@ -52,22 +51,11 @@ pub const SPHERE_CENTER: [f32; 3] = [1.5, SPHERE_RADIUS, -1.5];
 // Along X and Z.
 const GROUND_SIZE: [f32; 2] = [10.0, 5.0];
 const CUBE_SIZE: f32 = 1.0;
-// sRGB, like the C++ scene's.
-const GROUND_COLOR: [f32; 4] = [0.08900002, 0.89, 0.48950002, 1.0];
-const CUBE_COLOR: [f32; 4] = [0.88, 0.1672, 0.17907982, 1.0];
-// Toward the light, which is above, between +X and +Z, as a unit vector.
-const LIGHT: [f32; 3] = [0.5, std::f32::consts::FRAC_1_SQRT_2, 0.5];
+// sRGB, like the C++ scene's, and stored as they are.
+pub const GROUND_COLOR: UnlitColor = [0.08900002, 0.89, 0.48950002, 1.0];
+pub const CUBE_COLOR: UnlitColor = [0.88, 0.1672, 0.17907982, 1.0];
 // #4c4c4c, stored as it is.
 pub const BACKGROUND: [f32; 4] = [76.0 / 255.0, 76.0 / 255.0, 76.0 / 255.0, 1.0];
-
-// What FlatShading.hlsl binds at b1.
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct Shading {
-    // Toward the light, in view space. W isn't used.
-    light: [f32; 4],
-    colors: [[f32; 4]; FLAT_MATERIAL_COUNT],
-}
 
 // Where the car is along X, and how far it has turned, `seconds` after the
 // program started. It goes from the middle to +7, back to -7, and again, 28
@@ -126,13 +114,13 @@ pub fn car_on_screen(placement: (f32, f32), width: f32, height: f32) -> Rect {
 
 pub struct Scene {
     paint: Pipeline,
-    flat: Pipeline,
+    unlit: Pipeline,
     car: Mesh,
     sphere: Mesh,
     ground: Mesh,
     cube: Mesh,
-    // Each object's transforms, then the materials, then the flat shading,
-    // each at a constant buffer's start. The GPU has finished with them when
+    // Each object's transforms, then the materials, then the colors, each
+    // at a constant buffer's start. The GPU has finished with them when
     // a frame begins.
     constants: UploadBuffer,
     materials: [GpuMaterial; MATERIAL_COUNT],
@@ -149,16 +137,16 @@ impl Scene {
                 cull_mode: D3D12_CULL_MODE_NONE,
             };
             let paint = Pipeline::new(&gpu.device, PAINT_VERTEX_SHADER, PAINT_PIXEL_SHADER, &target(TARGET_SRGB_FORMAT))?;
-            // The flat colors are already sRGB, so they're stored as they are.
-            let flat = Pipeline::new(&gpu.device, FLAT_VERTEX_SHADER, FLAT_PIXEL_SHADER, &target(TARGET_FORMAT))?;
+            // The unlit colors are already sRGB, so they're stored as they are.
+            let unlit = Pipeline::new(&gpu.device, UNLIT_VERTEX_SHADER, UNLIT_PIXEL_SHADER, &target(TARGET_FORMAT))?;
             let car = Mesh::new(gpu, &car_mesh::VERTICES, &car_mesh::INDICES, MATERIAL_COUNT as u32)?;
             let mut upload = |mesh: meshes::Mesh, material_count: usize| {
                 Mesh::new(gpu, &mesh.vertices, &mesh.indices, material_count as u32)
             };
             let [longitudes, latitudes] = settings.sphere_resolution;
             let sphere = upload(meshes::uv_sphere(longitudes, latitudes, SPHERE_MATERIAL), MATERIAL_COUNT)?;
-            let ground = upload(meshes::plane(GROUND_SIZE, 0), FLAT_MATERIAL_COUNT)?;
-            let cube = upload(meshes::cuboid([CUBE_SIZE; 3], 1), FLAT_MATERIAL_COUNT)?;
+            let ground = upload(meshes::plane(GROUND_SIZE, 0), UNLIT_COLOR_COUNT)?;
+            let cube = upload(meshes::cuboid([CUBE_SIZE; 3], 1), UNLIT_COLOR_COUNT)?;
             let mut materials = [GpuMaterial::default(); MATERIAL_COUNT];
             for (material, parameters) in materials.iter_mut().zip(&settings.materials) {
                 *material = *Material::compile(parameters)
@@ -168,12 +156,12 @@ impl Scene {
 
             Ok(Self {
                 paint,
-                flat,
+                unlit,
                 car,
                 sphere,
                 ground,
                 cube,
-                constants: UploadBuffer::new(&gpu.device, SHADING_OFFSET + SHADING_SIZE)?,
+                constants: UploadBuffer::new(&gpu.device, COLORS_OFFSET + unlit_colors_size(UNLIT_COLOR_COUNT))?,
                 materials,
                 depth: DepthBuffer::new(gpu)?,
             })
@@ -197,24 +185,19 @@ impl Scene {
             self.constants.write(OBJECT_SIZE * index, &[object]);
         }
         self.constants.write(MATERIALS_OFFSET, &self.materials);
-        let [x, y, z] = view.transform_direction(LIGHT);
-        let shading = Shading {
-            light: [x, y, z, 0.0],
-            colors: [GROUND_COLOR, CUBE_COLOR],
-        };
-        self.constants.write(SHADING_OFFSET, &[shading]);
+        self.constants.write(COLORS_OFFSET, &[GROUND_COLOR, CUBE_COLOR]);
 
         unsafe {
             frame.clear(BACKGROUND);
             let depth = self.depth.clear(gpu, frame)?;
             let list = &frame.list;
             let object = |index| self.constants.gpu_address(OBJECT_SIZE * index);
-            // The ground and the cube, in their flat colors.
+            // The ground and the cube, each in its color.
             frame.bind(false, Some(depth));
-            self.flat.bind(list);
-            let shading = self.constants.gpu_address(SHADING_OFFSET);
-            self.ground.draw(list, object(2), shading);
-            self.cube.draw(list, object(3), shading);
+            self.unlit.bind(list);
+            let colors = self.constants.gpu_address(COLORS_OFFSET);
+            self.ground.draw(list, object(2), colors);
+            self.cube.draw(list, object(3), colors);
             // The car and the sphere, whose linear colors are encoded to
             // sRGB, in front of or behind them.
             frame.bind(true, Some(depth));

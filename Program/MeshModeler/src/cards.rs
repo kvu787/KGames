@@ -400,7 +400,7 @@ fn shading_card(modeler: &Modeler, ui: &mut Ui, tree: &mut Tree<Message>, rect: 
         let mut form = Form::new(area.content);
         let shader = if modeler.shader == Shader::SimplePaint { 0 } else { 1 };
         let row = form.control(card, "Shader");
-        card.add("Shader", row, Segmented::new(shader, &["SimplePaint", "Flat"]).on_select(|_| Message::Command(Command::ToggleShader)));
+        card.add("Shader", row, Segmented::new(shader, &["SimplePaint", "Unlit"]).on_select(|_| Message::Command(Command::ToggleShader)));
         let rect = form.take(Slider::<Message>::height(true));
         card.add(
             "Subdivision",

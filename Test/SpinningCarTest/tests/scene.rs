@@ -4,7 +4,7 @@
 
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
-use spinning_car_test::scene::{BACKGROUND, SPHERE_CENTER, SPHERE_RADIUS, VIEW_HEIGHT, car_on_screen, car_placement, to_screen};
+use spinning_car_test::scene::{BACKGROUND, CUBE_COLOR, GROUND_COLOR, SPHERE_CENTER, SPHERE_RADIUS, VIEW_HEIGHT, car_on_screen, car_placement, to_screen};
 use spinning_car_test::settings::SceneSettings;
 use spinning_car_test::spinning_car::SpinningCar;
 use user_interface::graphics::{AdapterChoice, Gpu, write_png};
@@ -108,10 +108,14 @@ fn a_frame_draws_the_scene_under_the_card() {
     let below = y + SPHERE_RADIUS * height / VIEW_HEIGHT * 0.6;
     let [red, green, blue, _] = image.pixel(x as u32, below as u32);
     assert!(blue > green && green > red, "{:?}", [red, green, blue]);
-    // The cube, in red, flat on top.
-    let [x, y] = to_screen([0.0, 1.0, -1.5], WINDOW_WIDTH, height);
-    let [red, green, blue, _] = image.pixel(x as u32, y as u32);
-    assert!(red > 150 && green < 80 && blue < 80, "{:?}", [red, green, blue]);
+    // The cube, unlit, in its one color on its top and on its +X
+    // side, and the ground in its, behind the cube, away from the car.
+    for (point, color) in [([0.0, 1.0, -1.5], CUBE_COLOR), ([0.5, 0.5, -1.5], CUBE_COLOR), ([-2.0, 0.0, -2.0], GROUND_COLOR)] {
+        let [x, y] = to_screen(point, WINDOW_WIDTH, height);
+        let drawn = image.pixel(x as u32, y as u32);
+        let expected = color.map(|channel| (channel * 255.0).round() as u8);
+        assert!(drawn.iter().zip(expected).take(3).all(|(a, b)| a.abs_diff(b) <= 1), "{drawn:?} at {point:?}, not {expected:?}");
+    }
     // The car, in its blue, in front of the ground's green.
     let middle = car_on_screen(app.program.placement, WINDOW_WIDTH, height).center();
     let [red, green, blue, _] = image.pixel(middle.x as u32, middle.y as u32);
