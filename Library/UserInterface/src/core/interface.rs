@@ -473,13 +473,12 @@ impl Interface {
         let wheel_target: Option<Id> = if wheel_free {
             elements
                 .iter()
-                .filter(|(element, _, layer)| {
+                .rfind(|(element, _, layer)| {
                     element.id.is_some()
                         && element.widget.takes_free_wheel()
                         && pointer.is_some_and(|point| element.rect.contains(point))
                         && hovered_layer.is_none_or(|hovered| hovered <= *layer)
                 })
-                .next_back()
                 .and_then(|(element, _, _)| element.id)
         } else {
             None
@@ -756,7 +755,7 @@ impl Interface {
         }
     }
 
-    #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     fn draw_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect, sources: &LookSources, due: &Option<(Id, Part, String, Point)>, tooltip: &mut Option<(Tooltip, String, Point)>) {
         for element in elements {
             let enabled = enabled && element.enabled;
