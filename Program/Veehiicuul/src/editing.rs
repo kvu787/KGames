@@ -333,6 +333,7 @@ pub fn color_field(tree: &mut Tree<Message>, name: &str, rect: Rect, color: File
 // channels and the dark point down the left, and the brightness, the shift,
 // the rotation and the light point down the right. A slider's change sends
 // the whole material, with its field on the nearest step.
+#[allow(clippy::too_many_arguments)]
 pub fn paint(
     form: &mut Form,
     tree: &mut Tree<Message>,
@@ -353,6 +354,7 @@ pub fn paint(
     let (lowest, highest) = (simple_paint::MARGIN, simple_paint::INTERIOR_MAXIMUM);
     let degrees = SliderRange::new(0.0, 360.0, 10.0, 1).between(0.0, 359.9).suffix("°");
     type Set = fn(&mut Parameters, f64);
+    #[allow(clippy::type_complexity)]
     let rows: [[(&str, &str, f64, SliderRange, Set); 2]; 4] = [
         [
             ("Red", "Red", parameters.base_color_srgb[0], unit.between(lowest, highest), |p, v| p.base_color_srgb[0] = v),

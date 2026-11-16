@@ -476,6 +476,7 @@ fn paints_card(modeler: &Modeler, ui: &mut Ui, tree: &mut Tree<Message>, rect: R
         // SimplePaint's other settings.
         let parameters = document.paints[index].parameters;
         type Edit = fn(f64) -> PaintEdit;
+        #[allow(clippy::type_complexity)]
         let sliders: [(&str, &str, f64, f64, f64, usize, &str, Edit); 5] = [
             ("Paint/Brightness", "Brightness", parameters.brightness, MARGIN, INTERIOR_MAXIMUM, 2, "", PaintEdit::Brightness),
             ("Paint/Shift", "Shift", parameters.shift, 0.0, INTERIOR_MAXIMUM, 2, "", PaintEdit::Shift),

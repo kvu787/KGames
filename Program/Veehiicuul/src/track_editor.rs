@@ -183,6 +183,7 @@ impl TrackEditor {
     }
 
     // The overlay over the view, then the card, over both.
+    #[allow(clippy::too_many_arguments)]
     pub fn view(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, view: Rect, viewport: &Viewport, track: &Track, problems: &[String]) {
         self.overlay(ui, tree, view, viewport, track);
         self.card(ui, tree, page, view, viewport, track, problems);

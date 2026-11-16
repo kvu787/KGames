@@ -207,6 +207,7 @@ impl VehicleEditor {
     }
 
     // The overlay over the view, then the cards, over both.
+    #[allow(clippy::too_many_arguments)]
     pub fn view(&self, ui: &mut Ui, tree: &mut Tree<Message>, page: Rect, view: Rect, document: &Document, models: &Models, vehicle: usize) {
         // The model's rectangle, thin, and the footprint, with a handle on
         // each side.
