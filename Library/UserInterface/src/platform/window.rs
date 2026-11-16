@@ -154,7 +154,7 @@ impl Window {
                 arrow: LoadCursorW(None, IDC_ARROW),
                 background: colorref(background),
             });
-            let shared = NonNull::new_unchecked(Box::into_raw(shared));
+            let shared = Box::into_non_null(shared);
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as isize);
             Window {
                 hwnd,

@@ -20,7 +20,10 @@ use crate::input::{Input, Listen};
 use crate::scripted_source::ScriptedSource;
 use crate::settings::DemoSettings;
 
-// What a frame means to the demo.
+// What a frame means to the demo. A Listen carries its gamepad's data, about
+// 300 bytes, which clippy would box, but a frame has only a few messages, so
+// it isn't.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Message {
     // Once a frame, in its last step, after all of the frame's input, so
