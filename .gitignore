@@ -6,3 +6,6 @@ Program/MeshModeler/Models/
 
 .claude/settings.local.json
 .claude/worktrees/
+
+# RustRover's project, which it keeps for each person who opens the repository.
+.idea/

@@ -132,6 +132,23 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 The GPU tests need a GPU with Shader Model 6.0, and run on WARP too. Scripts open the program
 on display CVVNY2 unless `--display` names another.
 
+## Editors
+
+VS Code with rust-analyzer, Zed and RustRover can have the repository open at once. Each builds
+what its analysis needs, build scripts, proc macros and `cargo check`, in a target folder of its
+own, so that none waits on another's build, or on a `cargo test --workspace` in `target`, nor
+rebuilds over it:
+
+| Editor                  | Its target folder  | Where it's set                        |
+| ----------------------- | ------------------ | ------------------------------------- |
+| VS Code (rust-analyzer) | `target/VsCode`    | `.vscode/settings.json`               |
+| Zed                     | `target/Zed`       | `.zed/settings.json`                  |
+| RustRover               | `target/RustRover` | Settings, Rust, Environment variables |
+
+RustRover keeps its settings in `.idea`, which Git leaves out, so its folder is yours to set, once:
+`CARGO_TARGET_DIR=target/RustRover`. `Library/WindowsApi/BindingsGenerator` is a Cargo workspace
+of its own, which none of them loads with the rest; open its folder on its own to read it.
+
 # License
 
 KGames is free software under the GNU General Public License, version 3 or (at your option) any
