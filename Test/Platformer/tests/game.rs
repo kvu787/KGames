@@ -94,9 +94,7 @@ fn the_goal_frame_shows_the_banner_and_saves() {
     let mut app = start("Goal");
     let game = &mut app.program.game;
     let total = game.total_coins();
-    for coin in 0..total {
-        game.collected[coin] = true;
-    }
+    game.collected[..total].fill(true);
     game.coins = total;
     game.doors_open[0] = true;
     let goal = game.current().goal;

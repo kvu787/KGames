@@ -58,10 +58,10 @@ fn the_vehicles_each_look_and_drive_their_own_way() {
         assert!(pair[0].acceleration.forward < pair[1].acceleration.forward);
     }
     let mut bodies = Vec::new();
-    for index in 0..vehicles.list.len() {
+    for (index, vehicle) in vehicles.list.iter().enumerate() {
         let (model, materials) = document.vehicle_materials(&models, index).unwrap();
         assert_eq!(models.list[model].name, "SlopeCar");
-        assert!(!bodies.contains(&materials[1].base_color_srgb), "{} has another's body", vehicles.list[index].name);
+        assert!(!bodies.contains(&materials[1].base_color_srgb), "{} has another's body", vehicle.name);
         bodies.push(materials[1].base_color_srgb);
         // The vehicle paints its body and cabin, and the car paints the rest.
         assert_eq!(materials[0], document.model_materials(&models, model)[0]);

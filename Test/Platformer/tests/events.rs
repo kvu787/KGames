@@ -66,9 +66,7 @@ fn place(game: &mut Game, feet: [f64; 2]) {
 // Collects every coin but the last by hand, as if the run had.
 fn collect_all_but_last(game: &mut Game) {
     let total = game.total_coins();
-    for coin in 0..total - 1 {
-        game.collected[coin] = true;
-    }
+    game.collected[..total - 1].fill(true);
     game.coins = total - 1;
 }
 
