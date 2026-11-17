@@ -1,0 +1,23 @@
+- [Display setup](display-setup.md) — RTX 5090 laptop, 3x PA278QGV on NVIDIA, G-SYNC "On, Full screen"; NVIDIA forces G-SYNC off for claude.exe
+- [Power and keep-awake](power-and-keep-awake.md) — screen off, sleep, hibernate all Never; Claude app keep-awake off on purpose, don't suggest it
+- [Light load while gaming](light-load-while-gaming.md) — user games (AoE4, Ace Combat 8) while agents work; RunLightly/RunInBackground for everything, give cargo to RunLightly directly
+- [Worktree LFS pointers](worktree-lfs-pointers.md) — a fresh worktree has LFS pointer files for the .glb models; builds of meshes users (HumanRun too) and Gltf tests fail until `git lfs checkout`
+- [RunLightly exe arguments](runlightly-exe-arguments.md) — run built exes by absolute path through RunLightly; `cargo run -- args` loses the `--`; `-name:value` splits at the colon, use `/name:value`; real python.exe path, not the alias
+- [7-Zip from NVIDIA App](nvidia-app-7zip.md) — full 7-Zip 26.01 with NSIS support at C:\Program Files\NVIDIA Corporation\NVIDIA App\7z.exe; no standalone 7-Zip
+- [RunLightly crash exit code](runlightly-crash-exit-code.md) — a test exe's access violation showed as "exit code 5" through RunLightly; run it directly, with a timeout
+- [Bash heredoc Python](bash-heredoc-python.md) — long Python via Bash heredoc breaks; write .py to scratchpad, run python -I
+- [Benchmark methodology](benchmark-methodology.md) — frame times scale ~1.5x with gaming load; keep exes aside, interleave runs, compare ratios
+- [Interrupt core placement](interrupt-core-placement.md) — GPU interrupts/DPCs land on CPU 1; main thread sharing it swings uncapped fps 10-20%; pin when comparing
+- [Measuring frames from the agent](agent-sandbox-measuring.md) — PresentMon/FrameTimes see no presents while the PC is locked (not a sandbox); use cycle counts and GPU counters
+- [GameInput docs](gameinput-docs-markdown.md) — use the microsoft-docs plugin first (it indexes GameInput); else docs.xbox.com/<path>.md, llms-full.txt
+- [GameInput header and C probes](gameinput-header-and-probes.md) — GameInput.h, GameInput.lib and loader source in %UserProfile%\.nuget\packages\microsoft.gameinput\4.0.306 (builds restore it); MSVC vcvars64 path for probes
+- [GameInput entry points](gameinput-entry-points.md) — which header/lib/DLL has GameInputCreate and GameInputInitialize; Windows' GameInput.dll hands off to the redist
+- [NuGet package download](nuget-package-download.md) — `dotnet package download Id@Version` (.NET 10.0.2xx+) is the official command; V3 API URL and catalog hash for checking
+- [Prefer official, declarative ways](prefer-official-declarative-ways.md) — user chose Microsoft's GameInput.lib loader + NuGet manifest/lock over custom loaders and download scripts
+- [BUI takeaways tracker](bui-takeaways-tracker.md) — Documentation/BuiTakeaways.md lists 22 tasks from the BUI repo; update a task's status in the same commit that works on it
+- [C++ port branch](cpp-port-branch.md) — KGames stays in Rust (2026-11-11); C++ rewrite frozen on branch cpp-rewrite (keep it); the Rust with its findings is on main
+- [User's gamepads](user-gamepad.md) — GameSir G7 Pro 8K (dongle) and Tarantula 8K, Xbox 360 mode; ~7,700/s focused with background input off; modes, IDs, idle sleep
+- [Hands-on testing offer](user-offers-hands-on-testing.md) — user will test with real devices or allow disruptive steps on request; ask with exact steps
+- [ClipCursor release behavior](clipcursor-release-behavior.md) — measured: Windows releases a confinement on normal-window activation (even if the holder is stuck), not on Start menu or process exit; background programs can confine
+- [Architecture priorities](kgames-architecture-priorities.md) — fast understanding first, then testability; virtualize little beyond core CPU logic
+- [Disruptive validation](disruptive-validation.md) — what the user-authorized disruptive run covered 2026-11-16; agent-launched exes do get focus + GameInput; WM_CLOSE, PrintWindow, FrameTimes work
