@@ -99,8 +99,7 @@ version. `LICENSE.txt` has its text, and it covers everything in the repository.
 - `GameInput.lib`, which KGames links, comes from the `Microsoft.GameInput` NuGet package, which the
   build restores outside the repository. The package ships its source, `native/src/GameInput.cpp`,
   under the MIT license, and KGames treats the library as MIT-licensed too.
-- Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`,
-  except `Library/WindowsApi/BindingsGenerator`, a workspace of its own, which states it.
+- Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`.
 
 # Git
 

@@ -146,10 +146,7 @@ rebuilds over it:
 | RustRover               | `target/RustRover` | Settings, Rust, Environment variables |
 
 RustRover keeps its settings in `.idea`, which Git leaves out, so its folder is yours to set, once:
-`CARGO_TARGET_DIR=target\RustRover`. `Library/WindowsApi/BindingsGenerator` is a Cargo workspace
-of its own. RustRover finds it and loads it with the rest, and builds it in its folder's own
-`target/RustRover`, since it runs Cargo there; VS Code and Zed don't, so open its folder on its own
-in them to read it.
+`CARGO_TARGET_DIR=target\RustRover`.
 
 # License
 

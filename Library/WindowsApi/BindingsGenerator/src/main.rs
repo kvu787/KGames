@@ -1,7 +1,7 @@
 // Regenerates src/bindings.rs from the API names listed in Filters.txt.
-// Run it from the WindowsApi folder after changing Filters.txt:
+// Run it from anywhere in the repository after changing Filters.txt:
 //
-//     cargo run --manifest-path BindingsGenerator/Cargo.toml
+//     cargo run -p bindings_generator
 //
 // The generated file is committed, so building the programs doesn't need this tool.
 
