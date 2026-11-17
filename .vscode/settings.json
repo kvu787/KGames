@@ -4,10 +4,15 @@
   // Editors), so that it never waits on another's build, nor rebuilds over it.
   "rust-analyzer.cargo.targetDir": "target/VsCode",
 
+  "rust-analyzer.workspace.symbol.search.kind": "all_symbols",
+
   // Builds churn through target, and the agents' worktrees, which hold builds of their own, and
   // neither is this checkout's source.
   "files.watcherExclude": {
     "target": true,
     ".claude/worktrees": true
-  }
+  },
+
+  "editor.inlayHints.maximumLength": 0,
+  "editor.inlayHints.enabled": "on",
 }
