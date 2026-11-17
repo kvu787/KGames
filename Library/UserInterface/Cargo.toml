@@ -20,9 +20,7 @@ windows_api = { path = "../WindowsApi" }
 # Without its proc macros: the one COM object written here, the text
 # renderer that collects DirectWrite's glyphs, is written by hand.
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [build-dependencies]
 shader_compiler = { path = "../ShaderCompiler" }

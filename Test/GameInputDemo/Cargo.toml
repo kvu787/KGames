@@ -12,9 +12,7 @@ json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }
 
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [lints]
 workspace = true

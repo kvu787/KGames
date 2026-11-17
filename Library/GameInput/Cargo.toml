@@ -15,9 +15,7 @@ windows_api = { path = "../WindowsApi" }
 # src/lib.rs is written by hand from GameInput.h, in the shape of
 # windows-bindgen's output, and needs only windows-core.
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [lints]
 workspace = true

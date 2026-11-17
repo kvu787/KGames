@@ -39,9 +39,7 @@ simple_paint = { path = "../../Library/SimplePaint" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [build-dependencies]
 shader_compiler = { path = "../../Library/ShaderCompiler" }

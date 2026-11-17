@@ -58,6 +58,16 @@ members = [
 [workspace.package]
 license = "GPL-3.0-or-later"
 
+# Dependencies that each package takes with workspace = true, so that their
+# versions change in one place.
+[workspace.dependencies]
+# Microsoft's crate under the Windows API bindings, without its proc macros
+# (for implementing COM interfaces in Rust), which nothing here needs.
+windows-core = { version = "0.100", default-features = false, features = ["std"] }
+# Writes Library/WindowsApi/src/bindings.rs for this version of windows-core,
+# so upgrade the two together, and regenerate the bindings.
+windows-bindgen = "0.100"
+
 # Lints for every package, which each takes with [lints] workspace = true.
 [workspace.lints.clippy]
 # Most unsafe functions here are unsafe because they call the Windows API,

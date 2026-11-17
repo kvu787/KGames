@@ -11,9 +11,7 @@ user_interface = { path = "../../Library/UserInterface" }
 windows_api = { path = "../../Library/WindowsApi" }
 
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [lints]
 workspace = true

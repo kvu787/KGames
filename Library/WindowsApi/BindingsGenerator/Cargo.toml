@@ -13,7 +13,7 @@ name = "bindings_generator"
 test = false
 
 [dependencies]
-windows-bindgen = "0.100"
+windows-bindgen.workspace = true
 
 [lints]
 workspace = true

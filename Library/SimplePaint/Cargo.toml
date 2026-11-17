@@ -20,9 +20,7 @@ math = { path = "../Math" }
 windows_api = { path = "../WindowsApi" }
 
 [dependencies.windows-core]
-version = "0.100"
-default-features = false
-features = ["std"]
+workspace = true
 
 [lints]
 workspace = true
