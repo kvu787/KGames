@@ -1,11 +1,11 @@
 # Cargo's build output.
-target/
+/target/
 
 # What MeshModeler saves when people use it.
-Program/MeshModeler/Models/
+/Program/MeshModeler/Models/
 
-.claude/settings.local.json
-.claude/worktrees/
+/.claude/settings.local.json
+/.claude/worktrees/
 
 # RustRover's project, which it keeps for each person who opens the repository.
-.idea/
+/.idea/
