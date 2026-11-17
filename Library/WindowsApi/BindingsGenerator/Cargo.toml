@@ -9,5 +9,6 @@ publish = false
 [dependencies]
 windows-bindgen = "0.100"
 
-# A standalone package, so the demo's normal builds never compile the generator.
+# A workspace of its own, not a member of the root one, so that normal builds never compile
+# windows-bindgen.
 [workspace]
