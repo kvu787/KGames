@@ -1,0 +1,20 @@
+[package]
+name = "meshes"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+simple-paint = { path = "../simple-paint" }
+
+# build.rs makes the car from its model with it.
+[build-dependencies]
+gltf = { path = "../gltf" }
+
+[lints]
+workspace = true

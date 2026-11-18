@@ -1,4 +1,4 @@
-// Library/GameInput: that the DLLs that the GameInput runtime imports are
+// Library/game-input: that the DLLs that the GameInput runtime imports are
 // looked for beside the exe first. GameInput.lib's loader, which create starts
 // GameInput with, loads the runtime with LoadLibraryW, and GameInputRedist.dll
 // imports HID.DLL, which isn't a known DLL, so Windows takes a hid.dll beside

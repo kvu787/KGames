@@ -1,6 +1,6 @@
 // The settings editor's state: the material being edited, its settings, and
 // what the keys and the wheel do to them. cards.rs draws a slider for each
-// setting with Library/UserInterface, which handles what dragging it does.
+// setting with Library/user-interface, which handles what dragging it does.
 //
 // Settings move in steps of 0.001, or 0.1 degrees for Rotation, and stop at
 // the last step inside SimplePaint's accepted range, so the material they

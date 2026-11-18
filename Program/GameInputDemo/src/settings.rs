@@ -1,5 +1,5 @@
 // The demo's own setting, after the ones every program has (see
-// Library/UserInterface's settings.rs), in Settings.json next to Cargo.toml:
+// Library/user-interface's settings.rs), in Settings.json next to Cargo.toml:
 //
 //     {
 //       "Display": "Primary",
@@ -17,7 +17,7 @@ pub struct DemoSettings {
 }
 
 impl DemoSettings {
-    // Reads the demo's setting, or its default. Library/UserInterface shows a
+    // Reads the demo's setting, or its default. Library/user-interface shows a
     // notice under the app bar for a setting that's wrong.
     pub fn read(settings: &mut Settings) -> DemoSettings {
         // Less than 1, because the strength grows from the dead zone's edge

@@ -1,7 +1,7 @@
 // What the mouse and the window do to GameInputDemo's cards: the combo box
 // that picks which gamepad to listen to, what its list offers, the Devices
 // card's list, its rows and their tooltips, focus and F10, through the
-// cards' real layout, which Library/UserInterface's Headless draws without a
+// cards' real layout, which Library/user-interface's Headless draws without a
 // window. And one frame drawn with the GPU, offscreen.
 
 use game_input_demo::cards::{DEVICE_ROWS, GAMEPAD_COLUMN, GAMEPAD_COMBO_BOX, STICK_GRAPH};

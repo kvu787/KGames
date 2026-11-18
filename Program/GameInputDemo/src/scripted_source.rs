@@ -1,5 +1,5 @@
 // Devices and readings from a test, or from a script's "Program" steps (see
-// Library/UserInterface's script.rs), instead of GameInput, so that the demo
+// Library/user-interface's script.rs), instead of GameInput, so that the demo
 // can be tested without a gamepad, and without the user's keyboard and mouse.
 // Its readings are snapshots of a device's whole state, like GameInput's,
 // and it keeps the rumble that the demo sends, for checking.

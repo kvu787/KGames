@@ -3,13 +3,13 @@
 A polygon mesh modeler, after Blender's edit mode: select vertices, edges or faces, move,
 rotate and scale them, extrude, inset, cut loops, fill, merge and delete, crease edges, and see
 the mesh subdivided by Catmull-Clark. Faces are colored with paints, which the view shades
-with [SimplePaint](../../Library/SimplePaint/README.md), or draws unlit, in their base colors.
-The mesh and its edits are [Library/PolygonMesh](../../Library/PolygonMesh/README.md)'s.
+with [SimplePaint](../../Library/simple-paint/README.md), or draws unlit, in their base colors.
+The mesh and its edits are [Library/polygon-mesh](../../Library/polygon-mesh/README.md)'s.
 
 Like every KGames GUI program, it's built on
-[Library/UserInterface](../../Library/UserInterface/README.md), after Fluent 2, in its light
+[Library/user-interface](../../Library/user-interface/README.md), after Fluent 2, in its light
 theme, ignores input without focus, and supports the one
-[window setup](../../Library/UserInterface/README.md#window-setup).
+[window setup](../../Library/user-interface/README.md#window-setup).
 
 ## What it shows
 
@@ -91,7 +91,7 @@ from.
 
 **Save** writes the model to `Models/<name>.json` in this folder, as a JSON object with the
 mesh, in PolygonMesh's format, and the paints, each a `Name` and its settings in
-[Library/PaintSettings](../../Library/PaintSettings/README.md)'s format. **Open** lists what's
+[Library/paint-settings](../../Library/paint-settings/README.md)'s format. **Open** lists what's
 there. **Export OBJ** writes `Models/<name>.obj` beside it, with the mesh's positions and faces.
 A model that was never saved asks for its name first, and **New** and **Open** ask before changes
 are lost. Closing the window, with F12 or the taskbar's Close, quits at once, without asking, as
@@ -123,7 +123,7 @@ saving, opening and exporting, and starting over with changes. They check that t
 window, and draw frames offscreen with the GPU, with either shader, subdivided and selected.
 
 The scripts in `Test/MeshModeler/Scripts` run the same kinds of input through the real window,
-as [Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. A scripted
+as [Library/user-interface](../../Library/user-interface/README.md#testing) describes. A scripted
 run saves models in its output folder, not in the modeler's. The state that scripts save and
 check has the model's `Name`, whether it's `Dirty`, the `Mode` and `Tool`, the modal
 `Operation` with its `Kind`, `Axis` and `Amount`, what's under the pointer as `Hover`, the
@@ -150,7 +150,7 @@ much of the world the view's height shows.
 
 | Path                   | Contents                                                                  |
 | ---------------------- | ------------------------------------------------------------------------- |
-| `src/main.rs`          | Runs the modeler with Library/UserInterface's main loop                   |
+| `src/main.rs`          | Runs the modeler with Library/user-interface's main loop                  |
 | `src/lib.rs`           | The modeler's parts, as a library that `Test/MeshModeler` tests           |
 | `src/modeler.rs`       | The modeler as a program: its state, its commands, and the scene it draws |
 | `src/cards.rs`         | Lays out the app bar, the cards and the dialogs in fixed pixels           |

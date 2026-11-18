@@ -3,14 +3,14 @@
 After the move to MVU, every program's domain logic - not the GUI - was reviewed end to end:
 Veehiicuul's driving, collision, curves, track shaping, hexels, document and files; MeshModeler's
 editing and history with PolygonMesh and SimplePaint under it; GameInputDemo's input model;
-UiShowcase's model; the two scene tests' motion math; and Library/UserInterface's frame pipeline
+UiShowcase's model; the two scene tests' motion math; and Library/user-interface's frame pipeline
 itself, against the law that an output delayed any number of frames past its cause is a bug. This
 records what was found and fixed, and what was examined and found sound. Each fix landed with the
 code in its own commit, most with a test that pins it.
 
 ## Found and fixed
 
-**Library/UserInterface's frame pipeline**
+**Library/user-interface's frame pipeline**
 
 - A widget that lost keyboard focus was told only when a press moved the focus. Esc, another
   widget's press or focus call, and `Context::focus` all slipped past, so a number box's typed
@@ -119,7 +119,7 @@ test that pins it.
   that no disk holds. Cells now stop 1,024 from the origin: a point farther away is in the
   farthest cell, a brush that reaches past it leaves those cells unpainted, and a file with cells
   past it is refused.
-- Library/PolygonMesh's merge by distance numbered the cube of a vertex far away with the most
+- Library/polygon-mesh's merge by distance numbered the cube of a vertex far away with the most
   that an `i64` holds, and added one to it for the cubes around. GameInputDemo's scripted mouse
   added to running totals, and took differences of them, past an `i64`'s ends. Each stops a debug
   build and goes around in an optimized one. The cubes are clamped, and the totals wrap.

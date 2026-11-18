@@ -1,4 +1,4 @@
-// The test, as a program that Library/UserInterface runs: the sphere's
+// The test, as a program that Library/user-interface runs: the sphere's
 // motion, the card over the scene that F2 shows and hides, and the scene,
 // which fills the window under the card.
 

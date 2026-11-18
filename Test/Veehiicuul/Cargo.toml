@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
-simple-paint = { path = "../../Library/SimplePaint" }
-user-interface = { path = "../../Library/UserInterface" }
+json = { path = "../../Library/json" }
+simple-paint = { path = "../../Library/simple-paint" }
+user-interface = { path = "../../Library/user-interface" }
 veehiicuul = { path = "../../Program/Veehiicuul" }
 
 [lints]

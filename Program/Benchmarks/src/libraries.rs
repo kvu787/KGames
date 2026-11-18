@@ -1,7 +1,7 @@
 // The libraries' CPU work: Catmull-Clark subdivision, triangulation,
-// topology and ray casts of Library/PolygonMesh, Library/Gltf reading the
-// game's models, Library/Json with a scene file, Library/Math's matrices,
-// and Library/PresentTiming's tracker following presents through Windows'
+// topology and ray casts of Library/polygon-mesh, Library/gltf reading the
+// game's models, Library/json with a scene file, Library/math's matrices,
+// and Library/present-timing's tracker following presents through Windows'
 // events.
 
 use std::path::Path;

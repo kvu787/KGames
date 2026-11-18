@@ -31,19 +31,19 @@ name = "unlit"
 harness = false
 
 [dependencies]
-graphics = { path = "../../Library/Graphics" }
-math = { path = "../../Library/Math" }
-meshes = { path = "../../Library/Meshes" }
-shader-compiler = { path = "../../Library/ShaderCompiler" }
-simple-paint = { path = "../../Library/SimplePaint" }
-windows-api = { path = "../../Library/WindowsApi" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+graphics = { path = "../../Library/graphics" }
+math = { path = "../../Library/math" }
+meshes = { path = "../../Library/meshes" }
+shader-compiler = { path = "../../Library/shader-compiler" }
+simple-paint = { path = "../../Library/simple-paint" }
+windows-api = { path = "../../Library/windows-api" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [dependencies.windows-core]
 workspace = true
 
 [build-dependencies]
-shader-compiler = { path = "../../Library/ShaderCompiler" }
+shader-compiler = { path = "../../Library/shader-compiler" }
 
 [lints]
 workspace = true

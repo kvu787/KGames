@@ -1,4 +1,4 @@
-// Library/Meshes: every mesh passes SimplePaint's checks, which Mesh::new
+// Library/meshes: every mesh passes SimplePaint's checks, which Mesh::new
 // makes before it uploads one.
 
 use meshes::{Mesh, car, cuboid, plane, uv_sphere};

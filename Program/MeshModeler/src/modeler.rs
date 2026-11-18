@@ -1,4 +1,4 @@
-// The modeler, as a program that Library/UserInterface runs: the document,
+// The modeler, as a program that Library/user-interface runs: the document,
 // the editor, the camera and how the view shades the mesh, and the commands
 // that the menus, the cards' buttons and the keys all go through. cards.rs
 // lays out and draws the interface; render draws the mesh into the view's

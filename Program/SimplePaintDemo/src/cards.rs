@@ -1,5 +1,5 @@
 // Describes the demo's cards from the editor's state, with
-// Library/UserInterface's widgets, and what the input on each one means.
+// Library/user-interface's widgets, and what the input on each one means.
 // Programs support one client area, 2560 x 1440 in borderless fullscreen,
 // so the cards have fixed places in pixels. The preview and the GPU
 // constants card get what's left of the height, as each is at the bottom of

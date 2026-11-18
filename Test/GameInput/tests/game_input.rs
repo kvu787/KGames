@@ -1,4 +1,4 @@
-// Library/GameInput: that KGames starts GameInput with GameInputInitialize
+// Library/game-input: that KGames starts GameInput with GameInputInitialize
 // from the NuGet package's GameInput.lib, whose loader takes GameInput
 // 4.0.306's installed runtime, from System32, unless one is beside the exe,
 // and that it says how to install it where it isn't installed. KGames doesn't
@@ -194,7 +194,7 @@ fn without_4_0_306_it_says_how_to_install_it() {
 #[test]
 fn the_package_is_the_runtimes_version() {
     let version = VERSION[..3].iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
-    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/GameInputRaw");
+    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/game-input-raw");
     let project = std::fs::read_to_string(folder.join("NuGetPackages.csproj")).unwrap();
     let reference = format!(r#"<PackageReference Include="Microsoft.GameInput" Version="[{version}]""#);
     assert!(project.contains(&reference), "{project}");
@@ -208,7 +208,7 @@ fn the_package_is_the_runtimes_version() {
 #[test]
 fn the_documentation_gives_the_command() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    for file in ["AGENTS.md", "README.md", "Library/GameInput/README.md", "Program/GameInputDemo/README.md"] {
+    for file in ["AGENTS.md", "README.md", "Library/game-input/README.md", "Program/GameInputDemo/README.md"] {
         let text = std::fs::read_to_string(root.join(file)).unwrap();
         assert!(text.contains(USERS_COMMAND), "{file} doesn't give the command");
     }

@@ -1,7 +1,7 @@
-// The demo, as a Program that Library/UserInterface's main loop runs: what
+// The demo, as a Program that Library/user-interface's main loop runs: what
 // it does each frame, before cards.rs describes what it read.
 //
-// The demo reads its input from the devices that Library/UserInterface reads
+// The demo reads its input from the devices that Library/user-interface reads
 // with GameInput, or from a script's Program steps in a scripted run, its
 // shortcuts F2 and F3 too. F9 and F10 are the library's, from the same
 // readings, and F12 the platform's, which quits. Without GameInput the window

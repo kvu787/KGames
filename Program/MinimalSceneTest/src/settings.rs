@@ -1,6 +1,6 @@
 // The test's own settings, after the ones every program has (see
-// Library/UserInterface), in Settings.json next to Cargo.toml: the
-// SimplePaint material of each object, in Library/PaintSettings' format,
+// Library/user-interface), in Settings.json next to Cargo.toml: the
+// SimplePaint material of each object, in Library/paint-settings' format,
 // which SimplePaintDemo saves, so a material can be tuned there and copied
 // here.
 //

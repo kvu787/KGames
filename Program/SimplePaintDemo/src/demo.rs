@@ -1,4 +1,4 @@
-// The demo, as a program that Library/UserInterface runs: the editor, its
+// The demo, as a program that Library/user-interface runs: the editor, its
 // cards, and the sphere's preview, which render draws into the preview
 // card's view before the interface draws over the rest of the frame.
 

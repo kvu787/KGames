@@ -1,9 +1,9 @@
 # WinUi3Sample
 
 A sample of a real WinUI 3 app, in C# and XAML, for comparing with the programs built on
-Library/UserInterface. It's the exception to the root AGENTS.md's rules for GUI programs: keep it a
+Library/user-interface. It's the exception to the root AGENTS.md's rules for GUI programs: keep it a
 plain WinUI 3 app, with WinUI's own controls, styles and input, and don't move it onto
-Library/UserInterface, add the PerfBar, GameInput or a fixed layout, or add its widgets to the library.
+Library/user-interface, add the PerfBar, GameInput or a fixed layout, or add its widgets to the library.
 
 Follow the non-disruptive workflow, though:
 

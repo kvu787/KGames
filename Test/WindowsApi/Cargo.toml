@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-bindings-generator = { path = "../../Library/WindowsApiRaw/BindingsGenerator" }
+bindings-generator = { path = "../../Library/windows-api-raw/bindings-generator" }
 
 [lints]
 workspace = true

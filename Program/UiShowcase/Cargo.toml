@@ -16,7 +16,7 @@ name = "ui-showcase"
 test = false
 
 [dependencies]
-user-interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

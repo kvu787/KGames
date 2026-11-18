@@ -14,7 +14,7 @@ with `update`, and draw their 3D with `render`.
 
 ## `FrameInput`
 
-In [events.rs](../Library/UserInterface/src/input/events.rs):
+In [events.rs](../Library/user-interface/src/input/events.rs):
 
 ```rust
 pub struct FrameInput {
@@ -57,8 +57,8 @@ The events that went: `PointerMoved`, `Text`, `FocusGained` and `FocusLost`.
 
 ## The platform
 
-In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
-[run.rs](../Library/UserInterface/src/application/run.rs):
+In [reader.rs](../Library/user-interface/src/input/reader.rs) and
+[run.rs](../Library/user-interface/src/application/run.rs):
 
 - **Windows' cursor** is kept, confined to the window and hidden, while the window has focus, so
   that a program is ready to use as it opens. While the window doesn't keep the cursor,
@@ -97,10 +97,10 @@ In [reader.rs](../Library/UserInterface/src/input/reader.rs) and
   middle. `PointerPlaced` puts it where Windows' cursor was as the window started to keep it, like
   as it gets focus, or in the middle if that was outside the window, without counting in
   `pointer_delta`. Tests and scripts point at places, which
-  [gestures.rs](../Library/UserInterface/src/testing/gestures.rs) turns into the motion that lands
+  [gestures.rs](../Library/user-interface/src/testing/gestures.rs) turns into the motion that lands
   on them exactly. `Headless::queue_move` queues such a move among a test's own events.
 - **Typed text** is ASCII, made from keys with a fixed table of a US keyboard, in
-  [typing.rs](../Library/UserInterface/src/input/typing.rs). The table covers:
+  [typing.rs](../Library/user-interface/src/input/typing.rs). The table covers:
   - the letters;
   - the digits;
   - space;

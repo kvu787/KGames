@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-displays = { path = "../../Library/Displays" }
+displays = { path = "../../Library/displays" }
 identify-displays = { path = "../../Program/IdentifyDisplays" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [lints]
 workspace = true

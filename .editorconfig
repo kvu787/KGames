@@ -12,7 +12,7 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 
-# JSON, which Library/Json writes, XML, and MSBuild's projects and props, indent by 2.
+# JSON, which Library/json writes, XML, and MSBuild's projects and props, indent by 2.
 [*.{json,xml,slnx,csproj,props,targets,manifest}]
 
 indent_style = space

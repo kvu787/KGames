@@ -1,4 +1,4 @@
-// The platformer as a Program, which Library/UserInterface's main loop runs.
+// The platformer as a Program, which Library/user-interface's main loop runs.
 // Each step of a frame's input is one message: the step's controls, which
 // the game turns into its one-off actions, a step by the time since the step
 // before, which only the frame's last step has, and events, drained to

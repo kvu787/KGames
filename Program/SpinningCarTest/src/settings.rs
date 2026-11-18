@@ -1,7 +1,7 @@
 // The test's own settings, after the ones every program has (see
-// Library/UserInterface), in Settings.json next to Cargo.toml: the
+// Library/user-interface), in Settings.json next to Cargo.toml: the
 // SimplePaint material of each part of the car and of the sphere, in
-// Library/PaintSettings' format, and the sphere's resolution.
+// Library/paint-settings' format, and the sphere's resolution.
 
 use json::Value;
 use simple_paint::Parameters;

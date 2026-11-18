@@ -14,7 +14,7 @@ pub fn check_arguments(arguments: &[String]) -> Result<(), String> {
     }
 }
 
-// The displays, from left to right as Library/Displays lists them, and how to
+// The displays, from left to right as Library/displays lists them, and how to
 // open a program on one.
 pub fn report(displays: &[Display]) -> String {
     if displays.is_empty() {

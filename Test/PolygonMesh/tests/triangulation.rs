@@ -1,4 +1,4 @@
-// Library/PolygonMesh's triangles for SimplePaint: every primitive at levels 0
+// Library/polygon-mesh's triangles for SimplePaint: every primitive at levels 0
 // to 3 of subdivision passes SimplePaint's checks with flat and smooth normals,
 // smooth normals split where they should, a smooth normal that would fail
 // falls back to its triangle's flat one, concave faces are cut inside

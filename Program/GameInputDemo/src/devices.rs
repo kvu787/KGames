@@ -1,6 +1,6 @@
 // What the demo reads, as plain data: the devices, and readings of their
 // state. input.rs works on this data only, from an InputSource: GameInput, as
-// Library/UserInterface reads it (game_input_source.rs), or a script or a test
+// Library/user-interface reads it (game_input_source.rs), or a script or a test
 // (scripted_source.rs), so that tests can give the demo any readings, like a
 // gamepad's, without one.
 

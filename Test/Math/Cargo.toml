@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-math = { path = "../../Library/Math" }
+math = { path = "../../Library/math" }
 
 [lints]
 workspace = true

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace WinUi3Sample;
 
-// Finds a display by the identifier that Library/Displays gives it, like CVVNY2, so that --display
+// Finds a display by the identifier that Library/displays gives it, like CVVNY2, so that --display
 // names the same displays as it does for the other KGames programs. An identifier is the top 30 bits
 // of an FNV-1a hash of the monitor's device path, in Crockford's Base32. IdentifyDisplays' README
 // explains them.
@@ -58,7 +58,7 @@ public static unsafe partial class Displays {
         return displays;
     }
 
-    // FNV-1a over the lowercase device path, as Library/Displays makes identifiers.
+    // FNV-1a over the lowercase device path, as Library/displays makes identifiers.
     static string Identifier(string devicePath) {
         var hash = 0xCBF2_9CE4_8422_2325UL;
         foreach (var character in Encoding.UTF8.GetBytes(devicePath)) {

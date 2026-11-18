@@ -62,7 +62,7 @@ fn no_displays_says_so() {
     assert_eq!(report(&[]), "Windows reports no displays.\n");
 }
 
-// Every display that Library/Displays finds is in the report, with its
+// Every display that Library/displays finds is in the report, with its
 // identifier and device path.
 #[test]
 fn the_report_has_every_display_that_windows_reports() {

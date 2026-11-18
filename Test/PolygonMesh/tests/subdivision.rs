@@ -1,4 +1,4 @@
-// Library/PolygonMesh's Catmull-Clark subdivision against known results: the
+// Library/polygon-mesh's Catmull-Clark subdivision against known results: the
 // counts at each level, a cube's first level against the textbook values,
 // infinitely sharp and semi-sharp creases, fixed boundary corners, n-gons and
 // triangles becoming quads, and meshes that aren't manifolds.

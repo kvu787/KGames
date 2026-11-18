@@ -1,4 +1,4 @@
-// Library/PolygonMesh's selections: what selecting vertices, edges and faces
+// Library/polygon-mesh's selections: what selecting vertices, edges and faces
 // selects of the others, switching modes, all, none, inverting, loops and
 // rings, as in Blender.
 

@@ -6,7 +6,7 @@
 > [RetainedVersusImmediate.md](RetainedVersusImmediate.md) — so nothing below
 > describes the current library.
 
-`Library/UserInterface` is a retained-mode UI library: a program builds a tree
+`Library/user-interface` is a retained-mode UI library: a program builds a tree
 of controls once, each control owns its state, and the program talks to the
 tree through events and setters. This replaced the immediate-mode library,
 where a program rebuilt the whole interface every frame with `ui.add`.

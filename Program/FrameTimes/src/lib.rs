@@ -1,6 +1,6 @@
 // FrameTimes' parts that don't need an ETW session, as a library that
 // Test/FrameTimes tests: the statistics of a process's frame times, from the
-// presents that Library/PresentTiming gives, the command line, and finding
+// presents that Library/present-timing gives, the command line, and finding
 // the process that it names.
 
 use std::fmt::Write;

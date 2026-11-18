@@ -1,5 +1,5 @@
 // Compiles the shaders to DXIL at build time: SimplePaint's and its unlit
-// one, for the modeler's paints, from where Library/SimplePaint says they
+// one, for the modeler's paints, from where Library/simple-paint says they
 // are, and the overlay's.
 
 use std::path::{Path, PathBuf};

@@ -1,0 +1,23 @@
+[package]
+name = "bindings-generator"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+# Writes Library/windows-api-raw/src/bindings.rs. Only Test/WindowsApi depends
+# on it, to check that file, so building a program never compiles it.
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[[bin]]
+name = "bindings-generator"
+test = false
+
+[dependencies]
+windows-bindgen.workspace = true
+
+[lints]
+workspace = true

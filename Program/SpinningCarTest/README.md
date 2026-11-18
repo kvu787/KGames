@@ -2,13 +2,13 @@
 
 A car moves back and forth at 8 units per second while it turns at 90 degrees per second, past a
 sphere and a red cube, on green ground, seen by an orthographic camera. The car and the sphere
-are painted with [SimplePaint](../../Library/SimplePaint/README.md), and the ground and the cube
+are painted with [SimplePaint](../../Library/simple-paint/README.md), and the ground and the cube
 are each one color, unlit, as SimplePaint's
-[unlit shader](../../Library/SimplePaint/Usage.md#unlit-models) draws them. Every frame draws
+[unlit shader](../../Library/simple-paint/Usage.md#unlit-models) draws them. Every frame draws
 all of it. Like every KGames GUI program, it's built on
-[Library/UserInterface](../../Library/UserInterface/README.md), with Win32 and Direct3D 12,
+[Library/user-interface](../../Library/user-interface/README.md), with Win32 and Direct3D 12,
 ignores input without focus, and supports the one
-[window setup](../../Library/UserInterface/README.md#window-setup).
+[window setup](../../Library/user-interface/README.md#window-setup).
 
 ## Scene
 
@@ -17,7 +17,7 @@ ignores input without focus, and supports the one
 | Camera     | Orthographic, 5 units tall, from 1 to 20 units in front of it. It looks at |
 |            | the origin from 5 units away, 45 degrees above the horizon and 45 degrees  |
 |            | from +Z toward +X                                                          |
-| Car        | The car of Library/Meshes, at a quarter of its size. It goes from the      |
+| Car        | The car of Library/meshes, at a quarter of its size. It goes from the      |
 |            | middle to X = 7, back to -7, and again, at 8 units per second, and turns   |
 |            | at 90 degrees per second, by the time since the test started, so it keeps  |
 |            | going while the window is minimized. `S` keeps it in the middle, facing +X |
@@ -27,7 +27,7 @@ ignores input without focus, and supports the one
 | Colors     | The ground and the cube are each one sRGB color, the C++ scene's, on every |
 |            | face, without lights. SimplePaint's unlit shader draws them               |
 | Background | #4c4c4c                                                                    |
-| Frames     | Through Library/UserInterface's main loop, paced for the lowest latency.   |
+| Frames     | Through Library/user-interface's main loop, paced for the lowest latency.  |
 |            | Waiting for vertical sync or not, as `Settings.json` says, until `F10`     |
 |            | switches it                                                                |
 
@@ -60,7 +60,7 @@ Or run `HumanRun.cmd`, which opens the test on the primary display. `--display` 
 
 `Settings.json` has the settings every program has, then a SimplePaint material for each part
 of the car and for the sphere, in the format of
-[Library/PaintSettings](../../Library/PaintSettings/README.md), and the sphere's resolution:
+[Library/paint-settings](../../Library/paint-settings/README.md), and the sphere's resolution:
 
 | Setting                        | Value                                                       |
 | ------------------------------ | ----------------------------------------------------------- |
@@ -89,7 +89,7 @@ stationary car, what S, F2 and the window's focus do, that the card stays out of
 path, the settings file, and frames drawn offscreen with the GPU. `Test/Meshes`
 checks that the car mesh is what SimplePaint accepts. The scripts in
 `Test/SpinningCarTest/Scripts` run the real test on a fixed clock, as
-[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes, and check where
+[Library/user-interface](../../Library/user-interface/README.md#testing) describes, and check where
 the car is frame by frame, and what S, F2 and the window's focus do. The state that scripts
 save and check has `CarPosition`, `CarTurn`, `Stationary` and `TextShown`, and the interface's,
 whose targets have the card as `InfoCard`, of kind `Card`, and what's wrong with `Settings.json`
@@ -99,7 +99,7 @@ as `Notice/0`, `Notice/1` and so on.
 
 | Path                       | Contents                                                                 |
 | -------------------------- | ------------------------------------------------------------------------ |
-| `src/main.rs`              | Runs the test with Library/UserInterface                                 |
+| `src/main.rs`              | Runs the test with Library/user-interface                                |
 | `src/lib.rs`               | The test's parts, as a library that `Test/SpinningCarTest` tests         |
 | `src/spinning_car.rs`      | The test as a `Program`: where the car is, the keys, and the state       |
 | `src/controls.rs`          | What S does                                                              |

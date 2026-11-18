@@ -1,0 +1,20 @@
+[package]
+name = "game-input"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+game-input-raw = { path = "../game-input-raw" }
+windows-api-raw = { path = "../windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
+
+[lints]
+workspace = true

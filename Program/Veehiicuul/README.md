@@ -4,28 +4,28 @@ Veehiicuul is a racing game seen from above: drive a car around a track as fast 
 without touching the road's edges. It's also where its levels are made: tabs in the app bar go
 between playing and the editors that make the game's scenes and vehicles. Like every KGames GUI
 program, it's built from the [Library](../../Library) crates on Win32 and Direct3D 12, with
-[Library/UserInterface](../../Library/UserInterface/README.md)'s main loop, widgets and design
+[Library/user-interface](../../Library/user-interface/README.md)'s main loop, widgets and design
 system, after Fluent 2, ignores input without focus, and supports the one window setup in
-[Library/UserInterface](../../Library/UserInterface/README.md#window-setup).
+[Library/user-interface](../../Library/user-interface/README.md#window-setup).
 
 Everything happens on flat ground, along X and Z: driving, the edges that the car touches, and
 the camera's view of them. The car is the only thing that moves. The ground is flat colors, drawn
-with SimplePaint's [unlit shader](../../Library/SimplePaint/Usage.md#unlit-models), in order
+with SimplePaint's [unlit shader](../../Library/simple-paint/Usage.md#unlit-models), in order
 without a depth buffer, each part over the ones before, so nothing on it z-fights: the
 scene's background, the terrain's hexels, the road with its islands cut out of it, the barriers,
 and the start line. Models, like the car and the decorations, are painted with
-[SimplePaint](../../Library/SimplePaint/README.md). An orthographic camera looks down at 45
+[SimplePaint](../../Library/simple-paint/README.md). An orthographic camera looks down at 45
 degrees, from 45 degrees around from +Z toward +X.
 
 ## How a level is made
 
 1. **Model** vehicles and decorations in Blender, and export each with File > Export > glTF 2.0,
    as a `.glb` with Y up and modifiers applied, into `Models`.
-   [Library/Gltf](../../Library/Gltf/README.md) reads it. A model has one pivot, its origin, which
+   [Library/gltf](../../Library/gltf/README.md) reads it. A model has one pivot, its origin, which
    sits on the ground, and faces -Y in Blender, which is +Z here. Each of its materials is a
    slot, which SimplePaint paints.
 2. **Color** each slot, in Blender or here. A material's custom property `SimplePaint`, in
-   [Library/PaintSettings](../../Library/PaintSettings/README.md)' format, is its paint as Blender
+   [Library/paint-settings](../../Library/paint-settings/README.md)' format, is its paint as Blender
    says, or else its base color is. The Scene tab paints over that for the model, everywhere it's
    used, and the Vehicles tab for one vehicle.
 3. **Build the track** in the Track tab, from closed curves: the road's outer edge, and the
@@ -132,7 +132,7 @@ degrees from +Z toward +X, and colors are sRGB, like `"#1CDA61"`.
 |                        | vehicles, background and cameras                                         |
 | `Settings.json`        | The settings, which the game writes if it's missing                      |
 
-[Library/Meshes](../../Library/Meshes/README.md) makes its car, which SpinningCarTest draws, from
+[Library/meshes](../../Library/meshes/README.md) makes its car, which SpinningCarTest draws, from
 `Models/SlopeCar.glb` as it builds, by its materials' names.
 
 ### Vehicles
@@ -180,7 +180,7 @@ line goes across the road from edge to edge, 4.25 units ahead of the car's start
 ## Settings
 
 `Settings.json` has the settings that every program has (see
-[Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line)), then
+[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)), then
 the game's own. The game writes it with the defaults if it's missing. A setting that's wrong keeps
 its default, and one that names a scene or a vehicle that isn't there starts the game in the first,
 and a notice under the app bar says so.
@@ -215,7 +215,7 @@ Program\RunInBackground\RunInBackground.ps1 Veehiicuul --all-scripts
 The tests in `Test/Veehiicuul` check, without a window: driving; what touches; curves, tracks'
 shapes and what's wrong with them, cutting the road's islands out, and the ground's meshes;
 hexels, brushes and fills; the models from Blender, the vehicles, the settings, and that the
-files write back as they were; Play through its frames, with Library/UserInterface's `Headless`,
+files write back as they were; Play through its frames, with Library/user-interface's `Headless`,
 and its card, which fits the page, under notices about the settings; the editors through their
 frames, with presses and drags in their real layout: the tabs, that every editor's controls fit
 in its cards, that only text fields keep keyboard focus, color fields, painting hexels, panning
@@ -224,7 +224,7 @@ footprint's side, renaming a vehicle, picking and moving a decoration, undo, and
 with the GPU, offscreen, that the 3D view draws the scene under the interface.
 
 The scripts in `Test/Veehiicuul/Scripts` run the real game on a fixed clock, as
-[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Gamepad`
+[Library/user-interface](../../Library/user-interface/README.md#testing) describes. Their `Gamepad`
 steps put the gamepad's sticks, triggers and buttons where they need them, `Hold` steps hold
 keys down, and `Scroll` steps turn the wheel. They press the tabs and the editors' controls by
 name, like `"Mode/Terrain"`, and the middle of a view, like `"Terrain/View"`, and a point on the
@@ -244,7 +244,7 @@ and how editing feels with a real mouse.
 
 | Path                    | Contents                                                               |
 | ----------------------- | ---------------------------------------------------------------------- |
-| `src/main.rs`           | Runs the game with Library/UserInterface's main loop                   |
+| `src/main.rs`           | Runs the game with Library/user-interface's main loop                  |
 | `src/lib.rs`            | The game's parts, as a library that `Test/Veehiicuul` tests            |
 | `src/program.rs`        | The game as a `Program`: the bars, undo, saving, and Play's card       |
 | `src/game.rs`           | The document, the models, the car, the camera, and Play                |

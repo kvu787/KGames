@@ -14,7 +14,7 @@ Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 
 The program opens with `--display`, `--no-activate`, `--no-input` and `--vsync`, which every
-program built on [Library/UserInterface](../../Library/UserInterface/README.md) takes, so it opens
+program built on [Library/user-interface](../../Library/user-interface/README.md) takes, so it opens
 beneath the other windows on that display, without taking focus, and typing in the window that has
 focus stays there. It doesn't start GameInput, or the helper process that GameInput starts to read
 keyboards and mice. Its frames wait for vertical sync, at most one a refresh, and it waits between
@@ -84,7 +84,7 @@ the program writes to standard output and standard error, like why it couldn't s
 
 A script run passes the program `--script` and `--output`, and the program takes its input
 from the script instead of you, on a fixed clock, as
-[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. It opens on the
+[Library/user-interface](../../Library/user-interface/README.md#testing) describes. It opens on the
 display without taking focus, like any run, and exits after the script's last step. The run
 fails if the program exits with an error, which includes expectations in the script that
 weren't met, if it runs past `--timeout`, or if its window ever becomes the foreground window.

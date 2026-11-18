@@ -2,11 +2,11 @@
 // ground that they pan and zoom, where points on the ground are on the screen
 // for what they draw over the view, and the controls that change the
 // document: sliders of its numbers, fields of its colors, and the controls
-// that paint a model's slots with SimplePaint. They're Library/UserInterface's
+// that paint a model's slots with SimplePaint. They're Library/user-interface's
 // widgets, laid out with its Form, with colors from the theme's roles and
 // sizes from its tokens.
 //
-// Programs only support one window setup (see Library/UserInterface's
+// Programs only support one window setup (see Library/user-interface's
 // README), so the editors' cards have fixed places in pixels: the app bar at
 // the top, with the tabs, a card at the top of the page's left side, as tall
 // as what's in it, and in the vehicle editor, another at the top of its right

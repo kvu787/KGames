@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
-paint-settings = { path = "../../Library/PaintSettings" }
-simple-paint = { path = "../../Library/SimplePaint" }
+json = { path = "../../Library/json" }
+paint-settings = { path = "../../Library/paint-settings" }
+simple-paint = { path = "../../Library/simple-paint" }
 
 [lints]
 workspace = true

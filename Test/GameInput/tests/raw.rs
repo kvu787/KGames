@@ -1,5 +1,5 @@
-// Library/GameInputRaw holds only GameInput's bindings, in the shape of
-// windows-bindgen's output, and Library/GameInput what KGames adds to them:
+// Library/game-input-raw holds only GameInput's bindings, in the shape of
+// windows-bindgen's output, and Library/game-input what KGames adds to them:
 // every item in the raw package is of a kind that windows-bindgen writes,
 // every method calls its own vtable slot, and no bindings are in the other
 // package.
@@ -35,7 +35,7 @@ const BINDINGS: [&str; 4] = ["extern \"", "link!", "define_interface!", "#[repr(
 
 #[test]
 fn the_raw_package_is_only_the_bindings() {
-    let raw = library("GameInputRaw");
+    let raw = library("game-input-raw");
     assert_eq!(names(&raw.join("src")), ["lib.rs"]);
     // The bindings need only windows-core. The build script links
     // GameInput.lib, and has no dependencies.
@@ -100,11 +100,11 @@ fn the_raw_package_is_only_the_bindings() {
 
 #[test]
 fn what_goes_beyond_the_bindings_has_no_bindings() {
-    let package = library("GameInput");
+    let package = library("game-input");
     for file in rust_files(&package) {
         let text = read(&file);
         for binding in BINDINGS {
-            assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/GameInputRaw", file.display());
+            assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/game-input-raw", file.display());
         }
     }
 }

@@ -9,7 +9,7 @@ pub mod spinning_car;
 
 use user_interface::Options;
 
-// How Library/UserInterface runs the test.
+// How Library/user-interface runs the test.
 pub fn options() -> Options {
     Options::new("SpinningCarTest", env!("CARGO_MANIFEST_DIR"))
 }

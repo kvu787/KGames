@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
+json = { path = "../../Library/json" }
 platformer = { path = "../../Program/Platformer" }
-user-interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

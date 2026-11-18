@@ -1,5 +1,5 @@
 // Describes the modeler's interface from its state, with
-// Library/UserInterface's widgets: the app bar with its menu bar, the status
+// Library/user-interface's widgets: the app bar with its menu bar, the status
 // bar, and the cards, which have fixed places in pixels for the client area
 // that programs support, 2560 x 1440 in borderless fullscreen. The view and
 // the cards at the bottom of the side columns get what's left of its height.

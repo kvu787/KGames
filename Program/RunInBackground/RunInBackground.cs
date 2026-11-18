@@ -164,7 +164,7 @@ static void Run(string[] arguments) {
     }
 
     // A program with a .csproj, like WinUi3Sample, is a WinUI 3 app, which dotnet builds, and
-    // which isn't built on Library/UserInterface: it has no scripts, GameInput or vertical sync
+    // which isn't built on Library/user-interface: it has no scripts, GameInput or vertical sync
     // to turn off, and its window is WinUI's.
     var project = Path.Combine(repository, "Program", program, $"{program}.csproj");
     var winUi = File.Exists(project);
@@ -922,7 +922,7 @@ static partial class ProgramWindow {
     const uint WM_CLOSE = 0x0010;
     const uint DWMWA_CLOAKED = 14;
 
-    // The class of the windows that Library/UserInterface opens.
+    // The class of the windows that Library/user-interface opens.
     public const string LibraryClass = "MainWindow";
     // The class of a WinUI 3 app's windows.
     public const string WinUiClass = "WinUIDesktopWin32WindowClass";

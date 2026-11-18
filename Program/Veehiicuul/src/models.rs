@@ -1,8 +1,8 @@
 // The models that vehicles and decorations are made of: the .glb files in
-// Models, which Blender exports, with Library/Gltf. A model's materials are
+// Models, which Blender exports, with Library/gltf. A model's materials are
 // its slots, each painted with a SimplePaint material. What Blender says a
 // slot looks like is its first paint: the SimplePaint material in its
-// custom property "SimplePaint", in Library/PaintSettings' format, if it has
+// custom property "SimplePaint", in Library/paint-settings' format, if it has
 // one, or else one with its base color. The game can paint over that, for
 // the model, in Models/<Name>.json, and for a vehicle, in Vehicles.json.
 //

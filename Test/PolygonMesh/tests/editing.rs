@@ -1,4 +1,4 @@
-// Library/PolygonMesh's editing operations, on small meshes whose results are
+// Library/polygon-mesh's editing operations, on small meshes whose results are
 // known exactly: what each makes, what it selects, and that it keeps the mesh
 // valid, consistently wound, and closed where it was.
 

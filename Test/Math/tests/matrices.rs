@@ -1,4 +1,4 @@
-// Checks Library/Math against values that DirectXMath agrees on.
+// Checks Library/math against values that DirectXMath agrees on.
 
 use math::{Matrix, Vector3, cross, dot, length, normalize};
 

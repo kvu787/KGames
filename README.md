@@ -44,7 +44,7 @@ This decision was primarily motivated by my experience working with those depend
   - Each program's Settings.json says which of those it starts in
   - Optimize for minimal input latency
 
-GUI programs are built with [Library/UserInterface](Library/UserInterface/README.md), a user
+GUI programs are built with [Library/user-interface](Library/user-interface/README.md), a user
 interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system,
 with WinUI 3's own colors and sizes but none of its animations: its main loop runs them, its widgets are their
 controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
@@ -65,7 +65,7 @@ winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4
 
 KGames doesn't build without it, and programs don't start without it. Building also needs the .NET
 SDK, 10 or later, whose `dotnet` restores GameInput's NuGet package. Visual Studio installs it with
-its .NET desktop development workload. [Library/GameInput](Library/GameInput/README.md) says how
+its .NET desktop development workload. [Library/game-input](Library/game-input/README.md) says how
 programs start it.
 
 ## Program
@@ -87,23 +87,23 @@ programs start it.
 
 ## Library
 
-| Library                                            | What it is                                                                                                  |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| [UserInterface](Library/UserInterface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
-| [Graphics](Library/Graphics/README.md)             | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
-| [SimplePaint](Library/SimplePaint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
-| [GameInputRaw](Library/GameInputRaw/README.md)     | GameInput 4.0.306's bindings, and `GameInput.lib` from its NuGet package, and nothing else                  |
-| [GameInput](Library/GameInput/README.md)           | Starts GameInput, once it has checked that GameInput 4.0.306's runtime is installed                         |
-| [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
-| [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
-| [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
-| [PolygonMesh](Library/PolygonMesh/README.md)       | Polygon meshes: their edits, selections, Catmull-Clark subdivision, and files                               |
-| [PaintSettings](Library/PaintSettings/README.md)   | SimplePaint materials in JSON settings files                                                                |
-| [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
-| [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
-| [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
-| [WindowsApiRaw](Library/WindowsApiRaw/README.md)   | The generated Windows API bindings that every crate shares, and nothing else                                |
-| [WindowsApi](Library/WindowsApi/README.md)         | What KGames adds to the Windows API bindings, like `check_handle`                                           |
+| Library                                             | What it is                                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [UserInterface](Library/user-interface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
+| [Graphics](Library/graphics/README.md)              | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
+| [SimplePaint](Library/simple-paint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
+| [GameInputRaw](Library/game-input-raw/README.md)    | GameInput 4.0.306's bindings, and `GameInput.lib` from its NuGet package, and nothing else                  |
+| [GameInput](Library/game-input/README.md)           | Starts GameInput, once it has checked that GameInput 4.0.306's runtime is installed                         |
+| [Displays](Library/displays/README.md)              | Finds the displays, and gives each a lasting identifier                                                     |
+| [Math](Library/math/README.md)                      | Vectors and matrices, in DirectXMath's conventions                                                          |
+| [Meshes](Library/meshes/README.md)                  | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
+| [PolygonMesh](Library/polygon-mesh/README.md)       | Polygon meshes: their edits, selections, Catmull-Clark subdivision, and files                               |
+| [PaintSettings](Library/paint-settings/README.md)   | SimplePaint materials in JSON settings files                                                                |
+| [Gltf](Library/gltf/README.md)                      | Reads models from the .glb files that Blender exports                                                       |
+| [Json](Library/json/README.md)                      | A JSON parser                                                                                               |
+| [ShaderCompiler](Library/shader-compiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
+| [WindowsApiRaw](Library/windows-api-raw/README.md)  | The generated Windows API bindings that every crate shares, and nothing else                                |
+| [WindowsApi](Library/windows-api/README.md)         | What KGames adds to the Windows API bindings, like `check_handle`                                           |
 
 ## Documentation
 

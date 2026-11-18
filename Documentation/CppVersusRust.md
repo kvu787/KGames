@@ -593,10 +593,10 @@ Two things aren't in those rows, one on each side:
 
 - `Library/Base` and `Library/Testing`, 1,550 lines, and Base's tests, 624: what Rust's standard
   library and `cargo test` have and C++'s lacks. See [What C++ needed](#what-c-needed).
-- `Library/WindowsApiRaw`, the Rust's bindings for Windows: 9,377 generated lines, and the generator's
+- `Library/windows-api-raw`, the Rust's bindings for Windows: 9,377 generated lines, and the generator's
   configuration. The C++ includes the Windows SDK's headers.
 
-And one row has the same thing in it: the Rust's `Library/GameInput` was 761 lines, mostly
+And one row has the same thing in it: the Rust's `Library/game-input` was 761 lines, mostly
 Microsoft's `GameInput.h` written again as Rust by hand. The C++ is 276, since it includes the
 header.
 
@@ -676,7 +676,7 @@ The C++ has 48 `std::variant`s, 42 `enum class`es for the enums without data, 65
 **Declarations, twice.** A quarter of the C++ is in headers. A function is declared in its header
 and defined in its `.cpp`, a class lists its members' functions before it defines them, and what
 a file uses is named in `#include`s, 4,245 of them, where the Rust had 1,217 `use`s. In
-`Library/UserInterface` more than half is in headers, since a widget is a template over the
+`Library/user-interface` more than half is in headers, since a widget is a template over the
 program's message type, and a template is defined where it's declared.
 
 **Errors that go up.** Rust's `?` returns an error to the caller in one character, 615 times. C++
@@ -955,8 +955,8 @@ explained the C++'s numbers explained the Rust's too:
 
 - **SipHash.** The interface's own tables, of glyphs, layouts and widgets' memory, hashed their
   keys with `HashMap`'s default, which was a seventh of a frame's time. They hash with a multiply
-  and a fold now, in `Library/UserInterface/src/drawing/hashing.rs`.
-- **Calls across packages.** The vector and matrix functions of `Library/Math`, and the ray's
+  and a fold now, in `Library/user-interface/src/drawing/hashing.rs`.
+- **Calls across packages.** The vector and matrix functions of `Library/math`, and the ray's
   test of a triangle, are `#[inline]`, which is what link-time optimization had done for them.
 - **JSON** reads and writes a run of plain characters at once, as the C++ came to.
 

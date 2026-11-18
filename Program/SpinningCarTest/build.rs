@@ -1,4 +1,4 @@
-// Compiles the shaders to DXIL at build time, from where Library/SimplePaint
+// Compiles the shaders to DXIL at build time, from where Library/simple-paint
 // says they are: SimplePaint's, for the car's five materials and the
 // sphere's, and the unlit one, for the ground's color and the cube's.
 

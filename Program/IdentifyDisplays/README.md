@@ -58,7 +58,7 @@ part of the desktop, at the same place, and any of their identifiers opens a pro
 Without a monitor device path, like over Remote Desktop, the identifier comes from the GDI device
 name, like `\\.\DISPLAY1`, which can change between restarts.
 
-[Library/Displays](../../Library/Displays/README.md) finds the displays and makes their identifiers,
+[Library/displays](../../Library/displays/README.md) finds the displays and makes their identifiers,
 for this program and for the others.
 
 ## Testing
@@ -68,7 +68,7 @@ cargo test -p identify-displays-tests
 ```
 
 The tests in `Test/IdentifyDisplays` check what it prints, for made-up displays and for the real
-ones, and that Library/Displays finds the displays as they are whatever DPI awareness the thread
+ones, and that Library/displays finds the displays as they are whatever DPI awareness the thread
 that asks has.
 
 ## Layout

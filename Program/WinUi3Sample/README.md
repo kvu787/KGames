@@ -2,13 +2,13 @@
 
 A sample of a real WinUI 3 app, to show what one looks like and how one is made, beside the KGames
 programs, which look like WinUI 3 but are built on
-[Library/UserInterface](../../Library/UserInterface/README.md). It's a small notes app, in C# and
+[Library/user-interface](../../Library/user-interface/README.md). It's a small notes app, in C# and
 XAML, on the Windows App SDK 2.6.5 and .NET 10, with the parts that most WinUI 3 apps have: Mica,
 a title bar of its own, a menu bar, a navigation pane, pages, dialogs, and a status bar.
 
 It isn't a KGames GUI program, so it doesn't follow their rules:
 
-- It's built with WinUI 3, not Library/UserInterface, so it has no PerfBar, and reads input through
+- It's built with WinUI 3, not Library/user-interface, so it has no PerfBar, and reads input through
   XAML, not GameInput. Like any app, it takes input only while it has focus.
 - WinUI 3 draws through its own compositor, which the desktop compositor composes, so there's no
   vertical sync for `F10` to switch.
@@ -102,7 +102,7 @@ Program\RunInBackground\RunInBackground.ps1 WinUi3Sample --arguments "--page Not
 ```
 
 It has no tests or scripts: RunInBackground's scripts drive programs that are built on
-Library/UserInterface.
+Library/user-interface.
 
 ## Layout
 
@@ -116,7 +116,7 @@ Library/UserInterface.
 | `Source/Note.cs`             | A note                                                                |
 | `Source/SettingsCard.cs`     | A settings page's card, a templated control                           |
 | `Source/StartupOptions.cs`   | The command line                                                      |
-| `Source/Displays.cs`         | Finds a display by Library/Displays' identifier, like `CVVNY2`        |
+| `Source/Displays.cs`         | Finds a display by Library/displays' identifier, like `CVVNY2`        |
 | `Source/NativeWindow.cs`     | Shows the window without activating it, which WinUI has no API for    |
 | `Assets`                     | The app's icon                                                        |
 | `WinUi3Sample.csproj`        | The project, with the Windows App SDK's package                       |

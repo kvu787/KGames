@@ -17,7 +17,7 @@ harness = false
 
 [dependencies]
 benchmarks = { path = "../../Program/Benchmarks" }
-json = { path = "../../Library/Json" }
+json = { path = "../../Library/json" }
 
 [lints]
 workspace = true

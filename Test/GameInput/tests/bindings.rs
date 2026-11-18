@@ -1,7 +1,7 @@
-// Library/GameInputRaw: that its bindings are laid out as the header lays out
+// Library/game-input-raw: that its bindings are laid out as the header lays out
 // GameInput's structs and vtables, and that they read what GameInput's devices
 // say about themselves, through the shapes that windows-bindgen's rules give
-// them, as Library/UserInterface's devices read it. KGames doesn't build
+// them, as Library/user-interface's devices read it. KGames doesn't build
 // without GameInput 4.0.306, so these run where it's installed.
 
 use core::ffi::c_void;

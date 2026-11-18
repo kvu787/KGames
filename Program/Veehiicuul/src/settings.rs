@@ -1,5 +1,5 @@
 // The game's own settings, after the ones every program has (see
-// Library/UserInterface's README), in Settings.json next to Cargo.toml: the
+// Library/user-interface's README), in Settings.json next to Cargo.toml: the
 // scene and the vehicle to start with, the camera, and the push's dead
 // zones. Each one that's wrong keeps its default, and a notice under the app
 // bar says what's wrong with it.

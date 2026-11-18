@@ -1,10 +1,10 @@
 # SimplePaintDemo
 
-Edits a [SimplePaint](../../Library/SimplePaint/README.md) material, and shows it live on a UV
+Edits a [SimplePaint](../../Library/simple-paint/README.md) material, and shows it live on a UV
 sphere. Like every KGames GUI program, it's built on
-[Library/UserInterface](../../Library/UserInterface/README.md), after Fluent 2, in its light
+[Library/user-interface](../../Library/user-interface/README.md), after Fluent 2, in its light
 theme, ignores input without focus, and supports the one
-[window setup](../../Library/UserInterface/README.md#window-setup).
+[window setup](../../Library/user-interface/README.md#window-setup).
 
 ## What it shows
 
@@ -38,7 +38,7 @@ add up over the same slider. A held key doesn't repeat: holding an arrow key mov
 
 When it starts, the demo loads `Paint.json`, if it's there, and a notice under the app bar says
 what's wrong with it if it can't. It's in the format of
-[Library/PaintSettings](../../Library/PaintSettings/README.md), so a material can be copied
+[Library/paint-settings](../../Library/paint-settings/README.md), so a material can be copied
 from it into another program's settings, like MinimalSceneTest's. The demo only writes it when
 you save.
 
@@ -68,7 +68,7 @@ They also check that the cards and their text fit the window, and draw frames of
 GPU, where the sphere must fill the preview's view.
 
 The scripts in `Test/SimplePaintDemo/Scripts` run the same kinds of input through the real
-window and GPU, as [Library/UserInterface](../../Library/UserInterface/README.md#testing)
+window and GPU, as [Library/user-interface](../../Library/user-interface/README.md#testing)
 describes. A scripted run starts from SimplePaint's default
 material, and saves `Paint.json` in its output folder, not in the demo's. The state that scripts
 save and check has the material's `Parameters`, the `Selected` setting, the one whose slider is
@@ -81,7 +81,7 @@ middle sets half its rail, like 180 degrees for Rotation.
 
 ## How it draws
 
-Each frame, Library/UserInterface's main loop reads the window's input once the GPU can take
+Each frame, Library/user-interface's main loop reads the window's input once the GPU can take
 another frame, the demo does what it says and builds its cards, and the frame is drawn: the
 demo's `render` copies the sphere into the preview card's view, and then the interface draws
 over the rest in one draw call. The arrow keys move the selected slider, as no widget but a text
@@ -103,7 +103,7 @@ looks round and its normals interpolate smoothly.
 
 | Path             | Contents                                                                     |
 | ---------------- | ---------------------------------------------------------------------------- |
-| `src/main.rs`    | Runs the demo with Library/UserInterface's main loop                         |
+| `src/main.rs`    | Runs the demo with Library/user-interface's main loop                        |
 | `src/lib.rs`     | The demo's parts, as a library that `Test/SimplePaintDemo` tests             |
 | `src/demo.rs`    | The demo as a program: the editor, its cards, and the sphere's preview       |
 | `src/editor.rs`  | The material, its settings, what the keys and the wheel do, and `Paint.json` |

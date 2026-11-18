@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 frame-times = { path = "../../Program/FrameTimes" }
-present-timing = { path = "../../Library/PresentTiming" }
+present-timing = { path = "../../Library/present-timing" }
 
 [lints]
 workspace = true

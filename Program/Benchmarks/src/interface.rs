@@ -1,4 +1,4 @@
-// The programs' frames, as Library/UserInterface runs them: what a frame's
+// The programs' frames, as Library/user-interface runs them: what a frame's
 // update costs the CPU, without a window, through Headless, steady and with
 // the pointer moving; what recording the frame's drawing costs the CPU; and
 // what drawing it costs the GPU, timed with timestamp queries, into a target

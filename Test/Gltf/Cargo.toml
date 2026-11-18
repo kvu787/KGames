@@ -6,8 +6,8 @@ license.workspace = true
 publish = false
 
 [dependencies]
-gltf = { path = "../../Library/Gltf" }
-json = { path = "../../Library/Json" }
+gltf = { path = "../../Library/gltf" }
+json = { path = "../../Library/json" }
 
 [lints]
 workspace = true

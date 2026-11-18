@@ -17,11 +17,11 @@ name = "game-input-demo"
 test = false
 
 [dependencies]
-game-input = { path = "../../Library/GameInput" }
-game-input-raw = { path = "../../Library/GameInputRaw" }
-json = { path = "../../Library/Json" }
-user-interface = { path = "../../Library/UserInterface" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+game-input = { path = "../../Library/game-input" }
+game-input-raw = { path = "../../Library/game-input-raw" }
+json = { path = "../../Library/json" }
+user-interface = { path = "../../Library/user-interface" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [dependencies.windows-core]
 workspace = true

@@ -30,11 +30,11 @@ winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4
 ```
 
 That's the user's to do. Nothing in the repo may install GameInput. KGames doesn't build without
-it, and programs don't start without it, which `Library/GameInput` checks. If a build or a program
+it, and programs don't start without it, which `Library/game-input` checks. If a build or a program
 says that it isn't installed, stop and tell the user.
 
 The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
-`Library/GameInputRaw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links its
+`Library/game-input-raw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links its
 `GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
 tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
 loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
@@ -78,7 +78,7 @@ kind that holds, because a later session never read the conversation that invent
 - A comment is a promise: a comment or README that says the code does something the code doesn't
   do is a bug, and models believe documentation more than people do. Keep them true in the same
   change that would make them false.
-- A rewrite of a library core, like `Library/UserInterface/src/core`, is a rare, deliberate
+- A rewrite of a library core, like `Library/user-interface/src/core`, is a rare, deliberate
   event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
   with an adversarial review of the new code and the findings pinned by tests, as
   `Documentation/LogicReview.md` records for the last one.
@@ -117,39 +117,39 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - `Program` holds what's runnable, `Library` what isn't and is shared, and `Test` every test.
 - Put code that more than one program can use in `Library`, not in a program.
 - Every Rust package is a member of the Cargo workspace in the root `Cargo.toml`.
-- Add Windows APIs to `Library/WindowsApiRaw`, as its README says, instead of generating bindings
+- Add Windows APIs to `Library/windows-api-raw`, as its README says, instead of generating bindings
   in another crate. Every crate must share its types. It holds only what `windows-bindgen`
   generates: code that goes beyond the bindings, and that more than one crate uses, goes in
-  `Library/WindowsApi`. `Test/WindowsApi` checks both.
+  `Library/windows-api`. `Test/WindowsApi` checks both.
 - GameInput isn't in the metadata that `windows-bindgen` reads, so add its APIs to
-  `Library/GameInputRaw` by hand, in the shape of `windows-bindgen`'s output, as its README says.
+  `Library/game-input-raw` by hand, in the shape of `windows-bindgen`'s output, as its README says.
   It holds only the bindings: what goes beyond them, like starting GameInput, goes in
-  `Library/GameInput`. `Test/GameInput` checks both.
+  `Library/game-input`. `Test/GameInput` checks both.
 
 # GUI programs
 
-- Read all input with GameInput, through `Library/UserInterface`, which reads keyboards, mice and gamepads with it, and not from window messages.
-- Ignore all input while the window isn't focused, gamepads too. `Library/UserInterface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
+- Read all input with GameInput, through `Library/user-interface`, which reads keyboards, mice and gamepads with it, and not from window messages.
+- Ignore all input while the window isn't focused, gamepads too. `Library/user-interface` does this for the events it makes from GameInput's readings, and programs that read those readings themselves, like GameInputDemo, drop them themselves.
 - Use Win32, Rust, Direct3D 12 and DirectWrite, through the crates in `Library`.
-- Build every GUI program on `Library/UserInterface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: a frame's input comes in steps, in the order it happened, one for each event that does something, like a press or a key; each step's input, on the tree that the step before laid out, which for the first step is the tree the user saw, becomes messages, `update` applies them, and a read-only `view` describes the widgets from the state, so each event sees what the events before it did, and a frame's output always comes from that frame's input, never a frame late. Every step sees the frame's time, and the frame's delta comes in its last step. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/UserInterface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
+- Build every GUI program on `Library/user-interface`, the UI library: make the program a `Program`, run it with `user_interface::run`, which is the main loop, and make its controls with the library's widgets. A program is its state and messages: a frame's input comes in steps, in the order it happened, one for each event that does something, like a press or a key; each step's input, on the tree that the step before laid out, which for the first step is the tree the user saw, becomes messages, `update` applies them, and a read-only `view` describes the widgets from the state, so each event sees what the events before it did, and a frame's output always comes from that frame's input, never a frame late. Every step sees the frame's time, and the frame's delta comes in its last step. When a program needs a widget or a kind of input that the library doesn't have, add it to `Library/user-interface`, test it in `Test/UserInterface`, and show it in `Program/UiShowcase`, instead of making it in the program.
 - `Program/WinUi3Sample` is the exception to these rules for GUI programs: a real WinUI 3 app, in C# and XAML, to compare the library with. Its own `AGENTS.md` says what applies to it.
-- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/UserInterface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/UserInterface/src/design/controls.rs`.
-- Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/UserInterface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
-- Draw every 3D model, like a car, a cube, terrain or a track, with one of two shaders, both in `Library/SimplePaint/Shaders`: SimplePaint, or, for a model that isn't painted with it, `Unlit.hlsl`. Unlit means a pixel shader that's equivalent to outputting a single value for color: each triangle is its material's color, which no light, normal, position or view changes. SimplePaint has no lights either, but its color follows the normal, so it isn't unlit. Don't light a model, or add another shader for models. What isn't a model, like the interface or MeshModeler's overlay of edges and dots, has shaders of its own. `Test/SimplePaint/tests/model_shaders.rs` lists every shader in the repository, with what it draws, and `Test/SimplePaint/tests/unlit.rs` checks that every pixel `Unlit.hlsl` draws is its material's one color.
+- Follow the library's design system, Microsoft's Fluent 2: color with the theme's roles, from `Ui::theme`, like `text_secondary` or `accent`, instead of colors of your own, and size and space with the tokens in `Library/user-interface/src/design/tokens.rs`, like its spacing, radii and type ramp, and WinUI 3's controls' metrics in `Library/user-interface/src/design/controls.rs`.
+- Don't animate what isn't integral to what the GUI does. A change of state, like a hover, a press, a selection, a switch that's flipped, or a menu, submenu or dialog that opens, shows whole on the frame that makes it, without a fade, a slide or an ease. Animate only what has to move to do its job, like an indeterminate progress ring, whose motion says that the program is working and isn't frozen. `Library/user-interface` follows this, as its README's design system says, and `Test/UserInterface/tests/rendering.rs` checks it.
+- Draw every 3D model, like a car, a cube, terrain or a track, with one of two shaders, both in `Library/simple-paint/Shaders`: SimplePaint, or, for a model that isn't painted with it, `Unlit.hlsl`. Unlit means a pixel shader that's equivalent to outputting a single value for color: each triangle is its material's color, which no light, normal, position or view changes. SimplePaint has no lights either, but its color follows the normal, so it isn't unlit. Don't light a model, or add another shader for models. What isn't a model, like the interface or MeshModeler's overlay of edges and dots, has shaders of its own. `Test/SimplePaint/tests/model_shaders.rs` lists every shader in the repository, with what it draws, and `Test/SimplePaint/tests/unlit.rs` checks that every pixel `Unlit.hlsl` draws is its material's one color.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `F12` quits the program at once, without asking, and so does the taskbar's Close. `F12` is `Library/UserInterface`'s, and never reaches a program. `Alt+F4` is only two keys. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
-- Optimize for minimal input latency. Draw through `Library/Graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/UserInterface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the PerfBar along the top of every window shows.
+- `F12` quits the program at once, without asking, and so does the taskbar's Close. `F12` is `Library/user-interface`'s, and never reaches a program. `Alt+F4` is only two keys. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
+- Optimize for minimal input latency. Draw through `Library/graphics`' presenter, and read input right before drawing, once `Presenter::poll_ready` is true. `Library/user-interface`'s main loop does both, and measures the input latency from GameInput's readings to the screen, which the PerfBar along the top of every window shows.
 
 ## Supported window setup
 
 Programs only support the user's own setup, to keep development simple. They support exactly one window setup: **borderless fullscreen** on a 2560 × 1440 monitor at 100% scaling (96 DPI), where logical and physical pixels are the same, with a client area of 2560 × 1440 that covers the whole monitor.
 
-In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/UserInterface` does the check.
+In any other setup, the window shows an error that says what's wrong, instead of the program's cards. `Library/user-interface` does the check.
 
 So:
 
-- The top 17 pixels of the client area are `Library/UserInterface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of the client area, from `ui.content_top()`: 2560 × 1423.
+- The top 17 pixels of the client area are `Library/user-interface`'s PerfBar, in every program. Lay out cards in fixed pixels for what's left of the client area, from `ui.content_top()`: 2560 × 1423.
 - Don't add DPI scaling, other window sizes, a windowed mode, minimum sizes, or layouts that adapt to the window's size. Don't keep programs working in other setups beyond showing the error. A 3D view may fill the window.
 
 ## Non-disruptive workflow
@@ -185,7 +185,7 @@ Assume that Windows' "Turn my screen off after", "Make my device sleep after" an
 Test what programs do with input in two layers, which never touch the user's input or focus:
 
 1. **Tests**, in `Test/<program>`. Each GUI program is a library (`src/lib.rs`) and a small `src/main.rs`, so tests drive its parts without a window: what input does, where clicks land in the cards' real layout, which the library lays out without a GPU, and its motion and settings. `user_interface::Headless` runs a program's frames that way, with input that the test makes up, and can draw them offscreen. Put a program's logic in its library, and test it there. Run them with `Program\RunLightly\RunLightly.ps1 cargo test --workspace`.
-2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. [Library/UserInterface's README](Library/UserInterface/README.md#testing) describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
+2. **Scripts**, in `Test/<program>/Scripts`. `Program\RunInBackground\RunInBackground.ps1 <program> --script <path>` runs the real program with a script's input instead of the user's, on a fixed clock, and `--all-scripts` runs every script in that folder. Steps move, click, drag, scroll, press and hold keys in the window, move the gamepad, save frames and the program's state, and check the state. [Library/user-interface's README](Library/user-interface/README.md#testing) describes the format. A run fails if an expectation isn't met, or if the window takes focus. Read the saved PNGs to see the frames.
 
 To write a script, run one that captures, and read the state it saves: `Interface.Targets` has every widget's name and area, like SimplePaintDemo's sliders. Point at widgets by name, like `{ "Frame": 1, "Press": "Volume" }`, instead of by pixels, so that scripts keep working when a layout changes. GameInputDemo's scripts also connect and press gamepads, keyboards and mice, which its README describes.
 

@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
+json = { path = "../../Library/json" }
 
 [lints]
 workspace = true

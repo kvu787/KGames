@@ -1,4 +1,4 @@
-// Library/Json: parsing, where mistakes are, and writing that parses back.
+// Library/json: parsing, where mistakes are, and writing that parses back.
 
 use json::{Value, object, parse};
 

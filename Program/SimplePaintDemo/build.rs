@@ -1,5 +1,5 @@
 // Compiles SimplePaint's shaders, for the demo's one material, to DXIL at
-// build time. Library/SimplePaint says where they are.
+// build time. Library/simple-paint says where they are.
 
 use std::path::PathBuf;
 

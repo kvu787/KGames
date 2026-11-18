@@ -1,4 +1,4 @@
-// Library/PolygonMesh's primitives: each is valid, closed where it should be,
+// Library/polygon-mesh's primitives: each is valid, closed where it should be,
 // wound so that its faces point out, has the Euler characteristic of its
 // shape, and is quads where it can be.
 

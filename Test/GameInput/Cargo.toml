@@ -10,9 +10,9 @@ publish = false
 # the exe.
 
 [dependencies]
-game-input = { path = "../../Library/GameInput" }
-game-input-raw = { path = "../../Library/GameInputRaw" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+game-input = { path = "../../Library/game-input" }
+game-input-raw = { path = "../../Library/game-input-raw" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [dependencies.windows-core]
 workspace = true

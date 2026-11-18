@@ -4,23 +4,23 @@
 [workspace]
 resolver = "3"
 members = [
-    "Library/Displays",
-    "Library/GameInput",
-    "Library/GameInputRaw",
-    "Library/Gltf",
-    "Library/Graphics",
-    "Library/Json",
-    "Library/Math",
-    "Library/Meshes",
-    "Library/PaintSettings",
-    "Library/PolygonMesh",
-    "Library/PresentTiming",
-    "Library/ShaderCompiler",
-    "Library/SimplePaint",
-    "Library/UserInterface",
-    "Library/WindowsApi",
-    "Library/WindowsApiRaw",
-    "Library/WindowsApiRaw/BindingsGenerator",
+    "Library/displays",
+    "Library/game-input",
+    "Library/game-input-raw",
+    "Library/gltf",
+    "Library/graphics",
+    "Library/json",
+    "Library/math",
+    "Library/meshes",
+    "Library/paint-settings",
+    "Library/polygon-mesh",
+    "Library/present-timing",
+    "Library/shader-compiler",
+    "Library/simple-paint",
+    "Library/user-interface",
+    "Library/windows-api",
+    "Library/windows-api-raw",
+    "Library/windows-api-raw/bindings-generator",
     "Program/Benchmarks",
     "Program/FrameTimes",
     "Program/GameInputDemo",
@@ -67,7 +67,7 @@ license = "GPL-3.0-or-later"
 # Microsoft's crate under the Windows API bindings, without its proc macros
 # (for implementing COM interfaces in Rust), which nothing here needs.
 windows-core = { version = "0.100", default-features = false, features = ["std"] }
-# Writes Library/WindowsApiRaw/src/bindings.rs for this version of windows-core,
+# Writes Library/windows-api-raw/src/bindings.rs for this version of windows-core,
 # so upgrade the two together, and regenerate the bindings.
 windows-bindgen = "0.100"
 

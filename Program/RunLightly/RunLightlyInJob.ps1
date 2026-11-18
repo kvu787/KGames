@@ -25,7 +25,7 @@
 #   here sets a few times a second, as children don't inherit it, so that the
 #   efficiency cores run them at efficient clocks and the chip's power budget
 #   stays with the game's cores.
-# - KGAMES_GPU_PRIORITY=Idle in the environment, which Library/Graphics
+# - KGAMES_GPU_PRIORITY=Idle in the environment, which Library/graphics
 #   reads: every process that draws, like a test or a test run of a program,
 #   puts its GPU work after other processes', like the game's frames.
 #
@@ -460,7 +460,7 @@ $share = [Math]::Max(1, [Math]::Round([Lightly]::ProcessorCount * $percent / 100
 $jobs = [Math]::Min($cores, $share)
 $env:CARGO_BUILD_JOBS = [string]$jobs
 $env:RUST_TEST_THREADS = [string]$jobs
-# Library/Graphics puts the GPU work of every process that draws after other
+# Library/graphics puts the GPU work of every process that draws after other
 # processes'.
 $env:KGAMES_GPU_PRIORITY = 'Idle'
 

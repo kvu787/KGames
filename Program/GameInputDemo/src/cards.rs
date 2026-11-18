@@ -1,10 +1,10 @@
 // Describes the demo's cards in fixed pixels from what the demo read, with
-// Library/UserInterface's widgets and canvases: the app bar, the status bar,
+// Library/user-interface's widgets and canvases: the app bar, the status bar,
 // and between them three columns of cards. The first has the Gamepad card
 // over the Keyboard and Mouse cards, the second the Latest input event card
 // over the Devices card, and the third the Event log. The demo supports one
 // window setup, borderless fullscreen on a 2560 × 1440 display (see
-// Library/UserInterface's README), so the cards have fixed places in pixels.
+// Library/user-interface's README), so the cards have fixed places in pixels.
 // The bottom row of cards and the log get what's left of the height.
 //
 // The combo box and the Devices card's rows are the library's widgets, which

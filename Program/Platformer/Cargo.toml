@@ -16,8 +16,8 @@ name = "platformer"
 test = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
-user-interface = { path = "../../Library/UserInterface" }
+json = { path = "../../Library/json" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

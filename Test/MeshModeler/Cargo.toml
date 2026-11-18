@@ -6,11 +6,11 @@ license.workspace = true
 publish = false
 
 [dependencies]
-json = { path = "../../Library/Json" }
-math = { path = "../../Library/Math" }
+json = { path = "../../Library/json" }
+math = { path = "../../Library/math" }
 mesh-modeler = { path = "../../Program/MeshModeler" }
-polygon-mesh = { path = "../../Library/PolygonMesh" }
-user-interface = { path = "../../Library/UserInterface" }
+polygon-mesh = { path = "../../Library/polygon-mesh" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

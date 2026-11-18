@@ -1,4 +1,4 @@
-// Library/PolygonMesh's picking: ray casts against faces, from either side and
+// Library/polygon-mesh's picking: ray casts against faces, from either side and
 // through concave faces only where they are, the vertex and edge nearest a
 // ray, and the bounds and centers of meshes and selections.
 

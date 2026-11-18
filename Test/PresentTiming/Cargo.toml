@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-present-timing = { path = "../../Library/PresentTiming" }
+present-timing = { path = "../../Library/present-timing" }
 
 [lints]
 workspace = true

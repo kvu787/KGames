@@ -8,7 +8,7 @@ pub mod settings;
 
 use user_interface::Options;
 
-// How Library/UserInterface runs the test.
+// How Library/user-interface runs the test.
 pub fn options() -> Options {
     Options::new("MinimalSceneTest", env!("CARGO_MANIFEST_DIR"))
 }

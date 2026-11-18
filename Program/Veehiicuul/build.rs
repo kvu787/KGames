@@ -1,4 +1,4 @@
-// Compiles the shaders to DXIL at build time, from where Library/SimplePaint
+// Compiles the shaders to DXIL at build time, from where Library/simple-paint
 // says they are: SimplePaint's, for the 16 materials that a model has at
 // most, and the unlit one, for the ground's colors, as many as ground.rs'
 // COLOR_COUNT.

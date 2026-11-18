@@ -45,7 +45,7 @@ Jobs can't hold the rest, so RunLightly sets it itself:
 |                 | script. Microsoft's documentation says that Windows puts them in, as the job      |
 |                 | allows no breakaway, but here it leaves out what PowerShell or .NET starts        |
 | GPU priority    | `KGAMES_GPU_PRIORITY=Idle` in the environment, which                              |
-|                 | [Library/Graphics](../../Library/Graphics/README.md) reads: every process that    |
+|                 | [Library/graphics](../../Library/graphics/README.md) reads: every process that    |
 |                 | draws, like a test or a test run of a program, puts its GPU work after other      |
 |                 | processes', like the game's frames                                                |
 

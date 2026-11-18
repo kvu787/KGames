@@ -1,4 +1,4 @@
-// The game as a Program, which Library/UserInterface's main loop runs. Tabs
+// The game as a Program, which Library/user-interface's main loop runs. Tabs
 // in the app bar go between playing and the editors, which make the game's
 // scenes and vehicles:
 //

@@ -1,4 +1,4 @@
-// The displays that Library/Displays finds: in physical pixels, with each
+// The displays that Library/displays finds: in physical pixels, with each
 // one's own DPI, whatever DPI awareness the thread that asks has. Windows
 // tells a thread that isn't DPI aware that every display is at 96 DPI, and
 // scales its areas to match, so on a display that isn't at 100% scale, a

@@ -1,6 +1,6 @@
 // The editors through their frames, as the main loop runs them, with
 // presses and drags that the tests make up, in their cards' and views' real
-// layout, which Library/UserInterface's Headless lays out without a window
+// layout, which Library/user-interface's Headless lays out without a window
 // or a GPU: the tabs, what fits in the cards, which controls keep keyboard
 // focus, color fields, painting the terrain, panning and zooming the view,
 // building the track, the vehicles' footprints, arranging the scene, undo,

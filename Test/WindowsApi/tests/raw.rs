@@ -1,6 +1,6 @@
-// Library/WindowsApiRaw holds only what windows-bindgen generates, and
-// Library/WindowsApi what KGames adds to it: the committed bindings are
-// exactly what BindingsGenerator writes now, nothing else is in the raw
+// Library/windows-api-raw holds only what windows-bindgen generates, and
+// Library/windows-api what KGames adds to it: the committed bindings are
+// exactly what bindings-generator writes now, nothing else is in the raw
 // package, and no bindings are in the other one.
 
 use std::collections::BTreeSet;
@@ -16,17 +16,17 @@ fn the_bindings_are_what_windows_bindgen_generates() {
     bindings_generator::generate(&generated);
     let fresh = read(&generated);
     let _ = std::fs::remove_file(&generated);
-    let committed = read(&library("WindowsApiRaw").join("src/bindings.rs"));
+    let committed = read(&library("windows-api-raw").join("src/bindings.rs"));
     assert!(
         fresh == committed,
-        "Library/WindowsApiRaw/src/bindings.rs isn't what BindingsGenerator writes: regenerate it with \
+        "Library/windows-api-raw/src/bindings.rs isn't what bindings-generator writes: regenerate it with \
          `cargo run -p bindings-generator`, and don't edit it by hand"
     );
 }
 
 #[test]
 fn the_raw_package_is_only_the_bindings() {
-    let raw = library("WindowsApiRaw");
+    let raw = library("windows-api-raw");
     // Its source is the generated file, and the file that exports it.
     assert_eq!(names(&raw.join("src")), ["bindings.rs", "lib.rs"]);
     assert_eq!(code(&read(&raw.join("src/lib.rs"))), "mod bindings; pub use bindings::*;");
@@ -37,11 +37,11 @@ fn the_raw_package_is_only_the_bindings() {
 
 #[test]
 fn what_goes_beyond_the_bindings_has_no_bindings() {
-    let package = library("WindowsApi");
+    let package = library("windows-api");
     for file in rust_files(&package) {
         let text = read(&file);
         for binding in BINDINGS {
-            assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/WindowsApiRaw", file.display());
+            assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/windows-api-raw", file.display());
         }
     }
     assert!(!dependencies(&read(&package.join("Cargo.toml"))).contains(&"bindings-generator".to_string()));

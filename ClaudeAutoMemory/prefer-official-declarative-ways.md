@@ -8,7 +8,7 @@ metadata:
   modified: 2026-11-09T23:37:54.847Z
 ---
 
-On 2026-11-09 the user had KGames rewritten to load GameInput "the proper Microsoft way": declare Microsoft.GameInput in a NuGet manifest (`Library/GameInput/NuGetPackages.csproj` + `packages.lock.json`), restore it with dotnet, and call `GameInputInitialize` from the package's `GameInput.lib`, replacing KGames' own hardened loader (System32-only, HID from System32, held-open check). They chose this after hearing the tradeoffs (sideloaded copy wins a tie, imports searched beside the exe first).
+On 2026-11-09 the user had KGames rewritten to load GameInput "the proper Microsoft way": declare Microsoft.GameInput in a NuGet manifest (`Library/game-input-raw/NuGetPackages.csproj` + `packages.lock.json`), restore it with dotnet, and call `GameInputInitialize` from the package's `GameInput.lib`, replacing KGames' own hardened loader (System32-only, HID from System32, held-open check). They chose this after hearing the tradeoffs (sideloaded copy wins a tie, imports searched beside the exe first).
 
 **Why:** they value the declarative style most software uses ("saying what a project depends on") over imperative download scripts, and the vendor's documented path over custom machinery that later sessions must keep re-justifying.
 

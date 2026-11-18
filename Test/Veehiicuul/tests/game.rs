@@ -1,5 +1,5 @@
 // Play through its frames, as the main loop runs them, with input that the
-// tests make up, without a window, with Library/UserInterface's Headless:
+// tests make up, without a window, with Library/user-interface's Headless:
 // driving with the gamepad and the keys, braking, crashing, the vehicles,
 // the scenes, the camera, the card, and settings that name what isn't
 // there. And the 3D view, drawn offscreen with the GPU.

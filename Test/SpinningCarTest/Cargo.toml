@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-simple-paint = { path = "../../Library/SimplePaint" }
+simple-paint = { path = "../../Library/simple-paint" }
 spinning-car-test = { path = "../../Program/SpinningCarTest" }
-user-interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

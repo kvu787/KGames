@@ -1,9 +1,9 @@
 # UiShowcase
 
-Shows every widget of [Library/UserInterface](../../Library/UserInterface/README.md), the Fluent 2
+Shows every widget of [Library/user-interface](../../Library/user-interface/README.md), the Fluent 2
 user interface library of every KGames GUI program, and what the input does to each, in the light
 theme or the dark one. Like every KGames GUI program, it ignores input without focus, and supports
-the one window setup in [Library/UserInterface](../../Library/UserInterface/README.md#window-setup).
+the one window setup in [Library/user-interface](../../Library/user-interface/README.md#window-setup).
 
 ## What it shows
 
@@ -98,7 +98,7 @@ like `Volume` and `Selected`, the `Log`'s newest lines, and the interface's, as 
 
 | Path              | Contents                                                             |
 | ----------------- | -------------------------------------------------------------------- |
-| `src/main.rs`     | Runs the showcase with Library/UserInterface's main loop             |
+| `src/main.rs`     | Runs the showcase with Library/user-interface's main loop            |
 | `src/lib.rs`      | The showcase's parts, as a library that `Test/UiShowcase` tests      |
 | `src/showcase.rs` | What each widget shows, the list's items, the log, and the shortcuts |
 | `src/cards.rs`    | Lays out the cards in fixed pixels, and draws their widgets          |

@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 ui-showcase = { path = "../../Program/UiShowcase" }
-user-interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/user-interface" }
 
 [lints]
 workspace = true

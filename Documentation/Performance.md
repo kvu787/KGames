@@ -143,7 +143,7 @@ instead of 8. This is what frame limiters like Special K's and NVIDIA Reflex do 
 
 What's needed:
 
-- When the next refresh is. [Library/PresentTiming](../Library/PresentTiming/README.md) already
+- When the next refresh is. [Library/present-timing](../Library/present-timing/README.md) already
   gives each frame's screen time on the performance counter, and the refreshes are their period
   apart, so the loop can predict the next one from the last few, and `DwmGetCompositionTimingInfo`
   or `IDXGIOutput::WaitForVBlank` can give it too.
@@ -188,7 +188,7 @@ Windows' events on PresentTiming's thread, costs a microsecond a present.
 
 ## Meshes
 
-Library/PolygonMesh, for MeshModeler. Milliseconds, median (minimum).
+Library/polygon-mesh, for MeshModeler. Milliseconds, median (minimum).
 
 | Benchmark                         | Median (minimum) | Size             |
 | --------------------------------- | ---------------: | ---------------- |
@@ -271,13 +271,13 @@ that no one looks for them again:
 | The programs' exes, release                             | 12.1 MB      |
 
 The only dependency outside the repository is `windows-core`, so a clean build is seconds, even
-on the efficiency cores. The generated bindings in Library/WindowsApiRaw, 9,185 lines, are the
+on the efficiency cores. The generated bindings in Library/windows-api-raw, 9,185 lines, are the
 largest crate.
 
 ## What to do, in order
 
-1. **Pace frames to the refresh with vertical sync on**, in `Library/UserInterface`'s main loop and
-   `Library/Graphics`' presenter, and check it with the PerfBar's presenting time. Worth about 7
+1. **Pace frames to the refresh with vertical sync on**, in `Library/user-interface`'s main loop and
+   `Library/graphics`' presenter, and check it with the PerfBar's presenting time. Worth about 7
    ms of input latency at 120 Hz, which is more than everything else here together.
 2. **Build the topology once an edit in MeshModeler and reuse it**, and flatten its collections,
    when a model that's larger than a cube is modeled. Worth tens to hundreds of milliseconds an

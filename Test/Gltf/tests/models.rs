@@ -1,4 +1,4 @@
-// Library/Gltf: reading .glb files made here, with nodes, transforms,
+// Library/gltf: reading .glb files made here, with nodes, transforms,
 // indices of each size, and missing normals and materials, and the models
 // that Veehiicuul reads, which Blender exported.
 

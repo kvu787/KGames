@@ -12,7 +12,7 @@ than the mouse's pad, and an 8,000 Hz controller didn't seem to show its rate. T
 2. **With background input off, GameInput's default, a focused window gets nearly every report.**
    Two GameSir controllers in Xbox 360 mode, set to report 8,000 times a second, gave about 7,500
    to 7,700 readings a second, with no timers or helper threads. KGames now leaves it off, and
-   `Library/GameInputRaw` doesn't bind `EnableBackgroundInput`, so turning it on takes a deliberate
+   `Library/game-input-raw` doesn't bind `EnableBackgroundInput`, so turning it on takes a deliberate
    edit.
 3. **GameInput handles focus changes itself, without background input.** As a window loses focus,
    it gets a reading of each device at rest, which lets go of everything held. As focus comes

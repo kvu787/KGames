@@ -89,8 +89,8 @@ Status: Done, more widely than the task asked. The interface takes a frame's inp
 for each event that does something, like a key's press with its text, a release, a click or the
 wheel, and runs each step's input, messages, view and layout on the state that the steps before it
 left, as a Win32 window's messages do (`Input::steps` in
-[events.rs](../Library/UserInterface/src/input/events.rs), and `Interface::frame` in
-[interface.rs](../Library/UserInterface/src/core/interface.rs)). So every widget and program sees
+[events.rs](../Library/user-interface/src/input/events.rs), and `Interface::frame` in
+[interface.rs](../Library/user-interface/src/core/interface.rs)). So every widget and program sees
 one key at a time, with the modifiers held as it went down, and no widget needs an ordered list of
 its own. `Test/UserInterface/tests/order.rs` pins that "a", Backspace, "b" in one frame deletes the
 "a", that a shortcut sees the modifiers held as its key went down and applies twice when pressed
@@ -101,15 +101,15 @@ What follows is the task as it was found.
 
 - **KGames:** `Input` keeps the frame's presses in `keys_pressed` and its typed text in one `text`
   string, and the modifiers are the ones held at the end of the frame
-  ([events.rs:60-66](../Library/UserInterface/src/input/events.rs#L60)).
+  ([events.rs:60-66](../Library/user-interface/src/input/events.rs#L60)).
   - The text box handles all the frame's keys, then all its text
-    ([text_box.rs:331-412](../Library/UserInterface/src/widgets/text_box.rs#L331)). Typing "x"
+    ([text_box.rs:331-412](../Library/user-interface/src/widgets/text_box.rs#L331)). Typing "x"
     then Backspace in one frame deletes the old character and then inserts "x", and "a", Left,
     "b" gives "ab" instead of "ba".
   - `key_pressed` only asks whether a key was pressed at all
-    ([events.rs:239-241](../Library/UserInterface/src/input/events.rs#L239)). So two Down
+    ([events.rs:239-241](../Library/user-interface/src/input/events.rs#L239)). So two Down
     presses in one frame move a ListView one row, and Down then Up ends on Up whatever their order
-    ([list_view.rs:207-224](../Library/UserInterface/src/widgets/list_view.rs#L207)). That breaks
+    ([list_view.rs:207-224](../Library/user-interface/src/widgets/list_view.rs#L207)). That breaks
     AGENTS.md's rule that two of the same intent never collapse into one. The survey found the
     same in ComboBox, Menu and Navigation, which haven't been checked yet.
 - **BUI:** handles each `WM_KEYDOWN` and `WM_CHAR` as it arrives, with that message's modifiers
@@ -125,13 +125,13 @@ What follows is the task as it was found.
 Status: Not started. A bug in KGames, checked in the code.
 
 - **KGames:** the glyph atlas is 2048 x 2048
-  ([text.rs:201](../Library/UserInterface/src/drawing/text.rs#L201)). When a glyph doesn't fit,
-  `place` returns `None` ([text.rs:246-256](../Library/UserInterface/src/drawing/text.rs#L246)),
-  `quads` draws nothing for it ([text.rs:494-500](../Library/UserInterface/src/drawing/text.rs#L494)),
+  ([text.rs:201](../Library/user-interface/src/drawing/text.rs#L201)). When a glyph doesn't fit,
+  `place` returns `None` ([text.rs:246-256](../Library/user-interface/src/drawing/text.rs#L246)),
+  `quads` draws nothing for it ([text.rs:494-500](../Library/user-interface/src/drawing/text.rs#L494)),
   and the atlas starts over only in the next frame's `begin_frame`
-  ([text.rs:359](../Library/UserInterface/src/drawing/text.rs#L359)). So the frame that fills
+  ([text.rs:359](../Library/user-interface/src/drawing/text.rs#L359)). So the frame that fills
   it shows text with glyphs missing, which breaks the law of the frame. The comment at
-  [text.rs:223-224](../Library/UserInterface/src/drawing/text.rs#L223) describes this.
+  [text.rs:223-224](../Library/user-interface/src/drawing/text.rs#L223) describes this.
 - **BUI:** draws what it has recorded, clears the atlas and places the glyph again, so it never
   loses one (`BUI/gpu/intern/gpu_d3d11.c:867-873`, `:908-911`).
 - **Do:** BUI's split draw doesn't fit KGames' one draw a frame. Instead, when a frame fills the
@@ -146,9 +146,9 @@ Status: Not started. A bug in KGames, checked in the code.
 Status: Proposed, as a session card.
 
 - **KGames:** about 187 colors in
-  [theme.rs](../Library/UserInterface/src/design/theme.rs), about 157 metrics in
-  [controls.rs](../Library/UserInterface/src/design/controls.rs) and the tokens in
-  [tokens.rs](../Library/UserInterface/src/design/tokens.rs) are copied by hand from WinUI 3, and
+  [theme.rs](../Library/user-interface/src/design/theme.rs), about 157 metrics in
+  [controls.rs](../Library/user-interface/src/design/controls.rs) and the tokens in
+  [tokens.rs](../Library/user-interface/src/design/tokens.rs) are copied by hand from WinUI 3, and
   their comments name the WinUI resources. Nothing checks them.
 - **BUI:** `BUI/tools/gen_theme.py` generates its theme from Blender's own XML presets instead of
   copying values by hand.
@@ -187,7 +187,7 @@ Status: Not started.
 - **BUI:** turns the IME on only while a text field has focus
   (`BUI/kit/intern/kit_ime_win32.c:207-266`).
 - **Do:** call `ImmAssociateContextEx(hwnd, NULL, 0)` on KGames' windows, with its binding in
-  `Library/WindowsApiRaw`. KGames' text comes from GameInput (see task 6), so this loses nothing until
+  `Library/windows-api-raw`. KGames' text comes from GameInput (see task 6), so this loses nothing until
   task 6 turns the IME on for focused text fields.
 - **Done when:** it's called, and the user has tried it with an IME, which no test can.
 
@@ -197,7 +197,7 @@ Status: Not started. Needs an exception in AGENTS.md, which says to read all inp
 GameInput.
 
 - **KGames:** text is ASCII, made from GameInput's keys with a fixed table of a US keyboard
-  ([typing.rs](../Library/UserInterface/src/input/typing.rs)), so nothing but ASCII can be typed,
+  ([typing.rs](../Library/user-interface/src/input/typing.rs)), so nothing but ASCII can be typed,
   Chinese, Japanese and Korean included.
 - **BUI:** `BUI/kit/intern/kit_ime_win32.c`, which comes from Chromium's `ImeInput` by way of
   Blender's GHOST, and `BUI/kit/intern/kit_ime.c`:
@@ -220,9 +220,9 @@ GameInput.
 Status: Not started.
 
 - **KGames:** can't show images. The renderer binds only the glyph atlas
-  ([renderer.rs](../Library/UserInterface/src/drawing/renderer.rs)), `Library/Gltf` ignores
-  textures ([lib.rs:9](../Library/Gltf/src/lib.rs#L9)), and WIC is used only to write
-  PNGs ([png.rs](../Library/Graphics/src/png.rs)).
+  ([renderer.rs](../Library/user-interface/src/drawing/renderer.rs)), `Library/gltf` ignores
+  textures ([lib.rs:9](../Library/gltf/src/lib.rs#L9)), and WIC is used only to write
+  PNGs ([png.rs](../Library/graphics/src/png.rs)).
 - **BUI:**
   - It decodes at the size drawn (`BUI/kit/intern/image/filetype.c:107-148`), into premultiplied
     pixels, with a box-filter downscale (`imbuf.c:129-245`).
@@ -233,11 +233,11 @@ Status: Not started.
 - **Do:**
   - Decode with WIC instead of BUI's C decoders: `IWICBitmapScaler` or `IWICBitmapSourceTransform`
     to decode at the size drawn, and `IWICFormatConverter` to `32bppPBGRA` for premultiplied
-    pixels. Add the bindings to `Library/WindowsApiRaw`.
+    pixels. Add the bindings to `Library/windows-api-raw`.
   - Decode synchronously. BUI's worker pool (`loader.c`) lands images frames after the input that
     asked for them.
   - Port the cache rule and the clamped sampling.
-  - Add an `Image` widget to `Library/UserInterface`, test it in `Test/UserInterface`, and show it
+  - Add an `Image` widget to `Library/user-interface`, test it in `Test/UserInterface`, and show it
     in UiShowcase. The decoding would serve glTF textures later too.
 - **Done when:** the widget is tested and shown, with a frame that shows an image the frame's input
   asked for.
@@ -249,9 +249,9 @@ Status: Not started.
 - **KGames:**
   - ListView has fixed row heights, one selection, and a named target per visible row, whose
     children the program lays out
-    ([list_view.rs:1-18](../Library/UserInterface/src/widgets/list_view.rs#L1)).
+    ([list_view.rs:1-18](../Library/user-interface/src/widgets/list_view.rs#L1)).
   - The text cache keeps every distinct string's DirectWrite layout for 600 frames, bounded by
-    time, not size ([text.rs:350-357](../Library/UserInterface/src/drawing/text.rs#L350)), so
+    time, not size ([text.rs:350-357](../Library/user-interface/src/drawing/text.rs#L350)), so
     flinging a big table would make hundreds of layouts a frame.
   - UiShowcase filters its lists again with `to_lowercase` inside `view`
     ([showcase.rs:165-167](../Program/UiShowcase/src/showcase.rs#L165)).
@@ -293,17 +293,17 @@ Status: Not started.
 - **Undo and redo:** BUI keeps a stack of snapshots while editing
   (`BUI/kit/intern/blender/interface_undo.cc:116-134`, used at `BUI/kit/intern/kit_core.c:3098-3128`).
   KGames' TextBox has none, though WinUI's has Ctrl+Z. It belongs in `Editing`
-  ([text_box.rs:127-137](../Library/UserInterface/src/widgets/text_box.rs#L127)).
+  ([text_box.rs:127-137](../Library/user-interface/src/widgets/text_box.rs#L127)).
 - **Word jumps:** BUI moves by classes of characters: punctuation, braces, operators, quotes and
   spaces (`BUI/core/intern/string_cursor_utf8.c:32-122`, `:178-257`). KGames treats punctuation
-  like spaces ([text_box.rs:157-184](../Library/UserInterface/src/widgets/text_box.rs#L157)).
+  like spaces ([text_box.rs:157-184](../Library/user-interface/src/widgets/text_box.rs#L157)).
 - **Combining marks:** BUI's caret steps over zero-width combining marks
   (`string_cursor_utf8.c:149-152`), and KGames' steps by `char`
-  ([text_box.rs:149-155](../Library/UserInterface/src/widgets/text_box.rs#L149)). Better than
+  ([text_box.rs:149-155](../Library/user-interface/src/widgets/text_box.rs#L149)). Better than
   either: DirectWrite's `GetClusterMetrics`, in `text.rs`.
 - **Expressions:** BUI evaluates expressions in number fields (`kit_core.c:3342`), and KGames'
   NumberBox accepts only digits
-  ([number_box.rs:35-37](../Library/UserInterface/src/widgets/number_box.rs#L35)). Match WinUI's
+  ([number_box.rs:35-37](../Library/user-interface/src/widgets/number_box.rs#L35)). Match WinUI's
   `AcceptsExpression` with a small parser, instead of porting BUI's `expr_pylike_eval`.
 - **Done when:** each is tested and shown in UiShowcase.
 
@@ -399,7 +399,7 @@ Status: Not started. Builds on task 3.
   forces each into its states with `VisualStateManager.GoToState`, which needs no input, and writes
   each part's bounds and colors to JSON, which gets committed. A cargo test lays out the same
   controls with `Headless` and compares them by `Target.kind`, which uses WinUI's control names
-  ([interaction.rs:148-149](../Library/UserInterface/src/core/interaction.rs#L148)). Both draw
+  ([interaction.rs:148-149](../Library/user-interface/src/core/interaction.rs#L148)). Both draw
   text with DirectWrite at 96 DPI, so a tolerance of 1 pixel is realistic.
 - **Done when:** the test passes, with any differences it finds fixed.
 
@@ -411,7 +411,7 @@ Status: Not started.
   samples the pointer's path every 2 pixels, so fast drags skip none
   (`BUI/kit/intern/kit_core.c:1856-1912`).
 - **KGames:** sees only where the pointer ends each step
-  ([events.rs:117-120](../Library/UserInterface/src/input/events.rs#L117)).
+  ([events.rs:117-120](../Library/user-interface/src/input/events.rs#L117)).
 - **Do:** sample the frame's pointer segment against the shown tree, in `interact`. WinUI doesn't do
   this, so decide first whether it fits Fluent 2.
 - **Done when:** tested and shown in UiShowcase, or dropped.
@@ -424,7 +424,7 @@ Status: Not started.
   ramp is at `kit_color.c:574-899`. The curve lacks Fritsch-Carlson's zero slope where the
   neighbouring slopes change sign, so it overshoots at peaks.
 - **KGames:** has neither. Its ColorPicker already keeps hue through grays
-  ([color_picker.rs:20-46](../Library/UserInterface/src/widgets/color_picker.rs#L20)), so BUI's
+  ([color_picker.rs:20-46](../Library/user-interface/src/widgets/color_picker.rs#L20)), so BUI's
   color wheel adds nothing.
 - **Do:** port both, with the zero-slope fix, styled in Fluent, for response curves and gradients.
 - **Done when:** tested and shown in UiShowcase.
@@ -468,7 +468,7 @@ Status: Not started. Matters once builds are handed out.
 - **BUI:** `BUI/tools/gen_notices.py` builds `THIRD_PARTY_NOTICES.md` from license files and
   `cargo metadata` (`:120-157`), with a `--check` mode (`:209-216`), run only at release.
 - **Do:** with so few dependencies, a short hand-written notices file, and a test that fails when
-  `Cargo.lock` or `VERSION` in `Library/GameInput/src/installation.rs` changes without it.
+  `Cargo.lock` or `VERSION` in `Library/game-input/src/installation.rs` changes without it.
 - **Done when:** the file and the test are in.
 
 ### 22. Decide whether idle frames are skipped
@@ -479,7 +479,7 @@ Status: Not started. A decision for the user.
   (`BUI/kit/intern/kit_core.c:378-392`, `:1640-1664`, `:2222-2282`;
   `BUI/kit/intern/kit_window_win32.c:385-392`).
 - **KGames:** draws every refresh
-  ([run.rs:1-18](../Library/UserInterface/src/application/run.rs#L1)), 115 frames a second on a
+  ([run.rs:1-18](../Library/user-interface/src/application/run.rs#L1)), 115 frames a second on a
   120 Hz display when idle ([Performance.md:118-121](Performance.md#L118)).
 - **The trade-off:** skipping frames with no events, messages or animation would lighten idle tools
   while the user games, but the PerfBar measures every frame. The GPU saving alone isn't worth it:

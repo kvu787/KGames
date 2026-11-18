@@ -6,11 +6,11 @@ license.workspace = true
 publish = false
 
 [dependencies]
-paint-settings = { path = "../../Library/PaintSettings" }
-simple-paint = { path = "../../Library/SimplePaint" }
+paint-settings = { path = "../../Library/paint-settings" }
+simple-paint = { path = "../../Library/simple-paint" }
 simple-paint-demo = { path = "../../Program/SimplePaintDemo" }
-user-interface = { path = "../../Library/UserInterface" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+user-interface = { path = "../../Library/user-interface" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [lints]
 workspace = true

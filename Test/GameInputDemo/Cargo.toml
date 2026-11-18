@@ -6,11 +6,11 @@ license.workspace = true
 publish = false
 
 [dependencies]
-game-input = { path = "../../Library/GameInput" }
-game-input-raw = { path = "../../Library/GameInputRaw" }
+game-input = { path = "../../Library/game-input" }
+game-input-raw = { path = "../../Library/game-input-raw" }
 game-input-demo = { path = "../../Program/GameInputDemo" }
-json = { path = "../../Library/Json" }
-user-interface = { path = "../../Library/UserInterface" }
+json = { path = "../../Library/json" }
+user-interface = { path = "../../Library/user-interface" }
 
 [dependencies.windows-core]
 workspace = true

@@ -17,8 +17,8 @@ name = "frame-times"
 test = false
 
 [dependencies]
-present-timing = { path = "../../Library/PresentTiming" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+present-timing = { path = "../../Library/present-timing" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [lints]
 workspace = true

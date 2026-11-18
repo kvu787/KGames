@@ -1,0 +1,26 @@
+[package]
+name = "simple-paint"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+# Nothing is linked. This only lets build.rs tell the build scripts of
+# packages that depend on this one where the shaders are, as
+# DEP_SIMPLE_PAINT_SHADERS, so they can compile them with their own
+# material count.
+links = "simple_paint"
+
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[dependencies]
+graphics = { path = "../graphics" }
+math = { path = "../math" }
+windows-api-raw = { path = "../windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
+
+[lints]
+workspace = true

@@ -6,9 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
-math = { path = "../../Library/Math" }
-polygon-mesh = { path = "../../Library/PolygonMesh" }
-simple-paint = { path = "../../Library/SimplePaint" }
+math = { path = "../../Library/math" }
+polygon-mesh = { path = "../../Library/polygon-mesh" }
+simple-paint = { path = "../../Library/simple-paint" }
 
 [lints]
 workspace = true

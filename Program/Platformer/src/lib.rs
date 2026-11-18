@@ -1,7 +1,7 @@
 // The platformer's parts, as a library, so that Test/Platformer can test
 // them without a window: the levels, the physics, the events and the game
 // they drive, the progress that persists, and the program that
-// Library/UserInterface runs. main.rs is the program.
+// Library/user-interface runs. main.rs is the program.
 
 pub mod cards;
 pub mod controls;

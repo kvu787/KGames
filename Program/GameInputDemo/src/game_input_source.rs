@@ -1,4 +1,4 @@
-// Devices and readings from GameInput, as Library/UserInterface reads them
+// Devices and readings from GameInput, as Library/user-interface reads them
 // for every program: once a frame, right before the frame, with every reading
 // since the last one, in the order of GameInput's stream. The demo shows the
 // same readings that the interface makes its events from, and runs gamepads'

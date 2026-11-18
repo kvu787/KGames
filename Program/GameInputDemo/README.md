@@ -6,7 +6,7 @@ API, and shows what it reads in a Win32 window drawn with Direct3D 12.
 
 It uses no outside frameworks: Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
 crate is the only dependency besides the repo's own [Library](../../Library) crates. Like every
-KGames GUI program, it's built on [Library/UserInterface](../../Library/UserInterface/README.md),
+KGames GUI program, it's built on [Library/user-interface](../../Library/user-interface/README.md),
 whose main loop runs it, and whose widgets draw its app bar, status bar, cards, combo box, list,
 scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluent 2 design system.
 
@@ -14,7 +14,7 @@ scroll bars, keycaps, badges, status icons and tooltips, after Microsoft's Fluen
 
 The demo supports exactly the one window setup that every KGames program does: borderless
 fullscreen on a 2560 × 1440 monitor at 100% scaling, with a 2560 × 1440 client area (see
-[Library/UserInterface](../../Library/UserInterface/README.md#window-setup)). The cards have fixed
+[Library/user-interface](../../Library/user-interface/README.md#window-setup)). The cards have fixed
 places in pixels, and the bottom row of cards and the event log get what's left of the height. In
 any other setup, the window shows what's wrong instead of the cards.
 
@@ -65,7 +65,7 @@ Shortcuts, while the demo's window has focus:
 | `F12` | Quits, as in every KGames program                                      |
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
-Library/UserInterface's, which reads them from the same readings, as in every KGames program, so the
+Library/user-interface's, which reads them from the same readings, as in every KGames program, so the
 demo doesn't also switch on them, which would switch them back. `F12` is too, and the demo's cards
 show it as GameInput read it, like any key, but do nothing with it.
 
@@ -91,7 +91,7 @@ the demo applies a dead zone.
 
 Click the combo box after the Gamepad card's title for a list of choices, and click one to pick it.
 A click anywhere else in the window, or the pointer going away, as the window loses focus, like
-when it's minimized, closes the list. The combo box never takes keyboard focus, as no widget of Library/UserInterface but a
+when it's minimized, closes the list. The combo box never takes keyboard focus, as no widget of Library/user-interface but a
 text field does, so the keys that you press to try the Keyboard card leave it alone.
 
 | Choice    | What the demo listens to                                                        |
@@ -148,7 +148,7 @@ own does that for each device as it connects, instead of the main loop. The tool
 found. Long values, like the PnP path, wrap, in a tooltip up to 720 pixels wide, wider than
 WinUI's 320, so that a device deep in Windows' device tree, behind hubs, still fits in the window.
 The pointer is the library's, like the combo box's, so the tooltip only shows while the window has
-focus. Library/UserInterface places it above the pointer, or under it if there isn't room, and
+focus. Library/user-interface places it above the pointer, or under it if there isn't room, and
 always inside the window.
 
 ## Requirements
@@ -157,7 +157,7 @@ always inside the window.
 - Windows SDK (provides `dxc.exe` under `C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64`)
 - GameInput 4.0.306, installed once, from an elevated prompt, with
   `winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"`. The
-  demo doesn't build or start without it (see [Library/GameInput](../../Library/GameInput/README.md))
+  demo doesn't build or start without it (see [Library/game-input](../../Library/game-input/README.md))
 - Optional, for the D3D12 debug layer in debug builds: the "Graphics Tools" optional Windows feature
 - Optional, for [RunInBackground](../RunInBackground/README.md): the .NET 10 SDK
 
@@ -228,7 +228,7 @@ it doesn't exist, the demo writes it with the defaults:
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
 The first three are the settings that every KGames program has, which
-[Library/UserInterface](../../Library/UserInterface/README.md#settings-and-the-command-line) reads,
+[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line) reads,
 and the last is the demo's own.
 
 - If `Display` names a display that isn't connected, the demo opens on the primary display, and a
@@ -244,8 +244,8 @@ isn't, the demo writes why to standard error and exits, instead of opening on th
 
 ## How it gets GameInput
 
-The [GameInputRaw library](../../Library/GameInputRaw/README.md) declares the API by hand, and the
-[GameInput library](../../Library/GameInput/README.md) starts GameInput with
+The [GameInputRaw library](../../Library/game-input-raw/README.md) declares the API by hand, and the
+[GameInput library](../../Library/game-input/README.md) starts GameInput with
 `GameInputInitialize` from Microsoft's `GameInput.lib`, which loads GameInput
 4.0.306's installed runtime, from System32, unless a `GameInputRedist.dll` is beside the exe.
 The status bar of the demo's window shows which runtime it loaded. Without it installed, the demo
@@ -255,7 +255,7 @@ that GameInput isn't available.
 ## How it reads input
 
 GameInput's input isn't presses and releases. It keeps a short history of *readings*, where each
-reading is a timestamped snapshot of one device's whole state. Library/UserInterface reads every program's input
+reading is a timestamped snapshot of one device's whole state. Library/user-interface reads every program's input
 with GameInput, once a frame, right before the frame, and the demo shows the same readings that the
 library makes its events from, from `startup.devices`. Every frame, the library:
 
@@ -288,12 +288,12 @@ Then the demo:
 `src/game_input_source.rs` takes the library's devices and readings, once each a frame, as plain
 data, so that the rest of the demo also runs on input from tests and scripts (see
 [Testing](#testing)). Its `Options::gamepad` is on, so that gamepads' readings count as input that
-its frames take, for the [input latency](../../Library/UserInterface/README.md) that every program
+its frames take, for the [input latency](../../Library/user-interface/README.md) that every program
 measures.
 
 Like every KGames program, the demo only handles input while its window has focus, and the app bar
 says whether it has focus. The library leaves GameInput's background input off (see
-[Library/UserInterface](../../Library/UserInterface/README.md#input)), so GameInput gives the demo
+[Library/user-interface](../../Library/user-interface/README.md#input)), so GameInput gives the demo
 no readings while its window doesn't have focus: as the window loses focus, a reading of each
 device at rest, and nothing after that until focus comes back. The demo also drops what comes
 without focus itself, by the window's own focus changes, which the library's devices give on the
@@ -333,8 +333,8 @@ The demo is built to show input on screen as soon as it can. Its part of the lat
 from a reading reaching GameInput to a frame that shows it reaching the screen. The rest, like the
 device's own polling, its connection, and the monitor's scanout and response, is outside the demo.
 
-Library/UserInterface's main loop does most of it (see its
-[README](../../Library/UserInterface/README.md#input-latency)): only one frame is on the GPU at a
+Library/user-interface's main loop does most of it (see its
+[README](../../Library/user-interface/README.md#input-latency)): only one frame is on the GPU at a
 time, the loop waits until the GPU and DXGI can take another, and only then reads GameInput,
 whose readings the demo's `update` takes, so no readings age during the wait. The demo starts with vertical
 sync on, as every program does, so its frames wait for the screen's refresh, and never tear. With
@@ -381,11 +381,11 @@ Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 
 The tests in `Test/GameInputDemo` feed the demo's input directly, and press and move the mouse in its
-cards' real layout, which Library/UserInterface's `Headless` draws without a window: the combo box
+cards' real layout, which Library/user-interface's `Headless` draws without a window: the combo box
 and its list, the Devices card's list, its rows and their tooltips, and what scrolls when it doesn't
 fit. One draws a frame with the GPU, offscreen, and checks where the sticks' dots are. The scripts in
 `Test/GameInputDemo/Scripts` run the real demo, in its window, as
-[Library/UserInterface](../../Library/UserInterface/README.md#testing) describes. Their `Program`
+[Library/user-interface](../../Library/user-interface/README.md#testing) describes. Their `Program`
 steps, which the demo's `Program::script` does, connect and disconnect devices, and give their
 readings:
 
@@ -473,24 +473,24 @@ GameInput.
 ## Using more APIs
 
 For Windows APIs, which `windows-bindgen` generates, see
-[Library/WindowsApiRaw](../../Library/WindowsApiRaw/README.md).
+[Library/windows-api-raw](../../Library/windows-api-raw/README.md).
 
-For GameInput APIs, see [Library/GameInputRaw](../../Library/GameInputRaw/README.md#using-more-apis).
+For GameInput APIs, see [Library/game-input-raw](../../Library/game-input-raw/README.md#using-more-apis).
 
 ## Layout
 
-| Path                       | Contents                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `src/main.rs`              | Runs the demo with Library/UserInterface's main loop                          |
-| `src/lib.rs`               | The demo's parts, as a library that `Test/GameInputDemo` tests                |
-| `src/demo.rs`              | The demo as a `Program`: its input source, and what it does each frame        |
-| `src/settings.rs`          | The demo's own setting, `RumbleTestInnerDeadZone`                             |
-| `src/devices.rs`           | Devices and readings as plain data, and `InputSource`, which gives them       |
-| `src/device_tree.rs`       | Looks up a device's nodes in Windows' device tree, from its PnP path          |
-| `src/game_input_source.rs` | Takes the devices and readings that the library reads with GameInput          |
-| `src/scripted_source.rs`   | Devices and readings from tests and scripts, instead of GameInput             |
-| `src/input.rs`             | Keeps what the cards show, from the devices and readings                      |
-| `src/cards.rs`             | Lays out the cards in fixed pixels, and draws them with Library/UserInterface |
-| `HumanRun.ps1`             | Builds the demo and runs it on the primary display, for people to use it      |
-| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                     |
-| `Settings.json`            | The [settings file](#settings-file), which the demo writes if it's missing    |
+| Path                       | Contents                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `src/main.rs`              | Runs the demo with Library/user-interface's main loop                          |
+| `src/lib.rs`               | The demo's parts, as a library that `Test/GameInputDemo` tests                 |
+| `src/demo.rs`              | The demo as a `Program`: its input source, and what it does each frame         |
+| `src/settings.rs`          | The demo's own setting, `RumbleTestInnerDeadZone`                              |
+| `src/devices.rs`           | Devices and readings as plain data, and `InputSource`, which gives them        |
+| `src/device_tree.rs`       | Looks up a device's nodes in Windows' device tree, from its PnP path           |
+| `src/game_input_source.rs` | Takes the devices and readings that the library reads with GameInput           |
+| `src/scripted_source.rs`   | Devices and readings from tests and scripts, instead of GameInput              |
+| `src/input.rs`             | Keeps what the cards show, from the devices and readings                       |
+| `src/cards.rs`             | Lays out the cards in fixed pixels, and draws them with Library/user-interface |
+| `HumanRun.ps1`             | Builds the demo and runs it on the primary display, for people to use it       |
+| `HumanRun.cmd`             | Runs `HumanRun.ps1`, for double-clicking in File Explorer                      |
+| `Settings.json`            | The [settings file](#settings-file), which the demo writes if it's missing     |

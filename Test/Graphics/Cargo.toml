@@ -6,8 +6,8 @@ license.workspace = true
 publish = false
 
 [dependencies]
-graphics = { path = "../../Library/Graphics" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+graphics = { path = "../../Library/graphics" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [dependencies.windows-core]
 workspace = true

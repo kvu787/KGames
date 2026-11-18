@@ -1,4 +1,4 @@
-// Library/PolygonMesh's topology: edges and their faces, boundaries,
+// Library/polygon-mesh's topology: edges and their faces, boundaries,
 // valences, and edge loops and rings, on closed, open and non-manifold
 // meshes.
 

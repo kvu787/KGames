@@ -4,7 +4,7 @@ Measures another process's frame times, like a game's, for checking what somethi
 it does to it, like a build, as
 [RunLightly](../RunLightly/README.md#checking-a-builds-effect-on-a-game) describes. It's a
 console program, without a window: it reads the process's presents with
-[Library/PresentTiming](../../Library/PresentTiming/README.md) for a while, and prints the
+[Library/present-timing](../../Library/present-timing/README.md) for a while, and prints the
 statistics of the times between its frames on the screen.
 
 ```powershell
@@ -58,7 +58,7 @@ first.
 
 Reading the presents takes an ETW session, which needs the **Performance Log Users** group, or an
 elevated administrator. Without either, FrameTimes says how to join the group, as
-[Library/PresentTiming](../../Library/PresentTiming/README.md#privileges) does. A FrameTimes that's
+[Library/present-timing](../../Library/present-timing/README.md#privileges) does. A FrameTimes that's
 stopped with `Ctrl+C` leaves its session running, until the next FrameTimes, or the next program
 that reads its presents, stops it.
 

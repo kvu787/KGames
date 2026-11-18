@@ -17,7 +17,7 @@ name = "identify-displays"
 test = false
 
 [dependencies]
-displays = { path = "../../Library/Displays" }
+displays = { path = "../../Library/displays" }
 
 [lints]
 workspace = true

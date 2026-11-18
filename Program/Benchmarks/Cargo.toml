@@ -17,21 +17,21 @@ test = false
 
 [dependencies]
 game-input-demo = { path = "../GameInputDemo" }
-gltf = { path = "../../Library/Gltf" }
-graphics = { path = "../../Library/Graphics" }
-json = { path = "../../Library/Json" }
-math = { path = "../../Library/Math" }
+gltf = { path = "../../Library/gltf" }
+graphics = { path = "../../Library/graphics" }
+json = { path = "../../Library/json" }
+math = { path = "../../Library/math" }
 mesh-modeler = { path = "../MeshModeler" }
 minimal-scene-test = { path = "../MinimalSceneTest" }
-polygon-mesh = { path = "../../Library/PolygonMesh" }
-present-timing = { path = "../../Library/PresentTiming" }
-simple-paint = { path = "../../Library/SimplePaint" }
+polygon-mesh = { path = "../../Library/polygon-mesh" }
+present-timing = { path = "../../Library/present-timing" }
+simple-paint = { path = "../../Library/simple-paint" }
 simple-paint-demo = { path = "../SimplePaintDemo" }
 spinning-car-test = { path = "../SpinningCarTest" }
 ui-showcase = { path = "../UiShowcase" }
-user-interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/user-interface" }
 veehiicuul = { path = "../Veehiicuul" }
-windows-api-raw = { path = "../../Library/WindowsApiRaw" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [lints]
 workspace = true

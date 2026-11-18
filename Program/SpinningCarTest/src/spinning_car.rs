@@ -1,4 +1,4 @@
-// The test, as a program that Library/UserInterface runs: where the car is,
+// The test, as a program that Library/user-interface runs: where the car is,
 // what S and F2 do, the card over the scene, and the scene, which fills the
 // window under the card. The car keeps time while the window is minimized.
 

@@ -1,4 +1,4 @@
-// Library/PolygonMesh's files: JSON that reads back exactly, its text, what
+// Library/polygon-mesh's files: JSON that reads back exactly, its text, what
 // it says about files it can't read, saving and loading, and Wavefront OBJ.
 
 use polygon_mesh::{Edge, Mesh, primitives};

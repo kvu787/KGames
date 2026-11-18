@@ -1,4 +1,4 @@
-// Library/PaintSettings: materials read from JSON with their defaults,
+// Library/paint-settings: materials read from JSON with their defaults,
 // rejected as SimplePaint would, and written back as text that reads the
 // same, nested or not.
 

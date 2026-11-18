@@ -1,0 +1,23 @@
+<!--
+  The NuGet packages that Library/game-input-raw needs, declared the way a .NET project declares its own.
+  It's a C# project only so that developers and tools know it as one: it has no C#, and nothing
+  builds it. build.rs restores it with dotnet, in locked mode, into NuGet's global packages folder,
+  and packages.lock.json pins each package's content by its hash, as Cargo.lock does for crates.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- A restore needs a target framework, though nothing here is .NET. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      Exactly the version of the runtime that the user installs (see
+      Library/game-input/src/installation.rs).
+      ExcludeAssets keeps whatever the package has for .NET projects out of this one, which only
+      downloads it. 4.0.306 has nothing for them anyway: its one build file is for C++ projects.
+      And GeneratePathProperty gives the package's folder, as PkgMicrosoft_GameInput, to build.rs.
+    -->
+    <PackageReference Include="Microsoft.GameInput" Version="[4.0.306]" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+</Project>

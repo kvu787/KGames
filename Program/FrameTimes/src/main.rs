@@ -1,5 +1,5 @@
 // Measures another process's frame times, like a game's while a build runs:
-// reads the process's presents with Library/PresentTiming for a while, and
+// reads the process's presents with Library/present-timing for a while, and
 // prints the statistics of the times between its frames on the screen.
 //
 //     FrameTimes <process name or ID> [--seconds N]
@@ -19,7 +19,7 @@ and back in:
 
     Add-LocalGroupMember -Group 'Performance Log Users' -Member $env:USERNAME
 
-See Library/PresentTiming/README.md#privileges.";
+See Library/present-timing/README.md#privileges.";
 
 // How often the presents whose fate became known are taken from the session.
 const POLL: Duration = Duration::from_millis(250);

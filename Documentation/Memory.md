@@ -97,7 +97,7 @@ seconds after it opened, under RunLightly. Mebibytes.
 The working set is the physical memory the process has; the private commit is everything it has
 asked for that isn't shared, paged in or not; dedicated is the GPU's own memory, and shared is
 system memory that the GPU reads across PCIe. Each program also has 16 threads, of which ours are
-the main one and [PresentTiming](../Library/PresentTiming/README.md)'s two; the rest are
+the main one and [PresentTiming](../Library/present-timing/README.md)'s two; the rest are
 Direct3D's and the driver's.
 
 Every program lands within four mebibytes of 80, whatever it does, because the floor is what a
@@ -325,7 +325,7 @@ sizes, counting the forty layouts and the atlas's index of what it has along wit
 
 ## Meshes
 
-Library/PolygonMesh, for MeshModeler, on a torus subdivided twice: 18,432 quads, 18,432 vertices,
+Library/polygon-mesh, for MeshModeler, on a torus subdivided twice: 18,432 quads, 18,432 vertices,
 36,864 edges.
 
 | Benchmark                      | Allocations | Bytes allocated | Peak KiB | Kept KiB | A quad |
