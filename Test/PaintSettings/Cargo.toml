@@ -1,5 +1,5 @@
 [package]
-name = "paint_settings_tests"
+name = "paint-settings-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -7,8 +7,8 @@ publish = false
 
 [dependencies]
 json = { path = "../../Library/Json" }
-paint_settings = { path = "../../Library/PaintSettings" }
-simple_paint = { path = "../../Library/SimplePaint" }
+paint-settings = { path = "../../Library/PaintSettings" }
+simple-paint = { path = "../../Library/SimplePaint" }
 
 [lints]
 workspace = true

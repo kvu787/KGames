@@ -21,7 +21,7 @@ this package, and that no bindings are in WindowsApi.
 2. Regenerate `src/bindings.rs`, from anywhere in the repository:
 
    ```powershell
-   cargo run -p bindings_generator
+   cargo run -p bindings-generator
    ```
 
 3. Commit `Filters.txt` and `bindings.rs` together.

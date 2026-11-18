@@ -1,5 +1,5 @@
 [package]
-name = "polygon_mesh"
+name = "polygon-mesh"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -12,7 +12,7 @@ doctest = false
 [dependencies]
 json = { path = "../Json" }
 math = { path = "../Math" }
-simple_paint = { path = "../SimplePaint" }
+simple-paint = { path = "../SimplePaint" }
 
 [lints]
 workspace = true

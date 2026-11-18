@@ -1,5 +1,5 @@
 [package]
-name = "paint_settings"
+name = "paint-settings"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -11,7 +11,7 @@ doctest = false
 
 [dependencies]
 json = { path = "../Json" }
-simple_paint = { path = "../SimplePaint" }
+simple-paint = { path = "../SimplePaint" }
 
 [lints]
 workspace = true

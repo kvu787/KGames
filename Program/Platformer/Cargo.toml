@@ -17,7 +17,7 @@ test = false
 
 [dependencies]
 json = { path = "../../Library/Json" }
-user_interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true

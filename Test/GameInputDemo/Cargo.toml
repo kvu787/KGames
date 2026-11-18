@@ -1,16 +1,16 @@
 [package]
-name = "game_input_demo_tests"
+name = "game-input-demo-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
 publish = false
 
 [dependencies]
-game_input = { path = "../../Library/GameInput" }
-game_input_raw = { path = "../../Library/GameInputRaw" }
-game_input_demo = { path = "../../Program/GameInputDemo" }
+game-input = { path = "../../Library/GameInput" }
+game-input-raw = { path = "../../Library/GameInputRaw" }
+game-input-demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
-user_interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [dependencies.windows-core]
 workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "platformer_tests"
+name = "platformer-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 json = { path = "../../Library/Json" }
 platformer = { path = "../../Program/Platformer" }
-user_interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true

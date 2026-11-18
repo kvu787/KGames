@@ -111,7 +111,7 @@ the settings that every program has; the modeler has none of its own.
 ## Testing
 
 ```powershell
-cargo test -p mesh_modeler_tests
+cargo test -p mesh-modeler-tests
 Program\RunInBackground\RunInBackground.ps1 MeshModeler --all-scripts
 ```
 

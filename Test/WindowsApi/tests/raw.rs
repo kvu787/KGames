@@ -20,7 +20,7 @@ fn the_bindings_are_what_windows_bindgen_generates() {
     assert!(
         fresh == committed,
         "Library/WindowsApiRaw/src/bindings.rs isn't what BindingsGenerator writes: regenerate it with \
-         `cargo run -p bindings_generator`, and don't edit it by hand"
+         `cargo run -p bindings-generator`, and don't edit it by hand"
     );
 }
 
@@ -44,7 +44,7 @@ fn what_goes_beyond_the_bindings_has_no_bindings() {
             assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/WindowsApiRaw", file.display());
         }
     }
-    assert!(!dependencies(&read(&package.join("Cargo.toml"))).contains(&"bindings_generator".to_string()));
+    assert!(!dependencies(&read(&package.join("Cargo.toml"))).contains(&"bindings-generator".to_string()));
 }
 
 fn library(name: &str) -> PathBuf {

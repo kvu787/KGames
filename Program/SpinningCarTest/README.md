@@ -80,7 +80,7 @@ save it, and copy it from its `Paint.json`.
 ## Testing
 
 ```powershell
-cargo test -p spinning_car_test_tests
+cargo test -p spinning-car-test-tests
 Program\RunInBackground\RunInBackground.ps1 SpinningCarTest --all-scripts
 ```
 

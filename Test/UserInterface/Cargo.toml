@@ -1,14 +1,14 @@
 [package]
-name = "user_interface_tests"
+name = "user-interface-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
 publish = false
 
 [dependencies]
-present_timing = { path = "../../Library/PresentTiming" }
-user_interface = { path = "../../Library/UserInterface" }
-windows_api_raw = { path = "../../Library/WindowsApiRaw" }
+present-timing = { path = "../../Library/PresentTiming" }
+user-interface = { path = "../../Library/UserInterface" }
+windows-api-raw = { path = "../../Library/WindowsApiRaw" }
 
 [dependencies.windows-core]
 workspace = true

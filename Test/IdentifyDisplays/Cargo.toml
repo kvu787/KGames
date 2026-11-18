@@ -1,5 +1,5 @@
 [package]
-name = "identify_displays_tests"
+name = "identify-displays-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -7,8 +7,8 @@ publish = false
 
 [dependencies]
 displays = { path = "../../Library/Displays" }
-identify_displays = { path = "../../Program/IdentifyDisplays" }
-windows_api_raw = { path = "../../Library/WindowsApiRaw" }
+identify-displays = { path = "../../Program/IdentifyDisplays" }
+windows-api-raw = { path = "../../Library/WindowsApiRaw" }
 
 [lints]
 workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "veehiicuul_tests"
+name = "veehiicuul-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -7,8 +7,8 @@ publish = false
 
 [dependencies]
 json = { path = "../../Library/Json" }
-simple_paint = { path = "../../Library/SimplePaint" }
-user_interface = { path = "../../Library/UserInterface" }
+simple-paint = { path = "../../Library/SimplePaint" }
+user-interface = { path = "../../Library/UserInterface" }
 veehiicuul = { path = "../../Program/Veehiicuul" }
 
 [lints]

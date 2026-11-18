@@ -226,7 +226,7 @@ The PS source has one square root on the zero-shift path and two on the shifted 
 
 ## Verification
 
-Run the module's four tests with `cargo test -p simple_paint_tests`, as [Usage.md](Usage.md#build-and-verify) describes:
+Run the module's four tests with `cargo test -p simple-paint-tests`, as [Usage.md](Usage.md#build-and-verify) describes:
 
 | Test                   | Coverage                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------- |
@@ -247,4 +247,4 @@ The regression acceptance criterion is finite output in [0,1], alpha exactly one
 
 The deterministic suite covers boundaries, peaks, poles, both sides of the silhouette, inverted and constant tone ranges, scaled normals, interpolation, and random cases. It is not an exhaustive proof over all binary64 parameter combinations or a promise of bitwise identity across GPU drivers. The abstract equivalence and positive-denominator arguments are analytic; the finite-precision error criterion is tested. Rerun the GPU tests when changing the compiler, arithmetic, accepted limits, or target hardware. Host applications must additionally test their own mesh validation and rendering integration.
 
-An optional GPU-timestamp microbenchmark is available with `cargo test --release -p simple_paint_tests --test gpu -- --benchmark`. It times 128 warmed 1024x1024 draws for Shift=0 and Shift=0.6 on the preferred hardware adapter, using constant normals and a float4 render target. It excludes CPU submission, setup, and readback; its output is not a whole-scene FPS prediction.
+An optional GPU-timestamp microbenchmark is available with `cargo test --release -p simple-paint-tests --test gpu -- --benchmark`. It times 128 warmed 1024x1024 draws for Shift=0 and Shift=0.6 on the preferred hardware adapter, using constant normals and a float4 render target. It excludes CPU submission, setup, and readback; its output is not a whole-scene FPS prediction.

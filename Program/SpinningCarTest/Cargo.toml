@@ -1,5 +1,5 @@
 [package]
-name = "spinning_car_test"
+name = "spinning-car-test"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -11,7 +11,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "spinning_car_test"
+name = "spinning-car-test"
 # Every test is in Test.
 test = false
 
@@ -20,16 +20,16 @@ graphics = { path = "../../Library/Graphics" }
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
 meshes = { path = "../../Library/Meshes" }
-paint_settings = { path = "../../Library/PaintSettings" }
-simple_paint = { path = "../../Library/SimplePaint" }
-user_interface = { path = "../../Library/UserInterface" }
-windows_api_raw = { path = "../../Library/WindowsApiRaw" }
+paint-settings = { path = "../../Library/PaintSettings" }
+simple-paint = { path = "../../Library/SimplePaint" }
+user-interface = { path = "../../Library/UserInterface" }
+windows-api-raw = { path = "../../Library/WindowsApiRaw" }
 
 [dependencies.windows-core]
 workspace = true
 
 [build-dependencies]
-shader_compiler = { path = "../../Library/ShaderCompiler" }
+shader-compiler = { path = "../../Library/ShaderCompiler" }
 
 [lints]
 workspace = true

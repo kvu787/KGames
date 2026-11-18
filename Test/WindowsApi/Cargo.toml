@@ -1,12 +1,12 @@
 [package]
-name = "windows_api_tests"
+name = "windows-api-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
 publish = false
 
 [dependencies]
-bindings_generator = { path = "../../Library/WindowsApiRaw/BindingsGenerator" }
+bindings-generator = { path = "../../Library/WindowsApiRaw/BindingsGenerator" }
 
 [lints]
 workspace = true

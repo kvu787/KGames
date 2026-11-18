@@ -83,7 +83,7 @@ the GPU's memory comes from the device, and the last line says what the whole pr
 ## Testing
 
 ```powershell
-Program\RunLightly\RunLightly.ps1 cargo test -p benchmarks_tests
+Program\RunLightly\RunLightly.ps1 cargo test -p benchmarks-tests
 ```
 
 The tests in `Test/Benchmarks` check the harness's statistics, budget, table, JSON and command

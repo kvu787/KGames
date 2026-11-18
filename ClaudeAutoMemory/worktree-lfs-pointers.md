@@ -10,7 +10,7 @@ metadata:
 
 In a freshly made git worktree of KGames (the app makes one per session under `.claude/worktrees`), the Git LFS files
 (`Program/Veehiicuul/Models/*.glb`, `Blender/Terrain.blend`) are 130-byte pointer files, not the models.
-`cargo test` then fails in `gltf_tests` (Test/Gltf/Models.rs, "reads_the_car_that_blender_exported") with a panic at the
+`cargo test` then fails in `gltf-tests` (Test/Gltf/Models.rs, "reads_the_car_that_blender_exported") with a panic at the
 `unwrap_or_else` that loads the model. Seen on 2026-11-05.
 It also breaks builds: `Library/Meshes`' build script refuses the pointer file ("SlopeCar.glb is a Git LFS pointer file"),
 so every program that depends on meshes fails to build, SimplePaintDemo included. On 2026-11-06 the user's own

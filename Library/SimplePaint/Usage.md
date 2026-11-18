@@ -44,7 +44,7 @@ Depend on the crate with a path from your package's folder, like a program in `P
 
 ```toml
 [dependencies]
-simple_paint = { path = "../../Library/SimplePaint" }
+simple-paint = { path = "../../Library/SimplePaint" }
 ```
 
 - `src/material.rs`: validated parameters and GPU constant compilation, with no DirectX types.
@@ -134,7 +134,7 @@ shader_compiler::build_vertex_and_pixel(&shaders.join("Unlit.hlsl"), &["-O3", "-
 The tests are in [Test/SimplePaint](../../Test/SimplePaint), apart from the module, like every test in KGames. From the root of the repository:
 
 ```powershell
-cargo test -p simple_paint_tests
+cargo test -p simple-paint-tests
 ```
 
 They require Windows 11 x64, DXC from the Windows SDK, and Shader Model 6.0 runtimes for the preferred hardware adapter and WARP. They check D3D12 debug-layer warnings and errors when the debug layer, the "Graphics Tools" optional Windows feature, is installed.

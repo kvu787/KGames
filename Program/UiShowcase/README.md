@@ -77,7 +77,7 @@ settings that every program has.
 ## Testing
 
 ```powershell
-cargo test -p ui_showcase_tests
+cargo test -p ui-showcase-tests
 Program\RunInBackground\RunInBackground.ps1 UiShowcase --all-scripts
 ```
 

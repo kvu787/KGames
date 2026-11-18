@@ -10,7 +10,7 @@ test = false
 doctest = false
 
 [dependencies]
-simple_paint = { path = "../SimplePaint" }
+simple-paint = { path = "../SimplePaint" }
 
 # build.rs makes the car from its model with it.
 [build-dependencies]

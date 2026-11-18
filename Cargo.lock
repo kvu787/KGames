@@ -6,26 +6,26 @@ version = 4
 name = "benchmarks"
 version = "0.1.0"
 dependencies = [
- "game_input_demo",
+ "game-input-demo",
  "gltf",
  "graphics",
  "json",
  "math",
- "mesh_modeler",
- "minimal_scene_test",
- "polygon_mesh",
- "present_timing",
- "simple_paint",
- "simple_paint_demo",
- "spinning_car_test",
- "ui_showcase",
- "user_interface",
+ "mesh-modeler",
+ "minimal-scene-test",
+ "polygon-mesh",
+ "present-timing",
+ "simple-paint",
+ "simple-paint-demo",
+ "spinning-car-test",
+ "ui-showcase",
+ "user-interface",
  "veehiicuul",
- "windows_api_raw",
+ "windows-api-raw",
 ]
 
 [[package]]
-name = "benchmarks_tests"
+name = "benchmarks-tests"
 version = "0.1.0"
 dependencies = [
  "benchmarks",
@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bindings_generator"
+name = "bindings-generator"
 version = "0.1.0"
 dependencies = [
  "windows-bindgen",
@@ -43,74 +43,74 @@ dependencies = [
 name = "displays"
 version = "0.1.0"
 dependencies = [
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "frame_times"
+name = "frame-times"
 version = "0.1.0"
 dependencies = [
- "present_timing",
- "windows_api_raw",
+ "present-timing",
+ "windows-api-raw",
 ]
 
 [[package]]
-name = "frame_times_tests"
+name = "frame-times-tests"
 version = "0.1.0"
 dependencies = [
- "frame_times",
- "present_timing",
+ "frame-times",
+ "present-timing",
 ]
 
 [[package]]
-name = "game_input"
+name = "game-input"
 version = "0.1.0"
 dependencies = [
- "game_input_raw",
+ "game-input-raw",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "game_input_demo"
+name = "game-input-demo"
 version = "0.1.0"
 dependencies = [
- "game_input",
- "game_input_raw",
+ "game-input",
+ "game-input-raw",
  "json",
- "user_interface",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "game_input_demo_tests"
+name = "game-input-demo-tests"
 version = "0.1.0"
 dependencies = [
- "game_input",
- "game_input_demo",
- "game_input_raw",
+ "game-input",
+ "game-input-demo",
+ "game-input-raw",
  "json",
- "user_interface",
+ "user-interface",
  "windows-core",
 ]
 
 [[package]]
-name = "game_input_raw"
+name = "game-input-raw"
 version = "0.1.0"
 dependencies = [
  "windows-core",
 ]
 
 [[package]]
-name = "game_input_tests"
+name = "game-input-tests"
 version = "0.1.0"
 dependencies = [
- "game_input",
- "game_input_raw",
+ "game-input",
+ "game-input-raw",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
@@ -121,7 +121,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gltf_tests"
+name = "gltf-tests"
 version = "0.1.0"
 dependencies = [
  "gltf",
@@ -132,34 +132,34 @@ dependencies = [
 name = "graphics"
 version = "0.1.0"
 dependencies = [
+ "windows-api",
+ "windows-api-raw",
  "windows-core",
- "windows_api",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "graphics_tests"
+name = "graphics-tests"
 version = "0.1.0"
 dependencies = [
  "graphics",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "identify_displays"
+name = "identify-displays"
 version = "0.1.0"
 dependencies = [
  "displays",
 ]
 
 [[package]]
-name = "identify_displays_tests"
+name = "identify-displays-tests"
 version = "0.1.0"
 dependencies = [
  "displays",
- "identify_displays",
- "windows_api_raw",
+ "identify-displays",
+ "windows-api-raw",
 ]
 
 [[package]]
@@ -167,7 +167,7 @@ name = "json"
 version = "0.1.0"
 
 [[package]]
-name = "json_tests"
+name = "json-tests"
 version = "0.1.0"
 dependencies = [
  "json",
@@ -178,37 +178,37 @@ name = "math"
 version = "0.1.0"
 
 [[package]]
-name = "math_tests"
+name = "math-tests"
 version = "0.1.0"
 dependencies = [
  "math",
 ]
 
 [[package]]
-name = "mesh_modeler"
+name = "mesh-modeler"
 version = "0.1.0"
 dependencies = [
  "graphics",
  "json",
  "math",
- "paint_settings",
- "polygon_mesh",
- "shader_compiler",
- "simple_paint",
- "user_interface",
+ "paint-settings",
+ "polygon-mesh",
+ "shader-compiler",
+ "simple-paint",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "mesh_modeler_tests"
+name = "mesh-modeler-tests"
 version = "0.1.0"
 dependencies = [
  "json",
  "math",
- "mesh_modeler",
- "polygon_mesh",
- "user_interface",
+ "mesh-modeler",
+ "polygon-mesh",
+ "user-interface",
 ]
 
 [[package]]
@@ -216,57 +216,57 @@ name = "meshes"
 version = "0.1.0"
 dependencies = [
  "gltf",
- "simple_paint",
+ "simple-paint",
 ]
 
 [[package]]
-name = "meshes_tests"
+name = "meshes-tests"
 version = "0.1.0"
 dependencies = [
  "meshes",
- "simple_paint",
+ "simple-paint",
 ]
 
 [[package]]
-name = "minimal_scene_test"
+name = "minimal-scene-test"
 version = "0.1.0"
 dependencies = [
  "graphics",
  "json",
  "math",
  "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
+ "paint-settings",
+ "shader-compiler",
+ "simple-paint",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "minimal_scene_test_tests"
+name = "minimal-scene-test-tests"
 version = "0.1.0"
 dependencies = [
- "minimal_scene_test",
- "simple_paint",
- "user_interface",
+ "minimal-scene-test",
+ "simple-paint",
+ "user-interface",
 ]
 
 [[package]]
-name = "paint_settings"
-version = "0.1.0"
-dependencies = [
- "json",
- "simple_paint",
-]
-
-[[package]]
-name = "paint_settings_tests"
+name = "paint-settings"
 version = "0.1.0"
 dependencies = [
  "json",
- "paint_settings",
- "simple_paint",
+ "simple-paint",
+]
+
+[[package]]
+name = "paint-settings-tests"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "paint-settings",
+ "simple-paint",
 ]
 
 [[package]]
@@ -274,49 +274,49 @@ name = "platformer"
 version = "0.1.0"
 dependencies = [
  "json",
- "user_interface",
+ "user-interface",
 ]
 
 [[package]]
-name = "platformer_tests"
+name = "platformer-tests"
 version = "0.1.0"
 dependencies = [
  "json",
  "platformer",
- "user_interface",
+ "user-interface",
 ]
 
 [[package]]
-name = "polygon_mesh"
+name = "polygon-mesh"
 version = "0.1.0"
 dependencies = [
  "json",
  "math",
- "simple_paint",
+ "simple-paint",
 ]
 
 [[package]]
-name = "polygon_mesh_tests"
+name = "polygon-mesh-tests"
 version = "0.1.0"
 dependencies = [
  "math",
- "polygon_mesh",
- "simple_paint",
+ "polygon-mesh",
+ "simple-paint",
 ]
 
 [[package]]
-name = "present_timing"
+name = "present-timing"
 version = "0.1.0"
 dependencies = [
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "present_timing_tests"
+name = "present-timing-tests"
 version = "0.1.0"
 dependencies = [
- "present_timing",
+ "present-timing",
 ]
 
 [[package]]
@@ -338,98 +338,98 @@ dependencies = [
 ]
 
 [[package]]
-name = "shader_compiler"
+name = "shader-compiler"
 version = "0.1.0"
 
 [[package]]
-name = "simple_paint"
-version = "0.1.0"
-dependencies = [
- "graphics",
- "math",
- "windows-core",
- "windows_api_raw",
-]
-
-[[package]]
-name = "simple_paint_demo"
-version = "0.1.0"
-dependencies = [
- "graphics",
- "json",
- "math",
- "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
- "windows-core",
- "windows_api_raw",
-]
-
-[[package]]
-name = "simple_paint_demo_tests"
-version = "0.1.0"
-dependencies = [
- "paint_settings",
- "simple_paint",
- "simple_paint_demo",
- "user_interface",
- "windows_api_raw",
-]
-
-[[package]]
-name = "simple_paint_tests"
+name = "simple-paint"
 version = "0.1.0"
 dependencies = [
  "graphics",
  "math",
- "meshes",
- "shader_compiler",
- "simple_paint",
+ "windows-api-raw",
  "windows-core",
- "windows_api",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "spinning_car_test"
+name = "simple-paint-demo"
 version = "0.1.0"
 dependencies = [
  "graphics",
  "json",
  "math",
  "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
+ "paint-settings",
+ "shader-compiler",
+ "simple-paint",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "spinning_car_test_tests"
+name = "simple-paint-demo-tests"
 version = "0.1.0"
 dependencies = [
- "simple_paint",
- "spinning_car_test",
- "user_interface",
+ "paint-settings",
+ "simple-paint",
+ "simple-paint-demo",
+ "user-interface",
+ "windows-api-raw",
 ]
 
 [[package]]
-name = "ui_showcase"
+name = "simple-paint-tests"
 version = "0.1.0"
 dependencies = [
- "user_interface",
+ "graphics",
+ "math",
+ "meshes",
+ "shader-compiler",
+ "simple-paint",
+ "windows-api",
+ "windows-api-raw",
+ "windows-core",
 ]
 
 [[package]]
-name = "ui_showcase_tests"
+name = "spinning-car-test"
 version = "0.1.0"
 dependencies = [
- "ui_showcase",
- "user_interface",
+ "graphics",
+ "json",
+ "math",
+ "meshes",
+ "paint-settings",
+ "shader-compiler",
+ "simple-paint",
+ "user-interface",
+ "windows-api-raw",
+ "windows-core",
+]
+
+[[package]]
+name = "spinning-car-test-tests"
+version = "0.1.0"
+dependencies = [
+ "simple-paint",
+ "spinning-car-test",
+ "user-interface",
+]
+
+[[package]]
+name = "ui-showcase"
+version = "0.1.0"
+dependencies = [
+ "user-interface",
+]
+
+[[package]]
+name = "ui-showcase-tests"
+version = "0.1.0"
+dependencies = [
+ "ui-showcase",
+ "user-interface",
 ]
 
 [[package]]
@@ -439,28 +439,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
-name = "user_interface"
+name = "user-interface"
 version = "0.1.0"
 dependencies = [
  "displays",
- "game_input",
- "game_input_raw",
+ "game-input",
+ "game-input-raw",
  "graphics",
  "json",
- "present_timing",
- "shader_compiler",
+ "present-timing",
+ "shader-compiler",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "user_interface_tests"
+name = "user-interface-tests"
 version = "0.1.0"
 dependencies = [
- "present_timing",
- "user_interface",
+ "present-timing",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
@@ -472,22 +472,43 @@ dependencies = [
  "json",
  "math",
  "meshes",
- "paint_settings",
- "shader_compiler",
- "simple_paint",
- "user_interface",
+ "paint-settings",
+ "shader-compiler",
+ "simple-paint",
+ "user-interface",
+ "windows-api-raw",
  "windows-core",
- "windows_api_raw",
 ]
 
 [[package]]
-name = "veehiicuul_tests"
+name = "veehiicuul-tests"
 version = "0.1.0"
 dependencies = [
  "json",
- "simple_paint",
- "user_interface",
+ "simple-paint",
+ "user-interface",
  "veehiicuul",
+]
+
+[[package]]
+name = "windows-api"
+version = "0.1.0"
+dependencies = [
+ "windows-core",
+]
+
+[[package]]
+name = "windows-api-raw"
+version = "0.1.0"
+dependencies = [
+ "windows-core",
+]
+
+[[package]]
+name = "windows-api-tests"
+version = "0.1.0"
+dependencies = [
+ "bindings-generator",
 ]
 
 [[package]]
@@ -547,25 +568,4 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a70b590c684f1d2854f74999896f7c0558f1bdde62f599088599e20ea1d2f60"
 dependencies = [
  "windows-link",
-]
-
-[[package]]
-name = "windows_api"
-version = "0.1.0"
-dependencies = [
- "windows-core",
-]
-
-[[package]]
-name = "windows_api_raw"
-version = "0.1.0"
-dependencies = [
- "windows-core",
-]
-
-[[package]]
-name = "windows_api_tests"
-version = "0.1.0"
-dependencies = [
- "bindings_generator",
 ]

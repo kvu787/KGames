@@ -1,5 +1,5 @@
 [package]
-name = "mesh_modeler_tests"
+name = "mesh-modeler-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -8,9 +8,9 @@ publish = false
 [dependencies]
 json = { path = "../../Library/Json" }
 math = { path = "../../Library/Math" }
-mesh_modeler = { path = "../../Program/MeshModeler" }
-polygon_mesh = { path = "../../Library/PolygonMesh" }
-user_interface = { path = "../../Library/UserInterface" }
+mesh-modeler = { path = "../../Program/MeshModeler" }
+polygon-mesh = { path = "../../Library/PolygonMesh" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true

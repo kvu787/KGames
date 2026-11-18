@@ -1,5 +1,5 @@
 [package]
-name = "identify_displays"
+name = "identify-displays"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -12,7 +12,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "identify_displays"
+name = "identify-displays"
 # Every test is in Test.
 test = false
 

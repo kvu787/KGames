@@ -131,7 +131,7 @@ The traces aren't in this repository, so the test is ignored unless it's asked f
 
 ```powershell
 $env:PRESENTMON_GOLD = 'C:\PresentMon\Tests\Gold'
-Program\RunLightly\RunLightly.ps1 cargo test -p present_timing_tests --test gold '--' --ignored --nocapture
+Program\RunLightly\RunLightly.ps1 cargo test -p present-timing-tests --test gold '--' --ignored --nocapture
 ```
 
 The traces don't have legacy copies, composed CPU copies, or Windows 11's hardware flip queue,

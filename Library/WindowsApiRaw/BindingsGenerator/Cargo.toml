@@ -1,5 +1,5 @@
 [package]
-name = "bindings_generator"
+name = "bindings-generator"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -13,7 +13,7 @@ test = false
 doctest = false
 
 [[bin]]
-name = "bindings_generator"
+name = "bindings-generator"
 test = false
 
 [dependencies]

@@ -5,11 +5,11 @@ identifier in the `"Display"` setting of the program's `Settings.json`, or pass 
 with `--display`. It's a console program, without a window, and takes no arguments.
 
 ```powershell
-cargo build --release --bin identify_displays
-target\release\identify_displays.exe
+cargo build --release --bin identify-displays
+target\release\identify-displays.exe
 ```
 
-Or `cargo run --release --bin identify_displays`. Or run `HumanRun.cmd`, which you can also
+Or `cargo run --release --bin identify-displays`. Or run `HumanRun.cmd`, which you can also
 double-click in File Explorer. It's for people, not for coding agents, which run the exe instead. It
 runs `HumanRun.ps1`, which builds IdentifyDisplays, runs it, and waits for Enter before it closes,
 so that the console window stays open to read.
@@ -64,7 +64,7 @@ for this program and for the others.
 ## Testing
 
 ```powershell
-cargo test -p identify_displays_tests
+cargo test -p identify-displays-tests
 ```
 
 The tests in `Test/IdentifyDisplays` check what it prints, for made-up displays and for the real

@@ -1,5 +1,5 @@
 [package]
-name = "frame_times"
+name = "frame-times"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -12,13 +12,13 @@ test = false
 doctest = false
 
 [[bin]]
-name = "frame_times"
+name = "frame-times"
 # Every test is in Test.
 test = false
 
 [dependencies]
-present_timing = { path = "../../Library/PresentTiming" }
-windows_api_raw = { path = "../../Library/WindowsApiRaw" }
+present-timing = { path = "../../Library/PresentTiming" }
+windows-api-raw = { path = "../../Library/WindowsApiRaw" }
 
 [lints]
 workspace = true

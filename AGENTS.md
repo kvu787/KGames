@@ -170,7 +170,7 @@ How:
 - If the script says CVVNY2 isn't connected, stop and tell the user. Don't pick another display.
 - With `--keep-open`, the program keeps running after the script ends. Stop it with `Stop-Process` and the process ID the script prints, once you're done with it.
 - Don't send keyboard or mouse input with `SendInput` or anything like it. It goes to the window that has focus, which is the user's, and programs ignore all input without focus anyway. Test input with tests and scripts instead, as below.
-- Tests that use the GPU, like `cargo test -p simple_paint_tests`, draw offscreen, without a window, so run them freely, with RunLightly like any other build.
+- Tests that use the GPU, like `cargo test -p simple-paint-tests`, draw offscreen, without a window, so run them freely, with RunLightly like any other build.
 
 ## Power and locking
 

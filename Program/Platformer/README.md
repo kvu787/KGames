@@ -79,7 +79,7 @@ The file isn't checked in; delete it for a fresh start.
 
 ## Testing
 
-`Program\RunLightly\RunLightly.ps1 cargo test -p platformer_tests` runs the
+`Program\RunLightly\RunLightly.ps1 cargo test -p platformer-tests` runs the
 tests: the physics (each frame moving the player by its own time, a jump as
 high at any frame rate, buffer, coyote, carry, and every top in every level
 holding a player who runs along it),

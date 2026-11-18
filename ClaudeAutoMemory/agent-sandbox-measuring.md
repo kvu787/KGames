@@ -8,7 +8,7 @@ metadata:
   modified: 2026-11-11T01:48:13.040Z
 ---
 
-On 2026-11-08, PresentMon 2.6 wrote no CSV at all and FrameTimes (`frame_times.exe`) reported 0 presents, even
+On 2026-11-08, PresentMon 2.6 wrote no CSV at all and FrameTimes (`frame-times.exe`) reported 0 presents, even
 for dwm, from the agent's shell. It was NOT a sandbox: the shell runs as the user at medium
 integrity, in Performance Log Users, and `logman` traced Microsoft-Windows-DXGI and DxgKrnl
 events fine, to a file and real-time (`tracerpt -rt`). The PC was locked (LogonUI running), so no

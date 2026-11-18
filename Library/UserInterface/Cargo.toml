@@ -1,5 +1,5 @@
 [package]
-name = "user_interface"
+name = "user-interface"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -11,12 +11,12 @@ doctest = false
 
 [dependencies]
 displays = { path = "../Displays" }
-game_input = { path = "../GameInput" }
-game_input_raw = { path = "../GameInputRaw" }
+game-input = { path = "../GameInput" }
+game-input-raw = { path = "../GameInputRaw" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
-present_timing = { path = "../PresentTiming" }
-windows_api_raw = { path = "../WindowsApiRaw" }
+present-timing = { path = "../PresentTiming" }
+windows-api-raw = { path = "../WindowsApiRaw" }
 
 # Without its proc macros: the one COM object written here, the text
 # renderer that collects DirectWrite's glyphs, is written by hand.
@@ -24,7 +24,7 @@ windows_api_raw = { path = "../WindowsApiRaw" }
 workspace = true
 
 [build-dependencies]
-shader_compiler = { path = "../ShaderCompiler" }
+shader-compiler = { path = "../ShaderCompiler" }
 
 [lints]
 workspace = true

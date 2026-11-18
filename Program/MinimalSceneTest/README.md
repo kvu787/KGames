@@ -62,7 +62,7 @@ it from its `Paint.json`.
 ## Testing
 
 ```powershell
-cargo test -p minimal_scene_test_tests
+cargo test -p minimal-scene-test-tests
 Program\RunInBackground\RunInBackground.ps1 MinimalSceneTest --all-scripts
 ```
 

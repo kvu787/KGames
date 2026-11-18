@@ -208,7 +208,7 @@ the primary display. `--display` and `--no-activate` work as in every program, a
 ## Testing
 
 ```powershell
-cargo test -p veehiicuul_tests
+cargo test -p veehiicuul-tests
 Program\RunInBackground\RunInBackground.ps1 Veehiicuul --all-scripts
 ```
 

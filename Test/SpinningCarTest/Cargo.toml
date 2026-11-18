@@ -1,14 +1,14 @@
 [package]
-name = "spinning_car_test_tests"
+name = "spinning-car-test-tests"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
 publish = false
 
 [dependencies]
-simple_paint = { path = "../../Library/SimplePaint" }
-spinning_car_test = { path = "../../Program/SpinningCarTest" }
-user_interface = { path = "../../Library/UserInterface" }
+simple-paint = { path = "../../Library/SimplePaint" }
+spinning-car-test = { path = "../../Program/SpinningCarTest" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true

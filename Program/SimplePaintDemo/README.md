@@ -56,7 +56,7 @@ the settings that every program has; the demo has none of its own.
 ## Testing
 
 ```powershell
-cargo test -p simple_paint_demo_tests
+cargo test -p simple-paint-demo-tests
 Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
 ```
 

@@ -176,7 +176,7 @@ To open the demo on another display, find the display's identifier with `Identif
 pass it with `--display`, or put it in the [settings file](#settings-file):
 
 ```powershell
-cargo run --release --bin identify_displays
+cargo run --release --bin identify-displays
 cargo run --release -- --display KXGR16
 ```
 
@@ -376,7 +376,7 @@ GameInput, from which gamepad it listens to, to dropping input without focus, th
 shortcuts and the log, runs without a gamepad, and without your keyboard and mouse.
 
 ```powershell
-cargo test -p game_input_demo_tests
+cargo test -p game-input-demo-tests
 Program\RunInBackground\RunInBackground.ps1 GameInputDemo --all-scripts
 ```
 

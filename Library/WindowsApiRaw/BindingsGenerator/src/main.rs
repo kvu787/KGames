@@ -1,7 +1,7 @@
 // Regenerates src/bindings.rs from the API names listed in Filters.txt.
 // Run it from anywhere in the repository after changing Filters.txt:
 //
-//     cargo run -p bindings_generator
+//     cargo run -p bindings-generator
 //
 // The generated file is committed, so building the programs doesn't need this tool.
 

@@ -1,5 +1,5 @@
 [package]
-name = "ui_showcase"
+name = "ui-showcase"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -11,12 +11,12 @@ test = false
 doctest = false
 
 [[bin]]
-name = "ui_showcase"
+name = "ui-showcase"
 # Every test is in Test.
 test = false
 
 [dependencies]
-user_interface = { path = "../../Library/UserInterface" }
+user-interface = { path = "../../Library/UserInterface" }
 
 [lints]
 workspace = true
