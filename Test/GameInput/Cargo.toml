@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 game_input = { path = "../../Library/GameInput" }
+game_input_raw = { path = "../../Library/GameInputRaw" }
 windows_api_raw = { path = "../../Library/WindowsApiRaw" }
 
 [lints]

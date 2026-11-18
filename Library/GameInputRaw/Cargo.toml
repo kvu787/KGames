@@ -1,0 +1,19 @@
+[package]
+name = "game_input_raw"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+# src/lib.rs is written by hand from GameInput.h, in the shape of
+# windows-bindgen's output, and needs only windows-core. build.rs links
+# GameInput.lib, which has the loader that it binds.
+[dependencies.windows-core]
+workspace = true
+
+[lints]
+workspace = true

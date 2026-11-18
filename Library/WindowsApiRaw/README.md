@@ -27,7 +27,7 @@ this package, and that no bindings are in WindowsApi.
 3. Commit `Filters.txt` and `bindings.rs` together.
 
 GameInput isn't in the Windows metadata that `windows-bindgen` reads, so its bindings are
-written by hand in [Library/GameInput](../GameInput/README.md) instead.
+written by hand in [Library/GameInputRaw](../GameInputRaw/README.md) instead.
 
 ## Layout
 

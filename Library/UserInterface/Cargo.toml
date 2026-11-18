@@ -12,6 +12,7 @@ doctest = false
 [dependencies]
 displays = { path = "../Displays" }
 game_input = { path = "../GameInput" }
+game_input_raw = { path = "../GameInputRaw" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
 present_timing = { path = "../PresentTiming" }

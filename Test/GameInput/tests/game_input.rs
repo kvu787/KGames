@@ -15,7 +15,7 @@ use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
 use game_input::installation::{self, INSTALL_COMMAND, RUNTIME, VERSION};
-use game_input::{
+use game_input_raw::{
     GameInputCallbackToken, GameInputDeviceEvent, GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse,
 };
 
@@ -190,7 +190,7 @@ fn without_4_0_306_it_says_how_to_install_it() {
 #[test]
 fn the_package_is_the_runtimes_version() {
     let version = VERSION[..3].iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".");
-    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/GameInput");
+    let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Library/GameInputRaw");
     let project = std::fs::read_to_string(folder.join("NuGetPackages.csproj")).unwrap();
     let reference = format!(r#"<PackageReference Include="Microsoft.GameInput" Version="[{version}]""#);
     assert!(project.contains(&reference), "{project}");

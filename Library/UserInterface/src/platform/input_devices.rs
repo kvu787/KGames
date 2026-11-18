@@ -30,7 +30,8 @@
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
-use game_input::*;
+use game_input::Runtime;
+use game_input_raw::*;
 use windows_core::{GUID, HRESULT, Interface};
 
 use crate::platform::clock;

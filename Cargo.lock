@@ -67,6 +67,7 @@ dependencies = [
 name = "game_input"
 version = "0.1.0"
 dependencies = [
+ "game_input_raw",
  "windows-core",
  "windows_api_raw",
 ]
@@ -76,6 +77,7 @@ name = "game_input_demo"
 version = "0.1.0"
 dependencies = [
  "game_input",
+ "game_input_raw",
  "json",
  "user_interface",
  "windows-core",
@@ -88,8 +90,16 @@ version = "0.1.0"
 dependencies = [
  "game_input",
  "game_input_demo",
+ "game_input_raw",
  "json",
  "user_interface",
+ "windows-core",
+]
+
+[[package]]
+name = "game_input_raw"
+version = "0.1.0"
+dependencies = [
  "windows-core",
 ]
 
@@ -98,6 +108,7 @@ name = "game_input_tests"
 version = "0.1.0"
 dependencies = [
  "game_input",
+ "game_input_raw",
  "windows_api_raw",
 ]
 
@@ -432,6 +443,7 @@ version = "0.1.0"
 dependencies = [
  "displays",
  "game_input",
+ "game_input_raw",
  "graphics",
  "json",
  "present_timing",

@@ -6,6 +6,7 @@ resolver = "3"
 members = [
     "Library/Displays",
     "Library/GameInput",
+    "Library/GameInputRaw",
     "Library/Gltf",
     "Library/Graphics",
     "Library/Json",

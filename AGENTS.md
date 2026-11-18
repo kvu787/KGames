@@ -34,7 +34,7 @@ it, and programs don't start without it, which `Library/GameInput` checks. If a 
 says that it isn't installed, stop and tell the user.
 
 The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
-`Library/GameInput/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links its
+`Library/GameInputRaw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links its
 `GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
 tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
 loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
@@ -121,6 +121,10 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
   in another crate. Every crate must share its types. It holds only what `windows-bindgen`
   generates: code that goes beyond the bindings, and that more than one crate uses, goes in
   `Library/WindowsApi`.
+- GameInput isn't in the metadata that `windows-bindgen` reads, so add its APIs to
+  `Library/GameInputRaw` by hand, in the shape of `windows-bindgen`'s output, as its README says.
+  It holds only the bindings: what goes beyond them, like starting GameInput, goes in
+  `Library/GameInput`.
 
 # GUI programs
 

@@ -11,7 +11,8 @@
 
 use std::collections::VecDeque;
 
-use game_input::*;
+use game_input::Runtime;
+use game_input_raw::*;
 use json::Value;
 use windows_api_raw::GetKeyNameTextW;
 

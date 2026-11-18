@@ -2,7 +2,7 @@
 // and Windows' device tree say about it. A test gives the device's data, so
 // it doesn't need the devices themselves.
 
-use game_input::*;
+use game_input_raw::*;
 use game_input_demo::device_tree::{Node, Tree};
 use game_input_demo::devices::{Device, Section};
 use game_input_demo::input::Input;
