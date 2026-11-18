@@ -7,7 +7,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-use windows_api::*;
+use windows_api_raw::*;
 
 // A device's nodes, nearest first, or why there are none, once they're
 // looked up. Clones share the lookup.

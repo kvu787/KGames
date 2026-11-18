@@ -4,7 +4,7 @@
 // and tests never take focus.
 
 use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, clip_holder, on_screens};
-use windows_api::{POINT, RECT};
+use windows_api_raw::{POINT, RECT};
 
 use CursorAction::{Confine, Hide, Place, PlacePointer, Release, Show};
 

@@ -10,7 +10,7 @@ pub mod tracker;
 
 use std::sync::{Arc, Mutex};
 
-use windows_api::QueryPerformanceFrequency;
+use windows_api_raw::QueryPerformanceFrequency;
 
 pub use crate::session::file_clock;
 

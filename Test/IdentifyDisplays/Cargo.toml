@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 displays = { path = "../../Library/Displays" }
 identify_displays = { path = "../../Program/IdentifyDisplays" }
-windows_api = { path = "../../Library/WindowsApi" }
+windows_api_raw = { path = "../../Library/WindowsApiRaw" }
 
 [lints]
 workspace = true

@@ -101,7 +101,7 @@ programs start it.
 | [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
 | [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
 | [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
-| [WindowsApi](Library/WindowsApi/README.md)         | The generated Windows API bindings that every crate shares                                                  |
+| [WindowsApiRaw](Library/WindowsApiRaw/README.md)   | The generated Windows API bindings that every crate shares                                                  |
 
 ## Documentation
 

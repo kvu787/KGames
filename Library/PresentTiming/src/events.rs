@@ -4,7 +4,7 @@
 // enables these providers with these events, the levels and the keywords
 // that PresentMon uses, so that the times are the same as PresentMon's.
 
-use windows_api::EVENT_RECORD;
+use windows_api_raw::EVENT_RECORD;
 use windows_core::GUID;
 
 use crate::decoder::{Decoder, METADATA, payload, read};

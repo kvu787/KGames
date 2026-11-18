@@ -41,7 +41,7 @@
 //   cursor by then, or the window is minimized, and has no client area on
 //   the screen. As the window closes, the same.
 
-use windows_api::{POINT, RECT};
+use windows_api_raw::{POINT, RECT};
 
 // What Windows says, each time the window checks its focus.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

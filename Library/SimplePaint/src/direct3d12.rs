@@ -7,7 +7,7 @@
 // way, so they draw with it too, with its colors at b1.
 
 use graphics::{Gpu, UploadBuffer, bytecode, create_buffer, transition};
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Error, Result, s};
 
 use crate::orthographic::ObjectTransforms;

@@ -36,7 +36,7 @@
 use std::cell::Cell;
 use std::ptr::NonNull;
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
 use crate::drawing::geometry::{Color, Point};

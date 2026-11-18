@@ -5,7 +5,7 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-# Writes Library/WindowsApi/src/bindings.rs. Nothing depends on it, so building
+# Writes Library/WindowsApiRaw/src/bindings.rs. Nothing depends on it, so building
 # a program never compiles it.
 [[bin]]
 name = "bindings_generator"

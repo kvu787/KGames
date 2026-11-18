@@ -1,4 +1,4 @@
-# WindowsApi
+# WindowsApiRaw
 
 The Windows API bindings that every Rust package in KGames uses, in one crate, so that a
 type like `HWND` or `ID3D12Device` is the same type in all of them.

@@ -472,7 +472,7 @@ GameInput.
 ## Using more APIs
 
 For Windows APIs, which `windows-bindgen` generates, see
-[Library/WindowsApi](../../Library/WindowsApi/README.md).
+[Library/WindowsApiRaw](../../Library/WindowsApiRaw/README.md).
 
 For GameInput APIs, see [Library/GameInput](../../Library/GameInput/README.md#using-more-apis).
 

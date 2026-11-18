@@ -593,7 +593,7 @@ Two things aren't in those rows, one on each side:
 
 - `Library/Base` and `Library/Testing`, 1,550 lines, and Base's tests, 624: what Rust's standard
   library and `cargo test` have and C++'s lacks. See [What C++ needed](#what-c-needed).
-- `Library/WindowsApi`, the Rust's bindings for Windows: 9,377 generated lines, and the generator's
+- `Library/WindowsApiRaw`, the Rust's bindings for Windows: 9,377 generated lines, and the generator's
   configuration. The C++ includes the Windows SDK's headers.
 
 And one row has the same thing in it: the Rust's `Library/GameInput` was 761 lines, mostly

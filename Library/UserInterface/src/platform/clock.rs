@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use windows_api::{QueryPerformanceCounter, QueryPerformanceFrequency};
+use windows_api_raw::{QueryPerformanceCounter, QueryPerformanceFrequency};
 
 // The counter now.
 pub fn now() -> i64 {

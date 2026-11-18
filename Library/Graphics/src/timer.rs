@@ -13,7 +13,7 @@
 //     ... close, execute and signal ...
 //     let milliseconds = timer.read(&gpu, fence)?[0];
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 use crate::resources::create_buffer;

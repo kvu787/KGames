@@ -117,7 +117,7 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - `Program` holds what's runnable, `Library` what isn't and is shared, and `Test` every test.
 - Put code that more than one program can use in `Library`, not in a program.
 - Every Rust package is a member of the Cargo workspace in the root `Cargo.toml`.
-- Add Windows APIs to `Library/WindowsApi`, as its README says, instead of generating bindings
+- Add Windows APIs to `Library/WindowsApiRaw`, as its README says, instead of generating bindings
   in another crate. Every crate must share its types.
 
 # GUI programs

@@ -271,7 +271,7 @@ that no one looks for them again:
 | The programs' exes, release                             | 12.1 MB      |
 
 The only dependency outside the repository is `windows-core`, so a clean build is seconds, even
-on the efficiency cores. The generated bindings in Library/WindowsApi, 9,185 lines, are the
+on the efficiency cores. The generated bindings in Library/WindowsApiRaw, 9,185 lines, are the
 largest crate.
 
 ## What to do, in order

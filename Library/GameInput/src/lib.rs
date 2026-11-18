@@ -21,7 +21,7 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock, PoisonError};
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Error, GUID, HRESULT, Interface, PCWSTR, PWSTR, Result};
 
 pub type GameInputKind = i32;

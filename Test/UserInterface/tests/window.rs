@@ -3,7 +3,7 @@
 // opens on a display, and nothing takes focus.
 
 use user_interface::{Theme, ThemeKind, Window};
-use windows_api::*;
+use windows_api_raw::*;
 
 // Until its first frame is presented, a window shows what it paints with GDI.
 // One that paints nothing shows white, which flashed before the dark theme's

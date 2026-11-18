@@ -38,7 +38,7 @@ the restore writes to `target\DotNet`.
 **The API.** KGames uses API version 4, from `native/include/v4/GameInput.h` in the package.
 GameInput isn't in the Windows metadata that `windows-bindgen` reads, so `src/lib.rs`
 declares the parts that KGames uses by hand, in the same shape as the generated bindings in
-[Library/WindowsApi](../WindowsApi/README.md). Every vtable slot is listed in header order, so it
+[Library/WindowsApiRaw](../WindowsApiRaw/README.md). Every vtable slot is listed in header order, so it
 can be checked against the header.
 
 Microsoft's online reference shows v4's signatures in its current view, but its older views,

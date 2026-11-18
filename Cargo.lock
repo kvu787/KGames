@@ -21,7 +21,7 @@ dependencies = [
  "ui_showcase",
  "user_interface",
  "veehiicuul",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -44,7 +44,7 @@ name = "displays"
 version = "0.1.0"
 dependencies = [
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -52,7 +52,7 @@ name = "frame_times"
 version = "0.1.0"
 dependencies = [
  "present_timing",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -68,7 +68,7 @@ name = "game_input"
 version = "0.1.0"
 dependencies = [
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -79,7 +79,7 @@ dependencies = [
  "json",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -98,7 +98,7 @@ name = "game_input_tests"
 version = "0.1.0"
 dependencies = [
  "game_input",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -121,7 +121,7 @@ name = "graphics"
 version = "0.1.0"
 dependencies = [
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -130,7 +130,7 @@ version = "0.1.0"
 dependencies = [
  "graphics",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -146,7 +146,7 @@ version = "0.1.0"
 dependencies = [
  "displays",
  "identify_displays",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -184,7 +184,7 @@ dependencies = [
  "simple_paint",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -227,7 +227,7 @@ dependencies = [
  "simple_paint",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -296,7 +296,7 @@ name = "present_timing"
 version = "0.1.0"
 dependencies = [
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -335,7 +335,7 @@ dependencies = [
  "graphics",
  "math",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -351,7 +351,7 @@ dependencies = [
  "simple_paint",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -362,7 +362,7 @@ dependencies = [
  "simple_paint",
  "simple_paint_demo",
  "user_interface",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -375,7 +375,7 @@ dependencies = [
  "shader_compiler",
  "simple_paint",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -391,7 +391,7 @@ dependencies = [
  "simple_paint",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -435,7 +435,7 @@ dependencies = [
  "present_timing",
  "shader_compiler",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -445,7 +445,7 @@ dependencies = [
  "present_timing",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -462,7 +462,7 @@ dependencies = [
  "simple_paint",
  "user_interface",
  "windows-core",
- "windows_api",
+ "windows_api_raw",
 ]
 
 [[package]]
@@ -535,7 +535,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "windows_api"
+name = "windows_api_raw"
 version = "0.1.0"
 dependencies = [
  "windows-core",

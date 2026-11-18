@@ -25,7 +25,7 @@ pub use resources::{
 };
 pub use timer::{GpuTimer, Span};
 
-use windows_api::*;
+use windows_api_raw::*;
 
 // The format of every frame's target, swap chain or offscreen. Flip model
 // swap chains can't be sRGB, so frames have two views: this one, which

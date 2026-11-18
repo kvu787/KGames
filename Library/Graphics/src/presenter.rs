@@ -15,7 +15,7 @@
 //   in borderless fullscreen. There's no way between the two, of frames that
 //   don't wait and don't tear either.
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{BOOL, Error, Interface, Result};
 
 use crate::resources::{DescriptorHeap, command_list, create_target_views, execute, transition};

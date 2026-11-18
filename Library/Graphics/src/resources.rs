@@ -1,6 +1,6 @@
 // Buffers, textures, barriers and descriptor heaps.
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Interface, Result};
 
 pub fn heap_properties(kind: D3D12_HEAP_TYPE) -> D3D12_HEAP_PROPERTIES {

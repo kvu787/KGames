@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use windows_api::{CloseHandle, CreateToolhelp32Snapshot, MODULEENTRY32W, Module32FirstW, Module32NextW, TH32CS_SNAPMODULE};
+use windows_api_raw::{CloseHandle, CreateToolhelp32Snapshot, MODULEENTRY32W, Module32FirstW, Module32NextW, TH32CS_SNAPMODULE};
 
 // Windows' ERROR_BAD_LENGTH, which a snapshot of the modules fails with while
 // a DLL loads or unloads. Then it's taken again.

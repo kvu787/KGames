@@ -7,7 +7,7 @@ use math::Matrix;
 use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
 use simple_paint::orthographic::{Projection, build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material, Parameters};
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Error, Result};
 
 use crate::settings::SceneSettings;

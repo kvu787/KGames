@@ -16,7 +16,7 @@ use simple_paint::GpuMaterial;
 use simple_paint::direct3d12::{OBJECT_SIZE, Pipeline, Target, UnlitColor, materials_size, unlit_colors_size};
 use simple_paint::orthographic::ObjectTransforms;
 use user_interface::Rect;
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 use crate::paint::MAXIMUM_PAINTS;

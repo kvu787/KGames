@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::GUID;
 
 struct Property {

@@ -6,7 +6,7 @@
 use std::fmt::Write;
 
 use present_timing::{Present, PresentMode};
-use windows_api::{
+use windows_api_raw::{
     CloseHandle, CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
 

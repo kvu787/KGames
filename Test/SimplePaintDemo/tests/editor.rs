@@ -11,7 +11,7 @@ use simple_paint_demo::editor::{self, Command, SETTINGS};
 use simple_paint_demo::preview::{CopyPlace, IMAGE_HEIGHT, IMAGE_WIDTH, copy_place};
 use user_interface::tokens::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Rect, Settings, Severity, Startup, slider_rail};
-use windows_api::D3D12_BOX;
+use windows_api_raw::D3D12_BOX;
 
 fn demo(parameters: Parameters, paint_path: PathBuf) -> Headless<Demo> {
     Headless::new(Demo::new(parameters, paint_path))

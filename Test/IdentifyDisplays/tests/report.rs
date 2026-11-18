@@ -3,7 +3,7 @@
 
 use displays::Display;
 use identify_displays::{check_arguments, report};
-use windows_api::{HMONITOR, RECT};
+use windows_api_raw::{HMONITOR, RECT};
 
 fn display(identifier: &str, name: &str, left: i32, primary: bool) -> Display {
     Display {
