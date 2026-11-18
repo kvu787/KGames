@@ -549,3 +549,10 @@ version = "0.1.0"
 dependencies = [
  "windows-core",
 ]
+
+[[package]]
+name = "windows_api_tests"
+version = "0.1.0"
+dependencies = [
+ "bindings_generator",
+]

@@ -53,6 +53,7 @@ members = [
     "Test/UiShowcase",
     "Test/UserInterface",
     "Test/Veehiicuul",
+    "Test/WindowsApi",
 ]
 
 # The license of every package, which each takes with license.workspace = true.

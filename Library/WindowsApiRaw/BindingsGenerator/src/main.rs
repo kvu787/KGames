@@ -9,11 +9,5 @@ use std::path::Path;
 
 fn main() {
     let generator = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let project = generator.parent().unwrap();
-
-    windows_bindgen::builder()
-        .filter_file(generator.join("Filters.txt"))
-        .output(project.join("src/bindings.rs"))
-        .flat()
-        .write();
+    bindings_generator::generate(&generator.parent().unwrap().join("src/bindings.rs"));
 }
