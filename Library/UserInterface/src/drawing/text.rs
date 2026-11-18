@@ -9,7 +9,7 @@
 // grayscale antialiasing as WinUI's text is, at a quarter-pixel horizontal
 // offset, into an 8-bit atlas that the GPU reads.
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{BOOL, GUID, HRESULT, IUnknown_Vtbl, Interface, PCWSTR, Result};
 
 use crate::drawing::geometry::{Point, Size};

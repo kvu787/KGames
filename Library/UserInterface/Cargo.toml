@@ -12,10 +12,11 @@ doctest = false
 [dependencies]
 displays = { path = "../Displays" }
 game_input = { path = "../GameInput" }
+game_input_raw = { path = "../GameInputRaw" }
 graphics = { path = "../Graphics" }
 json = { path = "../Json" }
 present_timing = { path = "../PresentTiming" }
-windows_api = { path = "../WindowsApi" }
+windows_api_raw = { path = "../WindowsApiRaw" }
 
 # Without its proc macros: the one COM object written here, the text
 # renderer that collects DirectWrite's glyphs, is written by hand.

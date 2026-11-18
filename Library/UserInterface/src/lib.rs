@@ -142,5 +142,6 @@ pub use widgets::widget::{Elevation, Reaction, StateColors};
 
 // The crates that programs use with the interface, so that they share them.
 pub use game_input;
+pub use game_input_raw;
 pub use graphics;
 pub use json;

@@ -63,8 +63,8 @@
 // later frame than the focus change, like that reading of a gamepad if
 // GameInput is late with it.
 
-use game_input::*;
-use windows_api::*;
+use game_input_raw::*;
+use windows_api_raw::*;
 
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};

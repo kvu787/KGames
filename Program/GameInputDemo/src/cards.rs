@@ -12,7 +12,7 @@
 // library's own pointer. Everything else that the cards show comes from the
 // devices' readings.
 
-use game_input::*;
+use game_input_raw::*;
 use user_interface::controls::{
     INFO_BADGE_HEIGHT, LIST_ITEM_BACKPLATE_MARGIN, LIST_ITEM_HEIGHT, SCROLL_BAR_SIZE, SELECTION_PILL_LENGTH, SELECTION_PILL_THICKNESS,
 };

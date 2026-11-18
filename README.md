@@ -92,7 +92,8 @@ programs start it.
 | [UserInterface](Library/UserInterface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
 | [Graphics](Library/Graphics/README.md)             | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
 | [SimplePaint](Library/SimplePaint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
-| [GameInput](Library/GameInput/README.md)           | GameInput bindings, started with `GameInput.lib` from GameInput 4.0.306's NuGet package                     |
+| [GameInputRaw](Library/GameInputRaw/README.md)     | GameInput 4.0.306's bindings, and `GameInput.lib` from its NuGet package, and nothing else                  |
+| [GameInput](Library/GameInput/README.md)           | Starts GameInput, once it has checked that GameInput 4.0.306's runtime is installed                         |
 | [Displays](Library/Displays/README.md)             | Finds the displays, and gives each a lasting identifier                                                     |
 | [Math](Library/Math/README.md)                     | Vectors and matrices, in DirectXMath's conventions                                                          |
 | [Meshes](Library/Meshes/README.md)                 | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
@@ -101,7 +102,8 @@ programs start it.
 | [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
 | [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
 | [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
-| [WindowsApi](Library/WindowsApi/README.md)         | The generated Windows API bindings that every crate shares                                                  |
+| [WindowsApiRaw](Library/WindowsApiRaw/README.md)   | The generated Windows API bindings that every crate shares, and nothing else                                |
+| [WindowsApi](Library/WindowsApi/README.md)         | What KGames adds to the Windows API bindings, like `check_handle`                                           |
 
 ## Documentation
 

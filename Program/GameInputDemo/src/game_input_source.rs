@@ -9,7 +9,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use game_input::*;
+use game_input::Runtime;
+use game_input_raw::*;
 use user_interface::Devices;
 
 use crate::device_tree::Tree;

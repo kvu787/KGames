@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 windows_api = { path = "../WindowsApi" }
+windows_api_raw = { path = "../WindowsApiRaw" }
 
 [dependencies.windows-core]
 workspace = true

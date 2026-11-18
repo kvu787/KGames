@@ -30,7 +30,8 @@
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex};
 
-use game_input::*;
+use game_input::Runtime;
+use game_input_raw::*;
 use windows_core::{GUID, HRESULT, Interface};
 
 use crate::platform::clock;
@@ -145,14 +146,20 @@ impl Devices {
     pub fn new() -> Result<Devices, String> {
         let (game_input, runtime) = game_input::create()?;
         let queue = Arc::into_raw(Arc::new(DeviceQueue::default()));
-        let callback_token = unsafe { game_input.RegisterDeviceCallback(None, KINDS, Some(queue as *const c_void), Some(on_device_event)) };
-        let callback_token = match callback_token {
-            Ok(token) => token,
-            Err(error) => {
-                drop(unsafe { Arc::from_raw(queue) });
-                return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
-            }
+        let mut callback_token = 0;
+        let registered = unsafe {
+            game_input.RegisterDeviceCallback(
+                None::<&IGameInputDevice>,
+                KINDS,
+                Some(queue as *const c_void),
+                Some(on_device_event),
+                Some(&mut callback_token),
+            )
         };
+        if let Err(error) = registered.ok() {
+            drop(unsafe { Arc::from_raw(queue) });
+            return Err(format!("GameInput couldn't listen for devices: {} ({})", error.message(), error.code()));
+        }
         // GameInput's background input stays off, as it is by default, so
         // GameInput gives the process input only while it has focus. On, it
         // would give input without focus too, but GameInput then reads a
@@ -295,7 +302,7 @@ impl Devices {
     // Runs a gamepad's motors, or stops them with None.
     pub fn set_rumble(&mut self, device: usize, params: Option<&GameInputRumbleParams>) {
         if let Some((object, _)) = self.known.iter().find(|(_, known)| known.id == device) {
-            unsafe { object.SetRumbleState(params) };
+            unsafe { object.SetRumbleState(params.map(|params| params as *const _)) };
         }
     }
 
@@ -317,7 +324,7 @@ impl Devices {
             // The device's object is kept, even if its device event hasn't
             // come yet, so that no other device can get its address, and with
             // it its ID.
-            let device = reading.GetDevice().map(|device| self.device(&device).id);
+            let device = reading.GetDevice().ok().map(|device| self.device(&device).id);
             let mut data = Reading {
                 device,
                 timestamp: reading.GetTimestamp(),
@@ -542,7 +549,7 @@ impl Stream for IGameInput {
     }
 
     fn device(&self, reading: &IGameInputReading) -> Option<IGameInputDevice> {
-        unsafe { reading.GetDevice() }
+        unsafe { reading.GetDevice().ok() }
     }
 }
 
@@ -573,14 +580,10 @@ unsafe fn describe(device: &IGameInputDevice) -> Device {
         let name = utf8(|buffer| device.GetDisplayName(buffer));
         let name = if name.is_empty() { "Unnamed device".to_string() } else { name };
         let (vendor_id, product_id) = (device.GetVendorId(), device.GetProductId());
-        let mut usage = GameInputUsage::default();
-        device.GetUsage(&mut usage);
-        let mut hardware_version = GameInputVersion::default();
-        device.GetHardwareVersion(&mut hardware_version);
-        let mut firmware_version = GameInputVersion::default();
-        device.GetFirmwareVersion(&mut firmware_version);
-        let mut container_id = GUID::zeroed();
-        device.GetContainerId(&mut container_id);
+        let usage = device.GetUsage();
+        let hardware_version = device.GetHardwareVersion();
+        let firmware_version = device.GetFirmwareVersion();
+        let container_id = device.GetContainerId();
         let mut xinput_index = 0;
         let mut keyboard = GameInputKeyboardInfo::default();
         let mut mouse = GameInputMouseInfo::default();
@@ -610,9 +613,11 @@ unsafe fn describe(device: &IGameInputDevice) -> Device {
 }
 
 // A string that a GameInput method writes as UTF-8 with a terminating zero,
-// after saying how big it is when given an empty buffer.
-fn utf8(get: impl Fn(&mut [u8]) -> u32) -> String {
-    let mut buffer = vec![0u8; get(&mut []) as usize];
-    get(&mut buffer);
+// after saying how big it is when given no buffer.
+fn utf8(get: impl Fn(Option<&mut [u8]>) -> u32) -> String {
+    let mut buffer = vec![0u8; get(None) as usize];
+    if !buffer.is_empty() {
+        get(Some(&mut buffer));
+    }
     String::from_utf8_lossy(&buffer).trim_end_matches('\0').to_string()
 }

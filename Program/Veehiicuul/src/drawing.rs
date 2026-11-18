@@ -17,7 +17,7 @@ use meshes::Mesh as Triangles;
 use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, UnlitColor, materials_size, unlit_colors_size};
 use simple_paint::orthographic::{build_object_transforms, make_projection};
 use simple_paint::{GpuMaterial, Material, Parameters, Vertex};
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{Error, Result};
 
 use crate::camera::{self, Eye};

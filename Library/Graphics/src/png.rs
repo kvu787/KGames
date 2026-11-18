@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{HSTRING, Result};
 
 use crate::Image;

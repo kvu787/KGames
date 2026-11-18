@@ -5,7 +5,7 @@
 // starts at. The readings, the window's size and the focus changes
 // are made up, with times on the performance counter.
 
-use user_interface::game_input::*;
+use user_interface::game_input_raw::*;
 use user_interface::input::reader::{Connections, InputReader, WindowState, connections};
 use user_interface::FocusChange;
 use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading};

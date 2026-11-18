@@ -5,11 +5,15 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-# Writes Library/WindowsApi/src/bindings.rs. Nothing depends on it, so building
-# a program never compiles it.
+# Writes Library/WindowsApiRaw/src/bindings.rs. Only Test/WindowsApi depends
+# on it, to check that file, so building a program never compiles it.
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
 [[bin]]
 name = "bindings_generator"
-# Every test is in Test.
 test = false
 
 [dependencies]

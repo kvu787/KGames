@@ -2,7 +2,7 @@
 // frame's size changes, which is safe because the GPU has finished the last
 // frame by the time the next one is drawn.
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 use crate::resources::{DescriptorHeap, create_texture};

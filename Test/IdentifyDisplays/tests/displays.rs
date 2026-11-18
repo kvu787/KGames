@@ -5,7 +5,7 @@
 // program that asked before it made itself DPI aware would get them wrong.
 // At 100%, both are the same anyway.
 
-use windows_api::{DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext};
+use windows_api_raw::{DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext};
 
 // DPI_AWARENESS_CONTEXT_UNAWARE.
 const UNAWARE: isize = -1;
@@ -18,7 +18,7 @@ fn seen_with(context: isize) -> Vec<(String, [i32; 4], [i32; 4], u32)> {
             .unwrap()
             .into_iter()
             .map(|display| {
-                let rect = |r: windows_api::RECT| [r.left, r.top, r.right, r.bottom];
+                let rect = |r: windows_api_raw::RECT| [r.left, r.top, r.right, r.bottom];
                 (display.identifier, rect(display.area), rect(display.work_area), display.dpi)
             })
             .collect()

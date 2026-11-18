@@ -5,7 +5,7 @@
 // inherits. Select those from the base interface, like IDXGISwapChain::Present.
 //
 // GameInput isn't in the Windows metadata, so its bindings are written by hand
-// in Library/GameInput instead.
+// in Library/GameInputRaw instead.
 
 // Window and message loop
 CreateWindowExW

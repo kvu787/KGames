@@ -1,7 +1,7 @@
 // A frame being drawn, into a swap chain's back buffer or an offscreen
 // texture, and what reads its pixels back.
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 use crate::Gpu;

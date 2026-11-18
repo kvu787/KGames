@@ -10,10 +10,9 @@ test = false
 doctest = false
 
 [dependencies]
-windows_api = { path = "../WindowsApi" }
+game_input_raw = { path = "../GameInputRaw" }
+windows_api_raw = { path = "../WindowsApiRaw" }
 
-# src/lib.rs is written by hand from GameInput.h, in the shape of
-# windows-bindgen's output, and needs only windows-core.
 [dependencies.windows-core]
 workspace = true
 

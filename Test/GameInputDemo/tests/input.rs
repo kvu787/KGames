@@ -3,7 +3,7 @@
 // keyboard and mouse: which devices it listens to, what it ignores without
 // focus, its shortcuts, the rumble test, and the log.
 
-use game_input::*;
+use game_input_raw::*;
 use game_input_demo::devices::InputSource;
 use game_input_demo::input::{Input, Listen, key_name};
 use game_input_demo::scripted_source::{ScriptedSource, key_state};

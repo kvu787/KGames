@@ -8,7 +8,7 @@
 // into the frame.
 
 use graphics::{DescriptorHeap, Frame, Gpu, TARGET_FORMAT, UploadBuffer, bytecode, create_texture, transition};
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 use crate::drawing::painter::{DrawList, Instance, Layer};

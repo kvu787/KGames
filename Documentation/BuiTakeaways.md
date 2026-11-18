@@ -187,7 +187,7 @@ Status: Not started.
 - **BUI:** turns the IME on only while a text field has focus
   (`BUI/kit/intern/kit_ime_win32.c:207-266`).
 - **Do:** call `ImmAssociateContextEx(hwnd, NULL, 0)` on KGames' windows, with its binding in
-  `Library/WindowsApi`. KGames' text comes from GameInput (see task 6), so this loses nothing until
+  `Library/WindowsApiRaw`. KGames' text comes from GameInput (see task 6), so this loses nothing until
   task 6 turns the IME on for focused text fields.
 - **Done when:** it's called, and the user has tried it with an IME, which no test can.
 
@@ -233,7 +233,7 @@ Status: Not started.
 - **Do:**
   - Decode with WIC instead of BUI's C decoders: `IWICBitmapScaler` or `IWICBitmapSourceTransform`
     to decode at the size drawn, and `IWICFormatConverter` to `32bppPBGRA` for premultiplied
-    pixels. Add the bindings to `Library/WindowsApi`.
+    pixels. Add the bindings to `Library/WindowsApiRaw`.
   - Decode synchronously. BUI's worker pool (`loader.c`) lands images frames after the input that
     asked for them.
   - Port the cache rule and the clamped sampling.

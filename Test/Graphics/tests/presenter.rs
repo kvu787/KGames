@@ -7,7 +7,7 @@
 // the next frame can begin: only once the GPU has finished the last one.
 
 use graphics::{AdapterChoice, Gpu, frame_can_begin, present_arguments, present_then_signal};
-use windows_api::{D3D12_FENCE_FLAG_NONE, ID3D12Fence};
+use windows_api_raw::{D3D12_FENCE_FLAG_NONE, ID3D12Fence};
 use windows_core::{Error, HRESULT};
 
 const FAILED: HRESULT = HRESULT(0x887A0001_u32 as i32);

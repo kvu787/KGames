@@ -1,7 +1,8 @@
 // The GPU: its adapter, device, command queue and fence, and a command list
 // for setup work, like copying meshes into GPU memory.
 
-use windows_api::*;
+use windows_api::check_handle;
+use windows_api_raw::*;
 use windows_core::{Error, Interface, Result};
 
 // Which GPU draws.

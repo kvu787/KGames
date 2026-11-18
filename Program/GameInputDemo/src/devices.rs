@@ -4,7 +4,8 @@
 // (scripted_source.rs), so that tests can give the demo any readings, like a
 // gamepad's, without one.
 
-use game_input::*;
+use game_input::Runtime;
+use game_input_raw::*;
 use windows_core::GUID;
 
 use crate::device_tree::Tree;

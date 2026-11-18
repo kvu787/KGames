@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::{GUID, PCWSTR, PWSTR};
 
 use crate::StartError;

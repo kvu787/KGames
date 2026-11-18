@@ -23,10 +23,10 @@
 // "Focus" gives the window focus or takes it away, which it has from the
 // start, at the frame's time, as a script's focus has no time.
 
-use game_input::*;
+use game_input_raw::*;
 use json::Value;
 use user_interface::Key;
-use windows_api::{MAPVK_VK_TO_VSC_EX, MapVirtualKeyW};
+use windows_api_raw::{MAPVK_VK_TO_VSC_EX, MapVirtualKeyW};
 use windows_core::GUID;
 
 use crate::device_tree::Tree;

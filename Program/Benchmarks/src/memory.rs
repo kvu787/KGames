@@ -12,7 +12,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering::Relaxed};
 
-use windows_api::*;
+use windows_api_raw::*;
 
 use crate::harness::Budget;
 

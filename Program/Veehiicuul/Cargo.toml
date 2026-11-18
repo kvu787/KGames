@@ -24,7 +24,7 @@ meshes = { path = "../../Library/Meshes" }
 paint_settings = { path = "../../Library/PaintSettings" }
 simple_paint = { path = "../../Library/SimplePaint" }
 user_interface = { path = "../../Library/UserInterface" }
-windows_api = { path = "../../Library/WindowsApi" }
+windows_api_raw = { path = "../../Library/WindowsApiRaw" }
 
 [dependencies.windows-core]
 workspace = true

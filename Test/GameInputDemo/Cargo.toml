@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 game_input = { path = "../../Library/GameInput" }
+game_input_raw = { path = "../../Library/GameInputRaw" }
 game_input_demo = { path = "../../Program/GameInputDemo" }
 json = { path = "../../Library/Json" }
 user_interface = { path = "../../Library/UserInterface" }

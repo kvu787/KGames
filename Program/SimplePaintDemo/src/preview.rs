@@ -23,7 +23,7 @@ use simple_paint::GpuMaterial;
 use simple_paint::direct3d12::{Mesh, OBJECT_SIZE, Pipeline, Target, materials_size};
 use simple_paint::orthographic::{build_object_transforms, make_projection};
 use user_interface::{Color, Rect};
-use windows_api::*;
+use windows_api_raw::*;
 use windows_core::Result;
 
 static VERTEX_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SimplePaintVertex.cso"));
