@@ -17,6 +17,7 @@ members = [
     "Library/ShaderCompiler",
     "Library/SimplePaint",
     "Library/UserInterface",
+    "Library/WindowsApi",
     "Library/WindowsApiRaw",
     "Library/WindowsApiRaw/BindingsGenerator",
     "Program/Benchmarks",

@@ -118,7 +118,9 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Put code that more than one program can use in `Library`, not in a program.
 - Every Rust package is a member of the Cargo workspace in the root `Cargo.toml`.
 - Add Windows APIs to `Library/WindowsApiRaw`, as its README says, instead of generating bindings
-  in another crate. Every crate must share its types.
+  in another crate. Every crate must share its types. It holds only what `windows-bindgen`
+  generates: code that goes beyond the bindings, and that more than one crate uses, goes in
+  `Library/WindowsApi`.
 
 # GUI programs
 

@@ -121,6 +121,7 @@ name = "graphics"
 version = "0.1.0"
 dependencies = [
  "windows-core",
+ "windows_api",
  "windows_api_raw",
 ]
 
@@ -375,6 +376,7 @@ dependencies = [
  "shader_compiler",
  "simple_paint",
  "windows-core",
+ "windows_api",
  "windows_api_raw",
 ]
 
@@ -532,6 +534,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a70b590c684f1d2854f74999896f7c0558f1bdde62f599088599e20ea1d2f60"
 dependencies = [
  "windows-link",
+]
+
+[[package]]
+name = "windows_api"
+version = "0.1.0"
+dependencies = [
+ "windows-core",
 ]
 
 [[package]]

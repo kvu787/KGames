@@ -101,7 +101,8 @@ programs start it.
 | [Gltf](Library/Gltf/README.md)                     | Reads models from the .glb files that Blender exports                                                       |
 | [Json](Library/Json/README.md)                     | A JSON parser                                                                                               |
 | [ShaderCompiler](Library/ShaderCompiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
-| [WindowsApiRaw](Library/WindowsApiRaw/README.md)   | The generated Windows API bindings that every crate shares                                                  |
+| [WindowsApiRaw](Library/WindowsApiRaw/README.md)   | The generated Windows API bindings that every crate shares, and nothing else                                |
+| [WindowsApi](Library/WindowsApi/README.md)         | What KGames adds to the Windows API bindings, like `check_handle`                                           |
 
 ## Documentation
 

@@ -9,6 +9,9 @@ committed, so that no package depends on the generator, and building a program n
 it. Their only dependency is Microsoft's [`windows-core`](https://crates.io/crates/windows-core)
 crate.
 
+This package holds only what `windows-bindgen` generates. What KGames adds to the bindings, like
+`check_handle`, is in [Library/WindowsApi](../WindowsApi/README.md).
+
 ## Using more APIs
 
 1. Add the API's native name to `BindingsGenerator/Filters.txt`.
