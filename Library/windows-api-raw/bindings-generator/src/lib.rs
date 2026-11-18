@@ -1,6 +1,6 @@
 // Writes the Windows API bindings that windows-bindgen generates from the API
 // names listed in Filters.txt. main.rs writes them to WindowsApiRaw's
-// src/bindings.rs, and Test/WindowsApi writes them somewhere else, to check
+// src/bindings.rs, and Test/windows-api writes them somewhere else, to check
 // that the committed file is still exactly what this writes.
 
 use std::path::Path;

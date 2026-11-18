@@ -1,7 +1,7 @@
 # Memory
 
 Where the programs' memory goes, measured on 2026-11-06 at commit `5f03bcb` with
-[Benchmarks](../Program/Benchmarks/README.md)' memory groups,
+[Benchmarks](../Program/benchmarks/README.md)' memory groups,
 [RunInBackground](../Program/RunInBackground/README.md), Windows' process and GPU counters, and
 read from the code. [Performance.md](Performance.md) is the same for time. The short of it:
 
@@ -67,7 +67,7 @@ To reproduce:
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
 Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe --filter memory --json target\Benchmarks\Memory.json
-Program\RunInBackground\RunInBackground.ps1 UiShowcase --keep-open
+Program\RunInBackground\RunInBackground.ps1 ui-showcase --keep-open
 ```
 
 and, for a program that RunInBackground left running, with its process ID:

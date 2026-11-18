@@ -33,7 +33,7 @@ pub struct Runtime {
 // it's System32's, which COM also loads to carry calls to GameInput's service,
 // so the process runs one copy of the runtime. It loads the runtime with
 // LoadLibraryW, so the DLLs that the runtime imports, like HID.DLL, are looked
-// for beside the exe first. Test/GameInput pins all three.
+// for beside the exe first. Test/game-input pins all three.
 //
 // It checks that GameInput 4.0.306 is installed first, so that a build or a
 // program without it says how to install it, instead of failing to start
@@ -43,7 +43,7 @@ pub struct Runtime {
 // one thread at a time calls it. GameInput 4.0.306's runtime crashes when one
 // thread releases the last IGameInput while another creates one, so the first
 // one that this creates is kept for the life of the process, like the runtime,
-// and the last one is never released. Test/GameInput pins it.
+// and the last one is never released. Test/game-input pins it.
 pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
     static KEPT: OnceLock<IGameInput> = OnceLock::new();
     static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());

@@ -1,0 +1,14 @@
+[package]
+name = "identify-displays-tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[dependencies]
+displays = { path = "../../Library/displays" }
+identify-displays = { path = "../../Program/identify-displays" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[lints]
+workspace = true

@@ -29,4 +29,4 @@ flat ones, and one without a material gets one called `Default`, which is white.
 
 Only what KGames uses is read. Texture coordinates, textures, animations, skins, cameras and
 lights are ignored. A primitive that isn't triangles, sparse accessors, and data in other files
-are errors, which say what's wrong. `Test/Gltf` tests it.
+are errors, which say what's wrong. `Test/gltf` tests it.

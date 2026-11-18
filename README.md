@@ -47,7 +47,7 @@ This decision was primarily motivated by my experience working with those depend
 GUI programs are built with [Library/user-interface](Library/user-interface/README.md), a user
 interface library for Win32, Direct3D 12 and DirectWrite after Microsoft's Fluent 2 design system,
 with WinUI 3's own colors and sizes but none of its animations: its main loop runs them, its widgets are their
-controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/UiShowcase/README.md) shows every widget. GUI programs ignore
+controls, and they look and act like Windows 11's, in light or dark. [UiShowcase](Program/ui-showcase/README.md) shows every widget. GUI programs ignore
 input without focus, including gamepads, and a click that gives a window focus does only that. The
 library's README has the details, and the one window setup that programs support.
 [AGENTS.md](AGENTS.md) has the rules for coding agents, like how to run programs without disrupting
@@ -70,20 +70,20 @@ programs start it.
 
 ## Program
 
-| Program                                                | What it is                                                               |
-| ------------------------------------------------------ | ------------------------------------------------------------------------ |
-| [Veehiicuul](Program/Veehiicuul/README.md)             | A racing game seen from above, and the editors of its levels             |
-| [GameInputDemo](Program/GameInputDemo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput           |
-| [SimplePaintDemo](Program/SimplePaintDemo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
-| [MeshModeler](Program/MeshModeler/README.md)           | Models polygon meshes, subdivides them, and paints them with SimplePaint |
-| [UiShowcase](Program/UiShowcase/README.md)             | Shows every widget of the UI framework, and what input does to it        |
-| [WinUi3Sample](Program/WinUi3Sample/README.md)         | A real WinUI 3 app, in C# and XAML, to compare the UI framework with     |
-| [MinimalSceneTest](Program/MinimalSceneTest/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
-| [SpinningCarTest](Program/SpinningCarTest/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
-| [IdentifyDisplays](Program/IdentifyDisplays/README.md) | Prints each display's identifier, for the programs' `--display`          |
-| [RunInBackground](Program/RunInBackground/README.md)   | Runs a GUI program without taking focus, and screenshots it              |
-| [FrameTimes](Program/FrameTimes/README.md)             | Measures another process's frame times, like a game's while a build runs |
-| [Benchmarks](Program/Benchmarks/README.md)             | Times the hot paths: frames on the CPU and GPU, text, meshes, and more   |
+| Program                                                  | What it is                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Veehiicuul](Program/veehiicuul/README.md)               | A racing game seen from above, and the editors of its levels             |
+| [GameInputDemo](Program/game-input-demo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput           |
+| [SimplePaintDemo](Program/simple-paint-demo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
+| [MeshModeler](Program/mesh-modeler/README.md)            | Models polygon meshes, subdivides them, and paints them with SimplePaint |
+| [UiShowcase](Program/ui-showcase/README.md)              | Shows every widget of the UI framework, and what input does to it        |
+| [WinUi3Sample](Program/WinUi3Sample/README.md)           | A real WinUI 3 app, in C# and XAML, to compare the UI framework with     |
+| [MinimalSceneTest](Program/minimal-scene-test/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
+| [SpinningCarTest](Program/spinning-car-test/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
+| [IdentifyDisplays](Program/identify-displays/README.md)  | Prints each display's identifier, for the programs' `--display`          |
+| [RunInBackground](Program/RunInBackground/README.md)     | Runs a GUI program without taking focus, and screenshots it              |
+| [FrameTimes](Program/frame-times/README.md)              | Measures another process's frame times, like a game's while a build runs |
+| [Benchmarks](Program/benchmarks/README.md)               | Times the hot paths: frames on the CPU and GPU, text, meshes, and more   |
 
 ## Library
 
@@ -109,7 +109,7 @@ programs start it.
 
 `Documentation` holds design notes for what isn't code yet, like
 [VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and the analyses made with
-[Benchmarks](Program/Benchmarks/README.md): [Performance](Documentation/Performance.md), where the
+[Benchmarks](Program/benchmarks/README.md): [Performance](Documentation/Performance.md), where the
 programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
 [BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
 derived from Blender's, as tasks with their status. [GameInput](Documentation/GameInput.md) has
@@ -128,7 +128,7 @@ root.
 ```powershell
 cargo build --release --workspace
 cargo test --workspace
-Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
+Program\RunInBackground\RunInBackground.ps1 simple-paint-demo --all-scripts
 ```
 
 The GPU tests need a GPU with Shader Model 6.0, and run on WARP too. Scripts open the program

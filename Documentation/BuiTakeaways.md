@@ -92,7 +92,7 @@ left, as a Win32 window's messages do (`Input::steps` in
 [events.rs](../Library/user-interface/src/input/events.rs), and `Interface::frame` in
 [interface.rs](../Library/user-interface/src/core/interface.rs)). So every widget and program sees
 one key at a time, with the modifiers held as it went down, and no widget needs an ordered list of
-its own. `Test/UserInterface/tests/order.rs` pins that "a", Backspace, "b" in one frame deletes the
+its own. `Test/user-interface/tests/order.rs` pins that "a", Backspace, "b" in one frame deletes the
 "a", that a shortcut sees the modifiers held as its key went down and applies twice when pressed
 twice, that two clicks in a frame are two presses, and that a click lands on a menu or a dialog
 that a click before it in the frame opened. No widget moves by Left or Down today, so the cases
@@ -157,7 +157,7 @@ Status: Proposed, as a session card.
   The survey's script matched 104 of theme.rs's colors with no mismatches, and MenuBarHeight 40,
   ButtonPadding 11,5,11,6, CheckBoxSize 20 and SliderHorizontalThumbWidth 18 agree too.
 - **Do:** commit the values the comments name, extracted from `generic.xaml`, light and dark, as
-  data in `Test/UserInterface`, with a repeatable extraction step, and a test that compares the
+  data in `Test/user-interface`, with a repeatable extraction step, and a test that compares the
   constants with them.
 - **Done when:** the test passes, and fails on a changed value or a name missing from the data.
 
@@ -165,9 +165,9 @@ Status: Proposed, as a session card.
 
 Status: Proposed, as a session card.
 
-- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks single pixels, and since
+- **KGames:** [rendering.rs](../Test/user-interface/tests/rendering.rs) checks single pixels, and since
   `375d713` compares a press's frame with the frame a second later, below the PerfBar
-  ([rendering.rs:274-298](../Test/UserInterface/tests/rendering.rs#L274)). Nothing compares the frames
+  ([rendering.rs:274-298](../Test/user-interface/tests/rendering.rs#L274)). Nothing compares the frames
   before and after a round trip, and UiShowcase's `Scripts/Themes.json` checks only state.
 - **BUI:** `BUI/tests/theme_test.c:99-101` switches dark, light, dark and compares the last frame
   with the first, byte for byte.
@@ -237,7 +237,7 @@ Status: Not started.
   - Decode synchronously. BUI's worker pool (`loader.c`) lands images frames after the input that
     asked for them.
   - Port the cache rule and the clamped sampling.
-  - Add an `Image` widget to `Library/user-interface`, test it in `Test/UserInterface`, and show it
+  - Add an `Image` widget to `Library/user-interface`, test it in `Test/user-interface`, and show it
     in UiShowcase. The decoding would serve glTF textures later too.
 - **Done when:** the widget is tested and shown, with a frame that shows an image the frame's input
   asked for.
@@ -254,7 +254,7 @@ Status: Not started.
     time, not size ([text.rs:350-357](../Library/user-interface/src/drawing/text.rs#L350)), so
     flinging a big table would make hundreds of layouts a frame.
   - UiShowcase filters its lists again with `to_lowercase` inside `view`
-    ([showcase.rs:165-167](../Program/UiShowcase/src/showcase.rs#L165)).
+    ([showcase.rs:165-167](../Program/ui-showcase/src/showcase.rs#L165)).
 - **BUI:** `BUI/bindings/rust/blenderui-table`:
   - No node per row or cell: one canvas paints the visible cells
     (`BUI/bindings/rust/blenderui/src/table/data_table.rs:205-210`).
@@ -311,10 +311,10 @@ Status: Not started.
 
 Status: Not started.
 
-- **KGames:** [rendering.rs](../Test/UserInterface/tests/rendering.rs) checks pixels and compares frames
+- **KGames:** [rendering.rs](../Test/user-interface/tests/rendering.rs) checks pixels and compares frames
   with later frames, on the high-performance adapter only, and nothing is a reference for the
   interface's shader.
-  [gpu.rs](../Test/SimplePaint/tests/gpu.rs) and [reference/mod.rs](../Test/SimplePaint/tests/reference/mod.rs) already
+  [gpu.rs](../Test/simple-paint/tests/gpu.rs) and [reference/mod.rs](../Test/simple-paint/tests/reference/mod.rs) already
   compare hardware and WARP against a binary64 reference, but only for SimplePaint's shader.
 - **BUI:** `BUI/gpu/tests/test_gpu_parity.c:87-169`, `:191-230` draws one scene of every primitive at
   fractional coordinates on the CPU and on the GPU, counts the pixels that differ by more than 3
@@ -355,7 +355,7 @@ Status: Not started.
 Status: Not started.
 
 - **KGames:** "Nothing leaks" and "692 allocations a frame" ([Memory.md:13-17](Memory.md#L13)) were
-  measured once, and `Test/Benchmarks` tests the harness, not these numbers.
+  measured once, and `Test/benchmarks` tests the harness, not these numbers.
 - **BUI:** `BUI/bindings/rust/blenderui/tests/parity.rs:66-69` fails when the coverage numbers in
   its README fall. `BUI/bench/images/image_grid.c` reports allocations in an unchanged redraw,
   expecting 0, but only prints them.
@@ -368,7 +368,7 @@ Status: Not started.
 Status: Not started.
 
 - **KGames:** the `ui` benchmarks time only today's programs
-  ([Benchmarks/README.md](../Program/Benchmarks/README.md)), so what a widget costs is unknown.
+  ([Benchmarks/README.md](../Program/benchmarks/README.md)), so what a widget costs is unknown.
 - **BUI:** benchmarks 100, 1,000 and 3,000 cells, with every cell changing, one, or none
   (`BUI/bindings/rust/bench/README.md:9-22`).
 - **Do:** a made-up program with N widgets, timed and memory-counted in the existing groups.

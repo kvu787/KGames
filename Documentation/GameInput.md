@@ -46,7 +46,7 @@ lived in the session's scratchpad and aren't in the repo:
   reading's timestamp, device and state, with the time it was retrieved. Options set the
   process's timer resolution (`timeBeginPeriod`, or `NtSetTimerResolution` for 0.5 ms), the kind
   of readings counted, whether background input is on, and a wait for a stick to move.
-- **A temporary bisect test** in `Test/UserInterface`, which read gamepads through the library's
+- **A temporary bisect test** in `Test/user-interface`, which read gamepads through the library's
   own `Devices` once every 8 ms, like the main loop, and added the demo's parts one at a time by
   environment variables: power throttling's opt-out, the PerfBar's ETW session, a Direct3D 12
   device, DirectWrite, DPI awareness, a window, a swap chain, presenting, a main thread that
@@ -164,7 +164,7 @@ window got focus is input without it even if it comes in a later frame. As focus
 reader lets go of everything held on that frame, keys with a release like mouse buttons,
 whichever comes first of GameInput's readings at rest and the window's focus change, and the
 interface never hears of focus itself.
-`Test/UserInterface/tests/reader.rs` and `Test/GameInputDemo/tests/input.rs` pin these, with
+`Test/user-interface/tests/reader.rs` and `Test/game-input-demo/tests/input.rs` pin these, with
 readings shaped like GameInput's: a key held as focus goes is released once, and counts again once
 it's pressed with focus back, like an Alt+Tab away, a click back and an Alt+F4, and a gamepad
 button held as focus comes counts once it's let go of, even when GameInput's reading of it comes a
@@ -316,7 +316,7 @@ promising that it gets every reading. The first frame starts the same way, so ev
 is known from the start. Until the process has its first reading, `GetCurrentReading` gives a
 reading that isn't in the history, a device's state at rest, from which `GetNextReading` fails with
 `GAMEINPUT_E_REFERENCE_READING_TOO_OLD`, as measured with GameInput 4.0.306, so each frame starts
-over until then, and loses nothing. `Test/UserInterface/tests/reader.rs` pins the walk.
+over until then, and loses nothing. `Test/user-interface/tests/reader.rs` pins the walk.
 
 The pointer is KGames' own, as GameInput gives a mouse's motion, not a cursor. A reading's
 `positionX` and `positionY` are its mouse's motion summed up, which, as Microsoft's documentation

@@ -49,11 +49,11 @@ With GameInput 4.0.306 installed and nothing beside the exe, that's
 `C:\Windows\System32\GameInputRedist.dll`. The runtime connects to its service on a thread of its
 own as it starts, and COM loads System32's copy then, so the process runs one copy of the runtime.
 A 4.0.306 `GameInputRedist.dll` beside the exe would be loaded instead, sideloaded, so nothing in
-the repo may put one there. `Test/GameInput/tests/game_input.rs` pins both.
+the repo may put one there. `Test/game-input/tests/game_input.rs` pins both.
 
 The loader loads the runtime with `LoadLibraryW`, so Windows looks for the DLLs that the runtime
 imports beside the exe first, before System32: `HID.DLL` and `bcrypt.dll`, which aren't known DLLs.
-`Test/GameInput/tests/runtime_imports.rs` pins it.
+`Test/game-input/tests/runtime_imports.rs` pins it.
 
 `installed_runtime` in `src/installation.rs` checks that the installed DLL is there, and that its
 version is 4.0.306.0, which it reads from the DLL's own bytes: its version resource's
@@ -74,9 +74,9 @@ program that reads keyboards and mice.
 
 1. Set `VERSION` and `INSTALL_COMMAND` in `src/installation.rs`, the version in GameInputRaw's
    `NuGetPackages.csproj`, and the command in [AGENTS.md](../../AGENTS.md), the root
-   [README](../../README.md), this file and [GameInputDemo](../../Program/GameInputDemo/README.md)'s.
+   [README](../../README.md), this file and [GameInputDemo](../../Program/game-input-demo/README.md)'s.
    Then update the lock file with
-   `dotnet restore Library\game-input-raw\NuGetPackages.csproj --force-evaluate`. `Test/GameInput`
+   `dotnet restore Library\game-input-raw\NuGetPackages.csproj --force-evaluate`. `Test/game-input`
    checks that they all give the same version.
 2. If the package has a new API version, update GameInputRaw's bindings, as
    [its README](../game-input-raw/README.md#updating-gameinput) says.

@@ -5,7 +5,7 @@ edition = "2024"
 license.workspace = true
 publish = false
 
-# Writes Library/windows-api-raw/src/bindings.rs. Only Test/WindowsApi depends
+# Writes Library/windows-api-raw/src/bindings.rs. Only Test/windows-api depends
 # on it, to check that file, so building a program never compiles it.
 [lib]
 # Every test is in Test.

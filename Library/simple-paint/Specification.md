@@ -1,6 +1,6 @@
 # SimplePaint specification
 
-This is the specification for the SimplePaint module in this folder. It defines the real-number appearance, accepted machine inputs, finite-precision evaluation, geometry requirements, GPU layout, and verification criteria. The Rust/HLSL sources implement this contract; [Test/SimplePaint](../../Test/SimplePaint) verifies it. [Usage.md](Usage.md) explains the controls and integration, and [README.md](README.md) identifies the module's entry points. The supported development and target platform is Windows 11 x64.
+This is the specification for the SimplePaint module in this folder. It defines the real-number appearance, accepted machine inputs, finite-precision evaluation, geometry requirements, GPU layout, and verification criteria. The Rust/HLSL sources implement this contract; [Test/simple-paint](../../Test/simple-paint) verifies it. [Usage.md](Usage.md) explains the controls and integration, and [README.md](README.md) identifies the module's entry points. The supported development and target platform is Windows 11 x64.
 
 ## Purpose and abstract interface
 
@@ -241,7 +241,7 @@ Run the module's four tests with `cargo test -p simple-paint-tests`, as [Usage.m
 
 The tests live in their own package and use only the crate's public interface, as any host does. No host application sources are required.
 
-The independent binary64 GPU reference in `Test/SimplePaint/tests/reference/mod.rs` starts from the requested binary64 material parameters and the stored binary32 interpolated normal. It evaluates the specification's rotation, normalized rational facing, explicit tone remapping, and uncomposed color curve. This includes CPU coefficient conversion, VS rotation, GPU interpolation, and shader evaluation error. It does not measure errors from an external mesh exporter or an arbitrary host's world/view calculation; `orthographic_transforms` covers the supplied transform adapter separately. Its random cases come from a fixed-seed SplitMix64 generator, so every run tests the same cases.
+The independent binary64 GPU reference in `Test/simple-paint/tests/reference/mod.rs` starts from the requested binary64 material parameters and the stored binary32 interpolated normal. It evaluates the specification's rotation, normalized rational facing, explicit tone remapping, and uncomposed color curve. This includes CPU coefficient conversion, VS rotation, GPU interpolation, and shader evaluation error. It does not measure errors from an external mesh exporter or an arbitrary host's world/view calculation; `orthographic_transforms` covers the supplied transform adapter separately. Its random cases come from a fixed-seed SplitMix64 generator, so every run tests the same cases.
 
 The regression acceptance criterion is finite output in [0,1], alpha exactly one, and **maximum absolute per-channel error <= 0.001 in both linear RGB and sRGB** on both GPU backends. The sRGB criterion is measured before display quantization. Each GPU run includes 4,096 cases with distinct triangle vertex normals and fails on DX12 debug-layer warnings or errors when the debug layer is available. The test prints the measured maximum errors and whether debug validation was available.
 

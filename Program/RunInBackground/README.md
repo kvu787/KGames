@@ -7,10 +7,10 @@ other windows (see the [AGENTS.md](../../AGENTS.md) at the root), or while your 
 locked, which works the same.
 
 ```powershell
-Program\RunInBackground\RunInBackground.ps1 GameInputDemo
-Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --display KXGR16 --keep-open
-Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --script Test\SimplePaintDemo\Scripts\DragSlider.json
-Program\RunInBackground\RunInBackground.ps1 SimplePaintDemo --all-scripts
+Program\RunInBackground\RunInBackground.ps1 game-input-demo
+Program\RunInBackground\RunInBackground.ps1 simple-paint-demo --display KXGR16 --keep-open
+Program\RunInBackground\RunInBackground.ps1 simple-paint-demo --script Test\simple-paint-demo\Scripts\DragSlider.json
+Program\RunInBackground\RunInBackground.ps1 simple-paint-demo --all-scripts
 ```
 
 The program opens with `--display`, `--no-activate`, `--no-input` and `--vsync`, which every
@@ -57,8 +57,8 @@ other windows that show drawn over its own, where they are on the screen.
 
 | Argument              | Value                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
-| `<program>`           | The program to run, like `GameInputDemo`: its folder in `Program`. Its exe |
-|                       | has its package's name, like `game-input-demo.exe`                         |
+| `<program>`           | The program to run, like `game-input-demo`: its folder in `Program`. Its   |
+|                       | exe has its package's name, like `game-input-demo.exe`                     |
 | `--display <id>`      | The identifier of the display to open on. `CVVNY2` by default              |
 | `--seconds <seconds>` | How long the program runs before the screenshot. 3 by default              |
 | `--screenshot <path>` | Where to save the screenshot, as a PNG.                                    |

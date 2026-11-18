@@ -131,7 +131,7 @@ shader_compiler::build_vertex_and_pixel(&shaders.join("Unlit.hlsl"), &["-O3", "-
 
 ## Build and verify
 
-The tests are in [Test/SimplePaint](../../Test/SimplePaint), apart from the module, like every test in KGames. From the root of the repository:
+The tests are in [Test/simple-paint](../../Test/simple-paint), apart from the module, like every test in KGames. From the root of the repository:
 
 ```powershell
 cargo test -p simple-paint-tests

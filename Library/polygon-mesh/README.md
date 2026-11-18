@@ -4,7 +4,7 @@ The geometry of a polygon mesh modeler, like Blender's edit mode: a mesh of poly
 material each and creased edges, its topology, selections of vertices, edges and faces,
 primitives to start from, the edits of a modeler, Catmull-Clark subdivision surfaces, triangles
 for [SimplePaint](../simple-paint/README.md) to draw, picking, and files. It has no interface or
-GPU, so a modeler and its tests use it alike. `Test/PolygonMesh` tests it.
+GPU, so a modeler and its tests use it alike. `Test/polygon-mesh` tests it.
 
 ```rust
 use polygon_mesh::{Shading, primitives};

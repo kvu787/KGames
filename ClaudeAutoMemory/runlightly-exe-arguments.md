@@ -14,6 +14,6 @@ It also splits a `-name:value` argument at the colon, even quoted: `RunLightly.p
 
 Python: RunLightly can't start the Store/pymanager alias `%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe` ("Access is denied" from CreateProcess suspended), and wrapping it in `pwsh -Command` worked once and then misfired. Give RunLightly the real interpreter, `C:\Users\K\AppData\Local\Python\pythoncore-3.15-64\python.exe -I script.py` (found 2026-11-16).
 
-**Why:** Found on 2026-11-06 while running the Benchmarks program (Program/Benchmarks), which prints its table to stdout and must run lightly like everything else.
+**Why:** Found on 2026-11-06 while running the Benchmarks program (Program/benchmarks), which prints its table to stdout and must run lightly like everything else.
 
 **How to apply:** Build with `RunLightly.ps1 cargo build --release -p <crate>` first, then run the exe by absolute path through RunLightly. See [[light-load-while-gaming]].

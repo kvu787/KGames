@@ -1,0 +1,14 @@
+[package]
+name = "spinning-car-test-tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[dependencies]
+simple-paint = { path = "../../Library/simple-paint" }
+spinning-car-test = { path = "../../Program/spinning-car-test" }
+user-interface = { path = "../../Library/user-interface" }
+
+[lints]
+workspace = true

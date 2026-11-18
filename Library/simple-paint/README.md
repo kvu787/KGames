@@ -9,9 +9,9 @@ else.
 
 [Specification.md](Specification.md) defines the mathematics, supported inputs, GPU layout,
 and verification criteria. The Rust/HLSL sources implement that contract, and
-[Test/SimplePaint](../../Test/SimplePaint) verifies it. Keep the specification, implementation,
+[Test/simple-paint](../../Test/simple-paint) verifies it. Keep the specification, implementation,
 and tests aligned when changing the shader. [Usage.md](Usage.md) explains the controls and
-integration, and [SimplePaintDemo](../../Program/SimplePaintDemo/README.md) edits a material
+integration, and [SimplePaintDemo](../../Program/simple-paint-demo/README.md) edits a material
 live on a sphere.
 
 ## Compile a material

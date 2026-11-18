@@ -1,0 +1,36 @@
+[package]
+name = "veehiicuul"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+# The game's parts, which Test/veehiicuul tests without a window.
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[[bin]]
+name = "veehiicuul"
+# Every test is in Test.
+test = false
+
+[dependencies]
+gltf = { path = "../../Library/gltf" }
+graphics = { path = "../../Library/graphics" }
+json = { path = "../../Library/json" }
+math = { path = "../../Library/math" }
+meshes = { path = "../../Library/meshes" }
+paint-settings = { path = "../../Library/paint-settings" }
+simple-paint = { path = "../../Library/simple-paint" }
+user-interface = { path = "../../Library/user-interface" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
+
+[build-dependencies]
+shader-compiler = { path = "../../Library/shader-compiler" }
+
+[lints]
+workspace = true

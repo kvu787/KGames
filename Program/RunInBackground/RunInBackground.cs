@@ -46,7 +46,7 @@ using System.Runtime.InteropServices;
 const string Usage = """
     Usage: RunInBackground.ps1 <program> [options]
 
-      <program>               The program to run, like GameInputDemo: the name
+      <program>               The program to run, like game-input-demo: the name
                               of its folder in Program
 
       --display <identifier>  The display to open on, as IdentifyDisplays prints
@@ -182,7 +182,7 @@ static void Run(string[] arguments) {
         // Where the program's Directory.Build.props puts the build.
         exe = Path.Combine(target, "DotNet", "bin", program, $"{configuration.ToLowerInvariant()}_win-x64", $"{program}.exe");
     } else {
-        // A Rust program's exe has its package's name, like game-input-demo for GameInputDemo.
+        // A Rust program's exe has its package's name, like game-input-demo for Program\game-input-demo.
         var manifest = Path.Combine(repository, "Program", program, "Cargo.toml");
         if (!File.Exists(manifest)) {
             throw new FailureException($"Program\\{program} has no Cargo.toml or .csproj");

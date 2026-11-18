@@ -20,7 +20,7 @@
 // Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
 // unused slots are usize placeholders, the way windows-bindgen writes them.
-// Test/GameInput checks the sizes of the structs and vtables against the
+// Test/game-input checks the sizes of the structs and vtables against the
 // header's, as it compiles.
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code)]

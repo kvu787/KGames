@@ -5,7 +5,7 @@ KGames' user interface library, for Win32, Direct3D 12 and DirectWrite, after Mi
 with WinUI 3's own values: its theme resources' colors, its controls' sizes, paddings and parts,
 and its elevation borders and shadows, but not its animations. Every GUI program is built on it: it
 owns the window, reads the input, runs the main loop, lays out text, draws the widgets on the GPU,
-and runs scripts and headless tests. [UiShowcase](../../Program/UiShowcase/README.md) shows every
+and runs scripts and headless tests. [UiShowcase](../../Program/ui-showcase/README.md) shows every
 widget.
 
 A program is its state, what each frame's input means to it, and a description of its interface
@@ -283,7 +283,7 @@ before, but reports gamepads' whole state, their held buttons too.
   goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
   program that got focus has confined the cursor already, whose confinement the window leaves
   alone, or the window is minimized. `platform/cursor.rs` decides all of it, on what Windows says
-  as the main loop checks focus on every pass, and `Test/UserInterface/tests/cursor.rs` tests it.
+  as the main loop checks focus on every pass, and `Test/user-interface/tests/cursor.rs` tests it.
   So the windows beside it and the taskbar can't be reached with the mouse while the window has
   focus: Alt+Tab or the Windows key leave it. A window that's always on top over it, like Task
   Manager's can be, still gets the clicks under Windows' hidden cursor, which goes its own way
@@ -385,7 +385,7 @@ reads first, into `startup.common`, then the program's own, which it reads from 
 with their defaults. A missing file is written with every default; a wrong setting keeps its
 default, and a notice under the app bar says what's wrong. `Headless::start` starts a program in
 the theme that its `Startup`'s settings say, as a run does. Every program's `Settings.json` lists
-every one of the settings that every program has, which `Test/UserInterface` checks.
+every one of the settings that every program has, which `Test/user-interface` checks.
 
 | Setting        | Value                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
@@ -526,7 +526,7 @@ assert!(!app.vertical_sync());
 
 `render` draws the last frame offscreen with the GPU, with the program's 3D, for tests that check
 pixels, and `record` draws it into a frame of the caller's, for timing frames into one target, as
-[Benchmarks](../../Program/Benchmarks/README.md) does.
+[Benchmarks](../../Program/benchmarks/README.md) does.
 
 **Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
 instead of from the user, and saves frames and its state. RunInBackground runs them (see its
@@ -572,7 +572,7 @@ The state is the program's, and the interface's as `Interface`: the `Theme`, `Si
 `Menu/File/Menu/Save`, and a dialog's buttons like `Question/Primary`. A scripted run reads and
 writes its files in its output folder, through `startup.data_folder`.
 
-`Test/UserInterface` tests the library itself, with a GPU test that draws offscreen.
+`Test/user-interface` tests the library itself, with a GPU test that draws offscreen.
 
 ## Layout
 

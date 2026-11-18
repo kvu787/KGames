@@ -1,0 +1,30 @@
+[package]
+name = "game-input-demo"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+# The demo's parts, which Test/game-input-demo tests without a window, and
+# without GameInput.
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[[bin]]
+name = "game-input-demo"
+# Every test is in Test.
+test = false
+
+[dependencies]
+game-input = { path = "../../Library/game-input" }
+game-input-raw = { path = "../../Library/game-input-raw" }
+json = { path = "../../Library/json" }
+user-interface = { path = "../../Library/user-interface" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
+
+[lints]
+workspace = true

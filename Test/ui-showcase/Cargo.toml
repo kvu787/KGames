@@ -1,0 +1,13 @@
+[package]
+name = "ui-showcase-tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[dependencies]
+ui-showcase = { path = "../../Program/ui-showcase" }
+user-interface = { path = "../../Library/user-interface" }
+
+[lints]
+workspace = true

@@ -379,7 +379,7 @@ Process32NextW
 PROCESSENTRY32W
 TH32CS_SNAPPROCESS
 
-// Test/GameInput: which DLLs the process has loaded, in a snapshot of its
+// Test/game-input: which DLLs the process has loaded, in a snapshot of its
 // modules
 Module32FirstW
 Module32NextW
@@ -388,7 +388,7 @@ TH32CS_SNAPMODULE
 
 // Memory usage: how much GPU memory the process has reserved, for
 // Library/graphics, and its working set and private commit, for
-// Program/Benchmarks
+// Program/benchmarks
 IDXGIAdapter3::QueryVideoMemoryInfo
 DXGI_MEMORY_SEGMENT_GROUP
 GetProcessMemoryInfo
@@ -396,7 +396,7 @@ PROCESS_MEMORY_COUNTERS_EX
 
 // A window's background before its first frame: Library/user-interface fills
 // it with GDI when Windows asks the window to paint, which shows until the
-// first present of the window's flip-model swap chain, and Test/UserInterface
+// first present of the window's flip-model swap chain, and Test/user-interface
 // has the window print it into a bitmap to check it
 BeginPaint
 DC_BRUSH

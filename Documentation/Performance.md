@@ -1,7 +1,7 @@
 # Performance
 
 Where the programs' time goes, measured on 2026-11-06 at commit `2fb2672` with
-[Benchmarks](../Program/Benchmarks/README.md), [RunInBackground](../Program/RunInBackground/README.md)
+[Benchmarks](../Program/benchmarks/README.md), [RunInBackground](../Program/RunInBackground/README.md)
 and the PerfBar, and read from the code. The short of it:
 
 1. **Frames are cheap.** A frame's update takes 0.02 to 0.18 ms of CPU, recording its drawing 0.01
@@ -56,7 +56,7 @@ To reproduce:
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
 Program\RunLightly\RunLightly.ps1 target\release\benchmarks.exe --json target\Benchmarks\Benchmarks.json
-Program\RunInBackground\RunInBackground.ps1 UiShowcase --no-vsync --seconds 6
+Program\RunInBackground\RunInBackground.ps1 ui-showcase --no-vsync --seconds 6
 ```
 
 ## Frames

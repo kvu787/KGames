@@ -3,7 +3,7 @@
 // and Windows' cursor is kept out of the way. What the window does with it
 // is decided here, from facts that platform/window.rs gathers from Windows,
 // as actions that it carries out, so that every transition is tested
-// without a window that has focus (Test/UserInterface/tests/cursor.rs).
+// without a window that has focus (Test/user-interface/tests/cursor.rs).
 //
 // - While the window has focus, and its frames read GameInput's mice, which
 //   the run decides once, it keeps Windows' cursor inside its client area,

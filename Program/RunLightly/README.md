@@ -75,7 +75,7 @@ What it can't hold:
 
 ## Checking a build's effect on a game
 
-[FrameTimes](../FrameTimes/README.md) measures a game's frame times, which shows what a build does
+[FrameTimes](../frame-times/README.md) measures a game's frame times, which shows what a build does
 to it. Build FrameTimes once, and go somewhere in the game that draws steadily, to stay in for both
 runs. Start a build that has work to do, like the whole workspace into a new target folder, in one
 terminal:

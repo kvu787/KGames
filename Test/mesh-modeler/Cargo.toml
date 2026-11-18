@@ -1,0 +1,16 @@
+[package]
+name = "mesh-modeler-tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[dependencies]
+json = { path = "../../Library/json" }
+math = { path = "../../Library/math" }
+mesh-modeler = { path = "../../Program/mesh-modeler" }
+polygon-mesh = { path = "../../Library/polygon-mesh" }
+user-interface = { path = "../../Library/user-interface" }
+
+[lints]
+workspace = true

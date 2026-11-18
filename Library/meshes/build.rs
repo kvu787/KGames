@@ -1,6 +1,6 @@
 // Makes the car, car.rs in OUT_DIR, which src/lib.rs includes as the
 // car module, from the model that Blender exported for Veehiicuul,
-// Program/Veehiicuul/Models/SlopeCar.glb: its vertices, its triangles'
+// Program/veehiicuul/Models/SlopeCar.glb: its vertices, its triangles'
 // indices, and a constant for each of its parts' materials. So the car here
 // is always the one in that file.
 
@@ -8,7 +8,7 @@ use std::fmt::Write;
 use std::path::PathBuf;
 
 // From the repository's root.
-const MODEL: &str = "Program/Veehiicuul/Models/SlopeCar.glb";
+const MODEL: &str = "Program/veehiicuul/Models/SlopeCar.glb";
 
 // Each part's constant, and its material's name in the file. A constant's
 // value is its place here, which the vertices' material indices use. All
@@ -66,7 +66,7 @@ fn main() {
         code.push_str(text);
         code.push('\n');
     };
-    line("// Made by Library/meshes/build.rs from Program/Veehiicuul/Models/SlopeCar.glb.");
+    line("// Made by Library/meshes/build.rs from Program/veehiicuul/Models/SlopeCar.glb.");
     line("");
     line("use simple_paint::Vertex;");
     line("");

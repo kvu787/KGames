@@ -105,7 +105,7 @@ What it took to get there says something about the two languages, and is in
 
 ## Performance
 
-[Benchmarks](../Program/Benchmarks/README.md) times the same hot paths in both languages: the
+[Benchmarks](../Program/benchmarks/README.md) times the same hot paths in both languages: the
 programs' frames through `Headless`, the GPU's work for a frame, text, the input reader, meshes,
 glTF, JSON and matrices. The two programs ran one after the other, a group at a time, each in a
 process of its own, for five rounds. A time below is a program's best minimum of the five rounds,
@@ -295,7 +295,7 @@ built with Cargo's release profile as it comes.
 
 Everything above ran throttled, on the efficiency cores. For this section the computer was left
 alone, and nothing was throttled: the benchmarks ran on the performance cores, and the eight
-programs with windows ran as [HumanRun](../Program/UiShowcase/HumanRun.ps1) starts them, the
+programs with windows ran as [HumanRun](../Program/ui-showcase/HumanRun.ps1) starts them, the
 optimized exes, maximized on the primary display, 2560 x 1440 at 120 Hz, with the focus, reading
 their input from GameInput. The two languages took turns, and which went first changed by round.
 
@@ -676,7 +676,7 @@ The C++ has 48 `std::variant`s, 42 `enum class`es for the enums without data, 65
 **Declarations, twice.** A quarter of the C++ is in headers. A function is declared in its header
 and defined in its `.cpp`, a class lists its members' functions before it defines them, and what
 a file uses is named in `#include`s, 4,245 of them, where the Rust had 1,217 `use`s. In
-`Library/user-interface` more than half is in headers, since a widget is a template over the
+`Library/UserInterface` more than half is in headers, since a widget is a template over the
 program's message type, and a template is defined where it's declared.
 
 **Errors that go up.** Rust's `?` returns an error to the caller in one character, 615 times. C++
@@ -1037,7 +1037,7 @@ inject input, which [AGENTS.md](../AGENTS.md) forbids an agent that hasn't been 
 computer, as this one was for these measurements.
 
 Both programs take the same arguments and run the same benchmarks, as
-[Benchmarks' README](../Program/Benchmarks/README.md) says. Run the two one after the other, a
+[Benchmarks' README](../Program/benchmarks/README.md) says. Run the two one after the other, a
 group at a time, for several rounds, and compare within a round: the computer's load moves both by
 more than they differ. The Rust with link-time optimization is
 `cargo build --release -p benchmarks --config "profile.release.lto='fat'" --config profile.release.codegen-units=1`.
