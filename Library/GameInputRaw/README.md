@@ -2,7 +2,9 @@
 
 Rust bindings for Microsoft GameInput version 4.0.306, and nothing else. What KGames adds to them,
 like starting GameInput and checking that its runtime is installed, is in
-[Library/GameInput](../GameInput/README.md).
+[Library/GameInput](../GameInput/README.md). `Test/GameInput` checks both: that every item here is
+of a kind that `windows-bindgen` writes, that every method calls its own vtable slot, that the
+structs and vtables have the header's sizes, and that no bindings are in GameInput.
 
 Microsoft docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 

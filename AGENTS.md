@@ -120,11 +120,11 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - Add Windows APIs to `Library/WindowsApiRaw`, as its README says, instead of generating bindings
   in another crate. Every crate must share its types. It holds only what `windows-bindgen`
   generates: code that goes beyond the bindings, and that more than one crate uses, goes in
-  `Library/WindowsApi`.
+  `Library/WindowsApi`. `Test/WindowsApi` checks both.
 - GameInput isn't in the metadata that `windows-bindgen` reads, so add its APIs to
   `Library/GameInputRaw` by hand, in the shape of `windows-bindgen`'s output, as its README says.
   It holds only the bindings: what goes beyond them, like starting GameInput, goes in
-  `Library/GameInput`.
+  `Library/GameInput`. `Test/GameInput` checks both.
 
 # GUI programs
 

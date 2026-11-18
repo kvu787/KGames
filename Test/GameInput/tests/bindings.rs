@@ -1,7 +1,8 @@
-// Library/GameInputRaw: that its bindings read what GameInput's devices say
-// about themselves, through the shapes that windows-bindgen's rules give them,
-// as Library/UserInterface's devices read it. KGames doesn't build without
-// GameInput 4.0.306, so these run where it's installed.
+// Library/GameInputRaw: that its bindings are laid out as the header lays out
+// GameInput's structs and vtables, and that they read what GameInput's devices
+// say about themselves, through the shapes that windows-bindgen's rules give
+// them, as Library/UserInterface's devices read it. KGames doesn't build
+// without GameInput 4.0.306, so these run where it's installed.
 
 use core::ffi::c_void;
 use std::sync::Mutex;
@@ -9,6 +10,24 @@ use std::time::{Duration, Instant};
 
 use game_input_raw::*;
 use windows_core::Interface;
+
+// The sizes that the v4 header gives these structs, as MSVC compiles it for
+// x64, and its interfaces' method counts, with IUnknown's three, so that a
+// field or slot missed or added in transcribing fails the tests' build.
+const _: () = {
+    assert!(size_of::<GameInputKeyState>() == 12);
+    assert!(size_of::<GameInputMouseState>() == 56);
+    assert!(size_of::<GameInputGamepadState>() == 28);
+    assert!(size_of::<GameInputVersion>() == 8);
+    assert!(size_of::<GameInputUsage>() == 4);
+    assert!(size_of::<GameInputKeyboardInfo>() == 28);
+    assert!(size_of::<GameInputMouseInfo>() == 12);
+    assert!(size_of::<GameInputGamepadInfo>() == 116);
+    assert!(size_of::<GameInputRumbleParams>() == 16);
+    assert!(size_of::<IGameInput_Vtbl>() == (3 + 13) * size_of::<usize>());
+    assert!(size_of::<IGameInputReading_Vtbl>() == (3 + 21) * size_of::<usize>());
+    assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
+};
 
 // A name or a path, which a method writes as UTF-8 with a terminating zero.
 type Text = unsafe fn(&IGameInputDevice, Option<&mut [u8]>) -> u32;

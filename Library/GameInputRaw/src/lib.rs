@@ -20,8 +20,8 @@
 // Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
 // unused slots are usize placeholders, the way windows-bindgen writes them.
-// The sizes of the structs and vtables are checked against the header's at
-// compile time, below the vtables.
+// Test/GameInput checks the sizes of the structs and vtables against the
+// header's, as it compiles.
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code)]
 
@@ -647,25 +647,6 @@ pub struct IGameInputDevice_Vtbl {
     GetTouchSurfaceCount: usize,
     GetTouchSurfaceInfo: usize,
 }
-
-// The sizes that the v4 header gives these structs, as MSVC compiles it for
-// x64, and its interfaces' method counts, with IUnknown's three, so that a
-// field or slot missed or added in transcribing fails the build.
-const _: () = {
-    use core::mem::size_of;
-    assert!(size_of::<GameInputKeyState>() == 12);
-    assert!(size_of::<GameInputMouseState>() == 56);
-    assert!(size_of::<GameInputGamepadState>() == 28);
-    assert!(size_of::<GameInputVersion>() == 8);
-    assert!(size_of::<GameInputUsage>() == 4);
-    assert!(size_of::<GameInputKeyboardInfo>() == 28);
-    assert!(size_of::<GameInputMouseInfo>() == 12);
-    assert!(size_of::<GameInputGamepadInfo>() == 116);
-    assert!(size_of::<GameInputRumbleParams>() == 16);
-    assert!(size_of::<IGameInput_Vtbl>() == (3 + 13) * size_of::<usize>());
-    assert!(size_of::<IGameInputReading_Vtbl>() == (3 + 21) * size_of::<usize>());
-    assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
-};
 
 // GameInput.lib's loader, from the Microsoft.GameInput NuGet package, whose
 // source is native/src/GameInput.cpp there. build.rs restores the package and
