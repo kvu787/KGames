@@ -2,8 +2,20 @@
 // native/include/v4/GameInput.h in the Microsoft.GameInput NuGet package that
 // NuGetPackages.csproj declares, and nothing else: what KGames adds to them,
 // like starting GameInput, is in Library/GameInput. GameInput isn't in the
-// Windows metadata that windows-bindgen reads, so this file copies the shape
-// of its output instead, and keeps GameInput's native names.
+// Windows metadata that windows-bindgen reads, so this file writes what
+// windows-bindgen would write if it were, by windows-bindgen's rules, from the
+// header's annotations, and keeps GameInput's native names:
+//
+// - An interface parameter is a generic Param of the interface, an optional
+//   pointer is an Option of it, and any other output is a raw pointer.
+// - A buffer and its length are a slice, and an optional buffer an Option of
+//   one.
+// - A method that returns nothing or an HRESULT, and whose last parameter is
+//   an output that isn't optional, returns that output instead: in a Result,
+//   when the method returns an HRESULT, or the output is an interface. Any
+//   other HRESULT is returned as it is, with its success codes.
+// - windows-bindgen makes agile interfaces Send and Sync, and Microsoft's
+//   documentation says that GameInput's "objects are agile".
 //
 // Only what KGames uses is wrapped in methods. Every vtable slot is still
 // listed, in header order, so the layout can be checked against the header;
@@ -15,7 +27,7 @@
 
 use core::ffi::c_void;
 
-use windows_core::{GUID, HRESULT, Interface, Result};
+use windows_core::{GUID, HRESULT, Interface, Param, Result};
 
 pub type GameInputKind = i32;
 pub const GameInputKindUnknown: GameInputKind = 0x00000000;
@@ -254,103 +266,97 @@ pub const GAMEINPUT_E_READING_NOT_FOUND: HRESULT = HRESULT(0x838A0003_u32 as i32
 pub const GAMEINPUT_E_REFERENCE_READING_TOO_OLD: HRESULT = HRESULT(0x838A0004_u32 as i32);
 pub const GAMEINPUT_E_OBJECT_NO_LONGER_EXISTS: HRESULT = HRESULT(0x838A0008_u32 as i32);
 
-fn device_abi(device: Option<&IGameInputDevice>) -> *mut c_void {
-    device.map_or(core::ptr::null_mut(), |device| device.as_raw())
-}
-
-// A null pointer for an empty buffer, which asks how big it must be.
-fn optional_buffer(buffer: &mut [u8]) -> *mut u8 {
-    if buffer.is_empty() {
-        core::ptr::null_mut()
-    } else {
-        buffer.as_mut_ptr()
-    }
-}
-
 windows_core::imp::define_interface!(
     IGameInput,
     IGameInput_Vtbl,
     0xf2daae4c_4d21_4250_8953_4f791e6279ab
 );
 windows_core::imp::interface_hierarchy!(IGameInput, windows_core::IUnknown);
-// GameInput's objects are free-threaded, like its devices below, so `create`
-// can keep one in a static.
 unsafe impl Send for IGameInput {}
 unsafe impl Sync for IGameInput {}
 impl IGameInput {
     pub unsafe fn GetCurrentTimestamp(&self) -> u64 {
         unsafe { (Interface::vtable(self).GetCurrentTimestamp)(Interface::as_raw(self)) }
     }
-    pub unsafe fn GetCurrentReading(
-        &self,
-        inputkind: GameInputKind,
-        device: Option<&IGameInputDevice>,
-    ) -> Result<IGameInputReading> {
-        let mut result__ = core::ptr::null_mut();
+    pub unsafe fn GetCurrentReading<P1>(&self, inputkind: GameInputKind, device: P1) -> Result<IGameInputReading>
+    where
+        P1: Param<IGameInputDevice>,
+    {
         unsafe {
+            let mut result__ = core::mem::zeroed();
             (Interface::vtable(self).GetCurrentReading)(
                 Interface::as_raw(self),
                 inputkind,
-                device_abi(device),
+                device.param().abi(),
                 &mut result__,
             )
             .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
-    pub unsafe fn GetNextReading(
+    pub unsafe fn GetNextReading<P0, P2>(
         &self,
-        referencereading: &IGameInputReading,
+        referencereading: P0,
         inputkind: GameInputKind,
-        device: Option<&IGameInputDevice>,
-    ) -> Result<IGameInputReading> {
-        let mut result__ = core::ptr::null_mut();
+        device: P2,
+    ) -> Result<IGameInputReading>
+    where
+        P0: Param<IGameInputReading>,
+        P2: Param<IGameInputDevice>,
+    {
         unsafe {
+            let mut result__ = core::mem::zeroed();
             (Interface::vtable(self).GetNextReading)(
                 Interface::as_raw(self),
-                referencereading.as_raw(),
+                referencereading.param().abi(),
                 inputkind,
-                device_abi(device),
+                device.param().abi(),
                 &mut result__,
             )
             .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
-    pub unsafe fn GetPreviousReading(
+    pub unsafe fn GetPreviousReading<P0, P2>(
         &self,
-        referencereading: &IGameInputReading,
+        referencereading: P0,
         inputkind: GameInputKind,
-        device: Option<&IGameInputDevice>,
-    ) -> Result<IGameInputReading> {
-        let mut result__ = core::ptr::null_mut();
+        device: P2,
+    ) -> Result<IGameInputReading>
+    where
+        P0: Param<IGameInputReading>,
+        P2: Param<IGameInputDevice>,
+    {
         unsafe {
+            let mut result__ = core::mem::zeroed();
             (Interface::vtable(self).GetPreviousReading)(
                 Interface::as_raw(self),
-                referencereading.as_raw(),
+                referencereading.param().abi(),
                 inputkind,
-                device_abi(device),
+                device.param().abi(),
                 &mut result__,
             )
             .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
-    pub unsafe fn RegisterDeviceCallback(
+    pub unsafe fn RegisterDeviceCallback<P0>(
         &self,
-        device: Option<&IGameInputDevice>,
+        device: P0,
         inputkind: GameInputKind,
         context: Option<*const c_void>,
         callbackfunc: GameInputDeviceCallback,
-    ) -> Result<GameInputCallbackToken> {
-        let mut result__ = 0;
+        callbacktoken: Option<*mut GameInputCallbackToken>,
+    ) -> HRESULT
+    where
+        P0: Param<IGameInputDevice>,
+    {
         unsafe {
             (Interface::vtable(self).RegisterDeviceCallback)(
                 Interface::as_raw(self),
-                device_abi(device),
+                device.param().abi(),
                 inputkind,
-                context.unwrap_or(core::ptr::null()),
+                context.unwrap_or(core::mem::zeroed()) as _,
                 callbackfunc,
-                &mut result__,
+                callbacktoken.unwrap_or(core::mem::zeroed()) as _,
             )
-            .map(|| result__)
         }
     }
     pub unsafe fn UnregisterCallback(&self, callbacktoken: GameInputCallbackToken) -> bool {
@@ -415,8 +421,6 @@ windows_core::imp::define_interface!(
     0x0dfaa2a2_688b_4a9c_a3a9_0feb4f90ee12
 );
 windows_core::imp::interface_hierarchy!(IGameInputReading, windows_core::IUnknown);
-// GameInput's objects are free-threaded: Microsoft's documentation says that
-// "All objects are agile", with no threading model.
 unsafe impl Send for IGameInputReading {}
 unsafe impl Sync for IGameInputReading {}
 impl IGameInputReading {
@@ -426,12 +430,11 @@ impl IGameInputReading {
     pub unsafe fn GetTimestamp(&self) -> u64 {
         unsafe { (Interface::vtable(self).GetTimestamp)(Interface::as_raw(self)) }
     }
-    // The device comes back with a reference already added, so it's owned.
-    pub unsafe fn GetDevice(&self) -> Option<IGameInputDevice> {
-        let mut result__ = core::ptr::null_mut();
+    pub unsafe fn GetDevice(&self) -> Result<IGameInputDevice> {
         unsafe {
+            let mut result__ = core::mem::zeroed();
             (Interface::vtable(self).GetDevice)(Interface::as_raw(self), &mut result__);
-            windows_core::imp::Type::from_abi(result__).ok()
+            windows_core::imp::Type::from_abi(result__)
         }
     }
     pub unsafe fn GetKeyCount(&self) -> u32 {
@@ -441,16 +444,16 @@ impl IGameInputReading {
         unsafe {
             (Interface::vtable(self).GetKeyState)(
                 Interface::as_raw(self),
-                statearray.len() as u32,
+                statearray.len().try_into().unwrap(),
                 statearray.as_mut_ptr(),
             )
         }
     }
-    pub unsafe fn GetMouseState(&self, state: &mut GameInputMouseState) -> bool {
-        unsafe { (Interface::vtable(self).GetMouseState)(Interface::as_raw(self), state) }
+    pub unsafe fn GetMouseState(&self, state: *mut GameInputMouseState) -> bool {
+        unsafe { (Interface::vtable(self).GetMouseState)(Interface::as_raw(self), state as _) }
     }
-    pub unsafe fn GetGamepadState(&self, state: &mut GameInputGamepadState) -> bool {
-        unsafe { (Interface::vtable(self).GetGamepadState)(Interface::as_raw(self), state) }
+    pub unsafe fn GetGamepadState(&self, state: *mut GameInputGamepadState) -> bool {
+        unsafe { (Interface::vtable(self).GetGamepadState)(Interface::as_raw(self), state as _) }
     }
 }
 #[repr(C)]
@@ -485,8 +488,6 @@ windows_core::imp::define_interface!(
     0x4420f01d_8918_49d4_b302_dbead986105f
 );
 windows_core::imp::interface_hierarchy!(IGameInputDevice, windows_core::IUnknown);
-// GameInput's objects are free-threaded: device callbacks hand devices over
-// from GameInput's own threads, and the main thread then calls into them.
 unsafe impl Send for IGameInputDevice {}
 unsafe impl Sync for IGameInputDevice {}
 impl IGameInputDevice {
@@ -499,14 +500,26 @@ impl IGameInputDevice {
     pub unsafe fn GetRevisionNumber(&self) -> u16 {
         unsafe { (Interface::vtable(self).GetRevisionNumber)(Interface::as_raw(self)) }
     }
-    pub unsafe fn GetUsage(&self, usage: &mut GameInputUsage) {
-        unsafe { (Interface::vtable(self).GetUsage)(Interface::as_raw(self), usage) }
+    pub unsafe fn GetUsage(&self) -> GameInputUsage {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (Interface::vtable(self).GetUsage)(Interface::as_raw(self), &mut result__);
+            result__
+        }
     }
-    pub unsafe fn GetHardwareVersion(&self, version: &mut GameInputVersion) {
-        unsafe { (Interface::vtable(self).GetHardwareVersion)(Interface::as_raw(self), version) }
+    pub unsafe fn GetHardwareVersion(&self) -> GameInputVersion {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (Interface::vtable(self).GetHardwareVersion)(Interface::as_raw(self), &mut result__);
+            result__
+        }
     }
-    pub unsafe fn GetFirmwareVersion(&self, version: &mut GameInputVersion) {
-        unsafe { (Interface::vtable(self).GetFirmwareVersion)(Interface::as_raw(self), version) }
+    pub unsafe fn GetFirmwareVersion(&self) -> GameInputVersion {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (Interface::vtable(self).GetFirmwareVersion)(Interface::as_raw(self), &mut result__);
+            result__
+        }
     }
     pub unsafe fn GetDeviceFamily(&self) -> GameInputDeviceFamily {
         unsafe { (Interface::vtable(self).GetDeviceFamily)(Interface::as_raw(self)) }
@@ -520,48 +533,52 @@ impl IGameInputDevice {
     pub unsafe fn GetSupportedSystemButtons(&self) -> GameInputSystemButtons {
         unsafe { (Interface::vtable(self).GetSupportedSystemButtons)(Interface::as_raw(self)) }
     }
-    pub unsafe fn GetContainerId(&self, containerid: &mut GUID) {
-        unsafe { (Interface::vtable(self).GetContainerId)(Interface::as_raw(self), containerid) }
+    pub unsafe fn GetContainerId(&self) -> GUID {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (Interface::vtable(self).GetContainerId)(Interface::as_raw(self), &mut result__);
+            result__
+        }
     }
     // Returns the size in bytes of the UTF-8 name, including its terminating
-    // zero. Pass an empty buffer to ask for the size.
-    pub unsafe fn GetDisplayName(&self, buffer: &mut [u8]) -> u32 {
+    // zero. Pass no buffer to ask for the size.
+    pub unsafe fn GetDisplayName(&self, buffer: Option<&mut [u8]>) -> u32 {
         unsafe {
             (Interface::vtable(self).GetDisplayName)(
                 Interface::as_raw(self),
-                buffer.len() as u32,
-                optional_buffer(buffer),
+                buffer.as_deref().map_or(0, |slice| slice.len().try_into().unwrap()),
+                buffer.as_deref().map_or(core::ptr::null_mut(), |slice| slice.as_ptr().cast_mut()),
             )
         }
     }
     // Like GetDisplayName, for the device interface's path, which Windows'
     // configuration manager functions take.
-    pub unsafe fn GetPnpPath(&self, buffer: &mut [u8]) -> u32 {
+    pub unsafe fn GetPnpPath(&self, buffer: Option<&mut [u8]>) -> u32 {
         unsafe {
             (Interface::vtable(self).GetPnpPath)(
                 Interface::as_raw(self),
-                buffer.len() as u32,
-                optional_buffer(buffer),
+                buffer.as_deref().map_or(0, |slice| slice.len().try_into().unwrap()),
+                buffer.as_deref().map_or(core::ptr::null_mut(), |slice| slice.as_ptr().cast_mut()),
             )
         }
     }
-    pub unsafe fn GetXInputDeviceIndex(&self, index: &mut u32) -> bool {
-        unsafe { (Interface::vtable(self).GetXInputDeviceIndex)(Interface::as_raw(self), index) }
+    pub unsafe fn GetXInputDeviceIndex(&self, index: *mut u32) -> bool {
+        unsafe { (Interface::vtable(self).GetXInputDeviceIndex)(Interface::as_raw(self), index as _) }
     }
-    pub unsafe fn GetKeyboardInfo(&self, info: &mut GameInputKeyboardInfo) -> bool {
-        unsafe { (Interface::vtable(self).GetKeyboardInfo)(Interface::as_raw(self), info) }
+    pub unsafe fn GetKeyboardInfo(&self, info: *mut GameInputKeyboardInfo) -> bool {
+        unsafe { (Interface::vtable(self).GetKeyboardInfo)(Interface::as_raw(self), info as _) }
     }
-    pub unsafe fn GetMouseInfo(&self, info: &mut GameInputMouseInfo) -> bool {
-        unsafe { (Interface::vtable(self).GetMouseInfo)(Interface::as_raw(self), info) }
+    pub unsafe fn GetMouseInfo(&self, info: *mut GameInputMouseInfo) -> bool {
+        unsafe { (Interface::vtable(self).GetMouseInfo)(Interface::as_raw(self), info as _) }
     }
-    pub unsafe fn GetGamepadInfo(&self, info: &mut GameInputGamepadInfo) -> bool {
-        unsafe { (Interface::vtable(self).GetGamepadInfo)(Interface::as_raw(self), info) }
+    pub unsafe fn GetGamepadInfo(&self, info: *mut GameInputGamepadInfo) -> bool {
+        unsafe { (Interface::vtable(self).GetGamepadInfo)(Interface::as_raw(self), info as _) }
     }
-    pub unsafe fn SetRumbleState(&self, params: Option<&GameInputRumbleParams>) {
+    pub unsafe fn SetRumbleState(&self, params: Option<*const GameInputRumbleParams>) {
         unsafe {
             (Interface::vtable(self).SetRumbleState)(
                 Interface::as_raw(self),
-                params.map_or(core::ptr::null(), |params| params),
+                params.unwrap_or(core::mem::zeroed()) as _,
             )
         }
     }
@@ -653,7 +670,16 @@ const _: () = {
 // GameInput.lib's loader, from the Microsoft.GameInput NuGet package, whose
 // source is native/src/GameInput.cpp there. build.rs restores the package and
 // links the library. It's what the header's inline GameInputCreate calls, with
-// the IID of the header's IGameInput.
-unsafe extern "system" {
-    pub fn GameInputInitialize(riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT;
+// the IID of the header's IGameInput. It's linked from a static library, not a
+// DLL, so it's declared with extern, where windows-bindgen writes link!.
+#[inline]
+pub unsafe fn GameInputInitialize<T>() -> Result<T>
+where
+    T: Interface,
+{
+    unsafe extern "system" {
+        fn GameInputInitialize(riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT;
+    }
+    let mut result__ = core::ptr::null_mut();
+    unsafe { GameInputInitialize(&T::IID, &mut result__).and_then(|| windows_core::imp::Type::from_abi(result__)) }
 }

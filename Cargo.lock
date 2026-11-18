@@ -109,6 +109,7 @@ version = "0.1.0"
 dependencies = [
  "game_input",
  "game_input_raw",
+ "windows-core",
  "windows_api_raw",
 ]
 

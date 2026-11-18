@@ -50,9 +50,7 @@ pub fn create() -> core::result::Result<(IGameInput, Runtime), String> {
     installation::installed_runtime()?;
     let game_input: IGameInput = {
         let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut result = core::ptr::null_mut();
-        unsafe { GameInputInitialize(&IGameInput::IID, &mut result) }
-            .and_then(|| unsafe { windows_core::imp::Type::from_abi(result) })
+        unsafe { GameInputInitialize::<IGameInput>() }
             .map_err(|error| format!("Couldn't start GameInput: {} ({})", error.message(), error.code()))?
     };
     KEPT.get_or_init(|| game_input.clone());

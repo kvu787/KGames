@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use game_input::installation::{self, INSTALL_COMMAND, RUNTIME, VERSION};
 use game_input_raw::{
     GameInputCallbackToken, GameInputDeviceEvent, GameInputKindGamepad, GameInputKindKeyboard, GameInputKindMouse,
+    IGameInputDevice,
 };
 
 // The command that the user installs GameInput with, which is theirs to run.
@@ -126,7 +127,10 @@ fn one_copy_of_the_runtime_runs() {
 
     let (game_input, _runtime) = game_input::create().unwrap();
     let kinds = GameInputKindGamepad | GameInputKindKeyboard | GameInputKindMouse;
-    let token = unsafe { game_input.RegisterDeviceCallback(None, kinds, None, Some(reported)).unwrap() };
+    let mut token = 0;
+    unsafe { game_input.RegisterDeviceCallback(None::<&IGameInputDevice>, kinds, None, Some(reported), Some(&mut token)) }
+        .ok()
+        .unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
     while !REPORTED.load(Ordering::Acquire) {
         assert!(Instant::now() < deadline, "GameInput reported no keyboard, mouse or gamepad");

@@ -58,8 +58,10 @@ version. If the package has a new API version, compare its header, in the packag
 # Using more APIs
 
 Add GameInput APIs to `src/lib.rs` by hand: replace the method's `usize` placeholder in the vtable
-with its function pointer type, and add a method that calls it. Code that goes beyond the API goes
-in [Library/GameInput](../GameInput/README.md), never here.
+with its function pointer type, and add a method that calls it, in the shape that
+`windows-bindgen`'s rules give the header's annotations, which the first comment in `src/lib.rs`
+lists. Code that goes beyond the API goes in [Library/GameInput](../GameInput/README.md), never
+here.
 
 # Layout
 

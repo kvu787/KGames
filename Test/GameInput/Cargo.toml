@@ -14,5 +14,8 @@ game_input = { path = "../../Library/GameInput" }
 game_input_raw = { path = "../../Library/GameInputRaw" }
 windows_api_raw = { path = "../../Library/WindowsApiRaw" }
 
+[dependencies.windows-core]
+workspace = true
+
 [lints]
 workspace = true
