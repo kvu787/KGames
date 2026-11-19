@@ -73,6 +73,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "game-input-bindings-generator"
+version = "0.1.0"
+dependencies = [
+ "windows-bindgen",
+ "windows-metadata",
+]
+
+[[package]]
 name = "game-input-demo"
 version = "0.1.0"
 dependencies = [
@@ -108,6 +116,7 @@ name = "game-input-tests"
 version = "0.1.0"
 dependencies = [
  "game-input",
+ "game-input-bindings-generator",
  "game-input-raw",
  "windows-api-raw",
  "windows-core",

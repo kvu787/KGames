@@ -1,21 +1,8 @@
-// The bindings for GameInput's v4 API, from native/include/v4/GameInput.h in
-// the Microsoft.GameInput NuGet package that NuGetPackages.csproj declares: all
-// of it, and nothing else. GameInput isn't in the Windows metadata that
-// windows-bindgen reads, so this is what windows-bindgen 0.100 writes, flat,
-// from metadata that describes the header the way Windows' metadata describes
-// Windows' headers:
-//
-// - Every enum is an i32, and every parameter's SAL annotation gives its
-//   direction, whether it's optional, and the length of its buffer.
-// - GameInputCallbackToken is a native typedef of a uint64_t.
-// - A buffer of void is a buffer of bytes.
-// - The interfaces are agile, which makes them Send and Sync, as Microsoft's
-//   documentation says that GameInput's objects are.
-// - The header's IID_IGameInput is IGameInput::IID, and its GameInputCreate,
-//   which is inline, is GameInputInitialize::<IGameInput>().
-// - GameInputInitialize is in GameInput.lib, a static library that build.rs
-//   links, not in a DLL, so it's declared with extern, as windows-bindgen
-//   writes it with --sys --extern, instead of with link!.
+// The bindings for all of GameInput's v4 API, from native/include/v4/GameInput.h
+// in the Microsoft.GameInput NuGet package that NuGetPackages.csproj declares,
+// and nothing else: what windows-bindgen generates for the header, which
+// bindings-generator describes as Windows metadata for it. Don't edit it by
+// hand: regenerate it with `cargo run -p game-input-bindings-generator`.
 
 #![allow(
     non_camel_case_types,
