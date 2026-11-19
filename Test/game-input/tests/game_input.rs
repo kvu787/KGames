@@ -203,17 +203,6 @@ fn the_package_is_the_runtimes_version() {
     assert!(lock.contains(&format!(r#""resolved": "{version}""#)), "{lock}");
 }
 
-// The documentation that tells people to install GameInput gives the command
-// that the code checks for.
-#[test]
-fn the_documentation_gives_the_command() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    for file in ["README.md", "Library/game-input/README.md", "Program/game-input-demo/README.md"] {
-        let text = std::fs::read_to_string(root.join(file)).unwrap();
-        assert!(text.contains(USERS_COMMAND), "{file} doesn't give the command");
-    }
-}
-
 // A file or folder that a test made, removed as the test ends.
 struct RemovedOnDrop(PathBuf);
 

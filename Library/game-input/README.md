@@ -78,7 +78,8 @@ program that reads keyboards and mice.
    [GameInputDemo](../../Program/game-input-demo/README.md)'s.
    Then update the lock file with
    `dotnet restore Library\game-input-raw\NuGetPackages.csproj --force-evaluate`. `Test/game-input`
-   checks that they all give the same version.
+   checks that `src/installation.rs`, `NuGetPackages.csproj` and the lock file give the same
+   version.
 2. If the package has a new API version, update GameInputRaw's bindings, as
    [its README](../game-input-raw/README.md#updating-gameinput) says.
 
