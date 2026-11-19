@@ -12,6 +12,7 @@ publish = false
 [dependencies]
 game-input = { path = "../../Library/game-input" }
 game-input-raw = { path = "../../Library/game-input-raw" }
+game-input-bindings-generator = { path = "../../Library/game-input-raw/bindings-generator" }
 windows-api-raw = { path = "../../Library/windows-api-raw" }
 
 [dependencies.windows-core]

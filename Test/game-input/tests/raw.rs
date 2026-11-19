@@ -1,13 +1,13 @@
 // Library/game-input-raw holds the bindings for all of GameInput's API, in the
 // shape of windows-bindgen's output, and nothing else, and Library/game-input
-// what KGames adds to them: everything that GameInput's header declares is
-// bound, every item in the raw package is of a kind that windows-bindgen
+// what KGames adds to them: the committed bindings are exactly what
+// bindings-generator writes now, everything that GameInput's header declares
+// is bound, every item in the raw package is of a kind that windows-bindgen
 // writes, every method calls its own vtable slot, and no bindings are in the
 // other package.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 // How each item that windows-bindgen writes starts, on a line of its own:
 // constants and their types, structs and unions, callbacks, interfaces with
@@ -37,6 +37,20 @@ const ITEMS: [&str; 19] = [
 // What only bindings have: declarations of the functions that they call,
 // COM interfaces, and structs laid out as C lays them out.
 const BINDINGS: [&str; 4] = ["extern \"", "link!", "define_interface!", "#[repr(C)]"];
+
+#[test]
+fn the_bindings_are_what_bindings_generator_writes() {
+    let generated = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("game_input{}.rs", std::process::id()));
+    game_input_bindings_generator::generate(&game_input_bindings_generator::header(), &generated);
+    let fresh = read(&generated);
+    let _ = std::fs::remove_file(&generated);
+    let committed = read(&library("game-input-raw").join("src/lib.rs"));
+    assert!(
+        fresh == committed,
+        "Library/game-input-raw/src/lib.rs isn't what bindings-generator writes: regenerate it with \
+         `cargo run -p game-input-bindings-generator`, and don't edit it by hand"
+    );
+}
 
 #[test]
 fn the_raw_package_is_only_the_bindings() {
@@ -112,7 +126,7 @@ fn the_raw_package_is_only_the_bindings() {
 // IGameInput::IID, and its inline GameInputCreate calls GameInputInitialize.
 #[test]
 fn the_bindings_are_the_whole_header() {
-    let header = read(&package().join(r"native\include\v4\GameInput.h"));
+    let header = read(&game_input_bindings_generator::header());
     let bindings = read(&library("game-input-raw").join("src/lib.rs"));
     let bound = |binding: String| assert!(bindings.contains(&binding), "src/lib.rs has no `{binding}`");
 
@@ -178,23 +192,6 @@ fn vtable(bindings: &str, interface: &str) -> Vec<String> {
     slots
 }
 
-// The Microsoft.GameInput package that NuGetPackages.csproj declares, which
-// GameInputRaw's build script restored, where dotnet put it, as the build
-// script finds it.
-fn package() -> PathBuf {
-    let project = library("game-input-raw").join("NuGetPackages.csproj");
-    let output = Command::new("dotnet")
-        .arg("msbuild")
-        .arg(&project)
-        .args(["-getProperty:PkgMicrosoft_GameInput", "--nologo"])
-        .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
-        .env("DOTNET_NOLOGO", "1")
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    PathBuf::from(String::from_utf8(output.stdout).unwrap().trim())
-}
-
 #[test]
 fn what_goes_beyond_the_bindings_has_no_bindings() {
     let package = library("game-input");
@@ -204,6 +201,8 @@ fn what_goes_beyond_the_bindings_has_no_bindings() {
             assert!(!text.contains(binding), "{} has {binding}: bindings go in Library/game-input-raw", file.display());
         }
     }
+    let dependencies = dependencies(&read(&package.join("Cargo.toml")));
+    assert!(!dependencies.contains(&"game-input-bindings-generator".to_string()));
 }
 
 fn library(name: &str) -> PathBuf {
