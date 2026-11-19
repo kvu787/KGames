@@ -47,16 +47,15 @@ fn halves(output: &Output) -> (Vec<String>, Vec<String>) {
 
 // Arguments that PowerShell reads in ways of its own: parameters written
 // -name:value, which it gives a script as two, a -- that's quoted, as one
-// that isn't is PowerShell's, quotes, an empty word, lists, and $null, which
-// it doesn't pass.
-const ARGUMENTS: &str =
-    r#"-p x -getProperty:Foo -oC:\out '-q:a' -n:5 -f:a,b '--' --flag /p:X=1 '' 'a b' 'say "hi"' x,y --format=%h,%s $null"#;
+// that isn't is PowerShell's, quotes, an empty word, lists, a hashtable,
+// which it doesn't enumerate, and $null, which it doesn't pass.
+const ARGUMENTS: &str = r#"-p x -getProperty:Foo -oC:\out '-q:a' -n:5 -f:a,b '--' --flag /p:X=1 '' 'a b' 'say "hi"' x,y --format=%h,%s @{a=1} $null"#;
 
 // What a program gets from ARGUMENTS, as print-arguments prints it.
 fn printed_arguments() -> Vec<String> {
     [
         "-p", "x", "-getProperty:Foo", r"-oC:\out", "-q:a", "-n:5", "-f:a,b", "--", "--flag", "/p:X=1", "", "a b",
-        r#"say "hi""#, "x,y", "--format=%h,%s",
+        r#"say "hi""#, "x,y", "--format=%h,%s", "System.Collections.Hashtable",
     ]
     .iter()
     .map(|argument| format!("{argument:?}"))

@@ -74,9 +74,12 @@ $program = if ($found -and $found.CommandType -eq 'Application') { $found.Source
 # itself. A list, like x,y or --format=%h,%s, is one word, its items with
 # commas between them, as PowerShell passes a list that's written in the
 # command (though one in a variable, it passes as a word for each item).
+# What's a list is what PowerShell enumerates, which isn't a string or a
+# hashtable.
 function Get-Word($argument) {
-    if ($argument -is [System.Collections.IEnumerable] -and $argument -isnot [string]) {
-        (@($argument) | ForEach-Object { Get-Word $_ }) -join ','
+    $items = [System.Management.Automation.LanguagePrimitives]::GetEnumerable($argument)
+    if ($null -ne $items) {
+        (@($items) | ForEach-Object { Get-Word $_ }) -join ','
     } else {
         "$argument"
     }
