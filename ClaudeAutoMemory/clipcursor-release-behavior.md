@@ -14,9 +14,7 @@ A C probe (ClipCursor from one process, real Alt+Tab or SendInput from another, 
 - It does NOT release it when the Start menu ("Search", via the Windows key) takes the foreground, and NOT when the confining process exits normally while Start has the foreground. The cursor stayed confined to a dead process's rectangle until a normal window was activated (Escape closing Start, which returned the foreground to the previous app, released it).
 - A program that is not the foreground window can confine the cursor (WS_EX_NOACTIVATE window, Claude app in front): Windows doesn't stop it.
 - SetWinEventHook(EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT) on a thread with its own message loop reports the Start menu taking the foreground, and the return.
-- ClipCursor keeps the rectangle within the virtual screen (GetClipCursor gives the clipped one back); an empty rectangle pins the cursor to a point; an inverted one means no confinement. Without one, GetClipCursor gives the virtual screen. (Recorded in Documentation/LogicReview.md too.)
+- ClipCursor keeps the rectangle within the virtual screen (GetClipCursor gives the clipped one back); an empty rectangle pins the cursor to a point; an inverted one means no confinement. Without one, GetClipCursor gives the virtual screen.
 
 **Why:** KGames confines Windows' cursor while focused (its own GameInput-driven pointer); the user considers focus transitions critical.
 **How to apply:** KGames must release its own confinement on losing the foreground and on exit/panic (Windows won't for Start or exit). The user chose no watcher thread (2026-11-14): the main thread checks on every pass. Compare a confinement against the client area clipped to the virtual screen. The probes' sources were in the session scratchpad (clipprobe\), not the repo.
-
-Related: [[user-offers-hands-on-testing]]

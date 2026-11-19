@@ -3,12 +3,13 @@ Lossless copy of Claude Code auto-memory, made 2026-11-17 12:47:08 -0800.
 Source folder: C:\Users\K\.claude\projects\C--Users-K-Repository-kGames\memory
 Git does not keep modification times, so they are recorded here.
 On 2026-11-18, the files that aren't listed here were removed, and MEMORY.md's index was trimmed to the files that are left; its row is from after the trim. Git's history has the removed files.
-agent-sandbox-measuring.md was edited on 2026-11-18, after the copy, when frame_times.exe became frame-times.exe; its row is from after the edit.
+agent-sandbox-measuring.md was edited on 2026-11-18, after the copy, when frame_times.exe became frame-times.exe.
+Later on 2026-11-18, agent-sandbox-measuring.md, benchmark-methodology.md, clipcursor-release-behavior.md and light-load-while-gaming.md were edited to drop their links to the removed memory files, to the removed Documentation files, and to Program/BareSceneTest/Measure.ps1, which was never in this repository. Their rows are from after that edit.
 
 sha256	bytes	modified	file
 f5dfc9d8afb1718899f040117611bf4bd83b96b928b8db2b0ce2da95fdf1332c	917	2026-11-18 18:02:36 -0800	MEMORY.md
-0181c2b909111bbd1251c07c79c2d9cafcb42930eb237fe2cf219647fa69b0b1	2457	2026-11-18 15:23:32 -0800	agent-sandbox-measuring.md
-62c1728953ad605d089b72c564d9be688877b7b3c524c61b3ded28739d7722b9	1971	2026-11-16 02:32:59 -0800	benchmark-methodology.md
-f560966c51b3c25ecce47599e80ba611f54e813e7cc2db7b9809bdae4e788811	2278	2026-11-14 06:38:50 -0800	clipcursor-release-behavior.md
+d5c7dc5ac3980a78d22a5a94094508262cdbd30e265bc8e5722af4edf53aebb4	2408	2026-11-18 18:29:11 -0800	agent-sandbox-measuring.md
+bd8fea946993e132fb362cf8e716e4df3bc14456c632c34aabd763bf24dd01aa	1739	2026-11-18 18:29:11 -0800	benchmark-methodology.md
+e2116655e483def7e0243228803a3c1b13d87807df8dce43c5a559a7f79658e9	2187	2026-11-18 18:29:11 -0800	clipcursor-release-behavior.md
 d8e8384a6a33de59207029677b5312abf06ec480a108ddb4b07c35eebb7cd732	1560	2026-11-11 13:49:21 -0800	interrupt-core-placement.md
-f10b806af65a700df58f415e18c7137e49f5d0d6b928c2c76839d3a0c0ece475	1447	2026-11-16 02:17:50 -0800	light-load-while-gaming.md
+22bc5586bc51fea706fb4776d0c5489cfa3356deb60fc97541e836732a401209	1392	2026-11-18 18:29:11 -0800	light-load-while-gaming.md

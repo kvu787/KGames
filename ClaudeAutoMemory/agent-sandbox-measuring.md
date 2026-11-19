@@ -35,4 +35,4 @@ Launching a GUI program with plain `Start-Process` (its "show normal" command) g
 isn't maximized, so the library shows its unsupported-setup error; use `Start-Process -NoNewWindow`
 (as HumanRun does) or `[Diagnostics.Process]::Start` with `UseShellExecute = $false`.
 
-`Program/BareSceneTest/Measure.ps1` does all of this; see [[light-load-while-gaming]].
+See also [[light-load-while-gaming]].

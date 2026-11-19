@@ -19,4 +19,4 @@ reusable agent workflow doesn't interrupt" the game).
 program with `Program\RunInBackground\RunInBackground.ps1 <program>`, as AGENTS.md says. Give `cargo` as RunLightly's
 command directly, not from a PowerShell script: rustup's cargo puts itself in a job of its own, which can't be adopted
 into RunLightly's afterwards. Keep your own tool commands light too (no heavy scans outside RunLightly). Measure the
-game's load with the process names above. Related: [[display-setup]], [[worktree-lfs-pointers]].
+game's load with the process names above.
