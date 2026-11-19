@@ -188,7 +188,7 @@ input, as test runs want.
 
 [RunInBackground](../RunInBackground/README.md) builds the demo, opens it without taking focus, saves
 a screenshot of its window, and closes it. It's how coding agents run the demo while you work in
-other windows (see [AGENTS.md](AGENTS.md)).
+other windows (see the [AGENTS.md](../../AGENTS.md) at the root).
 
 ```powershell
 Program\RunInBackground\RunInBackground.ps1 game-input-demo --display KXGR16

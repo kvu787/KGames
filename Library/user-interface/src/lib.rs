@@ -91,7 +91,7 @@ pub mod testing {
     pub mod script;
 }
 
-// The design system, as AGENTS.md names it: `tokens` and `controls`.
+// The design system, as the README names it: `tokens` and `controls`.
 pub use design::{controls, tokens};
 // The clock that input, frames and the screen's flips are timed on, and the
 // stats with the input latency that every program's PerfBar shows.
