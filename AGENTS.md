@@ -31,6 +31,7 @@ All PowerShell scripts must:
 
 # Git
 
+Never change stuff on GitHub.
 When implementing stuff, avoid difficult-to-review "mega-commits".
 When it makes sense, split work into multiple commits to make it easier to review.
 After you make changes, commit them. There's no need to ask the user for permission to commit.
