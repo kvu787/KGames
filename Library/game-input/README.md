@@ -74,8 +74,8 @@ program that reads keyboards and mice.
 # Updating GameInput
 
 1. Set `VERSION` and `INSTALL_COMMAND` in `src/installation.rs`, the version in GameInputRaw's
-   `NuGetPackages.csproj`, and the command in [AGENTS.md](../../AGENTS.md), the root
-   [README](../../README.md), this file and [GameInputDemo](../../Program/game-input-demo/README.md)'s.
+   `NuGetPackages.csproj`, and the command in the root [README](../../README.md), this file and
+   [GameInputDemo](../../Program/game-input-demo/README.md)'s.
    Then update the lock file with
    `dotnet restore Library\game-input-raw\NuGetPackages.csproj --force-evaluate`. `Test/game-input`
    checks that they all give the same version.
