@@ -114,23 +114,10 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 
 # Repo layout
 
-- `Program` holds what's runnable, `Library` what isn't and is shared, and `Test` every test.
-- Put code that more than one program can use in `Library`, not in a program.
+- `Program` holds runnable stuff.
+- `Library` contains shared stuff that isn't runnable.
+- `Test` contains all test stuff.
 - Every Rust package is a member of the Cargo workspace in the root `Cargo.toml`.
-- Name Rust packages and their folders in kebab-case, like `Library/user-interface`, whose crate
-  code names `user_interface`. A test package is its folder's name and `-tests`, like
-  `Test/user-interface`'s `user-interface-tests`, and a program's folder in `Test` has the name of
-  its folder in `Program`. Rust files and module folders are snake_case, and types PascalCase.
-  What isn't Rust, like `Library`, `Program`, `Test`, `Program/WinUi3Sample`, and a package's
-  `Shaders` or `Scripts`, keeps its PascalCase name.
-- Add Windows APIs to `Library/windows-api-raw`, as its README says, instead of generating bindings
-  in another crate. Every crate must share its types. It holds only what `windows-bindgen`
-  generates: code that goes beyond the bindings, and that more than one crate uses, goes in
-  `Library/windows-api`. `Test/windows-api` checks both.
-- GameInput isn't in the metadata that `windows-bindgen` reads, so add its APIs to
-  `Library/game-input-raw` by hand, in the shape of `windows-bindgen`'s output, as its README says.
-  It holds only the bindings: what goes beyond them, like starting GameInput, goes in
-  `Library/game-input`. `Test/game-input` checks both.
 
 # GUI programs
 
