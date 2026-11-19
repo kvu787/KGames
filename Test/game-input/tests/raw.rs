@@ -8,25 +8,28 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 // How each item that windows-bindgen writes starts, on a line of its own:
-// constants and their types, structs, interfaces with their methods and
-// vtables, and functions.
-const ITEMS: [&str; 16] = [
+// constants and their types, structs and unions, callbacks, interfaces with
+// their methods, vtables, and traits to implement them with, and functions.
+const ITEMS: [&str; 19] = [
     "#![allow(",
-    "use core::",
-    "use windows_core::",
     "pub type ",
     "pub const ",
-    "#[repr(C)]",
+    "#[repr(",
     "#[derive(",
     "pub struct ",
+    "pub union ",
+    "impl Default for ",
     "windows_core::imp::define_interface!(",
     "windows_core::imp::interface_hierarchy!(",
+    "impl IGameInput",
     "unsafe impl Send for ",
     "unsafe impl Sync for ",
-    "impl IGameInput",
+    "pub trait IGameInput",
+    "impl windows_core::RuntimeName for ",
     "#[inline]",
     "pub unsafe fn ",
     "where",
+    ")]",
 ];
 
 // What only bindings have: declarations of the functions that they call,
@@ -64,7 +67,8 @@ fn the_raw_package_is_only_the_bindings() {
             );
         }
         // An interface's methods each call its vtable's slot of the same name.
-        if line.starts_with("impl IGameInput") {
+        // Its vtable's own impl makes a vtable for an implementation of it.
+        if line.starts_with("impl IGameInput") && !line.contains("_Vtbl") {
             let mut method: Option<(usize, String)> = None;
             let mut called = true;
             for (number, line) in lines.by_ref() {

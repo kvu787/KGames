@@ -121,13 +121,18 @@ fn a_runtime_beside_the_exe_of_the_same_version_is_loaded() {
 #[test]
 fn one_copy_of_the_runtime_runs() {
     static REPORTED: AtomicBool = AtomicBool::new(false);
-    unsafe extern "system" fn reported(_: GameInputCallbackToken, _: *mut c_void, _: GameInputDeviceEvent, _: *mut c_void) {
+    unsafe extern "system" fn reported(
+        _: GameInputCallbackToken,
+        _: *const c_void,
+        _: GameInputDeviceEvent,
+        _: windows_core::Ref<IGameInputDevice>,
+    ) {
         REPORTED.store(true, Ordering::Release);
     }
 
     let (game_input, _runtime) = game_input::create().unwrap();
     let kinds = GameInputKindGamepad | GameInputKindKeyboard | GameInputKindMouse;
-    let mut token = 0;
+    let mut token = GameInputCallbackToken::default();
     unsafe { game_input.RegisterDeviceCallback(None::<&IGameInputDevice>, kinds, None, Some(reported), Some(&mut token)) }
         .ok()
         .unwrap();

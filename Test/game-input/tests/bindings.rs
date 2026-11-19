@@ -9,7 +9,6 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use game_input_raw::*;
-use windows_core::Interface;
 
 // The sizes that the v4 header gives these structs, as MSVC compiles it for
 // x64, and its interfaces' method counts, with IUnknown's three, so that a
@@ -29,17 +28,23 @@ const _: () = {
     assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
 };
 
-// A name or a path, which a method writes as UTF-8 with a terminating zero.
-type Text = unsafe fn(&IGameInputDevice, Option<&mut [u8]>) -> u32;
+// A name or a path, which a method writes as UTF-8 with a terminating zero,
+// into a buffer of the size that it's given.
+type Text = unsafe fn(&IGameInputDevice, u32, Option<*mut u8>) -> u32;
 
 #[test]
 fn devices_say_what_they_are() {
     static CONNECTED: Mutex<Vec<IGameInputDevice>> = Mutex::new(Vec::new());
-    unsafe extern "system" fn connected(_: GameInputCallbackToken, _: *mut c_void, event: GameInputDeviceEvent, device: *mut c_void) {
+    unsafe extern "system" fn connected(
+        _: GameInputCallbackToken,
+        _: *const c_void,
+        event: GameInputDeviceEvent,
+        device: windows_core::Ref<IGameInputDevice>,
+    ) {
         if event == GameInputDeviceEventConnected
-            && let Some(device) = unsafe { IGameInputDevice::from_raw_borrowed(&device) }
+            && let Some(device) = device.cloned()
         {
-            CONNECTED.lock().unwrap().push(device.clone());
+            CONNECTED.lock().unwrap().push(device);
         }
     }
 
@@ -47,11 +52,11 @@ fn devices_say_what_they_are() {
     // 600 ms after GameInput starts.
     let (game_input, _runtime) = game_input::create().unwrap();
     let kinds = GameInputKindGamepad | GameInputKindKeyboard | GameInputKindMouse;
-    let mut token = 0;
+    let mut token = GameInputCallbackToken::default();
     unsafe { game_input.RegisterDeviceCallback(None::<&IGameInputDevice>, kinds, None, Some(connected), Some(&mut token)) }
         .ok()
         .unwrap();
-    assert_ne!(token, 0);
+    assert_ne!(token, GameInputCallbackToken::default());
     let deadline = Instant::now() + Duration::from_secs(10);
     while CONNECTED.lock().unwrap().is_empty() {
         assert!(Instant::now() < deadline, "GameInput reported no keyboard, mouse or gamepad");
@@ -67,12 +72,12 @@ fn devices_say_what_they_are() {
             for (text, get) in [("name", IGameInputDevice::GetDisplayName as Text), ("PnP path", IGameInputDevice::GetPnpPath)] {
                 // Without a buffer, its size, then the text in a buffer of
                 // that size.
-                let size = get(device, None);
+                let size = get(device, 0, None);
                 if size == 0 {
                     continue;
                 }
                 let mut buffer = vec![0xFF; size as usize];
-                assert_eq!(get(device, Some(&mut buffer)), size, "the {text}'s size");
+                assert_eq!(get(device, size, Some(buffer.as_mut_ptr())), size, "the {text}'s size");
                 assert_eq!(buffer.iter().position(|&byte| byte == 0), Some(buffer.len() - 1), "the {text}: {buffer:?}");
                 assert!(std::str::from_utf8(&buffer[..buffer.len() - 1]).is_ok(), "the {text}: {buffer:?}");
                 paths += usize::from(text == "PnP path");

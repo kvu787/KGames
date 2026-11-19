@@ -97,13 +97,13 @@ type DeviceQueue = Mutex<Vec<(GameInputDeviceEvent, IGameInputDevice)>>;
 // event, and the main thread takes it in `read`.
 unsafe extern "system" fn on_device_event(
     _token: GameInputCallbackToken,
-    context: *mut c_void,
+    context: *const c_void,
     event: GameInputDeviceEvent,
-    device: *mut c_void,
+    device: windows_core::Ref<IGameInputDevice>,
 ) {
     let queue = unsafe { &*(context as *const DeviceQueue) };
-    if let Some(device) = unsafe { IGameInputDevice::from_raw_borrowed(&device) } {
-        queue.lock().unwrap().push((event, device.clone()));
+    if let Some(device) = device.cloned() {
+        queue.lock().unwrap().push((event, device));
     }
 }
 
@@ -146,7 +146,7 @@ impl Devices {
     pub fn new() -> Result<Devices, String> {
         let (game_input, runtime) = game_input::create()?;
         let queue = Arc::into_raw(Arc::new(DeviceQueue::default()));
-        let mut callback_token = 0;
+        let mut callback_token = GameInputCallbackToken::default();
         let registered = unsafe {
             game_input.RegisterDeviceCallback(
                 None::<&IGameInputDevice>,
@@ -336,7 +336,7 @@ impl Devices {
             }
             if kinds & GameInputKindKeyboard != 0 {
                 let mut keys = vec![GameInputKeyState::default(); reading.GetKeyCount() as usize];
-                let count = reading.GetKeyState(&mut keys);
+                let count = reading.GetKeyState(keys.len() as u32, keys.as_mut_ptr());
                 keys.truncate(count as usize);
                 data.keys = keys;
             }
@@ -577,7 +577,7 @@ unsafe fn returned(code: HRESULT, reading: *mut c_void) -> Result<IGameInputRead
 // A device's data, from GameInput.
 unsafe fn describe(device: &IGameInputDevice) -> Device {
     unsafe {
-        let name = utf8(|buffer| device.GetDisplayName(buffer));
+        let name = utf8(|size, buffer| device.GetDisplayName(size, buffer));
         let name = if name.is_empty() { "Unnamed device".to_string() } else { name };
         let (vendor_id, product_id) = (device.GetVendorId(), device.GetProductId());
         let usage = device.GetUsage();
@@ -603,7 +603,7 @@ unsafe fn describe(device: &IGameInputDevice) -> Device {
             rumble_motors: device.GetSupportedRumbleMotors(),
             system_buttons: device.GetSupportedSystemButtons(),
             container_id,
-            pnp_path: utf8(|buffer| device.GetPnpPath(buffer)),
+            pnp_path: utf8(|size, buffer| device.GetPnpPath(size, buffer)),
             xinput_index: device.GetXInputDeviceIndex(&mut xinput_index).then_some(xinput_index),
             keyboard: device.GetKeyboardInfo(&mut keyboard).then_some(keyboard),
             mouse: device.GetMouseInfo(&mut mouse).then_some(mouse),
@@ -613,11 +613,12 @@ unsafe fn describe(device: &IGameInputDevice) -> Device {
 }
 
 // A string that a GameInput method writes as UTF-8 with a terminating zero,
-// after saying how big it is when given no buffer.
-fn utf8(get: impl Fn(Option<&mut [u8]>) -> u32) -> String {
-    let mut buffer = vec![0u8; get(None) as usize];
+// into a buffer of the size it's given, after saying how big it is when given
+// no buffer.
+fn utf8(get: impl Fn(u32, Option<*mut u8>) -> u32) -> String {
+    let mut buffer = vec![0u8; get(0, None) as usize];
     if !buffer.is_empty() {
-        get(Some(&mut buffer));
+        get(buffer.len() as u32, Some(buffer.as_mut_ptr()));
     }
     String::from_utf8_lossy(&buffer).trim_end_matches('\0').to_string()
 }
