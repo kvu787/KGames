@@ -338,6 +338,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "run-lightly-tests"
+version = "0.1.0"
+
+[[package]]
 name = "shader-compiler"
 version = "0.1.0"
 

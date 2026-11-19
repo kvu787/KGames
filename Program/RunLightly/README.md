@@ -58,6 +58,11 @@ gets the 16 efficiency cores, and Cargo runs 8 jobs, a third of 24. Windows numb
 cores with the two kinds mixed: its performance cores are logical processors 0, 1, 10 to 13, 22
 and 23. RunLightly asks Windows each core's efficiency class instead of assuming an order.
 
+Some Store apps' aliases in `%LOCALAPPDATA%\Microsoft\WindowsApps`, like `python.exe` and
+`winget.exe`, start their program in a job of its own, which Windows won't let join RunLightly's.
+RunLightly ends such a command before it runs, and says why: give it the program's own path
+instead, like one outside WindowsApps that `Get-Command <name> -All` lists.
+
 It turns off .NET's and MSBuild's build servers, which would otherwise run outside the job and
 outlive it. It exits with the command's exit code. Commands run slower than they would directly,
 which is what a game that's running needs. Run from a command that's already in its job, like

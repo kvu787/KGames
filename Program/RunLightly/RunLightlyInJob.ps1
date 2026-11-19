@@ -159,6 +159,8 @@ public static class Lightly {
     static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool GetExitCodeProcess(IntPtr process, out int exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool TerminateProcess(IntPtr process, uint exitCode);
     [DllImport("kernel32.dll")]
     static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll")]
@@ -415,20 +417,36 @@ public static class Lightly {
     // standard handles, waits for it, and returns its exit code. The
     // process starts suspended, joins the job, and only then runs, so that
     // it and every process it starts are in the job from their first
-    // instruction.
+    // instruction. If it can't join the job, or run, it's ended before it
+    // ran: left suspended, outside the job, nothing would end it, and it
+    // would hold the standard handles that it got a copy of open, so that
+    // whoever reads this process's output would wait for it forever.
     public static int Run(string commandLine) {
         var startupInfo = new StartupInfo { cb = Marshal.SizeOf<StartupInfo>() };
         ProcessInformation information;
         if (!CreateProcessW(null, (commandLine + '\0').ToCharArray(), IntPtr.Zero, IntPtr.Zero, true, CREATE_SUSPENDED, IntPtr.Zero, null, ref startupInfo, out information)) {
             throw new System.ComponentModel.Win32Exception();
         }
+        bool running = false;
         try {
+            // A process that's in a job already can join another only if
+            // that one is empty, or in the same nest of jobs. Some Store
+            // apps' aliases in %LOCALAPPDATA%\Microsoft\WindowsApps, like
+            // python.exe and winget.exe, though not pwsh.exe, start their
+            // program in a job of its own, outside this one's nest, so
+            // Windows refuses.
             if (!AssignProcessToJobObject(job, information.hProcess)) {
-                throw new System.ComponentModel.Win32Exception();
+                var error = new System.ComponentModel.Win32Exception();
+                throw new InvalidOperationException(
+                    "Windows didn't let the command's process join RunLightly's job: " + error.Message + " It was ended before it ran. "
+                    + "Some Store apps' aliases in %LOCALAPPDATA%\\Microsoft\\WindowsApps, like python.exe and winget.exe, start their program in a job of its own: "
+                    + "give RunLightly the path of the program itself, like one outside WindowsApps that Get-Command <name> -All lists.",
+                    error);
             }
             if (ResumeThread(information.hThread) == uint.MaxValue) {
                 throw new System.ComponentModel.Win32Exception();
             }
+            running = true;
             WaitForSingleObject(information.hProcess, INFINITE);
             int exitCode;
             if (!GetExitCodeProcess(information.hProcess, out exitCode)) {
@@ -436,6 +454,10 @@ public static class Lightly {
             }
             return exitCode;
         } finally {
+            if (!running) {
+                TerminateProcess(information.hProcess, 1);
+                WaitForSingleObject(information.hProcess, INFINITE);
+            }
             CloseHandle(information.hThread);
             CloseHandle(information.hProcess);
         }
