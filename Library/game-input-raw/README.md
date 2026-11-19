@@ -3,6 +3,13 @@
 - This contains the Rust bindings for Microsoft's GameInput API.
 - Official docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 
+# Development rules
+
+- This crate must provide bindings for the complete GameInput API for x64 PC.
+- `windows-bindgen` doesn't work for automatically generating bindings for GameInput's API.
+- However, the bindings must be written like how `windows-bindgen` would write them.
+- This crate must not provide anything beyond `windows-bindgen`-style bindings.
+
 # Build prerequisites
 
 - Install Visual Studio 2026 with the ".NET desktop development" workload, which should provide the `dotnet` command.
