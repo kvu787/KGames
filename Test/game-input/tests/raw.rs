@@ -1,11 +1,13 @@
-// Library/game-input-raw holds only GameInput's bindings, in the shape of
-// windows-bindgen's output, and Library/game-input what KGames adds to them:
-// every item in the raw package is of a kind that windows-bindgen writes,
-// every method calls its own vtable slot, and no bindings are in the other
-// package.
+// Library/game-input-raw holds the bindings for all of GameInput's API, in the
+// shape of windows-bindgen's output, and nothing else, and Library/game-input
+// what KGames adds to them: everything that GameInput's header declares is
+// bound, every item in the raw package is of a kind that windows-bindgen
+// writes, every method calls its own vtable slot, and no bindings are in the
+// other package.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 // How each item that windows-bindgen writes starts, on a line of its own:
 // constants and their types, structs and unions, callbacks, interfaces with
@@ -100,6 +102,97 @@ fn the_raw_package_is_only_the_bindings() {
             }
         }
     }
+}
+
+// Everything that GameInput's v4 header declares is bound: its enums with
+// their values, structs, callbacks, typedef, constants and function, and its
+// interfaces with every method, in the header's order, none of them left a
+// placeholder slot, and with the traits that windows-bindgen writes only for
+// an interface whose methods are all bound. The header's IID_IGameInput is
+// IGameInput::IID, and its inline GameInputCreate calls GameInputInitialize.
+#[test]
+fn the_bindings_are_the_whole_header() {
+    let header = read(&package().join(r"native\include\v4\GameInput.h"));
+    let bindings = read(&library("game-input-raw").join("src/lib.rs"));
+    let bound = |binding: String| assert!(bindings.contains(&binding), "src/lib.rs has no `{binding}`");
+
+    let mut enumeration: Option<String> = None;
+    let mut interface: Option<(String, Vec<String>)> = None;
+    for line in header.lines().map(|line| line.split("//").next().unwrap().trim_end()) {
+        let words: Vec<&str> = line.split([' ', '\t', '(', ')', ',', ';', '*']).filter(|word| !word.is_empty()).collect();
+        if line.starts_with("};") {
+            enumeration = None;
+            if let Some((name, methods)) = interface.take() {
+                assert_eq!(vtable(&bindings, &name), methods, "{name}'s vtable");
+                bound(format!("pub trait {name}_Impl: windows_core::IUnknownImpl {{"));
+            }
+        } else if let Some(name) = &enumeration {
+            if let Some((member, _)) = line.trim().split_once('=') {
+                bound(format!("pub const {}: {name} = ", member.trim()));
+            }
+        } else if let Some((_, methods)) = &mut interface {
+            if line.trim_start().starts_with("IFACEMETHOD") {
+                // IFACEMETHOD(Name) returns an HRESULT, IFACEMETHOD_(Type, Name) a type.
+                methods.push(words[if words[0] == "IFACEMETHOD_" { 2 } else { 1 }].to_string());
+            }
+        } else {
+            match words.as_slice() {
+                ["enum", name] => {
+                    bound(format!("pub type {name} = i32;"));
+                    enumeration = Some(name.to_string());
+                }
+                ["struct", name] => bound(format!("pub struct {name} {{")),
+                ["typedef", "uint64_t", name] => bound(format!("pub struct {name}(")),
+                ["typedef", "void", "CALLBACK", name, ..] => bound(format!("pub type {name} = Option<")),
+                ["DECLARE_INTERFACE_IID_", name, ..] => interface = Some((name.to_string(), Vec::new())),
+                ["const", "IID", name, ..] => assert_eq!(*name, "IID_IGameInput"),
+                ["const" | "constexpr", _, name, "=", ..] | ["#define", name @ "GAMEINPUT_API_VERSION", _] => {
+                    bound(format!("pub const {name}: "))
+                }
+                ["STDAPI", name, ..] => bound(format!("pub unsafe fn {name}<")),
+                ["inline", "HRESULT", name, ..] => assert_eq!(*name, "GameInputCreate"),
+                _ => {}
+            }
+        }
+    }
+}
+
+// The names of an interface's vtable's slots, after IUnknown's, in order. A
+// slot that windows-bindgen leaves unbound is a usize, which fails.
+fn vtable(bindings: &str, interface: &str) -> Vec<String> {
+    let start = format!("pub struct {interface}_Vtbl {{\n");
+    let body = &bindings[bindings.find(&start).unwrap_or_else(|| panic!("no {start}")) + start.len()..];
+    let mut slots = Vec::new();
+    for line in body.lines().take_while(|line| *line != "}") {
+        // A slot's name starts a line, and its type's lines follow.
+        let slot = line.strip_prefix("    pub ").or_else(|| line.strip_prefix("    ")).unwrap_or(line);
+        let Some((name, ty)) = slot.split_once(':') else { continue };
+        if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            continue;
+        }
+        assert_ne!(ty.trim(), "usize,", "{interface}'s {name} is a placeholder");
+        if name != "base__" {
+            slots.push(name.to_string());
+        }
+    }
+    slots
+}
+
+// The Microsoft.GameInput package that NuGetPackages.csproj declares, which
+// GameInputRaw's build script restored, where dotnet put it, as the build
+// script finds it.
+fn package() -> PathBuf {
+    let project = library("game-input-raw").join("NuGetPackages.csproj");
+    let output = Command::new("dotnet")
+        .arg("msbuild")
+        .arg(&project)
+        .args(["-getProperty:PkgMicrosoft_GameInput", "--nologo"])
+        .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+        .env("DOTNET_NOLOGO", "1")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    PathBuf::from(String::from_utf8(output.stdout).unwrap().trim())
 }
 
 #[test]
