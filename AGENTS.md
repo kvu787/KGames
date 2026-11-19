@@ -21,26 +21,6 @@ Support Windows 11 x64 as the only development platform.
 
 Support Windows 11 x64 as the only target platform.
 
-# GameInput
-
-GameInput 4.0.306 must be installed, once, from an elevated prompt, with:
-
-```powershell
-winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
-```
-
-That's the user's to do. Nothing in the repo may install GameInput. KGames doesn't build without
-it, and programs don't start without it, which `Library/game-input` checks. If a build or a program
-says that it isn't installed, stop and tell the user.
-
-The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
-`Library/game-input-raw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links
-its `GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
-tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
-loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
-in the repo may put one there, nor copy or load the runtimes in the package, which are for
-sideloading.
-
 # PowerShell
 
 All PowerShell scripts must:
