@@ -54,8 +54,7 @@ library's README has the details, and the one window setup that programs support
 you.
 
 KGames was once rewritten in C++, to compare it with the Rust in performance and in the structure
-of the code. [Documentation/CppVersusRust.md](Documentation/CppVersusRust.md) has what that found,
-and why KGames stayed in Rust. The C++ is kept on the `cpp-rewrite` branch.
+of the code. KGames stayed in Rust, and the C++ is kept on the `cpp-rewrite` branch.
 
 Programs read all input with GameInput 4.0.306, which you install once, from an elevated prompt:
 
@@ -108,14 +107,7 @@ programs start it.
 ## Documentation
 
 `Documentation` holds design notes for what isn't code yet, like
-[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game, and the analyses made with
-[Benchmarks](Program/benchmarks/README.md): [Performance](Documentation/Performance.md), where the
-programs' time goes, and [Memory](Documentation/Memory.md), where their memory goes.
-[BuiTakeaways](Documentation/BuiTakeaways.md) tracks what KGames can take from BUI, a UI toolkit
-derived from Blender's, as tasks with their status. [GameInput](Documentation/GameInput.md) has
-what was measured of how GameInput reads gamepads, and why KGames leaves its background input off.
-[FrameInput](Documentation/FrameInput.md) describes a frame's input as one value, its delta and its
-events from keyboards, mice and gamepads, with focus, Windows' cursor and F12 under it.
+[VeehiicuulFly](Documentation/VeehiicuulFly.md), a flying game.
 
 ## Test
 

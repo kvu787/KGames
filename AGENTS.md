@@ -68,8 +68,7 @@ kind that holds, because a later session never read the conversation that invent
   change that would make them false.
 - A rewrite of a library core, like `Library/user-interface/src/core`, is a rare, deliberate
   event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
-  with an adversarial review of the new code and the findings pinned by tests, as
-  `Documentation/LogicReview.md` records for the last one.
+  with an adversarial review of the new code and the findings pinned by tests.
 
 # License
 

@@ -3,8 +3,7 @@
 Times KGames' hot paths, and counts what they hold in memory: the programs' frames on the CPU and
 the GPU, text, input, the PerfBar, meshes, models, JSON, math and the present tracker, and then
 each program's heap, the caches, the mesh and file data, and the GPU's memory. It's a console
-program, without a window. [Documentation/Performance.md](../../Documentation/Performance.md) and
-[Documentation/Memory.md](../../Documentation/Memory.md) are the analyses made with it.
+program, without a window.
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo build --release -p benchmarks
