@@ -44,24 +44,6 @@ causes is in that frame's output - in the interface, and in game logic. An effec
 number of frames is a bug. Test a cause by asserting its whole consequence graph on the frame
 that caused it.
 
-# License
-
-KGames is licensed under GPL-3.0-or-later, the GNU General Public License, version 3 or any later
-version. `LICENSE.txt` has its text, and it covers everything in the repository.
-
-- Code or assets taken from elsewhere must be under a license that GPL-3.0 can take in, like MIT,
-  BSD, Apache-2.0, zlib, ISC, Boost, LGPL, GPL-2.0-or-later or GPL-3.0, and keep their copyright
-  and license notices. GPL-2.0-only, CDDL, EPL-1.0, licenses that forbid commercial use, and code
-  with no license can't come in. The FSF's
-  [license list](https://www.gnu.org/licenses/license-list.html) says which licenses are
-  compatible.
-- Closed-source SDKs and runtimes, like the GameInput runtime, which the user installs, stay out
-  of the repository.
-- `GameInput.lib`, which KGames links, comes from the `Microsoft.GameInput` NuGet package, which the
-  build restores outside the repository. The package ships its source, `native/src/GameInput.cpp`,
-  under the MIT license, and KGames treats the library as MIT-licensed too.
-- Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`.
-
 # Markdown
 
 Tables in Markdown must be padded and aligned in a way to make them easy to read in a plaintext editor, not only in a Markdown viewer.
