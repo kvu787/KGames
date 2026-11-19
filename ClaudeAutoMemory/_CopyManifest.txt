@@ -2,30 +2,13 @@ Added with the copy, not part of the original memory folder.
 Lossless copy of Claude Code auto-memory, made 2026-11-17 12:47:08 -0800.
 Source folder: C:\Users\K\.claude\projects\C--Users-K-Repository-kGames\memory
 Git does not keep modification times, so they are recorded here.
-user-gamepad.md was edited in both folders on 2026-11-17, after the copy, to remove a gamepad's serial number; its row is from after the edit.
+On 2026-11-18, the files that aren't listed here were removed, and MEMORY.md's index was trimmed to the files that are left; its row is from after the trim. Git's history has the removed files.
+agent-sandbox-measuring.md was edited on 2026-11-18, after the copy, when frame_times.exe became frame-times.exe; its row is from after the edit.
 
 sha256	bytes	modified	file
-a12afbd8951ddb8c0cf6505c02a5a2b3e7a8df859f26f2931e77c55d4c38aab1	4055	2026-11-16 20:04:03 -0800	MEMORY.md
-bccdbd76853fb5e78165e26286bf3154e76be0c7af6d946c5b88b8c4b6c68402	2457	2026-11-10 17:48:13 -0800	agent-sandbox-measuring.md
-28bea051d722054c41d39edb6034bb44460691abad6be21e1486cc9aeafa3930	973	2026-11-07 18:59:45 -0800	bash-heredoc-python.md
+f5dfc9d8afb1718899f040117611bf4bd83b96b928b8db2b0ce2da95fdf1332c	917	2026-11-18 18:02:36 -0800	MEMORY.md
+0181c2b909111bbd1251c07c79c2d9cafcb42930eb237fe2cf219647fa69b0b1	2457	2026-11-18 15:23:32 -0800	agent-sandbox-measuring.md
 62c1728953ad605d089b72c564d9be688877b7b3c524c61b3ded28739d7722b9	1971	2026-11-16 02:32:59 -0800	benchmark-methodology.md
-4f0ad266420bd5fecb127e91341cd1f56df5c3cb64a1d6bd41617dd2975ddb1f	1198	2026-11-08 07:38:09 -0800	bui-takeaways-tracker.md
 f560966c51b3c25ecce47599e80ba611f54e813e7cc2db7b9809bdae4e788811	2278	2026-11-14 06:38:50 -0800	clipcursor-release-behavior.md
-0b0fa0d96c0d4c641327d3b9161c32b246bf299b3ca7f85f8e6ff47e1ccd76ec	1956	2026-11-11 01:11:02 -0800	cpp-port-branch.md
-8ae75f9b60b7a91b5d19d0f0a407a1f568765a5402545edca8634a8be196448b	1903	2026-10-29 21:38:59 -0700	display-setup.md
-7878f69a9774041d2bdec01bb88c7572aa13fcfcc2639cf7b92ded664a975268	1837	2026-11-16 02:25:38 -0800	disruptive-validation.md
-f3ce3c7195f43eee809671ca654c9484b1bf178e7c745cd77b67436ed75bfb4c	1721	2026-11-13 14:30:08 -0800	gameinput-docs-markdown.md
-26e2f83a37a9aa11a145d7dfe7ea2e5f81530315748b78b48a15f0b28ec84bb3	1708	2026-11-09 14:11:10 -0800	gameinput-entry-points.md
-f1e0bef6e10dcadacc0f2db0db36b6e2a0fb2868c7ef8e86be9597375b817587	1548	2026-11-11 09:45:41 -0800	gameinput-header-and-probes.md
 d8e8384a6a33de59207029677b5312abf06ec480a108ddb4b07c35eebb7cd732	1560	2026-11-11 13:49:21 -0800	interrupt-core-placement.md
-78831a1c44f6cbbf64c6d06e3cecb92bab0687b4dc42de5b4dbf45b5643be6aa	1169	2026-11-14 11:30:30 -0800	kgames-architecture-priorities.md
 f10b806af65a700df58f415e18c7137e49f5d0d6b928c2c76839d3a0c0ece475	1447	2026-11-16 02:17:50 -0800	light-load-while-gaming.md
-131ee8e81d7a758a53c8a40f217a48ef9e9a7e3ea75a16bb6e48003bab4977ac	2702	2026-11-09 15:19:07 -0800	nuget-package-download.md
-a43f1093d45599b6ee0db8d62311fb00cc29c3aaa4967fbbf5ac90890a6e4756	845	2026-11-16 20:04:00 -0800	nvidia-app-7zip.md
-447510bd2b2cdbd20ad933afdb0ce9e4a6432f6a67e57e2760e9b378847e29bd	985	2026-10-30 18:28:05 -0700	power-and-keep-awake.md
-a684efb69d613047a395ee34c25a0b59b6f4ddefa93f203dbf97620fdbe983ac	1774	2026-11-11 09:45:41 -0800	prefer-official-declarative-ways.md
-459044b901c01a9e48dbd09f8d05af5a1a3aba40572db2e3da9cd49f510a8c99	887	2026-11-09 03:20:57 -0800	runlightly-crash-exit-code.md
-a108d9c681af08b4a1f169502c7708fd9156bdfd377fb5d51aca947a799d8e9a	1873	2026-11-16 20:03:57 -0800	runlightly-exe-arguments.md
-434a7268da5b97c5abc88ba75bfe786692b5143c6771f8b52618a440b73030db	1543	2026-11-17 12:56:53 -0800	user-gamepad.md
-10ce7121f08068de99d51ade3a36a69e397b40c6fe63e2a4305c619124fc970f	1044	2026-11-12 11:15:54 -0800	user-offers-hands-on-testing.md
-196809e7a6e727d1c708698a4f954e11f2c7e36906186dafce17b7eabc399042	1461	2026-11-06 04:47:03 -0800	worktree-lfs-pointers.md
