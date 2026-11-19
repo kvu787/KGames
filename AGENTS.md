@@ -81,7 +81,7 @@ While working:
 - The agent must not launch a GUI program on any display except for CVVNY2.
 - The agent must not steal input focus away. For example, if the user is typing in another window, then those keypresses shouldn't be rerouted to processes or windows that the agent launches.
 - It is fine if the agent launches things that show up on the Windows taskbar. This isn't considered disruptive.
-- The agent must not make a game that the user is playing stutter. Keep the CPU and GPU work that it starts light, as below.
+- The agent should avoid making a game that the user is playing stutter. Keep the CPU and GPU work that it starts light, as below.
 
 How:
 
