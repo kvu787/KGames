@@ -120,6 +120,22 @@ fn output_within(mut command: Command, time: Duration) -> Output {
     }
 }
 
+// RunLightly exits with the command's exit code, whole, and says one that a
+// byte can't hold, like an access violation's, in full, as coding agents'
+// tools show only its low byte: 5.
+#[test]
+fn the_exit_code_comes_back_whole_and_a_crash_is_said_in_full() {
+    for (code, said) in [(0, None), (3, None), (-1073741819, Some("RunLightly: the command exited with 0xC0000005"))] {
+        let output = run_lightly().arg(PRINT_ARGUMENTS).env("PRINT_ARGUMENTS_EXIT_CODE", code.to_string()).output().unwrap();
+        let errors = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(code), "{errors}");
+        match said {
+            Some(said) => assert!(errors.contains(said), "{errors}"),
+            None => assert!(!errors.contains("RunLightly:"), "{errors}"),
+        }
+    }
+}
+
 fn store_alias(name: &str) -> PathBuf {
     let alias = Path::new(&std::env::var("LOCALAPPDATA").unwrap()).join(r"Microsoft\WindowsApps").join(name);
     assert!(alias.exists(), "Windows 11 has {}", alias.display());

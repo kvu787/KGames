@@ -77,7 +77,9 @@ RunLightly ends such a command before it runs, and says why: give it the program
 instead, like one outside WindowsApps that `Get-Command <name> -All` lists.
 
 It turns off .NET's and MSBuild's build servers, which would otherwise run outside the job and
-outlive it. It exits with the command's exit code. Commands run slower than they would directly,
+outlive it. It exits with the command's exit code, and says one that a byte can't hold in full,
+like an access violation's `0xC0000005`, which shells and coding agents' tools often show as `5`,
+or as a segmentation fault. Commands run slower than they would directly,
 which is what a game that's running needs. Run from a command that's already in its job, like
 RunInBackground run through it, it just runs the command, which the job holds already.
 

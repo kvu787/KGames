@@ -50,7 +50,7 @@
 #
 # Run in a RunLightly job already, which KGAMES_LIGHT_JOB names, it just runs
 # the command, which the job holds already. It exits with the command's exit
-# code.
+# code, and says one that a byte can't hold in full.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -554,4 +554,11 @@ if ($program) {
 } else {
     $line = (@([Environment]::ProcessPath, '-NoProfile', '-File', $PSCommandPath, $args[0]) | ForEach-Object { [Lightly]::Quote($_) }) -join ' '
 }
-exit [Lightly]::Run($line)
+$exitCode = [Lightly]::Run($line)
+# Shells and coding agents' tools often show only part of an exit code that a
+# byte can't hold, like an access violation's 0xC0000005, which they show as
+# 5, or as a segmentation fault, so such a code is said in full.
+if ($exitCode -lt 0 -or $exitCode -gt 255) {
+    [Console]::Error.WriteLine(('RunLightly: the command exited with 0x{0:X8}' -f $exitCode))
+}
+exit $exitCode

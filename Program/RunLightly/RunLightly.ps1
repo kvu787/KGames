@@ -22,7 +22,7 @@
 # Run from a command that's already in a RunLightly job, which
 # KGAMES_LIGHT_JOB names, like RunInBackground run through RunLightly, it just
 # runs the command, which the job holds already. It exits with the command's
-# exit code.
+# exit code, and says one that a byte can't hold, like a crash's, in full.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
