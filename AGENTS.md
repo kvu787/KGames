@@ -29,6 +29,12 @@ All PowerShell scripts must:
 - Use `Set-StrictMode -Version Latest`
 - Use `$ErrorActionPreference = 'Stop'`
 
+# Git
+
+When implementing stuff, avoid difficult-to-review "mega-commits".
+When it makes sense, split work into multiple commits to make it easier to review.
+After you make changes, commit them. There's no need to ask the user for permission to commit.
+
 # Correctness
 
 Development here is heavy and session-based: a rule that only a machine check enforces is the only
@@ -80,12 +86,6 @@ version. `LICENSE.txt` has its text, and it covers everything in the repository.
   build restores outside the repository. The package ships its source, `native/src/GameInput.cpp`,
   under the MIT license, and KGames treats the library as MIT-licensed too.
 - Every Rust package takes its license from the root `Cargo.toml`, with `license.workspace = true`.
-
-# Git
-
-When implementing stuff, avoid difficult-to-review "mega-commits".
-When it makes sense, split work into multiple commits to make it easier to review.
-After you make changes, commit them. There's no need to ask the user for permission to commit.
 
 # Markdown
 
