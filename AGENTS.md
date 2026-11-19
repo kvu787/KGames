@@ -39,36 +39,10 @@ Run `git lfs checkout` after creating a new worktree.
 
 # Correctness
 
-Development here is heavy and session-based: a rule that only a machine check enforces is the only
-kind that holds, because a later session never read the conversation that invented it.
-
-- The law of the frame: given the state and the frame's input at its start, everything the input
-  causes is in that frame's output - in the interface, and in game logic. An effect delayed any
-  number of frames is a bug. Test a cause by asserting its whole consequence graph on the frame
-  that caused it.
-- Every bug fix lands with a test that pins it, in the same change. A fix without a test is a bug
-  that will come back.
-- A discipline that can't be a type must be a test. For messages and game events: they carry the
-  facts of their moment - which coin, which row's item, the view their input was on - and their
-  consumers read everything else from the state as it is when they apply, never from a snapshot.
-  The test for an intent-carrying message is two of the same intent in one frame: they cancel, or
-  apply twice, and never collapse into one.
-- Simulations move by each frame's own time, the time since the frame before, in one step a frame,
-  like a Godot game's `_process` with its delta, never in fixed steps on a clock of their own: a
-  frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a
-  second, fits 2 steps in some frames and 3 in others, and what moves judders. Cap a frame's time,
-  so that a late one, like after the window was minimized, doesn't carry things far, and test
-  frames at 100 frames a second and of uneven lengths: each moves things by its own time. A GUI
-  program's `input` runs once for each step of a frame's input, and only the frame's last step has
-  a delta, so a simulation that it ticks moves by the delta, skips its step when it's 0, and test
-  that a tick of no time moves nothing. Event queues drain to quiescence inside the frame; a
-  cascade that doesn't settle stops the program instead of hiding.
-- A comment is a promise: a comment or README that says the code does something the code doesn't
-  do is a bug, and models believe documentation more than people do. Keep them true in the same
-  change that would make them false.
-- A rewrite of a library core, like `Library/user-interface/src/core`, is a rare, deliberate
-  event: new machinery re-encounters every edge case the old machinery had already fixed. It ends
-  with an adversarial review of the new code and the findings pinned by tests.
+The law of the frame: given the state and the frame's input at its start, everything the input
+causes is in that frame's output - in the interface, and in game logic. An effect delayed any
+number of frames is a bug. Test a cause by asserting its whole consequence graph on the frame
+that caused it.
 
 # License
 
