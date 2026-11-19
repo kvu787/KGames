@@ -6,7 +6,7 @@ the [AGENTS.md](../../AGENTS.md) at the root).
 
 ```powershell
 Program\RunLightly\RunLightly.ps1 cargo test --workspace
-Program\RunLightly\RunLightly.ps1 cargo build --release -p UiShowcase
+Program\RunLightly\RunLightly.ps1 cargo build --release -p ui-showcase
 ```
 
 The command is a program, by its name or its path, or anything else that PowerShell runs, like a
