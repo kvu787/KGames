@@ -1,8 +1,8 @@
 # Description
 
 What KGames adds to the Rust bindings for Microsoft GameInput version 4.0.306 in
-[Library/game-input-raw](../game-input-raw/README.md): `create`, which starts GameInput, and the check
-that the runtime that KGames needs is installed. Bindings go in GameInputRaw, never here.
+[Library/game-input-raw](../game-input-raw/README.md): `create`, which starts GameInput, and the
+check that the runtime that KGames needs is installed. Bindings go in GameInputRaw, never here.
 
 Microsoft docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 
@@ -14,13 +14,14 @@ Before using this crate, you must install GameInput 4.0.306 with this:
 winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"
 ```
 
-And the .NET SDK, 10 or later, which [Library/game-input-raw](../game-input-raw/README.md) builds with.
+And the .NET SDK, 10 or later, which [Library/game-input-raw](../game-input-raw/README.md) builds
+with.
 
 # How it works
 
 GameInput comes in two parts: the `Microsoft.GameInput` NuGet package, which a game builds with,
-and a runtime DLL, which the user installs. [Library/game-input-raw](../game-input-raw/README.md) takes
-the package, and links its `GameInput.lib`. This crate starts the runtime.
+and a runtime DLL, which the user installs. [Library/game-input-raw](../game-input-raw/README.md)
+takes the package, and links its `GameInput.lib`. This crate starts the runtime.
 
 **The runtime.** There can be three: the `GameInput.dll` that comes with Windows 11, which only
 supports API version 0; a `GameInputRedist.dll` that `GameInputRedist.msi` installs; and a

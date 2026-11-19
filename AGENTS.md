@@ -34,8 +34,8 @@ it, and programs don't start without it, which `Library/game-input` checks. If a
 says that it isn't installed, stop and tell the user.
 
 The build restores the `Microsoft.GameInput` NuGet package, 4.0.306, with `dotnet`, as
-`Library/game-input-raw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links its
-`GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
+`Library/game-input-raw/NuGetPackages.csproj` declares and its `packages.lock.json` pins, and links
+its `GameInput.lib`. It needs the .NET SDK, 10 or later: if a build says that it's missing, stop and
 tell the user. Programs start GameInput with `GameInputInitialize` from `GameInput.lib`, Microsoft's
 loader, which loads the installed runtime unless a `GameInputRedist.dll` is beside the exe. Nothing
 in the repo may put one there, nor copy or load the runtimes in the package, which are for

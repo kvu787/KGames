@@ -74,8 +74,8 @@ of the car and for the sphere, in the format of
 |                                | `VResolution`, from 2 to 512 bands from pole to pole        |
 
 A setting that's wrong, like a material that SimplePaint rejects, keeps its default, and the
-card says what's wrong with it. Tune a material in [SimplePaintDemo](../simple-paint-demo/README.md),
-save it, and copy it from its `Paint.json`.
+card says what's wrong with it. Tune a material in
+[SimplePaintDemo](../simple-paint-demo/README.md), save it, and copy it from its `Paint.json`.
 
 ## Testing
 

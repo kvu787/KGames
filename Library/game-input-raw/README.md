@@ -2,8 +2,8 @@
 
 Rust bindings for Microsoft GameInput version 4.0.306, and nothing else. What KGames adds to them,
 like starting GameInput and checking that its runtime is installed, is in
-[Library/game-input](../game-input/README.md). `Test/game-input` checks both: that every item here is
-of a kind that `windows-bindgen` writes, that every method calls its own vtable slot, that the
+[Library/game-input](../game-input/README.md). `Test/game-input` checks both: that every item here
+is of a kind that `windows-bindgen` writes, that every method calls its own vtable slot, that the
 structs and vtables have the header's sizes, and that no bindings are in GameInput.
 
 Microsoft docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
@@ -38,8 +38,8 @@ has Microsoft's loader, `GameInputInitialize`.
 **The API.** KGames uses API version 4, from `native/include/v4/GameInput.h` in the package.
 GameInput isn't in the Windows metadata that `windows-bindgen` reads, so `src/lib.rs`
 declares the parts that KGames uses by hand, in the same shape as the generated bindings in
-[Library/windows-api-raw](../windows-api-raw/README.md). Every vtable slot is listed in header order,
-so it can be checked against the header.
+[Library/windows-api-raw](../windows-api-raw/README.md). Every vtable slot is listed in header
+order, so it can be checked against the header.
 
 Microsoft's online reference shows v4's signatures in its current view, but its older views,
 and its pages for earlier versions, show older ones. For example, `RegisterDeviceCallback` has

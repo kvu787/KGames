@@ -235,9 +235,9 @@ program input only while it has focus. On, it would give input without focus too
 then reads gamepads in Xbox 360 mode on a timer instead of as they report: on the development
 machine, with GameInput 4.0.306, two GameSir controllers in Xbox 360 mode that report 8,000 times a
 second gave a focused window 64 readings a second with it on, and about 7,500 with it off.
-`Library/game-input-raw` doesn't bind `EnableBackgroundInput`, so that it stays off. As a window loses
-focus, GameInput gives it a reading of each device at rest, which lets go of everything held, and
-none after that. As focus comes back, it doesn't report keys or mouse buttons that are held from
+`Library/game-input-raw` doesn't bind `EnableBackgroundInput`, so that it stays off. As a window
+loses focus, GameInput gives it a reading of each device at rest, which lets go of everything held,
+and none after that. As focus comes back, it doesn't report keys or mouse buttons that are held from
 before, but reports gamepads' whole state, their held buttons too.
 
 - Keys are the keys that keyboards hold down. Shift, Ctrl and Alt are the same keys on the left

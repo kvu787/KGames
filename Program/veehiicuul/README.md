@@ -180,10 +180,10 @@ line goes across the road from edge to edge, 4.25 units ahead of the car's start
 ## Settings
 
 `Settings.json` has the settings that every program has (see
-[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)), then
-the game's own. The game writes it with the defaults if it's missing. A setting that's wrong keeps
-its default, and one that names a scene or a vehicle that isn't there starts the game in the first,
-and a notice under the app bar says so.
+[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)),
+then the game's own. The game writes it with the defaults if it's missing. A setting that's wrong
+keeps its default, and one that names a scene or a vehicle that isn't there starts the game in the
+first, and a notice under the app bar says so.
 
 | Setting     | Value                                                                           |
 | ----------- | ------------------------------------------------------------------------------- |

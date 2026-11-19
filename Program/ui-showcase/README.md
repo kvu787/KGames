@@ -3,7 +3,8 @@
 Shows every widget of [Library/user-interface](../../Library/user-interface/README.md), the Fluent 2
 user interface library of every KGames GUI program, and what the input does to each, in the light
 theme or the dark one. Like every KGames GUI program, it ignores input without focus, and supports
-the one window setup in [Library/user-interface](../../Library/user-interface/README.md#window-setup).
+the one window setup in
+[Library/user-interface](../../Library/user-interface/README.md#window-setup).
 
 ## What it shows
 

@@ -65,9 +65,9 @@ Shortcuts, while the demo's window has focus:
 | `F12` | Quits, as in every KGames program                                      |
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
-Library/user-interface's, which reads them from the same readings, as in every KGames program, so the
-demo doesn't also switch on them, which would switch them back. `F12` is too, and the demo's cards
-show it as GameInput read it, like any key, but do nothing with it.
+Library/user-interface's, which reads them from the same readings, as in every KGames program, so
+the demo doesn't also switch on them, which would switch them back. `F12` is too, and the demo's
+cards show it as GameInput read it, like any key, but do nothing with it.
 
 ### Rumble test
 
@@ -194,8 +194,8 @@ other windows (see [AGENTS.md](AGENTS.md)).
 Program\RunInBackground\RunInBackground.ps1 game-input-demo --display KXGR16
 ```
 
-With `--all-scripts`, it runs the demo with the scripts in `Test/game-input-demo/Scripts` instead (see
-[Testing](#testing)).
+With `--all-scripts`, it runs the demo with the scripts in `Test/game-input-demo/Scripts` instead
+(see [Testing](#testing)).
 
 ## Displays and settings
 
@@ -228,8 +228,8 @@ it doesn't exist, the demo writes it with the defaults:
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
 The first three are the settings that every KGames program has, which
-[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line) reads,
-and the last is the demo's own.
+[Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)
+reads, and the last is the demo's own.
 
 - If `Display` names a display that isn't connected, the demo opens on the primary display, and a
   notice under the app bar says so.
