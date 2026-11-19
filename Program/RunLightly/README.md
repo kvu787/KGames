@@ -9,6 +9,19 @@ Program\RunLightly\RunLightly.ps1 cargo test --workspace
 Program\RunLightly\RunLightly.ps1 cargo build --release -p UiShowcase
 ```
 
+The command is a program, by its name or its path, or anything else that PowerShell runs, like a
+script or a cmdlet. It gets its arguments as it would if PowerShell ran it, like `-name:value`
+whole, but for `--`, which PowerShell takes for itself, before RunLightly sees it, unless it's
+quoted:
+
+```powershell
+Program\RunLightly\RunLightly.ps1 cargo test -p present-timing-tests '--' --ignored
+```
+
+Run it from PowerShell, or from another shell with `pwsh -Command`: `pwsh -File` reads an argument
+like `-name:value` as two, `-name` and `value`, before RunLightly sees it. Its tests are in
+[Test/run-lightly](../../Test/run-lightly).
+
 It runs the command in a PowerShell process of its own (`RunLightlyInJob.ps1`), which puts itself
 in a Windows job object first, so that the shell it's run from stays as it is. The job's limits hold
 the command and every process that it starts, like Cargo's `rustc` and linker, which can't escape

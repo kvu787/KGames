@@ -5,5 +5,11 @@ edition = "2024"
 license.workspace = true
 publish = false
 
+# What the tests have RunLightly run.
+[[bin]]
+name = "print-arguments"
+path = "src/print_arguments.rs"
+test = false
+
 [lints]
 workspace = true

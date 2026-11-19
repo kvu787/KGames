@@ -48,10 +48,70 @@
 # Tests run on as many threads. .NET's and MSBuild's build servers would run
 # outside the job, so they're turned off.
 #
-# It exits with the command's exit code.
+# Run in a RunLightly job already, which KGAMES_LIGHT_JOB names, it just runs
+# the command, which the job holds already. It exits with the command's exit
+# code.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# The command and its arguments, as PowerShell gave them to RunLightly.ps1,
+# which sends them as one argument.
+if ($args.Count -ne 1) {
+    Write-Error 'Run RunLightly.ps1, which runs this.'
+}
+$gzip = [System.IO.Compression.GZipStream]::new([System.IO.MemoryStream]::new([Convert]::FromBase64String($args[0])), [System.IO.Compression.CompressionMode]::Decompress)
+$given = @([System.Management.Automation.PSSerializer]::Deserialize([System.IO.StreamReader]::new($gzip).ReadToEnd()))
+$command = [string]$given[0]
+$arguments = @($given | Select-Object -Skip 1)
+
+# The command is a program, by its path, or else anything PowerShell runs,
+# like a script or a cmdlet.
+$found = Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1
+$program = if ($found -and $found.CommandType -eq 'Application') { $found.Source }
+
+# The words that a program gets, as PowerShell passes them when it runs one
+# itself. A list, like x,y or --format=%h,%s, is one word, its items with
+# commas between them, as PowerShell passes a list that's written in the
+# command (though one in a variable, it passes as a word for each item).
+function Get-Word($argument) {
+    if ($argument -is [System.Collections.IEnumerable] -and $argument -isnot [string]) {
+        (@($argument) | ForEach-Object { Get-Word $_ }) -join ','
+    } else {
+        "$argument"
+    }
+}
+# PowerShell gives a script an argument written as -name:value, or -name:
+# value, as two, the parameter -name: and its value, which are one word again.
+$words = @(for ($index = 0; $index -lt $arguments.Count; $index++) {
+    $argument = $arguments[$index]
+    if ($null -eq $argument) {
+        continue
+    }
+    if ($argument -is [psobject] -and $argument.PSObject.Properties['<CommandParameterName>'] -and "$argument".EndsWith(':') -and $index + 1 -lt $arguments.Count) {
+        $index++
+        "$argument" + (Get-Word $arguments[$index])
+    } else {
+        Get-Word $argument
+    }
+})
+
+if ($env:KGAMES_LIGHT_JOB) {
+    $global:LASTEXITCODE = 0
+    if ($program) {
+        & $program @words
+    } else {
+        # With PowerShell's defaults, not this script's strict mode, and with
+        # the marks on the arguments that were written as parameters, which
+        # bind them to the command's parameters.
+        & {
+            Set-StrictMode -Off
+            $ErrorActionPreference = 'Continue'
+            & $command @arguments
+        }
+    }
+    exit $LASTEXITCODE
+}
 
 $percent = 33
 if ($env:KGAMES_LIGHT_CPU_PERCENT) {
@@ -486,16 +546,12 @@ $env:RUST_TEST_THREADS = [string]$jobs
 # processes'.
 $env:KGAMES_GPU_PRIORITY = 'Idle'
 
-# The command: a program, by its path, or else anything PowerShell runs, like
-# a script or a cmdlet, in a PowerShell of its own.
-$command = $args[0]
-$arguments = @($args | Select-Object -Skip 1)
-$found = Get-Command $command -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($found -and $found.CommandType -eq 'Application') {
-    $words = @($found.Source) + $arguments
+# The command: a program with its words, or else this script again, in a
+# PowerShell of its own in the job, which runs the command as it would in a
+# job already.
+if ($program) {
+    $line = (@($program) + $words | ForEach-Object { [Lightly]::Quote($_) }) -join ' '
 } else {
-    $quoted = @($command) + $arguments | ForEach-Object { "'" + $_.Replace("'", "''") + "'" }
-    $words = @((Get-Process -Id $PID).Path, '-NoProfile', '-Command', ('& ' + ($quoted -join ' ') + '; exit $LASTEXITCODE'))
+    $line = (@([Environment]::ProcessPath, '-NoProfile', '-File', $PSCommandPath, $args[0]) | ForEach-Object { [Lightly]::Quote($_) }) -join ' '
 }
-$line = ($words | ForEach-Object { [Lightly]::Quote($_) }) -join ' '
 exit [Lightly]::Run($line)

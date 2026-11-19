@@ -9,6 +9,16 @@
 #
 #     Program\RunLightly\RunLightly.ps1 cargo test --workspace
 #
+# The command gets its arguments as it would if PowerShell ran it, but for a
+# --: PowerShell takes one that isn't quoted for itself, before this script
+# sees it, so quote one that's for the command:
+#
+#     Program\RunLightly\RunLightly.ps1 cargo test -p present-timing-tests '--' --ignored
+#
+# Run it from PowerShell, or from another shell with pwsh -Command: pwsh's
+# -File reads an argument like -name:value as two, -name and value, before
+# this script sees it.
+#
 # Run from a command that's already in a RunLightly job, which
 # KGAMES_LIGHT_JOB names, like RunInBackground run through RunLightly, it just
 # runs the command, which the job holds already. It exits with the command's
@@ -21,12 +31,14 @@ if ($args.Count -eq 0) {
     Write-Error 'Name a command to run, like: Program\RunLightly\RunLightly.ps1 cargo test --workspace'
 }
 
-if ($env:KGAMES_LIGHT_JOB) {
-    $command = $args[0]
-    $arguments = @($args | Select-Object -Skip 1)
-    & $command @arguments
-    exit $LASTEXITCODE
-}
-
-& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'RunLightlyInJob.ps1') @args
+# pwsh's command line would read arguments like -name:value and -- as its
+# own, so the command and its arguments, as PowerShell gave them to this
+# script, with the marks it puts on the ones written as parameters, go to
+# RunLightlyInJob.ps1 as one argument: serialized, compressed, in Base64.
+$serialized = [System.Text.Encoding]::UTF8.GetBytes([System.Management.Automation.PSSerializer]::Serialize($args, 4))
+$compressed = [System.IO.MemoryStream]::new()
+$gzip = [System.IO.Compression.GZipStream]::new($compressed, [System.IO.Compression.CompressionLevel]::Optimal)
+$gzip.Write($serialized, 0, $serialized.Length)
+$gzip.Dispose()
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'RunLightlyInJob.ps1') ([Convert]::ToBase64String($compressed.ToArray()))
 exit $LASTEXITCODE
