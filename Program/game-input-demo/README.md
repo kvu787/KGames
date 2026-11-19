@@ -244,7 +244,7 @@ isn't, the demo writes why to standard error and exits, instead of opening on th
 
 ## How it gets GameInput
 
-The [GameInputRaw library](../../Library/game-input-raw/README.md) declares the API by hand, and the
+The [GameInputRaw library](../../Library/game-input-raw/README.md) has the API's bindings, and the
 [GameInput library](../../Library/game-input/README.md) starts GameInput with
 `GameInputInitialize` from Microsoft's `GameInput.lib`, which loads GameInput
 4.0.306's installed runtime, from System32, unless a `GameInputRedist.dll` is beside the exe.

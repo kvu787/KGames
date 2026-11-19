@@ -6,8 +6,9 @@
 # Development rules
 
 - This crate must provide bindings for the complete GameInput API for x64 PC.
-- `windows-bindgen` doesn't work for automatically generating bindings for GameInput's API.
-- However, the bindings must be written like how `windows-bindgen` would write them.
+- `windows-bindgen` can't generate bindings for GameInput's API from Windows' metadata, which doesn't have it.
+  - So `bindings-generator` describes `GameInput.h` as metadata, and `windows-bindgen` generates `src\lib.rs` from that.
+- The bindings must be written like how `windows-bindgen` would write them, so `src\lib.rs` is never edited by hand.
 - This crate must not provide anything beyond `windows-bindgen`-style bindings.
 
 # Build prerequisites
@@ -15,9 +16,10 @@
 - Install Visual Studio 2026 with the ".NET desktop development" workload, which should provide the `dotnet` command.
 - `build.rs` uses `dotnet` to download the GameInput NuGet package.
 - The NuGet package provides `GameInput.h` and `GameInput.lib`.
-- `GameInput.h` the header file that this crate wraps in `src\lib.rs`.
-  - `GameInput.h` is manually translated to `src\lib.rs` as a one-time process, so `GameInput.h` isn't strictly needed to build the crate.
-  - However, if you ever want to change `src\lib.rs`, then you should have `GameInput.h` to ensure you're doing the FFI wrapping correctly.
+- `GameInput.h` is the header file that this crate wraps in `src\lib.rs`.
+  - `src\lib.rs` is generated from `GameInput.h` and committed, so `GameInput.h` isn't strictly needed to build the crate.
+  - To change `src\lib.rs`, change `bindings-generator`, and run it with `cargo run -p game-input-bindings-generator`.
+  - `Test/game-input` checks that `src\lib.rs` is what `bindings-generator` generates, and that it binds everything that `GameInput.h` declares.
 - `GameInput.lib` is a static library that provides the implementation for `GameInputInitialize`, which is also wrapped in `src\lib.rs`.
   - Unlike `GameInput.h`, `GameInput.lib` is strictly required to build the crate.
 
@@ -39,3 +41,16 @@ like programs or tests, then you must install these runtime prerequisites.
     https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-nuget?view=gdk-2610
   - Another installation method is to download and extract the NuGet package from
     https://www.nuget.org/packages/Microsoft.GameInput/4.0.306, and then run the `GameInputRedist.msi` it contains.
+
+# Layout
+
+| Path                               | Contents                                                     |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `src/lib.rs`                       | The generated bindings; don't edit by hand                   |
+| `build.rs`                         | Restores the NuGet package, and links its `GameInput.lib`    |
+| `NuGetPackages.csproj`             | The NuGet packages that `build.rs` restores                  |
+| `packages.lock.json`               | Pins the packages' content by its hash                       |
+| `Directory.Build.props`            | Restores them into the repository's `target` folder          |
+| `bindings-generator/src/header.rs` | Reads `GameInput.h`'s declarations                           |
+| `bindings-generator/src/lib.rs`    | Describes them as metadata, and runs `windows-bindgen` on it |
+| `bindings-generator/src/main.rs`   | Writes the bindings to `src/lib.rs`                          |

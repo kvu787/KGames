@@ -4,8 +4,8 @@
 // An interface name brings in all of its own methods, but not the methods it
 // inherits. Select those from the base interface, like IDXGISwapChain::Present.
 //
-// GameInput isn't in the Windows metadata, so its bindings are written by hand
-// in Library/game-input-raw instead.
+// GameInput isn't in the Windows metadata, so Library/game-input-raw has a
+// generator of its own.
 
 // Window and message loop
 CreateWindowExW
