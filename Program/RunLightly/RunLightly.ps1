@@ -20,8 +20,9 @@
 # this script sees it.
 #
 # Run from a command that's already in a RunLightly job, which
-# KGAMES_LIGHT_JOB names, like RunInBackground run through RunLightly, it just
-# runs the command, which the job holds already. It exits with the command's
+# KGAMES_LIGHT_JOB names, it just runs the command, which the job holds
+# already. RunInBackground runs itself lightly, and doesn't run in another
+# RunLightly job. It exits with the command's
 # exit code, and says one that a byte can't hold, like a crash's, in full.
 
 Set-StrictMode -Version Latest

@@ -9,6 +9,14 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# In a RunLightly job already, which KGAMES_LIGHT_JOB names, like when it's run
+# through RunLightly, Windows doesn't let RunInBackground.cs put the build and
+# the program in that job: it ended with "Access is denied". It runs itself
+# lightly anyway.
+if ($env:KGAMES_LIGHT_JOB) {
+    Write-Error 'RunInBackground runs itself lightly, and not in another RunLightly job: run Program\RunInBackground\RunInBackground.ps1 directly, not through RunLightly.'
+}
+
 # The -- is quoted, as PowerShell would take a bare one as the end of the
 # script's own parameters, and not pass it on to dotnet.
 & (Join-Path $PSScriptRoot '..\RunLightly\RunLightly.ps1') dotnet run --file (Join-Path $PSScriptRoot 'RunInBackground.cs') '--' @args

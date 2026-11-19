@@ -80,8 +80,9 @@ It turns off .NET's and MSBuild's build servers, which would otherwise run outsi
 outlive it. It exits with the command's exit code, and says one that a byte can't hold in full,
 like an access violation's `0xC0000005`, which shells and coding agents' tools often show as `5`,
 or as a segmentation fault. Commands run slower than they would directly,
-which is what a game that's running needs. Run from a command that's already in its job, like
-RunInBackground run through it, it just runs the command, which the job holds already.
+which is what a game that's running needs. Run from a command that's already in its job, it just
+runs the command, which the job holds already. [RunInBackground](../RunInBackground/README.md)
+runs itself lightly, so run it directly: in another RunLightly job, it stops and says so.
 
 What it can't hold:
 

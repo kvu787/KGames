@@ -39,6 +39,7 @@ UiShowcase's `VerticalSync.json` expects it to start on.
 
 RunInBackground runs [lightly](../RunLightly/README.md), and so do the build and the program that it
 starts: only on the CPU's efficiency cores, at idle priority, with at most a third of the CPU's time.
+So run it directly, not through RunLightly, in whose job it stops and says so.
 
 The program runs in a job that ends it when RunInBackground exits, unless `--keep-open` says
 to leave it running. So a run that's stopped partway, like by Ctrl+C or a coding agent's time

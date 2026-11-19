@@ -135,6 +135,24 @@ fn the_exit_code_comes_back_whole_and_a_crash_is_said_in_full() {
     }
 }
 
+// RunInBackground runs itself lightly. Run through RunLightly, it ended with
+// "Access is denied" once it had built itself, as Windows didn't let it put
+// the build and the program in RunLightly's job. It says to run it directly,
+// before it builds anything.
+#[test]
+fn run_in_background_through_run_lightly_says_to_run_it_directly() {
+    let run_in_background = concat!(env!("CARGO_MANIFEST_DIR"), r"\..\..\Program\RunInBackground\RunInBackground.ps1");
+    let mut command = run_lightly();
+    command.args([run_in_background, "minimal-scene-test"]);
+    let output = output_within(command, Duration::from_secs(300));
+    let errors = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{errors}");
+    // PowerShell wraps an error's message in lines that start with |.
+    let words = errors.split_whitespace().filter(|word| *word != "|").collect::<Vec<_>>().join(" ");
+    assert!(words.contains(r"run Program\RunInBackground\RunInBackground.ps1 directly, not through RunLightly"), "{errors}");
+    assert!(output.stdout.is_empty(), "{}", String::from_utf8_lossy(&output.stdout));
+}
+
 fn store_alias(name: &str) -> PathBuf {
     let alias = Path::new(&std::env::var("LOCALAPPDATA").unwrap()).join(r"Microsoft\WindowsApps").join(name);
     assert!(alias.exists(), "Windows 11 has {}", alias.display());
