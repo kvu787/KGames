@@ -128,15 +128,14 @@ on display CVVNY2 unless `--display` names another.
 
 ## Editors
 
-VS Code with rust-analyzer, Zed and RustRover can have the repository open at once. Each builds
-what its analysis needs, build scripts, proc macros and `cargo check`, in a target folder of its
-own, so that none waits on another's build, or on a `cargo test --workspace` in `target`, nor
+VS Code with rust-analyzer and RustRover can have the repository open at once. Each builds what
+its analysis needs, build scripts, proc macros and `cargo check`, in a target folder of its own,
+so that neither waits on the other's build, or on a `cargo test --workspace` in `target`, nor
 rebuilds over it:
 
 | Editor                  | Its target folder  | Where it's set                        |
 | ----------------------- | ------------------ | ------------------------------------- |
 | VS Code (rust-analyzer) | `target/VsCode`    | `.vscode/settings.json`               |
-| Zed                     | `target/Zed`       | `.zed/settings.json`                  |
 | RustRover               | `target/RustRover` | Settings, Rust, Environment variables |
 
 RustRover keeps its settings in `.idea`, which Git leaves out, so its folder is yours to set, once:
