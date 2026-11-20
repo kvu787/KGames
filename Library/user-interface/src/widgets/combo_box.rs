@@ -25,10 +25,13 @@ pub struct ComboBox<M> {
     on_select: Option<Reaction<usize, M>>,
 }
 
-// Which item is at the top of the open list, which the wheel scrolls.
+// Which item is at the top of the open list, which the wheel scrolls, and
+// which of the list's rows the chosen item opened in, which places the list
+// while it's open.
 #[derive(Default, Clone, Copy)]
 struct ComboState {
     first: usize,
+    row: usize,
 }
 
 impl<M: Clone + 'static> ComboBox<M> {
@@ -64,15 +67,16 @@ impl<M: Clone + 'static> ComboBox<M> {
         self.items.get(self.selected).map(String::as_str)
     }
 
-    // The list's panel and its first item's slot, with the chosen item over
-    // the combo box's text and the rest around it, as WinUI opens it, inside
-    // the window.
-    fn list(&self, bounds: Rect, rect: Rect, first: usize) -> (Rect, Rect) {
+    // The list's panel and its first item's slot, with the row that the
+    // chosen item opened in over the combo box's text and the rest around
+    // it, as WinUI opens it, inside the window. The wheel scrolls the items
+    // in it, and doesn't move it.
+    fn list(&self, bounds: Rect, rect: Rect, row: usize) -> (Rect, Rect) {
         let count = self.items.len();
         let shown = count.min(COMBO_BOX_POPUP_MAX_ITEMS);
         let width = rect.width.max(COMBO_BOX_POPUP_MIN_WIDTH);
         let height = COMBO_BOX_POPUP_PADDING.vertical() + shown as f32 * COMBO_BOX_ITEM_HEIGHT;
-        let offset = self.selected.saturating_sub(first).min(shown.saturating_sub(1)) as f32;
+        let offset = row.min(shown.saturating_sub(1)) as f32;
         let mut y = rect.y - COMBO_BOX_POPUP_PADDING.top - offset * COMBO_BOX_ITEM_HEIGHT;
         y = y.clamp(bounds.y, (bounds.bottom() - height).max(bounds.y));
         let panel = Rect::new(rect.x, y.round(), width, height);
@@ -90,6 +94,7 @@ fn open_list(ctx: &mut Dispatch<impl Clone + 'static>, selected: usize, count: u
     ctx.open_popup(name);
     let state = ctx.memory::<ComboState>();
     state.first = selected.saturating_sub(COMBO_BOX_POPUP_MAX_ITEMS / 2).min(count.saturating_sub(COMBO_BOX_POPUP_MAX_ITEMS));
+    state.row = selected.saturating_sub(state.first);
 }
 
 impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
@@ -110,7 +115,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             return;
         }
         let state = *ctx.memory::<ComboState>();
-        let (panel, first_slot) = self.list(ctx.bounds(), ctx.rect(), state.first);
+        let (panel, first_slot) = self.list(ctx.bounds(), ctx.rect(), state.row);
         let list_name = format!("{}/List", ctx.name());
         ctx.part_on(Layer::Popup, Part::Named("List".to_string()), &list_name, panel, Sense::NONE, "ComboBoxList", None);
         for row in 0..self.shown_count() {
@@ -206,7 +211,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
             return;
         }
         let combo_state = *ctx.memory::<ComboState>();
-        let (panel, first_slot) = self.list(ctx.bounds(), rect, combo_state.first);
+        let (panel, first_slot) = self.list(ctx.bounds(), rect, combo_state.row);
         let bounds = ctx.bounds();
         let mut painter = ctx.painter();
         let layer = painter.layer();

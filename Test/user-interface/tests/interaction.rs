@@ -4,7 +4,7 @@
 // notices, editing, and palettes.
 
 use user_interface::json::Value;
-use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::controls::{COMBO_BOX_ITEM_HEIGHT, MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
@@ -1019,6 +1019,47 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
     app.frame().frame();
     assert!(!app.ui.any_popup());
     assert_eq!(app.label("Shrink").as_deref(), Some(""));
+}
+
+// A combo box with more items than its list shows, low in the window.
+struct Long {
+    chosen: usize,
+}
+
+impl Program for Long {
+    type Message = usize;
+
+    fn title(&self) -> String {
+        "Long".to_string()
+    }
+
+    fn update(&mut self, chosen: usize, _ui: &mut Context<usize>) {
+        self.chosen = chosen;
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<usize> {
+        let mut tree = Tree::new();
+        let items: Vec<String> = (0..40).map(|index| format!("Item {index}")).collect();
+        tree.add("Long", Rect::new(10.0, ui.content_top() + 700.0, 200.0, 32.0), ComboBox::new(self.chosen, &items).on_select(|index| index));
+        tree
+    }
+}
+
+// The wheel over a combo box's list scrolls its items in it, on the frame
+// of the wheel, and the list stays where it opened, with its chosen item's
+// row over the combo box.
+#[test]
+fn the_wheel_scrolls_a_combo_box_s_items_and_not_its_list() {
+    let mut app = Headless::new(Long { chosen: 20 });
+    app.click("Long");
+    let (list, chosen) = (app.target("Long/List"), app.target("Long/20"));
+    assert!((chosen.center().y - app.target("Long").center().y).abs() < 1.0);
+    app.scroll("Long/20", -3.0);
+    assert_eq!(app.target("Long/List"), list);
+    assert_eq!(app.target("Long/20").y, chosen.y - 3.0 * COMBO_BOX_ITEM_HEIGHT);
+    assert_eq!(app.target("Long/23").y, chosen.y);
+    app.click("Long/23");
+    assert_eq!(app.program.chosen, 23);
 }
 
 #[test]
