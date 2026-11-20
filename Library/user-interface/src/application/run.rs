@@ -205,17 +205,20 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
+        let mut closed = false;
         for request in std::mem::take(&mut ui.requests) {
             match request {
                 Request::ToggleVerticalSync => {
                     presenter.set_vsync(!presenter.vsync());
                     ui.environment.vertical_sync = presenter.vsync();
                 }
-                Request::Close => return finish(&mut gpu, source),
+                Request::Close => closed = true,
             }
         }
-        // F12 quits, once the frame has had the input that came before it.
-        if input.quit {
+        // F12 quits, once the frame has had the input that came before it,
+        // and so does a program that closes itself, except in a scripted
+        // run, whose frame that closes is drawn and checked first.
+        if input.quit || (closed && input.script.is_none()) {
             return finish(&mut gpu, source);
         }
         if program.title() != title {
@@ -234,7 +237,7 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
         gpu.report_messages();
         if let Some(script) = input.script
-            && source.check(script, image, || state(&program, &ui))?
+            && source.check(script, image, closed, || state(&program, &ui))?
         {
             break;
         }
@@ -402,8 +405,9 @@ impl Source {
     }
 
     // After a scripted frame is drawn: saves its captures, with the state,
-    // and checks its expectations. Returns whether the script is done.
-    fn check(&mut self, script: ScriptFrame, image: Option<Image>, state: impl FnOnce() -> json::Value) -> Result<bool, String> {
+    // and checks its expectations, even if the program closed itself in it.
+    // Returns whether the script is done.
+    fn check(&mut self, script: ScriptFrame, image: Option<Image>, closed: bool, state: impl FnOnce() -> json::Value) -> Result<bool, String> {
         let Source::Script { runner, frame, folder } = self else {
             return Ok(false);
         };
@@ -414,10 +418,7 @@ impl Source {
                 save_capture(folder, name, &image, &state)?;
             }
         }
-        for expectation in &script.expectations {
-            runner.check(number, expectation, &state);
-        }
-        Ok(number >= runner.last_frame())
+        Ok(runner.end_frame(number, &script, &state, closed))
     }
 }
 

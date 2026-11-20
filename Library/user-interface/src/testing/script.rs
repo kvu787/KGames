@@ -18,7 +18,10 @@
 // FrameTime seconds, a 60th of a second unless the script says. Frame 0,
 // before the first step, draws what steps can point at. The program exits
 // after the last frame that the steps' input reaches, like a drag's release
-// after its last step, and fails if an expectation wasn't met.
+// after its last step, and fails if an expectation wasn't met. A program that
+// closes itself exits after the frame that closes it, whose captures and
+// expectations still happen, and fails if the script has steps after it,
+// which never ran.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -302,6 +305,30 @@ impl ScriptRunner {
         let mut mismatches = Vec::new();
         compare(expected, state, &mut String::new(), &mut mismatches);
         self.failures.extend(mismatches.into_iter().map(|mismatch| format!("Frame {frame}: {mismatch}")));
+    }
+
+    // After frame N is drawn, with the state it left: checks the frame's
+    // expectations, and says whether the run is done, after the last frame
+    // that the script's input reaches, or once the program closed itself in
+    // the frame. Then the steps of the frames after it never run, which
+    // fails the run.
+    pub fn end_frame(&mut self, frame: u64, script: &ScriptFrame, state: &Value, closed: bool) -> bool {
+        for expectation in &script.expectations {
+            self.check(frame, expectation, state);
+        }
+        if closed {
+            let never: Vec<&Step> = self.script.steps.iter().filter(|step| step.frame > frame).collect();
+            if let Some(first) = never.first() {
+                self.failures.push(format!(
+                    "Frame {frame}: the program closed before {} of the script's steps ran, from the {} step at frame {}",
+                    never.len(),
+                    first.name,
+                    first.frame
+                ));
+            }
+            return true;
+        }
+        frame >= self.last_frame()
     }
 }
 

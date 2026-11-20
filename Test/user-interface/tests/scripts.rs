@@ -149,6 +149,86 @@ fn a_run_ends_once_its_last_gesture_lets_go() {
     assert_eq!(run(r#"{ "Frame": 3, "Press": "Save" }"#), (3, vec![]));
 }
 
+// A program that saves with Save, and closes itself with Quit.
+#[derive(Default)]
+struct Quitting {
+    saved: u32,
+}
+
+#[derive(Clone)]
+enum Quit {
+    Save,
+    Quit,
+}
+
+impl Program for Quitting {
+    type Message = Quit;
+
+    fn title(&self) -> String {
+        "Quitting".to_string()
+    }
+
+    fn update(&mut self, message: Quit, ui: &mut Context<Quit>) {
+        match message {
+            Quit::Save => self.saved += 1,
+            Quit::Quit => ui.close(),
+        }
+    }
+
+    fn view(&self, _ui: &mut Ui) -> Tree<Quit> {
+        let mut tree = Tree::new();
+        tree.add("Save", Rect::new(100.0, 100.0, 80.0, 32.0), Button::new("Save").on_press(Quit::Save));
+        tree.add("Quit", Rect::new(200.0, 100.0, 80.0, 32.0), Button::new("Quit").on_press(Quit::Quit));
+        tree
+    }
+
+    fn state(&self) -> json::Value {
+        json::Value::Object(vec![("Saved".to_string(), json::Value::Number(self.saved as f64))])
+    }
+}
+
+// Runs the script's frames as the main loop does, until the run is done:
+// the frame number it ended at, and what failed.
+fn run_until_done(app: &mut Headless<Quitting>, script: &str) -> (u64, Vec<String>) {
+    let mut runner = ScriptRunner::new(Script::parse(script).unwrap());
+    for number in 0..100 {
+        let frame = runner.frame(number, &app.ui).unwrap();
+        app.send(&frame.events);
+        if runner.end_frame(number, &frame, &app.state(), app.closed()) {
+            return (number, runner.failures);
+        }
+    }
+    panic!("the run never ended");
+}
+
+// A program that closes itself in a scripted run ends it after the frame
+// that closes it, whose expectations are still checked, and the steps after
+// it never run, which fails the run.
+#[test]
+fn a_program_that_closes_itself_ends_the_run_once_its_frame_is_checked() {
+    let mut app = Headless::new(Quitting::default());
+    let (ended, failures) = run_until_done(
+        &mut app,
+        r#"{ "Steps": [
+            { "Frame": 1, "Click": "Quit" },
+            { "Frame": 1, "Expect": { "Saved": 1 } },
+            { "Frame": 30, "Click": "Save" },
+            { "Frame": 31, "Expect": { "Saved": 1 } }
+        ] }"#,
+    );
+    assert_eq!(ended, 1);
+    assert_eq!(failures, [
+        "Frame 1: Saved is 0, not 1",
+        "Frame 1: the program closed before 2 of the script's steps ran, from the Click step at frame 30",
+    ]);
+
+    // A script that ends with the frame that closes passes, without the
+    // release of its click, which comes after the program closed.
+    let mut app = Headless::new(Quitting::default());
+    let (ended, failures) = run_until_done(&mut app, r#"{ "Steps": [ { "Frame": 1, "Click": "Quit" }, { "Frame": 1, "Expect": { "Saved": 0 } } ] }"#);
+    assert_eq!((ended, failures), (1, Vec::<String>::new()));
+}
+
 #[test]
 fn a_point_can_be_a_place_in_a_target() {
     let app = Headless::new(Page);

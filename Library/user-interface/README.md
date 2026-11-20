@@ -342,6 +342,8 @@ before, but reports gamepads' whole state, their held buttons too.
 - `F12` quits at once, without asking the program, and so does the taskbar's Close, which sends
   `WM_CLOSE`, whether the window is minimized, shows the error page, or neither. A program closes
   itself with `Context::close`, and the steps of its frame after the one that closes don't happen.
+  In a scripted run, that frame is still drawn, and its `Capture` and `Expect` steps happen, and
+  a script with steps in later frames, which never run, fails.
 - `F12` is the platform's, under the interface: the reader takes it from GameInput's keys, and no
   program gets it, as a press or a release. The interface stops the program if a frame's events
   have it, whoever made the events, and a script that presses it says so before it runs. `F1` is a
