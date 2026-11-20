@@ -630,45 +630,25 @@ impl Interface {
     // Lays a step's tree out: finds every target, and which layer each
     // is on, and places the pointer on the topmost of them, for the look.
     fn layout<M: Clone + 'static>(&mut self, tree: &Tree<M>) {
-        self.targets.clear();
-        self.modal = false;
-        let bounds = self.bounds();
-        // The PerfBar along the top covers what's under it.
-        if self.performance.is_some() {
-            self.cover_on(Layer::Base, Rect::new(0.0, 0.0, self.size.width, self.content_top()), id("PerfBar"));
+        self.find_targets(tree);
+        // The popups that can't stay open close, and the tree's targets are
+        // found again without theirs, until every popup that's open stays.
+        while self.close_stale_popups() {
+            self.find_targets(tree);
         }
-        self.layout_elements(&tree.elements, true, Layer::Base, bounds);
 
         // A target that's gone, disabled, or no longer a text field can't
-        // keep focus, a press, or a popup.
+        // keep focus or a press.
         if let Some(focused) = self.focused
             && !self.targets.iter().any(|target| target.id == focused && target.enabled && target.sense.text)
         {
             self.focused = None;
         }
         if let Some((active, _)) = self.active
-            && !self.targets.iter().any(|target| target.id == active)
+            && !self.targets.iter().any(|target| target.id == active && target.enabled)
         {
             self.active = None;
             self.active_buttons.clear();
-        }
-        if !self.popups.is_empty() {
-            // A popup stays only while its owner still exists AND still lays
-            // out popup content, so a widget that changes kind under a kept
-            // name can't leave a stale popup capturing the keys. The owner
-            // may be a part, like a menu bar's menu, whose content the
-            // part's element lays out.
-            let popup_owners: QuickSet<Id> = self
-                .targets
-                .iter()
-                .filter(|target| target.layer >= Layer::Popup)
-                .map(|target| target.owner)
-                .collect();
-            self.popups.retain(|popup| {
-                self.targets
-                    .iter()
-                    .any(|target| target.id == popup.owner && popup_owners.contains(&target.owner))
-            });
         }
 
         // The pointer, on the tree as it's laid out, for the next step's
@@ -707,6 +687,52 @@ impl Interface {
         } else if !self.tooltip.shown {
             self.tooltip.anchor = self.input.pointer.unwrap_or_default();
         }
+    }
+
+    // Finds the tree's targets, with the popups that are open, and whether
+    // it has a dialog.
+    fn find_targets<M: Clone + 'static>(&mut self, tree: &Tree<M>) {
+        self.targets.clear();
+        self.modal = false;
+        let bounds = self.bounds();
+        // The PerfBar along the top covers what's under it.
+        if self.performance.is_some() {
+            self.cover_on(Layer::Base, Rect::new(0.0, 0.0, self.size.width, self.content_top()), id("PerfBar"));
+        }
+        self.layout_elements(&tree.elements, true, Layer::Base, bounds);
+    }
+
+    // Closes the popups that can't stay open over the tree whose targets
+    // were just found, and says whether any closed.
+    fn close_stale_popups(&mut self) -> bool {
+        // A dialog over the page closes the popups of what's under it, like
+        // a menu that was open as a shortcut opened the dialog, so that
+        // nothing of the page is over the dialog.
+        if self.modal
+            && let Some(popup) = self.popups.first()
+            && self.targets.iter().any(|target| target.id == popup.owner && target.layer < Layer::Dialog)
+        {
+            self.popups.clear();
+            return true;
+        }
+        // A popup stays only while its owner still exists, is enabled, AND
+        // still lays out popup content, so a widget that changes kind under
+        // a kept name can't leave a stale popup capturing the keys. The
+        // owner may be a part, like a menu bar's menu, whose content the
+        // part's element lays out.
+        let open = self.popups.len();
+        let popup_owners: QuickSet<Id> = self
+            .targets
+            .iter()
+            .filter(|target| target.layer >= Layer::Popup)
+            .map(|target| target.owner)
+            .collect();
+        self.popups.retain(|popup| {
+            self.targets
+                .iter()
+                .any(|target| target.id == popup.owner && target.enabled && popup_owners.contains(&target.owner))
+        });
+        self.popups.len() != open
     }
 
     fn layout_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect) {

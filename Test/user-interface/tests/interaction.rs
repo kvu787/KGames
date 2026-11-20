@@ -183,7 +183,7 @@ impl Program for Test {
                 dialog.add("Pick", area.content.top_strip(32.0), ComboBox::new(self.pick, &["Yes", "No"]).on_select(Msg::Pick));
             });
         }
-        tree.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(self.shrink, &self.items).on_select(Msg::Shrink));
+        tree.add("Shrink", Rect::new(240.0, top + 110.0, 200.0, 32.0), ComboBox::new(self.shrink, &self.items).on_select(Msg::Shrink)).set_enabled(!self.disabled);
         let beneath = Rect::new(1000.0, top + 400.0, 300.0, 100.0);
         let list = ListView::new(50, 20.0).selection(self.beneath).on_select(Msg::Beneath);
         let shown = list.rows(ui, "Beneath", beneath);
@@ -343,6 +343,27 @@ fn a_disabled_widget_takes_no_input() {
     app.click("Maybe");
     assert_eq!(app.program.clicks, 0);
     assert!(!app.is_enabled("Maybe"));
+}
+
+// A widget that's disabled while it has a press, or while its list is open,
+// lets go of the press and closes the list on the frame that disables it.
+#[test]
+fn a_widget_lets_go_of_its_press_and_its_popup_on_the_frame_that_disables_it() {
+    let mut app = Headless::new(Test {
+        items: vec!["Only".to_string()],
+        ..Test::default()
+    });
+    app.press("Maybe");
+    assert_eq!(app.ui.pressed_name(), Some("Maybe"));
+    app.program.disabled = true;
+    app.frame();
+    assert_eq!(app.ui.pressed_name(), None);
+    app.program.disabled = false;
+    app.release().click("Shrink");
+    assert_eq!(app.ui.popup_name(), Some("Shrink"));
+    app.program.disabled = true;
+    app.frame();
+    assert_eq!((app.ui.popup_name(), app.has_target("Shrink/0")), (None, false));
 }
 
 #[test]
@@ -685,6 +706,24 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     assert_eq!(app.program.answer, Some(DialogResult::Primary));
     app.click("Button");
     assert_eq!(app.program.clicks, 1);
+}
+
+// A dialog that opens over the page while a popup of the page's is open, as
+// a shortcut can open one while a menu is, closes the popup on its frame, so
+// that nothing of the page is over the dialog. A popup of the dialog's own
+// widgets opens over it.
+#[test]
+fn a_dialog_closes_the_popups_of_what_is_under_it_on_the_frame_it_opens() {
+    let mut app = Headless::new(Test::default());
+    app.click("Combo");
+    assert_eq!(app.ui.popup_name(), Some("Combo"));
+    app.send_message(Msg::Ask);
+    assert_eq!(app.ui.state().get("Dialog"), Some(&Value::Bool(true)));
+    assert_eq!((app.ui.popup_name(), app.has_target("Combo/0")), (None, false));
+    app.click("Pick");
+    assert_eq!((app.ui.popup_name(), app.has_target("Pick/1")), (Some("Pick"), true));
+    app.click("Pick/1");
+    assert_eq!((app.program.pick, app.ui.popup_name()), (1, None));
 }
 
 // A dialog with only its close button.
@@ -1190,9 +1229,8 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
     app.click("Shrink");
     assert!(app.ui.any_popup());
     app.program.items.clear();
-    // The frame that shows no items, and the one whose input finds the
-    // list empty and closes it.
-    app.frame().frame();
+    // The frame that shows no items closes the list.
+    app.frame();
     assert!(!app.ui.any_popup());
     assert_eq!(app.label("Shrink").as_deref(), Some(""));
 }
