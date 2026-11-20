@@ -106,7 +106,7 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
                 && let Some(point) = pointer
             {
                 let stepped = if modifiers.alt {
-                    match modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point) {
+                    match modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point, see_through, drawn) {
                         Some((edge, _)) => modeler.editor.select_loop(&mut modeler.document, edge, modifiers.shift),
                         None => false,
                     }
@@ -138,7 +138,7 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
         }
         Tool::LoopCut => {
             if input.pressed
-                && let Some((edge, fraction)) = inside.and_then(|point| modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point))
+                && let Some((edge, fraction)) = inside.and_then(|point| modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point, see_through, drawn))
             {
                 modeler.editor.loop_cut(&mut modeler.document, edge, fraction);
             }
@@ -172,7 +172,7 @@ pub fn hover(modeler: &mut Modeler) {
             }
         }
         Tool::Paint => modeler.editor.hover = face_at(modeler, point, drawn).map(Element::Face),
-        Tool::LoopCut => modeler.editor.loop_preview = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point),
+        Tool::LoopCut => modeler.editor.loop_preview = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point, modeler.xray, drawn),
     }
 }
 

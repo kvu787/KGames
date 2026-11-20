@@ -39,6 +39,17 @@ impl Mode {
         }
     }
 
+    // Whether any of the mode's own elements are selected, which Delete
+    // deletes: a selection can be of vertices alone in the Face mode, like
+    // after a merge, which leaves one vertex.
+    pub fn has_selected(self, selection: &Selection) -> bool {
+        match self {
+            Mode::Vertices => !selection.vertices.is_empty(),
+            Mode::Edges => !selection.edges.is_empty(),
+            Mode::Faces => !selection.faces.is_empty(),
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Mode::Vertices => "Vertex",
@@ -121,9 +132,8 @@ pub struct Operation {
     // What its history step is called, like "Extrude" for a move that
     // follows an extrusion.
     pub name: String,
-    // Where the pointer was as it began, and where the pivot is on screen.
+    // Where the pointer was as it began.
     start: Point,
-    pivot_screen: Point,
     // What turning, scaling and insetting measure the pointer's angle and
     // distance from: the pivot on screen, or, for a pointer that starts
     // within 20 pixels of it, where a pixel would turn and scale by far too
@@ -172,6 +182,14 @@ impl Drawn<'_> {
         self.triangles
             .ray_cast(origin, direction)
             .map(|hit| Hit { face: self.surface.map_or(hit.face, |surface| surface.base_faces[hit.face]), ..hit })
+    }
+
+    // Whether what the view draws hides the point: the ray through the
+    // point hits a face in front of it.
+    fn hides(&self, point: Vector3, camera: &Camera, view: Rect) -> bool {
+        let (origin, direction) = camera.ray(camera.to_screen(point, view).0, view);
+        let distance = dot(subtract(point, origin), direction);
+        self.hit(origin, direction).is_some_and(|hit| hit.distance < distance - camera.pixel_size(view) * 3.0)
     }
 }
 
@@ -287,14 +305,7 @@ impl Editor {
     // pixels away is well in front of what's on it.
     pub fn pick(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, drawn: Drawn) -> Option<Element> {
         let mesh = &document.mesh;
-        let hidden = |point: Vector3| -> bool {
-            if see_through {
-                return false;
-            }
-            let (origin, direction) = camera.ray(camera.to_screen(point, view).0, view);
-            let distance = dot(subtract(point, origin), direction);
-            drawn.hit(origin, direction).is_some_and(|hit| hit.distance < distance - camera.pixel_size(view) * 3.0)
-        };
+        let hidden = |point: Vector3| !see_through && drawn.hides(point, camera, view);
         // The nearest of the elements within PICK_RADIUS, each with how far
         // it is on screen and its point nearest the pointer, that the mesh
         // doesn't hide. Each that's looked at costs a ray, so they're
@@ -382,20 +393,28 @@ impl Editor {
         document.commit("Select loop", before)
     }
 
-    // The edge nearest the pointer, whatever the mode, for loops.
-    pub fn nearest_edge(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point) -> Option<(Edge, f32)> {
+    // The edge nearest the pointer, whatever the mode, for loops, that what
+    // the view draws doesn't hide, unless in X-ray, as `pick` finds one: of
+    // edges as near, like one and the one behind it in a view along an axis,
+    // the one nearer the camera.
+    pub fn nearest_edge(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, drawn: Drawn) -> Option<(Edge, f32)> {
         let mesh = &document.mesh;
-        let mut best: Option<(f32, Edge, f32)> = None;
-        for edge in document.edges().iter().copied() {
-            let [a, b] = edge.vertices();
-            let (sa, _) = camera.to_screen(mesh.position(a), view);
-            let (sb, _) = camera.to_screen(mesh.position(b), view);
-            let (distance, t) = segment_distance(pointer, sa, sb);
-            if distance <= PICK_RADIUS * 2.0 && best.is_none_or(|(nearest, _, _)| distance < nearest) {
-                best = Some((distance, edge, t));
-            }
-        }
-        best.map(|(_, edge, t)| (edge, t))
+        let (_, toward) = camera.ray(pointer, view);
+        // Each edge near the pointer: how far it is on screen, how far its
+        // point nearest the pointer is from the camera, and where along it
+        // that is.
+        let mut near: Vec<(f32, f32, Edge, f32, Vector3)> = document
+            .edges()
+            .iter()
+            .filter_map(|&edge| {
+                let [a, b] = edge.vertices().map(|vertex| mesh.position(vertex));
+                let (distance, t) = segment_distance(pointer, camera.to_screen(a, view).0, camera.to_screen(b, view).0);
+                let point = add(a, scale(subtract(b, a), t));
+                (distance <= PICK_RADIUS * 2.0).then(|| (distance, dot(point, toward), edge, t, point))
+            })
+            .collect();
+        near.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        near.into_iter().find(|near| see_through || !drawn.hides(near.4, camera, view)).map(|(_, _, edge, t, _)| (edge, t))
     }
 
     // Selects what's in the box on screen: vertices inside it, and edges and
@@ -504,7 +523,6 @@ impl Editor {
             axis,
             name: name.to_string(),
             start: pointer,
-            pivot_screen,
             center,
             pivot,
             normal: Self::selection_normal(document),
@@ -516,6 +534,9 @@ impl Editor {
             applied: None,
         });
         self.message = None;
+        // The edit has the pointer from here: a box that was being dragged
+        // out as a key began it is let go of, and selects nothing.
+        self.release();
         self.update(document, pointer, false, camera, view);
         true
     }
@@ -569,7 +590,7 @@ impl Editor {
                         // How far along the axis, from how far the pointer
                         // moved along the axis's line on screen.
                         let (tip, _) = camera.to_screen(add(operation.pivot, axis), view);
-                        let along = tip - operation.pivot_screen;
+                        let along = tip - camera.to_screen(operation.pivot, view).0;
                         let pixels = along.x * along.x + along.y * along.y;
                         let amount = if pixels > 1.0 { (delta.x * along.x + delta.y * along.y) / pixels } else { 0.0 };
                         scale(axis, snap_to(amount, 0.1))
@@ -677,7 +698,7 @@ impl Editor {
     pub fn delete(&mut self, document: &mut Document) {
         let mode = self.mode;
         self.apply(document, "Delete", |mesh, selection| {
-            if selection.is_empty() {
+            if !mode.has_selected(selection) {
                 return Err("Delete needs a selection.".to_string());
             }
             Ok(match mode {

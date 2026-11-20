@@ -7,7 +7,8 @@
 use std::path::{Path, PathBuf};
 
 use json::Value;
-use math::Vector3;
+use math::{Vector3, dot};
+use mesh_modeler::camera::Viewpoint;
 use mesh_modeler::modeler::{Command, Message, Modeler, PaintEdit};
 use polygon_mesh::Edge;
 use user_interface::tokens::{PAGE_PADDING, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
@@ -590,6 +591,62 @@ fn alt_click_selects_an_edge_loop() {
     let selection = &app.program.document.selection;
     assert_eq!(selection.edges.len(), 4, "{:?}", selection.edges);
     assert_eq!(app.program.document.undo_name(), Some("Select loop"));
+}
+
+// In a view along an axis, an edge and the one behind it are as near the
+// pointer on screen. Alt and a click picks the one in front, which the view
+// shows, and not the one that the cube hides.
+#[test]
+fn alt_click_picks_the_edge_in_front_of_the_one_that_it_hides() {
+    let mut app = modeler("AltFront");
+    app.key(Key::DIGIT_2);
+    app.send_message(Message::Command(Command::View(Viewpoint::Front)));
+    let point = screen(&app, [0.0, 1.0, 0.0]);
+    app.hold(Key::ALT).click_point(point).release_key(Key::ALT);
+    let (_, toward) = app.program.camera.ray(point, app.program.view);
+    let (mesh, selection) = (&app.program.document.mesh, &app.program.document.selection);
+    assert!(!selection.edges.is_empty());
+    for vertex in &selection.vertices {
+        assert!(dot(mesh.position(*vertex), toward) < 0.0, "{:?} is behind the cube", mesh.position(*vertex));
+    }
+}
+
+// A key that begins a modal edit while a box is dragged out lets go of the
+// box, which selects nothing, and isn't drawn once the edit is done.
+#[test]
+fn a_modal_edit_that_begins_during_a_box_drag_lets_go_of_the_box() {
+    let mut app = modeler("BoxThenMove");
+    app.click("View");
+    assert_eq!(app.program.document.selection.faces.len(), 1);
+    let view = app.target("View");
+    let corner = Point::new(view.x + 20.0, view.y + 20.0);
+    app.press_point(corner).move_point(corner + Point::new(30.0, 30.0));
+    assert!(app.program.editor.selecting_box.is_some());
+    app.send(&[Event::KeyPressed(Key::G)]);
+    assert!(app.program.editor.operation.is_some() && app.program.editor.selecting_box.is_none());
+    app.send(&[Event::KeyReleased(Key::G)]).release().key(Key::ESCAPE);
+    assert!(app.program.editor.operation.is_none() && app.program.editor.selecting_box.is_none());
+    assert_eq!(app.program.document.selection.faces.len(), 1);
+}
+
+// Delete deletes the selection's elements of the mode. A merge in the Face
+// mode leaves one vertex selected and no face, which Delete has nothing to
+// delete of, and so makes no step of the history.
+#[test]
+fn delete_needs_an_element_of_its_mode_selected() {
+    let mut app = modeler("MergeThenDelete");
+    app.click("View").key(Key::M);
+    let selection = &app.program.document.selection;
+    assert_eq!((selection.vertices.len(), selection.faces.len()), (1, 0));
+    let steps = app.program.document.undo_steps();
+    assert!(!app.program.can(Command::Delete));
+    app.key(Key::X);
+    assert_eq!((app.program.document.undo_steps(), app.program.document.undo_name()), (steps, Some("Merge at center")));
+    // In the Vertex mode, it deletes the vertex.
+    app.key(Key::DIGIT_1);
+    assert!(app.program.can(Command::Delete));
+    app.key(Key::X);
+    assert_eq!(app.program.document.undo_name(), Some("Delete"));
 }
 
 #[test]
