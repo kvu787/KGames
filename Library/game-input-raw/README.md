@@ -8,6 +8,7 @@
 
 - Scope:
   - This crate must not provide anything beyond `windows-bindgen` bindings.
+  - Exception for GameInputInitialize: `bindings-generator` changes the one declaration that `windows-bindgen` writes for it, because `windows-bindgen` can't declare a function from a static library. See [Explanation of GameInputInitialize](#explanation-of-gameinputinitialize).
   - This crate must only provide bindings for what KGames is likely to use of the GameInput API for x64 PC.
   - In scope: reading keyboards, mice and gamepads, a gamepad's system buttons and rumble, finding and identifying devices, and the callbacks for readings and devices.
   - Out of scope: arcade sticks, flight sticks, racing wheels, sensors, touch surfaces, controllers that GameInput doesn't map to a gamepad, the input mapper, force feedback, haptics, lighting, raw device reports, aggregate devices and the dispatcher.
@@ -22,6 +23,29 @@
 - Generation rules:
   - `src\lib.rs` must never be edited by hand.
   - To change `src\lib.rs`, change `bindings-generator` and regenerate `src\lib.rs`.
+
+# Explanation of GameInputInitialize
+
+- What it is:
+  - `GameInputInitialize` is how a program starts GameInput: it gives the program the `IGameInput` object, which everything else comes from.
+  - It's the only function in the GameInput API. The rest of the API is types, constants, and methods of COM interfaces.
+- Why it's different from the rest of the API:
+  - A COM method is called through a pointer in its object's vtable, which the object brings at runtime. So, the linker never has to find a method.
+  - A function is called by its name, so the linker has to find its code when it builds the exe.
+  - So, `GameInputInitialize` is the only thing in the bindings that the linker has to find.
+- Where its code is:
+  - Its code is in `GameInput.lib`, a static library in the NuGet package, which `build.rs` links. So, its code becomes part of the exe.
+  - It isn't in a DLL, unlike Windows' own functions.
+  - `GameInput.lib` is only a small loader. At runtime, it finds the installed GameInput runtime, `GameInputRedist.dll`, loads it, and calls the function of the same name that the DLL exports.
+  - The NuGet package has the loader's source code, in `native\src\GameInput.cpp`.
+- Why `windows-bindgen` can't declare it:
+  - Every function in Windows' own APIs is in a DLL. So, `windows-bindgen` declares every function with `windows_core::link!`, which says to import the function from a DLL.
+  - With that declaration, the build would look for `GameInputInitialize` in a DLL, which doesn't have it.
+- What `bindings-generator` does about it:
+  - It describes `GameInputInitialize` as metadata, and `windows-bindgen` generates its binding, the same as for the rest of the API.
+  - Then, in what `windows-bindgen` wrote, it changes the `link!` declaration to a plain `extern "system"` declaration, which only says that the linker will find the function. The linker finds it in `GameInput.lib`.
+  - Nothing else about the binding changes: its name, its parameters, and the function that wraps it stay as `windows-bindgen` wrote them.
+  - This is what `windows-bindgen` itself writes for a function when it's run with `--sys --extern`.
 
 # Build prerequisites
 
