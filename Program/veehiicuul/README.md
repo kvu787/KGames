@@ -56,7 +56,7 @@ that take keyboard focus, so that Space, the arrows and the keys that drive alwa
 | -------- | --------------------------------------------------------------------------------- |
 | Play     | Drives the scene's track, with a card over the bottom left corner that says       |
 |          | what's going on, and what the gamepad's and the keyboard's controls do. Going to  |
-|          | Play puts the car at the start                                                    |
+|          | Play puts the car at the start, and the camera at its own height                  |
 | Scene    | Arranges decorations and parked vehicles: a press picks one, a drag moves it, and |
 |          | the card turns and scales it, adds and deletes them, and paints a decoration's    |
 |          | model. Sets the background, the view of the camera that follows the car, and the  |

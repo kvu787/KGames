@@ -322,6 +322,22 @@ fn the_scene_editor_picks_and_moves_decorations() {
     assert_eq!(app.program.scene_editor.picked, Some(Picked::Parked(6)));
 }
 
+// "Make this view the fixed camera's" makes the scene's camera the view's,
+// and going to Play shows it at its own height, on that frame, as it does the
+// rest of the camera.
+#[test]
+fn going_to_play_shows_the_fixed_camera_at_its_height() {
+    let mut app = start("FixedCamera");
+    app.click("Mode/Scene");
+    app.scroll_point(Point::new(1800.0, 400.0), 3.0);
+    let height = app.program.viewport.eye.height;
+    assert!((height - 150.0 / 1.25_f64.powi(3)).abs() < 1e-9, "{height}");
+    app.click("Scene/Camera");
+    assert_eq!(app.program.game.current_scene().camera_height, height);
+    app.click("Mode/Play");
+    assert_eq!(app.program.game.camera.height, height);
+}
+
 // Save writes the files that changed, and only those, in the save folder.
 #[test]
 fn save_writes_only_what_changed() {

@@ -264,12 +264,14 @@ impl Veehiicuul {
         self.game.go_to_scene(self.game.document.scenes.len() - 1, seconds);
     }
 
-    // Goes to a tab. Going to Play puts the car at the start, and starts the
+    // Goes to a tab. Going to Play puts the car at the start, and the camera
+    // at its own height, which the Scene tab may have changed, and starts the
     // game's clock again, which doesn't run in the editors.
     pub fn go_to(&mut self, mode: usize, seconds: f64) {
         self.mode = mode;
         self.game.keep_in_document();
         if mode == PLAY {
+            self.game.camera.height = self.game.default_height();
             self.game.put_at_start(seconds);
             self.game.resume(seconds);
         }
