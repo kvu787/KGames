@@ -314,10 +314,12 @@ before, but reports gamepads' whole state, their held buttons too.
   No other widget does anything with the keyboard, so menus, combo boxes' lists and dialogs close
   with a press, and there's no Tab, Esc or arrows between widgets. A text field under an open
   dialog gets no keys.
-- `ui.key_pressed` and `ui.shortcut` are for programs' shortcuts. They
-  don't see the keys that a text field with focus takes - every key without Ctrl - or any while
-  a dialog is open - from the very step after the one that opens it, so a key's press after the
-  click that opens a dialog, in the same frame, is the dialog's.
+- `ui.key_pressed` and `ui.shortcut` are for programs' shortcuts. They don't see the keys that a
+  text field with focus takes, which are those pressed without Ctrl held, but the function keys,
+  or any while a dialog is open, from the very step after the one that opens it, so a key's press
+  after the click that opens a dialog, in the same frame, is the dialog's. `ui.key_down` doesn't
+  see a key held while a text field has focus, with Ctrl or without, but Shift, Ctrl, Alt, the
+  Windows keys and the function keys, or any while a dialog is open.
   `ui.input()` has all of the step's input, for programs that read keys themselves, like for
   driving. A shortcut is its key's press with the modifiers held as the key went down, and two of
   its presses in a frame are two.
