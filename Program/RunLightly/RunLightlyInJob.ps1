@@ -228,6 +228,8 @@ public static class Lightly {
     static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll")]
     static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetProcessTimes(IntPtr process, out long creation, out long exit, out long kernel, out long user);
 
     const int JobObjectBasicProcessIdList = 3;
     const int ERROR_MORE_DATA = 234;
@@ -422,16 +424,26 @@ public static class Lightly {
                     continue;
                 }
                 bool parentInJob;
+                long parentStarted, started, unused;
                 bool known = IsProcessInJob(parent, job, out parentInJob);
+                bool timed = GetProcessTimes(parent, out parentStarted, out unused, out unused, out unused);
                 CloseHandle(parent);
-                if (!known || !parentInJob) {
+                if (!known || !parentInJob || !timed) {
                     continue;
                 }
-                IntPtr process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE | PROCESS_SET_INFORMATION, false, entry.th32ProcessID);
+                IntPtr process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE | PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, entry.th32ProcessID);
                 if (process == IntPtr.Zero) {
                     continue;
                 }
-                if (AssignProcessToJobObject(job, process)) {
+                // And the parent must have been there when the process
+                // started. A process keeps its parent's ID after the parent
+                // ends, and Windows gives the ID to a new process, which
+                // could be one of the job's: then the process is someone
+                // else's, like a game that its launcher started and left,
+                // and it's older than the job's process with that ID.
+                if (GetProcessTimes(process, out started, out unused, out unused, out unused)
+                    && started >= parentStarted
+                    && AssignProcessToJobObject(job, process)) {
                     members.Add(entry.th32ProcessID);
                 }
                 CloseHandle(process);
