@@ -291,9 +291,10 @@ hit only where it is, and a ray along the edge between two triangles hits one of
 
 `nearest_vertex` and `nearest_edge(origin, direction, radius)` give the vertex or edge nearest
 the ray, of those within `radius` of it and in front of `origin`, the nearer to `origin` of two
-as near. They don't look for faces in the way, which a modeler can compare with `ray_cast`'s
-distance. `bounds` is the box around every vertex, as its least and greatest corners, and
-`center_of(vertices)` and `Selection::center` the average of some vertices' positions.
+as near. Of an edge, only the part in front of `origin` counts. They don't look for faces in the
+way, which a modeler can compare with `ray_cast`'s distance. `bounds` is the box around every
+vertex, as its least and greatest corners, and `center_of(vertices)` and `Selection::center` the
+average of some vertices' positions.
 
 ## Files
 

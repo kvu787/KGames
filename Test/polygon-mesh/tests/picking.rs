@@ -72,6 +72,17 @@ fn the_nearest_vertex_and_edge_to_a_ray() {
     // Across the middle of the right top edge, 2 to 6, before the left one.
     assert_eq!(cube.nearest_edge([5.0, 1.02, 0.2], [-1.0, 0.0, 0.0], 0.05), Some(Edge::new(2, 6)));
     assert_eq!(cube.nearest_edge([0.0, 0.0, 5.0], along, 0.5), None);
+    // What's behind the ray's start doesn't count, of an edge as of a
+    // vertex: the front top edge, and its corners, are 0.05 behind this one's.
+    let back = [0.0, 0.0, 1.0];
+    assert_eq!(cube.nearest_vertex([1.0, 1.02, 1.05], back, 0.1), None);
+    assert_eq!(cube.nearest_edge([0.0, 1.02, 1.05], back, 0.1), None);
+    // Only the part of the right top edge in front of this ray's start
+    // counts, whose nearest point is 0.07 from the ray, though the edge
+    // comes within 0.05 of its start, behind it.
+    let up = [0.0, 1.0, 1.0];
+    assert_eq!(cube.nearest_edge([1.0, 1.05, 0.0], up, 0.06), None);
+    assert_eq!(cube.nearest_edge([1.0, 1.05, 0.0], up, 0.08), Some(Edge::new(2, 6)));
 }
 
 #[test]

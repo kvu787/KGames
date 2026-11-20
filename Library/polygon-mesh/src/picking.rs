@@ -64,12 +64,25 @@ impl Mesh {
     }
 
     // The edge nearest the ray, of those within `radius` of it, in front of
-    // `origin`, the nearer to `origin` of two as near.
+    // `origin`, the nearer to `origin` of two as near. Only the part of an
+    // edge in front of `origin` counts, as only vertices in front of it do.
     pub fn nearest_edge(&self, origin: Vector3, direction: Vector3, radius: f32) -> Option<Edge> {
         let direction = normalize(direction);
         let mut nearest: Option<(f32, f32, Edge)> = None;
         for edge in self.edges() {
             let [a, b] = edge.vertices().map(|vertex| self.position(vertex));
+            // An end behind `origin` is cut back to where the edge crosses
+            // the plane through it, across the ray.
+            let crossing = |behind: Vector3, ahead: Vector3, behind_along: f32, ahead_along: f32| {
+                add(behind, scale(subtract(ahead, behind), behind_along / (behind_along - ahead_along)))
+            };
+            let [from_a, from_b] = [a, b].map(|end| dot(subtract(end, origin), direction));
+            let (a, b) = match (from_a < 0.0, from_b < 0.0) {
+                (true, true) => continue,
+                (true, false) => (crossing(a, b, from_a, from_b), b),
+                (false, true) => (a, crossing(b, a, from_b, from_a)),
+                (false, false) => (a, b),
+            };
             let (away, along) = ray_segment_nearest(origin, direction, a, b);
             if away <= radius && nearest.is_none_or(|(near, depth, _)| (away, along) < (near, depth)) {
                 nearest = Some((away, along, edge));
