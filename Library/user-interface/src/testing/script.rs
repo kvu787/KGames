@@ -61,6 +61,8 @@ enum Action {
     DoubleClick(Place),
     Drag { from: Place, to: Place, frames: usize, button: MouseButton },
     Scroll(Place, f32),
+    // Keys as a keyboard's reading gives them to the interface: LeftCtrl,
+    // RightShift and the like are Ctrl, Shift and Alt (see Key::merged).
     Key(Shortcut),
     Hold(Vec<Key>),
     // Text that the keys type, which the script was read with.
@@ -174,19 +176,25 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
             };
             let shortcut = Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?;
             without_f12(&[shortcut.key])?;
-            Action::Key(shortcut)
+            Action::Key(Shortcut::new(shortcut.modifiers, shortcut.key.merged()))
         }
         "Hold" => {
             let Value::Array(names) = value else {
                 return Err("needs a list of keys".to_string());
             };
             let keys = names.iter().map(|name| match name {
-                Value::String(name) => Key::parse(name).ok_or_else(|| format!("names no key: {name}")),
+                Value::String(name) => Key::parse(name).map(Key::merged).ok_or_else(|| format!("names no key: {name}")),
                 other => Err(format!("has {}, which isn't a key's name", other.describe())),
             });
-            let keys: Vec<Key> = keys.collect::<Result<_, _>>()?;
-            without_f12(&keys)?;
-            Action::Hold(keys)
+            let mut held: Vec<Key> = Vec::new();
+            for key in keys {
+                let key = key?;
+                if !held.contains(&key) {
+                    held.push(key);
+                }
+            }
+            without_f12(&held)?;
+            Action::Hold(held)
         }
         "Type" => match value {
             Value::String(text) => {

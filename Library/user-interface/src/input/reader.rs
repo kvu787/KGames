@@ -623,13 +623,10 @@ fn key(state: &GameInputKeyState) -> Option<Key> {
         code = unsafe { MapVirtualKeyW(state.scanCode, MAPVK_VSC_TO_VK_EX as u32) };
     }
     let code = match code {
-        0xA0 | 0xA1 => Key::SHIFT.0,
-        0xA2 | 0xA3 => Key::CONTROL.0,
-        0xA4 | 0xA5 => Key::ALT.0,
         1..=0xFE => code as u8,
         _ => return None,
     };
-    Some(Key(code))
+    Some(Key(code).merged())
 }
 
 // GameInput's mouse buttons as bits by Button.

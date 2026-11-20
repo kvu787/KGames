@@ -4,7 +4,7 @@
 use user_interface::json;
 use user_interface::testing::script::compare;
 use user_interface::input::events::moved_pointer;
-use user_interface::{Button, Context, Event, Headless, Key, MouseButton, Point, Program, Rect, Script, ScriptRunner, Tree, Ui};
+use user_interface::{Button, Context, Event, Headless, Key, Modifiers, MouseButton, Point, Program, Rect, Script, ScriptRunner, Shortcut, Tree, Ui};
 
 struct Page;
 
@@ -147,6 +147,37 @@ fn a_run_ends_once_its_last_gesture_lets_go() {
     assert_eq!(run(r#"{ "Frame": 3, "Click": "Save" }"#), (4, vec![4]));
     assert_eq!(run(r#"{ "Frame": 3, "Key": "Ctrl+S" }"#), (4, vec![4]));
     assert_eq!(run(r#"{ "Frame": 3, "Press": "Save" }"#), (3, vec![]));
+}
+
+// A script's keys are what a keyboard's readings give the interface, which
+// doesn't tell the left Shift, Ctrl and Alt from the right ones: a held
+// LeftCtrl makes S Ctrl+S, on the frame of the S, as a real one does.
+#[test]
+fn a_script_s_left_and_right_modifiers_are_the_modifiers() {
+    let mut app = Headless::new(Page);
+    let script = Script::parse(
+        r#"{ "Steps": [
+            { "Frame": 1, "Hold": ["LeftCtrl", "RightCtrl", "LeftShift"] },
+            { "Frame": 2, "Key": "S" },
+            { "Frame": 4, "Hold": [] },
+            { "Frame": 5, "Key": "Shift+RightAlt" }
+        ] }"#,
+    )
+    .unwrap();
+    let mut runner = ScriptRunner::new(script);
+    let mut frame = |app: &mut Headless<Page>, number| {
+        let events = runner.frame(number, &app.ui).unwrap().events;
+        app.send(&events);
+        events
+    };
+    frame(&mut app, 0);
+    assert_eq!(frame(&mut app, 1)[..2], [Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::SHIFT)]);
+    frame(&mut app, 2);
+    assert!(app.ui.input().shortcut_pressed(Shortcut::new(Modifiers::CONTROL_SHIFT, Key::S)));
+    frame(&mut app, 3);
+    frame(&mut app, 4);
+    assert_eq!(frame(&mut app, 5)[..2], [Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::ALT)]);
+    assert_eq!(app.ui.modifiers(), Modifiers::new(false, true, true));
 }
 
 // A program that saves with Save, and closes itself with Quit.

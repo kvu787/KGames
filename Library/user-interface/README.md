@@ -577,6 +577,10 @@ last step, so that nothing is left held.
 |               | millionth                                                                        |
 | `Program`     | A step for the program's `script`                                                |
 
+A step's keys are what a keyboard's readings give the interface, which doesn't tell the left Shift,
+Ctrl and Alt from the right ones, so `LeftCtrl`, `RightShift` and the like are `Ctrl`, `Shift` and
+`Alt`, and `Hold ["LeftCtrl"]` then `Key "S"` is `Ctrl+S`, as it is with a real keyboard.
+
 The state is the program's, and the interface's as `Interface`: the `Theme`, `Size`,
 `VerticalSync`, the `Pointer`, what's `Hovered`, `Pressed` and `Focused`, the open
 `Popup` and `Dialog`, the `Tooltip` that shows, and `Targets`: every widget's `Area`, `Kind`,

@@ -176,6 +176,18 @@ impl Key {
         None
     }
 
+    // The key as the interface gets it from a keyboard: Shift, Ctrl and Alt
+    // are the same keys on the left and the right, as the reader reads them,
+    // and every other key is itself.
+    pub fn merged(self) -> Key {
+        match self {
+            Key::LEFT_SHIFT | Key::RIGHT_SHIFT => Key::SHIFT,
+            Key::LEFT_CONTROL | Key::RIGHT_CONTROL => Key::CONTROL,
+            Key::LEFT_ALT | Key::RIGHT_ALT => Key::ALT,
+            key => key,
+        }
+    }
+
     pub fn is_modifier(self) -> bool {
         matches!(self.0, 0x10..=0x12 | 0x5B | 0x5C | 0xA0..=0xA5)
     }
