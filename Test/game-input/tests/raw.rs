@@ -1,32 +1,31 @@
-// Library/game-input-raw holds the bindings for all of GameInput's API, in the
-// shape of windows-bindgen's output, and nothing else, and Library/game-input
-// what KGames adds to them: the committed bindings are exactly what
-// bindings-generator writes now, everything that GameInput's header declares
-// is bound, every item in the raw package is of a kind that windows-bindgen
-// writes, every method calls its own vtable slot, and no bindings are in the
-// other package.
+// Library/game-input-raw holds the bindings for the part of GameInput's API
+// that reads keyboards, mice and gamepads, in the shape of windows-bindgen's
+// output, and nothing else, and Library/game-input what KGames adds to them:
+// the committed bindings are exactly what bindings-generator writes now, what
+// GameInput's header declares is bound if it's in bindings-generator's scope
+// and isn't otherwise, every item in the raw package is of a kind that
+// windows-bindgen writes, every method calls its own vtable slot, and no
+// bindings are in the other package.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 // How each item that windows-bindgen writes starts, on a line of its own:
-// constants and their types, structs and unions, callbacks, interfaces with
-// their methods, vtables, and traits to implement them with, and functions.
-const ITEMS: [&str; 19] = [
+// constants and their types, structs, callbacks, interfaces with their methods
+// and vtables, and functions.
+const ITEMS: [&str; 17] = [
     "#![allow(",
     "pub type ",
     "pub const ",
     "#[repr(",
     "#[derive(",
     "pub struct ",
-    "pub union ",
     "impl Default for ",
     "windows_core::imp::define_interface!(",
     "windows_core::imp::interface_hierarchy!(",
     "impl IGameInput",
     "unsafe impl Send for ",
     "unsafe impl Sync for ",
-    "pub trait IGameInput",
     "impl windows_core::RuntimeName for ",
     "#[inline]",
     "pub unsafe fn ",
@@ -118,31 +117,53 @@ fn the_raw_package_is_only_the_bindings() {
     }
 }
 
-// Everything that GameInput's v4 header declares is bound: its enums with
-// their values, structs, callbacks, typedef, constants and function, and its
-// interfaces with every method, in the header's order, none of them left a
-// placeholder slot, and with the traits that windows-bindgen writes only for
-// an interface whose methods are all bound. The header's IID_IGameInput is
+// What GameInput's v4 header declares is bound if it's in bindings-generator's
+// scope, and isn't if it's not: its enums with their values, structs,
+// callbacks, typedef, constants and function, and its interfaces. An interface
+// that's bound has every method's slot, in the header's order: the method's
+// own if it's in scope, and a placeholder if it's not, which has no method.
+// Everything in the scope is in the header. The header's IID_IGameInput is
 // IGameInput::IID, and its inline GameInputCreate calls GameInputInitialize.
 #[test]
-fn the_bindings_are_the_whole_header() {
+fn the_bindings_are_the_scope_of_the_header() {
+    use game_input_bindings_generator::{CONSTANTS, FUNCTIONS, INTERFACES, TYPES};
+
     let header = read(&game_input_bindings_generator::header());
     let bindings = read(&library("game-input-raw").join("src/lib.rs"));
-    let bound = |binding: String| assert!(bindings.contains(&binding), "src/lib.rs has no `{binding}`");
+    let interfaces: Vec<&str> = INTERFACES.iter().map(|(name, _)| *name).collect();
+    // What the header declares of the scope, to compare with the scope.
+    let mut declared: BTreeSet<&str> = BTreeSet::new();
+    // Whether a declaration is bound, which is whether it's in the scope.
+    let mut bound = |name: &str, scope: &[&'static str], binding: String| {
+        let scoped = scope.iter().find(|scoped| **scoped == name);
+        declared.extend(scoped);
+        let found = bindings.contains(&binding);
+        assert_eq!(found, scoped.is_some(), "src/lib.rs's `{binding}`, and {name} in the scope");
+        found
+    };
 
-    let mut enumeration: Option<String> = None;
+    let mut enumeration: Option<(String, bool)> = None;
     let mut interface: Option<(String, Vec<String>)> = None;
     for line in header.lines().map(|line| line.split("//").next().unwrap().trim_end()) {
         let words: Vec<&str> = line.split([' ', '\t', '(', ')', ',', ';', '*']).filter(|word| !word.is_empty()).collect();
         if line.starts_with("};") {
             enumeration = None;
-            if let Some((name, methods)) = interface.take() {
-                assert_eq!(vtable(&bindings, &name), methods, "{name}'s vtable");
-                bound(format!("pub trait {name}_Impl: windows_core::IUnknownImpl {{"));
+            let Some((name, methods)) = interface.take() else { continue };
+            if !bound(&name, &interfaces, format!("pub struct {name}_Vtbl {{")) {
+                continue;
             }
-        } else if let Some(name) = &enumeration {
+            let scope = INTERFACES.iter().find(|(interface, _)| *interface == name).unwrap().1;
+            for method in scope {
+                assert!(methods.contains(&method.to_string()), "GameInput.h's {name} has no {method}");
+            }
+            let slots: Vec<(String, bool)> = methods.iter().map(|method| (method.clone(), scope.contains(&method.as_str()))).collect();
+            assert_eq!(vtable(&bindings, &name), slots, "{name}'s vtable");
+            let scoped: Vec<&String> = slots.iter().filter(|(_, scoped)| *scoped).map(|(method, _)| method).collect();
+            assert_eq!(methods_of(&bindings, &name).iter().collect::<Vec<_>>(), scoped, "{name}'s methods");
+        } else if let Some((name, scoped)) = &enumeration {
             if let Some((member, _)) = line.trim().split_once('=') {
-                bound(format!("pub const {}: {name} = ", member.trim()));
+                let binding = format!("pub const {}: {name} = ", member.trim());
+                assert_eq!(bindings.contains(&binding), *scoped, "src/lib.rs's `{binding}`");
             }
         } else if let Some((_, methods)) = &mut interface {
             if line.trim_start().starts_with("IFACEMETHOD") {
@@ -152,28 +173,30 @@ fn the_bindings_are_the_whole_header() {
         } else {
             match words.as_slice() {
                 ["enum", name] => {
-                    bound(format!("pub type {name} = i32;"));
-                    enumeration = Some(name.to_string());
+                    let scoped = bound(name, &TYPES, format!("pub type {name} = i32;"));
+                    enumeration = Some((name.to_string(), scoped));
                 }
-                ["struct", name] => bound(format!("pub struct {name} {{")),
-                ["typedef", "uint64_t", name] => bound(format!("pub struct {name}(")),
-                ["typedef", "void", "CALLBACK", name, ..] => bound(format!("pub type {name} = Option<")),
+                ["struct", name] => _ = bound(name, &TYPES, format!("pub struct {name} {{")),
+                ["typedef", "uint64_t", name] => _ = bound(name, &TYPES, format!("pub struct {name}(")),
+                ["typedef", "void", "CALLBACK", name, ..] => _ = bound(name, &TYPES, format!("pub type {name} = Option<")),
                 ["DECLARE_INTERFACE_IID_", name, ..] => interface = Some((name.to_string(), Vec::new())),
                 ["const", "IID", name, ..] => assert_eq!(*name, "IID_IGameInput"),
                 ["const" | "constexpr", _, name, "=", ..] | ["#define", name @ "GAMEINPUT_API_VERSION", _] => {
-                    bound(format!("pub const {name}: "))
+                    bound(name, &CONSTANTS, format!("pub const {name}: "));
                 }
-                ["STDAPI", name, ..] => bound(format!("pub unsafe fn {name}<")),
+                ["STDAPI", name, ..] => _ = bound(name, &FUNCTIONS, format!("pub unsafe fn {name}<")),
                 ["inline", "HRESULT", name, ..] => assert_eq!(*name, "GameInputCreate"),
                 _ => {}
             }
         }
     }
+    let scope: BTreeSet<&str> = TYPES.iter().chain(&CONSTANTS).chain(&FUNCTIONS).chain(&interfaces).copied().collect();
+    assert_eq!(declared, scope, "what GameInput.h declares of the scope");
 }
 
-// The names of an interface's vtable's slots, after IUnknown's, in order. A
-// slot that windows-bindgen leaves unbound is a usize, which fails.
-fn vtable(bindings: &str, interface: &str) -> Vec<String> {
+// An interface's vtable's slots, after IUnknown's, in order: each one's name,
+// and whether it's bound, or a placeholder, which is a usize.
+fn vtable(bindings: &str, interface: &str) -> Vec<(String, bool)> {
     let start = format!("pub struct {interface}_Vtbl {{\n");
     let body = &bindings[bindings.find(&start).unwrap_or_else(|| panic!("no {start}")) + start.len()..];
     let mut slots = Vec::new();
@@ -184,12 +207,19 @@ fn vtable(bindings: &str, interface: &str) -> Vec<String> {
         if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             continue;
         }
-        assert_ne!(ty.trim(), "usize,", "{interface}'s {name} is a placeholder");
         if name != "base__" {
-            slots.push(name.to_string());
+            slots.push((name.to_string(), ty.trim() != "usize,"));
         }
     }
     slots
+}
+
+// The names of an interface's methods, in order.
+fn methods_of(bindings: &str, interface: &str) -> Vec<String> {
+    let start = format!("\nimpl {interface} {{\n");
+    let body = &bindings[bindings.find(&start).unwrap_or_else(|| panic!("no {start}")) + start.len()..];
+    let methods = body.lines().take_while(|line| *line != "}").filter_map(|line| line.strip_prefix("    pub unsafe fn "));
+    methods.map(|signature| signature.split(['(', '<']).next().unwrap().to_string()).collect()
 }
 
 #[test]

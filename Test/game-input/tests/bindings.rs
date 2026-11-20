@@ -15,52 +15,24 @@ const fn laid_out<T>(size: usize, align: usize) -> bool {
     size_of::<T>() == size && align_of::<T>() == align
 }
 
-// The size and alignment of every struct and union in the v4 header, and in
-// the Windows SDK's windef.h for APP_LOCAL_DEVICE_ID, as MSVC compiles them for
-// x64, and the interfaces' method counts, with IUnknown's three, so that a
-// field or slot missed or added fails the tests' build.
+// The size and alignment of every struct that's bound, in the v4 header, and
+// in the Windows SDK's windef.h for APP_LOCAL_DEVICE_ID, as MSVC compiles them
+// for x64, and the interfaces' method counts, with IUnknown's three and with
+// the methods that aren't bound, whose slots the vtables keep, so that a field
+// or slot missed or added fails the tests' build.
 const _: () = {
     assert!(laid_out::<APP_LOCAL_DEVICE_ID>(32, 1));
-    assert!(laid_out::<GameInputArcadeStickInfo>(72, 4));
-    assert!(laid_out::<GameInputArcadeStickState>(4, 4));
-    assert!(laid_out::<GameInputAxisMapping>(20, 4));
-    assert!(laid_out::<GameInputButtonMapping>(16, 4));
-    assert!(laid_out::<GameInputColor>(3, 1));
-    assert!(laid_out::<GameInputControllerSwitchInfo>(36, 4));
-    assert!(laid_out::<GameInputFlightStickInfo>(80, 4));
-    assert!(laid_out::<GameInputFlightStickState>(24, 4));
-    assert!(laid_out::<GameInputForceFeedbackConditionParams>(52, 4));
-    assert!(laid_out::<GameInputForceFeedbackConstantParams>(80, 8));
-    assert!(laid_out::<GameInputForceFeedbackEnvelope>(48, 8));
-    assert!(laid_out::<GameInputForceFeedbackMagnitude>(28, 4));
-    assert!(laid_out::<GameInputForceFeedbackMotorInfo>(16, 4));
-    assert!(laid_out::<GameInputForceFeedbackParams>(112, 8));
-    assert!(laid_out::<GameInputForceFeedbackParams_0>(104, 8));
-    assert!(laid_out::<GameInputForceFeedbackPeriodicParams>(88, 8));
-    assert!(laid_out::<GameInputForceFeedbackRampParams>(104, 8));
     assert!(laid_out::<GameInputGamepadInfo>(116, 4));
     assert!(laid_out::<GameInputGamepadState>(28, 4));
-    assert!(laid_out::<GameInputHapticInfo>(644, 4));
     assert!(laid_out::<GameInputKeyState>(12, 4));
     assert!(laid_out::<GameInputKeyboardInfo>(28, 4));
     assert!(laid_out::<GameInputMouseInfo>(12, 4));
     assert!(laid_out::<GameInputMouseState>(56, 8));
-    assert!(laid_out::<GameInputRacingWheelInfo>(100, 4));
-    assert!(laid_out::<GameInputRacingWheelState>(28, 4));
-    assert!(laid_out::<GameInputRawDeviceReportInfo>(12, 4));
     assert!(laid_out::<GameInputRumbleParams>(16, 4));
-    assert!(laid_out::<GameInputSensorsInfo>(4, 4));
-    assert!(laid_out::<GameInputSensorsState>(48, 4));
-    assert!(laid_out::<GameInputTouchContact>(24, 8));
-    assert!(laid_out::<GameInputTouchSurfaceInfo>(16, 4));
     assert!(laid_out::<GameInputUsage>(4, 2));
     assert!(laid_out::<GameInputVersion>(8, 2));
     assert!(size_of::<IGameInput_Vtbl>() == (3 + 13) * size_of::<usize>());
     assert!(size_of::<IGameInputDevice_Vtbl>() == (3 + 60) * size_of::<usize>());
-    assert!(size_of::<IGameInputDispatcher_Vtbl>() == (3 + 2) * size_of::<usize>());
-    assert!(size_of::<IGameInputForceFeedbackEffect_Vtbl>() == (3 + 8) * size_of::<usize>());
-    assert!(size_of::<IGameInputMapper_Vtbl>() == (3 + 7) * size_of::<usize>());
-    assert!(size_of::<IGameInputRawDeviceReport_Vtbl>() == (3 + 5) * size_of::<usize>());
     assert!(size_of::<IGameInputReading_Vtbl>() == (3 + 21) * size_of::<usize>());
 };
 

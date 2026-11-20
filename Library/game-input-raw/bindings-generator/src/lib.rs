@@ -1,5 +1,5 @@
-// Writes the bindings that windows-bindgen generates for GameInput's v4
-// header. main.rs writes them to GameInputRaw's src/lib.rs, and
+// Writes the bindings that windows-bindgen generates for the part of
+// GameInput's v4 header that KGames uses: keyboards, mice and gamepads. main.rs writes them to GameInputRaw's src/lib.rs, and
 // Test/game-input writes them somewhere else, to check that the committed file
 // is still exactly what this writes.
 //
@@ -21,6 +21,11 @@
 //   pointer. A buffer of void is a buffer of bytes.
 // - The constants and GameInputInitialize are in the namespace's Apis class.
 //   GAMEINPUT_API_VERSION, an integer #define, is an int.
+//
+// The scope, below, names what's bound, and windows-bindgen's filters take
+// the rest out. A method that's out of scope keeps its slot in its
+// interface's vtable, as a usize, so the slots after it stay where GameInput
+// has them. An interface with such a slot has no trait to implement it with.
 //
 // windows-bindgen declares a function with link!, whose raw-dylib takes it
 // from a DLL, but GameInputInitialize is in GameInput.lib, a static library
@@ -44,20 +49,146 @@ use windows_metadata::{
 const NAMESPACE: &str = "Windows.Win32.GameInput";
 
 // Where Windows' metadata has the types from Windows' headers that GameInput.h
-// uses, and those of them that the bindings include, as their filters ask.
+// uses, and those of them that it has as types of their own.
 // windows-bindgen writes the others, HRESULT, GUID and PCWSTR, as
 // windows-core's.
 const WIN32: &str = "Windows.Win32";
 const WIN32_TYPES: [&str; 2] = ["APP_LOCAL_DEVICE_ID", "HANDLE"];
+
+// The scope: what the bindings have of GameInput.h, which is what reads
+// keyboards, mice and gamepads, finds and identifies their devices, and
+// rumbles a gamepad. The rest of the header is out: the other kinds of device
+// (arcade sticks, flight sticks, racing wheels, sensors, touch surfaces),
+// controllers that GameInput doesn't map to a gamepad, with the mapper, force
+// feedback, haptics, lighting, raw device reports, aggregate devices and the
+// dispatcher.
+//
+// The interfaces, each with its methods that are bound.
+pub const INTERFACES: [(&str, &[&str]); 3] = [
+    (
+        "IGameInput",
+        &[
+            "GetCurrentTimestamp",
+            "GetCurrentReading",
+            "GetNextReading",
+            "GetPreviousReading",
+            "RegisterReadingCallback",
+            "RegisterDeviceCallback",
+            "UnregisterCallback",
+            "FindDeviceFromId",
+            "FindDeviceFromPlatformString",
+            "EnableBackgroundInput",
+        ],
+    ),
+    (
+        "IGameInputDevice",
+        &[
+            "GetVendorId",
+            "GetProductId",
+            "GetRevisionNumber",
+            "GetUsage",
+            "GetHardwareVersion",
+            "GetFirmwareVersion",
+            "GetDeviceId",
+            "GetDeviceRootId",
+            "GetDeviceFamily",
+            "GetSupportedInput",
+            "GetSupportedRumbleMotors",
+            "GetSupportedSystemButtons",
+            "GetContainerId",
+            "GetDisplayName",
+            "GetPnpPath",
+            "GetXInputDeviceIndex",
+            "GetKeyboardInfo",
+            "GetMouseInfo",
+            "GetGamepadInfo",
+            "IsConnected",
+            "SetRumbleState",
+        ],
+    ),
+    (
+        "IGameInputReading",
+        &[
+            "GetInputKind",
+            "GetTimestamp",
+            "GetDevice",
+            "GetKeyCount",
+            "GetKeyState",
+            "GetMouseState",
+            "GetGamepadState",
+            "GetSystemButtonState",
+        ],
+    ),
+];
+
+// The enums, each with all of its values, since GameInput gives any of them,
+// the structs, the typedef and the callbacks.
+pub const TYPES: [&str; 22] = [
+    "GameInputCallbackToken",
+    "GameInputDeviceCallback",
+    "GameInputDeviceEvent",
+    "GameInputDeviceFamily",
+    "GameInputGamepadButtons",
+    "GameInputGamepadInfo",
+    "GameInputGamepadState",
+    "GameInputKeyState",
+    "GameInputKeyboardInfo",
+    "GameInputKeyboardKind",
+    "GameInputKind",
+    "GameInputLabel",
+    "GameInputMouseButtons",
+    "GameInputMouseInfo",
+    "GameInputMousePositions",
+    "GameInputMouseState",
+    "GameInputReadingCallback",
+    "GameInputRumbleMotors",
+    "GameInputRumbleParams",
+    "GameInputSystemButtons",
+    "GameInputUsage",
+    "GameInputVersion",
+];
+
+// The constants: the version, the sets of a gamepad's buttons, and the errors
+// of what's bound.
+pub const CONSTANTS: [&str; 20] = [
+    "GAMEINPUT_API_VERSION",
+    "GameInputGamepadModuleSystemDuo",
+    "GameInputGamepadModuleDpad",
+    "GameInputGamepadModuleShoulders",
+    "GameInputGamepadModuleTriggers",
+    "GameInputGamepadModuleThumbsticks",
+    "GameInputGamepadModulePaddles2",
+    "GameInputGamepadModulePaddles4",
+    "GameInputGamepadLayoutBasic",
+    "GameInputGamepadLayoutButtons",
+    "GameInputGamepadLayoutStandard",
+    "GameInputGamepadLayoutElite",
+    "GAMEINPUT_FACILITY",
+    "GAMEINPUT_E_DEVICE_DISCONNECTED",
+    "GAMEINPUT_E_DEVICE_NOT_FOUND",
+    "GAMEINPUT_E_READING_NOT_FOUND",
+    "GAMEINPUT_E_REFERENCE_READING_TOO_OLD",
+    "GAMEINPUT_E_OBJECT_NO_LONGER_EXISTS",
+    "GAMEINPUT_E_CALLBACK_NOT_FOUND",
+    "GAMEINPUT_E_INPUT_KIND_NOT_PRESENT",
+];
+
+// The functions.
+pub const FUNCTIONS: [&str; 1] = ["GameInputInitialize"];
+
+// The type from Windows' headers.
+pub const WIN32_TYPE: &str = "APP_LOCAL_DEVICE_ID";
 const METADATA: &str = "Windows.Win32.Foundation.Metadata";
 
 // What starts the bindings.
 const PREAMBLE: &str = "\
-// The bindings for all of GameInput's v4 API, from native/include/v4/GameInput.h
-// in the Microsoft.GameInput NuGet package that NuGetPackages.csproj declares,
-// and nothing else: what windows-bindgen generates for the header, which
-// bindings-generator describes as Windows metadata for it. Don't edit it by
-// hand: regenerate it with `cargo run -p game-input-bindings-generator`.
+// The bindings for the part of GameInput's v4 API that reads keyboards, mice
+// and gamepads, from native/include/v4/GameInput.h in the Microsoft.GameInput
+// NuGet package that NuGetPackages.csproj declares, and nothing else: what
+// windows-bindgen generates for bindings-generator's scope of the header,
+// which bindings-generator describes as Windows metadata for it. A usize in a
+// vtable is the slot of a method that's out of scope. Don't edit it by hand:
+// regenerate it with `cargo run -p game-input-bindings-generator`.
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, dead_code, clippy::all)]
 
@@ -93,13 +224,20 @@ pub fn generate(header: &Path, output: &Path) {
     windows_bindgen::builder()
         .input_default()
         .input_bytes(&metadata)
-        .filter(NAMESPACE)
-        .filters(WIN32_TYPES)
+        .filters(filters())
         .output(output)
         .flat()
         .write();
     let bindings = std::fs::read_to_string(output).unwrap();
     std::fs::write(output, rustfmt(&format!("{PREAMBLE}{}", extern_functions(&bindings)))).unwrap();
+}
+
+// windows-bindgen's filters for the scope: each name alone, and an interface
+// with its methods, like Windows.Win32.GameInput.IGameInput::{A, B}.
+fn filters() -> Vec<String> {
+    let names = TYPES.iter().chain(&CONSTANTS).chain(&FUNCTIONS).map(|name| format!("{NAMESPACE}.{name}"));
+    let interfaces = INTERFACES.iter().map(|(name, methods)| format!("{NAMESPACE}.{name}::{{{}}}", methods.join(", ")));
+    names.chain(interfaces).chain([WIN32_TYPE.to_string()]).collect()
 }
 
 // The bindings, with each function that link! declares declared with extern.
