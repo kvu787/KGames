@@ -1,14 +1,16 @@
 {
   "Steps": [
     { "Frame": 1, "Key": "1" },
+    { "Frame": 1, "Expect": { "Mode": "Vertex" } },
     { "Frame": 3, "Drag": { "From": { "Target": "View", "At": [0.02, 0.02] }, "To": { "Target": "View", "At": [0.98, 0.98] }, "Frames": 10 } },
     { "Frame": 14, "Expect": { "Mode": "Vertex", "Selection": { "Vertices": 8 }, "Undo": "Select box" } },
     { "Frame": 16, "Capture": "Vertices" },
     { "Frame": 17, "Move": { "Target": "View", "At": [0.3, 0.5] } },
     { "Frame": 18, "Key": "G" },
+    { "Frame": 18, "Expect": { "Operation": { "Kind": "Move" } } },
     { "Frame": 19, "Key": "Y" },
+    { "Frame": 19, "Expect": { "Operation": { "Kind": "Move", "Axis": "Y" } } },
     { "Frame": 20, "Move": { "Target": "View", "At": [0.3, 0.4] } },
-    { "Frame": 20, "Expect": { "Operation": { "Kind": "Move", "Axis": "Y" } } },
     { "Frame": 24, "Capture": "Moving" },
     { "Frame": 25, "Key": "Esc" },
     { "Frame": 25, "Expect": { "Operation": null, "Undo": "Select box" } },

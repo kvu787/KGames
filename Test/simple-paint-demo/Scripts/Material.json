@@ -1,7 +1,9 @@
 {
   "Steps": [
     { "Frame": 1, "Click": "Shift" },
+    { "Frame": 1, "Expect": { "Parameters": { "Shift": 0.5 } } },
     { "Frame": 3, "Click": "Rotation" },
+    { "Frame": 3, "Expect": { "Parameters": { "RotationDegrees": 180.0 } } },
     { "Frame": 5, "Click": "Light Point" },
     {
       "Frame": 5,
@@ -18,14 +20,14 @@
     { "Frame": 34, "Click": "G" },
     { "Frame": 36, "Click": "B" },
     { "Frame": 38, "Scroll": { "At": "B", "Notches": -400 } },
-    { "Frame": 39, "Move": [1200, 1300] },
     {
-      "Frame": 39,
+      "Frame": 38,
       "Expect": {
         "Parameters": { "BaseColor": [0.9, 0.5, 0.1], "Shift": 0.5, "LightPoint": 0.5 },
         "Selected": "B"
       }
     },
+    { "Frame": 39, "Move": [1200, 1300] },
     { "Frame": 60, "Capture": "Warm" }
   ]
 }
