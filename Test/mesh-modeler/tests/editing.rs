@@ -208,6 +208,36 @@ fn a_drag_selects_a_box_and_hidden_vertices_are_not_picked() {
     assert_eq!(picked, vec![vertex_at(&app, [-1.0, -1.0, -1.0])]);
 }
 
+// A face hides a vertex or an edge if the ray through it hits the face in
+// front of it, not the ray through the pointer: on the top face, which
+// recedes from the camera, the face under a pointer 6 pixels below the far
+// corner is well in front of the corner, which nothing hides.
+#[test]
+fn vertices_and_edges_on_a_face_that_recedes_are_picked_from_anywhere_near() {
+    let mut app = modeler("PickReceding");
+    app.key(Key::DIGIT_1);
+    let corner = [-1.0, 1.0, -1.0];
+    let below = screen(&app, corner) + Point::new(0.0, 6.0);
+    // The case: the top face under the pointer is more than 3 pixels' worth
+    // in front of the corner.
+    let (origin, direction) = app.program.camera.ray(below, app.program.view);
+    let hit = app.program.scene.triangles.ray_cast(origin, direction).unwrap();
+    let pixel = app.program.camera.pixel_size(app.program.view);
+    assert!(hit.distance < math::dot(math::subtract(corner, origin), direction) - 3.0 * pixel);
+    app.press_point(below);
+    let picked: Vec<u32> = app.program.document.selection.vertices.iter().copied().collect();
+    assert_eq!(picked, vec![vertex_at(&app, corner)]);
+    app.release();
+
+    // And the far top edge, from below its middle.
+    app.key(Key::DIGIT_2);
+    app.key_with(Modifiers::ALT, Key::A);
+    app.press_point(screen(&app, [0.0, 1.0, -1.0]) + Point::new(0.0, 6.0));
+    let picked: Vec<Edge> = app.program.document.selection.edges.iter().copied().collect();
+    assert_eq!(picked, vec![Edge::new(vertex_at(&app, corner), vertex_at(&app, [1.0, 1.0, -1.0]))]);
+    app.release();
+}
+
 #[test]
 fn keys_select_all_none_and_the_inverse_in_each_mode() {
     let mut app = modeler("SelectKeys");

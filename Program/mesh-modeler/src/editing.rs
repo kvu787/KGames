@@ -254,46 +254,55 @@ impl Editor {
 
     // The element under the pointer, in the selection mode: the nearest
     // vertex or edge within PICK_RADIUS pixels, or the face hit, that the
-    // mesh doesn't hide, unless in X-ray or over a subdivided surface.
+    // mesh doesn't hide, unless in X-ray or over a subdivided surface. A
+    // face hides a vertex, or the point of an edge nearest the pointer, if
+    // the ray through that point, not the pointer's, hits it in front of the
+    // point: on a face that recedes from the camera, the face under a
+    // pointer a few pixels away is well in front of what's on it.
     pub fn pick(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, drawn: Drawn) -> Option<Element> {
         let mesh = &document.mesh;
-        let (origin, direction) = camera.ray(pointer, view);
-        let hit = drawn.hit(origin, direction);
         let surface = drawn.surface;
         let hidden = |point: Vector3| -> bool {
             if see_through || surface.is_some() {
                 return false;
             }
+            let (origin, direction) = camera.ray(camera.to_screen(point, view).0, view);
             let distance = dot(subtract(point, origin), direction);
-            hit.as_ref().is_some_and(|hit| hit.distance < distance - camera.pixel_size(view) * 3.0)
+            drawn.hit(origin, direction).is_some_and(|hit| hit.distance < distance - camera.pixel_size(view) * 3.0)
+        };
+        // The nearest of the elements within PICK_RADIUS, each with how far
+        // it is on screen and its point nearest the pointer, that the mesh
+        // doesn't hide. Each that's looked at costs a ray, so they're
+        // looked at nearest first, and only until one isn't hidden.
+        let nearest = |mut near: Vec<(f32, Element, Vector3)>| {
+            near.sort_by(|a, b| a.0.total_cmp(&b.0));
+            near.into_iter().find(|(_, _, point)| !hidden(*point)).map(|(_, element, _)| element)
         };
         match self.mode {
-            Mode::Vertices => {
-                let mut best: Option<(f32, u32)> = None;
-                for vertex in 0..mesh.positions.len() as u32 {
-                    let (screen, _) = camera.to_screen(mesh.position(vertex), view);
-                    let distance = screen.distance(pointer);
-                    if distance <= PICK_RADIUS && best.is_none_or(|(nearest, _)| distance < nearest) && !hidden(mesh.position(vertex)) {
-                        best = Some((distance, vertex));
-                    }
-                }
-                best.map(|(_, vertex)| Element::Vertex(vertex))
+            Mode::Vertices => nearest(
+                (0..mesh.positions.len() as u32)
+                    .filter_map(|vertex| {
+                        let position = mesh.position(vertex);
+                        let distance = camera.to_screen(position, view).0.distance(pointer);
+                        (distance <= PICK_RADIUS).then_some((distance, Element::Vertex(vertex), position))
+                    })
+                    .collect(),
+            ),
+            Mode::Edges => nearest(
+                document
+                    .edges()
+                    .iter()
+                    .filter_map(|&edge| {
+                        let [a, b] = edge.vertices().map(|vertex| mesh.position(vertex));
+                        let (distance, t) = segment_distance(pointer, camera.to_screen(a, view).0, camera.to_screen(b, view).0);
+                        (distance <= PICK_RADIUS).then(|| (distance, Element::Edge(edge), add(a, scale(subtract(b, a), t))))
+                    })
+                    .collect(),
+            ),
+            Mode::Faces => {
+                let (origin, direction) = camera.ray(pointer, view);
+                drawn.hit(origin, direction).map(|hit| Element::Face(hit.face))
             }
-            Mode::Edges => {
-                let mut best: Option<(f32, Edge)> = None;
-                for edge in document.edges().iter().copied() {
-                    let [a, b] = edge.vertices();
-                    let (sa, _) = camera.to_screen(mesh.position(a), view);
-                    let (sb, _) = camera.to_screen(mesh.position(b), view);
-                    let (distance, t) = segment_distance(pointer, sa, sb);
-                    let point = add(mesh.position(a), scale(subtract(mesh.position(b), mesh.position(a)), t));
-                    if distance <= PICK_RADIUS && best.is_none_or(|(nearest, _)| distance < nearest) && !hidden(point) {
-                        best = Some((distance, edge));
-                    }
-                }
-                best.map(|(_, edge)| Element::Edge(edge))
-            }
-            Mode::Faces => hit.map(|hit| Element::Face(hit.face)),
         }
     }
 
