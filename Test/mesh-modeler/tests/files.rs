@@ -122,6 +122,14 @@ fn save_as_open_and_new_go_through_their_dialogs() {
     app.click("SaveAs/Primary");
     assert!(app.program.prompt_error.as_deref().unwrap().contains("can't be empty"));
     assert_eq!(app.program.prompt.map(|prompt| prompt.name()), Some("SaveAs"));
+    // Nor can the name that the dialog starts with, which a model without a
+    // name has: Save would ask for a name again, every time.
+    assert_eq!(app.program.document.name, document::UNTITLED);
+    app.program.name_draft = document::UNTITLED.to_string();
+    app.click("SaveAs/Primary");
+    assert!(app.program.prompt_error.as_deref().unwrap().contains("a name of its own"));
+    assert_eq!(app.program.prompt.map(|prompt| prompt.name()), Some("SaveAs"));
+    assert!(!folder.join("Untitled.json").exists());
     app.program.name_draft = "Box".to_string();
     app.click("SaveAs/Primary");
     assert!(app.program.prompt.is_none());

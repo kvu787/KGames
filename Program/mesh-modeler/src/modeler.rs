@@ -550,6 +550,11 @@ impl Modeler {
         if !document::valid_name(&name) {
             return Err("A name can't be empty, end with a period, or have any of < > : \" / \\ | ? *.".to_string());
         }
+        // What a model that was never saved is called, which Save asks a
+        // name for: a model saved under it would be asked for one forever.
+        if name == document::UNTITLED {
+            return Err(format!("{} is what a model without a name is called. Give this one a name of its own.", document::UNTITLED));
+        }
         let previous = std::mem::replace(&mut self.document.name, name);
         match self.document.save(&self.folder) {
             Ok(path) => {
