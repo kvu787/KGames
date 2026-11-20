@@ -3,9 +3,10 @@
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
-use user_interface::controls::{MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::graphics::{AdapterChoice, Gpu};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY, WINDOW_HEIGHT};
-use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Startup, ThemeKind, slider_rail};
+use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Rect, Startup, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
     Headless::new(Showcase::default())
@@ -318,6 +319,29 @@ fn the_dialog_asks_and_takes_the_page_until_answered() {
     assert!(!app.program.dialog_open);
     app.click("Menu/Help").click("Menu/Help/Menu/Ask a question").click("Question/Close");
     assert_eq!(app.program.dialog_result.as_deref(), Some("Cancel"));
+}
+
+// The Interface card says what the frame that it's drawn in has: the frame
+// whose press opens the dialog draws it as the frame after it does, with the
+// dialog open, and nothing under the pointer, which the dialog's smoke
+// covers.
+#[test]
+fn the_interface_card_shows_the_frame_that_it_is_drawn_in() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = showcase();
+    // The card's rows, from the menu row down to its Details button.
+    let details = app.target("Details");
+    let top = PERF_BAR_HEIGHT + APP_BAR_HEIGHT + MENU_BAR_HEIGHT;
+    let rows = Rect::new(details.x, top, 2560.0 - PAGE_PADDING - details.x, details.y - top);
+    app.press("Ask");
+    assert!(app.ui.modal());
+    let opened = app.render(&mut gpu).unwrap();
+    app.frame();
+    let after = app.render(&mut gpu).unwrap();
+    let pixels = (rows.y as u32..rows.bottom() as u32).flat_map(|y| (rows.x as u32..rows.right() as u32).map(move |x| (x, y)));
+    let different = pixels.filter(|&(x, y)| opened.pixel(x, y) != after.pixel(x, y)).count();
+    assert_eq!(different, 0, "the card's rows were a frame late");
+    app.release();
 }
 
 #[test]

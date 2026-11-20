@@ -34,10 +34,11 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 | Color                      | A color picker's spectrum and value slider, a hex field, and a palette   |
 | List                       | 120 items that scroll, of which the search shows those it matches, one   |
 |                            | can be selected, and a double-click opens one                            |
-| Interface                  | The pointer, the widget under it, the one with the press, the one with   |
-|                            | keyboard focus, the open popup, the tooltip and the dialog; the keys     |
-|                            | held; the gamepad's sticks, triggers and buttons;                        |
-|                            | keycaps and badges; a tooltip of lines; and a log of what happened       |
+| Interface                  | The pointer; the widget under it, the one with the press, the one with   |
+|                            | keyboard focus, the open popup and the dialog, in the tree that the      |
+|                            | frame draws; the frame before's tooltip; the keys held; the gamepad's    |
+|                            | sticks, triggers and buttons; keycaps and badges; a tooltip of lines;    |
+|                            | and a log of what happened                                               |
 
 The menu bar's File, View and Help menus have icons, keyboard accelerators, a separator, a
 submenu and a disabled item. The cards at the bottom of their columns take what's left of the
@@ -89,7 +90,8 @@ boxes' lists and what closes them, typing and deleting, the search and its clear
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
 double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9` and `F10`. They
-also check that every widget fits the window, in both themes.
+also check that every widget fits the window, in both themes, and draw frames offscreen with the
+GPU to check that the Interface card says what the frame it's drawn in has.
 
 The scripts in `Test/ui-showcase/Scripts` run the same kinds of input through the real window and
 renderer, pressing widgets by name. The state that scripts save and check has what each widget shows,

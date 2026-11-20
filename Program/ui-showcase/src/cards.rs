@@ -11,10 +11,10 @@ use user_interface::tokens::{
     ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
-    Align, AppBar, Badge, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, Expander,
-    ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Keycaps, ListView, MenuBar, MenuItem, NumberBox,
-    Palette, Point, ProgressBar, ProgressRing, RadioGroup, Rect, Run, Segmented, SelectorBar, Sense, Severity, Size, Slider, Spans, Status,
-    Text, TextBox, TextColor, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Tree, Ui, View,
+    Align, AppBar, Badge, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, Draw,
+    Expander, ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Interface, Keycaps, ListView, MenuBar,
+    MenuItem, NumberBox, Palette, Point, ProgressBar, ProgressRing, RadioGroup, Rect, Run, Segmented, SelectorBar, Sense, Severity, Size,
+    Slider, Spans, Status, Text, TextBox, TextColor, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Tree, Ui, View, Widget,
 };
 
 use crate::showcase::{ALIGNMENTS, BUTTONS, Message, OPTIONS, SIZES, Showcase, TABS, TOOLS};
@@ -473,16 +473,49 @@ fn list(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) 
     });
 }
 
+// What a row of the Interface card shows: a value that `view` knows, or one
+// that's read from the interface as the frame is drawn, once its last step's
+// tree is laid out, so that it's the drawn tree's, like what the pointer is
+// on in it, and whether it has a dialog. `view` comes before that layout,
+// and would read the tree before it.
+enum Row {
+    Known(String),
+    Drawn(fn(&Interface) -> String),
+}
+
+// A row whose value is read as the frame is drawn.
+struct Drawn {
+    label: &'static str,
+    value: fn(&Interface) -> String,
+}
+
+impl Widget<Message> for Drawn {
+    fn kind(&self) -> &'static str {
+        "Field"
+    }
+
+    fn draw(&self, ctx: &mut Draw) {
+        let value = (self.value)(ctx);
+        Widget::<Message>::draw(&Field::new(self.label, 160.0, value), ctx);
+    }
+}
+
+fn name_or_none(name: Option<&str>) -> String {
+    name.unwrap_or("None").to_string()
+}
+
 fn interface(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) {
     let pointer = ui.pointer().map_or("Not in the window".to_string(), |point| format!("{:.0}, {:.0}", point.x, point.y));
     let rows = [
-        ("Pointer", pointer),
-        ("Under the pointer", ui.hovered_name().unwrap_or("None").to_string()),
-        ("Pressed", ui.pressed_name().unwrap_or("None").to_string()),
-        ("Keyboard focus", ui.focused_name().unwrap_or("None").to_string()),
-        ("Open popup", ui.popup_name().unwrap_or("None").to_string()),
-        ("Tooltip", ui.tooltip_name().unwrap_or("None").to_string()),
-        ("Dialog", if ui.modal() { "Open".to_string() } else { "None".to_string() }),
+        ("Pointer", Row::Known(pointer)),
+        ("Under the pointer", Row::Drawn(|ui| name_or_none(ui.hovered_name()))),
+        ("Pressed", Row::Drawn(|ui| name_or_none(ui.pressed_name()))),
+        ("Keyboard focus", Row::Drawn(|ui| name_or_none(ui.focused_name()))),
+        ("Open popup", Row::Drawn(|ui| name_or_none(ui.popup_name()))),
+        // The frame before's: the interface settles a frame's tooltip as it
+        // draws it, after the widgets.
+        ("Tooltip", Row::Known(name_or_none(ui.tooltip_name()))),
+        ("Dialog", Row::Drawn(|ui| if ui.modal() { "Open" } else { "None" }.to_string())),
     ];
     let held: Vec<String> = ui.input().keys_held().iter().map(|key| key.name()).collect();
     let held = if held.is_empty() { "None".to_string() } else { held.join(", ") };
@@ -491,8 +524,12 @@ fn interface(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: R
     let theme_name = theme.kind.name();
     tree.card(ui, None, rect, Card::new("Interface"), |ui, card, area| {
         let mut area = area.content;
-        for (label, value) in rows {
-            card.draw(area.cut_top(24.0, 0.0), Field::new(label, 160.0, value));
+        for (label, row) in rows {
+            let rect = area.cut_top(24.0, 0.0);
+            match row {
+                Row::Known(value) => card.draw(rect, Field::new(label, 160.0, value)),
+                Row::Drawn(value) => card.draw(rect, Drawn { label, value }),
+            };
         }
         card.draw(area.cut_top(24.0, SPACE_S), Field::new("Keys held", 160.0, held));
         card.draw(area.cut_top(BODY_STRONG.line_height, SPACE_S), Text::heading("Gamepad"));
