@@ -1,6 +1,6 @@
 # Description
 
-- This crate generates and contains Rust bindings for part of Microsoft's GameInput API.
+- This crate contains generated Rust bindings for part of Microsoft's GameInput API.
 - It covers stuff that reads keyboards, mice and gamepads.
 - Official docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 
@@ -19,6 +19,9 @@
   - Currently, GameInput doesn't come with the Windows metadata that `windows-bindgen` needs.
   - So, the custom written `bindings-generator` crate generates this metadata from the `GameInput.h` API header.
   - Then, `windows-bindgen` generates `src\lib.rs` from that, with filters for the scope.
+- Generation rules:
+  - `src\lib.rs` must never be edited by hand.
+  - To change `src\lib.rs`, change `bindings-generator` and regenerate `src\lib.rs`.
 
 # Build prerequisites
 
