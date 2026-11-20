@@ -236,7 +236,10 @@ fn fields(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect
         card.draw(scale.top_strip(BODY.line_height), Text::label("Scale"));
         card.add("Scale", scale.bottom_strip(CONTROL_HEIGHT), NumberBox::new(showcase.scale).range(0.25, 4.0).step(0.25).decimals(2).on_change(Message::Scale));
         if let Some(greeting) = &showcase.greeting {
-            card.add("Greeting", form.take(48.0), InfoBar::new(Severity::Success, "", greeting).on_close(Message::CloseGreeting));
+            // As tall as its message wraps to, like for a long name.
+            let bar = InfoBar::new(Severity::Success, "", greeting).on_close(Message::CloseGreeting);
+            let height = bar.height(ui, area.content.width);
+            card.add("Greeting", form.take(height), bar);
         }
     });
 }

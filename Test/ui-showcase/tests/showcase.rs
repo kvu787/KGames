@@ -3,7 +3,7 @@
 
 use ui_showcase::showcase::Showcase;
 use user_interface::json::Value;
-use user_interface::controls::{MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::controls::{INFO_BAR_MIN_HEIGHT, MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::graphics::{AdapterChoice, Gpu};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY, WINDOW_HEIGHT};
 use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Rect, Startup, ThemeKind, slider_rail};
@@ -218,6 +218,16 @@ fn a_text_field_takes_typing_and_backspace() {
     assert_eq!(app.program.greeting.as_deref(), Some("Hello, Ada Byron!"));
     app.click("Greeting/Close");
     assert_eq!(app.program.greeting, None);
+}
+
+// A greeting of a long name wraps, and its info bar is as tall as it wraps
+// to, on the frame of the press on Greet.
+#[test]
+fn a_greeting_of_a_long_name_is_as_tall_as_it_wraps_to() {
+    let mut app = showcase();
+    app.click("Name").type_text(&"W".repeat(40)).click("Greet");
+    let greeting = app.target("Greeting");
+    assert!(greeting.height > INFO_BAR_MIN_HEIGHT, "{greeting:?}");
 }
 
 #[test]
