@@ -162,6 +162,28 @@ fn saving_and_loading() {
     assert!(Mesh::load(&missing).unwrap_err().starts_with(&format!("Couldn't read {}: ", missing.display())));
 }
 
+// Saving writes a new file that takes the old one's place, rather than
+// writing into the old one, so that a save that fails part of the way leaves
+// the last one whole: a hard link to the old file keeps what it had.
+#[test]
+fn saving_replaces_the_old_file_rather_than_writing_into_it() {
+    let folder = Path::new(env!("CARGO_TARGET_TMPDIR")).join("PolygonMeshReplace");
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(&folder).unwrap();
+    let path = folder.join("Mesh.json");
+    let old = folder.join("Old.json");
+    primitives::cube(1.0).save(&path).unwrap();
+    std::fs::hard_link(&path, &old).unwrap();
+    let torus = primitives::torus(1.0, 0.25, 8, 6);
+    torus.save(&path).unwrap();
+    assert_eq!(Mesh::load(&path).unwrap(), torus);
+    assert_eq!(Mesh::load(&old).unwrap(), primitives::cube(1.0));
+    let mut names: Vec<String> =
+        std::fs::read_dir(&folder).unwrap().map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    assert_eq!(names, ["Mesh.json", "Old.json"]);
+}
+
 #[test]
 fn obj_has_the_positions_and_the_faces_by_material() {
     let mut mesh = Mesh::new();

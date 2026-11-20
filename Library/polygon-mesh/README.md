@@ -331,6 +331,10 @@ exactly:
 in its JSON. They read only meshes that `Mesh::validate` passes, with each crease on an edge of a
 face.
 
+`save` writes a new file beside the old one, named like it with `.partial` after, which then takes
+the old one's place, so a save that fails part of the way, like on a full disk, leaves the last
+one whole.
+
 `to_obj` gives the mesh as Wavefront OBJ, for other programs: its positions, and its faces, with
 a `usemtl` of each face's material, `Material0` for material 0, wherever the material changes.
 OBJ has no creases.

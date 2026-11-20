@@ -6,6 +6,7 @@
 
 use std::cell::RefCell;
 use std::collections::BTreeSet;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -259,7 +260,7 @@ impl Document {
         self.mesh.validate().map_err(|error| format!("The model can't be saved: {error}"))?;
         std::fs::create_dir_all(folder).map_err(|error| format!("Couldn't make the folder {}: {error}.", folder.display()))?;
         let path = file_path(folder, &self.name);
-        std::fs::write(&path, self.to_json()).map_err(|error| format!("Couldn't write {}: {error}.", path.display()))?;
+        write_replacing(&path, &self.to_json()).map_err(|error| format!("Couldn't write {}: {error}.", path.display()))?;
         self.dirty = false;
         Ok(path)
     }
@@ -274,13 +275,32 @@ impl Document {
     pub fn export_obj(&self, folder: &Path) -> Result<PathBuf, String> {
         std::fs::create_dir_all(folder).map_err(|error| format!("Couldn't make the folder {}: {error}.", folder.display()))?;
         let path = folder.join(format!("{}.obj", self.name));
-        std::fs::write(&path, self.mesh.to_obj()).map_err(|error| format!("Couldn't write {}: {error}.", path.display()))?;
+        write_replacing(&path, &self.mesh.to_obj()).map_err(|error| format!("Couldn't write {}: {error}.", path.display()))?;
         Ok(path)
     }
 }
 
 pub fn file_path(folder: &Path, name: &str) -> PathBuf {
     folder.join(format!("{name}.json"))
+}
+
+// Writes the file whole, or leaves it as it was: into a file beside it, named
+// like it with ".partial" after, which then takes its place. A save that
+// fails part of the way, like on a full disk, leaves the last one whole.
+fn write_replacing(path: &Path, contents: &str) -> std::io::Result<()> {
+    let mut partial = path.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let write = || -> std::io::Result<()> {
+        let mut file = std::fs::File::create(&partial)?;
+        file.write_all(contents.as_bytes())?;
+        file.sync_all()
+    };
+    let written = write().and_then(|()| std::fs::rename(&partial, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    written
 }
 
 // The documents in the folder, by name, in order.

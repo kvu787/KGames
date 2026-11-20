@@ -80,6 +80,34 @@ fn a_broken_mesh_refuses_to_save() {
     assert!(std::fs::read_dir(&folder).unwrap().next().is_none(), "nothing was written");
 }
 
+// Saving and exporting write a new file that takes the old one's place,
+// rather than writing into the old one, so that a write that fails part of
+// the way leaves the last good save whole: a hard link to the old file keeps
+// what it had. Nothing else is left beside them.
+#[test]
+fn saving_and_exporting_replace_the_old_file_rather_than_writing_into_it() {
+    let folder = folder("Replace");
+    let mut document = Document::new();
+    document.name = "Kept".to_string();
+    let model = document.save(&folder).unwrap();
+    let obj = document.export_obj(&folder).unwrap();
+    let old = [model, obj].map(|path| {
+        let link = PathBuf::from(format!("{}.old", path.display()));
+        std::fs::hard_link(&path, &link).unwrap();
+        (link, std::fs::read_to_string(&path).unwrap())
+    });
+    document.mesh = primitives::torus(1.0, 0.25, 12, 8);
+    document.save(&folder).unwrap();
+    document.export_obj(&folder).unwrap();
+    for (link, text) in &old {
+        assert_eq!(&std::fs::read_to_string(link).unwrap(), text, "{}", link.display());
+    }
+    assert_eq!(Document::open(&folder, "Kept").unwrap().mesh, document.mesh);
+    let mut names: Vec<String> = std::fs::read_dir(&folder).unwrap().map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    assert_eq!(names, ["Kept.json", "Kept.json.old", "Kept.obj", "Kept.obj.old"]);
+}
+
 #[test]
 fn save_as_open_and_new_go_through_their_dialogs() {
     let folder = folder("Dialogs");

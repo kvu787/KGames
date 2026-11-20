@@ -26,7 +26,9 @@
 use crate::{Edge, Face, INFINITELY_SHARP, Mesh};
 use json::Value;
 use std::fmt::Write;
-use std::path::Path;
+use std::fs::File;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
 
 const NAMES: [&str; 4] = ["Positions", "Faces", "Materials", "Creases"];
 const MEMBERS: &str = "Positions, Faces, Materials and Creases";
@@ -159,8 +161,11 @@ impl Mesh {
         Ok(mesh)
     }
 
+    // Saves the mesh as JSON, into a new file that then takes the old one's
+    // place, so that a save that fails part of the way, like on a full
+    // disk, leaves the last one whole.
     pub fn save(&self, path: &Path) -> Result<(), String> {
-        std::fs::write(path, self.to_json()).map_err(|error| format!("Couldn't save {}: {error}", path.display()))
+        write_replacing(path, &self.to_json()).map_err(|error| format!("Couldn't save {}: {error}", path.display()))
     }
 
     pub fn load(path: &Path) -> Result<Mesh, String> {
@@ -192,6 +197,24 @@ impl Mesh {
         }
         text
     }
+}
+
+// Writes the file whole, or leaves it as it was: into a file beside it, named
+// like it with ".partial" after, which then takes its place.
+fn write_replacing(path: &Path, contents: &str) -> std::io::Result<()> {
+    let mut partial = path.as_os_str().to_owned();
+    partial.push(".partial");
+    let partial = PathBuf::from(partial);
+    let write = || -> std::io::Result<()> {
+        let mut file = File::create(&partial)?;
+        file.write_all(contents.as_bytes())?;
+        file.sync_all()
+    };
+    let written = write().and_then(|()| std::fs::rename(&partial, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    written
 }
 
 // The float's shortest decimal that reads back as the same float, or null,

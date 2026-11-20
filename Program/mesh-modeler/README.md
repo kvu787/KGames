@@ -96,9 +96,10 @@ picked on it, as the faces of the cage that they come from.
 mesh, in PolygonMesh's format, and the paints, each a `Name` and its settings in
 [Library/paint-settings](../../Library/paint-settings/README.md)'s format. **Open** lists what's
 there. **Export OBJ** writes `Models/<name>.obj` beside it, with the mesh's positions and faces.
-A model that was never saved asks for its name first, and **New** and **Open** ask before changes
-are lost. Closing the window, with F12 or the taskbar's Close, quits at once, without asking, as
-in every KGames program.
+Each writes a new file that then takes the old one's place, so one that fails part of the way,
+like on a full disk, leaves the last whole. A model that was never saved asks for its name first,
+and **New** and **Open** ask before changes are lost. Closing the window, with F12 or the
+taskbar's Close, quits at once, without asking, as in every KGames program.
 
 ## Build and run
 
