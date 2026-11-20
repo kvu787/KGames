@@ -90,6 +90,7 @@ fn a_torn_flip_is_on_the_screen_when_it_flips() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::IndependentFlip,
             tearing: true,
             screen: Some(210),
@@ -165,6 +166,7 @@ fn a_composed_present_is_on_the_screen_with_dwm_s_frame() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::ComposedFlip,
             tearing: false,
             screen: Some(310),
@@ -258,6 +260,7 @@ fn a_present_of_an_api_without_events_of_its_own_is_reported() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: 0,
             mode: PresentMode::ComposedFlip,
             tearing: false,
             screen: Some(310),
@@ -292,6 +295,7 @@ fn a_fullscreen_exclusive_flip_is_a_legacy_flip_on_the_screen_at_the_sync() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::LegacyFlip,
             tearing: false,
             screen: Some(220),
@@ -334,6 +338,7 @@ fn a_fullscreen_exclusive_copy_is_on_the_screen_when_its_queue_packet_is_done() 
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::LegacyCopy,
             tearing: true,
             screen: Some(230),
@@ -396,6 +401,7 @@ fn a_copy_made_on_the_gpu_for_dwm_is_on_the_screen_with_dwm_s_frame() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::ComposedGpuCopy,
             tearing: false,
             screen: Some(310),
@@ -439,6 +445,7 @@ fn a_copy_made_on_the_cpu_for_dwm_is_on_the_screen_with_dwm_s_frame() {
         vec![Present {
             start: 200,
             thread: THREAD,
+            swap_chain: SWAP_CHAIN,
             mode: PresentMode::ComposedCpuCopy,
             tearing: false,
             screen: Some(310),
@@ -464,16 +471,23 @@ fn nvidia_s_flip_delay_puts_a_flip_later() {
     assert_eq!(presents[0].screen, Some(232));
 }
 
-#[test]
-fn a_flip_delayed_past_the_next_puts_the_next_on_the_screen_with_it() {
-    let present = |start: i64, screen: i64, flip_delay: i64| Present {
+// A present of a swap chain, which started at a time, and the display took
+// at a time, after NVIDIA's flip delay.
+fn delayed(swap_chain: u64, start: i64, screen: i64, flip_delay: i64) -> Present {
+    Present {
         start,
         thread: THREAD,
+        swap_chain,
         mode: PresentMode::IndependentFlip,
         tearing: true,
         screen: Some(screen),
         flip_delay,
-    };
+    }
+}
+
+#[test]
+fn a_flip_delayed_past_the_next_puts_the_next_on_the_screen_with_it() {
+    let present = |start: i64, screen: i64, flip_delay: i64| delayed(SWAP_CHAIN, start, screen, flip_delay);
     // In the order they started, whatever order they came in.
     let mut corrector = Corrector::default();
     let corrected = corrector.correct(vec![present(200, 260, 50), present(100, 150, 0)]);
@@ -490,4 +504,22 @@ fn a_flip_delayed_past_the_next_puts_the_next_on_the_screen_with_it() {
     corrector.correct(vec![present(200, 260, 0)]);
     let corrected = corrector.correct(vec![present(300, 250, 0)]);
     assert_eq!(corrected[0].screen, Some(250));
+}
+
+// As in PresentMon, which keeps each swap chain's last present on the
+// screen: a game that presents to two swap chains doesn't get one's presents
+// put on the screen with the other's.
+#[test]
+fn a_flip_delayed_past_the_next_moves_only_its_own_swap_chain_s_next() {
+    const OTHER: u64 = 0xDEF;
+    let mut corrector = Corrector::default();
+    let corrected = corrector.correct(vec![delayed(SWAP_CHAIN, 100, 260, 50), delayed(OTHER, 200, 250, 0)]);
+    assert_eq!(corrected[1].screen, Some(250));
+    assert_eq!(corrected[1].flip_delay, 0);
+    // The delayed one's swap chain's next present still goes with it.
+    let corrected = corrector.correct(vec![delayed(SWAP_CHAIN, 300, 255, 0)]);
+    assert_eq!(corrected[0].screen, Some(260));
+    // And the other's, which had no delay, still doesn't.
+    let corrected = corrector.correct(vec![delayed(OTHER, 400, 240, 0)]);
+    assert_eq!(corrected[0].screen, Some(240));
 }

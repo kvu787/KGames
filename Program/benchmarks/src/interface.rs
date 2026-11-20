@@ -337,6 +337,7 @@ pub fn perf_bar(budget: Budget) -> Vec<Measurement> {
         performance.known(vec![present_timing::Present {
             start: present + 5,
             thread: 1,
+            swap_chain: 0,
             mode: present_timing::PresentMode::IndependentFlip,
             tearing: true,
             screen: Some(present + (0.004 * frequency) as i64),

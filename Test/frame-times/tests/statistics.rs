@@ -16,6 +16,7 @@ fn shown(screen: i64, mode: PresentMode) -> Present {
     Present {
         start: (screen - 5) * MILLISECOND,
         thread: 1,
+        swap_chain: 0,
         mode,
         tearing: false,
         screen: Some(screen * MILLISECOND),
@@ -29,6 +30,7 @@ fn missed(start: i64, mode: PresentMode) -> Present {
     Present {
         start: start * MILLISECOND,
         thread: 1,
+        swap_chain: 0,
         mode,
         tearing: false,
         screen: None,

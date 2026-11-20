@@ -960,6 +960,7 @@ impl Tracker {
                 self.output.push(Present {
                     start: present.start,
                     thread: present.thread,
+                    swap_chain: present.swap_chain,
                     mode: match present.mode {
                         Mode::Unknown => PresentMode::Unknown,
                         Mode::LegacyFlip => PresentMode::LegacyFlip,

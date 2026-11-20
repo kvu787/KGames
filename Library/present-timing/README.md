@@ -45,7 +45,9 @@ A present that a newer one replaced before the screen took it, that the kernel f
 to copy, or that DXGI or Direct3D 9 says is occluded, never reaches the screen. Like PresentMon, the
 first present to complete, and the ones under way then, are taken as lost, since their earlier
 events may not have been seen. PresentMon's console then puts a present that NVIDIA's flip delay
-would put before the one before it on the screen with that one, which `Corrector` does too.
+would put before the one before it of the same swap chain on the screen with that one, which
+`Corrector` does too, by each present's `swap_chain`, so that one swap chain's presents never move
+another's.
 
 ## Present modes
 

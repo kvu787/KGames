@@ -45,6 +45,7 @@ fn measuring_in(mode: PresentMode, immediate: bool, apart: f64, latency: f64, wi
         presents.push(Present {
             start: frame.present + 5,
             thread: 1,
+            swap_chain: 0,
             mode,
             tearing: immediate,
             screen: Some(input + ticks(latency)),

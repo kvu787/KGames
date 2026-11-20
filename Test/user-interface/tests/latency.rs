@@ -22,6 +22,7 @@ fn present(called: i64, screen: Option<i64>) -> Present {
     Present {
         start: called + 5,
         thread: 1,
+        swap_chain: 0,
         mode: PresentMode::IndependentFlip,
         tearing: true,
         screen,

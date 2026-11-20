@@ -8,6 +8,7 @@ pub mod events;
 mod session;
 pub mod tracker;
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use windows_api_raw::QueryPerformanceFrequency;
@@ -84,6 +85,10 @@ pub struct Present {
     pub start: i64,
     // The thread that called Present.
     pub thread: u32,
+    // The swap chain it presented, as PresentMon tells them apart: DXGI's or
+    // Direct3D 9's, by its address, or for other APIs, the overlay plane it
+    // flipped on, as its source and layer, or 0 if its events didn't say.
+    pub swap_chain: u64,
     pub mode: PresentMode,
     // Whether its flip could tear, reaching the screen mid-refresh.
     pub tearing: bool,
@@ -180,13 +185,22 @@ pub fn read_file(path: &std::path::Path, process: u32) -> Result<(Vec<Present>, 
 
 // What PresentMon's console does to the presents that it reads, before it
 // times them: in the order they started, a present that NVIDIA's flip delay
-// would put on the screen before the one before it goes on the screen with
-// that one.
+// would put on the screen before the one before it of the same swap chain
+// goes on the screen with that one. PresentMon keeps the last present on the
+// screen of each swap chain (SwapChainCoreState's lastDisplayedScreenTime and
+// lastDisplayedFlipDelay), so one swap chain's presents never move
+// another's.
 #[derive(Default)]
 pub struct Corrector {
-    last_screen: i64,
-    last_flip_delay: i64,
-    last_start: i64,
+    last: HashMap<u64, Last>,
+}
+
+// A swap chain's last present on the screen.
+#[derive(Clone, Copy, Default)]
+struct Last {
+    screen: i64,
+    flip_delay: i64,
+    start: i64,
 }
 
 impl Corrector {
@@ -196,18 +210,21 @@ impl Corrector {
             let Some(screen) = present.screen else {
                 continue;
             };
-            if present.start == self.last_start {
+            let last = self.last.entry(present.swap_chain).or_default();
+            if present.start == last.start {
                 continue;
             }
             let mut screen = screen;
-            if self.last_flip_delay != 0 && self.last_screen > screen {
-                present.flip_delay += self.last_screen - screen;
-                screen = self.last_screen;
+            if last.flip_delay != 0 && last.screen > screen {
+                present.flip_delay += last.screen - screen;
+                screen = last.screen;
                 present.screen = Some(screen);
             }
-            self.last_screen = screen;
-            self.last_flip_delay = present.flip_delay;
-            self.last_start = present.start;
+            *last = Last {
+                screen,
+                flip_delay: present.flip_delay,
+                start: present.start,
+            };
         }
         presents
     }
