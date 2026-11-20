@@ -253,17 +253,17 @@ impl Editor {
     }
 
     // The element under the pointer, in the selection mode: the nearest
-    // vertex or edge within PICK_RADIUS pixels, or the face hit, that the
-    // mesh doesn't hide, unless in X-ray or over a subdivided surface. A
-    // face hides a vertex, or the point of an edge nearest the pointer, if
-    // the ray through that point, not the pointer's, hits it in front of the
-    // point: on a face that recedes from the camera, the face under a
-    // pointer a few pixels away is well in front of what's on it.
+    // vertex or edge within PICK_RADIUS pixels, or the face hit, that what
+    // the view draws doesn't hide, unless in X-ray: the mesh, or its surface
+    // when it's subdivided, as the view hides the cage behind it. A face
+    // hides a vertex, or the point of an edge nearest the pointer, if the ray
+    // through that point, not the pointer's, hits it in front of the point:
+    // on a face that recedes from the camera, the face under a pointer a few
+    // pixels away is well in front of what's on it.
     pub fn pick(&self, document: &Document, camera: &Camera, view: Rect, pointer: Point, see_through: bool, drawn: Drawn) -> Option<Element> {
         let mesh = &document.mesh;
-        let surface = drawn.surface;
         let hidden = |point: Vector3| -> bool {
-            if see_through || surface.is_some() {
+            if see_through {
                 return false;
             }
             let (origin, direction) = camera.ray(camera.to_screen(point, view).0, view);

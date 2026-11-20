@@ -84,8 +84,8 @@ like Merge without two vertices, show in the status bar.
 
 Picking finds the nearest vertex or edge within 12 pixels of the pointer, or the face under it,
 that the mesh doesn't hide, unless X-ray is on. A box selects what's in it, hidden or not.
-Subdivided, faces are picked on the smooth surface, as the faces of the cage that they come
-from.
+Subdivided, the smooth surface is what hides the cage, as the view shows it, and faces are
+picked on it, as the faces of the cage that they come from.
 
 ## Files
 

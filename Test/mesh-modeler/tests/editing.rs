@@ -578,6 +578,21 @@ fn ctrl_and_a_digit_subdivide_the_view_s_surface() {
     assert_eq!(app.program.document.selection.faces.len(), 1);
     // Subdivision is how the view shows the model, not a change to it.
     assert_eq!(app.program.document.mesh.faces.len(), 6);
+    // The surface hides the cage's corner behind it, as the view does,
+    // until X-ray shows it, but not the corners in front of it.
+    app.key(Key::DIGIT_1);
+    let back = vertex_at(&app, [-1.0, -1.0, -1.0]);
+    app.click_point(screen(&app, [-1.0, -1.0, -1.0]));
+    assert!(app.program.document.selection.is_empty());
+    app.click_point(screen(&app, [1.0, 1.0, 1.0]));
+    let picked: Vec<u32> = app.program.document.selection.vertices.iter().copied().collect();
+    assert_eq!(picked, vec![vertex_at(&app, [1.0, 1.0, 1.0])]);
+    app.key_with(Modifiers::ALT, Key::Z);
+    app.click_point(screen(&app, [-1.0, -1.0, -1.0]));
+    let picked: Vec<u32> = app.program.document.selection.vertices.iter().copied().collect();
+    assert_eq!(picked, vec![back]);
+    app.key_with(Modifiers::ALT, Key::Z);
+    app.key(Key::DIGIT_3);
     app.key_with(Modifiers::CONTROL, Key::DIGIT_0);
     assert_eq!(number(&app, &["SurfaceFaces"]), 6.0);
 }
