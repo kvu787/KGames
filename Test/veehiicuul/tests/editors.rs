@@ -395,3 +395,25 @@ fn undo_during_a_drag_drops_the_pick() {
     app.move_point(offset(at, 30.0, 0.0)).release();
     assert_eq!(app.program.game.current_scene().decorations.len(), 1);
 }
+
+// Undo during a held drag of a point that Add points just added takes the
+// point away, and ends the drag on the undo's frame, so that it doesn't go on
+// to move the point that took its place, and the redo stays.
+#[test]
+fn undo_during_a_drag_of_an_added_point_ends_the_drag() {
+    let mut app = start("UndoAddedPoint");
+    app.click("Mode/Track").click("Track/Tool/Add points");
+    let road = app.program.game.current_scene().track.road.clone();
+    let on_the_road = curve::sample(&road)[100];
+    look_at(&mut app, on_the_road);
+    let at = screen(&app, on_the_road);
+    app.press_point(at);
+    assert_eq!(app.program.game.current_scene().track.road.len(), road.len() + 1);
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.game.current_scene().track.road, road, "the undo took the new point away");
+    app.move_point(offset(at, 40.0, 30.0));
+    assert_eq!(app.program.game.current_scene().track.road, road, "and the drag ended with it");
+    app.release();
+    assert_eq!(app.program.game.current_scene().track.road, road);
+    assert!(app.program.can_redo(), "the redo is still there");
+}

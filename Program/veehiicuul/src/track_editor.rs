@@ -76,6 +76,12 @@ fn handle(track: &Track) -> [f64; 2] {
 }
 
 impl TrackEditor {
+    // Ends a drag, after an undo or a redo: what it dragged, like a point
+    // that Add points added, may be gone, or be another point now.
+    pub fn end_drag(&mut self) {
+        self.drag = None;
+    }
+
     // What the pointer in the view does: the tool, on the curves' points,
     // the start, or the whole track.
     pub fn view_input(&mut self, input: GroundInput, track: &mut Track, eye: Eye, size: [f32; 2]) {

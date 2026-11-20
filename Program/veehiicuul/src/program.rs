@@ -197,13 +197,15 @@ impl Veehiicuul {
     }
 
     // Undo and redo switch to the scene or the vehicle that they bring back,
-    // if it's another, as the game's clock has it.
+    // if it's another, as the game's clock has it, and end the track
+    // editor's drag, which was of the document they replace.
     pub fn undo(&mut self) {
         self.commit();
         if let Some(before) = self.undo.pop() {
             let after = self.game.replace_document(before, self.clock);
             self.redo.push(after);
             self.committed = self.game.document.clone();
+            self.track_editor.end_drag();
         }
     }
 
@@ -212,6 +214,7 @@ impl Veehiicuul {
             let before = self.game.replace_document(after, self.clock);
             self.undo.push(before);
             self.committed = self.game.document.clone();
+            self.track_editor.end_drag();
         }
     }
 
