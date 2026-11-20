@@ -4,7 +4,7 @@
     { "Frame": 3, "Click": "Rotation" },
     { "Frame": 5, "Click": "Light Point" },
     {
-      "Frame": 7,
+      "Frame": 5,
       "Expect": {
         "Parameters": { "Shift": 0.5, "RotationDegrees": 180.0, "DarkPoint": 0.0, "LightPoint": 0.5 },
         "Selected": "Light Point",
@@ -20,7 +20,7 @@
     { "Frame": 38, "Scroll": { "At": "B", "Notches": -400 } },
     { "Frame": 39, "Move": [1200, 1300] },
     {
-      "Frame": 40,
+      "Frame": 39,
       "Expect": {
         "Parameters": { "BaseColor": [0.9, 0.5, 0.1], "Shift": 0.5, "LightPoint": 0.5 },
         "Selected": "B"
