@@ -131,7 +131,10 @@ fn banner(game: &Game, tree: &mut Tree<Message>, view: Rect) {
         RunState::Running => return,
         RunState::Finished(seconds) => {
             let best = game.progress.best[game.level];
+            // The progress stays dirty when Save.json couldn't be written,
+            // and the status bar says why.
             let note = match best {
+                Some(best) if seconds <= best && game.progress.dirty => "A new record, not saved.".to_string(),
                 Some(best) if seconds <= best => "A new record, saved.".to_string(),
                 Some(best) => format!("The best is {best:.2} s."),
                 None => String::new(),
@@ -145,7 +148,8 @@ fn banner(game: &Game, tree: &mut Tree<Message>, view: Rect) {
 }
 
 // The banner's face: a card-colored plate with the outcome and what R does,
-// a target for scripts, which see it the frame the run ends.
+// a target for scripts, which see it, and all it says, the frame the run
+// ends.
 struct Banner {
     title: String,
     line: String,
@@ -157,7 +161,7 @@ impl Widget<Message> for Banner {
     }
 
     fn label(&self) -> Option<String> {
-        Some(self.title.clone())
+        Some(format!("{}. {}", self.title, self.line))
     }
 
     fn sense(&self) -> Option<Sense> {

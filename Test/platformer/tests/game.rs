@@ -87,11 +87,8 @@ fn the_frame_that_collects_a_coin_already_counts_it() {
     assert!(events.to_json().contains("CoinCollected 0"), "{}", events.to_json());
 }
 
-// The banner, the record and the saved file are all there on the frame that
-// reaches the goal.
-#[test]
-fn the_goal_frame_shows_the_banner_and_saves() {
-    let mut app = start("Goal");
+// Every coin collected, the door open, and the player a step from the goal.
+fn at_the_goal(app: &mut Headless<Platformer>) {
     let game = &mut app.program.game;
     let total = game.total_coins();
     game.collected[..total].fill(true);
@@ -100,13 +97,39 @@ fn the_goal_frame_shows_the_banner_and_saves() {
     let goal = game.current().goal;
     game.player.position = [goal.x + 0.5, 0.55];
     game.player.velocity = [0.0, 0.0];
+}
+
+// The banner, the record and the saved file are all there on the frame that
+// reaches the goal.
+#[test]
+fn the_goal_frame_shows_the_banner_and_saves() {
+    let mut app = start("Goal");
+    at_the_goal(&mut app);
     assert!(!app.has_target("Banner"));
     app.frame();
     assert_eq!(state(&app, "State"), Value::String("Finished".to_string()));
     assert!(app.has_target("Banner"), "the banner is on the goal's own frame");
+    let banner = app.label("Banner").unwrap_or_default();
+    assert!(banner.contains("A new record, saved."), "{banner}");
     assert_eq!(state(&app, "Status"), Value::String("Saved Save.json".to_string()));
     assert!(save_folder("Goal").join("Save.json").is_file(), "the store was written in the frame");
     assert_eq!(state(&app, "Unlocked"), Value::Number(2.0));
+}
+
+// A record that Save.json couldn't take isn't called saved: on the goal's
+// frame, the banner says it wasn't, and the status bar says why.
+#[test]
+fn a_record_that_couldnt_be_saved_isnt_called_saved() {
+    let mut app = start("GoalUnsaved");
+    // A folder where the file goes, so that writing it fails.
+    std::fs::create_dir_all(save_folder("GoalUnsaved").join("Save.json")).unwrap();
+    at_the_goal(&mut app);
+    app.frame();
+    assert_eq!(state(&app, "State"), Value::String("Finished".to_string()));
+    let status = state(&app, "Status");
+    assert!(matches!(&status, Value::String(text) if text.starts_with("Couldn't write Save.json")), "{status:?}");
+    let banner = app.label("Banner").unwrap_or_default();
+    assert!(banner.contains("A new record, not saved.") && !banner.contains(", saved."), "{banner}");
 }
 
 #[test]
