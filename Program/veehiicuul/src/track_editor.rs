@@ -61,7 +61,10 @@ pub struct TrackEditor {
     // islands.
     pub curve: usize,
     drag: Option<Drag>,
-    // The control point under the pointer, for the ring the overlay draws.
+    // Where the pointer is in the view, unless it pans, and the control
+    // point under it, for the ring the overlay draws, which `hover` finds
+    // once the step's edits are done.
+    pointer: Option<[f32; 2]>,
     under: Option<[f64; 2]>,
 }
 
@@ -75,6 +78,14 @@ fn handle(track: &Track) -> [f64; 2] {
     [track.start.position[0] + sin * HANDLE, track.start.position[1] + cos * HANDLE]
 }
 
+// The control point under the pointer, as its curve and its index there.
+fn point_under(track: &Track, eye: &Eye, size: [f32; 2], cursor: [f32; 2]) -> Option<(usize, usize)> {
+    track
+        .curves()
+        .enumerate()
+        .find_map(|(curve, points)| nearest(eye, size, cursor, points, REACH).map(|index| (curve, index)))
+}
+
 impl TrackEditor {
     // Ends a drag, after an undo or a redo: what it dragged, like a point
     // that Add points added, may be gone, or be another point now.
@@ -82,15 +93,26 @@ impl TrackEditor {
         self.drag = None;
     }
 
+    // Finds the control point under the pointer, once the step's edits are
+    // done, in the track as they left it, so that a frame rings what's
+    // under the pointer after an edit that changes what's there, like an
+    // undo that takes the point away.
+    pub fn hover(&mut self, track: &Track, eye: Eye, size: [f32; 2]) {
+        self.under = self
+            .pointer
+            .and_then(|cursor| point_under(track, &eye, size, cursor))
+            .and_then(|(curve, index)| track.curves().nth(curve).map(|points| points[index]));
+    }
+
+    // Where the control point under the pointer is, if there's one.
+    pub fn under(&self) -> Option<[f64; 2]> {
+        self.under
+    }
+
     // What the pointer in the view does: the tool, on the curves' points,
     // the start, or the whole track.
     pub fn view_input(&mut self, input: GroundInput, track: &mut Track, eye: Eye, size: [f32; 2]) {
-        let point_under = |track: &Track, cursor: [f32; 2]| {
-            track
-                .curves()
-                .enumerate()
-                .find_map(|(curve, points)| nearest(&eye, size, cursor, points, REACH).map(|index| (curve, index)))
-        };
+        let point_under = |track: &Track, cursor: [f32; 2]| point_under(track, &eye, size, cursor);
         if input.pressed
             && !input.panning
             && let (Some(cursor), Some(ground)) = (input.cursor, input.ground)
@@ -155,11 +177,7 @@ impl TrackEditor {
         if !input.held {
             self.drag = None;
         }
-        self.under = input
-            .cursor
-            .filter(|_| !input.panning)
-            .and_then(|cursor| point_under(track, cursor))
-            .and_then(|(curve, index)| track.curves().nth(curve).map(|points| points[index]));
+        self.pointer = input.cursor.filter(|_| !input.panning);
     }
 
     // A control on the card.

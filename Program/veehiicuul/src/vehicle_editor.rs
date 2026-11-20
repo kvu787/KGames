@@ -53,7 +53,10 @@ pub struct VehicleEditor {
     pub slot: usize,
     // The side of the footprint being dragged, as an index of SIDES.
     drag: Option<usize>,
-    // The side under the pointer, for the handles the overlay draws.
+    // Where the pointer is in the view, unless it pans, and the side under
+    // it, for the handles the overlay draws, which `hover` finds once the
+    // step's edits are done.
+    pointer: Option<[f32; 2]>,
     under: Option<usize>,
     name_text: String,
     pub message: String,
@@ -65,6 +68,7 @@ impl Default for VehicleEditor {
             viewport: Viewport::new([0.0, 0.0], 12.0),
             slot: 0,
             drag: None,
+            pointer: None,
             under: None,
             name_text: String::new(),
             message: String::new(),
@@ -89,23 +93,37 @@ impl VehicleEditor {
         self.name_text = document.vehicles.list[vehicle].name.clone();
     }
 
-    // What the pointer in the view does: a drag moves a side of the
-    // footprint.
-    pub fn view_input(&mut self, input: GroundInput, document: &mut Document, vehicle: usize, size: [f32; 2]) {
+    // Finds the side of the footprint under the pointer, once the step's
+    // edits are done, in the footprint as they left it, so that a frame
+    // shows the handle of what's under the pointer after an edit that
+    // changes what's there, like an undo that puts a side back.
+    pub fn hover(&mut self, document: &Document, vehicle: usize, size: [f32; 2]) {
         let eye = self.viewport.eye;
-        let heading = SHOWN_HEADING.to_radians();
-        let current = &mut document.vehicles.list[vehicle];
-        let mut values = sides(&current.footprint);
-        let corners = current.footprint.corners([0.0, 0.0], heading);
-        self.under = input.cursor.filter(|_| !input.panning).and_then(|cursor| {
+        let corners = document.vehicles.list[vehicle].footprint.corners([0.0, 0.0], SHOWN_HEADING.to_radians());
+        self.under = self.pointer.and_then(|cursor| {
             (0..4).find(|&side| {
                 let [a, b] = side_corners(corners)[side].map(|corner| eye.ground_to_screen(corner, size));
                 distance_to_segment(cursor, a, b) <= REACH
             })
         });
+    }
+
+    // The side of the footprint under the pointer, as an index of SIDES.
+    pub fn under(&self) -> Option<usize> {
+        self.under
+    }
+
+    // What the pointer in the view does: a drag moves a side of the
+    // footprint.
+    pub fn view_input(&mut self, input: GroundInput, document: &mut Document, vehicle: usize, size: [f32; 2]) {
+        let heading = SHOWN_HEADING.to_radians();
+        self.pointer = input.cursor.filter(|_| !input.panning);
         if input.pressed && !input.panning {
+            self.hover(document, vehicle, size);
             self.drag = self.under;
         }
+        let current = &mut document.vehicles.list[vehicle];
+        let mut values = sides(&current.footprint);
         // The drag follows the pointer to where it's let go of.
         if let (Some(side), Some(ground)) = (self.drag, input.ground) {
             let (sin, cos) = heading.sin_cos();

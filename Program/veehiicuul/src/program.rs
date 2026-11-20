@@ -527,6 +527,11 @@ impl Program for Veehiicuul {
                 if !ctx.is_focused("Vehicles/Name") {
                     self.vehicle_editor.sync_name(&self.game.document, self.game.vehicle);
                 }
+                // What's under the pointer in the editors' views, in the
+                // document as the step's edits left it.
+                let size = [ctx.size().width, ctx.size().height];
+                self.track_editor.hover(&current.track, self.viewport.eye, size);
+                self.vehicle_editor.hover(&self.game.document, self.game.vehicle, size);
                 // A drag is one change, as of when it's let go of.
                 if !ctx.input().button_down(MouseButton::Left) {
                     self.commit();

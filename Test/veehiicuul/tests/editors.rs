@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use user_interface::json::Value;
 use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Headless, Key, Modifiers, Point, Startup};
+use user_interface::{Event, Headless, Key, Modifiers, Point, Startup};
 use veehiicuul::{camera, curve};
 use veehiicuul::program::{Message, PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
 use veehiicuul::scene_editor::Picked;
@@ -236,6 +236,24 @@ fn the_track_builder_moves_adds_and_deletes_points() {
     let moved = app.program.game.current_scene().track.start;
     assert!(near(moved.position, ground(&app, to)));
     assert_eq!(moved.heading, start.heading);
+}
+
+// The ring around the control point under the pointer is of the track as the
+// frame's edits leave it: an undo that takes the point back from under the
+// pointer takes its ring away on the undo's frame, not the frame after.
+#[test]
+fn an_undo_takes_the_ring_from_a_point_that_it_takes_from_under_the_pointer() {
+    let mut app = start("TrackHover");
+    app.click("Mode/Track");
+    let first = app.program.game.current_scene().track.road[0];
+    look_at(&mut app, first);
+    let from = screen(&app, first);
+    app.drag(from, offset(from, 40.0, 30.0), 3);
+    let moved = app.program.game.current_scene().track.road[0];
+    assert_eq!(app.program.track_editor.under(), Some(moved));
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::Z)]);
+    assert_eq!(app.program.game.current_scene().track.road[0], first);
+    assert_eq!(app.program.track_editor.under(), None);
 }
 
 // A track with a problem says so, in the Track tab's card, and in Play's,
