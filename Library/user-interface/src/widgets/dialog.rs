@@ -151,7 +151,10 @@ impl<M: Clone + 'static> Dialog<M> {
         let commands_height = DIALOG_PADDING * 2.0 + CONTROL_HEIGHT;
         let height = (top_height + commands_height).max(DIALOG_MIN_HEIGHT);
         let rect = bounds.centered(Size::new(width, height)).round();
-        let content_top = rect.y + DIALOG_PADDING + title_height + gap(message_height + content_height) + message_height + gap(content_height);
+        // Under the title, and the message if there is one, each with its
+        // gap, as top_height has them.
+        let message_gap = if message_height > 0.0 { gap(content_height) } else { 0.0 };
+        let content_top = rect.y + DIALOG_PADDING + title_height + gap(message_height + content_height) + message_height + message_gap;
         Metrics {
             rect,
             inner,

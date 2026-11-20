@@ -718,6 +718,39 @@ fn a_dialog_s_lone_button_takes_the_right_half_of_its_row() {
     let row = dialog.width - padding * 2.0;
     assert_eq!((close.right(), close.width), (dialog.right() - padding, ((row - gap) / 2.0).floor()));
 }
+// A dialog with content of its own under its title, and no message.
+struct Bare;
+
+impl Program for Bare {
+    type Message = DialogResult;
+
+    fn title(&self) -> String {
+        "Bare".to_string()
+    }
+
+    fn update(&mut self, _result: DialogResult, _ui: &mut Context<DialogResult>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<DialogResult> {
+        let mut tree = Tree::new();
+        let dialog = Dialog::new("Pick one", "").primary("OK").content_height(100.0).on_result(|result| result);
+        let area = dialog.area(ui);
+        tree.container(Some("Bare"), area.rect, dialog, |dialog| {
+            dialog.add("Inside", area.content, Button::new("Inside"));
+        });
+        tree
+    }
+}
+
+// A dialog's content without a message is one gap under its title, and its
+// padding over the command row, which the dialog's height has room for.
+#[test]
+fn a_dialog_s_content_without_a_message_has_its_padding_under_it() {
+    let app = Headless::new(Bare);
+    let (dialog, inside) = (app.target("Bare"), app.target("Inside"));
+    let padding = user_interface::controls::DIALOG_PADDING;
+    let commands = padding * 2.0 + user_interface::tokens::CONTROL_HEIGHT;
+    assert_eq!(inside.bottom() + padding, dialog.bottom() - commands);
+}
 #[test]
 fn a_dialog_gates_the_keys_the_frame_it_opens() {
     let mut app = Headless::new(Test::default());
