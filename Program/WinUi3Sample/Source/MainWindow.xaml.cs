@@ -302,7 +302,7 @@ public sealed partial class MainWindow : Window {
             path = result.Path;
         }
         try {
-            await File.WriteAllTextAsync(path, note.Body.Replace("\r", "\r\n"));
+            await File.WriteAllTextAsync(path, note.Body.ReplaceLineEndings("\r\n"));
             note.FilePath = path;
             this.state.StatusMessage = $"Saved {Path.GetFileName(path)}";
         } catch (IOException exception) {
