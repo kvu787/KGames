@@ -3,14 +3,14 @@
   "Steps": [
     { "Frame": 1, "Expect": { "TextShown": true, "Stationary": false, "Interface": { "Size": [2560, 1440], "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1164, 480, 260] } } } } },
     { "Frame": 3, "Key": "S" },
-    { "Frame": 4, "Expect": { "Stationary": true, "CarPosition": 0.0, "CarTurn": 1.5707964 } },
+    { "Frame": 3, "Expect": { "Stationary": true, "CarPosition": 0.0, "CarTurn": 1.5707964 } },
     { "Frame": 4, "Capture": "Stationary" },
     { "Frame": 5, "Key": "S" },
-    { "Frame": 6, "Expect": { "Stationary": false, "CarPosition": 6.0 } },
+    { "Frame": 5, "Expect": { "Stationary": false, "CarPosition": 5.0 } },
     { "Frame": 7, "Key": "F2" },
-    { "Frame": 8, "Expect": { "TextShown": false } },
+    { "Frame": 7, "Expect": { "TextShown": false } },
     { "Frame": 8, "Capture": "TextHidden" },
     { "Frame": 9, "Key": "F2" },
-    { "Frame": 10, "Expect": { "TextShown": true } }
+    { "Frame": 9, "Expect": { "TextShown": true } }
   ]
 }
