@@ -8,8 +8,8 @@ use user_interface::controls::{COMBO_BOX_ITEM_HEIGHT, MENU_BAR_HEIGHT, MENU_BAR_
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
-    Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox, Palette, Point, Program, Rect, Segmented, Sense, Severity, Slider,
-    Startup, Text, TextBox, ThemeKind, TooltipLine, Tree, Ui, View, ViewInput,
+    Key, ListView, MenuBar, MenuItem, Modifiers, MouseButton, NumberBox, Palette, Point, Program, Rect, ScrollArea, Segmented, Sense, Severity,
+    Slider, Startup, Text, TextBox, ThemeKind, TooltipLine, Tree, Ui, View, ViewInput, WHEEL_SCROLL,
 };
 
 // Where the program's part of the window starts, under the PerfBar.
@@ -1157,6 +1157,50 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
     assert_eq!(app.program.number, 0, "with the pointer elsewhere");
     app.scroll("Number", 1.0);
     assert_eq!(app.program.number, 1);
+}
+
+// A number box in a scroll area.
+#[derive(Default)]
+struct Scrolling {
+    number: f64,
+}
+
+impl Program for Scrolling {
+    type Message = f64;
+
+    fn title(&self) -> String {
+        "Scrolling".to_string()
+    }
+
+    fn update(&mut self, number: f64, _ui: &mut Context<f64>) {
+        self.number = number;
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<f64> {
+        let mut tree = Tree::new();
+        let viewport = Rect::new(10.0, ui.content_top() + 10.0, 300.0, 200.0);
+        let content = ScrollArea::content(ui, "Area", viewport, 1000.0);
+        tree.container(Some("Area"), viewport, ScrollArea::new(1000.0), |area| {
+            area.add("Inner", Rect::new(content.x, content.y + 160.0, 200.0, 32.0), NumberBox::new(self.number).on_change(|number| number));
+        });
+        tree
+    }
+}
+
+// The wheel over a focused number box's spin buttons and clear button steps
+// it, as over the rest of it, and doesn't scroll what it's in too; without
+// focus, it scrolls what it's in.
+#[test]
+fn the_wheel_over_a_focused_number_box_s_buttons_steps_only_it() {
+    let mut app = Headless::new(Scrolling::default());
+    app.click("Inner");
+    let inner = app.target("Inner");
+    for (button, number) in [("Inner/Up", -1.0), ("Inner/Down", -2.0), ("Inner/Clear", -3.0)] {
+        app.scroll(button, -1.0);
+        assert_eq!((app.program.number, app.target("Inner")), (number, inner), "{button}");
+    }
+    app.click_point(Point::new(1000.0, 900.0)).scroll("Inner/Up", -1.0);
+    assert_eq!((app.program.number, app.target("Inner").y), (-3.0, inner.y - WHEEL_SCROLL));
 }
 
 #[test]

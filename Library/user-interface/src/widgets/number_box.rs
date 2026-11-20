@@ -4,7 +4,7 @@
 // focus, step it. The value is the program's; what's typed, until it takes
 // effect, is the box's own.
 
-use crate::core::interaction::{Cursor, Interaction, Part, Sense};
+use crate::core::interaction::{Cursor, Interaction, Part, Sense, Wheel};
 use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{NUMBER_BOX_SPIN_COLUMN, NUMBER_BOX_SPIN_GLYPH, TEXT_BOX_BUTTON_MARGIN};
@@ -30,6 +30,11 @@ struct Draft {
     text: String,
     editing: bool,
 }
+
+// What its spin buttons sense: presses, and the wheel while the box has
+// focus, as the box does, so that what it's in doesn't scroll under them
+// then, while the wheel steps it.
+const SPIN_BUTTON: Sense = Sense::CLICK.takes_wheel_while_focused();
 
 fn numeric(character: char) -> bool {
     character.is_ascii_digit() || matches!(character, '.' | '-' | '+' | 'e' | 'E')
@@ -88,6 +93,7 @@ impl<M: Clone + 'static> NumberBox<M> {
             placeholder: self.placeholder.clone(),
             accept: Some(numeric),
             trailing: NUMBER_BOX_SPIN_COLUMN,
+            wheel: Wheel::WhileFocused,
             ..FieldSettings::default()
         }
     }
@@ -132,8 +138,8 @@ impl<M: Clone + 'static> Widget<M> for NumberBox<M> {
         let text = self.shown_text(ctx.memory::<Draft>());
         field_parts(ctx, &text, &self.settings());
         let (up, down) = Self::spin_buttons(ctx.rect());
-        ctx.part(Part::Named("Up".to_string()), "Up", up, Sense::CLICK, "Button", None);
-        ctx.part(Part::Named("Down".to_string()), "Down", down, Sense::CLICK, "Button", None);
+        ctx.part(Part::Named("Up".to_string()), "Up", up, SPIN_BUTTON, "Button", None);
+        ctx.part(Part::Named("Down".to_string()), "Down", down, SPIN_BUTTON, "Button", None);
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {

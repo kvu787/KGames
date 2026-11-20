@@ -204,8 +204,8 @@ frame's state through `Interface`'s getters, like `theme()`, `time()`, `input()`
 `set_context_menu` say more about it. A container's children, like a card's, inherit its enabling,
 so a disabled card can't have a working widget.
 A widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a slider's, or
-`takes_wheel_while_focused()`, like a number box's - so what it's in doesn't scroll under it;
-`Sense::VIEW` takes it already.
+`takes_wheel_while_focused()`, like a number box's and its buttons', while the box has focus - so
+what it's in doesn't scroll under it; `Sense::VIEW` takes it already.
 `Canvas::new(|painter, rect| ...)` draws a program's own graphics, like graphs and previews:
 rounded rectangles with borders and gradients, Fluent's shadows, circles, rings, arcs, lines,
 polygons, text and icons, with clipping. State that a widget of a program's own keeps between

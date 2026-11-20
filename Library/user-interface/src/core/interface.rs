@@ -885,14 +885,15 @@ impl Interface {
     }
 
     // Whether the target under the pointer takes the wheel itself, so that
-    // what it's in shouldn't scroll.
+    // what it's in shouldn't scroll: one that takes it while focused takes
+    // it while its widget has focus, like a number box's spin buttons.
     fn hovered_takes_wheel(&self, targets: &[Target]) -> bool {
         let Some(hovered) = self.hovered else { return false };
-        let target = targets.iter().rev().find(|target| target.id == hovered && target.enabled);
-        match target.map(|target| target.sense.wheel) {
-            Some(Wheel::Taken) => true,
-            Some(Wheel::WhileFocused) => self.hovered == self.focused,
-            _ => false,
+        let Some(target) = targets.iter().rev().find(|target| target.id == hovered && target.enabled) else { return false };
+        match target.sense.wheel {
+            Wheel::Taken => true,
+            Wheel::WhileFocused => self.focused == Some(target.owner),
+            Wheel::Ignored => false,
         }
     }
 

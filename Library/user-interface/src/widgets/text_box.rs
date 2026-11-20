@@ -13,7 +13,7 @@
 // shared with the widgets built of a field, NumberBox and ColorField, for
 // which Enter takes what's typed.
 
-use crate::core::interaction::{ControlState, Cursor, Interaction, Part, Sense};
+use crate::core::interaction::{ControlState, Cursor, Interaction, Part, Sense, Wheel};
 use crate::core::interface::Interface;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{TEXT_BOX_BUTTON_GLYPH, TEXT_BOX_BUTTON_MARGIN, TEXT_BOX_BUTTON_WIDTH, TEXT_BOX_CARET_WIDTH, TEXT_BOX_PADDING, TEXT_BOX_QUERY_BUTTON_WIDTH};
@@ -41,6 +41,9 @@ pub(crate) struct FieldSettings {
     // box's spin buttons, and at its left, like a color field's swatch.
     pub trailing: f32,
     pub leading: f32,
+    // What its buttons do with the wheel, as the field does, like a number
+    // box's, which takes it while it has focus.
+    pub wheel: Wheel,
 }
 
 impl Default for FieldSettings {
@@ -53,6 +56,7 @@ impl Default for FieldSettings {
             accept: None,
             trailing: 0.0,
             leading: 0.0,
+            wheel: Wheel::Ignored,
         }
     }
 }
@@ -200,11 +204,15 @@ pub(crate) struct Edited {
 pub(crate) fn field_parts(ctx: &mut Parts, text: &str, settings: &FieldSettings) {
     let clear_shown = settings.clear_button && ctx.is_focused() && !text.is_empty() && ctx.enabled();
     let layout = field_layout(ctx.rect(), settings, clear_shown);
+    let sense = Sense {
+        wheel: settings.wheel,
+        ..Sense::CLICK
+    };
     if let Some(button) = layout.button {
-        ctx.part(Part::Named("Button".to_string()), "Button", button, Sense::CLICK, "Button", None);
+        ctx.part(Part::Named("Button".to_string()), "Button", button, sense, "Button", None);
     }
     if let Some(clear) = layout.clear {
-        ctx.part(Part::Named("Clear".to_string()), "Clear", clear, Sense::CLICK, "Button", None);
+        ctx.part(Part::Named("Clear".to_string()), "Clear", clear, sense, "Button", None);
     }
     let content = layout.content;
     let mut editing = std::mem::take(ctx.memory::<Editing>());
