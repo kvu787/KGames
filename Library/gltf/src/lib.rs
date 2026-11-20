@@ -30,8 +30,9 @@ pub struct Model {
     pub normals: Vec<[f32; 3]>,
     pub materials: Vec<u32>,
     pub indices: Vec<u32>,
-    // Each material's index is its place here. A primitive without one gets
-    // one called "Default", white.
+    // Each material's index is its place here: the file's, in its order,
+    // then, if a primitive has none, one called "Default", white, which is
+    // apart from the file's, even from one of them called "Default".
     pub material_list: Vec<Material>,
 }
 
@@ -379,10 +380,13 @@ fn add_primitive(
     if !indices.len().is_multiple_of(3) || indices.iter().any(|&index| index >= positions.len()) {
         return Err("has a primitive whose indices aren't whole triangles of its vertices".to_string());
     }
+    // The file's materials come first in the model's list, and the default
+    // one after them.
+    let file_materials = list(document, "materials").len();
     let material = match index(primitive, "material") {
-        Some(material) if material < model.material_list.len() => material as u32,
+        Some(material) if material < file_materials => material as u32,
         Some(material) => return Err(format!("has no material {material}")),
-        None => default_material(model),
+        None => default_material(model, file_materials),
     };
 
     // Positions go through the transform, and normals through its inverse
@@ -452,16 +456,17 @@ fn add_primitive(
     Ok(())
 }
 
-fn default_material(model: &mut Model) -> u32 {
-    if let Some(index) = model.material_list.iter().position(|material| material.name == "Default") {
-        return index as u32;
+// The default material's index, after the file's, which it adds the first
+// time.
+fn default_material(model: &mut Model, file_materials: usize) -> u32 {
+    if model.material_list.len() == file_materials {
+        model.material_list.push(Material {
+            name: "Default".to_string(),
+            base_color: [1.0; 4],
+            extras: None,
+        });
     }
-    model.material_list.push(Material {
-        name: "Default".to_string(),
-        base_color: [1.0; 4],
-        extras: None,
-    });
-    (model.material_list.len() - 1) as u32
+    file_materials as u32
 }
 
 fn determinant(m: &[[f64; 3]; 3]) -> f64 {

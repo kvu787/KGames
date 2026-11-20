@@ -113,6 +113,26 @@ fn makes_flat_normals_and_a_default_material() {
     assert_eq!(model.material_list[0].base_color, [1.0; 4]);
 }
 
+// The default material is the model's own, after the file's: a primitive
+// without a material gets it, white, even when the file has one called
+// Default, and a primitive's material is one of the file's, never the
+// default that an earlier primitive got.
+#[test]
+fn keeps_the_default_material_apart_from_the_file_s() {
+    let without = r#"{ "attributes": { "POSITION": 0 }, "indices": 2 }"#;
+    let red_default = r#"[{ "name": "Default", "pbrMetallicRoughness": { "baseColorFactor": [1, 0, 0, 1] } }]"#;
+    let model = parse(&triangle(r#"[{ "mesh": 0 }]"#, red_default, without)).unwrap();
+    assert_eq!(model.material_list.len(), 2);
+    assert_eq!(model.materials, [1, 1, 1]);
+    assert_eq!(model.material_list[1].name, "Default");
+    assert_eq!(model.material_list[1].base_color, [1.0; 4]);
+
+    // With the file's one material, the default is the model's second, which
+    // a primitive can't name.
+    let primitives = format!(r#"{without}, {{ "attributes": {{ "POSITION": 0 }}, "indices": 2, "material": 1 }}"#);
+    assert_eq!(parse(&triangle(r#"[{ "mesh": 0 }]"#, MATERIALS, &primitives)), Err("has no material 1".to_string()));
+}
+
 #[test]
 fn says_what_is_wrong_with_a_file() {
     let lines = r#"{ "attributes": { "POSITION": 0 }, "mode": 1 }"#;

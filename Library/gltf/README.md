@@ -25,7 +25,8 @@ glTF is Y up and right-handed, and Blender's exporter turns its Z up into Y up, 
 faces -Y in Blender faces +Z here. A node's normals go through the inverse transpose of its
 transform, so they stay at right angles to its surface under any scale, and a node that mirrors
 has its triangles' winding reversed, so their fronts stay out. A primitive without normals gets
-flat ones, and one without a material gets one called `Default`, which is white.
+flat ones, and one without a material gets one called `Default`, which is white, after the file's
+materials in `material_list`, and apart from them, even from one of them called `Default`.
 
 Only what KGames uses is read. Texture coordinates, textures, animations, skins, cameras and
 lights are ignored. A primitive that isn't triangles, sparse accessors, and data in other files
