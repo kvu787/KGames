@@ -11,8 +11,8 @@
     { "Frame": 61, "Click": "Mode/Vehicles" },
     { "Frame": 80, "Capture": "Vehicles" },
     { "Frame": 81, "Click": "Mode/Scene" },
+    { "Frame": 81, "Expect": { "Mode": "Scene", "Interface": { "Theme": "Dark" } } },
     { "Frame": 100, "Capture": "Scene" },
-    { "Frame": 100, "Expect": { "Mode": "Scene", "Interface": { "Theme": "Dark" } } },
     { "Frame": 101, "Key": "F9" },
     { "Frame": 101, "Expect": { "Interface": { "Theme": "Light" } } }
   ]
