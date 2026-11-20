@@ -35,6 +35,13 @@ fn floats(values: &[f32]) -> Vec<u8> {
 // One triangle in the XY plane, facing +Z, with its positions, normals and
 // 16-bit indices, and the nodes and materials that the test gives.
 fn triangle(nodes: &str, materials: &str, primitive: &str) -> Vec<u8> {
+    triangle_in("[0]", nodes, materials, primitive)
+}
+
+// The same, with the scene's nodes that the test gives. Accessors 3 to 5 are
+// what a primitive's indices can't be: the positions' floats, the indices'
+// bytes as signed shorts, and as normalized unsigned shorts.
+fn triangle_in(scene_nodes: &str, nodes: &str, materials: &str, primitive: &str) -> Vec<u8> {
     let mut binary = floats(&[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
     binary.extend(floats(&[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]));
     binary.extend([0u16, 1, 2].iter().flat_map(|index| index.to_le_bytes()));
@@ -42,7 +49,7 @@ fn triangle(nodes: &str, materials: &str, primitive: &str) -> Vec<u8> {
         r#"{{
             "asset": {{ "version": "2.0" }},
             "scene": 0,
-            "scenes": [{{ "nodes": [0] }}],
+            "scenes": [{{ "nodes": {scene_nodes} }}],
             "nodes": {nodes},
             "materials": {materials},
             "meshes": [{{ "primitives": [{primitive}] }}],
@@ -55,7 +62,10 @@ fn triangle(nodes: &str, materials: &str, primitive: &str) -> Vec<u8> {
             "accessors": [
                 {{ "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3" }},
                 {{ "bufferView": 1, "componentType": 5126, "count": 3, "type": "VEC3" }},
-                {{ "bufferView": 2, "componentType": 5123, "count": 3, "type": "SCALAR" }}
+                {{ "bufferView": 2, "componentType": 5123, "count": 3, "type": "SCALAR" }},
+                {{ "bufferView": 0, "componentType": 5126, "count": 3, "type": "SCALAR" }},
+                {{ "bufferView": 2, "componentType": 5122, "count": 3, "type": "SCALAR" }},
+                {{ "bufferView": 2, "componentType": 5123, "normalized": true, "count": 3, "type": "SCALAR" }}
             ]
         }}"#,
         binary.len()
@@ -151,6 +161,35 @@ fn says_what_is_wrong_with_a_file() {
         (triangle(r#"[{ "children": [0] }]"#, MATERIALS, PRIMITIVE), "has node 0 in more than one place, or in a loop".to_string()),
     ] {
         assert_eq!(parse(&bytes), Err(problem));
+    }
+}
+
+// Indices that aren't whole numbers from 0, like floats, which would be cut
+// to whole ones, and references that aren't indices, like -1, which would
+// be 0, are errors, rather than another model.
+#[test]
+fn says_what_is_wrong_with_a_file_s_indices_and_references() {
+    let one = r#"[{ "mesh": 0 }]"#;
+    let with_indices = |accessor: &str| format!(r#"{{ "attributes": {{ "POSITION": 0 }}, "indices": {accessor} }}"#);
+    for accessor in ["3", "4", "5"] {
+        assert_eq!(
+            parse(&triangle(one, MATERIALS, &with_indices(accessor))),
+            Err(format!("has a primitive whose indices, accessor {accessor}, aren't unsigned whole numbers"))
+        );
+    }
+    let with_material = r#"{ "attributes": { "POSITION": 0 }, "indices": 2, "material": -1 }"#;
+    for (bytes, problem) in [
+        (triangle_in("[-1]", one, MATERIALS, PRIMITIVE), "scene has -1 in its nodes, which isn't a node's index"),
+        (triangle_in("[0.5]", one, MATERIALS, PRIMITIVE), "scene has 0.5 in its nodes, which isn't a node's index"),
+        (
+            triangle(r#"[{ "children": [-1] }]"#, MATERIALS, PRIMITIVE),
+            "node 0 has -1 in its children, which isn't a node's index",
+        ),
+        (triangle(r#"[{ "mesh": -1 }]"#, MATERIALS, PRIMITIVE), "node 0 has -1 as its mesh, which isn't an index"),
+        (triangle(one, MATERIALS, with_material), "has -1 as its material, which isn't an index"),
+        (triangle(one, MATERIALS, &with_indices("1.5")), "has 1.5 as its indices, which isn't an index"),
+    ] {
+        assert_eq!(parse(&bytes), Err(problem.to_string()));
     }
 }
 

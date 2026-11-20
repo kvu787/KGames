@@ -115,11 +115,35 @@ const MAX_ELEMENTS: usize = 1 << 24;
 
 // A whole number that's 0 or more, at most u32::MAX, as glTF's indices and
 // sizes are.
-fn index(value: &Value, name: &str) -> Option<usize> {
-    match value.get(name) {
-        Some(Value::Number(number)) if *number >= 0.0 && *number <= u32::MAX as f64 && number.fract() == 0.0 => Some(*number as usize),
+fn whole(value: &Value) -> Option<usize> {
+    match value {
+        Value::Number(number) if *number >= 0.0 && *number <= u32::MAX as f64 && number.fract() == 0.0 => Some(*number as usize),
         _ => None,
     }
+}
+
+// The member `name` of `value`, if it's a whole number, as whole says.
+fn index(value: &Value, name: &str) -> Option<usize> {
+    value.get(name).and_then(whole)
+}
+
+// The member `name` of `value`, an index into one of the file's lists, or
+// None if it's left out. One that isn't a whole number, like -1 or 0.5, is an
+// error, rather than another index, or none.
+fn reference(value: &Value, name: &str) -> Result<Option<usize>, String> {
+    match value.get(name) {
+        None => Ok(None),
+        Some(item) => whole(item).map(Some).ok_or_else(|| format!("has {} as its {name}, which isn't an index", item.describe())),
+    }
+}
+
+// The nodes that a member of `value` lists, like a scene's "nodes", or a
+// node's "children", each of which must be a node's index.
+fn nodes_in(value: &Value, name: &str) -> Result<Vec<usize>, String> {
+    list(value, name)
+        .iter()
+        .map(|item| whole(item).ok_or_else(|| format!("has {} in its {name}, which isn't a node's index", item.describe())))
+        .collect()
 }
 
 fn numbers<const N: usize>(value: Option<&Value>, default: [f64; N]) -> Result<[f64; N], String> {
@@ -300,23 +324,16 @@ fn read(document: &Value, binary: &[u8]) -> Result<Model, String> {
         });
     }
     let scenes = list(document, "scenes");
-    let scene = index(document, "scene").unwrap_or(0);
+    let scene = reference(document, "scene")?.unwrap_or(0);
     let roots: Vec<usize> = match scenes.get(scene) {
-        Some(scene) => list(scene, "nodes").iter().filter_map(|node| match node {
-            Value::Number(number) => Some(*number as usize),
-            _ => None,
-        })
-        .collect(),
+        Some(scene) => nodes_in(scene, "nodes").map_err(|problem| format!("scene {problem}"))?,
         // Without scenes, every node that's no other's child is a root.
         None => {
             let nodes = list(document, "nodes");
-            let children: Vec<usize> = nodes
-                .iter()
-                .flat_map(|node| list(node, "children").iter().filter_map(|child| match child {
-                    Value::Number(number) => Some(*number as usize),
-                    _ => None,
-                }))
-                .collect();
+            let mut children = Vec::new();
+            for (index_in_file, node) in nodes.iter().enumerate() {
+                children.extend(nodes_in(node, "children").map_err(|problem| format!("node {index_in_file} {problem}"))?);
+            }
             (0..nodes.len()).filter(|node| !children.contains(node)).collect()
         }
     };
@@ -341,17 +358,15 @@ fn add_nodes(document: &Value, binary: &[u8], roots: Vec<usize>, model: &mut Mod
         }
         visited[index_in_file] = true;
         let transform = multiply(&parent, &local_transform(node).map_err(|problem| format!("node {index_in_file} {problem}"))?);
-        if let Some(mesh) = index(node, "mesh") {
+        let in_node = |problem: String| format!("node {index_in_file} {problem}");
+        if let Some(mesh) = reference(node, "mesh").map_err(in_node)? {
             let mesh = list(document, "meshes").get(mesh).ok_or_else(|| format!("has no mesh {mesh}"))?;
             for primitive in list(mesh, "primitives") {
                 add_primitive(document, binary, primitive, &transform, model)?;
             }
         }
-        let children = list(node, "children").iter().rev().filter_map(|child| match child {
-            Value::Number(child) => Some((*child as usize, transform)),
-            _ => None,
-        });
-        pending.extend(children);
+        let children = nodes_in(node, "children").map_err(in_node)?;
+        pending.extend(children.into_iter().rev().map(|child| (child, transform)));
     }
     Ok(())
 }
@@ -373,8 +388,19 @@ fn add_primitive(
         Some(normal_accessor) => Some(accessor::<3>(document, binary, normal_accessor)?),
         None => None,
     };
-    let indices: Vec<usize> = match index(primitive, "indices") {
-        Some(indices) => accessor::<1>(document, binary, indices)?.into_iter().map(|[index]| index as usize).collect(),
+    let indices: Vec<usize> = match reference(primitive, "indices")? {
+        Some(indices) => {
+            // Whole numbers from 0, as glTF's indices must be: unsigned
+            // bytes, shorts or ints, not normalized.
+            if let Some(accessor) = list(document, "accessors").get(indices) {
+                let unsigned = matches!(index(accessor, "componentType"), Some(5121 | 5123 | 5125));
+                let normalized = matches!(accessor.get("normalized"), Some(Value::Bool(true)));
+                if !unsigned || normalized {
+                    return Err(format!("has a primitive whose indices, accessor {indices}, aren't unsigned whole numbers"));
+                }
+            }
+            accessor::<1>(document, binary, indices)?.into_iter().map(|[index]| index as usize).collect()
+        }
         None => (0..positions.len()).collect(),
     };
     if !indices.len().is_multiple_of(3) || indices.iter().any(|&index| index >= positions.len()) {
@@ -383,7 +409,7 @@ fn add_primitive(
     // The file's materials come first in the model's list, and the default
     // one after them.
     let file_materials = list(document, "materials").len();
-    let material = match index(primitive, "material") {
+    let material = match reference(primitive, "material")? {
         Some(material) if material < file_materials => material as u32,
         Some(material) => return Err(format!("has no material {material}")),
         None => default_material(model, file_materials),

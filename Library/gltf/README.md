@@ -30,4 +30,6 @@ materials in `material_list`, and apart from them, even from one of them called 
 
 Only what KGames uses is read. Texture coordinates, textures, animations, skins, cameras and
 lights are ignored. A primitive that isn't triangles, sparse accessors, and data in other files
-are errors, which say what's wrong. `Test/gltf` tests it.
+are errors, which say what's wrong, and so are indices that aren't unsigned whole numbers, and
+references to scenes, nodes, meshes, accessors and materials that aren't whole numbers from 0, like
+-1, instead of loading another model. `Test/gltf` tests it.
