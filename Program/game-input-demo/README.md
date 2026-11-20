@@ -77,8 +77,10 @@ rumble have. The left stick drives the first and the right stick the second. The
 Xbox One and Series gamepads stay off. The Gamepad card's "Motors" still lists every motor the
 gamepad has. With the rumble test off, no motor runs. While the window doesn't have focus, which
 minimizing it takes, none does either: GameInput turns the motors off itself, and back on as the
-demo last asked them when the window gets focus back, as Microsoft's documentation says, so the
-demo asks nothing new of them meanwhile.
+demo last asked them when the window gets focus back, as Microsoft's documentation says. The demo
+never sees a stick let go of without focus, so as the window loses focus, it takes the sticks as at
+rest, as the Gamepad card shows them, and asks the motors to stop, so that they don't come back on
+with a stick that's no longer held. They stay off until a stick moves with focus back.
 
 A motor is off while its stick is inside the inner dead zone, the ring on the stick's graph. Sticks
 don't read exactly 0 at rest, and the dead zone keeps that noise from running the motors. Past the
@@ -455,7 +457,7 @@ nothing on it.
 | `Mouse`         | Moves a mouse, presses its buttons, and turns its wheel                         |
 | `Overview`      | Gives every card something to show, for a look at the whole window              |
 | `Picker`        | Picks gamepads with the combo box, with clicks and keys, and closes its list    |
-| `RumbleTest`    | Drives the motors with the sticks, and leaves them to GameInput without focus   |
+| `RumbleTest`    | Drives the motors with the sticks, and stops them as focus goes                 |
 
 What only real devices show still needs a person: GameInput's own readings and device events, how
 the motors feel, and focus changing while a gamepad is held.

@@ -682,8 +682,10 @@ impl Input {
         self.keyboard.rate.tick(self.now);
         self.mouse.rate.tick(self.now);
         // Without focus, GameInput turns the motors off itself, and back on
-        // as the demo last asked as focus comes back, so the demo asks
-        // nothing new of them: the sticks aren't read.
+        // as the demo last asked as focus comes back. The sticks aren't read
+        // without focus, and are at rest as it goes (see focus_change), so
+        // the demo asks the motors to stop then, and they stay stopped as
+        // focus comes back, until a stick moves.
         self.update_rumble();
     }
 
@@ -867,12 +869,17 @@ impl Input {
         } else if !gained && self.focused {
             self.focused = false;
             // Keys, buttons and sticks let go of after the window lost focus
-            // are never seen, so stop showing them as held.
+            // are never seen, so stop showing them as held, and stop the
+            // rumble test's motors, which GameInput would otherwise run
+            // again as focus comes back, with sticks that may be at rest.
             self.keyboard.keys.clear();
             self.keyboard.descriptions.clear();
             self.mouse.state.buttons = 0;
             let device = self.gamepad.device;
             self.view_gamepad(device);
+            for rumble in &mut self.rumbles {
+                rumble.sticks = [0.0; 2];
+            }
         }
     }
 

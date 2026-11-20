@@ -213,7 +213,7 @@ fn f10_switches_vertical_sync_from_the_window_and_not_through_game_input() {
 }
 
 #[test]
-fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input() {
+fn input_without_window_focus_is_dropped_and_the_motors_stop() {
     let mut app = demo(&[]);
     step(&mut app, r#"{ "Connect": { "Id": 1, "Name": "Pad", "Input": ["Gamepad"], "Motors": ["LowFrequency"] } }"#);
     step(&mut app, r#"{ "Connect": { "Id": 2, "Name": "Keys", "Input": ["Keyboard"] } }"#);
@@ -223,10 +223,11 @@ fn input_without_window_focus_is_dropped_and_the_motors_are_left_to_game_input()
     let rumble = |app: &mut Headless<Demo>| app.program.input.as_mut().unwrap().scripted().unwrap().rumble(1);
     assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
 
-    // GameInput turns the motors off without focus itself, so the demo asks
-    // nothing new of them.
+    // GameInput turns the motors off without focus itself, and back on as
+    // the demo last asked as focus comes back, while the sticks aren't seen
+    // without focus, so the demo stops them as focus goes.
     step(&mut app, r#"{ "Focus": false }"#);
-    assert_eq!(rumble(&mut app).unwrap().lowFrequency, 1.0);
+    assert_eq!(rumble(&mut app).unwrap().lowFrequency, 0.0);
     let count = input(&app).reading_count;
     step(&mut app, r#"{ "Gamepad": { "Id": 1, "LeftStick": [0, 1], "Buttons": ["A"] } }"#);
     assert_eq!(input(&app).reading_count, count);

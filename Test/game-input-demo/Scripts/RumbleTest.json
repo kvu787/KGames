@@ -9,7 +9,7 @@
     { "Frame": 6, "Expect": { "Rumble": [{ "Device": "Pad", "LowFrequency": 1.0, "HighFrequency": 0.0 }] } },
     { "Frame": 6, "Capture": "Rumbling" },
     { "Frame": 7, "Program": { "Focus": false } },
-    { "Frame": 8, "Expect": { "RumbleTest": true, "Rumble": [{ "LowFrequency": 1.0, "HighFrequency": 0.0 }] } },
+    { "Frame": 8, "Expect": { "RumbleTest": true, "Rumble": [{ "LowFrequency": 0.0, "HighFrequency": 0.0 }] } },
     { "Frame": 8, "Capture": "WithoutFocus" },
     { "Frame": 9, "Program": { "Focus": true } },
     { "Frame": 10, "Program": { "Gamepad": { "Id": 1, "LeftStick": [0.55, 0.0] } } },
