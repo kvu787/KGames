@@ -134,14 +134,12 @@ impl Game {
         &self.shape
     }
 
-    // The height of the camera's view before the player zooms it.
+    // The height of the camera's view before the player zooms it: the
+    // scene's, or the nearest that Play's views can be.
     pub fn default_height(&self) -> f64 {
         let scene = self.current_scene();
-        if self.camera.follow {
-            scene.follow_height
-        } else {
-            scene.camera_height
-        }
+        let height = if self.camera.follow { scene.follow_height } else { scene.camera_height };
+        height.clamp(camera::LOWEST, camera::HIGHEST)
     }
 
     // Where the camera looks, on the ground.
