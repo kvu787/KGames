@@ -346,7 +346,7 @@ Library/user-interface's main loop does most of it (see its
 [README](../../Library/user-interface/README.md#input-latency)): only one frame is on the GPU at a
 time, the loop waits until the GPU and DXGI can take another, and only then reads GameInput,
 whose readings the demo's `update` takes, so no readings age during the wait. The demo starts with vertical
-sync on, as every program does, so its frames wait for the screen's refresh, and never tear. With
+sync on, as its settings say, so its frames wait for the screen's refresh, and never tear. With
 `F10`, or `"VerticalSync": false` in the [settings](#settings-file), they're presented without
 waiting, and the loop spins instead of waiting, so the demo draws thousands of frames a second, and
 whenever the screen takes a frame, the newest one read its input a fraction of a millisecond

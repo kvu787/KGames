@@ -74,7 +74,7 @@ WM_SETCURSOR
 ClipCursor
 GetForegroundWindow
 GetClipCursor
-That’s the argument for keeping it in one pixel at the middle, as SDL does.
+That's the argument for keeping it in one pixel at the middle, as SDL does.
 WM_ACTIVATE
 GetAsyncKeyState
 IsIconic
@@ -87,6 +87,7 @@ it seems like clipcursor is a requirement even despite its unreliability
 | Program                                                  | What it is                                                               |
 | -------------------------------------------------------- | ------------------------------------------------------------------------ |
 | [Veehiicuul](Program/veehiicuul/README.md)               | A racing game seen from above, and the editors of its levels             |
+| [Platformer](Program/platformer/README.md)               | A 2D platformer that runs on events, with nothing a frame late           |
 | [GameInputDemo](Program/game-input-demo/README.md)       | Shows what gamepads, keyboards and mice send through GameInput           |
 | [SimplePaintDemo](Program/simple-paint-demo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
 | [MeshModeler](Program/mesh-modeler/README.md)            | Models polygon meshes, subdivides them, and paints them with SimplePaint |
@@ -96,6 +97,7 @@ it seems like clipcursor is a requirement even despite its unreliability
 | [SpinningCarTest](Program/spinning-car-test/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
 | [IdentifyDisplays](Program/identify-displays/README.md)  | Prints each display's identifier, for the programs' `--display`          |
 | [RunInBackground](Program/RunInBackground/README.md)     | Runs a GUI program without taking focus, and screenshots it              |
+| [RunLightly](Program/RunLightly/README.md)               | Runs a command so that a game you're playing doesn't stutter             |
 | [FrameTimes](Program/frame-times/README.md)              | Measures another process's frame times, like a game's while a build runs |
 | [Benchmarks](Program/benchmarks/README.md)               | Times the hot paths: frames on the CPU and GPU, text, meshes, and more   |
 
@@ -109,12 +111,13 @@ it seems like clipcursor is a requirement even despite its unreliability
 | [GameInputRaw](Library/game-input-raw/README.md)    | GameInput 4.0.306's bindings for keyboards, mice and gamepads, and `GameInput.lib` from its NuGet package   |
 | [GameInput](Library/game-input/README.md)           | Starts GameInput, once it has checked that GameInput 4.0.306's runtime is installed                         |
 | [Displays](Library/displays/README.md)              | Finds the displays, and gives each a lasting identifier                                                     |
+| [PresentTiming](Library/present-timing/README.md)   | When each of a process's presents reached the screen, by PresentMon's rules                                 |
 | [Math](Library/math/README.md)                      | Vectors and matrices, in DirectXMath's conventions                                                          |
 | [Meshes](Library/meshes/README.md)                  | A UV sphere, a box, a plane and the car, for SimplePaint                                                    |
 | [PolygonMesh](Library/polygon-mesh/README.md)       | Polygon meshes: their edits, selections, Catmull-Clark subdivision, and files                               |
 | [PaintSettings](Library/paint-settings/README.md)   | SimplePaint materials in JSON settings files                                                                |
 | [Gltf](Library/gltf/README.md)                      | Reads models from the .glb files that Blender exports                                                       |
-| [Json](Library/json/README.md)                      | A JSON parser                                                                                               |
+| [Json](Library/json/README.md)                      | A JSON parser and writer                                                                                    |
 | [ShaderCompiler](Library/shader-compiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
 | [WindowsApiRaw](Library/windows-api-raw/README.md)  | The generated Windows API bindings that every crate shares, and nothing else                                |
 | [WindowsApi](Library/windows-api/README.md)         | What KGames adds to the Windows API bindings, like `check_handle`                                           |

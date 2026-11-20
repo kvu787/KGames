@@ -25,7 +25,7 @@ ignores input without focus, and supports the one
 | Ground     | A plane 10 units along X and 5 along Z, at Y = 0                           |
 | Cube       | 1 unit on each side, on the ground at Z = -1.5                             |
 | Colors     | The ground and the cube are each one sRGB color, the C++ scene's, on every |
-|            | face, without lights. SimplePaint's unlit shader draws them               |
+|            | face, without lights. SimplePaint's unlit shader draws them                |
 | Background | #4c4c4c                                                                    |
 | Frames     | Through Library/user-interface's main loop, paced for the lowest latency.  |
 |            | Waiting for vertical sync or not, as `Settings.json` says, until `F10`     |

@@ -44,13 +44,13 @@ running, with the limits, after RunInBackground ends.
 
 Jobs can't hold the rest, so RunLightly sets it itself:
 
-| Setting         | What it does                                                                     |
-| --------------- | -------------------------------------------------------------------------------- |
+| Setting         | What it does                                                                      |
+| --------------- | --------------------------------------------------------------------------------- |
 | I/O priority    | Low, on itself, which its processes inherit: the game's reads and writes go first |
 | Memory priority | Low, the same way: when memory is short, the build's pages go before the game's   |
 | Efficiency mode | On every process in the job, a few times a second, as processes don't inherit it: |
-|                 | the efficiency cores run them at efficient clocks, and the chip's power budget     |
-|                 | stays with the game's cores (Task Manager shows the leaf)                          |
+|                 | the efficiency cores run them at efficient clocks, and the chip's power budget    |
+|                 | stays with the game's cores (Task Manager shows the leaf)                         |
 | Membership      | The command's process is made suspended, put in the job, and then let run, and a  |
 |                 | process whose parent is in the job but that Windows left out, like what a .NET    |
 |                 | process starts here, is put in within a quarter second, unless it's in a job of   |
