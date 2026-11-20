@@ -42,13 +42,14 @@ fn bar_id(widget: &str) -> Id {
     id(&format!("{widget}/{BAR}"))
 }
 
-// When the pointer came onto the bar or left it, for its delays, and where
-// in the thumb a drag took it.
+// When the pointer came onto the bar or left it, for its delays, whether
+// its press took the thumb, and where in the thumb.
 #[derive(Default)]
 struct BarState {
     over_since: Option<f64>,
     away_since: Option<f64>,
     expanded: bool,
+    dragging: bool,
     grab: f32,
 }
 
@@ -87,7 +88,9 @@ pub(crate) fn scroll_bar_part(ctx: &mut Parts, viewport: Rect, content: f32) {
 }
 
 // What the input on a bar does: a press on the thumb drags it, and a press
-// on the track pages toward it. Returns the offset as the input leaves it.
+// on the track pages toward it, once, and leaves the thumb where the page
+// put it while the button is held. Returns the offset as the input leaves
+// it.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn bar_input<M>(ctx: &mut Dispatch<M>, state_id: Id, hit: &Hit, pointer: Option<Point>, bar: Rect, content: f32, viewport: f32, offset: f32) -> f32 {
     let geometry = BarGeometry::new(bar, content, viewport);
@@ -95,14 +98,17 @@ pub(crate) fn bar_input<M>(ctx: &mut Dispatch<M>, state_id: Id, hit: &Hit, point
     let state = ctx.memory_of::<BarState>(state_id);
     if hit.pressed && let Some(pointer) = pointer {
         let top = geometry.thumb_y(offset);
-        if pointer.y >= top && pointer.y < top + geometry.thumb_length {
+        state.dragging = pointer.y >= top && pointer.y < top + geometry.thumb_length;
+        if state.dragging {
             state.grab = pointer.y - top;
         } else {
             let page = viewport.max(1.0);
             offset = if pointer.y < top { offset - page } else { offset + page };
-            state.grab = geometry.thumb_length / 2.0;
         }
-    } else if hit.held && let Some(pointer) = pointer {
+    } else if hit.held
+        && state.dragging
+        && let Some(pointer) = pointer
+    {
         let top = pointer.y - state.grab;
         offset = if geometry.travel > 0.0 { (top - geometry.track.y) / geometry.travel * geometry.range } else { 0.0 };
     }

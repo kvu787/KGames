@@ -478,6 +478,27 @@ fn a_list_shows_only_the_rows_in_view() {
     assert!(app.has_target("Rows/43"));
 }
 
+// A press on a scroll bar's track pages toward the press, on its frame, and
+// the thumb stays where the page put it while the button is held there, as
+// Windows' does; a press on the thumb drags it.
+#[test]
+fn a_press_on_a_scroll_bar_s_track_pages_and_holding_it_does_not_drag() {
+    let mut app = Headless::new(Test::default());
+    let (rows, bar) = (app.target("Rows"), app.target("Rows/ScrollBar"));
+    app.press_point(Point::new(bar.center().x, bar.bottom() - 10.0));
+    // A viewport down: 100 pixels, 5 rows.
+    assert_eq!(app.target("Rows/5").y, rows.y);
+    app.frames(3);
+    assert_eq!(app.target("Rows/5").y, rows.y, "the thumb didn't jump under the pointer");
+    app.release();
+    assert_eq!(app.target("Rows/5").y, rows.y);
+    // The thumb, 30 pixels, travels the track's other 68 for 900 pixels of
+    // rows: from where the page put it, 34 pixels down is 450 pixels more.
+    let thumb = bar.y + 1.0 + 68.0 * 100.0 / 900.0 + 15.0;
+    app.drag(Point::new(bar.center().x, thumb), Point::new(bar.center().x, thumb + 34.0), 2);
+    assert_eq!(app.target("Rows/27").y, rows.y);
+}
+
 #[test]
 fn toggles_sliders_and_number_boxes_change_their_values() {
     let mut app = Headless::new(Test {
