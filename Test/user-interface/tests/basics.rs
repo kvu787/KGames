@@ -347,6 +347,9 @@ fn text_lays_out_with_directwrite() {
     assert_eq!(one.height, BODY.line_height);
     let wrapped = fonts.measure_wrapped("one two three four five six seven", BODY, 60.0);
     assert!(wrapped.height >= BODY.line_height * 3.0);
+    // Room that's less than none, like what a wide label leaves beside it,
+    // is no room: a word to a line.
+    assert_eq!(fonts.measure_wrapped("one two three", BODY, -8.0), fonts.measure_wrapped("one two three", BODY, 0.0));
     // A caret goes between characters, and a hit finds the nearest one.
     let layout = fonts.layout("Hello", BODY, None);
     assert_eq!(layout.caret_x(0), 0.0);

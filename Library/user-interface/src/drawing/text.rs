@@ -439,7 +439,10 @@ impl Fonts {
         let format = self.format(style)?;
         unsafe {
             let units: Vec<u16> = text.encode_utf16().collect();
-            let layout = self.factory.CreateTextLayout(&units, &format, wrap.unwrap_or(1.0e6), 1.0e6)?;
+            // Room that's less than none, like what a wide label leaves
+            // beside it, is no room, and not a width that DirectWrite
+            // refuses.
+            let layout = self.factory.CreateTextLayout(&units, &format, wrap.unwrap_or(1.0e6).max(0.0), 1.0e6)?;
             if wrap.is_none() {
                 layout.SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP).ok()?;
             }
