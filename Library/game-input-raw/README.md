@@ -45,7 +45,7 @@
   - It describes `GameInputInitialize` as metadata, and `windows-bindgen` generates its binding, the same as for the rest of the API.
   - Then, in what `windows-bindgen` wrote, it changes the `link!` declaration to a plain `extern "system"` declaration, which only says that the linker will find the function. The linker finds it in `GameInput.lib`.
   - Nothing else about the binding changes: its name, its parameters, and the function that wraps it stay as `windows-bindgen` wrote them.
-  - This is what `windows-bindgen` itself writes for a function when it's run with `--sys --extern`.
+  - The changed declaration has the form that `windows-bindgen` itself writes for a function's declaration when it's run with `--sys --extern`. That style can't be used here, because `--sys` leaves out the interfaces' methods.
 
 # Build prerequisites
 
