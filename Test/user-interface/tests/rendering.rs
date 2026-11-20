@@ -3,7 +3,8 @@
 // a standard button's elevation border, that widgets draw a new state whole
 // on the frame that makes it, that a press draws all it did on its own frame,
 // that a selection that moves leaves its old item on that frame, that a
-// release shows on its own frame, WinUI's glyphs for chevrons, whether the
+// release shows on its own frame, that a context menu's items look like a
+// menu's, WinUI's glyphs for chevrons, whether the
 // PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
 // the page for an unsupported setup, and the pointer that a window draws
 // while it has focus.
@@ -13,7 +14,7 @@ use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
     Button, Canvas, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Icon, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
-    Point, Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, Widget, unsupported_setup,
+    Point, Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, View, Widget, unsupported_setup,
 };
 
 struct Page;
@@ -355,6 +356,55 @@ fn a_release_shows_on_the_frame_that_reads_it() {
 fn first_difference(now: &Image, later: &Image, area: Rect) -> Option<(u32, u32)> {
     let mut pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
     pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
+}
+
+// A button with a menu, and an area with the same items as its context menu.
+struct Menus;
+
+impl Program for Menus {
+    type Message = ();
+
+    fn title(&self) -> String {
+        "Menus".to_string()
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        let items = || vec![MenuItem::new("Open"), MenuItem::new("Save")];
+        let mut tree = Tree::new();
+        tree.add("Button", Rect::new(100.0, 100.0, 100.0, 32.0), Button::new("Menu").menu(items()));
+        tree.add("Area", Rect::new(400.0, 100.0, 600.0, 600.0), View::new().on_input(|_| ())).set_context_menu(items());
+        tree
+    }
+}
+
+// A context menu's items are drawn as a menu's are: their text in the
+// primary color, not the disabled one, and the one under the pointer filled.
+#[test]
+fn a_context_menu_s_items_look_like_a_menu_s() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::with_theme(Menus, ThemeKind::Light);
+    // The darkest pixel in the area, which is of its text, in the light theme.
+    let ink = |image: &Image, area: Rect| {
+        let pixels = (area.y as u32..area.bottom() as u32).flat_map(|y| (area.x as u32..area.right() as u32).map(move |x| (x, y)));
+        pixels.map(|(x, y)| image.pixel(x, y)[..3].iter().map(|&channel| channel as u32).sum::<u32>()).min().unwrap()
+    };
+    app.click("Button");
+    let image = app.render(&mut gpu).unwrap();
+    let of_menu = ink(&image, app.target("Button/Menu/Save"));
+    app.click_point(Point::new(1500.0, 1000.0));
+    app.right_click("Area");
+    let image = app.render(&mut gpu).unwrap();
+    save(&image, "ContextMenu");
+    let item = app.target("Area/ContextMenu/Save");
+    assert_eq!(ink(&image, item), of_menu, "the item's text isn't as dark as a menu's item's");
+    // Left of its text, in its padding.
+    let (x, y) = (item.x as u32 + 4, item.center().y as u32);
+    let plain = image.pixel(x, y);
+    app.move_to("Area/ContextMenu/Save");
+    let image = app.render(&mut gpu).unwrap();
+    assert_ne!(image.pixel(x, y), plain, "the item under the pointer isn't filled");
 }
 
 // A drop-down button with a submenu, and the glyphs that WinUI's

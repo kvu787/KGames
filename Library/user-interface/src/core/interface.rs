@@ -822,17 +822,9 @@ impl Interface {
                 layer,
             };
             element.widget.draw(&mut draw);
-            if let Some(items) = &element.context_menu
-                && self.popup_open(element_id)
-            {
-                let mut draw = Draw {
-                    ui: self,
-                    id: element_id,
-                    name: element.name.as_deref().unwrap_or(""),
-                    rect: element.rect,
-                    look: Look::default(),
-                    layer,
-                };
+            // Its context menu's items are its parts, and look as the
+            // pointer on them makes them, like any menu's.
+            if let Some(items) = &element.context_menu {
                 crate::widgets::menu::draw_context_menu(&mut draw, items);
             }
             self.draw.pop_clip();
