@@ -108,9 +108,9 @@ and `Right` for the parts to its sides. It always faces the way it moves.
   how far the trigger is pulled, without turning it, and never moves it backward.
 - **Crashes.** When the car's footprint touches an edge of the road, which is the edge of an
   island too, the car goes back to the start, at rest, and so does switching to another vehicle
-  or scene. Then the controls don't move it for 0.35 seconds, so that the player can let go
-  first. Only where the car is in each frame counts, so a car that's fast enough can carry it
-  past an edge.
+  or scene, even by an undo or a redo that brings another back. Then the controls don't move it
+  for 0.35 seconds, so that the player can let go first. Only where the car is in each frame
+  counts, so a car that's fast enough can carry it past an edge.
 - **Time.** Each frame moves the car on by the time since the frame before, in one go, so that
   it moves smoothly at any frame rate, by as much as each frame shows. There are no fixed steps:
   a frame rate that a fixed step doesn't divide, like 100 frames a second in steps of 1/240 of a

@@ -190,6 +190,23 @@ impl Game {
         self.vehicle = self.vehicle.min(self.document.vehicles.list.len() - 1);
     }
 
+    // Puts in the document that an undo or a redo brings back, and returns
+    // the one it replaces. If the scene or the vehicle is another one in it,
+    // that's a switch to it, which puts the car back at the start, at
+    // `seconds`, as switching does.
+    pub fn replace_document(&mut self, document: Document, seconds: f64) -> Document {
+        let scene = self.current_scene().name.clone();
+        let vehicle = self.current_vehicle().name.clone();
+        let replaced = std::mem::replace(&mut self.document, document);
+        self.keep_in_document();
+        if self.current_scene().name != scene {
+            self.go_to_scene(self.scene, seconds);
+        } else if self.current_vehicle().name != vehicle {
+            self.put_at_start(seconds);
+        }
+        replaced
+    }
+
     // Moves the game to a frame's time, `seconds`, with its controls. A tick
     // of no time, at the time of the last, moves nothing, as the steps of a
     // frame before its last are, but the controls that do something once,

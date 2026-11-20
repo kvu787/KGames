@@ -196,20 +196,22 @@ impl Veehiicuul {
         !self.redo.is_empty()
     }
 
+    // Undo and redo switch to the scene or the vehicle that they bring back,
+    // if it's another, as the game's clock has it.
     pub fn undo(&mut self) {
         self.commit();
         if let Some(before) = self.undo.pop() {
-            self.redo.push(std::mem::replace(&mut self.game.document, before));
+            let after = self.game.replace_document(before, self.clock);
+            self.redo.push(after);
             self.committed = self.game.document.clone();
-            self.game.keep_in_document();
         }
     }
 
     pub fn redo(&mut self) {
         if let Some(after) = self.redo.pop() {
-            self.undo.push(std::mem::replace(&mut self.game.document, after));
+            let before = self.game.replace_document(after, self.clock);
+            self.undo.push(before);
             self.committed = self.game.document.clone();
-            self.game.keep_in_document();
         }
     }
 

@@ -6,7 +6,7 @@
 
 use user_interface::graphics::{AdapterChoice, Gpu, Image};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use user_interface::{Gamepad, GamepadButtons, Headless, Key, Point, Startup};
+use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, Point, Startup};
 use veehiicuul::camera::{self, to_ground};
 use veehiicuul::controls::Controls;
 use veehiicuul::game::PAUSE;
@@ -170,6 +170,36 @@ fn the_vehicles_go_around_and_each_starts_over() {
     // With one scene, the next scene is Ribeye again, from the start.
     app.set_gamepad(buttons(0)).set_gamepad(buttons(GamepadButtons::DPAD_UP));
     assert_eq!(app.program.game.current_scene().name, "Ribeye");
+}
+
+// An undo or a redo in Play that changes the scene or the vehicle switches to
+// it, which puts the car back at the start, on the undo's frame, as any
+// switch does: undoing New scene goes back to Ribeye's start, at its camera's
+// height, and undoing a new vehicle back to the last of the others.
+#[test]
+fn an_undo_that_changes_the_scene_or_the_vehicle_starts_over() {
+    let mut app = start();
+    let ribeye = start_of(&app);
+    app.click("NewScene");
+    assert_eq!(app.program.game.current_scene().name, "Scene 2");
+    assert_ne!(app.program.game.car.position, ribeye.position);
+    assert_ne!(app.program.game.camera.height, 150.0);
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    let game = &app.program.game;
+    assert_eq!(game.current_scene().name, "Ribeye");
+    assert_eq!((game.car.position, game.car.heading), (ribeye.position, ribeye.radians()));
+    assert_eq!(game.camera.height, 150.0);
+    assert!(game.paused());
+
+    app.click("Mode/Vehicles").click("Vehicles/Add").click("Mode/Play");
+    assert_eq!(app.program.game.current_vehicle().name, "Vehicle 7");
+    app.hold(Key::UP).hold(Key::LEFT).frames(30).release_key(Key::UP).release_key(Key::LEFT);
+    assert_ne!(app.program.game.car.position, ribeye.position);
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    let game = &app.program.game;
+    assert_eq!(game.current_vehicle().name, "Magenta");
+    assert_eq!((game.car.position, game.car.velocity), (ribeye.position, [0.0, 0.0]));
+    assert!(game.paused());
 }
 
 // C, or Menu, switches between the fixed camera and one that follows the
