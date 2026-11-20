@@ -30,6 +30,11 @@ colors as they are, for the interface, whose colors are sRGB already, and `Frame
 encodes linear colors to sRGB, for 3D shading like SimplePaint's. `DEPTH_FORMAT` is for 3D views'
 depth buffers. A frame's target is in the render target state while its commands are recorded.
 
+`Presenter::present` returns the fence value that the GPU signals once it has drawn the frame, which
+a `Readback` of the frame reads after. When Present fails, it waits for the GPU to finish the frame
+before it returns the error, so that what the frame's commands use, like a `Readback`'s buffer, can
+go with the error, and the presenter waits for the frame before its own buffers go.
+
 ## Pacing
 
 The swap chain is a flip model one, with a frame latency waitable object and a maximum frame

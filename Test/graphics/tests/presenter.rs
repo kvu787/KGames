@@ -3,7 +3,8 @@
 // it lets go of the frame's buffers, whether Present succeeds or not. A
 // failed Present returns its error, and the main loop ends, so the value
 // must be kept before then, or the buffers would go while the GPU still
-// draws into them. How it presents, with vertical sync or without. When the
+// draws into them, and it waits for the value before it returns, as what the
+// frame's commands use goes with the error. How it presents, with vertical sync or without. When the
 // next frame can begin: only once the GPU has finished the last one. And how
 // the main loop waits for that.
 
@@ -26,38 +27,56 @@ fn frames_wait_for_vertical_sync_or_may_tear() {
     assert_eq!(present_arguments(false), (0, ALLOW_TEARING));
 }
 
+// A frame that presents doesn't wait for the GPU: the next one does, once it
+// can begin.
 #[test]
 fn a_presented_frame_s_fence_value_is_kept_and_returned() {
     let mut last_frame = 3;
-    let fence = present_then_signal(&mut last_frame, || Ok(()), || Ok(4)).unwrap();
+    let fence = present_then_signal(&mut last_frame, || Ok(()), || Ok(4), |_| panic!("waited")).unwrap();
     assert_eq!((fence, last_frame), (4, 4));
 }
 
+// The main loop ends with the error, and lets go of what the frame's
+// commands use, like a Readback's buffer, which the GPU may still be copying
+// into, so the GPU must have finished them before the error returns.
 #[test]
 fn a_frame_whose_present_fails_is_still_waited_for() {
+    let waited = std::cell::Cell::new(None);
     let mut last_frame = 3;
-    let result = present_then_signal(&mut last_frame, || Err(Error::from(FAILED)), || Ok(4));
+    let result = present_then_signal(
+        &mut last_frame,
+        || Err(Error::from(FAILED)),
+        || Ok(4),
+        |value| {
+            waited.set(Some(value));
+            Ok(())
+        },
+    );
     assert_eq!(result.unwrap_err().code(), FAILED);
     assert_eq!(last_frame, 4);
+    assert_eq!(waited.get(), Some(4));
 }
 
 #[test]
 fn the_fence_is_signaled_after_the_present() {
     let order = std::cell::RefCell::new(Vec::new());
     let mut last_frame = 0;
-    present_then_signal(
+    let _ = present_then_signal(
         &mut last_frame,
         || {
             order.borrow_mut().push("present");
-            Ok(())
+            Err(Error::from(FAILED))
         },
         || {
             order.borrow_mut().push("signal");
             Ok(1)
         },
-    )
-    .unwrap();
-    assert_eq!(*order.borrow(), ["present", "signal"]);
+        |_| {
+            order.borrow_mut().push("wait");
+            Ok(())
+        },
+    );
+    assert_eq!(*order.borrow(), ["present", "signal", "wait"]);
 }
 
 // Holds the GPU's queue at a wait on a fence that only the CPU signals, so

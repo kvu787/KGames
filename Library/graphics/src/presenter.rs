@@ -218,7 +218,9 @@ impl Presenter {
     // Submits the frame's commands and presents it. Returns the fence value
     // that the GPU signals once it has drawn the frame, which the presenter
     // waits for before it lets go of the frame's buffers, even when Present
-    // fails.
+    // fails. A failed Present waits for it before it returns its error, so
+    // that what the frame's commands use, like a Readback that copies its
+    // pixels, can go as the error ends the frame.
     pub fn present(&mut self, gpu: &mut Gpu, frame: Frame) -> Result<u64> {
         unsafe {
             frame.list.ResourceBarrier(&[transition(
@@ -234,7 +236,14 @@ impl Presenter {
             // Present's DXGI_STATUS codes are successes, which change nothing
             // here. A flip model swap chain never returns DXGI_STATUS_OCCLUDED.
             let present = || swap_chain.Present(interval, flags).ok();
-            present_then_signal(&mut self.last_frame, present, || gpu.signal()).map_err(|error| with_removed_reason(gpu, error))
+            let gpu = std::cell::RefCell::new(gpu);
+            let presented = present_then_signal(
+                &mut self.last_frame,
+                present,
+                || gpu.borrow_mut().signal(),
+                |value| gpu.borrow().wait_for(value),
+            );
+            presented.map_err(|error| with_removed_reason(&gpu.borrow(), error))
         }
     }
 }
@@ -292,14 +301,21 @@ fn tearing_supported(factory: &IDXGIFactory6) -> bool {
 // which are on the GPU already, and keeps the value in `last_frame`, whether
 // the present succeeded or not, so that whatever lets go of the frame's
 // resources waits for the value however the frame ended. Returns the value,
-// or the present's error.
+// or the present's error, once `wait` has waited for the value: the error
+// ends the main loop, which lets go of what the frame's commands use as it
+// goes, like a Readback's buffer, which the GPU may still be copying into.
 pub fn present_then_signal(
     last_frame: &mut u64,
     present: impl FnOnce() -> Result<()>,
     signal: impl FnOnce() -> Result<u64>,
+    wait: impl FnOnce(u64) -> Result<()>,
 ) -> Result<u64> {
     let presented = present();
     *last_frame = signal()?;
+    if presented.is_err() {
+        // The present's error says more than the wait's would.
+        let _ = wait(*last_frame);
+    }
     presented.map(|()| *last_frame)
 }
 
