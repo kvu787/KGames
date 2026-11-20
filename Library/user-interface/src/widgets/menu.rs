@@ -102,10 +102,13 @@ impl<M: Clone + 'static> MenuItem<M> {
     }
 }
 
-// Where an open menu is.
+// Where an open menu is: its top left, and where its bottom goes instead if
+// there's no room under that, like above the button it's from, which it
+// mustn't cover.
 #[derive(Default, Clone)]
 pub(crate) struct MenuState {
     origin: Point,
+    above: f32,
     // The submenu open from one of its items.
     open_submenu: Option<usize>,
 }
@@ -117,7 +120,7 @@ struct MenuLayout {
     has_checks: bool,
 }
 
-fn layout<M: Clone + 'static>(fonts: &mut Fonts, bounds: Rect, origin: Point, items: &[MenuItem<M>]) -> MenuLayout {
+fn layout<M: Clone + 'static>(fonts: &mut Fonts, bounds: Rect, origin: Point, above: f32, items: &[MenuItem<M>]) -> MenuLayout {
     let has_icons = items.iter().any(|item| item.icon.is_some());
     let has_checks = items.iter().any(|item| item.checked.is_some());
     let indent = MENU_ITEM_PLACEHOLDER * (has_icons as u32 + has_checks as u32) as f32;
@@ -134,10 +137,11 @@ fn layout<M: Clone + 'static>(fonts: &mut Fonts, bounds: Rect, origin: Point, it
     }
     let width = width.ceil();
     let height = MENU_FLYOUT_PADDING.vertical() + items.iter().map(MenuItem::height).sum::<f32>();
-    // It opens down from its origin, or up if there's no room below.
+    // It opens down from its origin, or up from `above` if there's no room
+    // below.
     let mut y = origin.y;
     if y + height > bounds.bottom() - SPACE_S {
-        y = (origin.y - height).max(bounds.y + SPACE_S);
+        y = (above - height).max(bounds.y + SPACE_S);
     }
     let x = origin.x.clamp(bounds.x + SPACE_S, (bounds.right() - width - SPACE_S).max(bounds.x));
     MenuLayout {
@@ -168,11 +172,13 @@ fn child_name(item_name: &str) -> String {
     format!("{item_name}/Menu")
 }
 
-// Opens the menu named `name` that `owner` owns, at the point.
-pub(crate) fn open_menu<M>(ctx: &mut Dispatch<M>, owner: Id, name: &str, origin: Point) {
+// Opens the menu named `name` that `owner` owns, down from the point, or up
+// from `above` if there's no room below.
+pub(crate) fn open_menu<M>(ctx: &mut Dispatch<M>, owner: Id, name: &str, origin: Point, above: f32) {
     ctx.open_popup_of(owner, name);
     let state = ctx.memory_of::<MenuState>(id(name));
     state.origin = origin;
+    state.above = above;
     state.open_submenu = None;
 }
 
@@ -184,7 +190,7 @@ pub(crate) fn parts_menu<M: Clone + 'static>(ctx: &mut Parts, name: &str, owner:
     }
     let state = ctx.memory_of::<MenuState>(id(name)).clone();
     let bounds = ctx.bounds();
-    let layout = layout(ctx.fonts(), bounds, state.origin, items);
+    let layout = layout(ctx.fonts(), bounds, state.origin, state.above, items);
     ctx.part_on(Layer::Popup, Part::Named(name.to_string()), name, layout.panel, Sense::NONE, "MenuFlyout", None);
     for (item, slot) in items.iter().zip(slots(layout.panel, items)) {
         if item.separator {
@@ -254,13 +260,14 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
         let child = child_name(&item_name);
         if !ctx.popup_open_of(item_id) {
             let bounds = ctx.bounds();
-            let origin = ctx.memory_of::<MenuState>(menu_id).origin;
-            let layout = layout(ctx.fonts(), bounds, origin, items);
+            let menu = ctx.memory_of::<MenuState>(menu_id).clone();
+            let layout = layout(ctx.fonts(), bounds, menu.origin, menu.above, items);
             let slot = slots(layout.panel, items)[index];
             let rect = slot.pad(MENU_ITEM_MARGIN);
             ctx.open_popup_of(item_id, &child);
             let state = ctx.memory_of::<MenuState>(id(&child));
             state.origin = Point::new(rect.right() + MENU_ITEM_MARGIN.right, rect.y - MENU_FLYOUT_PADDING.top - MENU_ITEM_MARGIN.top);
+            state.above = state.origin.y;
             state.open_submenu = None;
         }
         interact_menu(interaction, ctx, &child, item_id, children);
@@ -283,7 +290,7 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
     }
     let state = ctx.memory_of::<MenuState>(id(name)).clone();
     let bounds = ctx.bounds();
-    let layout = layout(ctx.fonts(), bounds, state.origin, items);
+    let layout = layout(ctx.fonts(), bounds, state.origin, state.above, items);
     let panel = layout.panel;
     let look = ctx.look().clone();
     let theme = ctx.theme().clone();
@@ -368,7 +375,7 @@ pub(crate) fn interact_context_menu<M: Clone + 'static>(interaction: &Interactio
     if hit.secondary_pressed
         && let Some(pointer) = ctx.pointer()
     {
-        open_menu(ctx, owner, &name, pointer);
+        open_menu(ctx, owner, &name, pointer, pointer.y);
     }
     interact_menu(interaction, ctx, &name, owner, items);
 }
@@ -454,7 +461,7 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
                 if open {
                     ctx.close_popup_of(item_id);
                 } else {
-                    open_menu(ctx, item_id, &menu_name, Point::new(item.x, item.bottom() + 4.0));
+                    open_menu(ctx, item_id, &menu_name, Point::new(item.x, item.bottom() + 4.0), item.y - 4.0);
                 }
             }
             interact_menu(interaction, ctx, &menu_name, item_id, items);

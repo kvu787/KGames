@@ -1,6 +1,6 @@
 // WinUI's buttons: Button, in its standard, accent and subtle styles, with
 // text, an icon, or both, and a chevron as a DropDownButton has, with a menu
-// that opens below it; ToggleButton, which is the accent's colors while it's
+// that opens below it, or above it if there's no room below; ToggleButton, which is the accent's colors while it's
 // on; and HyperlinkButton. Their colors change at once between visual
 // states, without WinUI's BrushTransition.
 
@@ -34,7 +34,8 @@ pub struct Button<M> {
     // A ToggleButton's state: on, so the accent's colors.
     checked: bool,
     on_press: Option<M>,
-    // A menu that a press opens below the button, named "<name>/Menu".
+    // A menu that a press opens below the button, or above it if there's
+    // no room below, named "<name>/Menu".
     menu: Option<Vec<MenuItem<M>>>,
 }
 
@@ -225,7 +226,7 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
                         ctx.close_popup();
                     } else {
                         let rect = ctx.rect();
-                        menu::open_menu(ctx, ctx.id(), &name, Point::new(rect.x, rect.bottom() + 4.0));
+                        menu::open_menu(ctx, ctx.id(), &name, Point::new(rect.x, rect.bottom() + 4.0), rect.y - 4.0);
                     }
                 }
                 if ctx.popup_open() {

@@ -576,6 +576,46 @@ fn menus_open_choose_and_close() {
     assert_eq!((app.program.clicks, app.ui.any_popup()), (0, false));
 }
 
+// A drop-down button at the window's bottom.
+#[derive(Default)]
+struct Low {
+    chosen: Vec<String>,
+}
+
+impl Program for Low {
+    type Message = Msg;
+
+    fn title(&self) -> String {
+        "Low".to_string()
+    }
+
+    fn update(&mut self, message: Msg, _ui: &mut Context<Msg>) {
+        if let Msg::Chosen(label) = message {
+            self.chosen.push(label);
+        }
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<Msg> {
+        let mut tree = Tree::new();
+        tree.add("Low", Rect::new(10.0, ui.size().height - 50.0, 100.0, 32.0), Button::new("Menu").menu(menu()));
+        tree
+    }
+}
+
+// A drop-down button's menu with no room under the button opens above it,
+// as WinUI's flyout falls back to the top, and doesn't cover it, so a press
+// on the button closes it, and chooses nothing.
+#[test]
+fn a_menu_with_no_room_under_its_button_opens_above_it() {
+    let mut app = Headless::new(Low::default());
+    app.click("Low");
+    assert_eq!(app.ui.popup_name(), Some("Low/Menu"));
+    let (button, menu) = (app.target("Low"), app.target("Low/Menu"));
+    assert_eq!(menu.bottom(), button.y - 4.0);
+    app.click("Low");
+    assert_eq!((app.ui.popup_name(), app.program.chosen.as_slice()), (None, [].as_slice()));
+}
+
 // A press on what a context menu belongs to, outside the menu, closes it and
 // does nothing else, as a press anywhere outside a popup does.
 #[test]
