@@ -842,7 +842,7 @@ impl Program for Modeler {
             Message::Primitive(index) => self.primitive = index,
             Message::View(input) => interaction::view(self, input),
             Message::Operation(input) => interaction::operation(self, input),
-            Message::Constrain(axis) => self.editor.constrain(axis),
+            Message::Constrain(axis) => self.editor.constrain(&mut self.document, axis, &self.camera, self.view),
             Message::ConfirmOperation => self.editor.confirm(&mut self.document),
             Message::CancelOperation => self.editor.cancel(&mut self.document),
             Message::PickPaint(index) => {

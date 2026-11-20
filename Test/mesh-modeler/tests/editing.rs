@@ -316,6 +316,43 @@ fn g_moves_the_selection_along_an_axis_and_esc_takes_it_back() {
     assert_eq!(app.program.document.selection.faces.len(), 6);
 }
 
+// A modal edit's keys act on their own frame: an axis key limits the edit,
+// or frees it, in the mesh as well as in what it says of itself, and the key
+// that begins an inset makes its walls, as thin as they start.
+#[test]
+fn a_modal_edit_s_keys_change_the_mesh_on_their_own_frame() {
+    let mut app = modeler("ModalKeysFrame");
+    app.key(Key::A);
+    let before = app.program.document.mesh.positions.clone();
+    let start = app.program.view.center() + Point::new(-200.0, 100.0);
+    app.move_point(start);
+    app.key(Key::G);
+    app.move_point(start + Point::new(120.0, 40.0));
+    let free = app.program.document.mesh.positions.clone();
+    assert!(free.iter().zip(&before).all(|(new, old)| new[1] != old[1]), "it moved freely, up the screen too");
+    app.hold(Key::X);
+    assert_eq!(operation(&app, "Axis").as_deref(), Some("X"));
+    for (old, new) in before.iter().zip(&app.program.document.mesh.positions) {
+        assert!(new[0] > old[0] + 0.1, "{old:?} {new:?}");
+        assert_eq!((new[1], new[2]), (old[1], old[2]));
+    }
+    app.release_key(Key::X);
+    app.hold(Key::X);
+    assert_eq!(operation(&app, "Axis").as_deref(), Some("Free"));
+    assert_eq!(app.program.document.mesh.positions, free);
+    app.release_key(Key::X);
+    app.key(Key::ESCAPE);
+
+    app.key_with(Modifiers::ALT, Key::A);
+    app.click_point(app.program.view.center());
+    app.move_point(app.program.view.center() + Point::new(150.0, 0.0));
+    app.hold(Key::I);
+    assert_eq!(operation(&app, "Kind").as_deref(), Some("Inset"));
+    assert_eq!(app.program.document.mesh.faces.len(), 10);
+    assert_eq!(number(&app, &["Mesh", "Faces"]), 10.0);
+    app.release_key(Key::I);
+}
+
 #[test]
 fn ctrl_snaps_a_rotation_to_15_degrees() {
     let mut app = modeler("Rotate");

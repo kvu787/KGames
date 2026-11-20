@@ -463,11 +463,15 @@ impl Editor {
 
     // Begins a modal edit of the selection from the pointer.
     pub fn begin(&mut self, document: &mut Document, kind: OperationKind, pointer: Point, camera: &Camera, view: Rect) -> bool {
-        self.begin_from(document, kind, pointer, camera, view, document.snapshot(), kind.name())
+        self.begin_from(document, kind, Axis::Free, pointer, camera, view, document.snapshot(), kind.name())
     }
 
+    // Begins a modal edit along the axis, and applies it at once, for the
+    // pointer where it began, so that what it does from the start, like an
+    // inset's walls, is in the document on the frame of the key that began
+    // it.
     #[allow(clippy::too_many_arguments)]
-    fn begin_from(&mut self, document: &mut Document, kind: OperationKind, pointer: Point, camera: &Camera, view: Rect, restore: Snapshot, name: &str) -> bool {
+    fn begin_from(&mut self, document: &mut Document, kind: OperationKind, axis: Axis, pointer: Point, camera: &Camera, view: Rect, restore: Snapshot, name: &str) -> bool {
         let vertices = Self::moving_vertices(document);
         if vertices.is_empty() || (kind == OperationKind::Inset && document.selection.faces.is_empty()) {
             self.message = Some(format!("{} needs a selection{}.", kind.name(), if kind == OperationKind::Inset { " of faces" } else { "" }));
@@ -478,7 +482,7 @@ impl Editor {
         let center = if pointer.distance(pivot_screen) < 20.0 { Point::new(pointer.x - 100.0, pointer.y) } else { pivot_screen };
         self.operation = Some(Operation {
             kind,
-            axis: Axis::Free,
+            axis,
             name: name.to_string(),
             start: pointer,
             pivot_screen,
@@ -493,14 +497,20 @@ impl Editor {
             applied: None,
         });
         self.message = None;
+        self.update(document, pointer, false, camera, view);
         true
     }
 
-    // Limits the edit to an axis, or frees it if it's that axis already.
-    pub fn constrain(&mut self, axis: Axis) {
-        if let Some(operation) = &mut self.operation {
-            operation.axis = if operation.axis == axis { Axis::Free } else { axis };
-        }
+    // Limits the edit to an axis, or frees it if it's that axis already, and
+    // applies it so at once, for the pointer and the snap that it was last
+    // applied for, so that the key's frame shows it.
+    pub fn constrain(&mut self, document: &mut Document, axis: Axis, camera: &Camera, view: Rect) {
+        let Some(operation) = &mut self.operation else {
+            return;
+        };
+        operation.axis = if operation.axis == axis { Axis::Free } else { axis };
+        let (pointer, snap) = operation.applied.as_ref().map_or((operation.start, false), |applied| (applied.pointer, applied.snap));
+        self.update(document, pointer, snap, camera, view);
     }
 
     // Applies the edit for where the pointer is now; with `snap`, to whole
@@ -618,12 +628,8 @@ impl Editor {
         };
         document.selection = selection;
         document.touch();
-        let faces = !document.selection.faces.is_empty();
-        let began = self.begin_from(document, OperationKind::Move, pointer, camera, view, restore, "Extrude");
-        if began && faces {
-            self.constrain(Axis::Normal);
-        }
-        began
+        let axis = if document.selection.faces.is_empty() { Axis::Free } else { Axis::Normal };
+        self.begin_from(document, OperationKind::Move, axis, pointer, camera, view, restore, "Extrude")
     }
 
     // Begins insetting the selected faces, as a region.
