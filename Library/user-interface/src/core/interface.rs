@@ -163,8 +163,15 @@ pub struct Interface {
     // frames.
     pub(crate) targets: Vec<Target>,
     pub(crate) hovered: Option<Id>,
-    // The target with a press, and the button.
+    // The target with a press, and the button that it's held by: the last
+    // of `active_buttons` to go down.
     active: Option<(Id, MouseButton)>,
+    // The buttons whose presses went to that target and are still down, in
+    // the order they went down. Each press ends only with its own release,
+    // so a left press that another button's press interrupts still ends
+    // with the left button's release, and holds the target again once the
+    // other one is let go of.
+    active_buttons: Vec<MouseButton>,
     // The text field with keyboard focus.
     pub(crate) focused: Option<Id>,
     // Whether a text field with focus takes the keys typed in this step.
@@ -223,6 +230,7 @@ impl Interface {
             targets: Vec::new(),
             hovered: None,
             active: None,
+            active_buttons: Vec::new(),
             focused: None,
             typing: false,
             popups: Vec::new(),
@@ -531,6 +539,7 @@ impl Interface {
         if !target.enabled {
             if self.active.is_some_and(|(active, _)| active == id) {
                 self.active = None;
+                self.active_buttons.clear();
             }
             return hit;
         }
@@ -538,7 +547,13 @@ impl Interface {
             if !(hit.hovered && sense.takes(button) && self.input.button_pressed(button) && !self.press_consumed[button.index()]) {
                 continue;
             }
+            // While a target has a press, the pointer is on it alone, so a
+            // press of another button joins that press.
+            if self.active.is_none_or(|(active, _)| active != id) {
+                self.active_buttons.clear();
+            }
             self.active = Some((id, button));
+            self.active_buttons.push(button);
             self.press_consumed[button.index()] = true;
             match button {
                 MouseButton::Left => {
@@ -562,7 +577,9 @@ impl Interface {
         {
             hit.held = true;
             hit.held_button = Some(button);
-            if button == MouseButton::Left && self.input.button_released(button) {
+            // Its left press ends with the left button's release, even if
+            // another button went down on it since.
+            if self.active_buttons.contains(&MouseButton::Left) && self.input.button_released(MouseButton::Left) {
                 hit.released = true;
             }
         }
@@ -587,12 +604,13 @@ impl Interface {
     }
 
     // Ends the step's input: what no widget took is let go of, and the
-    // interface's own keys.
+    // interface's own keys. The target with a press is held by the last of
+    // its buttons still down, until none is.
     fn end_input(&mut self) {
-        if let Some((_, button)) = self.active
-            && !self.input.button_down(button)
-        {
-            self.active = None;
+        if let Some((active, _)) = self.active {
+            let input = &self.input;
+            self.active_buttons.retain(|button| input.button_down(*button));
+            self.active = self.active_buttons.last().map(|button| (active, *button));
         }
         if self.input.key_pressed(Key::F10) {
             // The frame presents with the new setting, so the PerfBar says
@@ -625,6 +643,7 @@ impl Interface {
             && !self.targets.iter().any(|target| target.id == active)
         {
             self.active = None;
+            self.active_buttons.clear();
         }
         if !self.popups.is_empty() {
             // A popup stays only while its owner still exists AND still lays

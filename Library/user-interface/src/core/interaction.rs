@@ -161,7 +161,7 @@ pub struct Hit {
     // It has a press: a button that went down on it is still down.
     pub held: bool,
     // Its left press ended in this step, wherever the pointer was, which ends
-    // a drag, like a slider's.
+    // a drag, like a slider's, even if another button went down on it since.
     pub released: bool,
     // Its press was the second of a double-click.
     pub double_clicked: bool,
@@ -169,7 +169,8 @@ pub struct Hit {
     pub secondary_pressed: bool,
     // The middle button went down on it.
     pub middle_pressed: bool,
-    // The button that its press is of, while it's held.
+    // The button that holds it, while it's held: of the buttons that went
+    // down on it and are still down, the last to go down.
     pub held_button: Option<MouseButton>,
     // Notches of the wheel turned over it.
     pub wheel: Point,

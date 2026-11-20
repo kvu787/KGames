@@ -246,6 +246,87 @@ fn a_press_that_opens_a_popup_or_a_dialog_does_nothing_more_as_it_is_let_go_of()
     assert_eq!((app.program.dialog, app.program.answer), (true, None));
 }
 
+// A 3D view that takes every button, and what it heard in each step of the
+// last frame.
+#[derive(Default)]
+struct Viewport {
+    heard: Vec<ViewInput>,
+}
+
+impl Program for Viewport {
+    type Message = ViewInput;
+
+    fn title(&self) -> String {
+        "Viewport".to_string()
+    }
+
+    fn update(&mut self, input: ViewInput, _ui: &mut Context<ViewInput>) {
+        self.heard.push(input);
+    }
+
+    fn view(&self, ui: &mut Ui) -> Tree<ViewInput> {
+        let mut tree = Tree::new();
+        tree.add("View", Rect::new(100.0, ui.content_top() + 100.0, 400.0, 300.0), View::new().on_input(|input| input));
+        tree
+    }
+}
+
+// What the view heard in the frame that the input runs, alone.
+fn heard_in(app: &mut Headless<Viewport>, input: impl FnOnce(&mut Headless<Viewport>)) -> ViewInput {
+    app.program.heard.clear();
+    input(app);
+    *app.program.heard.last().expect("the view heard nothing")
+}
+
+// A press ends only with its own button's release. Another button that goes
+// down on the same widget meanwhile, like the middle one that orbits in the
+// middle of a drag of the left one that paints, holds it until it's let go
+// of, and then the left one holds it again, and the left press still ends
+// with the left release, on the frame of the release.
+#[test]
+fn a_press_ends_only_with_its_own_release_whatever_other_buttons_do() {
+    let mut app = Headless::new(Viewport::default());
+    let at = app.target("View").center();
+    let elsewhere = at + Point::new(50.0, 20.0);
+    app.press_point(at);
+    let middle = heard_in(&mut app, |app| {
+        app.press_button(at, MouseButton::Middle);
+    });
+    assert!(middle.middle_pressed && middle.holding(MouseButton::Middle), "{middle:?}");
+    let released = heard_in(&mut app, |app| {
+        app.release();
+    });
+    assert!(released.released && released.holding(MouseButton::Middle), "{released:?}");
+    app.release_button(MouseButton::Middle);
+    assert_eq!(app.ui.pressed_name(), None);
+
+    // Letting go of the middle one first: the left one holds the view
+    // again, from the step after the middle one's release, like the motion
+    // after it in the same frame, until its own.
+    app.press_point(at).press_button(at, MouseButton::Middle);
+    let dragged = heard_in(&mut app, |app| {
+        app.queue(&[Event::ButtonReleased(MouseButton::Middle)]).queue_move(elsewhere).frame();
+    });
+    assert!(dragged.holding(MouseButton::Left) && dragged.drag_delta == elsewhere - at && !dragged.released, "{dragged:?}");
+    assert_eq!(app.ui.pressed_name(), Some("View"));
+    let released = heard_in(&mut app, |app| {
+        app.release();
+    });
+    assert!(released.released && released.holding(MouseButton::Left), "{released:?}");
+    assert_eq!(app.ui.pressed_name(), None);
+
+    // The middle one first, then the left one, which then holds it: the
+    // left release ends the left press, and the middle one holds it again.
+    app.press_button(at, MouseButton::Middle).press_point(at);
+    let released = heard_in(&mut app, |app| {
+        app.release();
+    });
+    assert!(released.released, "{released:?}");
+    assert_eq!(app.ui.pressed_name(), Some("View"));
+    app.release_button(MouseButton::Middle);
+    assert_eq!(app.ui.pressed_name(), None);
+}
+
 #[test]
 fn a_covered_widget_is_not_under_the_pointer() {
     let mut app = Headless::new(Test::default());

@@ -301,7 +301,11 @@ before, but reports gamepads' whole state, their held buttons too.
   which only ends a drag: a button sends its message, a switch flips, a combo box's list or a menu
   opens, an item is chosen, and a right press opens a context menu. Sliding off before letting go
   doesn't take a press back. `Hit::pressed` is a left press, and `ViewInput::pressed` is a click
-  in a 3D view. The pointer stays inside the window, so a drag ends only with its release.
+  in a 3D view. The pointer stays inside the window, so a drag ends only with its release. Each
+  press ends only with its own button's release: another button that goes down on the same widget
+  meanwhile, like the middle one that orbits a 3D view in the middle of a left drag, holds it, as
+  `held_button` says, until it's let go of, and then the left one holds it again, and the left
+  press still ends with the left release, as `released`.
 - Only text fields take keyboard focus, and only they take keys: a press on one gives it focus,
   and a press anywhere else takes it away, once the field has taken what was typed before it.
   What's typed goes in at the caret, which a press places, Backspace deletes the character before
