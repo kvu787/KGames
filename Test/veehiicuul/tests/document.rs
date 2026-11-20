@@ -118,6 +118,8 @@ fn says_what_is_wrong_with_the_vehicles_file() {
     for (text, problem) in [
         (file(""), "Vehicles needs at least one vehicle"),
         (file(&format!("{}, {}", vehicle("Gray", footprint), vehicle("Gray", footprint))), "Vehicles[1]: another vehicle is called Gray"),
+        // Names match without case, as the settings and the scenes name them.
+        (file(&format!("{}, {}", vehicle("Gray", footprint), vehicle("GRAY", footprint))), "Vehicles[1]: another vehicle is called Gray"),
         (file(&vehicle("Gray", r#"{ "Left": 1, "Right": 1, "Front": 2 }"#)), "Vehicles[0]: needs Gray's Footprint.Back"),
         (file(&vehicle("Gray", r#"{ "Left": 0, "Right": 1, "Front": 2, "Back": 2 }"#)), "Vehicles[0]: Gray's Footprint.Left must be above 0, not 0"),
     ] {

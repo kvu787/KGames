@@ -140,7 +140,8 @@ degrees from +Z toward +X, and colors are sRGB, like `"#1CDA61"`.
 Each vehicle is a model with its own `Paint` over the model's, its `Acceleration`, and its
 `Footprint`: how far it goes from the model's origin to the vehicle's `Left`, `Right`, `Front`
 and `Back`. A vehicle drives the same on every track, so that a vehicle that looks different
-drives differently, and one that drives differently looks different.
+drives differently, and one that drives differently looks different. Each has a `Name` of its
+own, without regard to case, as the settings and the scenes name vehicles.
 
 | Vehicle | Forward | Reverse | Left | Right |
 | ------- | ------- | ------- | ---- | ----- |

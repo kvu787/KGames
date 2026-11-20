@@ -45,8 +45,9 @@ impl Vehicles {
         let mut list = Vec::new();
         for (index, item) in items.iter().enumerate() {
             let vehicle = vehicle(item).map_err(|problem| format!("Vehicles[{index}]: {problem}"))?;
-            if list.iter().any(|other: &Vehicle| other.name == vehicle.name) {
-                return Err(format!("Vehicles[{index}]: another vehicle is called {}", vehicle.name));
+            // Names match without case, as find reads them.
+            if let Some(other) = list.iter().find(|other: &&Vehicle| other.name.eq_ignore_ascii_case(&vehicle.name)) {
+                return Err(format!("Vehicles[{index}]: another vehicle is called {}", other.name));
             }
             list.push(vehicle);
         }

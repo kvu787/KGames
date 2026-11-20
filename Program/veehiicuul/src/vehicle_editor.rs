@@ -150,10 +150,13 @@ impl VehicleEditor {
             }
             VehicleMsg::Name(text) => {
                 self.name_text = text;
-                // A rename also changes the name where it's parked.
+                // A rename also changes the name where it's parked. Names
+                // match without case, as Vehicles::find reads them, so one
+                // can change its case, but not take another's.
                 let name = self.name_text.trim().to_string();
                 let old = document.vehicles.list[*vehicle].name.clone();
-                if !name.is_empty() && name != old && document.vehicles.find(&name).is_none() {
+                let taken = document.vehicles.find(&name).is_some_and(|other| other != *vehicle);
+                if !name.is_empty() && name != old && !taken {
                     for scene in &mut document.scenes {
                         for parked in &mut scene.parked {
                             if parked.vehicle.eq_ignore_ascii_case(&old) {

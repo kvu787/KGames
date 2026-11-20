@@ -12,9 +12,9 @@ use user_interface::json::Value;
 use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Startup};
 use veehiicuul::{camera, curve};
-use veehiicuul::program::{PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
+use veehiicuul::program::{Message, PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
 use veehiicuul::scene_editor::Picked;
-use veehiicuul::vehicle_editor::SHOWN_HEADING;
+use veehiicuul::vehicle_editor::{SHOWN_HEADING, VehicleMsg};
 
 // The window's size, which the views fill.
 const SIZE: [f32; 2] = [WINDOW_WIDTH, WINDOW_HEIGHT];
@@ -292,6 +292,23 @@ fn the_footprint_creator_moves_a_side_and_fits_the_model() {
     assert_eq!(app.program.game.document.vehicles.list.len(), 7);
     assert_eq!(app.program.vehicle_editor.message, "Greenish is parked in Ribeye, so it can't go.");
     assert!(app.has_target("Vehicles/Message"));
+}
+
+// Names match without case, so a vehicle's name can change its case, which
+// it changes where it's parked too, but can't take another's in another
+// case, which would make one of the two unreachable. The name's field says
+// what it holds, as a whole, which a typed letter changes one at a time.
+#[test]
+fn a_rename_can_change_the_case_of_a_name_but_not_take_another() {
+    let mut app = start("RenameCase");
+    app.click("Mode/Vehicles").click("Vehicles/List/0");
+    assert_eq!(app.program.game.current_vehicle().name, "Green");
+    app.send_message(Message::Vehicle(VehicleMsg::Name("GREEN".to_string())));
+    assert_eq!(app.program.game.current_vehicle().name, "GREEN");
+    assert_eq!(app.program.game.current_scene().parked[0].vehicle, "GREEN");
+    app.send_message(Message::Vehicle(VehicleMsg::Name("blue".to_string())));
+    assert_eq!(app.program.game.current_vehicle().name, "GREEN", "Blue's name in another case");
+    assert_eq!(app.program.game.document.vehicles.find("blue"), Some(1));
 }
 
 // A press on the cone picks it, and a drag moves it. A new decoration goes
