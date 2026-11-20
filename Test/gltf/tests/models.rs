@@ -188,9 +188,18 @@ fn says_what_is_wrong_with_a_file_s_indices_and_references() {
         (triangle(r#"[{ "mesh": -1 }]"#, MATERIALS, PRIMITIVE), "node 0 has -1 as its mesh, which isn't an index"),
         (triangle(one, MATERIALS, with_material), "has -1 as its material, which isn't an index"),
         (triangle(one, MATERIALS, &with_indices("1.5")), "has 1.5 as its indices, which isn't an index"),
+        (triangle(one, MATERIALS, r#"{ "attributes": { "POSITION": -1 } }"#), "has -1 as its POSITION, which isn't an index"),
+        // Not flat normals instead of the file's.
+        (triangle(one, MATERIALS, r#"{ "attributes": { "POSITION": 0, "NORMAL": 0.5 } }"#), "has 0.5 as its NORMAL, which isn't an index"),
     ] {
         assert_eq!(parse(&bytes), Err(problem.to_string()));
     }
+    // A scene that the file doesn't have, rather than every node.
+    let mut bytes = triangle(one, MATERIALS, PRIMITIVE);
+    let scene = br#""scene": 0"#;
+    let at = bytes.windows(scene.len()).position(|window| window == scene).unwrap();
+    bytes[at + scene.len() - 1] = b'9';
+    assert_eq!(parse(&bytes), Err("has no scene 9".to_string()));
 }
 
 fn model(name: &str) -> Model {

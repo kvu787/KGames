@@ -240,7 +240,7 @@ fn accessor<const N: usize>(document: &Value, binary: &[u8], which: usize) -> Re
     if count > MAX_ELEMENTS {
         return Err(format!("has accessor {which} with {count} elements, more than {MAX_ELEMENTS}"));
     }
-    let Some(view_index) = index(accessor, "bufferView") else {
+    let Some(view_index) = reference(accessor, "bufferView")? else {
         // Without a buffer view, every element is zero.
         return Ok(vec![[0.0; N]; count]);
     };
@@ -325,6 +325,9 @@ fn read(document: &Value, binary: &[u8]) -> Result<Model, String> {
     }
     let scenes = list(document, "scenes");
     let scene = reference(document, "scene")?.unwrap_or(0);
+    if !scenes.is_empty() && scene >= scenes.len() {
+        return Err(format!("has no scene {scene}"));
+    }
     let roots: Vec<usize> = match scenes.get(scene) {
         Some(scene) => nodes_in(scene, "nodes").map_err(|problem| format!("scene {problem}"))?,
         // Without scenes, every node that's no other's child is a root.
@@ -382,9 +385,9 @@ fn add_primitive(
         return Err("has a primitive that isn't triangles".to_string());
     }
     let attributes = primitive.get("attributes").ok_or_else(|| "has a primitive without attributes".to_string())?;
-    let position_accessor = index(attributes, "POSITION").ok_or_else(|| "has a primitive without positions".to_string())?;
+    let position_accessor = reference(attributes, "POSITION")?.ok_or_else(|| "has a primitive without positions".to_string())?;
     let positions = accessor::<3>(document, binary, position_accessor)?;
-    let normals = match index(attributes, "NORMAL") {
+    let normals = match reference(attributes, "NORMAL")? {
         Some(normal_accessor) => Some(accessor::<3>(document, binary, normal_accessor)?),
         None => None,
     };
