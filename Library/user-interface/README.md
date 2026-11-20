@@ -186,7 +186,7 @@ frame's state through `Interface`'s getters, like `theme()`, `time()`, `input()`
 | `Expander`                         | Expander                  | A header that shows and hides what's under it                   |
 | `InfoBar`                          | InfoBar                   | Informational, success, warning or error; closable              |
 | `ScrollArea`, `ScrollBar`          | ScrollViewer              | Content taller than its area, with the wheel                    |
-| `Element::tooltip`, `tooltip_wide` | ToolTip                   | After the pointer rests half a second, above it; wider if asked |
+| `Element::tooltip`, `tooltip_wide` | ToolTip                   | 0.5 s after the pointer gets on it, above it; wider if asked    |
 | `ProgressBar`, `ProgressRing`      | ProgressBar, ProgressRing | Determinate, or of unknown length                               |
 | `Tree::card`                       | Card                      | A card with children; `with_view` leaves a hole for 3D          |
 | `Tree::sized_card`                 | Card                      | A card as tall as its content                                   |

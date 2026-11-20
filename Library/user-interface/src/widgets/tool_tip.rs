@@ -1,9 +1,10 @@
-// WinUI's ToolTip: what a control is for, after the pointer rests on it for
-// TOOLTIP_DELAY. It's in-app acrylic with a flyout's stroke, raised like a
-// tooltip, above the pointer, or below it if there's no room above, and
-// always in the window. A press or the wheel puts it away until the pointer
-// moves to another control. Elements get one with Element::tooltip; this
-// draws it.
+// WinUI's ToolTip: what a control is for, TOOLTIP_DELAY after the pointer
+// gets on it, as WinUI's ToolTipService opens it, however the pointer moves
+// on it meanwhile. It's in-app acrylic with a flyout's stroke, raised like a
+// tooltip, above where the pointer is as it shows, or below if there's no
+// room above, and always in the window, and it stays there while it shows.
+// A press or the wheel puts it away until the pointer moves to another
+// control. Elements get one with Element::tooltip; this draws it.
 
 use crate::core::interface::Interface;
 use crate::core::tree::{Tooltip, TooltipLine};
@@ -13,7 +14,7 @@ use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 
 // Draws the tooltip of the target with the name, anchored where the pointer
-// rested on it.
+// was as it showed.
 pub(crate) fn draw_tooltip(ui: &mut Interface, name: &str, tooltip: &Tooltip, anchor: Point) {
     let lines = &tooltip.lines;
     if lines.is_empty() {

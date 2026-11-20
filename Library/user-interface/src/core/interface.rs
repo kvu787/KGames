@@ -85,7 +85,10 @@ pub struct FramePhases {
 struct TooltipState {
     candidate: Option<Id>,
     since: f64,
+    // Where the pointer is, until the tooltip shows, which it shows above,
+    // as WinUI's opens at the pointer, and stays at while it shows.
     anchor: Point,
+    shown: bool,
     dismissed: bool,
 }
 
@@ -690,14 +693,18 @@ impl Interface {
         });
         self.cursor = cursor.unwrap_or(Cursor::Arrow);
 
-        // Tooltips show once the pointer rests on a widget.
+        // Tooltips show once the pointer has been on a widget for a while,
+        // where it is then.
         if self.hovered != self.tooltip.candidate {
             self.tooltip = TooltipState {
                 candidate: self.hovered,
                 since: self.input.time,
                 anchor: self.input.pointer.unwrap_or_default(),
+                shown: false,
                 dismissed: false,
             };
+        } else if !self.tooltip.shown {
+            self.tooltip.anchor = self.input.pointer.unwrap_or_default();
         }
     }
 
@@ -759,6 +766,7 @@ impl Interface {
         let mut tooltip: Option<(Tooltip, String, Point)> = None;
         let sources = self.look_sources();
         self.draw_elements(&tree.elements, true, Layer::Base, bounds, &sources, &due, &mut tooltip);
+        self.tooltip.shown = tooltip.is_some();
         if let Some((tooltip, name, anchor)) = tooltip {
             crate::widgets::tool_tip::draw_tooltip(self, &name, &tooltip, anchor);
         }
@@ -1116,8 +1124,7 @@ impl Interface {
         self.modal
     }
 
-    // Where the pointer rested on the hovered target, if its tooltip should
-    // show now.
+    // Where the hovered target's tooltip is anchored, if it should show now.
     fn tooltip_due(&self) -> Option<Point> {
         let due = self.tooltips_enabled
             && self.active.is_none()

@@ -466,6 +466,31 @@ fn a_tooltip_waits_for_the_pointer_to_rest_and_sits_above_it() {
     assert_eq!(app.ui.tooltip_name(), None);
 }
 
+fn tooltip_area(app: &Headless<Test>) -> [f64; 4] {
+    let state = app.ui.state();
+    let Some(Value::Array(area)) = state.get("Tooltip").and_then(|tooltip| tooltip.get("Area")).cloned() else { panic!("no tooltip") };
+    area.iter().map(|value| if let Value::Number(number) = value { *number } else { panic!() }).collect::<Vec<_>>().try_into().unwrap()
+}
+
+// A tooltip shows its delay after the pointer got on its widget, however
+// the pointer moved on it, as WinUI's ToolTipService opens it, at where the
+// pointer is on the frame it shows, and stays there while it shows.
+#[test]
+fn a_tooltip_shows_where_the_pointer_is_as_it_shows_and_stays_there() {
+    let mut app = Headless::new(Test::default());
+    app.move_point(Point::new(30.0, PERF_BAR + 15.0)).wait(TOOLTIP_DELAY * 0.6);
+    assert_eq!(app.ui.tooltip_name(), None);
+    // There's no room above, so it's 20 below the pointer.
+    let at = Point::new(90.0, PERF_BAR + 38.0);
+    app.move_point(at).wait(TOOLTIP_DELAY * 0.6);
+    assert_eq!(app.ui.tooltip_name(), Some("Button"));
+    let area = tooltip_area(&app);
+    let [x, y, width, _] = area.map(|value| value as f32);
+    assert!((x + width / 2.0 - at.x).abs() <= 0.5 && y == at.y + 20.0, "{area:?}");
+    app.move_point(Point::new(60.0, PERF_BAR + 20.0));
+    assert_eq!((app.ui.tooltip_name(), tooltip_area(&app)), (Some("Button"), area));
+}
+
 #[test]
 fn a_list_shows_only_the_rows_in_view() {
     let mut app = Headless::new(Test::default());
