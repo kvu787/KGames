@@ -533,7 +533,9 @@ pixels, and `record` draws it into a frame of the caller's, for timing frames in
 **Scripts.** A program run with `--script` takes its input from the script, on a fixed clock,
 instead of from the user, and saves frames and its state. RunInBackground runs them (see its
 [README](../../Program/RunInBackground/README.md#scripts)). A script is a JSON object with its
-`Steps`, each at a `Frame`. Frame 0 draws what frame 1's steps point at.
+`Steps`, each at a `Frame`. Frame 0 draws what frame 1's steps point at. The run ends after the
+last frame that the steps' input reaches, like the release of a drag, a click or a key that's the
+last step, so that nothing is left held.
 
 ```json
 {

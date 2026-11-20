@@ -86,9 +86,10 @@ the program writes to standard output and standard error, like why it couldn't s
 A script run passes the program `--script` and `--output`, and the program takes its input
 from the script instead of you, on a fixed clock, as
 [Library/user-interface](../../Library/user-interface/README.md#testing) describes. It opens on the
-display without taking focus, like any run, and exits after the script's last step. The run
-fails if the program exits with an error, which includes expectations in the script that
-weren't met, if it runs past `--timeout`, or if its window ever becomes the foreground window.
+display without taking focus, like any run, and exits after the last frame of the script's
+input, like the release of a drag that's its last step. The run fails if the program exits with
+an error, which includes expectations in the script that weren't met, if it runs past
+`--timeout`, or if its window ever becomes the foreground window.
 
 RunInBackground prints whether each script passed, and the frames it captured. Each script's
 folder in `target\RunInBackground\<program>` has its captures, as `<name>.png`, the program's

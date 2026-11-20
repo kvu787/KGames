@@ -123,6 +123,32 @@ fn a_drag_lands_on_each_of_its_points_frame_by_frame() {
     assert_eq!(pointers[1..], [Point::new(100.0, 300.0), Point::new(200.0, 400.0), Point::new(300.0, 500.0), Point::new(400.0, 600.0)]);
 }
 
+// A run goes on until the last frame that its steps' input reaches, as the
+// main loop ends it, so a drag, a click or a key that's the last step lets
+// go, and nothing stays held.
+#[test]
+fn a_run_ends_once_its_last_gesture_lets_go() {
+    let app = Headless::new(Page);
+    let run = |steps: &str| {
+        let mut runner = ScriptRunner::new(Script::parse(&format!(r#"{{ "Steps": [ {steps} ] }}"#)).unwrap());
+        let mut releases = Vec::new();
+        for number in 0.. {
+            let events = runner.frame(number, &app.ui).unwrap().events;
+            if events.iter().any(|event| matches!(event, Event::ButtonReleased(_) | Event::KeyReleased(_))) {
+                releases.push(number);
+            }
+            if number >= runner.last_frame() {
+                return (number, releases);
+            }
+        }
+        unreachable!()
+    };
+    assert_eq!(run(r#"{ "Frame": 1, "Key": "F3" }, { "Frame": 5, "Drag": { "From": [0, 0], "To": [10, 0], "Frames": 10 } }"#), (16, vec![2, 16]));
+    assert_eq!(run(r#"{ "Frame": 3, "Click": "Save" }"#), (4, vec![4]));
+    assert_eq!(run(r#"{ "Frame": 3, "Key": "Ctrl+S" }"#), (4, vec![4]));
+    assert_eq!(run(r#"{ "Frame": 3, "Press": "Save" }"#), (3, vec![]));
+}
+
 #[test]
 fn a_point_can_be_a_place_in_a_target() {
     let app = Headless::new(Page);

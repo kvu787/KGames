@@ -16,8 +16,9 @@
 // Frame N's steps happen before frame N's update, which sees them as input,
 // except Capture and Expect, which happen after it. Frame N is at N times
 // FrameTime seconds, a 60th of a second unless the script says. Frame 0,
-// before the first step, draws what steps can point at. The program exits after the last step's frame, and fails if an
-// expectation wasn't met.
+// before the first step, draws what steps can point at. The program exits
+// after the last frame that the steps' input reaches, like a drag's release
+// after its last step, and fails if an expectation wasn't met.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -226,8 +227,13 @@ impl ScriptRunner {
         self.script.frame_time
     }
 
+    // The last frame that the script's input reaches, as the frames run so
+    // far know it: its last step's, or a later one that a step's gesture
+    // goes on to, like a drag's release, so that the run doesn't end with a
+    // button or a key held.
     pub fn last_frame(&self) -> u64 {
-        self.script.last_frame()
+        let scheduled = self.scheduled.keys().next_back().copied().unwrap_or(0);
+        self.script.last_frame().max(scheduled)
     }
 
     // What frame N does. `ui` has the last frame's targets, which names point
