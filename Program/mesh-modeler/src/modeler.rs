@@ -615,8 +615,8 @@ impl Modeler {
     }
 
     // Remakes what the view draws for this frame: the triangles, when the
-    // mesh or how it's shaded changed, the transforms, the paints, and the
-    // overlay.
+    // mesh or how it's shaded changed, what's under the pointer in them, the
+    // transforms, the paints, and the overlay.
     pub fn prepare_scene(&mut self, theme: &Theme) {
         let view = self.view;
         let key = (self.document.version, self.levels, self.smooth);
@@ -630,6 +630,7 @@ impl Modeler {
             self.scene.version += 1;
             self.built = Some(key);
         }
+        interaction::hover(self);
         self.update_preview();
         let background = theme.card_opaque();
         self.scene.view = view;

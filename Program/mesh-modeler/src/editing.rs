@@ -187,6 +187,10 @@ pub struct Editor {
     pub mode: Mode,
     pub tool: Tool,
     pub operation: Option<Operation>,
+    // Where the pointer is over the view, as the view's input last said, and
+    // what's under it there, which is found for the mesh as each step's
+    // edits leave it.
+    pub pointer: Option<Point>,
     pub hover: Option<Element>,
     // A press on the view, which selected as it went down, and may become a
     // box: where it was, and the document's version after the step that its
@@ -208,6 +212,7 @@ impl Default for Editor {
             mode: Mode::Faces,
             tool: Tool::Select,
             operation: None,
+            pointer: None,
             hover: None,
             press: None,
             selecting_box: None,
@@ -253,9 +258,13 @@ fn segment_distance(point: Point, a: Point, b: Point) -> (f32, f32) {
 
 impl Editor {
     // Forgets what's under way and the paint picked, for another document,
-    // keeping the selection mode.
+    // keeping the selection mode, and where the pointer is.
     pub fn reset(&mut self) {
-        *self = Editor { mode: self.mode, ..Editor::default() };
+        *self = Editor {
+            mode: self.mode,
+            pointer: self.pointer,
+            ..Editor::default()
+        };
     }
 
     // Switches the selection mode, converting the selection as Blender does.

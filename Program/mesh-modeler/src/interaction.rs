@@ -14,7 +14,8 @@
 //   axis, and Ctrl snaps it.
 //
 // `messages` turns a step's keys into messages; `view` and `operation`
-// apply the pointer's input, as update runs them.
+// apply the pointer's input, as update runs them; and `hover` finds what's
+// under the pointer once the step's edits are done.
 
 use user_interface::{Key, MouseButton, Shortcut, Ui, ViewInput};
 
@@ -87,31 +88,19 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
     {
         modeler.camera.zoom(input.wheel.y, at, view);
     }
+    // Where the pointer is over the view, which `hover` finds what's under
+    // once the step's edits are done.
+    let inside = pointer.filter(|point| view.contains(*point) && (input.hovered || input.held));
+    modeler.editor.pointer = inside;
     if modeler.editor.operation.is_some() {
         return;
     }
 
-    // What's under the pointer, for the tool.
-    let inside = pointer.filter(|point| view.contains(*point) && (input.hovered || input.held));
     let see_through = modeler.xray;
     let drawn = Drawn {
         surface: modeler.surface.as_ref(),
         triangles: &modeler.scene.triangles,
     };
-    modeler.editor.hover = None;
-    modeler.editor.loop_preview = None;
-    if let Some(point) = inside {
-        match modeler.editor.tool {
-            Tool::Select => {
-                if !modeler.editor.pressing() || modeler.editor.selecting_box.is_none() {
-                    modeler.editor.hover = modeler.editor.pick(&modeler.document, &modeler.camera, view, point, see_through, drawn);
-                }
-            }
-            Tool::Paint => modeler.editor.hover = face_at(modeler, point, drawn).map(Element::Face),
-            Tool::LoopCut => modeler.editor.loop_preview = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point),
-        }
-    }
-
     match modeler.editor.tool {
         Tool::Select => {
             // A click selects as it goes down: with Alt, the loop through the
@@ -126,8 +115,8 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
                         None => false,
                     }
                 } else {
-                    let hover = modeler.editor.hover;
-                    modeler.editor.click(&mut modeler.document, hover, modifiers.shift)
+                    let element = inside.and_then(|point| modeler.editor.pick(&modeler.document, &modeler.camera, view, point, see_through, drawn));
+                    modeler.editor.click(&mut modeler.document, element, modifiers.shift)
                 };
                 modeler.editor.press(point, stepped.then_some(modeler.document.version));
             }
@@ -153,11 +142,41 @@ pub fn view(modeler: &mut Modeler, input: ViewInput) {
         }
         Tool::LoopCut => {
             if input.pressed
-                && let Some((edge, fraction)) = modeler.editor.loop_preview
+                && let Some((edge, fraction)) = inside.and_then(|point| modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point))
             {
                 modeler.editor.loop_cut(&mut modeler.document, edge, fraction);
             }
         }
+    }
+}
+
+// What's under the pointer for the tool: the element that a click would
+// pick, the face that the Paint tool would paint, or the loop that the Loop
+// cut tool would cut, or nothing while a modal edit is under way or a box is
+// being selected. Prepare finds it once the step's edits are done, in the
+// mesh as they left it and with what the view draws of it, so that a frame
+// shows and says what's under the pointer after an edit that changes what's
+// there, like a Delete that renumbers the faces, or a loop cut through the
+// edge that was under it.
+pub fn hover(modeler: &mut Modeler) {
+    modeler.editor.hover = None;
+    modeler.editor.loop_preview = None;
+    let Some(point) = modeler.editor.pointer.filter(|_| modeler.editor.operation.is_none()) else {
+        return;
+    };
+    let view = modeler.view;
+    let drawn = Drawn {
+        surface: modeler.surface.as_ref(),
+        triangles: &modeler.scene.triangles,
+    };
+    match modeler.editor.tool {
+        Tool::Select => {
+            if !modeler.editor.pressing() || modeler.editor.selecting_box.is_none() {
+                modeler.editor.hover = modeler.editor.pick(&modeler.document, &modeler.camera, view, point, modeler.xray, drawn);
+            }
+        }
+        Tool::Paint => modeler.editor.hover = face_at(modeler, point, drawn).map(Element::Face),
+        Tool::LoopCut => modeler.editor.loop_preview = modeler.editor.nearest_edge(&modeler.document, &modeler.camera, view, point),
     }
 }
 

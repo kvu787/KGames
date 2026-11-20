@@ -541,6 +541,41 @@ fn ctrl_r_cuts_the_loop_under_the_pointer() {
     assert_eq!(text(&app, "Tool").as_deref(), Some("Select"));
 }
 
+// What's under the pointer is found once a frame's edits are done, in the
+// mesh as they left it: a Delete that renumbers the faces leaves its frame
+// saying, and tinting, the face under the pointer by its new number, and a
+// loop cut's frame previews the loop under the pointer in the mesh it cut.
+#[test]
+fn what_s_under_the_pointer_is_of_the_mesh_as_the_frame_s_edits_leave_it() {
+    let mut app = modeler("HoverAfterEdits");
+    app.click_point(app.program.view.center());
+    let front = *app.program.document.selection.faces.iter().next().unwrap();
+    app.move_point(screen(&app, [1.0, 0.0, 0.0]));
+    let hovered = |app: &Headless<Modeler>| match app.program.editor.hover {
+        Some(mesh_modeler::editing::Element::Face(face)) => face,
+        other => panic!("{other:?}"),
+    };
+    // The case: the face under the pointer comes after the one deleted.
+    assert!(hovered(&app) > front);
+    app.hold(Key::X);
+    assert_eq!(app.program.document.mesh.faces.len(), 5);
+    let face = hovered(&app);
+    assert!(app.program.document.mesh.face_normal(face)[0] > 0.99, "face {face}");
+    assert_eq!(text(&app, "Hover"), Some(format!("Face {face}")));
+    app.release_key(Key::X);
+
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    app.key_with(Modifiers::CONTROL, Key::R);
+    let middle = screen(&app, [1.0, 0.0, 1.0]);
+    app.move_point(middle);
+    app.press_point(middle);
+    assert_eq!(app.program.document.mesh.faces.len(), 10);
+    let previewed = number(&app, &["LoopPreviewEdges"]);
+    assert!(previewed > 0.0);
+    app.release();
+    assert_eq!(number(&app, &["LoopPreviewEdges"]), previewed);
+}
+
 #[test]
 fn alt_click_selects_an_edge_loop() {
     let mut app = modeler("AltLoop");
