@@ -696,12 +696,27 @@ fn a_paint_s_color_and_settings_change_in_one_step_each() {
     let steps = app.program.document.undo_steps();
     let rail = app.target("Paint/Shift");
     app.drag(Point::new(rail.x + 20.0, rail.bottom() - 10.0), Point::new(rail.center().x, rail.bottom() - 10.0), 4);
-    app.frames(2);
     assert!(app.program.document.paints[0].parameters.shift > 0.1);
-    assert_eq!(app.program.document.undo_steps(), steps + 1);
+    assert_eq!(app.program.document.undo_steps(), steps + 1, "the drag is a step on the frame that lets go");
     assert_eq!(app.program.document.undo_name(), Some("Edit paint"));
     app.key_with(Modifiers::CONTROL, Key::Z);
     assert_eq!(app.program.document.paints[0].parameters.shift, 0.0);
+}
+
+// An edit to a paint that nothing holds, like the wheel's over a slider, is
+// a step of the history on its own frame, which shows the model as unsaved
+// and the step to undo, not a frame later.
+#[test]
+fn a_paint_s_edit_that_nothing_holds_is_a_step_on_its_own_frame() {
+    let mut app = modeler("PaintWheel");
+    let steps = app.program.document.undo_steps();
+    assert!(!app.program.document.dirty);
+    let brightness = app.program.document.paints[0].parameters.brightness;
+    app.scroll("Paint/Brightness", -1.0);
+    assert_ne!(app.program.document.paints[0].parameters.brightness, brightness);
+    assert!(app.program.paint_edit.is_none() && app.program.document.dirty);
+    assert_eq!((app.program.document.undo_steps(), app.program.document.undo_name()), (steps + 1, Some("Edit paint")));
+    assert!(app.program.can(Command::Undo));
 }
 
 #[test]

@@ -27,10 +27,6 @@ use crate::modeler::{COMMANDS, Command, Message, Modeler};
 // last, after everything the step does.
 pub fn messages(modeler: &Modeler, ui: &Ui) -> Vec<Message> {
     let mut messages = Vec::new();
-    // A paint's edit ends once the pointer lets go and its name has no focus.
-    if modeler.paint_edit.is_some() && !ui.input().any_button_down() && !ui.is_focused("Paint/Name") {
-        messages.push(Message::EndPaintEdit);
-    }
     if modeler.editor.operation.is_some() {
         for (key, axis) in [(Key::X, Axis::X), (Key::Y, Axis::Y), (Key::Z, Axis::Z), (Key::N, Axis::Normal)] {
             if ui.key_pressed(key) {

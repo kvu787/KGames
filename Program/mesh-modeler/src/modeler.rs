@@ -199,11 +199,10 @@ pub enum Message {
     Constrain(Axis),
     ConfirmOperation,
     CancelOperation,
-    // The paints: the one picked, an edit to it, and the edit's end, which
-    // commits it as one step of the history.
+    // The paints: the one picked, and an edit to it, which Prepare commits
+    // as one step of the history once nothing holds it.
     PickPaint(usize),
     Paint(PaintEdit),
-    EndPaintEdit,
     // The dialogs: their fields, and their buttons.
     NameDraft(String),
     OpenChoice(usize),
@@ -853,7 +852,6 @@ impl Program for Modeler {
                 self.keep_paint_picked();
             }
             Message::Paint(edit) => self.edit_paint(edit),
-            Message::EndPaintEdit => self.end_paint_edit(),
             Message::NameDraft(name) => self.name_draft = name,
             Message::OpenChoice(index) => self.open_choice = Some(index),
             Message::OpenActivated => self.open_chosen(),
@@ -865,6 +863,14 @@ impl Program for Modeler {
             Message::SaveAsResult(result) => self.answer(ui, Prompt::SaveAs, result),
             Message::OpenResult(result) => self.answer(ui, Prompt::Open, result),
             Message::Prepare => {
+                // A paint's edit ends once the pointer lets go and its name
+                // has no focus: in the step that edits it, for an edit that
+                // nothing holds, like the wheel's over a slider or a color
+                // that Enter takes, so that the step shows it as unsaved,
+                // and to undo.
+                if !ui.input().any_button_down() && !ui.is_focused("Paint/Name") {
+                    self.end_paint_edit();
+                }
                 self.keep_paint_picked();
                 self.view = cards::view_content(ui.bounds());
                 let theme = ui.theme().clone();
