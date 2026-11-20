@@ -259,6 +259,14 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
         let item_id = id(&item_name);
         let child = child_name(&item_name);
         if !ctx.popup_open_of(item_id) {
+            // The submenu of another of its items that's open closes first,
+            // with those open from it, so that only this one is over it.
+            for sibling in items.iter().filter(|sibling| sibling.submenu.is_some()) {
+                let sibling_id = id(&self::item_name(name, sibling));
+                if sibling_id != item_id {
+                    ctx.close_popup_of(sibling_id);
+                }
+            }
             let bounds = ctx.bounds();
             let menu = ctx.memory_of::<MenuState>(menu_id).clone();
             let layout = layout(ctx.fonts(), bounds, menu.origin, menu.above, items);

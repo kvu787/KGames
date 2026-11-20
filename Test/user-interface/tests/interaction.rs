@@ -616,6 +616,42 @@ fn a_menu_with_no_room_under_its_button_opens_above_it() {
     assert_eq!((app.ui.popup_name(), app.program.chosen.as_slice()), (None, [].as_slice()));
 }
 
+// A menu with two submenus, the first with a submenu of its own.
+struct Nested;
+
+impl Program for Nested {
+    type Message = Msg;
+
+    fn title(&self) -> String {
+        "Nested".to_string()
+    }
+
+    fn update(&mut self, _message: Msg, _ui: &mut Context<Msg>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<Msg> {
+        let mut tree = Tree::new();
+        let deep = vec![MenuItem::submenu("Deep", recent())];
+        let items = vec![MenuItem::submenu("X", deep), MenuItem::submenu("Y", recent())];
+        tree.add("Nest", Rect::new(10.0, ui.content_top() + 10.0, 100.0, 32.0), Button::new("Nest").menu(items));
+        tree
+    }
+}
+
+// The pointer moving from one submenu's item to another's closes the first
+// submenu, and those open from it, as it opens the second, so that coming
+// back opens the first anew, on that frame, with nothing open from it.
+#[test]
+fn moving_to_another_submenu_closes_the_one_that_was_open() {
+    let mut app = Headless::new(Nested);
+    app.click("Nest").move_to("Nest/Menu/X").move_to("Nest/Menu/X/Menu/Deep");
+    assert_eq!(app.ui.popup_name(), Some("Nest/Menu/X/Menu/Deep/Menu"));
+    app.move_to("Nest/Menu/Y");
+    assert_eq!(app.ui.popup_name(), Some("Nest/Menu/Y/Menu"));
+    assert!(!app.has_target("Nest/Menu/X/Menu/Deep"));
+    app.move_to("Nest/Menu/X");
+    assert_eq!(app.ui.popup_name(), Some("Nest/Menu/X/Menu"));
+    assert!(app.has_target("Nest/Menu/X/Menu/Deep") && !app.has_target("Nest/Menu/X/Menu/Deep/Menu/First"));
+}
 // A press on what a context menu belongs to, outside the menu, closes it and
 // does nothing else, as a press anywhere outside a popup does.
 #[test]
