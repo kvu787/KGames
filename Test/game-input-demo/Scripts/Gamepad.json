@@ -8,7 +8,7 @@
       }
     },
     {
-      "Frame": 3,
+      "Frame": 2,
       "Expect": {
         "Listen": "Pad",
         "ReadingCount": 1,
@@ -35,7 +35,7 @@
     { "Frame": 3, "Capture": "Pressed" },
     { "Frame": 4, "Program": { "Gamepad": { "Id": 1 } } },
     {
-      "Frame": 5,
+      "Frame": 4,
       "Expect": {
         "ReadingCount": 2,
         "Gamepad": { "LeftStick": [0.0, 0.0], "RightStick": [0.0, 0.0], "LeftTrigger": 0.0, "RightTrigger": 0.0, "Buttons": [], "ReadingsPerSecond": 1.0 },
@@ -51,7 +51,7 @@
     },
     { "Frame": 6, "Program": { "Disconnect": 1 } },
     {
-      "Frame": 7,
+      "Frame": 6,
       "Expect": { "Listen": "None", "Devices": [], "Gamepad": { "Device": null }, "Interface": { "Targets": { "Gamepad": { "Label": "None" } } } }
     },
     { "Frame": 7, "Capture": "Disconnected" }

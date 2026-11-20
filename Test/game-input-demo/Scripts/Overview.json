@@ -30,7 +30,7 @@
       }
     },
     {
-      "Frame": 9,
+      "Frame": 8,
       "Expect": {
         "Listen": "Xbox Controller (045E:0B13)",
         "RumbleTest": true,
