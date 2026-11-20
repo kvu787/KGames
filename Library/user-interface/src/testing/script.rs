@@ -8,15 +8,18 @@
 //         { "Frame": 1, "Click": "Save" },
 //         { "Frame": 3, "Drag": { "From": "Volume", "To": [400, 300], "Frames": 10 } },
 //         { "Frame": 20, "Key": "Ctrl+S" },
-//         { "Frame": 22, "Capture": "Saved" },
-//         { "Frame": 22, "Expect": { "Saved": true, "Interface": { "Popup": null } } }
+//         { "Frame": 20, "Expect": { "Saved": true, "Interface": { "Popup": null } } },
+//         { "Frame": 22, "Capture": "Saved" }
 //       ]
 //     }
 //
 // Frame N's steps happen before frame N's update, which sees them as input,
-// except Capture and Expect, which happen after it. Frame N is at N times
-// FrameTime seconds, a 60th of a second unless the script says. Frame 0,
-// before the first step, draws what steps can point at. The program exits
+// except Capture and Expect, which happen after it, so an Expect on the
+// frame of the input that it checks sees all that the input does, as the
+// law of the frame says it must, and a later one wouldn't see that some of
+// it was a frame late. Frame N is at N times FrameTime seconds, a 60th of a
+// second unless the script says. Frame 0, before the first step, draws what
+// steps can point at. The program exits
 // after the last frame that the steps' input reaches, like a drag's release
 // after its last step, and fails if an expectation wasn't met. A program that
 // closes itself exits after the frame that closes it, whose captures and

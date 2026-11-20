@@ -565,8 +565,8 @@ last step, so that nothing is left held.
     { "Frame": 1, "Click": "Mute" },
     { "Frame": 3, "Drag": { "From": "Level", "To": [400, 300], "Frames": 10 } },
     { "Frame": 20, "Key": "Ctrl+S" },
-    { "Frame": 22, "Capture": "Saved" },
-    { "Frame": 22, "Expect": { "Level": 100, "Interface": { "Popup": null } } }
+    { "Frame": 20, "Expect": { "Level": 100, "Interface": { "Popup": null } } },
+    { "Frame": 22, "Capture": "Saved" }
   ]
 }
 ```
@@ -590,6 +590,12 @@ last step, so that nothing is left held.
 | `Expect`      | What the state must have: every member it names must match, numbers to a         |
 |               | millionth                                                                        |
 | `Program`     | A step for the program's `script`                                                |
+
+A frame's input steps happen before its update, and its `Capture` and `Expect` steps after it. So
+an `Expect` goes on the frame of the input whose effect it checks, which the law of the frame says
+has all of it, like a click's press, a key's press or a drag's release: a later one can't tell that
+an effect was a frame late. One that checks an effect of time, like a tooltip's, goes on the frame
+that it starts, with one that says that it hasn't the frame before.
 
 A step's keys are what a keyboard's readings give the interface, which doesn't tell the left Shift,
 Ctrl and Alt from the right ones, so `LeftCtrl`, `RightShift` and the like are `Ctrl`, `Shift` and
