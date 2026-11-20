@@ -91,7 +91,7 @@ programs start it.
 | [UserInterface](Library/user-interface/README.md)   | The UI library, after Fluent 2: the window, input, text, widgets, the main loop, scripts and headless tests |
 | [Graphics](Library/graphics/README.md)              | Direct3D 12: the GPU, the low-latency swap chain, frames, and offscreen targets                             |
 | [SimplePaint](Library/simple-paint/README.md)       | The SimplePaint shader: its specification, Rust and HLSL                                                    |
-| [GameInputRaw](Library/game-input-raw/README.md)    | GameInput 4.0.306's bindings, and `GameInput.lib` from its NuGet package, and nothing else                  |
+| [GameInputRaw](Library/game-input-raw/README.md)    | GameInput 4.0.306's bindings for keyboards, mice and gamepads, and `GameInput.lib` from its NuGet package   |
 | [GameInput](Library/game-input/README.md)           | Starts GameInput, once it has checked that GameInput 4.0.306's runtime is installed                         |
 | [Displays](Library/displays/README.md)              | Finds the displays, and gives each a lasting identifier                                                     |
 | [Math](Library/math/README.md)                      | Vectors and matrices, in DirectXMath's conventions                                                          |

@@ -82,7 +82,7 @@ program that reads keyboards and mice.
    version.
 2. If the package has a new API version, update GameInputRaw's bindings to its `GameInput.h`, as
    [its README](../game-input-raw/README.md) says. `Test/game-input` checks that they bind
-   everything that the header declares.
+   what the header declares of their scope.
 
 # Layout
 

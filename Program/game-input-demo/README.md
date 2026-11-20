@@ -475,7 +475,8 @@ GameInput.
 For Windows APIs, which `windows-bindgen` generates, see
 [Library/windows-api-raw](../../Library/windows-api-raw/README.md).
 
-All of GameInput's API is already bound, in [Library/game-input-raw](../../Library/game-input-raw/README.md).
+For GameInput's API, [Library/game-input-raw](../../Library/game-input-raw/README.md) binds what reads keyboards, mice and gamepads.
+Its README says how to bind more.
 
 ## Layout
 

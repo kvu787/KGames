@@ -28,7 +28,7 @@ this package, and that no bindings are in WindowsApi.
 
 GameInput isn't in the Windows metadata that `windows-bindgen` reads, so
 [Library/game-input-raw](../game-input-raw/README.md) has a generator of its own, which describes
-GameInput's header as metadata for `windows-bindgen`.
+GameInput's header as metadata for `windows-bindgen`, and names what to bind of it.
 
 ## Layout
 
