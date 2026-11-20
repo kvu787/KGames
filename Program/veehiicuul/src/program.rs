@@ -197,8 +197,9 @@ impl Veehiicuul {
     }
 
     // Undo and redo switch to the scene or the vehicle that they bring back,
-    // if it's another, as the game's clock has it, and end the track
-    // editor's drag, which was of the document they replace.
+    // if it's another, as the game's clock has it, end the track editor's
+    // drag, which was of the document they replace, and put the vehicle's
+    // name that they bring back in its field, even while it's typed in.
     pub fn undo(&mut self) {
         self.commit();
         if let Some(before) = self.undo.pop() {
@@ -206,6 +207,7 @@ impl Veehiicuul {
             self.redo.push(after);
             self.committed = self.game.document.clone();
             self.track_editor.end_drag();
+            self.vehicle_editor.sync_name(&self.game.document, self.game.vehicle);
         }
     }
 
@@ -215,6 +217,7 @@ impl Veehiicuul {
             self.undo.push(before);
             self.committed = self.game.document.clone();
             self.track_editor.end_drag();
+            self.vehicle_editor.sync_name(&self.game.document, self.game.vehicle);
         }
     }
 

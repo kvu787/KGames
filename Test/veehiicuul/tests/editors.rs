@@ -294,6 +294,22 @@ fn the_footprint_creator_moves_a_side_and_fits_the_model() {
     assert!(app.has_target("Vehicles/Message"));
 }
 
+// An undo while a vehicle's name is typed in takes the last letter back in
+// its field too, which the next letter goes on from.
+#[test]
+fn an_undo_while_a_vehicle_s_name_is_typed_in_puts_the_name_back_in_its_field() {
+    let mut app = start("RenameUndo");
+    app.click("Mode/Vehicles").click("Vehicles/List/0");
+    let field = app.target("Vehicles/Name");
+    app.click_point(Point::new(field.right() - 4.0, field.center().y));
+    app.type_text("ish");
+    assert_eq!(app.program.game.current_vehicle().name, "Greenish");
+    app.key_with(Modifiers::CONTROL, Key::Z);
+    assert_eq!(app.program.game.current_vehicle().name, "Greenis");
+    app.type_text("y");
+    assert_eq!(app.program.game.current_vehicle().name, "Greenisy");
+}
+
 // Names match without case, so a vehicle's name can change its case, which
 // it changes where it's parked too, but can't take another's in another
 // case, which would make one of the two unreachable. The name's field says
