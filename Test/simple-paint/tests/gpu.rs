@@ -9,7 +9,7 @@
 
 mod reference;
 
-use graphics::{UploadBuffer, create_buffer, create_texture, transition};
+use graphics::{GpuPriority, UploadBuffer, create_buffer, create_texture, set_gpu_priority, transition};
 use math::Matrix;
 use reference::Case;
 use simple_paint::direct3d12::{Pipeline, Target};
@@ -47,6 +47,13 @@ enum Adapter {
 
 fn main() {
     let benchmark = std::env::args().any(|argument| argument == "--benchmark");
+    // Before the devices, which this makes itself, without graphics::Gpu:
+    // where the environment says the GPU's scheduler puts this process's
+    // work, like after a game's under RunLightly, as Gpu::new sets it.
+    let priority = GpuPriority::from_environment().unwrap();
+    if priority != GpuPriority::Normal {
+        set_gpu_priority(priority).unwrap();
+    }
     unsafe {
         let mut debug: Option<ID3D12Debug> = None;
         if D3D12GetDebugInterface(&mut debug).is_ok() {
