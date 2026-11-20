@@ -1,7 +1,8 @@
 // Writes the bindings that windows-bindgen generates for the part of
-// GameInput's v4 header that KGames uses: keyboards, mice and gamepads. main.rs writes them to GameInputRaw's src/lib.rs, and
-// Test/game-input writes them somewhere else, to check that the committed file
-// is still exactly what this writes.
+// GameInput's v4 header that KGames uses: keyboards, mice and gamepads.
+// main.rs writes them to GameInputRaw's src/lib.rs, and Test/game-input
+// writes them somewhere else, to check that the committed file is still
+// exactly what this writes.
 //
 // GameInput isn't in the Windows metadata that windows-bindgen reads, so this
 // describes GameInput.h as metadata, the way Windows' metadata describes
