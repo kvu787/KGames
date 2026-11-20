@@ -36,7 +36,8 @@
 - Where its code is:
   - Its code is in `GameInput.lib`, a static library in the NuGet package, which `build.rs` links. So, its code becomes part of the exe.
   - It isn't in a DLL, unlike Windows' own functions.
-  - `GameInput.lib` is only a small loader. At runtime, it finds the installed GameInput runtime, `GameInputRedist.dll`, loads it, and calls the function of the same name that the DLL exports.
+  - `GameInput.lib` is only a small loader. At runtime, it picks a GameInput runtime DLL, loads it, and calls the function of the same name that the DLL exports.
+  - It picks the DLL with the highest file version out of three: Windows' own `GameInput.dll`, the installed `GameInputRedist.dll`, and a `GameInputRedist.dll` beside the exe. With GameInput 4.0.306 installed and nothing beside the exe, that's the installed one. See [Library/game-input's README](../game-input/README.md#how-it-works).
   - The NuGet package has the loader's source code, in `native\src\GameInput.cpp`.
 - Why `windows-bindgen` can't declare it:
   - Every function in Windows' own APIs is in a DLL. So, `windows-bindgen` declares every function with `windows_core::link!`, which says to import the function from a DLL.
@@ -68,9 +69,11 @@ like programs or tests, then you must install these runtime prerequisites.
 - Install the GameInput runtime with `winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"`.
   - Installing this winget package runs the `GameInputRedist.msi` installer contained in the GameInput NuGet package.
   - That installs the GameInput redistributables to the right location and installs the GameInput background service.
-  - This is required to use GameInput at runtime.
+  - KGames requires this to use GameInput at runtime: `Library/game-input` checks for it before it starts GameInput.
 - What is the intended flow for an end user and/or game player to install the GameInput runtime?
   - Typically, a game bundles in and runs `GameInputRedist.msi` as part of its own installer.
+  - Since GameInput 4.0, a game can instead put the NuGet package's `GameInputRedist.dll` beside its exe, without installing anything, which Microsoft calls sideloading. A sideloaded runtime can do less than an installed one, and KGames doesn't use it:
+    https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-agility-redistributable
   - If the game doesn't have its own installer, then it can instruct the user to download and run
     `GameInputRedist.msi`, which can be downloaded from GameInput's GitHub repo releases page:
     https://github.com/microsoftconnect/GameInput/releases
