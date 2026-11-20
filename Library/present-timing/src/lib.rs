@@ -13,9 +13,9 @@ use std::sync::{Arc, Mutex};
 
 use windows_api_raw::QueryPerformanceFrequency;
 
+pub use crate::decoder::Decoder;
 pub use crate::session::file_clock;
 
-use crate::decoder::Decoder;
 use crate::session::Session;
 use crate::tracker::Tracker;
 

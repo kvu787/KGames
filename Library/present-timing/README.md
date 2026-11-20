@@ -24,10 +24,11 @@ Windows says what happens to every present in its own events, which a real-time 
 The session enables the same events, levels and keywords as PresentMon. `src/decoder.rs` finds
 the events' fields by name, with the layouts that Windows' trace data helper (TDH) gives from the
 providers' manifests, or from a trace file's own metadata for versions that this computer's
-manifests don't have. `src/events.rs` turns them into plain data, and `src/tracker.rs`
-follows each present through them, by the keys that each event has: its thread while its `Present`
-call runs, then Win32k's token, the kernel's present history token, and its queue packet's submit
-sequence, which the flips and sync interrupts name.
+manifests don't have, which it takes only when every property that it says an event has is in it,
+as a trace file can say anything (`Test/present-timing/tests/decoder.rs`). `src/events.rs` turns
+them into plain data, and `src/tracker.rs` follows each present through them, by the keys that each
+event has: its thread while its `Present` call runs, then Win32k's token, the kernel's present
+history token, and its queue packet's submit sequence, which the flips and sync interrupts name.
 
 ETW hands a real-time session's events to its reader a buffer at a time: when a buffer fills, or
 when the session's flush timer goes off, at most once a second, which hands each event over 1 to 2

@@ -195,10 +195,21 @@ unsafe fn layout(record: &EVENT_RECORD) -> Option<Layout> {
     }
 }
 
-// A layout from a TRACE_EVENT_INFO, in bytes aligned for it.
+// A layout from a TRACE_EVENT_INFO, in bytes aligned for it, or None if its
+// properties aren't all in the bytes, as a trace file's metadata event can
+// say anything.
 unsafe fn parse(bytes: &[u8]) -> Option<Layout> {
     unsafe {
+        if bytes.len() < size_of::<TRACE_EVENT_INFO>() {
+            return None;
+        }
         let info = &*(bytes.as_ptr() as *const TRACE_EVENT_INFO);
+        let end = (info.PropertyCount as usize)
+            .checked_mul(size_of::<EVENT_PROPERTY_INFO>())?
+            .checked_add(std::mem::offset_of!(TRACE_EVENT_INFO, EventPropertyInfoArray))?;
+        if end > bytes.len() {
+            return None;
+        }
         let array = std::ptr::addr_of!(info.EventPropertyInfoArray) as *const EVENT_PROPERTY_INFO;
         let mut properties = Vec::with_capacity(info.PropertyCount as usize);
         for index in 0..info.PropertyCount as usize {

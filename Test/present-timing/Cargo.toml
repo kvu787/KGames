@@ -7,6 +7,10 @@ publish = false
 
 [dependencies]
 present-timing = { path = "../../Library/present-timing" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
 
 [lints]
 workspace = true
