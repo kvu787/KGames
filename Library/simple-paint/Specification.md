@@ -226,7 +226,7 @@ The PS source has one square root on the zero-shift path and two on the shifted 
 
 ## Verification
 
-Run the module's four tests with `cargo test -p simple-paint-tests`, as [Usage.md](Usage.md#build-and-verify) describes:
+Run the module's six tests with `cargo test -p simple-paint-tests`, as [Usage.md](Usage.md#build-and-verify) describes:
 
 | Test                   | Coverage                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------- |
@@ -236,8 +236,13 @@ Run the module's four tests with `cargo test -p simple-paint-tests`, as [Usage.m
 | OrthographicTransforms | 4,000 packed transform comparisons and near/far depth endpoints                  |
 | Gpu                    | 30,208 production VS/PS samples on the preferred hardware adapter, then the      |
 |                        | same 30,208 samples on WARP                                                      |
-| ShaderCompilation      | The adapter with the default material count of one, an explicit three, and a     |
-|                        | rejected zero                                                                    |
+| ShaderCompilation      | Both stages of the adapter and of Unlit.hlsl, each with the default count of     |
+|                        | one, an explicit three, and a rejected zero                                      |
+| Unlit                  | A sphere and a turned cube drawn with Unlit.hlsl on the preferred hardware       |
+|                        | adapter and on WARP, through a view that stores colors as they are and an sRGB   |
+|                        | one: every pixel they cover is its material's color                              |
+| ModelShaders           | Every shader in the repository is listed with what it draws, and no HLSL is      |
+|                        | written into Rust                                                                |
 
 The tests live in their own package and use only the crate's public interface, as any host does. No host application sources are required.
 
