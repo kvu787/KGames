@@ -60,6 +60,10 @@ fn run() -> Result<(), String> {
         process.private_commit as f64 / (1024.0 * 1024.0)
     );
     if let Some(path) = &options.json {
+        // Its folder, like target\Benchmarks, which nothing else makes.
+        if let Some(folder) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(folder).map_err(|error| format!("Couldn't make {}: {error}", folder.display()))?;
+        }
         std::fs::write(path, report(&environment, &measurements, &memory, process).to_json() + "\n")
             .map_err(|error| format!("Couldn't write {path}: {error}"))?;
         println!("Wrote {path}.");
