@@ -7,6 +7,6 @@
     { "Frame": 6, "Gamepad": { } },
     { "Frame": 7, "Capture": "LetGo" },
     { "Frame": 8, "Click": "Standard" },
-    { "Frame": 10, "Expect": { "Presses": { "Standard": 1 } } }
+    { "Frame": 8, "Expect": { "Presses": { "Standard": 1 } } }
   ]
 }

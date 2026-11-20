@@ -1,11 +1,11 @@
 {
   "Steps": [
     { "Frame": 1, "Click": "Ask" },
+    { "Frame": 1, "Expect": { "DialogOpen": true, "Interface": { "Dialog": true } } },
     { "Frame": 20, "Capture": "Dialog" },
-    { "Frame": 20, "Expect": { "DialogOpen": true, "Interface": { "Dialog": true } } },
     { "Frame": 21, "Click": "Standard" },
-    { "Frame": 23, "Expect": { "Presses": { "Standard": 0 }, "DialogOpen": true } },
+    { "Frame": 21, "Expect": { "Presses": { "Standard": 0 }, "DialogOpen": true } },
     { "Frame": 24, "Click": "Question/Primary" },
-    { "Frame": 26, "Expect": { "DialogOpen": false, "DialogResult": "Save", "Interface": { "Dialog": false } } }
+    { "Frame": 24, "Expect": { "DialogOpen": false, "DialogResult": "Save", "Interface": { "Dialog": false } } }
   ]
 }

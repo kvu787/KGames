@@ -9,7 +9,7 @@
     { "Frame": 61, "Click": "Tabs/Shapes" },
     { "Frame": 90, "Capture": "DarkShapes" },
     { "Frame": 91, "Click": "Theme" },
-    { "Frame": 120, "Capture": "LightShapes" },
-    { "Frame": 120, "Expect": { "Tab": "Shapes", "Interface": { "Theme": "Light" } } }
+    { "Frame": 91, "Expect": { "Tab": "Shapes", "Interface": { "Theme": "Light" } } },
+    { "Frame": 120, "Capture": "LightShapes" }
   ]
 }
