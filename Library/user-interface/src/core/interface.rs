@@ -445,7 +445,7 @@ impl Interface {
             self.tooltip.dismissed = true;
         }
 
-        self.typing = self.focused.is_some_and(|focused| self.targets.iter().any(|target| target.id == focused && target.sense.text));
+        self.typing = self.text_field_has_focus();
 
         // F9 switches the theme from this step, whose view is in the new one.
         if self.input.key_pressed(Key::F9) {
@@ -530,6 +530,18 @@ impl Interface {
             }
         }
         self.take_focus_away();
+        // The keys that are held go where focus is once the step's press has
+        // moved it, so that the program stops hearing them on the frame of
+        // the press that gives a text field focus, and hears them again on
+        // the frame of the one that takes it away. A step has one press, of
+        // a button or of a key, so no key was pressed in a step that moves
+        // focus.
+        self.typing = self.text_field_has_focus();
+    }
+
+    // Whether a text field has keyboard focus, and so takes the keys.
+    fn text_field_has_focus(&self) -> bool {
+        self.focused.is_some_and(|focused| self.targets.iter().any(|target| target.id == focused && target.sense.text))
     }
 
     // What the step's input did to a target. A press acts on the step that

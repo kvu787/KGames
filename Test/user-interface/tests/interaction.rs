@@ -22,6 +22,7 @@ enum Msg {
     Maybe,
     Trapped,
     Shortcut,
+    Held,
     Late,
     Text(String),
     Choice(usize),
@@ -51,6 +52,8 @@ fn menu() -> Vec<MenuItem<Msg>> {
 struct Test {
     clicks: u32,
     shortcut: u32,
+    // Steps in which the program heard that H was down.
+    held: u32,
     text: String,
     choice: usize,
     covered: bool,
@@ -92,6 +95,9 @@ impl Program for Test {
         if ui.key_pressed(Key::D) {
             messages.push(Msg::Late);
         }
+        if ui.key_down(Key::H) {
+            messages.push(Msg::Held);
+        }
         if self.replace {
             messages.push(Msg::Replace);
         }
@@ -105,6 +111,7 @@ impl Program for Test {
             Msg::Maybe => self.clicks += 100,
             Msg::Trapped => self.clicks += 1000,
             Msg::Shortcut => self.shortcut += 1,
+            Msg::Held => self.held += 1,
             // After the dialog's message in the frame's queue, so the frame
             // that opens the dialog gates it.
             Msg::Late => {
@@ -412,6 +419,26 @@ fn a_field_takes_what_was_typed_in_the_frame_of_a_press_elsewhere() {
     assert_eq!((app.program.text.as_str(), app.program.clicks), ("x", 1));
     assert_eq!(focused(&app), Some(Value::Null));
     app.release();
+}
+
+// A key that's held as a press gives a text field focus is the field's from
+// the frame of the press, and the program's again from the frame of the
+// press that takes focus away.
+#[test]
+fn a_held_key_goes_where_focus_is_on_the_frame_of_the_press_that_moves_it() {
+    let mut app = Headless::new(Test::default());
+    let press = [Event::ButtonPressed(MouseButton::Left)];
+    app.hold(Key::H).frame();
+    assert_eq!(app.program.held, 2);
+    app.move_to("Field");
+    assert_eq!(app.program.held, 3);
+    app.send(&press);
+    assert_eq!((focused(&app), app.program.held), (Some(Value::from("Field")), 3), "the press's frame");
+    app.release().move_to("Button");
+    assert_eq!(app.program.held, 3);
+    app.send(&press);
+    assert_eq!((focused(&app), app.program.held), (Some(Value::Null), 4), "the press's frame");
+    assert_eq!(app.program.text, "", "the key was pressed before the field had focus");
 }
 
 #[test]
