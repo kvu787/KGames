@@ -3,16 +3,17 @@
 // a standard button's elevation border, that widgets draw a new state whole
 // on the frame that makes it, that a press draws all it did on its own frame,
 // that a selection that moves leaves its old item on that frame, that a
-// release shows on its own frame, whether the PerfBar says that vertical sync
-// is on, the PerfBar's colors in each theme, the page for an unsupported
-// setup, and the pointer that a window draws while it has focus.
+// release shows on its own frame, WinUI's glyphs for chevrons, whether the
+// PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
+// the page for an unsupported setup, and the pointer that a window draws
+// while it has focus.
 
 use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
-    Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, Widget, unsupported_setup,
+    Button, Canvas, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Icon, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
+    Point, Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, Widget, unsupported_setup,
 };
 
 struct Page;
@@ -356,6 +357,74 @@ fn first_difference(now: &Image, later: &Image, area: Rect) -> Option<(u32, u32)
     pixels.find(|&(x, y)| now.pixel(x, y) != later.pixel(x, y))
 }
 
+// A drop-down button with a submenu, and the glyphs that WinUI's
+// DropDownButton and MenuFlyoutSubItem draw for their chevrons, each drawn
+// by itself, in its color, over what it's over.
+struct Glyphs;
+
+impl Program for Glyphs {
+    type Message = ();
+
+    fn title(&self) -> String {
+        "Glyphs".to_string()
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        let theme = ui.theme().clone();
+        let items = vec![MenuItem::submenu("More", vec![MenuItem::new("Less")])];
+        tree.add("Drop", Rect::new(100.0, 100.0, 80.0, 32.0), Button::icon_only(Icon::Save).menu(items));
+        // U+E96E, 8 pixels, in a button's text color over its fill.
+        let (fill, text) = (theme.control_fill, theme.text_primary);
+        tree.draw(
+            Rect::new(300.0, 100.0, 80.0, 32.0),
+            Canvas::new(move |painter, rect| {
+                painter.rounded(rect, 4.0, fill);
+                painter.icon(rect.center(), Icon::ChevronDownSmall, 8.0, text);
+            }),
+        );
+        // U+E974, 12 pixels, in the secondary text color over acrylic.
+        let (acrylic, secondary) = (theme.acrylic, theme.text_secondary);
+        tree.draw(
+            Rect::new(600.0, 300.0, 40.0, 40.0),
+            Canvas::new(move |painter, rect| {
+                painter.fill(rect, acrylic);
+                painter.icon(rect.center(), Icon::ChevronRightMed, 12.0, secondary);
+            }),
+        );
+        tree
+    }
+}
+
+// Whether the squares of the image around the two points, `half` from each
+// on every side, are the same.
+fn same_around(image: &Image, one: Point, other: Point, half: i32) -> bool {
+    (-half..half).all(|dy| (-half..half).all(|dx| image.pixel((one.x as i32 + dx) as u32, (one.y as i32 + dy) as u32) == image.pixel((other.x as i32 + dx) as u32, (other.y as i32 + dy) as u32)))
+}
+
+// A drop-down button's chevron is U+E96E, as WinUI's DropDownButton's is,
+// and a submenu's is U+E974, as MenuFlyoutSubItem's is.
+#[test]
+fn chevrons_are_winui_s_glyphs() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(Glyphs);
+    let image = app.render(&mut gpu).unwrap();
+    // The button's content, a 16-pixel icon, 8 more, and the chevron, is in
+    // the middle of its padding, 11 on each side.
+    let drop = app.target("Drop");
+    let content = (drop.width - 22.0 - 32.0) / 2.0;
+    let chevron = Point::new(drop.x + 11.0 + content + 16.0 + 8.0 + 4.0, drop.center().y);
+    assert!(same_around(&image, chevron, Point::new(340.0, 116.0), 8), "the drop-down button's chevron isn't U+E96E");
+    // The submenu's chevron is in its item's padding, 11 from its right.
+    app.click("Drop");
+    let image = app.render(&mut gpu).unwrap();
+    let more = app.target("Drop/Menu/More");
+    let chevron = Point::new(more.right() - 11.0 - 6.0, more.center().y);
+    save(&crop(&image, Rect::new(more.x, more.y, 700.0 - more.x, 360.0 - more.y), 4), "Chevrons");
+    assert!(same_around(&image, chevron, Point::new(620.0, 320.0), 10), "the submenu's chevron isn't U+E974");
+}
 #[test]
 fn the_perf_bar_says_whether_vertical_sync_is_on() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();

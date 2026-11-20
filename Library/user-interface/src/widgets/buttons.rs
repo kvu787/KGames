@@ -186,7 +186,7 @@ pub(crate) fn draw_button(ctx: &mut Draw, rect: Rect, text: &str, icon: Option<I
         x += text_width;
     }
     if chevron {
-        painter.icon(Point::new(x + DROP_DOWN_CHEVRON_GAP + DROP_DOWN_CHEVRON_SIZE / 2.0, rect.center().y), Icon::ChevronDown, DROP_DOWN_CHEVRON_SIZE, foreground);
+        painter.icon(Point::new(x + DROP_DOWN_CHEVRON_GAP + DROP_DOWN_CHEVRON_SIZE / 2.0, rect.center().y), Icon::ChevronDownSmall, DROP_DOWN_CHEVRON_SIZE, foreground);
     }
 }
 

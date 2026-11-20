@@ -348,7 +348,8 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
         painter.text_in(Rect::new(x, rect.y, content.right() - x, rect.height), &item.label, BODY, foreground, Align::Start);
         if item.submenu.is_some() {
             let center = Point::new(content.right() - MENU_ITEM_CHEVRON_SIZE / 2.0, rect.center().y);
-            painter.icon(center, Icon::ChevronRight, MENU_ITEM_CHEVRON_SIZE, secondary);
+            // MenuFlyoutSubItem's chevron, U+E974.
+            painter.icon(center, Icon::ChevronRightMed, MENU_ITEM_CHEVRON_SIZE, secondary);
         } else if let Some(text) = &item.accelerator {
             painter.text_in(content, text, CAPTION, secondary, Align::End);
         }

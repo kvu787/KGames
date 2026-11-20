@@ -205,7 +205,8 @@ pub const SCROLL_VIEWER_BAR_MARGIN: f32 = 1.0;
 // MenuFlyoutItem: MenuFlyoutItemThemePadding, MenuFlyoutItemMargin, the
 // height its padding gives a line, the text's indent after an icon or a
 // check (MenuFlyoutItemPlaceholderThemeThickness) or both, the gap before a
-// keyboard accelerator and a submenu's chevron, and the separator's.
+// keyboard accelerator and a submenu's chevron, U+E974, 12 pixels, and the
+// separator's.
 pub const MENU_FLYOUT_PADDING: Insets = Insets::new(0.0, 2.0, 0.0, 2.0);
 pub const MENU_FLYOUT_MIN_WIDTH: f32 = 96.0;
 pub const MENU_ITEM_PADDING: Insets = Insets::new(11.0, 8.0, 11.0, 9.0);

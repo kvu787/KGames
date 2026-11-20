@@ -47,6 +47,7 @@ icons! {
     ChevronLeft = 0xE76B,
     ChevronLeftSmall = 0xE96F,
     ChevronRight = 0xE76C,
+    ChevronRightMed = 0xE974,
     ChevronRightSmall = 0xE970,
     ChevronUp = 0xE70E,
     ChevronUpSmall = 0xE96D,
