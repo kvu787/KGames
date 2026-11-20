@@ -1,3 +1,12 @@
+# Key info sources
+
+- MCP servers that should be connected:
+  - https://learn.microsoft.com/api/mcp
+  - https://docs.xbox.com/mcp
+- Links:
+  - https://github.com/Microsoft/DirectX-Specs
+  - https://github.com/microsoft/DirectX-Graphics-Samples
+
 # Where to find certain things on this machine
 
 - Blender: C:\Users\K\Program\blender-5.2.3-windows-x64
