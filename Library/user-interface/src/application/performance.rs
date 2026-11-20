@@ -351,6 +351,14 @@ impl Performance {
         while self.presented.front().is_some_and(|frame| frame.present < present.start - slack) {
             self.presented.pop_front();
         }
+        // And those before the last frame whose Present call came before
+        // this present, which is that frame's: a frame's present starts in
+        // its call, before the next frame's. Without this, at more than a
+        // frame in MATCH_SECONDS, a frame that no present came for, like
+        // the first, would take the next frame's present, and so on.
+        while self.presented.get(1).is_some_and(|next| next.present <= present.start) {
+            self.presented.pop_front();
+        }
         let Some(frame) = self.presented.front().copied() else {
             return;
         };

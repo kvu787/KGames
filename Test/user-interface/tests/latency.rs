@@ -139,6 +139,35 @@ fn presents_that_aren_t_the_main_loop_s_are_left_alone() {
     assert_eq!(performance.summary().samples, 1);
 }
 
+// A present is of the frame that called Present last before it started, even
+// at 500 frames a second, after a frame whose present never came, like the
+// first of a run, which the tracker loses: that frame mustn't take the next
+// frame's present, and leave each frame the one after's.
+#[test]
+fn a_frame_without_a_present_doesn_t_take_the_next_frame_s_at_a_high_frame_rate() {
+    let base = clock::now();
+    let mut performance = Performance::given();
+    let mut presents = Vec::new();
+    for index in 0..50 {
+        let input = base + ticks(index as f64 * 2.0);
+        let frame = Frame {
+            input: Some(input),
+            read: input,
+            present: input,
+        };
+        performance.presented(frame);
+        if index > 0 {
+            presents.push(present(frame.present, Some(input + ticks(1.0))));
+        }
+    }
+    performance.known(presents);
+    performance.update(0.0);
+    let summary = performance.summary();
+    assert_eq!(summary.samples, 49);
+    close(summary.mean, 1.0);
+    close(summary.percentile_99, 1.0);
+}
+
 #[test]
 fn the_mean_and_99th_percentile_are_of_the_last_second() {
     let base = clock::now() - ticks(900.0);
