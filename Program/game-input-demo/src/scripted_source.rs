@@ -13,12 +13,16 @@
 //     { "Keyboard": { "Id": 2, "Down": ["F3", "A"] } }
 //     { "Mouse": { "Id": 3, "Motion": [10, -5], "Wheel": [0, 120],
 //                  "Buttons": ["Left"] } }
+//     { "Mouse": { "Id": 3, "AtRest": true } }
 //     { "Disconnect": 1 }
 //     { "Focus": false }
 //
 // "Gamepad", "Keyboard" and "Mouse" give that input's whole state: what's
 // left out is at rest, except that "Motion" and "Wheel" are added to the
-// mouse's running totals, as a mouse moves. "Input" can also have
+// mouse's running totals, as a mouse moves. "AtRest" gives GameInput's
+// reading of a mouse at rest as the window loses focus instead: without
+// positions, and with totals of 0, while the mouse's own totals go on from
+// where they were. "Input" can also have
 // "Keyboard" and "Mouse", and "Motors" "LeftTrigger" and "RightTrigger".
 // "Focus" gives the window focus or takes it away, which it has from the
 // start, at the frame's time, as a script's focus has no time.
@@ -114,6 +118,21 @@ impl ScriptedSource {
         self.latest.retain(|known| known.device != Some(id));
         self.latest.push(reading.clone());
         self.queue.push(reading);
+        Ok(())
+    }
+
+    // GameInput's reading of a connected mouse at rest, as the window loses
+    // focus: no buttons, no positions, and totals of 0. The mouse's next
+    // reading goes on from its totals before it.
+    pub fn mouse_at_rest(&mut self, id: usize) -> Result<(), String> {
+        let before = self.latest.iter().find(|reading| reading.device == Some(id)).cloned();
+        self.read(id, |reading| reading.mouse = GameInputMouseState::default())?;
+        if let Some(mut before) = before
+            && let Some(latest) = self.latest.iter_mut().find(|reading| reading.device == Some(id))
+        {
+            before.timestamp = latest.timestamp;
+            *latest = before;
+        }
         Ok(())
     }
 
@@ -218,6 +237,11 @@ impl ScriptedSource {
                 self.read(id(value)?, |reading| reading.keys = keys)
             }
             "Mouse" => {
+                match value.get("AtRest") {
+                    None | Some(Value::Bool(false)) => {}
+                    Some(Value::Bool(true)) => return self.mouse_at_rest(id(value)?),
+                    Some(other) => return Err(format!("AtRest must be true or false, not {}", other.describe())),
+                }
                 let [motion_x, motion_y] = pair(value, "Motion")?;
                 let [wheel_x, wheel_y] = pair(value, "Wheel")?;
                 let buttons = flags(value, "Buttons", MOUSE_BUTTONS)?;

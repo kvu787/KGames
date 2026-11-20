@@ -601,6 +601,42 @@ fn readings_are_compared_with_the_devices_own_last_one() {
     assert_eq!(log(&input)[..2], ["Keys: B down", "Connected: Keys [keyboard]"]);
 }
 
+// GameInput's reading of a mouse at rest as focus goes has no positions, and
+// totals of 0, while the mouse's own totals go on. Its wheels, like its
+// motion, aren't compared with it, so the first reading with focus back
+// doesn't turn the wheel as far as all the scrolling before it, as the
+// library's reader doesn't either.
+#[test]
+fn a_mouse_s_reading_at_rest_as_focus_goes_neither_moves_nor_turns_it() {
+    let mut input = input();
+    step(&mut input, RODENT);
+    input.update(true);
+    step(&mut input, r#"{ "Mouse": { "Id": 4 } }"#);
+    input.update(true);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Wheel": [0, 360] } }"#);
+    input.update(true);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Wheel": [0, 120] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["wheel +120"] }"#);
+
+    // Alt+Tab away, and back.
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "AtRest": true } }"#);
+    input.update(false);
+    wait(&mut input, 1000);
+    input.update(true);
+    wait(&mut input, 1000);
+    step(&mut input, r#"{ "Mouse": { "Id": 4 } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["wheel +120"], "Mouse": { "Wheel": [0, 480] } }"#);
+    assert!(!log(&input).iter().any(|line| line.contains("+480")), "{:?}", log(&input));
+
+    // After it, the mouse moves and turns as usual.
+    step(&mut input, r#"{ "Mouse": { "Id": 4, "Motion": [3, 0], "Wheel": [0, -120] } }"#);
+    input.update(true);
+    expect(&input, r#"{ "Latest": ["moved (+3, +0)", "wheel -120"], "Mouse": { "Wheel": [0, 360] } }"#);
+}
+
 #[test]
 fn the_rumble_test_drives_the_motors_past_the_dead_zone() {
     let mut input = input();

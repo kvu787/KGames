@@ -495,6 +495,23 @@ fn mouse_delta(state: &GameInputMouseState, old: Option<&GameInputMouseState>) -
     }
 }
 
+// How far the wheels turned since `old`, the previous reading's state, in
+// Windows' units of 120 a notch: like the motion, running totals, which go
+// around an i64's ends, and only between readings with relative position, as
+// the library's reader takes them. GameInput's reading of a mouse at rest as
+// the window loses focus has no positions, and totals of 0, while the
+// mouse's own totals go on, so the wheels' change from it isn't a turn.
+fn wheel_delta(state: &GameInputMouseState, old: Option<&GameInputMouseState>) -> [i64; 2] {
+    let relative = GameInputMouseRelativePosition;
+    match old {
+        Some(old) if state.positions & relative != 0 && old.positions & relative != 0 => [
+            state.wheelX.wrapping_sub(old.wheelX),
+            state.wheelY.wrapping_sub(old.wheelY),
+        ],
+        _ => [0, 0],
+    }
+}
+
 // Whether the absolute position that the device reports changed.
 fn absolute_moved(state: &GameInputMouseState, old: &GameInputMouseState) -> bool {
     state.positions & GameInputMouseAbsolutePosition != 0
@@ -507,7 +524,7 @@ fn mouse_motion_only(state: &GameInputMouseState, old: Option<&GameInputMouseSta
     let old_buttons = old.map_or(0, |old| old.buttons);
     let buttons = MOUSE_BUTTONS.iter().any(|&(button, _)| (state.buttons ^ old_buttons) & button != 0);
     let motion = old.is_some_and(|old| {
-        mouse_delta(state, Some(old)) != [0, 0] || (state.wheelX, state.wheelY) != (old.wheelX, old.wheelY) || absolute_moved(state, old)
+        mouse_delta(state, Some(old)) != [0, 0] || wheel_delta(state, Some(old)) != [0, 0] || absolute_moved(state, old)
     });
     (buttons || motion).then_some(!buttons)
 }
@@ -528,7 +545,7 @@ fn mouse_changes(state: &GameInputMouseState, old: Option<&GameInputMouseState>)
         if delta != [0, 0] {
             changes.push(format!("moved ({:+}, {:+})", delta[0], delta[1]));
         }
-        let wheel = [state.wheelX.wrapping_sub(old.wheelX), state.wheelY.wrapping_sub(old.wheelY)];
+        let wheel = wheel_delta(state, Some(old));
         if wheel[1] != 0 {
             changes.push(format!("wheel {:+}", wheel[1]));
         }

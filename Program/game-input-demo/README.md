@@ -312,7 +312,10 @@ gave it, or a key held down while clicking into it, are ignored until they're le
 show as held, and neither their press nor their release is logged. GameInput doesn't report keys
 and mouse buttons held from before at all. It does report a gamepad's held buttons, which the demo
 masks itself. After that, they work as usual. Sticks, triggers and mouse motion show as usual right
-away.
+away. GameInput's reading of a mouse at rest as focus goes has no positions, and totals of 0, so,
+like the library, the demo takes a mouse's motion and its wheels' turns only between two readings
+with relative position, and the first reading after focus comes back doesn't move it or turn its
+wheels by all that they did before.
 
 ### Readings a second
 
@@ -420,7 +423,9 @@ readings are at the time of its frame.
 |              | and `Buttons`, named as the Gamepad card names them                             |
 | `Keyboard`   | `Id`, and the keys `Down`, like `F3`, `A` or `Left`                             |
 | `Mouse`      | `Id`, `Motion` and `Wheel` as `[x, y]`, and `Buttons`, named as the Mouse card  |
-|              | names them                                                                      |
+|              | names them. Or `Id` and `"AtRest": true`, for GameInput's reading of a mouse at |
+|              | rest as the window loses focus: without positions, and with totals of 0, while  |
+|              | the mouse's own totals go on from where they were                               |
 | `Disconnect` | The device's `Id`                                                               |
 | `Focus`      | `true` or `false`: gives the window focus or takes it away, which it has from   |
 |              | the start, at the frame's time                                                  |
