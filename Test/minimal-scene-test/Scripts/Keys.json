@@ -3,12 +3,12 @@
     { "Frame": 1, "Expect": { "TextShown": true, "Interface": { "Size": [2560, 1440], "Targets": { "InfoCard": { "Kind": "Card", "Area": [16, 1220, 480, 204] } } } } },
     { "Frame": 1, "Capture": "Start" },
     { "Frame": 2, "Key": "F2" },
-    { "Frame": 3, "Expect": { "TextShown": false } },
+    { "Frame": 2, "Expect": { "TextShown": false } },
     { "Frame": 3, "Capture": "TextHidden" },
     { "Frame": 4, "Key": "F2" },
-    { "Frame": 5, "Expect": { "TextShown": true } },
+    { "Frame": 4, "Expect": { "TextShown": true } },
     { "Frame": 6, "Key": "Esc" },
     { "Frame": 7, "Key": "V" },
-    { "Frame": 8, "Expect": { "TextShown": true } }
+    { "Frame": 7, "Expect": { "TextShown": true } }
   ]
 }
