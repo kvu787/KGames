@@ -172,6 +172,10 @@ and the six vehicles parked in a row.
 | `Decorations`  | Each a `Model`, with its `Position`, `Heading` and `Scale`                     |
 | `Vehicles`     | Each a parked `Vehicle`, with its `Position` and `Heading`                     |
 
+Play's views are from 2 to 300 units tall, the heights that it zooms between, so a `Height` or a
+`FollowHeight` past them shows as the nearest. The editors zoom farther, and the Scene tab sets
+the fixed camera's `Height` from a view past them to the nearest too.
+
 A curve is a closed uniform cubic B-spline, like Blender's cyclic NURBS curves with every weight
 1: smooth everywhere, near its control points, but not through them. It's sampled 8 times
 between control points, and the samples' segments are the edges that the car touches. The start

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use user_interface::json::Value;
 use user_interface::tokens::{APP_BAR_HEIGHT, CARD_PADDING, PAGE_PADDING, PERF_BAR_HEIGHT, STATUS_BAR_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use user_interface::{Headless, Key, Modifiers, Point, Startup};
-use veehiicuul::curve;
+use veehiicuul::{camera, curve};
 use veehiicuul::program::{PLAY, SCENE, TERRAIN, TRACK, VEHICLES, Veehiicuul};
 use veehiicuul::scene_editor::Picked;
 use veehiicuul::vehicle_editor::SHOWN_HEADING;
@@ -324,7 +324,8 @@ fn the_scene_editor_picks_and_moves_decorations() {
 
 // "Make this view the fixed camera's" makes the scene's camera the view's,
 // and going to Play shows it at its own height, on that frame, as it does the
-// rest of the camera.
+// rest of the camera. The editors zoom farther than Play does, and a view
+// zoomed out past Play's makes a camera as tall as Play shows.
 #[test]
 fn going_to_play_shows_the_fixed_camera_at_its_height() {
     let mut app = start("FixedCamera");
@@ -336,6 +337,14 @@ fn going_to_play_shows_the_fixed_camera_at_its_height() {
     assert_eq!(app.program.game.current_scene().camera_height, height);
     app.click("Mode/Play");
     assert_eq!(app.program.game.camera.height, height);
+
+    app.click("Mode/Scene");
+    app.scroll_point(Point::new(1800.0, 400.0), -12.0);
+    assert!(app.program.viewport.eye.height > camera::HIGHEST);
+    app.click("Scene/Camera");
+    assert_eq!(app.program.game.current_scene().camera_height, camera::HIGHEST);
+    app.click("Mode/Play");
+    assert_eq!(app.program.game.camera.height, camera::HIGHEST);
 }
 
 // Save writes the files that changed, and only those, in the save folder.

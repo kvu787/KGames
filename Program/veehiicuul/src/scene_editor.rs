@@ -9,6 +9,7 @@ use user_interface::controls::LIST_ITEM_HEIGHT;
 use user_interface::tokens::CONTROL_HEIGHT;
 use user_interface::{Button, Canvas, Card, ComboBox, Form, Icon, ListView, Rect, Text, Tree, Ui};
 
+use crate::camera;
 use crate::collision::Footprint;
 use crate::document::Document;
 use crate::editing::{self, GroundInput, HEADED_HEIGHT, Projection, SliderRange, Viewport, header, slider_height, window_size};
@@ -193,9 +194,11 @@ impl SceneEditor {
                 self.picked = None;
             }
             SceneMsg::Camera { center, height } => {
+                // As tall as Play shows, which zooms less far than the
+                // editors.
                 let current = &mut document.scenes[scene];
                 current.camera_center = center;
-                current.camera_height = height;
+                current.camera_height = height.clamp(camera::LOWEST, camera::HIGHEST);
             }
             SceneMsg::Background(color) => document.scenes[scene].background = color,
             SceneMsg::FollowHeight(height) => document.scenes[scene].follow_height = height,
