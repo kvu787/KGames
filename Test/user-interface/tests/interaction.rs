@@ -687,6 +687,37 @@ fn a_dialog_takes_the_input_until_it_is_answered() {
     assert_eq!(app.program.clicks, 1);
 }
 
+// A dialog with only its close button.
+struct Alone;
+
+impl Program for Alone {
+    type Message = DialogResult;
+
+    fn title(&self) -> String {
+        "Alone".to_string()
+    }
+
+    fn update(&mut self, _result: DialogResult, _ui: &mut Context<DialogResult>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<DialogResult> {
+        let mut tree = Tree::new();
+        let dialog = Dialog::new("Note", "Something to know.").on_result(|result| result);
+        let area = dialog.area(ui);
+        tree.add("Alone", area.rect, dialog);
+        tree
+    }
+}
+
+// A dialog's lone button takes the right half of its command row, as
+// ContentDialog's command grid puts it in the second of two columns.
+#[test]
+fn a_dialog_s_lone_button_takes_the_right_half_of_its_row() {
+    let app = Headless::new(Alone);
+    let (dialog, close) = (app.target("Alone"), app.target("Alone/Close"));
+    let (padding, gap) = (user_interface::controls::DIALOG_PADDING, user_interface::controls::DIALOG_BUTTON_GAP);
+    let row = dialog.width - padding * 2.0;
+    assert_eq!((close.right(), close.width), (dialog.right() - padding, ((row - gap) / 2.0).floor()));
+}
 #[test]
 fn a_dialog_gates_the_keys_the_frame_it_opens() {
     let mut app = Headless::new(Test::default());

@@ -163,7 +163,8 @@ impl<M: Clone + 'static> Dialog<M> {
     }
 
     // The buttons, which share the command area's width, the last at its
-    // right.
+    // right: in columns of equal width, at least two, as ContentDialog's
+    // command grid has, so that a lone button takes its right half.
     fn buttons(&self, rect: Rect) -> Vec<(Rect, DialogResult, &str)> {
         let mut buttons: Vec<(&str, DialogResult)> = Vec::new();
         if let Some(text) = &self.primary {
@@ -177,8 +178,8 @@ impl<M: Clone + 'static> Dialog<M> {
         }
         let inner = rect.width - DIALOG_PADDING * 2.0;
         let row = Rect::new(rect.x + DIALOG_PADDING, rect.bottom() - DIALOG_PADDING - CONTROL_HEIGHT, inner, CONTROL_HEIGHT);
-        let count = buttons.len().max(1) as f32;
-        let button_width = ((row.width - DIALOG_BUTTON_GAP * (count - 1.0)) / count).floor();
+        let columns = buttons.len().max(2) as f32;
+        let button_width = ((row.width - DIALOG_BUTTON_GAP * (columns - 1.0)) / columns).floor();
         buttons
             .iter()
             .enumerate()
