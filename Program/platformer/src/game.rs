@@ -333,7 +333,9 @@ impl Game {
                 self.effect(EffectKind::Burst, at);
             }
             Event::SpringBounced { spring } => {
+                // A spring's rise, which letting go of jump doesn't cut.
                 self.player.velocity[1] = SPRING_SPEED;
+                self.player.jumping = false;
                 self.player.grounded = false;
                 self.player.standing = Standing::Still;
                 let at = self.levels[self.level].springs[spring].center();

@@ -9,7 +9,9 @@
 use platformer::controls::Controls;
 use platformer::game::Game;
 use platformer::level::{self, Zone};
-use platformer::physics::{self, BUFFER, COYOTE, FASTEST_FALL, GRAVITY, HALF, JUMP_SPEED, LONGEST_FRAME, Player, RUN_SPEED, Solid, Standing};
+use platformer::physics::{
+    self, BUFFER, COYOTE, FASTEST_FALL, GRAVITY, HALF, JUMP_SPEED, LONGEST_FRAME, Player, RUN_SPEED, SPRING_SPEED, Solid, Standing,
+};
 use platformer::progress::Progress;
 
 const FRAME: f64 = 1.0 / 60.0;
@@ -138,6 +140,38 @@ fn letting_go_of_jump_cuts_the_rise() {
         top
     };
     assert!(cut < full - 0.5, "a tap hops lower: {cut} against {full}");
+}
+
+// Letting go of jump cuts a jump's rise, not a spring's: a bounce rises
+// SPRING_SPEED squared over twice GRAVITY, about 5 units, whether jump is
+// held or not, so the ledge that only the spring reaches is reached.
+#[test]
+fn a_spring_bounces_as_high_without_holding_jump() {
+    let peak = SPRING_SPEED * SPRING_SPEED / (2.0 * GRAVITY);
+    for held in [false, true] {
+        let mut game = game(&format!("SpringHeld{held}"));
+        let spring = game.current().springs[0];
+        game.player.position = [spring.center()[0], spring.top() + HALF[1] + 0.02];
+        game.player.velocity = [0.0, -6.0];
+        game.player.grounded = false;
+        let controls = Controls { jump_held: held, ..Controls::default() };
+        frame(&mut game, controls);
+        assert_eq!(game.player.velocity[1], SPRING_SPEED, "bounced in the frame, {:?}", game.player);
+        let bounced = game.player.position[1];
+        let mut top = bounced;
+        for _ in 0..60 {
+            frame(&mut game, controls);
+            top = top.max(game.player.position[1]);
+            if game.player.velocity[1] < 0.0 {
+                break;
+            }
+        }
+        // The frames sample the arc, so the highest of them is within an
+        // eighth of a frame's gravity of the peak.
+        let sampling = GRAVITY * FRAME * FRAME / 8.0;
+        let rose = top - bounced;
+        assert!(rose <= peak + 1e-9 && rose >= peak - sampling - 1e-9, "holding jump {held}: rose {rose} of {peak}");
+    }
 }
 
 #[test]

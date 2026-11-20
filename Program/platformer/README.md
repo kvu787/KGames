@@ -12,9 +12,10 @@ Run with the arrows (or S/F, the left stick or the d-pad), jump with Space
 (or E, up, or the gamepad's A) - held jumps higher, a press just before a
 landing jumps on the landing, and a press just after a ledge still jumps.
 Collect every coin to open the door, and reach the flag behind it. Springs
-bounce, spikes and falling out kill, checkpoints move the respawn, and a run
-has 3 lives. `R` starts the run over; finishing a level unlocks the next,
-and PageUp and PageDown go between unlocked levels.
+bounce about twice as high as a jump, held jump or not, spikes and falling
+out kill, checkpoints move the respawn, and a run has 3 lives. `R` starts
+the run over; finishing a level unlocks the next, and PageUp and PageDown go
+between unlocked levels.
 
 ## The event graph
 
@@ -81,8 +82,9 @@ The file isn't checked in; delete it for a fresh start.
 
 `Program\RunLightly\RunLightly.ps1 cargo test -p platformer-tests` runs the
 tests: the physics (each frame moving the player by its own time, a jump as
-high at any frame rate, buffer, coyote, carry, and every top in every level
-holding a player who runs along it),
+high at any frame rate, buffer, coyote, carry, a spring's bounce as high
+without jump held, and every top in every level holding a player who runs
+along it),
 the event graph's one-frame laws, the progress file, and the frames through
 `Headless`. `Program\RunInBackground\RunInBackground.ps1 platformer
 --all-scripts` runs the input scripts in `Test/platformer/Scripts` in a real

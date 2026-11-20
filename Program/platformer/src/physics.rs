@@ -25,9 +25,10 @@ pub const RUN_SPEED: f64 = 8.0;
 pub const GRAVITY: f64 = 36.0;
 // The jump's upward speed, which reaches about 2.5 units.
 pub const JUMP_SPEED: f64 = 13.4;
-// Letting go of jump while rising cuts the rise to this, for short hops.
+// Letting go of jump while a jump rises cuts the rise to this, for short
+// hops.
 pub const JUMP_CUT: f64 = 4.0;
-// A spring's upward speed, which reaches about 5 units.
+// A spring's upward speed, which reaches about 5 units, held jump or not.
 pub const SPRING_SPEED: f64 = 19.0;
 pub const FASTEST_FALL: f64 = 24.0;
 pub const COYOTE: f64 = 0.1;
@@ -59,6 +60,9 @@ pub struct Player {
     pub grounded: bool,
     // What the player stands on, while grounded.
     pub standing: Standing,
+    // Whether the rise is a jump's, which letting go of jump cuts short. A
+    // spring's isn't.
+    pub jumping: bool,
     // Until when a jump press still counts, and until when the ground the
     // player left still does, on the game's clock.
     pub jump_until: f64,
@@ -73,6 +77,7 @@ impl Player {
             velocity: [0.0, 0.0],
             grounded: false,
             standing: Standing::Still,
+            jumping: false,
             jump_until: f64::NEG_INFINITY,
             coyote_until: f64::NEG_INFINITY,
         }
@@ -99,6 +104,7 @@ pub fn collides(zone: &Zone, center: [f64; 2]) -> bool {
 fn jump(player: &mut Player, now: f64) {
     if player.jump_until >= now && (player.grounded || player.coyote_until >= now) && player.velocity[1] <= 0.0 {
         player.velocity[1] = JUMP_SPEED;
+        player.jumping = true;
         player.grounded = false;
         player.standing = Standing::Still;
         player.jump_until = f64::NEG_INFINITY;
@@ -133,9 +139,9 @@ pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: b
         }
     }
 
-    // Fall, with the rise cut short once jump is let go of, by the average
-    // of the speeds before and after gravity's pull.
-    if !jump_held && player.velocity[1] > JUMP_CUT {
+    // Fall, with a jump's rise cut short once jump is let go of, by the
+    // average of the speeds before and after gravity's pull.
+    if player.jumping && !jump_held && player.velocity[1] > JUMP_CUT {
         player.velocity[1] = JUMP_CUT;
     }
     let rising = player.velocity[1];
