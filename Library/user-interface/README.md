@@ -367,7 +367,9 @@ before, but reports gamepads' whole state, their held buttons too.
   event at its reading, so that a button pressed and let go of within a frame is a step with the
   press and one with the release, which `ui.input().gamepad_pressed` and `gamepad_released` see.
 - Programs that show the devices themselves, or run gamepads' motors, like GameInputDemo, read the
-  frame's readings and device events from `startup.devices`, which the interface reads them with.
+  frame's readings and device events from `startup.devices`, which the interface reads them with,
+  and the devices connected now, `connected()`, for the frames that they don't run in, like those
+  that show the error page of a wrong window setup.
 
 ## Window setup
 

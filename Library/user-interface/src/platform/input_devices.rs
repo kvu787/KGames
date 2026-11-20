@@ -130,6 +130,9 @@ pub struct Devices {
     readings: Vec<Reading>,
     device_events: Vec<(GameInputDeviceEvent, Device)>,
     focus_changes: Vec<(u64, bool)>,
+    // The devices connected now, in the order they connected, as every
+    // frame's device events so far say.
+    connected: Vec<Device>,
     // Whether the window has focus, as the last focus change left it.
     focused: bool,
     frame: u64,
@@ -181,6 +184,7 @@ impl Devices {
             readings: Vec::new(),
             device_events: Vec::new(),
             focus_changes: Vec::new(),
+            connected: Vec::new(),
             focused: false,
             frame: 0,
         };
@@ -251,6 +255,18 @@ impl Devices {
                 self.known.retain(|(known, _)| *known != object);
             }
             let device = unsafe { self.device(&object) };
+            match event {
+                GameInputDeviceEventConnected => {
+                    self.connected.retain(|known| known.id != device.id);
+                    self.connected.push(device.clone());
+                }
+                GameInputDeviceEventDisconnected => self.connected.retain(|known| known.id != device.id),
+                _ => {
+                    if let Some(known) = self.connected.iter_mut().find(|known| known.id == device.id) {
+                        *known = device.clone();
+                    }
+                }
+            }
             self.device_events.push((event, device));
         }
         let known: Vec<IGameInputDevice> = self.known.iter().map(|(object, _)| object.clone()).collect();
@@ -284,6 +300,14 @@ impl Devices {
     // disconnected, or changed.
     pub fn device_events(&self) -> &[(GameInputDeviceEvent, Device)] {
         &self.device_events
+    }
+
+    // The devices connected now, in the order they connected, as this and
+    // every earlier frame's device events say, for a program that didn't see
+    // some frames' events, like those that the error page of a wrong window
+    // setup showed in, which the program doesn't run in.
+    pub fn connected(&self) -> &[Device] {
+        &self.connected
     }
 
     // When the window got or lost focus since the last frame, oldest first,
