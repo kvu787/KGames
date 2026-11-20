@@ -215,6 +215,12 @@ unsafe fn parse(bytes: &[u8]) -> Option<Layout> {
         for index in 0..info.PropertyCount as usize {
             let property = &*array.add(index);
             let is_struct = property.Flags & PropertyStruct != 0;
+            // A struct's members come after it, as TDH lists them, so that
+            // a trace file's layout can't hold a struct inside itself,
+            // whose size would never be found.
+            if is_struct && property.Anonymous.structType.StructStartIndex as usize <= index {
+                return None;
+            }
             properties.push(Property {
                 name: wide_string(bytes, property.NameOffset as usize),
                 flags: property.Flags,
