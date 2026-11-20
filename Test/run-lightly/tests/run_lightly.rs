@@ -10,10 +10,19 @@ use std::time::Duration;
 const RUN_LIGHTLY: &str = concat!(env!("CARGO_MANIFEST_DIR"), r"\..\..\Program\RunLightly\RunLightly.ps1");
 const PRINT_ARGUMENTS: &str = env!("CARGO_BIN_EXE_print-arguments");
 
+// pwsh, writing its errors as plain text, without the colors that it adds in
+// a terminal that says it takes them, like Git Bash's, whose TERM it gets,
+// so that the tests read the same text from any shell.
+fn pwsh() -> Command {
+    let mut command = Command::new("pwsh");
+    command.env("NO_COLOR", "1");
+    command
+}
+
 // pwsh, running RunLightly.ps1 with the arguments, outside any RunLightly job
 // of these tests'.
 fn run_lightly() -> Command {
-    let mut command = Command::new("pwsh");
+    let mut command = pwsh();
     command.args(["-NoProfile", "-NonInteractive", "-File", RUN_LIGHTLY]).env_remove("KGAMES_LIGHT_JOB");
     command
 }
@@ -21,7 +30,7 @@ fn run_lightly() -> Command {
 // pwsh, running the PowerShell, in a RunLightly job already, as far as
 // RunLightly can tell, or not.
 fn powershell(script: &str, in_a_job_already: bool) -> Command {
-    let mut command = Command::new("pwsh");
+    let mut command = pwsh();
     command.args(["-NoProfile", "-NonInteractive", "-Command", script]);
     if in_a_job_already {
         command.env("KGAMES_LIGHT_JOB", "unused");
