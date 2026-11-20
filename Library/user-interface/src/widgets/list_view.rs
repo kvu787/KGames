@@ -175,6 +175,10 @@ impl<M: Clone + 'static> Widget<M> for ListView<M> {
         let rect = ctx.rect();
         let offset = ctx.memory::<Scrolled>().offset;
         let rows = self.geometry(rect, offset);
+        // How far it's scrolled stays inside its rows as they change, like
+        // as a search leaves fewer, so that it doesn't come back once they're
+        // back.
+        ctx.memory::<Scrolled>().offset = rows.offset;
         for index in rows.indices() {
             let label = self.label_of.as_ref().map(|label_of| label_of(index));
             ctx.part(Part::Index(index), &index.to_string(), rows.row(index).intersect(rect), Sense::CLICK, "ListViewItem", label);

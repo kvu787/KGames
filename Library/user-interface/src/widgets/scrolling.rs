@@ -247,6 +247,11 @@ impl<M: 'static> Widget<M> for ScrollArea {
 
     fn parts(&self, ctx: &mut Parts) {
         let rect = ctx.rect();
+        // How far it's scrolled stays inside its content as that changes, so
+        // that it doesn't come back once the content is tall again.
+        let range = (self.content_height - rect.height).max(0.0);
+        let scrolled = ctx.memory::<Scrolled>();
+        scrolled.offset = scrolled.offset.clamp(0.0, range);
         scroll_bar_part(ctx, rect, self.content_height);
     }
 

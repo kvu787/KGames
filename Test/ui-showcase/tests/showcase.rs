@@ -254,6 +254,21 @@ fn the_list_selects_scrolls_and_opens() {
     assert_eq!(app.program.opened, Some(index));
 }
 
+// A search that leaves the list too few rows to scroll scrolls it to its
+// top, though the pointer was never on the list, and the list stays there as
+// the search is cleared.
+#[test]
+fn a_list_that_a_search_shortens_stays_at_its_top_as_the_search_is_cleared() {
+    let mut app = showcase();
+    app.scroll("Items", -10.0);
+    assert!(!app.has_target("Items/0"));
+    app.click("Search").type_text("ember 1");
+    assert_eq!(app.program.matches().len(), 2);
+    app.click("Search/Clear");
+    assert_eq!(app.program.matches().len(), 120);
+    assert!(app.has_target("Items/0"));
+}
+
 #[test]
 fn the_caution_closes_and_comes_back() {
     let mut app = showcase();

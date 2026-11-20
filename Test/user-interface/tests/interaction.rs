@@ -1159,10 +1159,11 @@ fn a_number_box_takes_the_wheel_only_with_focus_and_the_pointer_on_it() {
     assert_eq!(app.program.number, 1);
 }
 
-// A number box in a scroll area.
+// A number box in a scroll area, whose content a test can make short.
 #[derive(Default)]
 struct Scrolling {
     number: f64,
+    short: bool,
 }
 
 impl Program for Scrolling {
@@ -1179,8 +1180,9 @@ impl Program for Scrolling {
     fn view(&self, ui: &mut Ui) -> Tree<f64> {
         let mut tree = Tree::new();
         let viewport = Rect::new(10.0, ui.content_top() + 10.0, 300.0, 200.0);
-        let content = ScrollArea::content(ui, "Area", viewport, 1000.0);
-        tree.container(Some("Area"), viewport, ScrollArea::new(1000.0), |area| {
+        let height = if self.short { 100.0 } else { 1000.0 };
+        let content = ScrollArea::content(ui, "Area", viewport, height);
+        tree.container(Some("Area"), viewport, ScrollArea::new(height), |area| {
             area.add("Inner", Rect::new(content.x, content.y + 160.0, 200.0, 32.0), NumberBox::new(self.number).on_change(|number| number));
         });
         tree
@@ -1201,6 +1203,23 @@ fn the_wheel_over_a_focused_number_box_s_buttons_steps_only_it() {
     }
     app.click_point(Point::new(1000.0, 900.0)).scroll("Inner/Up", -1.0);
     assert_eq!((app.program.number, app.target("Inner").y), (-3.0, inner.y - WHEEL_SCROLL));
+}
+
+// Content that gets too short to scroll scrolls its area to its top, on the
+// frame that it does, and the area stays there as the content gets tall
+// again.
+#[test]
+fn a_scroll_area_whose_content_gets_short_stays_at_its_top() {
+    let mut app = Headless::new(Scrolling::default());
+    let inner = app.target("Inner");
+    app.scroll("Inner", -1.0);
+    assert_eq!(app.target("Inner").y, inner.y - WHEEL_SCROLL);
+    app.program.short = true;
+    app.frame();
+    assert_eq!(app.target("Inner").y, inner.y);
+    app.program.short = false;
+    app.frame();
+    assert_eq!(app.target("Inner").y, inner.y);
 }
 
 #[test]
