@@ -4,6 +4,9 @@
 # What MeshModeler saves when people use it.
 /Program/mesh-modeler/Models/
 
+# What the Platformer saves when people play it.
+/Program/platformer/Save.json
+
 /.claude/settings.local.json
 /.claude/worktrees/
 
