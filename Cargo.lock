@@ -326,6 +326,8 @@ name = "present-timing-tests"
 version = "0.1.0"
 dependencies = [
  "present-timing",
+ "windows-api-raw",
+ "windows-core",
 ]
 
 [[package]]
