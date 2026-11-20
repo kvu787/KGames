@@ -35,10 +35,10 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 | List                       | 120 items that scroll, of which the search shows those it matches, one   |
 |                            | can be selected, and a double-click opens one                            |
 | Interface                  | The pointer; the widget under it, the one with the press, the one with   |
-|                            | keyboard focus, the open popup and the dialog, in the tree that the      |
-|                            | frame draws; the frame before's tooltip; the keys held; the gamepad's    |
-|                            | sticks, triggers and buttons; keycaps and badges; a tooltip of lines;    |
-|                            | and a log of what happened                                               |
+|                            | keyboard focus, the open popup, the dialog and the tooltip, in the tree  |
+|                            | that the frame draws; the keys held; the gamepad's sticks, triggers and  |
+|                            | buttons; keycaps and badges; a tooltip of lines; and a log of what       |
+|                            | happened                                                                 |
 
 The menu bar's File, View and Help menus have icons, keyboard accelerators, a separator, a
 submenu and a disabled item. The cards at the bottom of their columns take what's left of the

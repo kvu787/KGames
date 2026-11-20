@@ -479,8 +479,8 @@ fn list(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) 
 // What a row of the Interface card shows: a value that `view` knows, or one
 // that's read from the interface as the frame is drawn, once its last step's
 // tree is laid out, so that it's the drawn tree's, like what the pointer is
-// on in it, and whether it has a dialog. `view` comes before that layout,
-// and would read the tree before it.
+// on in it, whether it has a dialog, and the tooltip that shows over it.
+// `view` comes before that layout, and would read the tree before it.
 enum Row {
     Known(String),
     Drawn(fn(&Interface) -> String),
@@ -515,9 +515,7 @@ fn interface(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: R
         ("Pressed", Row::Drawn(|ui| name_or_none(ui.pressed_name()))),
         ("Keyboard focus", Row::Drawn(|ui| name_or_none(ui.focused_name()))),
         ("Open popup", Row::Drawn(|ui| name_or_none(ui.popup_name()))),
-        // The frame before's: the interface settles a frame's tooltip as it
-        // draws it, after the widgets.
-        ("Tooltip", Row::Known(name_or_none(ui.tooltip_name()))),
+        ("Tooltip", Row::Drawn(|ui| name_or_none(ui.tooltip_name()))),
         ("Dialog", Row::Drawn(|ui| if ui.modal() { "Open" } else { "None" }.to_string())),
     ];
     let held: Vec<String> = ui.input().keys_held().iter().map(|key| key.name()).collect();

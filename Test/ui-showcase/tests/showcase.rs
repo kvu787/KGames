@@ -346,6 +346,21 @@ fn the_dialog_asks_and_takes_the_page_until_answered() {
     assert_eq!(app.program.dialog_result.as_deref(), Some("Cancel"));
 }
 
+// How many pixels of the Interface card's rows, from the menu row down to
+// its Details button, differ between the frame that just ran and the next,
+// which has no input: none, if the rows show the frame that they're drawn
+// in.
+fn interface_rows_changed_a_frame_later(app: &mut Headless<Showcase>, gpu: &mut Gpu) -> usize {
+    let details = app.target("Details");
+    let top = PERF_BAR_HEIGHT + APP_BAR_HEIGHT + MENU_BAR_HEIGHT;
+    let rows = Rect::new(details.x, top, 2560.0 - PAGE_PADDING - details.x, details.y - top);
+    let drawn = app.render(gpu).unwrap();
+    app.frame();
+    let after = app.render(gpu).unwrap();
+    let pixels = (rows.y as u32..rows.bottom() as u32).flat_map(|y| (rows.x as u32..rows.right() as u32).map(move |x| (x, y)));
+    pixels.filter(|&(x, y)| drawn.pixel(x, y) != after.pixel(x, y)).count()
+}
+
 // The Interface card says what the frame that it's drawn in has: the frame
 // whose press opens the dialog draws it as the frame after it does, with the
 // dialog open, and nothing under the pointer, which the dialog's smoke
@@ -354,18 +369,31 @@ fn the_dialog_asks_and_takes_the_page_until_answered() {
 fn the_interface_card_shows_the_frame_that_it_is_drawn_in() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let mut app = showcase();
-    // The card's rows, from the menu row down to its Details button.
-    let details = app.target("Details");
-    let top = PERF_BAR_HEIGHT + APP_BAR_HEIGHT + MENU_BAR_HEIGHT;
-    let rows = Rect::new(details.x, top, 2560.0 - PAGE_PADDING - details.x, details.y - top);
     app.press("Ask");
     assert!(app.ui.modal());
-    let opened = app.render(&mut gpu).unwrap();
-    app.frame();
-    let after = app.render(&mut gpu).unwrap();
-    let pixels = (rows.y as u32..rows.bottom() as u32).flat_map(|y| (rows.x as u32..rows.right() as u32).map(move |x| (x, y)));
-    let different = pixels.filter(|&(x, y)| opened.pixel(x, y) != after.pixel(x, y)).count();
-    assert_eq!(different, 0, "the card's rows were a frame late");
+    assert_eq!(interface_rows_changed_a_frame_later(&mut app, &mut gpu), 0, "the card's rows were a frame late");
+    app.release();
+}
+
+// The Interface card's Tooltip row says the tooltip of the frame that it's
+// drawn in, as the frame after it does: the frame that shows it, and the one
+// whose press puts it away.
+#[test]
+fn the_interface_card_shows_the_tooltip_of_the_frame_that_it_is_drawn_in() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = showcase();
+    app.move_to("Save");
+    let mut frames = 0;
+    while app.ui.tooltip_name().is_none() {
+        assert!(frames < 120, "no tooltip showed");
+        app.frame();
+        frames += 1;
+    }
+    assert_eq!(app.ui.tooltip_name(), Some("Save"));
+    assert_eq!(interface_rows_changed_a_frame_later(&mut app, &mut gpu), 0, "the Tooltip row was a frame late as the tooltip showed");
+    app.press("Save");
+    assert_eq!(app.ui.tooltip_name(), None);
+    assert_eq!(interface_rows_changed_a_frame_later(&mut app, &mut gpu), 0, "the Tooltip row was a frame late as a press put the tooltip away");
     app.release();
 }
 
