@@ -1,20 +1,24 @@
 # Description
 
-- This contains the Rust bindings for the part of Microsoft's GameInput API that reads keyboards, mice and gamepads.
+- This crate generates and contains Rust bindings for part of Microsoft's GameInput API.
+- It covers stuff that reads keyboards, mice and gamepads.
 - Official docs: https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-overview
 
 # Development rules
 
-- This crate must only provide bindings for what KGames is likely to use of the GameInput API for x64 PC, which is its scope.
+- Scope:
+  - This crate must not provide anything beyond `windows-bindgen` bindings.
+  - This crate must only provide bindings for what KGames is likely to use of the GameInput API for x64 PC.
   - In scope: reading keyboards, mice and gamepads, a gamepad's system buttons and rumble, finding and identifying devices, and the callbacks for readings and devices.
   - Out of scope: arcade sticks, flight sticks, racing wheels, sensors, touch surfaces, controllers that GameInput doesn't map to a gamepad, the input mapper, force feedback, haptics, lighting, raw device reports, aggregate devices and the dispatcher.
+- Structure:
   - `INTERFACES`, `TYPES`, `CONSTANTS` and `FUNCTIONS` in `bindings-generator\src\lib.rs` name everything that's in scope.
   - An enum that's in scope has all of its values, since GameInput gives any of them.
   - A method that's out of scope keeps its slot in its interface's vtable, as a `usize`, so the slots after it stay where GameInput has them.
-- `windows-bindgen` can't generate bindings for GameInput's API from Windows' metadata, which doesn't have it.
-  - So `bindings-generator` describes `GameInput.h` as metadata, and `windows-bindgen` generates `src\lib.rs` from that, with filters for the scope.
-- The bindings must be written like how `windows-bindgen` would write them, so `src\lib.rs` is never edited by hand.
-- This crate must not provide anything beyond `windows-bindgen`-style bindings.
+- How bindings are generated:
+  - Currently, GameInput doesn't come with the Windows metadata that `windows-bindgen` needs.
+  - So, the custom written `bindings-generator` crate generates this metadata from the `GameInput.h` API header.
+  - Then, `windows-bindgen` generates `src\lib.rs` from that, with filters for the scope.
 
 # Build prerequisites
 
@@ -36,7 +40,7 @@ like programs or tests, then you must install these runtime prerequisites.
 
 - Install the GameInput runtime with `winget install --exact --id "Microsoft.GameInput" --source "winget" --version "4.0.306"`.
   - Installing this winget package runs the `GameInputRedist.msi` installer contained in the GameInput NuGet package.
-  - That installs the GameInput resdistributables to the right location and installs the GameInput background service.
+  - That installs the GameInput redistributables to the right location and installs the GameInput background service.
   - This is required to use GameInput at runtime.
 - What is the intended flow for an end user and/or game player to install the GameInput runtime?
   - Typically, a game bundles in and runs `GameInputRedist.msi` as part of its own installer.
