@@ -289,14 +289,16 @@ static void Run(string[] arguments) {
             process.Kill();
             throw new FailureException($"{program} didn't close within 10 seconds, so it was stopped");
         }
-        if (process.ExitCode != 0) {
-            throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
-        }
     }
     // Once the watch has handled every change of focus that Windows reported.
     watch.Dispose();
     if (watch.TookFocus) {
         throw new FailureException($"{program}'s window took focus");
+    }
+    // After the watch, which stops a program that takes focus, so that it's
+    // said to have taken focus, and not to have exited with an error.
+    if (!keepOpen && process.ExitCode != 0) {
+        throw new FailureException($"{program} exited with code {process.ExitCode}. {ReadLog(errorLog)}");
     }
 }
 
