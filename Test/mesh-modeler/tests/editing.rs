@@ -340,6 +340,41 @@ fn ctrl_snaps_a_rotation_to_15_degrees() {
     }
 }
 
+// A modal edit starts with no change wherever the pointer is. On the pivot,
+// where a pixel would scale or turn the selection by far too much, it
+// measures from 100 pixels to the pointer's left instead.
+#[test]
+fn a_modal_edit_that_starts_on_its_pivot_starts_with_no_change() {
+    let mut app = modeler("StartOnPivot");
+    app.key(Key::A);
+    let before = app.program.document.mesh.clone();
+    // The selection's pivot is the cube's center, at the view's.
+    let center = app.program.view.center();
+    assert_eq!(screen(&app, [0.0; 3]), center);
+    app.move_point(center);
+    for key in [Key::S, Key::R] {
+        app.key(key).frame();
+        assert_eq!(app.program.document.mesh, before, "{key:?}");
+        app.key(Key::ESCAPE);
+    }
+    // And from there, 50 pixels to the right is half as much again.
+    app.key(Key::S);
+    app.move_point(center + Point::new(50.0, 0.0));
+    assert_eq!(operation(&app, "Amount").as_deref(), Some("1.500"));
+    app.key(Key::ESCAPE);
+    assert_eq!(app.program.document.mesh, before);
+
+    // An inset from its face's center starts with walls of no thickness.
+    app.key_with(Modifiers::ALT, Key::A);
+    app.click_point(center);
+    let face = *app.program.document.selection.faces.iter().next().unwrap();
+    app.move_point(screen(&app, app.program.document.mesh.face_center(face)));
+    app.key(Key::I).frame();
+    let face = *app.program.document.selection.faces.iter().next().unwrap();
+    assert_eq!(operation(&app, "Amount").as_deref(), Some("0.000"));
+    assert!((app.program.document.mesh.face_area(face) - 4.0).abs() < 1e-4, "{}", app.program.document.mesh.face_area(face));
+}
+
 #[test]
 fn e_extrudes_the_selected_face_along_its_normal() {
     let mut app = modeler("Extrude");

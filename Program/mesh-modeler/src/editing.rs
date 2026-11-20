@@ -124,6 +124,12 @@ pub struct Operation {
     // Where the pointer was as it began, and where the pivot is on screen.
     start: Point,
     pivot_screen: Point,
+    // What turning, scaling and insetting measure the pointer's angle and
+    // distance from: the pivot on screen, or, for a pointer that starts
+    // within 20 pixels of it, where a pixel would turn and scale by far too
+    // much, a point 100 pixels to the left of the pointer. Either way the
+    // edit starts with no change.
+    center: Point,
     pivot: Vector3,
     normal: Vector3,
     // What a cancel goes back to, and what the edit applies to.
@@ -469,18 +475,14 @@ impl Editor {
         }
         let pivot = document.mesh.center_of(vertices.iter().copied()).unwrap_or([0.0; 3]);
         let (pivot_screen, _) = camera.to_screen(pivot, view);
-        // A pointer on the pivot would scale and turn by nothing, so they
-        // start a little away from it.
-        let mut start = pointer;
-        if matches!(kind, OperationKind::Scale | OperationKind::Rotate | OperationKind::Inset) && start.distance(pivot_screen) < 20.0 {
-            start = Point::new(pivot_screen.x + 100.0, pivot_screen.y);
-        }
+        let center = if pointer.distance(pivot_screen) < 20.0 { Point::new(pointer.x - 100.0, pointer.y) } else { pivot_screen };
         self.operation = Some(Operation {
             kind,
             axis: Axis::Free,
             name: name.to_string(),
-            start,
+            start: pointer,
             pivot_screen,
+            center,
             pivot,
             normal: Self::selection_normal(document),
             restore,
@@ -548,7 +550,7 @@ impl Editor {
                 operation.amount = format!("{:.3}, {:.3}, {:.3}", offset[0], offset[1], offset[2]);
             }
             OperationKind::Rotate => {
-                let angle = angle_of(pointer, operation.pivot_screen) - angle_of(operation.start, operation.pivot_screen);
+                let angle = angle_of(pointer, operation.center) - angle_of(operation.start, operation.center);
                 let angle = snap_to(angle.to_degrees(), 15.0).to_radians();
                 let backward = camera.backward();
                 let axis = match axis_vector(operation.axis, operation.normal) {
@@ -562,8 +564,8 @@ impl Editor {
                 operation.amount = format!("{:.1}°", angle.to_degrees());
             }
             OperationKind::Scale => {
-                let initial = operation.start.distance(operation.pivot_screen).max(1.0);
-                let factor = snap_to(pointer.distance(operation.pivot_screen) / initial, 0.1);
+                let initial = operation.start.distance(operation.center).max(1.0);
+                let factor = snap_to(pointer.distance(operation.center) / initial, 0.1);
                 let factors = match operation.axis {
                     Axis::X => [factor, 1.0, 1.0],
                     Axis::Y => [1.0, factor, 1.0],
@@ -574,8 +576,8 @@ impl Editor {
                 operation.amount = format!("{factor:.3}");
             }
             OperationKind::Inset => {
-                let initial = operation.start.distance(operation.pivot_screen);
-                let thickness = snap_to(((initial - pointer.distance(operation.pivot_screen)) * camera.pixel_size(view)).max(0.0), 0.05);
+                let initial = operation.start.distance(operation.center);
+                let thickness = snap_to(((initial - pointer.distance(operation.center)) * camera.pixel_size(view)).max(0.0), 0.05);
                 let selection = mesh.inset_region(operation.faces.iter().copied(), thickness);
                 document.selection = selection;
                 operation.amount = format!("{thickness:.3}");
