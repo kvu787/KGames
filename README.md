@@ -67,6 +67,21 @@ SDK, 10 or later, whose `dotnet` restores GameInput's NuGet package. Visual Stud
 its .NET desktop development workload. [Library/game-input](Library/game-input/README.md) says how
 programs start it.
 
+# misc notes
+
+SetCursor(NULL)
+WM_SETCURSOR
+ClipCursor
+GetForegroundWindow
+GetClipCursor
+That’s the argument for keeping it in one pixel at the middle, as SDL does.
+WM_ACTIVATE
+GetAsyncKeyState
+IsIconic
+exactly one window
+deal with SetCursorPos and ClipCursor unreliability
+it seems like clipcursor is a requirement even despite its unreliability
+
 ## Program
 
 | Program                                                  | What it is                                                               |
