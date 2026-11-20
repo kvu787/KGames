@@ -7,7 +7,7 @@
 // along it.
 
 use platformer::controls::Controls;
-use platformer::game::Game;
+use platformer::game::{EffectKind, Game};
 use platformer::level::{self, Zone};
 use platformer::physics::{
     self, BUFFER, COYOTE, FASTEST_FALL, GRAVITY, HALF, JUMP_SPEED, LONGEST_FRAME, Player, RUN_SPEED, SPRING_SPEED, Solid, Standing,
@@ -172,6 +172,53 @@ fn a_spring_bounces_as_high_without_holding_jump() {
         let rose = top - bounced;
         assert!(rose <= peak + 1e-9 && rose >= peak - sampling - 1e-9, "holding jump {held}: rose {rose} of {peak}");
     }
+}
+
+// A fall onto a spring bounces at any frame rate, on the frame that reaches
+// it: a frame whose fall passed through the spring, 0.4 tall, onto the
+// ground under it bounces as one that ended in it does. A fall from a full
+// jump's height, at 30 frames a second and at the longest frame, falls
+// farther than that in its last frame. Standing on the spring, or walking
+// onto it, doesn't bounce, even at the longest frame, whose pull of gravity
+// alone is faster than a bounce needs.
+#[test]
+fn a_fall_onto_a_spring_bounces_at_any_frame_rate() {
+    let jump = JUMP_SPEED * JUMP_SPEED / (2.0 * GRAVITY);
+    for seconds in [1.0 / 60.0, 1.0 / 30.0, LONGEST_FRAME] {
+        // From a little higher each time, so the frames end at every point
+        // of the fall.
+        for higher in 0..20 {
+            let mut game = game(&format!("SpringFall{seconds}"));
+            let spring = game.current().springs[0];
+            game.player.position = [spring.center()[0], spring.y + jump + f64::from(higher) * 0.04 + HALF[1]];
+            game.player.velocity = [0.0, 0.0];
+            game.player.grounded = false;
+            let mut time = game.simulated;
+            for _ in 0..100 {
+                time += seconds;
+                game.update(&Controls::default(), time);
+                if game.player.velocity[1] >= 0.0 {
+                    break;
+                }
+            }
+            // The frame that reached the spring bounced, and showed it.
+            let now = game.simulated;
+            assert_eq!(game.player.velocity[1], SPRING_SPEED, "a frame of {seconds} s, from {higher}: {:?}", game.player);
+            assert!(game.log.iter().any(|(at, label)| *at == now && label == "SpringBounced 0"), "{:?}", game.log);
+            assert!(game.effects.iter().any(|effect| effect.kind == EffectKind::Bounce && effect.started == now));
+        }
+    }
+
+    let mut game = game("SpringStand");
+    let spring = game.current().springs[0];
+    game.player.position = [spring.x - 0.5, HALF[1]];
+    let mut time = game.simulated;
+    for push in [1.0, 0.0, 0.0, 0.0] {
+        time += LONGEST_FRAME;
+        game.update(&Controls { push, ..Controls::default() }, time);
+        assert!(game.player.grounded && spring.overlaps(game.player.position, HALF), "{:?}", game.player);
+    }
+    assert!(!game.log.iter().any(|(_, label)| label.starts_with("SpringBounced")), "{:?}", game.log);
 }
 
 #[test]

@@ -116,11 +116,14 @@ fn jump(player: &mut Player, now: f64) {
 // `now` on the game's clock, with the stick's push and the jump's state. The
 // solids are where they are at the frame's end, AFTER the platforms moved,
 // and `carry` is how far the platform the player stood on moved, which moves
-// the player first.
-pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: bool, carry: [f64; 2], solids: &[Solid]) {
+// the player first. Returns how fast the player fell as the frame's fall
+// ended, at the frame's end or as it landed, which is 0 for a player that the
+// ground held all along, standing on it as the frame began and as it ended.
+pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: bool, carry: [f64; 2], solids: &[Solid]) -> f64 {
     // A press jumps from the ground the player stood on as the frame began,
     // so that the frame of the press already rises.
     jump(player, now - seconds);
+    let stood = player.grounded;
 
     // The platform the player stands on carries them.
     player.position[0] += carry[0];
@@ -149,7 +152,8 @@ pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: b
     player.position[1] += (rising + player.velocity[1]) / 2.0 * seconds;
 
     // Resolve along Y: land on tops, bump heads on bottoms.
-    let was_falling = player.velocity[1] <= 0.0;
+    let fell = player.velocity[1];
+    let was_falling = fell <= 0.0;
     player.grounded = false;
     player.standing = Standing::Still;
     for solid in solids {
@@ -166,6 +170,8 @@ pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: b
         }
     }
 
+    let fell = if stood && player.grounded { 0.0 } else { fell };
+
     // The ground just left still counts for a moment, and a press just
     // before landing jumps on the frame of the landing, which rises from
     // the next.
@@ -173,4 +179,5 @@ pub fn step(player: &mut Player, now: f64, seconds: f64, push: f64, jump_held: b
         player.coyote_until = now + COYOTE;
     }
     jump(player, now);
+    fell
 }

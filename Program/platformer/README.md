@@ -82,9 +82,9 @@ The file isn't checked in; delete it for a fresh start.
 
 `Program\RunLightly\RunLightly.ps1 cargo test -p platformer-tests` runs the
 tests: the physics (each frame moving the player by its own time, a jump as
-high at any frame rate, buffer, coyote, carry, a spring's bounce as high
-without jump held, and every top in every level holding a player who runs
-along it),
+high at any frame rate, buffer, coyote, carry, a spring's bounce, as high
+without jump held and at any frame rate, and every top in every level
+holding a player who runs along it),
 the event graph's one-frame laws, the progress file, and the frames through
 `Headless`. `Program\RunInBackground\RunInBackground.ps1 platformer
 --all-scripts` runs the input scripts in `Test/platformer/Scripts` in a real

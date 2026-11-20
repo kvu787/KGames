@@ -241,12 +241,19 @@ impl Game {
             });
         }
 
-        physics::step(&mut self.player, now, seconds, controls.push, controls.jump_held, carry, &solids);
+        let start = self.player.position;
+        let fell = physics::step(&mut self.player, now, seconds, controls.push, controls.jump_held, carry, &solids);
 
         // What the movement did, as events. Each check reads the state as
         // the last drain left it, so nothing is published twice.
         let position = self.player.position;
-        let falling = self.player.velocity[1] < -1.0;
+        // A fall bounces off a spring that its path down this frame passed
+        // through, where the player ended up along X, and not only one that
+        // it ended in: springs aren't solid, so a long frame's fall can pass
+        // one, 0.4 tall, and land on the ground under it.
+        let falling = fell < -1.0;
+        let path_center = [position[0], (start[1] + position[1]) / 2.0];
+        let path_half = [HALF[0], HALF[1] + (start[1] - position[1]).abs() / 2.0];
         let mut found = Vec::new();
         for (coin, &at) in level.coins.iter().enumerate() {
             if !self.collected[coin] && Zone::new(at[0] - 0.3, at[1] - 0.3, 0.6, 0.6).overlaps(position, HALF) {
@@ -254,7 +261,7 @@ impl Game {
             }
         }
         for (spring, &zone) in level.springs.iter().enumerate() {
-            if falling && zone.overlaps(position, HALF) {
+            if falling && zone.overlaps(path_center, path_half) {
                 found.push(Event::SpringBounced { spring });
             }
         }
