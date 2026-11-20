@@ -8,7 +8,7 @@
 // follow the pointer from where they began until a click or Enter keeps them,
 // or a right-click or Esc takes them back.
 
-use math::{Vector3, add, dot, length, normalize, scale, subtract};
+use math::{Matrix, Vector3, add, dot, length, normalize, scale, subtract};
 use polygon_mesh::{Edge, Hit, Mesh, SelectMode, Selection, SubdivisionSurface, Triangles, primitives};
 use user_interface::{Point, Rect};
 
@@ -227,6 +227,16 @@ fn axis_vector(axis: Axis, normal: Vector3) -> Option<Vector3> {
         Axis::Z => Some([0.0, 0.0, 1.0]),
         Axis::Normal => Some(normal),
     }
+}
+
+// Scales by `factor` along the unit `direction`, keeping what's across it.
+fn scaling_along(direction: Vector3, factor: f32) -> Matrix {
+    Matrix(std::array::from_fn(|row| {
+        std::array::from_fn(|column| {
+            let identity = if row == column { 1.0 } else { 0.0 };
+            if row < 3 && column < 3 { identity + (factor - 1.0) * direction[row] * direction[column] } else { identity }
+        })
+    }))
 }
 
 fn angle_of(point: Point, center: Point) -> f32 {
@@ -503,9 +513,9 @@ impl Editor {
 
     // Limits the edit to an axis, or frees it if it's that axis already, and
     // applies it so at once, for the pointer and the snap that it was last
-    // applied for, so that the key's frame shows it.
+    // applied for, so that the key's frame shows it. An inset has no axis.
     pub fn constrain(&mut self, document: &mut Document, axis: Axis, camera: &Camera, view: Rect) {
-        let Some(operation) = &mut self.operation else {
+        let Some(operation) = self.operation.as_mut().filter(|operation| operation.kind != OperationKind::Inset) else {
             return;
         };
         operation.axis = if operation.axis == axis { Axis::Free } else { axis };
@@ -576,13 +586,13 @@ impl Editor {
             OperationKind::Scale => {
                 let initial = operation.start.distance(operation.center).max(1.0);
                 let factor = snap_to(pointer.distance(operation.center) / initial, 0.1);
-                let factors = match operation.axis {
-                    Axis::X => [factor, 1.0, 1.0],
-                    Axis::Y => [1.0, factor, 1.0],
-                    Axis::Z => [1.0, 1.0, factor],
-                    Axis::Free | Axis::Normal => [factor; 3],
-                };
-                mesh.scale(vertices, operation.pivot, factors);
+                match operation.axis {
+                    Axis::Free => mesh.scale(vertices, operation.pivot, [factor; 3]),
+                    Axis::X => mesh.scale(vertices, operation.pivot, [factor, 1.0, 1.0]),
+                    Axis::Y => mesh.scale(vertices, operation.pivot, [1.0, factor, 1.0]),
+                    Axis::Z => mesh.scale(vertices, operation.pivot, [1.0, 1.0, factor]),
+                    Axis::Normal => mesh.transform(vertices, operation.pivot, &scaling_along(operation.normal, factor)),
+                }
                 operation.amount = format!("{factor:.3}");
             }
             OperationKind::Inset => {

@@ -73,6 +73,9 @@ Moving, rotating, scaling, insetting and the move after an extrusion are modal, 
 | Click, `Enter`     | Keeps it, as one step of the history                        |
 | Right-click, `Esc` | Takes it back, with the extrusion that began it             |
 
+Limited to an axis or the normal, a move goes along it, a rotation turns about it, and a scale
+stretches along it. An inset has no axis, so `X`, `Y`, `Z` and `N` leave it as it is.
+
 A click acts as the button goes down, like every press in the library's widgets: a click
 selects, a right-click opens the menu, and a click keeps a modal edit, without waiting for the
 button to come up. A drag that starts as a click takes its selection back once it's more than 4

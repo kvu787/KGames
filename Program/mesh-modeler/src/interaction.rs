@@ -10,7 +10,8 @@
 //   the loop under the pointer. The right button opens a menu of edits.
 // - A modal edit, like moving, follows the pointer anywhere until a click or
 //   Enter keeps it, or a right-click or Esc takes it back. X, Y and Z limit it
-//   to an axis, N to the selection's normal, and Ctrl snaps it.
+//   to an axis, N to the selection's normal, but for an inset, which has no
+//   axis, and Ctrl snaps it.
 //
 // `messages` turns a step's keys into messages; `view` and `operation`
 // apply the pointer's input, as update runs them.

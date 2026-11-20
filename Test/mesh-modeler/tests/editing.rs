@@ -412,6 +412,51 @@ fn a_modal_edit_that_starts_on_its_pivot_starts_with_no_change() {
     assert!((app.program.document.mesh.face_area(face) - 4.0).abs() < 1e-4, "{}", app.program.document.mesh.face_area(face));
 }
 
+// N limits a scale to the selection's normal, as it does a move and a
+// rotation, and an inset has no axis: the axis keys leave it, and what it
+// says of itself, as they are.
+#[test]
+fn n_scales_along_the_normal_and_an_inset_has_no_axis() {
+    let mut app = modeler("NormalScale");
+    // The +Z and +X faces, whose normal is halfway between theirs.
+    app.click_point(screen(&app, [0.0, 0.0, 1.0]));
+    let side = screen(&app, [1.0, 0.0, 0.0]);
+    app.hold(Key::SHIFT).click_point(side).release_key(Key::SHIFT);
+    assert_eq!(app.program.document.selection.faces.len(), 2);
+    let before = app.program.document.mesh.clone();
+    let pivot = [1.0 / 3.0, 0.0, 1.0 / 3.0];
+    app.move_point(screen(&app, pivot) + Point::new(100.0, 0.0));
+    app.key(Key::S).key(Key::N);
+    app.move_point(screen(&app, pivot) + Point::new(200.0, 0.0));
+    assert_eq!(operation(&app, "Axis").as_deref(), Some("Normal"));
+    assert_eq!(operation(&app, "Amount").as_deref(), Some("2.000"));
+    // Twice as far from the pivot along the normal, and as far across it.
+    let selected = &app.program.document.selection.vertices;
+    let along = |p: Vector3| (p[0] - pivot[0]) + (p[2] - pivot[2]);
+    for (vertex, (old, new)) in before.positions.iter().zip(&app.program.document.mesh.positions).enumerate() {
+        if selected.contains(&(vertex as u32)) {
+            assert!((along(*new) - 2.0 * along(*old)).abs() < 1e-3, "{old:?} {new:?}");
+            assert!(((new[0] - new[2]) - (old[0] - old[2])).abs() < 1e-5, "{old:?} {new:?}");
+            assert_eq!(new[1], old[1]);
+        } else {
+            assert_eq!(new, old);
+        }
+    }
+    app.key(Key::ESCAPE);
+    assert_eq!(app.program.document.mesh, before);
+
+    app.key(Key::I);
+    app.move_point(screen(&app, pivot) + Point::new(50.0, 0.0));
+    let inset = app.program.document.mesh.clone();
+    let amount = operation(&app, "Amount");
+    for key in [Key::X, Key::N] {
+        app.key(key);
+        assert_eq!(operation(&app, "Axis").as_deref(), Some("Free"));
+        assert_eq!(operation(&app, "Amount"), amount);
+        assert_eq!(app.program.document.mesh, inset);
+    }
+}
+
 #[test]
 fn e_extrudes_the_selected_face_along_its_normal() {
     let mut app = modeler("Extrude");
