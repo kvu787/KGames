@@ -1,11 +1,13 @@
 // Tests what the PerfBar says: every label and value stays in the same
 // columns whatever the stats are, starting, without input latency, or
 // measuring it, with small numbers or large, in every present mode, with
-// immediate flips or not, and numbers that aren't known yet are dashes.
+// immediate flips or not, and numbers that aren't known yet are dashes, and
+// it goes on measuring over the error page of a setup that isn't supported.
 
 use present_timing::{Present, PresentMode};
 use user_interface::clock;
 use user_interface::performance::{Frame, Performance, Run, Summary};
+use user_interface::{Context, Headless, Program, Tree, Ui};
 
 fn ticks(milliseconds: f64) -> i64 {
     (milliseconds * clock::frequency() as f64 / 1000.0) as i64
@@ -159,6 +161,36 @@ fn the_flip_is_immediate_or_at_the_refresh() {
     let summary = measuring_in(PresentMode::ComposedFlip, false, 0.01, 10.0, true);
     assert!(!summary.immediate);
     assert_eq!(values(&summary.stats)[4], "at refresh");
+}
+
+struct Empty;
+
+impl Program for Empty {
+    type Message = ();
+
+    fn title(&self) -> String {
+        "Empty".to_string()
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, _ui: &mut Ui) -> Tree<()> {
+        Tree::new()
+    }
+}
+
+// The error page that a window shows instead of the program in a setup that
+// isn't supported has the PerfBar too, which goes on measuring its frames,
+// and takes what's known about their presents, as the program's frames do.
+#[test]
+fn the_perf_bar_goes_on_measuring_over_the_error_page() {
+    let mut app = Headless::new(Empty);
+    let problems = ["The display is 1920 × 1080 pixels. It must be 2560 × 1440.".to_string()];
+    for _ in 0..60 {
+        app.unsupported_frame(&problems);
+    }
+    let stats = app.ui.stats();
+    assert!((stats.frames_per_second - 60.0).abs() < 0.01, "{stats:?}");
 }
 
 #[test]

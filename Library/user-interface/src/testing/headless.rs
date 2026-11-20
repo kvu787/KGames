@@ -31,6 +31,7 @@ use crate::input::devices::{Gamepad, Key, Modifiers, MouseButton};
 use crate::input::events::{Event, FrameInput, moved_pointer};
 use crate::testing::gestures::{self, Frames, Made};
 use crate::testing::script::DEFAULT_FRAME_TIME;
+use crate::widgets::shell::unsupported_setup;
 
 pub struct Headless<P: Program> {
     pub program: P,
@@ -141,6 +142,11 @@ impl<P: Program> Headless<P> {
         let size = self.size();
         let input = FrameInput { delta, events };
         self.ui.frame(&mut self.program, &mut self.shown, &input, sent, size);
+        self.take_requests();
+        self
+    }
+
+    fn take_requests(&mut self) {
         for request in std::mem::take(&mut self.ui.requests) {
             match request {
                 // The environment already switched when the request was
@@ -150,12 +156,27 @@ impl<P: Program> Headless<P> {
                 Request::Close => self.closed = true,
             }
         }
-        self
     }
 
     // Runs a frame with whatever input is pending.
     pub fn frame(&mut self) -> &mut Self {
         self.run_frame()
+    }
+
+    // Runs a frame of the page that a window shows instead of the program in
+    // a setup that isn't supported, which says what the problems are, with
+    // whatever input is pending, as the window does until its setup is
+    // right. The program's tree is gone meanwhile, as it is for the window.
+    pub fn unsupported_frame(&mut self, problems: &[String]) -> &mut Self {
+        self.frame += 1;
+        let mut events = std::mem::take(&mut self.pending);
+        events.push(Event::Gamepad(self.gamepad));
+        let size = self.size();
+        let input = FrameInput { delta: DEFAULT_FRAME_TIME, events };
+        self.shown = None;
+        self.ui.frame_of(&unsupported_setup::<P::Message>(problems), &input, size);
+        self.take_requests();
+        self
     }
 
     // Runs a frame with the input as it is, its delta and its events, after

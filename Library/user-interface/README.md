@@ -376,7 +376,9 @@ client area is the whole display, 2560 × 1440, `WINDOW_WIDTH` × `WINDOW_HEIGHT
 
 In any other setup, the window says what's wrong instead of showing the program, like a client
 area that's moved off the display. It checks again whenever the window moves or changes size, or
-the displays, the scale or Windows' settings change, once it isn't minimized.
+the displays, the scale or Windows' settings change, once it isn't minimized. The PerfBar stays
+along its top meanwhile, and goes on measuring its frames. `Headless::unsupported_frame` runs a
+frame of the error page in a test.
 
 The top `PERF_BAR_HEIGHT`, 17 pixels, of every program's client area is the library's: its
 [PerfBar](#perfbar). The program has the rest, `ui.bounds()`, which starts at

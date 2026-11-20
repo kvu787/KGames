@@ -265,18 +265,8 @@ impl Interface {
     // steps don't happen: their input came after the program closed, and
     // mustn't change what it closed with.
     pub(crate) fn frame<P: Program>(&mut self, program: &mut P, shown: &mut Option<Tree<P::Message>>, input: &FrameInput, sent: Vec<P::Message>, size: Size) {
+        let time = self.begin_frame(input, size);
         let events = &input.events;
-        no_f12(events);
-        let time = self.input.time + input.delta.max(0.0);
-        self.frame += 1;
-        self.size = size;
-        self.input.resize(size);
-        self.requests.clear();
-        self.fonts.begin_frame();
-        if let Some(performance) = &mut self.performance {
-            performance.frame_started(time);
-            performance.update(time);
-        }
         let mut phases = FramePhases::default();
         let mut applied = 0;
         let mut sent = Some(sent);
@@ -301,6 +291,25 @@ impl Interface {
         }
         phases.draw = (std::time::Instant::now() - started).as_secs_f64() * 1000.0;
         self.phases = phases;
+    }
+
+    // Starts a frame, a program's or the error page's alike: its time, the
+    // frames' deltas added up, which this returns, its size, and what the
+    // PerfBar measures, which takes what's known about the frames presented
+    // so far, so that it goes on measuring whatever the window shows.
+    fn begin_frame(&mut self, input: &FrameInput, size: Size) -> f64 {
+        no_f12(&input.events);
+        let time = self.input.time + input.delta.max(0.0);
+        self.frame += 1;
+        self.size = size;
+        self.input.resize(size);
+        self.requests.clear();
+        self.fonts.begin_frame();
+        if let Some(performance) = &mut self.performance {
+            performance.frame_started(time);
+            performance.update(time);
+        }
+        time
     }
 
     // Runs a step of a frame: the step's input on the tree `shown`, which
@@ -380,14 +389,8 @@ impl Interface {
     // Runs a frame of a tree that isn't a program's, like the unsupported
     // setup's: the interface's own keys, in steps, and drawing.
     pub(crate) fn frame_of<M: Clone + 'static>(&mut self, tree: &Tree<M>, input: &FrameInput, size: Size) {
+        let time = self.begin_frame(input, size);
         let events = &input.events;
-        no_f12(events);
-        let time = self.input.time + input.delta.max(0.0);
-        self.frame += 1;
-        self.size = size;
-        self.input.resize(size);
-        self.requests.clear();
-        self.fonts.begin_frame();
         let delta = input.delta.max(0.0) as f32;
         let steps = self.input.steps(events);
         let last = steps.len() - 1;
