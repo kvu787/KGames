@@ -289,7 +289,11 @@ Then the demo:
 
 `src/game_input_source.rs` takes the library's devices and readings, once each a frame, as plain
 data, so that the rest of the demo also runs on input from tests and scripts (see
-[Testing](#testing)). Its `Options::gamepad` is on, so that gamepads' readings count as input that
+[Testing](#testing)). The library hands out each frame's device events in that frame only, and the
+demo doesn't run in the frames that show the error page of a wrong window setup, so after such
+frames it takes what the library's devices connected now say happened instead: the devices that
+connected meanwhile, like the ones that were connected as it started, connect, and those that
+disconnected, disconnect. Its `Options::gamepad` is on, so that gamepads' readings count as input that
 its frames take, for the [input latency](../../Library/user-interface/README.md) that every program
 measures.
 
