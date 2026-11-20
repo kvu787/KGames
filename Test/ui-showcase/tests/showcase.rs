@@ -225,9 +225,10 @@ fn a_text_field_takes_typing_and_backspace() {
 #[test]
 fn a_greeting_of_a_long_name_is_as_tall_as_it_wraps_to() {
     let mut app = showcase();
-    app.click("Name").type_text(&"W".repeat(40)).click("Greet");
+    app.click("Name").type_text(&"W".repeat(40)).press("Greet");
     let greeting = app.target("Greeting");
     assert!(greeting.height > INFO_BAR_MIN_HEIGHT, "{greeting:?}");
+    app.release();
 }
 
 #[test]

@@ -8,7 +8,7 @@ use mesh_modeler::document::{self, Document};
 use mesh_modeler::modeler::Modeler;
 use mesh_modeler::paint::{MAXIMUM_PAINTS, Paint};
 use polygon_mesh::{Edge, primitives};
-use user_interface::{Headless, Key, Modifiers};
+use user_interface::{Event, Headless, Key, Modifiers};
 
 fn folder(test: &str) -> PathBuf {
     let folder = Path::new(env!("CARGO_TARGET_TMPDIR")).join("MeshModelerFiles").join(test);
@@ -210,18 +210,20 @@ fn the_view_draws_the_model_that_open_or_new_brings_on_its_frame() {
     assert_eq!(cube, 6 * 2 * 3);
 
     app.key_with(Modifiers::CONTROL, Key::O);
-    app.click("OpenModel/Primary");
+    app.press("OpenModel/Primary");
     assert_eq!(app.program.document.name, "Torus");
     assert_eq!(app.program.document.version, version, "the case: the two documents are at one version");
     let drawn = app.program.scene.version;
     assert_eq!(app.program.scene.triangles.indices.len(), 12 * 8 * 2 * 3);
+    app.release();
 
-    // And back to a cube, with New.
-    app.key_with(Modifiers::CONTROL, Key::N);
+    // And back to a cube, with New, on the frame that its key goes down.
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::N)]);
     assert_eq!(app.program.document.name, document::UNTITLED);
     assert_eq!(app.program.document.version, version);
     assert_eq!(app.program.scene.triangles.indices.len(), cube);
     assert!(app.program.scene.version > drawn, "the GPU's copy is remade too");
+    app.send(&[Event::KeyReleased(Key::N), Event::KeyReleased(Key::CONTROL)]);
 }
 
 // Ctrl+S while a paint's name is typed in records the rename as its step of

@@ -386,16 +386,17 @@ fn going_to_play_shows_the_fixed_camera_at_its_height() {
     assert!((height - 150.0 / 1.25_f64.powi(3)).abs() < 1e-9, "{height}");
     app.click("Scene/Camera");
     assert_eq!(app.program.game.current_scene().camera_height, height);
-    app.click("Mode/Play");
+    app.press("Mode/Play");
     assert_eq!(app.program.game.camera.height, height);
 
-    app.click("Mode/Scene");
+    app.release().click("Mode/Scene");
     app.scroll_point(Point::new(1800.0, 400.0), -12.0);
     assert!(app.program.viewport.eye.height > camera::HIGHEST);
     app.click("Scene/Camera");
     assert_eq!(app.program.game.current_scene().camera_height, camera::HIGHEST);
-    app.click("Mode/Play");
+    app.press("Mode/Play");
     assert_eq!(app.program.game.camera.height, camera::HIGHEST);
+    app.release();
 }
 
 // Save writes the files that changed, and only those, in the save folder.
