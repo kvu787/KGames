@@ -61,7 +61,11 @@
 // key's or a button's release only if it got its press. A reading from
 // before the window got focus is input without it even when it comes in a
 // later frame than the focus change, like that reading of a gamepad if
-// GameInput is late with it.
+// GameInput is late with it. Whatever time GameInput gives that reading,
+// each gamepad's first reading in the frame that gets focus, or after it, is
+// that one, and the buttons that it holds were held before focus came, so
+// the reader ignores them too, unless the interface has them already, from
+// another gamepad.
 
 use game_input_raw::*;
 use windows_api_raw::*;
@@ -129,6 +133,9 @@ pub struct InputReader {
     // The gamepads' buttons held without focus, which the interface doesn't
     // get until they're let go of.
     gamepad_ignored: u32,
+    // The gamepads, by device, whose first reading since the window last got
+    // focus hasn't come.
+    catching_up: Vec<Option<usize>>,
     // The buttons that the last Gamepad event told the interface of.
     gamepad_sent: u32,
     // Whether the window keeps Windows' cursor as the frame reads, and as the
@@ -207,6 +214,7 @@ impl InputReader {
             ignored_buttons: 0,
             gamepads: Vec::new(),
             gamepad_ignored: 0,
+            catching_up: Vec::new(),
             gamepad_sent: 0,
             keeping: false,
             keeps_after: false,
@@ -291,6 +299,18 @@ impl InputReader {
         // times. F12 quits, so nothing after it happens.
         let mut changes = window.focus_changes.clone();
         changes.sort_by_key(|change| change.time);
+        // In a frame that gets focus, each gamepad's first reading is
+        // GameInput's reading of it as focus comes, before the focus change
+        // or after it, as GameInput's time for it says, or in a later frame.
+        let mut focused = self.focused;
+        let gets_focus = changes.iter().any(|change| {
+            let gets = change.gained && !focused;
+            focused = change.gained;
+            gets
+        });
+        if gets_focus {
+            self.catching_up = self.gamepads.iter().map(|(device, _)| *device).collect();
+        }
         let mut changes = changes.into_iter().peekable();
         for (time, reading) in readings {
             while let Some(change) = changes.next_if(|change| change.time <= *time) {
@@ -320,6 +340,7 @@ impl InputReader {
         let unplugged = |device: &Option<usize>| device.is_some_and(|device| disconnected.contains(&device));
         if self.gamepads.iter().any(|(device, _)| unplugged(device)) {
             self.gamepads.retain(|(device, _)| !unplugged(device));
+            self.catching_up.retain(|device| !unplugged(device));
             self.gamepads_changed(&mut frame.events);
         }
         if self.keyboards.iter().any(|(device, _)| unplugged(device)) {
@@ -429,6 +450,13 @@ impl InputReader {
         }
         if kinds & GameInputKindGamepad != 0 {
             let state = gamepad(&reading.gamepad);
+            // The gamepad's reading as focus comes: what it holds was held
+            // before, whatever its time says, but what the interface has
+            // already, from another gamepad, it keeps.
+            if let Some(index) = self.catching_up.iter().position(|device| *device == reading.device) {
+                self.catching_up.swap_remove(index);
+                self.gamepad_ignored |= state.buttons.0 & !self.gamepad_sent;
+            }
             match self.gamepads.iter_mut().find(|(device, _)| *device == reading.device) {
                 Some((_, known)) => *known = state,
                 None => self.gamepads.push((reading.device, state)),

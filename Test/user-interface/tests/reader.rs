@@ -71,8 +71,12 @@ fn mouse_with(time: i64, x: i64, y: i64, wheel: i64) -> (i64, Reading) {
 }
 
 fn gamepad(time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
+    gamepad_of(GAMEPAD, time, buttons)
+}
+
+fn gamepad_of(device: usize, time: i64, buttons: GameInputGamepadButtons) -> (i64, Reading) {
     let reading = Reading {
-        device: Some(GAMEPAD),
+        device: Some(device),
         kinds: GameInputKindGamepad,
         gamepad: GameInputGamepadState {
             buttons,
@@ -346,41 +350,70 @@ fn a_key_held_as_focus_goes_is_released_once_on_that_frame() {
 // too, unlike keyboards' keys and mice's buttons held from before focus came,
 // which it doesn't report at all, held or let go of. On the development
 // machine, with GameInput 4.0.306, that reading came before the frame that
-// saw the window get focus. The interface ignores a button held then until
-// it's let go of, as the library promises.
+// saw the window get focus, and its time was before the focus change, but
+// the interface ignores a button held in it until it's let go of, as the
+// library promises, whatever its time, as GameInput may time it after the
+// window saw focus come.
 #[test]
 fn a_gamepad_button_held_as_focus_comes_counts_once_let_go_of() {
-    let mut reader = focused();
-    let mut input = Input::default();
-    step(&mut reader, &mut input, &[], None, 5);
-    // GameInput's reading at rest as focus goes, then its reading with A
-    // held as focus comes back.
-    step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
-    step(&mut reader, &mut input, &[gamepad(39, GameInputGamepadA)], Some((40, true)), 40);
-    assert!(!input.gamepad.buttons.contains(GamepadButtons::A));
-    // Let go of, then pressed: it counts.
-    step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
-    assert!(!input.gamepad_released(GamepadButtons::A));
-    step(&mut reader, &mut input, &[gamepad(60, GameInputGamepadA)], None, 60);
-    assert!(input.gamepad_pressed(GamepadButtons::A));
+    for as_focus_comes in [39, 45] {
+        let mut reader = focused();
+        let mut input = Input::default();
+        step(&mut reader, &mut input, &[], None, 5);
+        // GameInput's reading at rest as focus goes, then its reading with A
+        // held as focus comes back.
+        step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
+        step(&mut reader, &mut input, &[gamepad(as_focus_comes, GameInputGamepadA)], Some((40, true)), 48);
+        let context = format!("with GameInput's reading as focus comes at {as_focus_comes}");
+        assert!(!input.gamepad.buttons.contains(GamepadButtons::A) && !input.gamepad_pressed(GamepadButtons::A), "{context}");
+        // Let go of, then pressed: it counts.
+        step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
+        assert!(!input.gamepad_released(GamepadButtons::A), "{context}");
+        step(&mut reader, &mut input, &[gamepad(60, GameInputGamepadA)], None, 60);
+        assert!(input.gamepad_pressed(GamepadButtons::A), "{context}");
+    }
 }
 
 // If GameInput's reading of a gamepad as focus comes is late, and comes in a
-// frame after the one that saw the window get focus, its time still says
-// that it's from before focus came: a button held in it counts once it's let
-// go of, and never as a press.
+// frame after the one that saw the window get focus, a button held in it
+// counts once it's let go of, and never as a press, whether its time is from
+// before focus came, which makes it input without focus, or after.
 #[test]
-fn a_gamepad_reading_from_before_focus_counts_as_without_it_even_when_it_comes_late() {
+fn a_gamepad_reading_as_focus_comes_counts_as_without_it_even_when_it_comes_late() {
+    for as_focus_comes in [39, 45] {
+        let mut reader = focused();
+        let mut input = Input::default();
+        step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
+        step(&mut reader, &mut input, &[], Some((40, true)), 40);
+        step(&mut reader, &mut input, &[gamepad(as_focus_comes, GameInputGamepadA)], None, 48);
+        let context = format!("with GameInput's reading as focus comes at {as_focus_comes}");
+        assert!(!input.gamepad.buttons.contains(GamepadButtons::A) && !input.gamepad_pressed(GamepadButtons::A), "{context}");
+        step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
+        assert!(!input.gamepad_released(GamepadButtons::A), "{context}");
+        step(&mut reader, &mut input, &[gamepad(60, GameInputGamepadA)], None, 60);
+        assert!(input.gamepad_pressed(GamepadButtons::A), "{context}");
+    }
+}
+
+// A gamepad's reading as focus comes doesn't take away a button that the
+// interface has from another gamepad, pressed with focus: it's held until
+// both let go of it, and released once.
+#[test]
+fn a_gamepad_s_reading_as_focus_comes_keeps_a_button_that_another_holds_with_focus() {
+    const OTHER: usize = 4;
     let mut reader = focused();
     let mut input = Input::default();
-    step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
-    step(&mut reader, &mut input, &[], Some((40, true)), 40);
-    step(&mut reader, &mut input, &[gamepad(39, GameInputGamepadA)], None, 48);
-    assert!(!input.gamepad.buttons.contains(GamepadButtons::A) && !input.gamepad_pressed(GamepadButtons::A));
+    step(&mut reader, &mut input, &[gamepad(5, GameInputGamepadNone), gamepad_of(OTHER, 6, GameInputGamepadNone)], None, 10);
+    step(&mut reader, &mut input, &[], Some((20, false)), 20);
+    // The first gamepad's reading as focus comes, and A pressed on it, then
+    // the other's reading as focus comes, with A held too.
+    let readings = [gamepad(39, GameInputGamepadNone), gamepad(42, GameInputGamepadA), gamepad_of(OTHER, 45, GameInputGamepadA)];
+    step(&mut reader, &mut input, &readings, Some((40, true)), 48);
+    assert!(input.gamepad_pressed(GamepadButtons::A) && input.gamepad.buttons.contains(GamepadButtons::A));
     step(&mut reader, &mut input, &[gamepad(50, GameInputGamepadNone)], None, 50);
-    assert!(!input.gamepad_released(GamepadButtons::A));
-    step(&mut reader, &mut input, &[gamepad(60, GameInputGamepadA)], None, 60);
-    assert!(input.gamepad_pressed(GamepadButtons::A));
+    assert!(input.gamepad.buttons.contains(GamepadButtons::A) && !input.gamepad_released(GamepadButtons::A));
+    step(&mut reader, &mut input, &[gamepad_of(OTHER, 60, GameInputGamepadNone)], None, 60);
+    assert!(input.gamepad_released(GamepadButtons::A));
 }
 
 // A click on the window that gives it focus keeps Windows' cursor at once, as
@@ -1074,19 +1107,24 @@ fn a_gamepad_at_rest_never_covers_another_in_use() {
 
 // The interface takes the gamepad event right after focus comes as what's
 // held then. The reader sends it as focus comes, so a button pressed after
-// focus came, in the same frame, is a press.
+// focus came, in the same frame, after GameInput's reading of the gamepad as
+// focus comes, is a press, whether GameInput times that reading before the
+// focus change or after it.
 #[test]
 fn a_gamepad_press_right_after_focus_comes_is_a_press() {
-    let mut reader = focused();
-    let mut input = Input::default();
-    step(&mut reader, &mut input, &[], None, 5);
-    step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
-    let frame = reader.read(&[gamepad(45, GameInputGamepadA)], &[], &window(Some((40, true))));
-    let pressed = input.steps(&frame.events).into_iter().filter(|events| {
-        input.begin(0.05, events);
-        input.gamepad_pressed(GamepadButtons::A)
-    });
-    assert_eq!(pressed.count(), 1);
+    for as_focus_comes in [39, 41] {
+        let mut reader = focused();
+        let mut input = Input::default();
+        step(&mut reader, &mut input, &[], None, 5);
+        step(&mut reader, &mut input, &[gamepad(19, GameInputGamepadNone)], Some((20, false)), 20);
+        let readings = [gamepad(as_focus_comes, GameInputGamepadNone), gamepad(45, GameInputGamepadA)];
+        let frame = reader.read(&readings, &[], &window(Some((40, true))));
+        let pressed = input.steps(&frame.events).into_iter().filter(|events| {
+            input.begin(0.05, events);
+            input.gamepad_pressed(GamepadButtons::A)
+        });
+        assert_eq!(pressed.count(), 1, "with GameInput's reading as focus comes at {as_focus_comes}");
+    }
 }
 
 // Keys and mouse buttons go with focus, even when GameInput's reading at rest

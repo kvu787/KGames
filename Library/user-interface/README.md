@@ -334,7 +334,10 @@ before, but reports gamepads' whole state, their held buttons too.
   let go of, and their releases are never given: GameInput doesn't report the keys and the click,
   and the reader ignores the gamepad's held buttons until they're let go of. A reading from before
   the window got focus is input without it, even if GameInput is late with it and it comes in a
-  later frame. A program that reads GameInput's readings itself, like GameInputDemo, gets the
+  later frame. Each gamepad's first reading in the frame that gets focus, or after it, is
+  GameInput's reading of it as focus comes, whatever time GameInput gives it, so the buttons that
+  it holds count once they're let go of too, but for those that another gamepad held already, with
+  focus. A program that reads GameInput's readings itself, like GameInputDemo, gets the
   window's focus from `Devices::focused` and `Devices::focus_changes`.
 - `F9` switches between the light and dark themes, whichever the `Theme` setting started it in.
   The frame that `F9` is pressed in is all in the new theme. A program's own command for it calls
