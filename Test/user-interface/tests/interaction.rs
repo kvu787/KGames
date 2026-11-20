@@ -4,7 +4,7 @@
 // notices, editing, and palettes.
 
 use user_interface::json::Value;
-use user_interface::controls::{COMBO_BOX_ITEM_HEIGHT, MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
+use user_interface::controls::{COMBO_BOX_ITEM_HEIGHT, COMBO_BOX_POPUP_MAX_ITEMS, MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, TOOLTIP_DELAY};
 use user_interface::{
     AppBar, Button, Card, CheckBox, Color, ColorField, ComboBox, Context, Cover, Dialog, DialogResult, Element, Event, Form, Group, Headless, Icon,
@@ -1260,6 +1260,24 @@ fn a_list_whose_items_go_while_it_is_open_closes() {
     app.frame();
     assert!(!app.ui.any_popup());
     assert_eq!(app.label("Shrink").as_deref(), Some(""));
+}
+
+// A list that's scrolled to its end as some of its items go stays full of
+// the items that are left, on the frame that they go.
+#[test]
+fn a_list_that_loses_items_while_it_is_scrolled_shows_the_ones_left() {
+    let mut app = Headless::new(Test {
+        items: (0..30).map(|index| format!("Item {index}")).collect(),
+        ..Test::default()
+    });
+    app.click("Shrink").scroll("Shrink/3", -30.0);
+    assert!(app.has_target("Shrink/29"));
+    app.program.items.truncate(COMBO_BOX_POPUP_MAX_ITEMS + 1);
+    app.frame();
+    let shown: Vec<bool> = (0..=COMBO_BOX_POPUP_MAX_ITEMS + 1).map(|index| app.has_target(&format!("Shrink/{index}"))).collect();
+    let mut expected = vec![true; COMBO_BOX_POPUP_MAX_ITEMS + 2];
+    (expected[0], expected[COMBO_BOX_POPUP_MAX_ITEMS + 1]) = (false, false);
+    assert_eq!(shown, expected);
 }
 
 // A combo box with more items than its list shows, low in the window.

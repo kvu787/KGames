@@ -114,7 +114,12 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         if !ctx.popup_open() || self.items.is_empty() {
             return;
         }
-        let state = *ctx.memory::<ComboState>();
+        // The list stays full of items as their number changes while it's
+        // open, on the frame that it does.
+        let last_first = self.items.len() - self.shown_count();
+        let state = ctx.memory::<ComboState>();
+        state.first = state.first.min(last_first);
+        let state = *state;
         let (panel, first_slot) = self.list(ctx.bounds(), ctx.rect(), state.row);
         let list_name = format!("{}/List", ctx.name());
         ctx.part_on(Layer::Popup, Part::Named("List".to_string()), &list_name, panel, Sense::NONE, "ComboBoxList", None);
