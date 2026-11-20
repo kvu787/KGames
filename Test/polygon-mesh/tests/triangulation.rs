@@ -77,7 +77,7 @@ fn flat_normals_are_the_faces() {
 }
 
 #[test]
-fn smooth_normals_split_at_sharp_edges_creases_and_materials() {
+fn smooth_normals_split_at_sharp_edges_and_creases_but_not_between_materials() {
     // Every edge of a cube is 90 degrees, more than 30.
     let cube = primitives::cube(2.0);
     let split = check(&cube, Shading::Smooth { angle: PI / 6.0 }, "a cube smooth to 30 degrees");
@@ -93,11 +93,15 @@ fn smooth_normals_split_at_sharp_edges_creases_and_materials() {
     let edges = creased.edges();
     creased.crease_edges(edges, 0.25);
     assert_eq!(creased.triangulate(Shading::Smooth { angle: PI }), cube.triangulate(Shading::Flat));
-    // So does a material, which only changes which vertices there are.
+    // A material doesn't: where two meet, each has its own vertices, with
+    // the normals that one material would have.
     let mut painted = primitives::cube(2.0);
     painted.assign_material([3], 1);
     let two = check(&painted, Shading::Smooth { angle: PI }, "a cube of two materials");
     assert_eq!(two.vertices.len(), 12);
+    for vertex in &two.vertices {
+        assert_near(vertex.normal, normalize(vertex.position), 1.0e-6, "a smooth cube of two materials' normal");
+    }
     // A cylinder's caps are 90 degrees from its sides, which are 45 from
     // each other.
     let cylinder = primitives::cylinder(1.0, 2.0, 8, 1);

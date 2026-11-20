@@ -271,8 +271,9 @@ work. `face_triangles(face)` gives a face's triangles as places in its list of v
 - `Shading::Flat` gives each face its own normal.
 - `Shading::Smooth { angle }` smooths normals across each edge between two faces that meet at up
   to `angle` radians, like Blender's Auto Smooth, weighing each face by the angle of its corner.
-  They split at sharper edges, at creased edges of any sharpness, at boundary and non-manifold
-  edges, and between materials. An angle of PI smooths every edge that isn't creased.
+  They split at sharper edges, at creased edges of any sharpness, and at boundary and
+  non-manifold edges, but not between materials: where two materials meet, each has its own
+  vertices, with the same normals. An angle of PI smooths every edge that isn't creased.
 
 What it gives passes `simple_paint::validate_mesh(&triangles.vertices, &triangles.indices,
 mesh.material_count())` for any mesh with positions that SimplePaint accepts: every vertex is
