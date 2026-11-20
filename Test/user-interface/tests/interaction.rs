@@ -821,12 +821,13 @@ fn a_program_starts_in_the_theme_that_its_settings_say() {
     assert!(wrong.label("Notice/0").unwrap().contains("Theme must be \"Light\" or \"Dark\""), "{:?}", wrong.label("Notice/0"));
 }
 
-// What porting the programs found: segments, which take no focus, a color
-// field left while it's typed in, a slider's steps of a thousandth, and a
-// wide tooltip.
+// What porting the programs found: segments, which take no focus, and of
+// icons alone, a color field left while it's typed in, a slider's steps of a
+// thousandth, and a wide tooltip.
 #[derive(Clone, Debug, PartialEq)]
 enum PortedMsg {
     Segment(usize),
+    Icon(usize),
     Color(Color),
     Other(String),
     Fine(f64),
@@ -835,6 +836,7 @@ enum PortedMsg {
 #[derive(Default)]
 struct Ported {
     segment: usize,
+    icon: usize,
     color: Color,
     other: String,
     fine: f64,
@@ -850,6 +852,7 @@ impl Program for Ported {
     fn update(&mut self, message: PortedMsg, _ui: &mut Context<PortedMsg>) {
         match message {
             PortedMsg::Segment(segment) => self.segment = segment,
+            PortedMsg::Icon(icon) => self.icon = icon,
             PortedMsg::Color(color) => self.color = color,
             PortedMsg::Other(other) => self.other = other,
             PortedMsg::Fine(fine) => self.fine = fine,
@@ -861,6 +864,8 @@ impl Program for Ported {
         // Under the PerfBar.
         let top = ui.content_top();
         tree.add("Segments", Rect::new(10.0, top + 10.0, 300.0, 32.0), Segmented::new(self.segment, &["A", "B", "C"]).on_select(PortedMsg::Segment));
+        let icons = [(Icon::Brush, ""), (Icon::Fill, ""), (Icon::Erase, "")];
+        tree.add("Icons", Rect::new(400.0, top + 10.0, 120.0, 32.0), Segmented::new(self.icon, &icons).on_select(PortedMsg::Icon));
         tree.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), ColorField::new(self.color).on_change(PortedMsg::Color));
         tree.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&self.other).on_change(PortedMsg::Other));
         tree.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<PortedMsg>::height(false)), Slider::new(self.fine, 0.0, 1.0).step(0.001).on_change(PortedMsg::Fine));
@@ -868,6 +873,18 @@ impl Program for Ported {
         tree.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide")).set_tooltip_wide(vec![TooltipLine::text(long)], 640.0);
         tree
     }
+}
+
+// Segments of icons alone are each a target of their own, named by their
+// index, and a press selects the one it's on.
+#[test]
+fn segments_of_icons_alone_are_told_apart() {
+    let mut app = Headless::new(Ported::default());
+    app.click("Icons/2");
+    assert_eq!(app.program.icon, 2);
+    assert!(app.target("Icons/1").right() <= app.target("Icons/2").x);
+    app.click("Icons/1");
+    assert_eq!(app.program.icon, 1);
 }
 
 #[test]

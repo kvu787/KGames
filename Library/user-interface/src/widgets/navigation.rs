@@ -1,7 +1,8 @@
 // Choosing one of a few places or modes: WinUI's SelectorBar, whose selected
 // item has the accent's pill under it, and the Windows Community Toolkit's
 // Segmented, whose selected segment is raised like a button. Their items are
-// targets named "<name>/<label>", which a press selects.
+// targets named "<name>/<label>", or "<name>/<index>" for an item without a
+// label of its own, like one of icons alone, which a press selects.
 
 use crate::core::interaction::{ControlState, Interaction, Part, Sense};
 use crate::core::interface::Ui;
@@ -47,12 +48,17 @@ fn choice_width(fonts: &mut Fonts, choice: &Choice) -> f32 {
     (icon + fonts.measure(&choice.label, BODY).width).ceil()
 }
 
+// The suffix of an item's target's name: its label, or its index if it has
+// no label of its own, being empty or another item's too, so that every
+// item is a target of its own.
+fn suffix(items: &[Choice], index: usize) -> String {
+    let label = &items[index].label;
+    if label.is_empty() || items.iter().filter(|item| item.label == *label).count() > 1 { index.to_string() } else { label.clone() }
+}
+
 // The item that a press selected, if it isn't the selected one already.
-fn chosen(interaction: &Interaction, items: &[Choice], selected: usize) -> Option<usize> {
-    items
-        .iter()
-        .position(|item| interaction.pressed(&Part::Named(item.label.clone())))
-        .filter(|index| *index != selected)
+fn chosen(interaction: &Interaction, selected: usize) -> Option<usize> {
+    interaction.hits.iter().find_map(|(part, hit)| if hit.pressed { part.index() } else { None }).filter(|index| *index != selected)
 }
 
 pub struct SelectorBar<M> {
@@ -113,13 +119,13 @@ impl<M: Clone + 'static> Widget<M> for SelectorBar<M> {
     fn parts(&self, ctx: &mut Parts) {
         let rect = ctx.rect();
         let rects = self.item_rects(ctx.fonts(), rect);
-        for (item, item_rect) in self.items.iter().zip(rects) {
-            ctx.part(Part::Named(item.label.clone()), &item.label, item_rect, Sense::CLICK, "SelectorBarItem", Some(item.label.clone()));
+        for (index, (item, item_rect)) in self.items.iter().zip(rects).enumerate() {
+            ctx.part(Part::Index(index), &suffix(&self.items, index), item_rect, Sense::CLICK, "SelectorBarItem", Some(item.label.clone()));
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(index) = chosen(interaction, &self.items, self.selected)
+        if let Some(index) = chosen(interaction, self.selected)
             && let Some(reaction) = &self.on_select
         {
             ctx.send(reaction(index));
@@ -131,7 +137,7 @@ impl<M: Clone + 'static> Widget<M> for SelectorBar<M> {
         let rects = self.item_rects(ctx.fonts(), rect);
         let look = ctx.look().clone();
         for (index, (item, item_rect)) in self.items.iter().zip(rects).enumerate() {
-            let part = Part::Named(item.label.clone());
+            let part = Part::Index(index);
             let selected = self.selected == index;
             let state = look.part_state(&part);
             {
@@ -209,12 +215,12 @@ impl<M: Clone + 'static> Widget<M> for Segmented<M> {
     fn parts(&self, ctx: &mut Parts) {
         let rect = ctx.rect();
         for (index, item) in self.items.iter().enumerate() {
-            ctx.part(Part::Named(item.label.clone()), &item.label, self.segment(rect, index), Sense::CLICK, "SegmentedItem", Some(item.label.clone()));
+            ctx.part(Part::Index(index), &suffix(&self.items, index), self.segment(rect, index), Sense::CLICK, "SegmentedItem", Some(item.label.clone()));
         }
     }
 
     fn interact(&self, interaction: &Interaction, ctx: &mut Dispatch<M>) {
-        if let Some(index) = chosen(interaction, &self.items, self.selected)
+        if let Some(index) = chosen(interaction, self.selected)
             && let Some(reaction) = &self.on_select
         {
             ctx.send(reaction(index));
@@ -234,7 +240,7 @@ impl<M: Clone + 'static> Widget<M> for Segmented<M> {
             painter.shape(raised, RADIUS_CONTROL - 1.0, fill, Some(Elevation::Control.border(theme, raised)));
         }
         for (index, item) in self.items.iter().enumerate() {
-            let part = Part::Named(item.label.clone());
+            let part = Part::Index(index);
             let segment = self.segment(rect, index);
             let selected = self.selected == index;
             let state = look.part_state(&part);
