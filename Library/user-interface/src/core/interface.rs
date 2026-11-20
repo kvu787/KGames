@@ -188,8 +188,9 @@ pub struct Interface {
     press_consumed: [bool; 3],
     tooltip: TooltipState,
     tooltips_enabled: bool,
-    // The tooltip that this frame showed: its widget's name, and its area.
-    pub(crate) shown_tooltip: Option<(String, Rect)>,
+    // The tooltip that this frame shows: its widget's name, and its area,
+    // settled before the frame's widgets draw.
+    shown_tooltip: Option<(String, Rect)>,
     memory: QuickMap<(Id, TypeId), Box<dyn Any>>,
     pub(crate) cursor: Cursor,
     frame: u64,
@@ -756,19 +757,19 @@ impl Interface {
     }
 
     // Draws the frame's tree, each element after what it's over, and the
-    // tooltip and the PerfBar over all of it.
+    // tooltip and the PerfBar over all of it. The frame's tooltip is settled
+    // before any element draws, so that one that reads it, like UiShowcase's
+    // Interface card, reads this frame's.
     fn draw_tree<M: Clone + 'static>(&mut self, tree: &Tree<M>) {
         self.draw.clear(self.size);
-        self.shown_tooltip = None;
         let bounds = self.bounds();
-        // The tooltip due, if one is: the widget it's of, and which part.
-        let due = self.tooltip_due().and_then(|anchor| self.targets.iter().find(|target| Some(target.id) == self.hovered).map(|target| (target.owner, target.part.clone(), target.name.clone(), anchor)));
-        let mut tooltip: Option<(Tooltip, String, Point)> = None;
-        let sources = self.look_sources();
-        self.draw_elements(&tree.elements, true, Layer::Base, bounds, &sources, &due, &mut tooltip);
+        let tooltip = self.due_tooltip(tree).and_then(|(tooltip, name, anchor)| crate::widgets::tool_tip::place_tooltip(self, tooltip, anchor).map(|placed| (placed, name)));
+        self.shown_tooltip = tooltip.as_ref().map(|(placed, name)| (name.clone(), placed.rect));
         self.tooltip.shown = tooltip.is_some();
-        if let Some((tooltip, name, anchor)) = tooltip {
-            crate::widgets::tool_tip::draw_tooltip(self, &name, &tooltip, anchor);
+        let sources = self.look_sources();
+        self.draw_elements(&tree.elements, true, Layer::Base, bounds, &sources);
+        if let Some((placed, _)) = &tooltip {
+            crate::widgets::tool_tip::draw_tooltip(self, placed);
         }
         if self.performance.is_some() {
             self.perf_bar();
@@ -785,8 +786,25 @@ impl Interface {
         }
     }
 
-    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    fn draw_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect, sources: &LookSources, due: &Option<(Id, Part, String, Point)>, tooltip: &mut Option<(Tooltip, String, Point)>) {
+    // The tooltip that shows this frame, if one is due: the hovered target's,
+    // or its part's, from the first element in drawing order that it's of
+    // and that has one, with the target's name and where it's anchored.
+    fn due_tooltip<M: Clone + 'static>(&self, tree: &Tree<M>) -> Option<(Tooltip, String, Point)> {
+        let anchor = self.tooltip_due()?;
+        let target = self.targets.iter().find(|target| Some(target.id) == self.hovered)?;
+        let mut tooltip = None;
+        tree.walk(|element| {
+            if tooltip.is_none() && element.id.unwrap_or_else(|| cover_id(element.rect)) == target.owner {
+                tooltip = match &target.part {
+                    Part::Whole => element.tooltip.clone(),
+                    part => element.widget.part_tooltip(part).or_else(|| element.tooltip.clone()),
+                };
+            }
+        });
+        tooltip.map(|tooltip| (tooltip, target.name.clone(), anchor))
+    }
+
+    fn draw_elements<M: Clone + 'static>(&mut self, elements: &[Element<M>], enabled: bool, layer: Layer, clip: Rect, sources: &LookSources) {
         for element in elements {
             let enabled = enabled && element.enabled;
             let layer = layer.max(element.widget.layer());
@@ -817,18 +835,6 @@ impl Interface {
                 };
                 crate::widgets::menu::draw_context_menu(&mut draw, items);
             }
-            if let Some((owner, part, name, anchor)) = due
-                && *owner == element_id
-                && tooltip.is_none()
-            {
-                let own = match part {
-                    Part::Whole => element.tooltip.clone(),
-                    part => element.widget.part_tooltip(part).or_else(|| element.tooltip.clone()),
-                };
-                if let Some(own) = own {
-                    *tooltip = Some((own, name.clone(), *anchor));
-                }
-            }
             self.draw.pop_clip();
             let children_clip = {
                 let mut parts = Parts {
@@ -842,7 +848,7 @@ impl Interface {
                 };
                 element.widget.children_clip(&mut parts).map_or(clip, |own| own.intersect(clip))
             };
-            self.draw_elements(&element.children, enabled, layer, children_clip, sources, due, tooltip);
+            self.draw_elements(&element.children, enabled, layer, children_clip, sources);
         }
     }
 

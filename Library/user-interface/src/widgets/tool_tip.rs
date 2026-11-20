@@ -4,7 +4,7 @@
 // tooltip, above where the pointer is as it shows, or below if there's no
 // room above, and always in the window, and it stays there while it shows.
 // A press or the wheel puts it away until the pointer moves to another
-// control. Elements get one with Element::tooltip; this draws it.
+// control. Elements get one with Element::tooltip; this places and draws it.
 
 use crate::core::interface::Interface;
 use crate::core::tree::{Tooltip, TooltipLine};
@@ -13,12 +13,21 @@ use crate::design::tokens::{CAPTION, CAPTION_STRONG, ELEVATION_TOOLTIP, MONO, RA
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 
-// Draws the tooltip of the target with the name, anchored where the pointer
-// was as it showed.
-pub(crate) fn draw_tooltip(ui: &mut Interface, name: &str, tooltip: &Tooltip, anchor: Point) {
-    let lines = &tooltip.lines;
+// A tooltip, laid out where it shows: its area, the width of its pairs'
+// label column, and the height of each of its lines.
+pub(crate) struct PlacedTooltip {
+    pub(crate) rect: Rect,
+    lines: Vec<TooltipLine>,
+    label_width: f32,
+    heights: Vec<f32>,
+}
+
+// Lays out the tooltip, anchored where the pointer was as it showed, or
+// nothing if it has no lines, which shows nothing.
+pub(crate) fn place_tooltip(ui: &mut Interface, tooltip: Tooltip, anchor: Point) -> Option<PlacedTooltip> {
+    let lines = tooltip.lines;
     if lines.is_empty() {
-        return;
+        return None;
     }
     let bounds = ui.bounds();
     let inner_width = tooltip.max_width.min(bounds.width - SPACE_S * 2.0) - TOOLTIP_PADDING.horizontal();
@@ -29,7 +38,7 @@ pub(crate) fn draw_tooltip(ui: &mut Interface, name: &str, tooltip: &Tooltip, an
         .fold(0.0, f32::max);
     let mut heights = Vec::with_capacity(lines.len());
     let mut width: f32 = 0.0;
-    for line in lines {
+    for line in &lines {
         let (size, line_width) = match line {
             TooltipLine::Heading(text) => (ui.fonts.measure_wrapped(text, CAPTION_STRONG, inner_width), ui.fonts.measure(text, CAPTION_STRONG).width),
             TooltipLine::Text(text) => (ui.fonts.measure_wrapped(text, CAPTION, inner_width), ui.fonts.measure(text, CAPTION).width),
@@ -53,8 +62,15 @@ pub(crate) fn draw_tooltip(ui: &mut Interface, name: &str, tooltip: &Tooltip, an
     x = x.clamp(bounds.x + SPACE_S, (bounds.right() - size.width - SPACE_S).max(bounds.x + SPACE_S));
     y = y.clamp(bounds.y + SPACE_S, (bounds.bottom() - size.height - SPACE_S).max(bounds.y + SPACE_S));
     let rect = Rect::new(x.round(), y.round(), size.width, size.height);
-    ui.shown_tooltip = Some((name.to_string(), rect));
+    Some(PlacedTooltip { rect, lines, label_width, heights })
+}
 
+// Draws the tooltip where it's placed, over everything but the PerfBar and
+// the pointer.
+pub(crate) fn draw_tooltip(ui: &mut Interface, tooltip: &PlacedTooltip) {
+    let PlacedTooltip { rect, lines, label_width, heights } = tooltip;
+    let (rect, label_width) = (*rect, *label_width);
+    let bounds = ui.bounds();
     let mut painter = ui.painter();
     let theme = painter.theme();
     painter.set_layer(Layer::Tooltip);
@@ -62,7 +78,7 @@ pub(crate) fn draw_tooltip(ui: &mut Interface, name: &str, tooltip: &Tooltip, an
     painter.shadow(rect, RADIUS_CONTROL, ELEVATION_TOOLTIP);
     painter.shape(rect, RADIUS_CONTROL, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
     let mut area = rect.pad(TOOLTIP_PADDING);
-    for (line, height) in lines.iter().zip(heights) {
+    for (line, &height) in lines.iter().zip(heights) {
         let row = area.cut_top(height, SPACE_XS);
         match line {
             TooltipLine::Heading(text) => {
