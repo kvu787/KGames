@@ -180,7 +180,9 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
         let before = self.value;
         let mut value = before;
         let span = self.maximum - self.minimum;
-        let step = self.step.unwrap_or(span / 100.0);
+        // How far a notch moves it, which the wheel's direction signs: a
+        // hundredth of the rail without steps, whichever way the rail goes.
+        let step = self.step.unwrap_or(span / 100.0).abs();
 
         if hit.pressing()
             && let Some(pointer) = interaction.pointer

@@ -923,7 +923,7 @@ fn a_program_starts_in_the_theme_that_its_settings_say() {
 
 // What porting the programs found: segments, which take no focus, and of
 // icons alone, a color field left while it's typed in, a slider's steps of a
-// thousandth, and a wide tooltip.
+// thousandth, one whose rail runs from its maximum, and a wide tooltip.
 #[derive(Clone, Debug, PartialEq)]
 enum PortedMsg {
     Segment(usize),
@@ -931,6 +931,7 @@ enum PortedMsg {
     Color(Color),
     Other(String),
     Fine(f64),
+    Reversed(f64),
 }
 
 #[derive(Default)]
@@ -940,6 +941,7 @@ struct Ported {
     color: Color,
     other: String,
     fine: f64,
+    reversed: f64,
 }
 
 impl Program for Ported {
@@ -956,6 +958,7 @@ impl Program for Ported {
             PortedMsg::Color(color) => self.color = color,
             PortedMsg::Other(other) => self.other = other,
             PortedMsg::Fine(fine) => self.fine = fine,
+            PortedMsg::Reversed(reversed) => self.reversed = reversed,
         }
     }
 
@@ -969,6 +972,7 @@ impl Program for Ported {
         tree.add("Hex", Rect::new(10.0, top + 60.0, 200.0, 32.0), ColorField::new(self.color).on_change(PortedMsg::Color));
         tree.add("Other", Rect::new(10.0, top + 110.0, 200.0, 32.0), TextBox::new(&self.other).on_change(PortedMsg::Other));
         tree.add("Fine", Rect::new(10.0, top + 160.0, 300.0, Slider::<PortedMsg>::height(false)), Slider::new(self.fine, 0.0, 1.0).step(0.001).on_change(PortedMsg::Fine));
+        tree.add("Reversed", Rect::new(10.0, top + 210.0, 300.0, Slider::<PortedMsg>::height(false)), Slider::new(self.reversed, 100.0, 0.0).on_change(PortedMsg::Reversed));
         let long = "A device's path, like HID#VID_045E&PID_0B13&IG_00#8&2f6c1e3b&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}, and more that goes on after it.";
         tree.add("Wide", Rect::new(10.0, top + 600.0, 100.0, 32.0), Button::new("Wide")).set_tooltip_wide(vec![TooltipLine::text(long)], 640.0);
         tree
@@ -1117,6 +1121,21 @@ fn a_slider_s_steps_land_on_their_decimals() {
         app.scroll("Fine", 1.0);
     }
     assert_eq!(app.program.fine, 0.107);
+}
+
+// A slider whose minimum is more than its maximum, at its rail's left, and no
+// steps, moves a hundredth of its rail a notch, toward the end the wheel
+// turns to: up, to the maximum, at the right.
+#[test]
+fn the_wheel_moves_a_slider_whose_rail_runs_from_its_maximum() {
+    let mut app = Headless::new(Ported {
+        reversed: 50.0,
+        ..Ported::default()
+    });
+    app.scroll("Reversed", 1.0);
+    assert_eq!(app.program.reversed, 49.0);
+    app.scroll("Reversed", -2.0);
+    assert_eq!(app.program.reversed, 51.0);
 }
 
 #[test]
