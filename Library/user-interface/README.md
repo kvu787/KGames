@@ -383,7 +383,9 @@ PerfBar.
 `Settings.json`, in the program's folder, has the settings every program has, which the library
 reads first, into `startup.common`, then the program's own, which it reads from `startup.settings`
 with their defaults. A missing file is written with every default; a wrong setting keeps its
-default, and a notice under the app bar says what's wrong. `Headless::start` starts a program in
+default, and a notice under the app bar says what's wrong. A file that's there but can't be read,
+like one that isn't UTF-8, is never written over: every setting has its default, and a notice
+says why. `Headless::start` starts a program in
 the theme that its `Startup`'s settings say, as a run does. Every program's `Settings.json` lists
 every one of the settings that every program has, which `Test/user-interface` checks.
 

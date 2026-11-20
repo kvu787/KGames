@@ -4,8 +4,8 @@
 // Each setting is read with its default and what makes it valid. A missing
 // setting has its default, and so does a wrong one, which a notice under the
 // app bar tells of. A missing file is written with every default, in the
-// order they were read; once it exists, it's never changed. Values that are
-// words ignore case; names don't.
+// order they were read; once it exists, it's never changed, even if it can't
+// be read. Values that are words ignore case; names don't.
 
 use std::path::{Path, PathBuf};
 
@@ -50,17 +50,24 @@ pub struct Settings {
 }
 
 impl Settings {
+    // The file at the path. Only a file that isn't there is missing, and is
+    // written with every default; one that can't be read, like one that isn't
+    // UTF-8, is kept as it is, every setting has its default, and a notice
+    // says why.
     pub fn load(path: &Path) -> Settings {
+        let mut settings = Settings {
+            path: path.to_path_buf(),
+            members: None,
+            existed: true,
+            defaults: Vec::new(),
+            problems: Vec::new(),
+        };
         match std::fs::read_to_string(path) {
-            Ok(text) => Settings::parse(path, &text),
-            Err(_) => Settings {
-                path: path.to_path_buf(),
-                members: None,
-                existed: false,
-                defaults: Vec::new(),
-                problems: Vec::new(),
-            },
+            Ok(text) => return Settings::parse(path, &text),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => settings.existed = false,
+            Err(error) => settings.problems.push(format!("Couldn't read it: {error}. Every setting has its default.")),
         }
+        settings
     }
 
     // Settings from text, without a file, for tests.

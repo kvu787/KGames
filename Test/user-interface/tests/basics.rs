@@ -208,6 +208,28 @@ fn a_missing_settings_file_is_written_with_the_defaults() {
     std::fs::remove_dir_all(&folder).unwrap();
 }
 
+// Only a file that isn't there is missing. One that can't be read, like one
+// saved as UTF-16, or with a byte that isn't UTF-8, is kept as it is, and
+// every setting has its default, which a notice tells of.
+#[test]
+fn a_settings_file_that_can_t_be_read_is_kept() {
+    let folder = std::env::temp_dir().join(format!("UserInterfaceUnreadableSettings{}", std::process::id()));
+    std::fs::create_dir_all(&folder).unwrap();
+    let path = folder.join("Settings.json");
+    let utf16: Vec<u8> = [0xFEFF_u16].into_iter().chain("{ \"Theme\": \"Dark\" }".encode_utf16()).flat_map(u16::to_le_bytes).collect();
+    for bytes in [utf16, b"{ \"Display\": \"Caf\xE9\" }".to_vec()] {
+        std::fs::write(&path, &bytes).unwrap();
+        let mut startup = Startup::new(Settings::load(&path), &folder, false);
+        assert_eq!(startup.common, CommonSettings::read(&mut Settings::from_text("{}")));
+        startup.settings.boolean("Own", false);
+        startup.settings.write_if_missing().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        let problems = startup.settings.problems();
+        assert!(problems.len() == 1 && problems[0].starts_with("Couldn't read it: ") && problems[0].ends_with(". Every setting has its default."), "{problems:?}");
+    }
+    std::fs::remove_dir_all(&folder).unwrap();
+}
+
 #[test]
 fn the_settings_every_program_has_start_its_display_theme_and_vertical_sync() {
     let read = |text: &str| {
