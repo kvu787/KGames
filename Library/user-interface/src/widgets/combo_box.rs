@@ -216,7 +216,7 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         let mut painter = ctx.painter();
         let layer = painter.layer();
         painter.set_layer(Layer::Popup);
-        painter.push_clip(bounds);
+        painter.push_clip_over(bounds);
         painter.shadow(panel, RADIUS_OVERLAY, ELEVATION_FLYOUT);
         painter.shape(panel, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
         painter.push_clip(panel);

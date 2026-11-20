@@ -339,6 +339,13 @@ impl<'a> Painter<'a> {
         self.list.push_clip(rect, false);
     }
 
+    // Draws only inside the rectangle, whatever clip it's in, until
+    // pop_clip, for what floats over everything, like a popup of a widget
+    // in a scrolled list, whose targets aren't clipped to the list either.
+    pub fn push_clip_over(&mut self, rect: Rect) {
+        self.list.push_clip(rect, true);
+    }
+
     pub fn pop_clip(&mut self) {
         self.list.pop_clip();
     }

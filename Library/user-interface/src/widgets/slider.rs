@@ -256,6 +256,7 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
         let value_color = if state == ControlState::Disabled { theme.text_disabled } else { theme.text_secondary };
         let thumb_x = left + (right - left) * self.fraction(value);
         let center_y = track_row.center().y.round();
+        let bounds = ctx.bounds();
         let mut painter = ctx.painter();
         let theme = painter.theme();
         if let Some(header) = &self.header {
@@ -289,9 +290,11 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             let tip_rect = Rect::new((thumb_x - tip.width / 2.0).round(), (disc.y - TOOLTIP_OFFSET / 2.0 - tip.height).round(), tip.width, tip.height);
             let layer = painter.layer();
             painter.set_layer(Layer::Tooltip);
+            painter.push_clip_over(bounds);
             painter.shadow(tip_rect, RADIUS_CONTROL, ELEVATION_TOOLTIP);
             painter.shape(tip_rect, RADIUS_CONTROL, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
             painter.text_in(tip_rect.pad(SLIDER_TOOLTIP_PADDING), &text, style, theme.text_primary, Align::Center);
+            painter.pop_clip();
             painter.set_layer(layer);
         }
     }

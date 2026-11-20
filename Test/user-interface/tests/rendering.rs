@@ -4,7 +4,8 @@
 // on the frame that makes it, that a press draws all it did on its own frame,
 // that a selection that moves leaves its old item on that frame, that a
 // release shows on its own frame, that a context menu's items look like a
-// menu's, WinUI's glyphs for chevrons, whether the
+// menu's, that a popup is drawn past the edge of the scroll area that its
+// widget is in, WinUI's glyphs for chevrons, whether the
 // PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
 // the page for an unsupported setup, and the pointer that a window draws
 // while it has focus.
@@ -14,7 +15,7 @@ use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
     Button, Canvas, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Icon, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
-    Point, Program, RadioGroup, Rect, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, View, Widget, unsupported_setup,
+    Point, Program, RadioGroup, Rect, ScrollArea, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, View, Widget, unsupported_setup,
 };
 
 struct Page;
@@ -405,6 +406,45 @@ fn a_context_menu_s_items_look_like_a_menu_s() {
     app.move_to("Area/ContextMenu/Save");
     let image = app.render(&mut gpu).unwrap();
     assert_ne!(image.pixel(x, y), plain, "the item under the pointer isn't filled");
+}
+
+// A combo box at the bottom of a scroll area, whose list opens past the
+// area's edge.
+struct Scrolled;
+
+impl Program for Scrolled {
+    type Message = ();
+
+    fn title(&self) -> String {
+        "Scrolled".to_string()
+    }
+
+    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
+
+    fn view(&self, ui: &mut Ui) -> Tree<()> {
+        let mut tree = Tree::new();
+        let viewport = Rect::new(100.0, ui.content_top() + 100.0, 300.0, 100.0);
+        tree.container(Some("Area"), viewport, ScrollArea::new(viewport.height), |area| {
+            area.add("Pick", Rect::new(viewport.x + 10.0, viewport.bottom() - 40.0, 200.0, 32.0), ComboBox::new(0, &["One", "Two", "Three"]));
+        });
+        tree
+    }
+}
+
+// A popup is over everything, so the list of a combo box in a scroll area is
+// drawn whole, like its targets are, and isn't cut off at the area's edge.
+#[test]
+fn a_popup_of_a_widget_in_a_scroll_area_is_drawn_past_the_area_s_edge() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut app = Headless::new(Scrolled);
+    let closed = app.render(&mut gpu).unwrap();
+    app.click("Pick");
+    let open = app.render(&mut gpu).unwrap();
+    save(&open, "PopupInScrollArea");
+    let (pick, item) = (app.target("Pick"), app.target("Pick/2"));
+    assert!(item.y > pick.bottom() + 8.0, "the item is past the area's edge, 8 pixels under the combo box");
+    let (x, y) = (item.x as u32 + 4, item.center().y as u32);
+    assert_ne!(open.pixel(x, y), closed.pixel(x, y), "the list isn't drawn there");
 }
 
 // A drop-down button with a submenu, and the glyphs that WinUI's

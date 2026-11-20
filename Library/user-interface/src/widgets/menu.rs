@@ -305,7 +305,7 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
     let mut painter = ctx.painter();
     let layer_before = painter.layer();
     painter.set_layer(Layer::Popup);
-    painter.push_clip(bounds);
+    painter.push_clip_over(bounds);
     painter.shadow(panel, RADIUS_OVERLAY, elevation(ELEVATION_FLYOUT.z + (ELEVATION_SUBMENU.z - ELEVATION_FLYOUT.z) * level as f32));
     painter.shape(panel, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
     for (index, (item, slot)) in items.iter().zip(slots(panel, items)).enumerate() {
