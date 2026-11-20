@@ -3,11 +3,14 @@
 // it lets go of the frame's buffers, whether Present succeeds or not. A
 // failed Present returns its error, and the main loop ends, so the value
 // must be kept before then, or the buffers would go while the GPU still
-// draws into them. How it presents, with vertical sync or without. And when
-// the next frame can begin: only once the GPU has finished the last one.
+// draws into them. How it presents, with vertical sync or without. When the
+// next frame can begin: only once the GPU has finished the last one. And how
+// the main loop waits for that.
 
-use graphics::{AdapterChoice, Gpu, frame_can_begin, present_arguments, present_then_signal};
-use windows_api_raw::{D3D12_FENCE_FLAG_NONE, ID3D12Fence};
+use std::time::{Duration, Instant};
+
+use graphics::{AdapterChoice, Gpu, frame_can_begin, present_arguments, present_then_signal, wait_for_frame};
+use windows_api_raw::{CloseHandle, CreateEventW, D3D12_FENCE_FLAG_NONE, ID3D12Fence, INFINITE};
 use windows_core::{Error, HRESULT};
 
 const FAILED: HRESULT = HRESULT(0x887A0001_u32 as i32);
@@ -78,6 +81,70 @@ impl Drop for Hold {
         unsafe {
             let _ = self.0.Signal(1);
         }
+    }
+}
+
+// Lets the GPU go from another thread, after a while, for a test whose wait
+// would otherwise last until the hold is dropped. GPU objects are
+// free-threaded.
+struct Release(ID3D12Fence);
+
+unsafe impl Send for Release {}
+
+impl Release {
+    fn after(hold: &Hold, wait: Duration) {
+        let release = Release(hold.0.clone());
+        std::thread::spawn(move || {
+            std::thread::sleep(wait);
+            release.signal();
+        });
+    }
+
+    fn signal(&self) {
+        unsafe {
+            let _ = self.0.Signal(1);
+        }
+    }
+}
+
+// The main loop's wait for a frame ends when its time passes, or a window
+// message comes, even while the GPU is still on the last frame, like a long
+// one at the GPU's idle priority, which RunLightly gives, behind a game's: a
+// wait for the GPU alone would hold up the window's messages, like WM_CLOSE,
+// and past about 5 seconds, Windows would take the window for hung. And it
+// ends as soon as DXGI has room, while the GPU is busy. A thread lets the GPU
+// go after 5 seconds, so that a wait that ignored its time fails the test
+// instead of hanging it.
+#[test]
+fn the_wait_for_a_frame_ends_with_its_time_while_the_gpu_is_busy() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let hold = Hold::new(&gpu);
+    let last_frame = gpu.signal().unwrap();
+    Release::after(&hold, Duration::from_secs(5));
+    let event = unsafe { CreateEventW(None, false, false, None) };
+    assert!(!event.0.is_null());
+
+    let start = Instant::now();
+    let taken = wait_for_frame(&gpu, last_frame, event, None, 50).unwrap();
+    let waited = start.elapsed();
+    assert!(waited < Duration::from_secs(2), "{waited:?}");
+    assert!(!taken);
+    assert!(!gpu.is_complete(last_frame));
+
+    // DXGI's waitable object, signaled, ends it at once, and its signal is
+    // taken.
+    let waitable = unsafe { CreateEventW(None, true, true, None) };
+    let start = Instant::now();
+    assert!(wait_for_frame(&gpu, last_frame, event, Some(waitable), INFINITE).unwrap());
+    assert!(start.elapsed() < Duration::from_secs(2), "{:?}", start.elapsed());
+
+    // Once the GPU has finished, there's nothing to wait for.
+    drop(hold);
+    gpu.wait_for(last_frame).unwrap();
+    assert!(!wait_for_frame(&gpu, last_frame, event, None, INFINITE).unwrap());
+    unsafe {
+        let _ = CloseHandle(event);
+        let _ = CloseHandle(waitable);
     }
 }
 

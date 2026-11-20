@@ -168,15 +168,18 @@ impl Presenter {
         frame_can_begin(self.waitable_signaled, gpu, self.last_frame)
     }
 
-    // Waits, without spinning, until a frame can begin, a window message
-    // comes, or the milliseconds pass. With vertical sync, a frame can't
-    // begin before the last one has gone to the screen anyway, so waiting
-    // instead of polling costs only the thread's wake-up.
+    // Waits, without spinning, until the GPU finishes the last frame or DXGI
+    // has room for another, a window message comes, or the milliseconds pass,
+    // whichever is first, so that a long frame, like one at the GPU's idle
+    // priority behind a game's, holds up neither the window's messages nor
+    // the main loop. With vertical sync, a frame can't begin before the last
+    // one has gone to the screen anyway, so waiting instead of polling costs
+    // only the thread's wake-up. The main loop polls again after it, as a
+    // frame needs both.
     pub fn wait_ready(&mut self, gpu: &Gpu, milliseconds: u32) -> Result<()> {
-        gpu.wait_for(self.last_frame)?;
-        if !self.waitable_signaled {
-            let result = unsafe { MsgWaitForMultipleObjects(Some(&[self.waitable]), false, milliseconds, QS_ALLINPUT as u32) };
-            self.waitable_signaled = result == WAIT_OBJECT_0 as u32;
+        let waitable = (!self.waitable_signaled).then_some(self.waitable);
+        if wait_for_frame(gpu, self.last_frame, self.fence_event, waitable, milliseconds)? {
+            self.waitable_signaled = true;
         }
         Ok(())
     }
@@ -248,6 +251,28 @@ pub fn frame_can_begin(dxgi_ready: bool, gpu: &Gpu, last_frame: u64) -> bool {
     dxgi_ready && gpu.is_complete(last_frame)
 }
 
+// Waits, without spinning, in one wait, until the GPU has signaled
+// `last_frame`, the fence value after the last frame's commands, which sets
+// `event`, or `waitable`, DXGI's frame latency waitable object, is signaled,
+// unless it's None, or a window message comes, or the milliseconds pass,
+// whichever is first. Returns whether it took the waitable object's signal,
+// as waiting on it does. Doesn't wait once the GPU has finished, without a
+// waitable object. The fence may set `event` after a wait that ended
+// otherwise, so a wait on it must check the fence again after it wakes.
+pub fn wait_for_frame(gpu: &Gpu, last_frame: u64, event: HANDLE, waitable: Option<HANDLE>, milliseconds: u32) -> Result<bool> {
+    let mut handles = Vec::with_capacity(2);
+    handles.extend(waitable);
+    if !gpu.is_complete(last_frame) {
+        unsafe { gpu.fence().SetEventOnCompletion(last_frame, event).ok()? };
+        handles.push(event);
+    }
+    if handles.is_empty() {
+        return Ok(false);
+    }
+    let result = unsafe { MsgWaitForMultipleObjects(Some(&handles), false, milliseconds, QS_ALLINPUT as u32) };
+    Ok(waitable.is_some() && result == WAIT_OBJECT_0 as u32)
+}
+
 // Present's sync interval and flags: with vertical sync, the frame waits for
 // the screen's next refresh, and without it, it goes at once, and may tear.
 pub fn present_arguments(vsync: bool) -> (u32, u32) {
@@ -294,9 +319,10 @@ impl Drop for Presenter {
         // with the last frame first, whichever way the main loop ended:
         // releasing what a frame still draws with makes its shaders fault,
         // which NVIDIA's driver logs, and which stutters every app on the
-        // GPU.
+        // GPU. The fence can set the event for a wait_ready that ended
+        // otherwise, after it, so the fence is checked again on every wake.
         unsafe {
-            if self.fence.GetCompletedValue() < self.last_frame
+            while self.fence.GetCompletedValue() < self.last_frame
                 && self.fence.SetEventOnCompletion(self.last_frame, self.fence_event).is_ok()
             {
                 WaitForSingleObject(self.fence_event, INFINITE);

@@ -43,8 +43,11 @@ reach the screen mid-refresh when Windows flips it straight there. There's no wa
 of frames that don't wait and don't tear either, and `Presenter::new` fails where Windows can't
 present frames that tear. `Presenter::set_vsync` switches between the two from the next frame on,
 as `F10` does in every program. DXGI's Alt+Enter, which would switch the display's mode, is off.
-`Presenter::wait_ready` waits for a frame to be able to start, or a window message, without
-spinning.
+`Presenter::wait_ready` waits, without spinning, until the GPU finishes the last frame or DXGI has
+room for another, a window message comes, or the time it's given passes, whichever is first, in one
+`MsgWaitForMultipleObjects` on the frame latency waitable object and an event that the GPU's fence
+sets, so that a long frame, like one at the GPU's idle priority behind a game's, holds up neither
+the window's messages nor the main loop.
 
 The GPU that draws is the one that the window's monitor is an output of: drawing with another would
 add a copy between GPUs to every frame, and keep Windows from flipping frames straight to the screen.
