@@ -150,15 +150,6 @@ impl Document {
         true
     }
 
-    // Changes the document with `change`, as one step of the history.
-    pub fn change<R>(&mut self, name: &str, change: impl FnOnce(&mut Document) -> R) -> R {
-        let before = self.snapshot();
-        let result = change(self);
-        self.commit(name, before);
-        self.version += 1;
-        result
-    }
-
     // Marks the drawn mesh as out of date, like after a change that isn't a
     // step of its own yet.
     pub fn touch(&mut self) {
