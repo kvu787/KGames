@@ -520,11 +520,18 @@ no input latency.
 
 **Headless.** `Headless` runs a program's frames without a window or a GPU, with input that the test
 makes up, on a fixed clock, through the same interface as a real run, so presses land on the cards'
-real layout. Each input method runs one frame with the input, whose output came from it, so a test
-asserts on exactly what that input made. `queue` only queues events, for `frame` to run, and
-`queue_move` the mice's motion to a place among them; `frame_input` runs a frame of a delta of the
-test's own, like at 100 frames a second; and `send_message` and `queue_message` feed the program
-messages directly, for testing `update` on the real pipeline:
+real layout, at 60 frames a second. `move_to`, `press`, `release`, `scroll`, `hold`, `release_key`,
+`send`, `type_text`, `set_gamepad` and `send_message` each run one frame with their input, so a test
+that asserts after one asserts on exactly what that input made, on its frame. A gesture runs a
+frame for each of its frames: `click`, `right_click`, `double_click`, `key` and `key_with` run two,
+the second with the releases, and `drag` one for its press, one for each of its steps, and one for
+its release. A test that asserts after a gesture sees its last frame, so it can't tell an effect of
+the press from one that came a frame late: a test of the law of the frame presses with `press` or
+`hold`, or queues the events with `queue` and runs them with `frame`, and asserts on that frame.
+`queue` only queues events, for `frame` to run, and `queue_move` the mice's motion to a place among
+them; `frame_input` runs a frame of a delta of the test's own, like at 100 frames a second; and
+`send_message` and `queue_message` feed the program messages directly, for testing `update` on the
+real pipeline:
 
 ```rust
 let mut app = Headless::new(Volume { level: 50.0 });

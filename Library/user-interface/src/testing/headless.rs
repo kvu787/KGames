@@ -4,13 +4,20 @@
 // without a GPU. A test that wants to see a frame draws it offscreen with
 // `render`.
 //
-// Each input method runs one frame with the input, as if the user did it at
-// 60 frames a second, and returns the harness, so that a test reads like
-// what it does:
+// Each input method runs its input's frames, as if the user did it at 60
+// frames a second, and returns the harness, so that a test reads like what
+// it does:
 //
 //     let mut app = Headless::new(program);
 //     app.click("Save").key(Key::F10);
 //     assert!(!app.vertical_sync());
+//
+// Most run one frame, whose output came from their input. A gesture runs one
+// for each of its frames: a click or a key two, the second with the
+// releases, and a drag one for its press, each of its steps, and its
+// release. So a test of what a press does on its very frame presses with
+// `press` or `hold`, or queues the events and runs `frame`, and asserts on
+// that frame, as one after a gesture sees its last frame.
 //
 // The frame shows all that the input did: a click's press opens a popup
 // whose items the next input can point at, and a message's every effect is
