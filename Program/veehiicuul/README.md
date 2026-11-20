@@ -105,7 +105,9 @@ and `Right` for the parts to its sides. It always faces the way it moves.
   and back, so that a push that's nearly ahead is exactly ahead. They're in the
   [settings](#settings).
 - **The brake** slows the car along a straight line, at its vehicle's `Reverse` rate, times
-  how far the trigger is pulled, without turning it, and never moves it backward.
+  how far the trigger is pulled, without turning it, and never moves it backward. The trigger
+  brakes from 5% of its pull, and all the way from 95%, so that one that rests a little off
+  its end doesn't take the push away.
 - **Crashes.** When the car's footprint touches an edge of the road, which is the edge of an
   island too, the car goes back to the start, at rest, and so does switching to another vehicle
   or scene, even by an undo or a redo that brings another back. Then the controls don't move it

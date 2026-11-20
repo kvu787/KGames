@@ -27,6 +27,14 @@ const ZOOM_DEAD_ZONE: DeadZone = DeadZone {
     outer: 0.95,
 };
 
+// The left trigger brakes only past this, as any braking at all takes the
+// push away: a trigger that rests a little off its end, like a worn one's,
+// or one under a finger, would leave the car without its controls.
+const BRAKE_DEAD_ZONE: DeadZone = DeadZone {
+    inner: 0.05,
+    outer: 0.95,
+};
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Controls {
     // Where the player pushes the car, on the screen, +X right and +Y up,
@@ -73,7 +81,7 @@ impl Controls {
         let brake = if ui.key_down(Key::SPACE) {
             1.0
         } else {
-            f64::from(gamepad.left_trigger)
+            BRAKE_DEAD_ZONE.apply(f64::from(gamepad.left_trigger))
         };
         let zoom = if gamepad.buttons.contains(GamepadButtons::RIGHT_SHOULDER) {
             ZOOM_DEAD_ZONE.apply(f64::from(gamepad.left_stick.y))

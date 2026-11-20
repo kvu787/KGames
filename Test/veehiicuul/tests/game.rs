@@ -111,6 +111,21 @@ fn the_stick_drives_the_car_and_the_trigger_stops_it() {
     assert_eq!(app.program.game.crashes, 0);
 }
 
+// A trigger that rests a little off its end, like a worn one's, doesn't
+// brake, which would take the push away, and leave the car at rest.
+#[test]
+fn a_trigger_that_rests_a_little_off_its_end_leaves_the_car_its_push() {
+    let mut app = start();
+    let push = ahead_on_the_screen(&app);
+    app.set_gamepad(gamepad(Gamepad {
+        left_trigger: 0.03,
+        right_stick: push,
+        ..Gamepad::default()
+    }));
+    app.frames(29);
+    assert!((speed(&app) - 70.0).abs() < 1e-6, "{}", speed(&app));
+}
+
 // The arrow keys push the car too, toward where they point on the screen,
 // where the road goes up and to the left from the start, and Space brakes.
 #[test]
