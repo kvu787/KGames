@@ -55,13 +55,14 @@ fn test_values(kind: Kind) -> Vec<f32> {
         Kind::Exponential => vec![10.0, 0.6],
         Kind::Bell => vec![14.0, 0.6],
         Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => vec![20.0, 4.0, 0.5],
+        Kind::Layered => vec![4.0, 40.0, 0.3],
     }
 }
 
 // Whether the way's shadow goes by the distance from the box alone, so that
 // it's as dark diagonally out from a corner as straight out from a side.
 fn round(kind: Kind) -> bool {
-    !matches!(kind, Kind::Gaussian | Kind::BSpline)
+    !matches!(kind, Kind::Gaussian | Kind::BSpline | Kind::Layered)
 }
 
 fn set_all(app: &mut Headless<ShadowTesting>, kind: Kind, values: &[f32]) {
@@ -187,12 +188,14 @@ fn ctrl_r_resets_every_way_on_its_frame() {
 }
 
 // Every way's shadow is the same on every side: as far out from the middle
-// of any of the box's four sides, it's as dark. All but the blurred boxes go
-// by the distance from the box alone, so they're as dark diagonally out from
-// a corner too.
+// of any of a square box's four sides, it's as dark. The box is square
+// because a blur wider than a long box is a little lighter off its short
+// sides, with less of the box near them, which is still the same in every
+// direction. All but the blurred boxes go by the distance from the box alone,
+// so they're as dark diagonally out from a corner too.
 #[test]
 fn every_way_s_shadow_is_the_same_on_every_side() {
-    let rect = Rect::new(0.0, 0.0, 200.0, 120.0);
+    let rect = Rect::new(0.0, 0.0, 120.0, 120.0);
     let center = rect.center();
     for kind in KINDS {
         let values = test_values(kind);
@@ -384,6 +387,23 @@ fn the_b_spline_blur_is_nearly_the_gaussian_but_ends_exactly() {
     }
     assert_eq!(Kind::BSpline.opacity(&values, rect, end + 0.01, 200.0), 0.0);
     assert!(Kind::Gaussian.opacity(&values, rect, end + 0.01, 200.0) > 0.0);
+}
+
+// Layered Gaussians: one layer is the Gaussian at the same blur and
+// opacity, and more are Gaussians of half the blur each over each other,
+// darker near the box, with the same long tail as the widest.
+#[test]
+fn layered_gaussians_are_gaussians_of_half_the_blur_over_each_other() {
+    let rect = Rect::new(0.0, 0.0, 200.0, 100.0);
+    let layered = |values: [f32; 3], x: f32| Kind::Layered.opacity(&values, rect, x, 50.0);
+    let gaussian = |blur: f32, opacity: f32, x: f32| Kind::Gaussian.opacity(&[blur, 0.0, opacity], rect, x, 50.0);
+    for distance in [0.5, 4.0, 15.0, 40.0] {
+        let x = 200.0 + distance;
+        assert!(near(layered([1.0, 40.0, 0.3], x), gaussian(40.0, 0.3, x)), "{distance}");
+        let through = (1.0 - gaussian(40.0, 0.3, x)) * (1.0 - gaussian(20.0, 0.3, x)) * (1.0 - gaussian(10.0, 0.3, x));
+        assert!(near(layered([3.0, 40.0, 0.3], x), 1.0 - through), "{distance}");
+        assert!(layered([3.0, 40.0, 0.3], x) >= layered([1.0, 40.0, 0.3], x), "{distance}");
+    }
 }
 
 // What a pixel should be: the box's color over what it covers of the

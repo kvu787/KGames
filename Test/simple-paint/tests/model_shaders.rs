@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 
 // Each shader, from the root of the repository, and what it draws.
-const SHADERS: [(&str, &str); 15] = [
+const SHADERS: [(&str, &str); 16] = [
     ("Library/simple-paint/Shaders/SimplePaint.hlsl", "3D models, painted with SimplePaint"),
     ("Library/simple-paint/Shaders/SimplePaintCore.hlsli", "SimplePaint's math, which SimplePaint.hlsl includes"),
     ("Library/simple-paint/Shaders/Unlit.hlsl", "3D models that aren't painted, unlit"),
@@ -21,6 +21,7 @@ const SHADERS: [(&str, &str); 15] = [
     ("Program/shadow-testing/Shaders/Curved.hlsl", "ShadowTesting's 2D box and its curved shadow"),
     ("Program/shadow-testing/Shaders/Exponential.hlsl", "ShadowTesting's 2D box and its exponential shadow"),
     ("Program/shadow-testing/Shaders/Gaussian.hlsl", "ShadowTesting's 2D box and its Gaussian shadow"),
+    ("Program/shadow-testing/Shaders/Layered.hlsl", "ShadowTesting's 2D box and its layered Gaussian shadows"),
     ("Program/shadow-testing/Shaders/Linear.hlsl", "ShadowTesting's 2D box and its linear shadow"),
     ("Program/shadow-testing/Shaders/RoundGaussian.hlsl", "ShadowTesting's 2D box and its round Gaussian shadow"),
     ("Program/shadow-testing/Shaders/Smoothstep.hlsl", "ShadowTesting's 2D box and its smoothstep shadow"),

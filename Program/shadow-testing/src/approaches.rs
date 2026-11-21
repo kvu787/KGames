@@ -14,7 +14,7 @@
 
 use user_interface::Rect;
 
-use crate::{b_spline, bell, curved, exponential, gaussian, linear, round_gaussian, smoothstep};
+use crate::{b_spline, bell, curved, exponential, gaussian, layered, linear, round_gaussian, smoothstep};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Kind {
@@ -26,11 +26,12 @@ pub enum Kind {
     Gaussian,
     RoundGaussian,
     BSpline,
+    Layered,
 }
 
 // Every way, in the order the page shows them: those whose shadow goes by
 // the distance from the box alone, then the Gaussian and its variants.
-pub const KINDS: [Kind; 8] = [
+pub const KINDS: [Kind; 9] = [
     Kind::Linear,
     Kind::Curved,
     Kind::Smoothstep,
@@ -39,6 +40,7 @@ pub const KINDS: [Kind; 8] = [
     Kind::Gaussian,
     Kind::RoundGaussian,
     Kind::BSpline,
+    Kind::Layered,
 ];
 
 // The faintest opacity that changes a pixel: half of an 8-bit step. A
@@ -107,6 +109,7 @@ impl Kind {
         match self {
             Kind::RoundGaussian => "Round Gaussian",
             Kind::BSpline => "B-spline blur",
+            Kind::Layered => "Layered Gaussians",
             _ => self.name(),
         }
     }
@@ -122,6 +125,7 @@ impl Kind {
             Kind::Gaussian => "Gaussian",
             Kind::RoundGaussian => "RoundGaussian",
             Kind::BSpline => "BSpline",
+            Kind::Layered => "Layered",
         }
     }
 
@@ -136,6 +140,7 @@ impl Kind {
             Kind::Gaussian => gaussian::DESCRIPTION,
             Kind::RoundGaussian => round_gaussian::DESCRIPTION,
             Kind::BSpline => b_spline::DESCRIPTION,
+            Kind::Layered => layered::DESCRIPTION,
         }
     }
 
@@ -149,6 +154,7 @@ impl Kind {
             Kind::Exponential => exponential::SETTINGS,
             Kind::Bell => bell::SETTINGS,
             Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::SETTINGS,
+            Kind::Layered => layered::SETTINGS,
         }
     }
 
@@ -163,6 +169,7 @@ impl Kind {
             Kind::Gaussian => (gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER),
             Kind::RoundGaussian => (round_gaussian::VERTEX_SHADER, round_gaussian::PIXEL_SHADER),
             Kind::BSpline => (b_spline::VERTEX_SHADER, b_spline::PIXEL_SHADER),
+            Kind::Layered => (layered::VERTEX_SHADER, layered::PIXEL_SHADER),
         }
     }
 
@@ -175,6 +182,7 @@ impl Kind {
             Kind::Exponential => exponential::params(values),
             Kind::Bell => bell::params(values),
             Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::params(values),
+            Kind::Layered => layered::params(values),
         }
     }
 
@@ -190,6 +198,7 @@ impl Kind {
             Kind::Gaussian => gaussian::area(values, rect),
             Kind::RoundGaussian => round_gaussian::area(values, rect),
             Kind::BSpline => b_spline::area(values, rect),
+            Kind::Layered => layered::area(values, rect),
         }
     }
 
@@ -204,6 +213,7 @@ impl Kind {
             Kind::Gaussian => gaussian::opacity(values, rect, x, y),
             Kind::RoundGaussian => round_gaussian::opacity(values, rect, x, y),
             Kind::BSpline => b_spline::opacity(values, rect, x, y),
+            Kind::Layered => layered::opacity(values, rect, x, y),
         }
     }
 }

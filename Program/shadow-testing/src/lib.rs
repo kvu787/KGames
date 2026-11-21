@@ -8,6 +8,7 @@ pub mod cards;
 pub mod curved;
 pub mod exponential;
 pub mod gaussian;
+pub mod layered;
 pub mod linear;
 pub mod pipeline;
 pub mod round_gaussian;
