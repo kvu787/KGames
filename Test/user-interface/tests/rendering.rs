@@ -582,18 +582,7 @@ impl Program for Unsupported {
     }
 }
 
-const CURSORS: [Cursor; 10] = [
-    Cursor::Arrow,
-    Cursor::Text,
-    Cursor::Hand,
-    Cursor::Move,
-    Cursor::ResizeHorizontal,
-    Cursor::ResizeVertical,
-    Cursor::ResizeDiagonal,
-    Cursor::ResizeAntidiagonal,
-    Cursor::Crosshair,
-    Cursor::NotAllowed,
-];
+const CURSORS: [Cursor; 10] = Cursor::ALL;
 
 // A widget that asks for a cursor while the pointer is on it.
 struct Shape(Cursor);

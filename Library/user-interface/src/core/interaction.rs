@@ -262,6 +262,7 @@ impl Interaction {
     }
 }
 
+// The pointer's looks, which widgets/pointer.rs draws.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Cursor {
     #[default]
@@ -275,4 +276,35 @@ pub enum Cursor {
     ResizeAntidiagonal,
     Crosshair,
     NotAllowed,
+}
+
+impl Cursor {
+    pub const ALL: [Cursor; 10] = [
+        Cursor::Arrow,
+        Cursor::Text,
+        Cursor::Hand,
+        Cursor::Move,
+        Cursor::ResizeHorizontal,
+        Cursor::ResizeVertical,
+        Cursor::ResizeDiagonal,
+        Cursor::ResizeAntidiagonal,
+        Cursor::Crosshair,
+        Cursor::NotAllowed,
+    ];
+
+    // Like "ResizeHorizontal".
+    pub fn name(self) -> &'static str {
+        match self {
+            Cursor::Arrow => "Arrow",
+            Cursor::Text => "Text",
+            Cursor::Hand => "Hand",
+            Cursor::Move => "Move",
+            Cursor::ResizeHorizontal => "ResizeHorizontal",
+            Cursor::ResizeVertical => "ResizeVertical",
+            Cursor::ResizeDiagonal => "ResizeDiagonal",
+            Cursor::ResizeAntidiagonal => "ResizeAntidiagonal",
+            Cursor::Crosshair => "Crosshair",
+            Cursor::NotAllowed => "NotAllowed",
+        }
+    }
 }

@@ -13,7 +13,9 @@
 // first, the edges of all its parts, then their fills over them, so that its
 // parts join without an edge between them.
 
-use crate::core::interaction::Cursor;
+use crate::core::interaction::{Cursor, Sense};
+use crate::core::interface::Interface;
+use crate::core::tree::{Draw, Widget};
 use crate::drawing::geometry::{Color, Point, Rect};
 use crate::drawing::painter::Painter;
 
@@ -33,6 +35,51 @@ const DART_TIP: (f32, f32) = (0.0, 0.0);
 const DART_RIGHT: (f32, f32) = (15.0, 6.0);
 const DART_NOTCH: (f32, f32) = (8.5, 8.5);
 const DART_LEFT: (f32, f32) = (6.0, 15.0);
+
+// A cursor as a picture, the pointer's look, with the middle of its shape in
+// the middle of its rectangle, like for a list of them. While the pointer is
+// on it, the pointer has its look too.
+pub struct CursorView {
+    cursor: Cursor,
+}
+
+impl CursorView {
+    pub fn new(cursor: Cursor) -> Self {
+        Self { cursor }
+    }
+}
+
+impl<M: 'static> Widget<M> for CursorView {
+    fn kind(&self) -> &'static str {
+        "Cursor"
+    }
+
+    fn sense(&self) -> Option<Sense> {
+        Some(Sense::NONE)
+    }
+
+    fn cursor(&self, _ui: &Interface, hovered: bool, _held: bool) -> Option<Cursor> {
+        hovered.then_some(self.cursor)
+    }
+
+    fn draw(&self, ctx: &mut Draw) {
+        let center = ctx.rect().center();
+        let middle = middle(self.cursor);
+        draw_pointer(&mut ctx.painter(), Point::new(center.x - middle.x, center.y - middle.y), self.cursor);
+    }
+}
+
+// The middle of the cursor's shape, from its hot spot: the dart's and the
+// hand's hot spots are their tips, and the others' are their middles.
+fn middle(cursor: Cursor) -> Point {
+    match cursor {
+        Cursor::Arrow => Point::new(DART_RIGHT.0 / 2.0, DART_LEFT.1 / 2.0),
+        // From the thumb's edge to the little finger's, and the fingertip to
+        // the palm's bottom.
+        Cursor::Hand => Point::new((-6.75 + 13.0) / 2.0, 17.5 / 2.0),
+        _ => Point::ZERO,
+    }
+}
 
 // Draws the pointer's cursor with its hot spot at the point.
 pub(crate) fn draw_pointer(painter: &mut Painter, at: Point, cursor: Cursor) {

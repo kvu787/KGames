@@ -131,6 +131,7 @@ pub use widgets::menu::{MenuBar, MenuItem};
 pub use widgets::navigation::{Choice, Segmented, SelectorBar};
 pub use widgets::number_box::NumberBox;
 pub use widgets::palette::Palette;
+pub use widgets::pointer::CursorView;
 pub use widgets::progress::{ProgressBar, ProgressRing};
 pub use widgets::scrolling::{ScrollArea, ScrollBar, Scrolled, WHEEL_SCROLL};
 pub use widgets::shell::{AppBar, MenuRow, Shell, Status, StatusBar, unsupported_setup};

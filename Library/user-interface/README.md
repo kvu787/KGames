@@ -194,6 +194,7 @@ frame's state through `Interface`'s getters, like `theme()`, `time()`, `input()`
 | `View`                             |                           | A 3D view's area, which takes every button but never focus,     |
 |                                    |                           | and sends what the pointer does in it                           |
 | `Canvas`                           |                           | Draws a program's own graphics, with the frame's `Painter`      |
+| `CursorView`                       |                           | One of the pointer's looks, `Cursor::ALL`, as a picture         |
 | `Cover`, `Group`                   |                           | A surface that stops the pointer, and a bare grouping           |
 | `Tree::info_card`                  |                           | A test program's floating card: frame rate, GPU, display, keys  |
 | `Form`                             |                           | Lays a card's content out top to bottom, with headers           |
