@@ -353,7 +353,6 @@ fn stick_graph(painter: &mut Painter, theme: &Theme, area: Rect, value: [f32; 2]
     // Stick y is up, and screen y down.
     let position = Point::new(center.x + value[0] * radius, center.y - value[1] * radius);
     painter.line(center, position, 2.0, color.with_alpha(0.5));
-    painter.circle(position, 8.0, theme.control_solid_fill);
     painter.circle(position, 6.0, color);
 }
 
