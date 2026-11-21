@@ -14,9 +14,10 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/Gaussi
 pub const DESCRIPTION: &str = "A blurred copy of the box, grown by the spread on every side, like CSS's box-shadow with no offset.";
 
 pub const SETTINGS: &[Setting] = &[
-    Setting::pixels("Blur", "Blur", 64.0, 24.0),
+    Setting::pixels("Blur", "Blur", 64.0, 28.0),
     Setting::signed_pixels("Spread", "Spread", -16.0, 16.0, 0.0),
-    Setting::opacity("Opacity", "Opacity", 0.4),
+    // Twice the others' start, since the blurred edge is half as dark.
+    Setting::opacity("Opacity", "Opacity", 0.5),
 ];
 
 // The Gaussian's standard deviation: half the blur, and never quite 0.

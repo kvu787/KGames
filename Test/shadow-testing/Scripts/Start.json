@@ -4,9 +4,12 @@
     {
       "Frame": 2,
       "Expect": {
-        "Linear": { "Length": 32, "StartOpacity": 0.5, "EndOpacity": 0 },
-        "Curved": { "Length": 48, "Opacity": 0.5, "Power": 2 },
-        "Gaussian": { "Blur": 24, "Spread": 0, "Opacity": 0.4 },
+        "Linear": { "Length": 20, "StartOpacity": 0.25, "EndOpacity": 0 },
+        "Curved": { "Length": 32, "Opacity": 0.25, "Power": 2 },
+        "Smoothstep": { "Length": 20, "Opacity": 0.25 },
+        "Exponential": { "Decay": 14, "Opacity": 0.25 },
+        "Bell": { "Width": 8, "Opacity": 0.25 },
+        "Gaussian": { "Blur": 28, "Spread": 0, "Opacity": 0.5 },
         "Interface": { "Theme": "Light", "Size": [2560, 1440] }
       }
     }

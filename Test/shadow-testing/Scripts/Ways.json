@@ -12,6 +12,6 @@
     { "Frame": 7, "Expect": { "Curved": { "Power": 1.85 } } },
     { "Frame": 8, "Capture": "Changed" },
     { "Frame": 9, "Key": "Ctrl+R" },
-    { "Frame": 9, "Expect": { "Gaussian": { "Blur": 24, "Spread": 0 }, "Curved": { "Power": 2 } } }
+    { "Frame": 9, "Expect": { "Gaussian": { "Blur": 28, "Spread": 0 }, "Curved": { "Power": 2 } } }
   ]
 }

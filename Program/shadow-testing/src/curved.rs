@@ -13,8 +13,8 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/Curved
 pub const DESCRIPTION: &str = "Like linear, but fading to nothing along a curve: the opacity times the fraction of the length left, to the power.";
 
 pub const SETTINGS: &[Setting] = &[
-    Setting::pixels("Length", "Length", 128.0, 48.0),
-    Setting::opacity("Opacity", "Opacity", 0.5),
+    Setting::pixels("Length", "Length", 128.0, 32.0),
+    Setting::opacity("Opacity", "Opacity", 0.25),
     Setting {
         name: "Power",
         label: "Power",

@@ -15,6 +15,6 @@
     { "Frame": 9, "Expect": { "Linear": { "Length": 128, "StartOpacity": 0, "EndOpacity": 1 }, "Interface": { "Pressed": null } } },
     { "Frame": 10, "Capture": "Reversed" },
     { "Frame": 11, "Key": "Ctrl+R" },
-    { "Frame": 11, "Expect": { "Linear": { "Length": 32, "StartOpacity": 0.5, "EndOpacity": 0 } } }
+    { "Frame": 11, "Expect": { "Linear": { "Length": 20, "StartOpacity": 0.25, "EndOpacity": 0 } } }
   ]
 }

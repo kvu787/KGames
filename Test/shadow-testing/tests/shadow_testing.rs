@@ -178,6 +178,24 @@ fn every_way_s_shadow_is_the_same_on_every_side() {
     }
 }
 
+// Every way's defaults are matched, so that only the shape of their falloff
+// differs: out from the middle of the box's side, each starts within a
+// hundredth or two of the edge opacity at the first pixel, and is half that
+// within a pixel of the half distance.
+#[test]
+fn every_way_s_defaults_start_as_dark_and_are_half_as_dark_as_far_out() {
+    use shadow_testing::approaches::{DEFAULT_EDGE_OPACITY, DEFAULT_HALF_DISTANCE};
+    let rect = Rect::new(0.0, 0.0, BOX_SIZE.width, BOX_SIZE.height);
+    for kind in KINDS {
+        let values = Approach::new(kind).values;
+        let at = |distance: f32| kind.opacity(&values, rect, rect.right() + distance, rect.center().y);
+        let edge = at(0.5);
+        assert!((edge - DEFAULT_EDGE_OPACITY).abs() <= 0.02, "{} starts at {edge}", kind.name());
+        let half = (0..10_000).map(|step| 0.5 + step as f32 * 0.01).find(|distance| at(*distance) <= DEFAULT_EDGE_OPACITY / 2.0).unwrap();
+        assert!((half - DEFAULT_HALF_DISTANCE).abs() <= 1.0, "{} is half as dark {half} out", kind.name());
+    }
+}
+
 // The linear shadow's formula itself: the start's opacity half a pixel out
 // from the box, down in a straight line to the end's at the length, and
 // none past it, round around the corners.

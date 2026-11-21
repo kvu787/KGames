@@ -6,6 +6,11 @@
 // Common.hlsli. Each module also works out its shadow's opacity at a point on
 // the CPU, as its shader does, so that tests can check every pixel that the
 // GPU draws.
+//
+// Every way's defaults are matched, so that the ways differ only in the
+// shape of their falloff: each starts about DEFAULT_EDGE_OPACITY at the box's
+// edge, a subtle shadow on the light theme's background, and is half as dark
+// about DEFAULT_HALF_DISTANCE out from it.
 
 use user_interface::Rect;
 
@@ -28,6 +33,11 @@ pub const KINDS: [Kind; 6] = [Kind::Linear, Kind::Curved, Kind::Smoothstep, Kind
 // The faintest opacity that changes a pixel: half of an 8-bit step. A
 // shadow whose tail never ends stops drawing where it's fainter.
 pub const FAINTEST: f32 = 0.5 / 255.0;
+
+// What every way's defaults are matched to: the opacity at the box's edge,
+// and how far out it's half that, in pixels.
+pub const DEFAULT_EDGE_OPACITY: f32 = 0.25;
+pub const DEFAULT_HALF_DISTANCE: f32 = 10.0;
 
 // A setting of a way, and its slider.
 #[derive(Clone, Copy, Debug, PartialEq)]
