@@ -56,18 +56,19 @@ any other setup, the window shows what's wrong instead of the cards.
 
 Shortcuts, while the demo's window has focus:
 
-| Key   | Action                                                                 |
-| ----- | ---------------------------------------------------------------------- |
-| `F2`  | Clear the event log                                                    |
-| `F3`  | Rumble test on or off. The gamepad's sticks then drive its grip motors |
-| `F9`  | Switches between the light and dark themes                             |
-| `F10` | Switches vertical sync on or off                                       |
-| `F12` | Quits, as in every KGames program                                      |
+| Key                  | Action                                                                 |
+| -------------------- | ---------------------------------------------------------------------- |
+| `F2`                 | Clear the event log                                                    |
+| `F3`                 | Rumble test on or off. The gamepad's sticks then drive its grip motors |
+| `F9`                 | Switches between the light and dark themes                             |
+| `F10`                | Switches vertical sync on or off                                       |
+| `Ctrl+Shift+Alt+F12` | Quits, as in every KGames program                                      |
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
 Library/user-interface's, which reads them from the same readings, as in every KGames program, so
-the demo doesn't also switch on them, which would switch them back. `F12` is too, and the demo's
-cards show it as GameInput read it, like any key, but do nothing with it.
+the demo doesn't also switch on them, which would switch them back. `Ctrl+Shift+Alt+F12` is too,
+and the demo's cards show its keys as GameInput read them, like any keys, but do nothing with
+them.
 
 ### Rumble test
 
