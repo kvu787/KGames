@@ -4,6 +4,6 @@ Follow the rules for GUI programs in the [AGENTS.md](../../AGENTS.md) at the roo
 
 - Only try omnidirectional shadows: ones that spread from the box the same way on every side, without an offset or a direction. `Test/shadow-testing` checks that each way's shadow is the same on every side, and mirrored across the box.
 - Keep every way of drawing a shadow that's being tried here, not in Library/user-interface. Add one as the [README](README.md#adding-a-way) says: a shader of its own that includes `Shaders/Common.hlsli`, a module of its own in `src`, and a `Kind` in `src/approaches.rs`. The page makes its card of sliders from its settings.
-- Keep every way's box the same, in the middle of a stage of the same size, so that the ways can be compared side by side.
+- Keep every way's box the same, in the middle of a stage of the same size, so that the ways can be compared side by side, and keep every way's defaults matched to `DEFAULT_EDGE_OPACITY` and `DEFAULT_HALF_DISTANCE` in `src/approaches.rs`.
 - Give each way a CPU copy of its shader's formula, and test every pixel that it draws against it with the GPU, in both themes, as `Test/shadow-testing` does.
 - Test input handling with the tests and scripts in `Test/shadow-testing`, as the [README](README.md#testing) says. The state that scripts save has where each slider is, as `Interface.Targets`, named after its way and setting, like `Gaussian/Blur`.
