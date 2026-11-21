@@ -1,7 +1,12 @@
-// Compiles the shaders of the ways of drawing a shadow to DXIL at build time.
+// Compiles each way of drawing a shadow's shaders to DXIL at build time.
+// Each includes Shaders/Common.hlsli.
 
 use std::path::Path;
 
+const WAYS: [&str; 1] = ["Linear"];
+
 fn main() {
-    shader_compiler::build_vertex_and_pixel(Path::new("Shaders/Linear.hlsl"), &["-O3", "-WX"], "Linear");
+    for way in WAYS {
+        shader_compiler::build_vertex_and_pixel(&Path::new("Shaders").join(format!("{way}.hlsl")), &["-O3", "-WX"], way);
+    }
 }
