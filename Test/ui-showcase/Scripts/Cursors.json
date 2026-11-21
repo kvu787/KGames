@@ -1,0 +1,9 @@
+{
+  "Steps": [
+    { "Frame": 1, "Move": "Cursor/Hand" },
+    { "Frame": 1, "Expect": { "Interface": { "Hovered": "Cursor/Hand" } } },
+    { "Frame": 2, "Capture": "Cursors" },
+    { "Frame": 3, "Key": "F9" },
+    { "Frame": 4, "Capture": "DarkCursors" }
+  ]
+}

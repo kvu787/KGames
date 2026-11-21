@@ -6,7 +6,7 @@ use user_interface::json::Value;
 use user_interface::controls::{INFO_BAR_MIN_HEIGHT, MENU_BAR_HEIGHT, MENU_BAR_ITEM_MARGIN, MENU_BAR_ITEM_PADDING};
 use user_interface::graphics::{AdapterChoice, Gpu};
 use user_interface::tokens::{APP_BAR_HEIGHT, PAGE_PADDING, PERF_BAR_HEIGHT, TOOLTIP_DELAY, WINDOW_HEIGHT};
-use user_interface::{Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Rect, Startup, ThemeKind, slider_rail};
+use user_interface::{Cursor, Gamepad, GamepadButtons, Headless, Key, Modifiers, MouseButton, Point, Rect, Startup, Theme, ThemeKind, slider_rail};
 
 fn showcase() -> Headless<Showcase> {
     Headless::new(Showcase::default())
@@ -396,6 +396,51 @@ fn the_interface_card_shows_the_tooltip_of_the_frame_that_it_is_drawn_in() {
     assert_eq!(app.ui.tooltip_name(), None);
     assert_eq!(interface_rows_changed_a_frame_later(&mut app, &mut gpu), 0, "the Tooltip row was a frame late as a press put the tooltip away");
     app.release();
+}
+
+// The Cursors card is over the tabs, in their column, with every cursor, and
+// the pointer takes the look of the one that it's on, in the frame that
+// moves it there, and is the arrow again in the frame that moves it off.
+#[test]
+fn the_cursors_card_has_every_cursor_over_the_tabs_and_the_pointer_takes_the_look_of_the_one_it_is_on() {
+    let mut app = showcase();
+    app.frame();
+    let tabs = app.target("Tabs");
+    for cursor in Cursor::ALL {
+        let name = format!("Cursor/{}", cursor.name());
+        let rect = app.target(&name);
+        assert!(rect.bottom() <= tabs.y && rect.x >= tabs.x && rect.right() <= tabs.right(), "{name} is at {rect:?}, and the tabs at {tabs:?}");
+        app.move_to(&name);
+        assert_eq!(app.ui.cursor(), cursor);
+        assert_eq!(app.ui.hovered_name(), Some(name.as_str()));
+        app.move_point(Point::new(rect.right() + 4.0, rect.center().y));
+        assert_eq!(app.ui.cursor(), Cursor::Arrow, "off {name}");
+    }
+}
+
+// Each cursor of the Cursors card is drawn in the accent, inside its own
+// area, in both themes, without the pointer.
+#[test]
+fn the_cursors_card_draws_every_cursor_in_its_area() {
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    for kind in [ThemeKind::Light, ThemeKind::Dark] {
+        let mut app = Headless::with_theme(Showcase::default(), kind);
+        app.frame();
+        let image = app.render(&mut gpu).unwrap();
+        let accent = Theme::new(kind).accent.to_bytes();
+        let is_accent = |x: u32, y: u32| image.pixel(x, y).iter().zip(accent).take(3).all(|(a, b)| (*a as i32 - b as i32).abs() <= 2);
+        for cursor in Cursor::ALL {
+            let rect = app.target(&format!("Cursor/{}", cursor.name()));
+            let (left, top, right, bottom) = (rect.x as u32, rect.y as u32, rect.right() as u32, rect.bottom() as u32);
+            let inside = (top..bottom).flat_map(|y| (left..right).map(move |x| (x, y))).filter(|&(x, y)| is_accent(x, y)).count();
+            assert!(inside > 0, "{} isn't drawn, in the {} theme", cursor.name(), kind.name());
+            // Its edge is inside its area too: none of it is on the area's
+            // border.
+            let border = (left..right).flat_map(|x| [(x, top), (x, bottom - 1)]).chain((top..bottom).flat_map(|y| [(left, y), (right - 1, y)]));
+            let card = image.pixel(left, top);
+            assert!(border.clone().all(|(x, y)| image.pixel(x, y) == card), "{} reaches its area's border, in the {} theme", cursor.name(), kind.name());
+        }
+    }
 }
 
 #[test]

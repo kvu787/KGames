@@ -27,6 +27,7 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 |                            | line of text; and segments with icons, like a tool's modes               |
 | Menus and dialogs          | A content dialog, an area with a context menu, what was chosen from the  |
 |                            | menus, and an expander                                                   |
+| Cursors                    | Every look of the pointer, which takes the look of the one that it's on  |
 | Tabs                       | The type ramp and a line of spans, the icons, the theme's colors, and    |
 |                            | shapes: the elevations of tooltips, flyouts and dialogs, lines, circles, |
 |                            | rings, arcs, polygons, gradients and an elevation border                 |
@@ -89,9 +90,10 @@ widget, a press that slides off a button, drags past a slider's ends, the wheel,
 boxes' lists and what closes them, typing and deleting, the search and its clear button, number
 boxes, the menu bar's menus and submenus, the drop-down button's menu, the context menu, the dialog,
 the color picker and its field and palette, the expander, the list's rows, scrolling and a
-double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9` and `F10`. They
-also check that every widget fits the window, in both themes, and draw frames offscreen with the
-GPU to check that the Interface card says what the frame it's drawn in has.
+double-click, the caution info bar, tooltips above the pointer, `Ctrl+R`, `F9` and `F10`, and the
+pointer's look on each cursor. They also check that every widget fits the window, in both themes,
+and draw frames offscreen with the GPU to check that the Interface card says what the frame it's
+drawn in has, and that every cursor is drawn in its area.
 
 The scripts in `Test/ui-showcase/Scripts` run the same kinds of input through the real window and
 renderer, pressing widgets by name. The state that scripts save and check has what each widget shows,

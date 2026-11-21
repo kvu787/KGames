@@ -1,6 +1,6 @@
 // The showcase's page: an app bar with its icon and title, a menu row under
 // it with a menu bar in line with the icon and the cards, five columns of cards
-// that show every widget, and a status bar. The cards at the bottom of their
+// that show every widget and every cursor, and a status bar. The cards at the bottom of their
 // columns take what's left of the window's height.
 //
 // `view` describes the page from the showcase's state, and changes nothing:
@@ -11,8 +11,8 @@ use user_interface::tokens::{
     ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
-    Align, AppBar, Badge, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Dialog, Draw,
-    Expander, ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Interface, Keycaps, ListView, MenuBar,
+    Align, AppBar, Badge, Border, Brush, Button, Canvas, Card, CheckBox, Color, ColorField, ColorPicker, ComboBox, Corners, Cursor, CursorView,
+    Dialog, Draw, Expander, ExpanderContent, Field, Form, HyperlinkButton, Icon, IconView, InfoBar, Insets, Interface, Keycaps, ListView, MenuBar,
     MenuItem, NumberBox, Palette, Point, ProgressBar, ProgressRing, RadioGroup, Rect, Run, Segmented, SelectorBar, Sense, Severity, Size,
     Slider, Spans, Status, Text, TextBox, TextColor, TextStyle, ThemeKind, ToggleButton, ToggleSwitch, TooltipLine, Tree, Ui, View, Widget,
 };
@@ -35,6 +35,7 @@ const BUTTONS_HEIGHT: f32 = 260.0;
 const TOGGLES_HEIGHT: f32 = 344.0;
 const SLIDERS_HEIGHT: f32 = 492.0;
 const CHOICES_HEIGHT: f32 = 320.0;
+const CURSORS_HEIGHT: f32 = 236.0;
 const INFO_HEIGHT: f32 = 324.0;
 const COLOR_HEIGHT: f32 = 492.0;
 
@@ -112,7 +113,9 @@ pub fn view(showcase: &Showcase, ui: &mut Ui) -> Tree<Message> {
     choices(showcase, ui, &mut tree, column.cut_top(CHOICES_HEIGHT, CARD_GAP));
     menus_card(showcase, ui, &mut tree, column);
 
-    tabs(showcase, ui, &mut tree, third);
+    let mut column = third;
+    cursors(ui, &mut tree, column.cut_top(CURSORS_HEIGHT, CARD_GAP));
+    tabs(showcase, ui, &mut tree, column);
 
     let mut column = fourth;
     info_bars(showcase, ui, &mut tree, column.cut_top(INFO_HEIGHT, CARD_GAP));
@@ -282,6 +285,21 @@ fn dialog(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>) {
         .on_result(Message::Answer);
     let area = dialog.area(ui);
     tree.add("Question", area.rect, dialog);
+}
+
+// Every look of the pointer, in two columns, each with its name. The pointer
+// takes the look of the one that it's on.
+fn cursors(ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) {
+    tree.card(ui, None, rect, Card::new("Cursors"), |_, card, area| {
+        let columns = area.content.columns::<2>(SPACE_L);
+        let rows = Cursor::ALL.len().div_ceil(columns.len());
+        for (index, cursor) in Cursor::ALL.into_iter().enumerate() {
+            let column = columns[index / rows];
+            let row = Rect::new(column.x, column.y + CONTROL_HEIGHT * (index % rows) as f32, column.width, CONTROL_HEIGHT);
+            card.add(&format!("Cursor/{}", cursor.name()), row.left_strip(CONTROL_HEIGHT), CursorView::new(cursor));
+            card.draw(Rect::new(row.x + CONTROL_HEIGHT + SPACE_S, row.y, row.width - CONTROL_HEIGHT - SPACE_S, row.height), Text::caption(cursor.name()));
+        }
+    });
 }
 
 fn tabs(showcase: &Showcase, ui: &mut Ui, tree: &mut Tree<Message>, rect: Rect) {
