@@ -12,10 +12,14 @@
     { "Frame": 7, "Expect": { "Curved": { "Power": 1.85 } } },
     { "Frame": 8, "Scroll": { "At": "Exponential/Decay", "Notches": 4 } },
     { "Frame": 8, "Expect": { "Exponential": { "Decay": 16 } } },
-    { "Frame": 9, "Capture": "Changed" },
-    { "Frame": 10, "Click": "Gaussian/Reset" },
-    { "Frame": 10, "Expect": { "Gaussian": { "Blur": 28, "Spread": 0, "Opacity": 0.5 }, "Curved": { "Power": 1.85 }, "Exponential": { "Decay": 16 } } },
-    { "Frame": 12, "Key": "Ctrl+R" },
-    { "Frame": 12, "Expect": { "Curved": { "Power": 2 }, "Exponential": { "Decay": 14 } } }
+    { "Frame": 9, "Scroll": { "At": "Layered/Layers", "Notches": 2 } },
+    { "Frame": 9, "Expect": { "Layered": { "Layers": 5 } } },
+    { "Frame": 10, "Scroll": { "At": "LinearLight/Opacity", "Notches": 30 } },
+    { "Frame": 10, "Expect": { "LinearLight": { "Opacity": 0.8 }, "Gaussian": { "Opacity": 0.5 } } },
+    { "Frame": 11, "Capture": "Changed" },
+    { "Frame": 12, "Click": "Gaussian/Reset" },
+    { "Frame": 12, "Expect": { "Gaussian": { "Blur": 28, "Spread": 0, "Opacity": 0.5 }, "Curved": { "Power": 1.85 }, "Exponential": { "Decay": 16 } } },
+    { "Frame": 14, "Key": "Ctrl+R" },
+    { "Frame": 14, "Expect": { "Curved": { "Power": 2 }, "Exponential": { "Decay": 14 }, "Layered": { "Layers": 3 }, "LinearLight": { "Opacity": 0.5 } } }
   ]
 }

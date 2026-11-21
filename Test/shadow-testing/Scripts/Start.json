@@ -10,6 +10,10 @@
         "Exponential": { "Decay": 14, "Opacity": 0.25 },
         "Bell": { "Width": 8, "Opacity": 0.25 },
         "Gaussian": { "Blur": 28, "Spread": 0, "Opacity": 0.5 },
+        "RoundGaussian": { "Blur": 28, "Spread": 0, "Opacity": 0.5 },
+        "BSpline": { "Blur": 28, "Spread": 0, "Opacity": 0.5 },
+        "Layered": { "Layers": 3, "Blur": 56, "Opacity": 0.2 },
+        "LinearLight": { "Blur": 28, "Spread": 0, "Opacity": 0.5 },
         "Interface": { "Theme": "Light", "Size": [2560, 1440] }
       }
     }
