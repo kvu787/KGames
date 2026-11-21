@@ -70,9 +70,10 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - For 3D models, only use SimplePaint or unlit shader.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `Ctrl+Shift+Alt+F12` quits the program at once without asking
-  - Closing the window from its taskbar button does the same.
-  - This is owned by `Library/user-interface` and never reaches a program.
+- These shortcuts are owned by `Library/user-interface` and never reach a program:
+  - `Ctrl + Shift + Alt + F12`: Quits the program at once without asking
+    - Closing the window from its taskbar button does the same.
+  - `Ctrl + Shift + Alt + F11`: Toggles between GameInput cursor and Windows hardware cursor.
 
 ## Supported window setup
 
