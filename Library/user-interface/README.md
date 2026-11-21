@@ -349,15 +349,19 @@ before, but reports gamepads' whole state, their held buttons too.
 - `F10` switches vertical sync on or off, whatever `VerticalSync`, `--vsync` or `--no-vsync`
   started it as, and the [PerfBar](#perfbar) says which. A program's own command for it calls
   `ui.toggle_vertical_sync()`, and `ui.vertical_sync()` says whether it's on.
-- `F12` quits at once, without asking the program, and so does the taskbar's Close, which sends
-  `WM_CLOSE`, whether the window is minimized, shows the error page, or neither. A program closes
-  itself with `Context::close`, and the steps of its frame after the one that closes don't happen.
-  In a scripted run, that frame is still drawn, and its `Capture` and `Expect` steps happen, and
-  a script with steps in later frames, which never run, fails.
-- `F12` is the platform's, under the interface: the reader takes it from GameInput's keys, and no
-  program gets it, as a press or a release. The interface stops the program if a frame's events
-  have it, whoever made the events, and a script that presses it says so before it runs. `F1` is a
-  key like any other.
+- `Ctrl+Shift+Alt+F12` quits at once, without asking the program, and so does the taskbar's Close,
+  which sends `WM_CLOSE`, whether the window is minimized, shows the error page, or neither. The
+  frame's input before it happens, and nothing after it does. A program closes itself with
+  `Context::close`, and the steps of its frame after the one that closes don't happen. In a
+  scripted run, that frame is still drawn, and its `Capture` and `Expect` steps happen, and a
+  script with steps in later frames, which never run, fails.
+- `Ctrl+Shift+Alt+F12` is the platform's, under the interface: it's F12's press while Ctrl, Shift
+  and Alt are held, as the interface has them, in any order before it, and the reader takes it
+  from GameInput's keys, so no program gets that press. The presses of the modifiers before it
+  reach the program, as any keys do. The interface stops the program if a frame's events press
+  it, whoever made the events, and a script that presses it, whichever steps hold the modifiers,
+  says so before it runs. `F12` alone, with fewer of the modifiers, or pressed before them, is a
+  key like any other, and so is `F1`.
 - `Alt+F4` is only two keys. Windows' own window shortcuts do nothing in the window, which
   swallows the system keys' messages, so Alt and F10 don't open the menu's keyboard mode,
   Alt+Space doesn't open the window's menu, and Windows doesn't close the window on Alt+F4. The

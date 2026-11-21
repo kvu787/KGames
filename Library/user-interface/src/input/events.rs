@@ -62,6 +62,34 @@ pub enum Event {
     Gamepad(Gamepad),
 }
 
+impl Event {
+    // The shortcut that the event presses, with the modifiers held before it,
+    // if it's a key's press: a press of S with Ctrl held is Ctrl+S.
+    pub(crate) fn shortcut(&self, held: Modifiers) -> Option<Shortcut> {
+        match self {
+            Event::KeyPressed(key) => Some(Shortcut::new(held, *key)),
+            _ => None,
+        }
+    }
+
+    // Shift, Ctrl and Alt as the event leaves them, from those held before it.
+    pub(crate) fn modifiers_after(&self, held: Modifiers) -> Modifiers {
+        let (key, down) = match self {
+            Event::KeyPressed(key) => (*key, true),
+            Event::KeyReleased(key) => (*key, false),
+            _ => return held,
+        };
+        let mut after = held;
+        match key {
+            Key::CONTROL => after.control = down,
+            Key::SHIFT => after.shift = down,
+            Key::ALT => after.alt = down,
+            _ => {}
+        }
+        after
+    }
+}
+
 // How close in time and place a press must be to the last one to make a
 // double-click: Windows' defaults.
 pub const DOUBLE_CLICK_TIME: f64 = 0.5;

@@ -33,7 +33,7 @@ use json::Value;
 
 use crate::core::interface::Interface;
 use crate::drawing::geometry::Point;
-use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton, Shortcut};
+use crate::input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, Shortcut};
 use crate::input::events::Event;
 use crate::testing::gestures::{self, Frames, Made};
 
@@ -135,9 +135,12 @@ impl Script {
                 return Err(format!("has step {index} with the action {name}, which isn't one of {}", ACTIONS.join(", ")));
             }
             let action = action(name, value).map_err(|error| format!("has step {index}, at frame {frame}, whose {name} {error}"))?;
-            steps.push(Step { frame, name: name.clone(), action });
+            steps.push((index, Step { frame, name: name.clone(), action }));
         }
-        steps.sort_by_key(|step| step.frame);
+        // The steps run by frame, and in the script's order within a frame.
+        steps.sort_by_key(|(_, step)| step.frame);
+        no_quit(&steps)?;
+        let steps = steps.into_iter().map(|(_, step)| step).collect();
         Ok(Script { frame_time, steps })
     }
 
@@ -178,7 +181,6 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                 return Err("needs a key's name, like \"F2\" or \"Ctrl+S\"".to_string());
             };
             let shortcut = Shortcut::parse(name).ok_or_else(|| format!("names no key: {name}"))?;
-            without_f12(&[shortcut.key])?;
             Action::Key(Shortcut::new(shortcut.modifiers, shortcut.key.merged()))
         }
         "Hold" => {
@@ -196,7 +198,6 @@ fn action(name: &str, value: &Value) -> Result<Action, String> {
                     held.push(key);
                 }
             }
-            without_f12(&held)?;
             Action::Hold(held)
         }
         "Type" => match value {
@@ -267,17 +268,11 @@ impl ScriptRunner {
                 Action::DoubleClick(place) => gestures::double_click(at(&place)?),
                 Action::Drag { from, to, frames, button } => gestures::drag(at(&from)?, at(&to)?, frames, button),
                 Action::Scroll(place, notches) => gestures::scroll(at(&place)?, notches),
-                Action::Key(shortcut) => gestures::key(shortcut.modifiers, shortcut.key, &self.held),
-                Action::Hold(keys) => {
-                    let released = self.held.iter().filter(|key| !keys.contains(key)).map(|key| Event::KeyReleased(*key));
-                    let pressed = keys.iter().filter(|key| !self.held.contains(key)).map(|key| Event::KeyPressed(*key));
-                    let events: Vec<Event> = released.chain(pressed).collect();
-                    self.held = keys;
-                    vec![gestures::made(&events)]
-                }
-                Action::Type(text) => {
-                    let typed = gestures::type_text(&text, self.held.contains(&Key::SHIFT))?;
-                    vec![gestures::made(&typed)]
+                Action::Key(_) | Action::Type(_) => keys_gesture(&step.action, &self.held)?,
+                Action::Hold(ref keys) => {
+                    let gesture = keys_gesture(&step.action, &self.held)?;
+                    self.held = keys.clone();
+                    gesture
                 }
                 Action::Gamepad(gamepad) => {
                     self.gamepad = gamepad;
@@ -383,11 +378,55 @@ fn point(place: &Place, ui: &Interface) -> Result<Point, String> {
     }
 }
 
-// F12 is the platform's, which quits, and never reaches the interface, so a
-// script can't press it.
-fn without_f12(keys: &[Key]) -> Result<(), String> {
-    if keys.contains(&Key::F12) {
-        return Err("presses F12, but F12 is the platform's, which a script can't press".to_string());
+// The keys that a Key, Hold or Type step presses and lets go of, in each
+// frame from its own, with the keys that Hold steps held before it. Nothing
+// for other steps.
+fn keys_gesture(action: &Action, held: &[Key]) -> Result<Frames, String> {
+    Ok(match action {
+        Action::Key(shortcut) => gestures::key(shortcut.modifiers, shortcut.key, held),
+        // Hold's keys stay held, for the steps after it.
+        Action::Hold(keys) => {
+            let released = held.iter().filter(|key| !keys.contains(key)).map(|key| Event::KeyReleased(*key));
+            let pressed = keys.iter().filter(|key| !held.contains(key)).map(|key| Event::KeyPressed(*key));
+            let events: Vec<Event> = released.chain(pressed).collect();
+            vec![gestures::made(&events)]
+        }
+        Action::Type(text) => vec![gestures::made(&gestures::type_text(text, held.contains(&Key::SHIFT))?)],
+        _ => Vec::new(),
+    })
+}
+
+// Ctrl+Shift+Alt+F12 is the platform's, which quits, and never reaches the
+// interface, so a script can't press it: F12's press while Ctrl, Shift and
+// Alt are held, whichever steps hold them. This plays the steps' keys frame
+// by frame, as the runner makes them: in a frame, those that earlier frames'
+// steps put off to it, like a key's release, and then its own steps'. F12 is
+// otherwise a key like any other. `steps` are in the order they run, each
+// with its index in the script.
+fn no_quit(steps: &[(usize, Step)]) -> Result<(), String> {
+    // Each frame's key events, with the step that made each: its index, and
+    // its action's name.
+    let mut frames: BTreeMap<u64, Vec<(Event, usize, &str)>> = BTreeMap::new();
+    let mut held: Vec<Key> = Vec::new();
+    for (index, step) in steps {
+        for (later, made) in keys_gesture(&step.action, &held)?.into_iter().enumerate() {
+            let events = made.into_iter().filter_map(|made| if let Made::Event(event) = made { Some((event, *index, step.name.as_str())) } else { None });
+            frames.entry(step.frame + later as u64).or_default().extend(events);
+        }
+        if let Action::Hold(keys) = &step.action {
+            held = keys.clone();
+        }
+    }
+    let mut modifiers = Modifiers::NONE;
+    for (frame, events) in frames {
+        for (event, index, name) in events {
+            if event.shortcut(modifiers) == Some(Shortcut::QUIT) {
+                return Err(format!(
+                    "has step {index}, whose {name} presses Ctrl+Shift+Alt+F12 at frame {frame}, but Ctrl+Shift+Alt+F12 is the platform's, which quits, and which a script can't press"
+                ));
+            }
+            modifiers = event.modifiers_after(modifiers);
+        }
     }
     Ok(())
 }

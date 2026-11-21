@@ -228,6 +228,10 @@ pub struct Shortcut {
 }
 
 impl Shortcut {
+    // The platform's, which quits (see input/reader.rs): F12's press while
+    // Ctrl, Shift and Alt are held. It never reaches the interface.
+    pub const QUIT: Shortcut = Shortcut::new(Modifiers::new(true, true, true), Key::F12);
+
     pub const fn new(modifiers: Modifiers, key: Key) -> Self {
         Self { modifiers, key }
     }

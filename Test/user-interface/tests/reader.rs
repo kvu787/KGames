@@ -1,9 +1,9 @@
 // Tests how GameInput's readings become the interface's events: keys, the
 // mouse's buttons, wheel and motion, which moves the pointer, the gamepad,
 // what the window's focus does to them, which the interface never hears of,
-// F12, and the time of a frame's newest input, which its input latency
-// starts at. The readings, the window's size and the focus changes
-// are made up, with times on the performance counter.
+// Ctrl+Shift+Alt+F12, and the time of a frame's newest input, which its
+// input latency starts at. The readings, the window's size and the focus
+// changes are made up, with times on the performance counter.
 
 use user_interface::game_input_raw::*;
 use user_interface::input::reader::{Connections, InputReader, WindowState, connections};
@@ -17,6 +17,7 @@ const A: (u8, u32) = (0x41, 0x1E);
 const LEFT_SHIFT: (u8, u32) = (0xA0, 0x2A);
 const RIGHT_SHIFT: (u8, u32) = (0xA1, 0x36);
 const LEFT_CONTROL: (u8, u32) = (0xA2, 0x1D);
+const LEFT_ALT: (u8, u32) = (0xA4, 0x38);
 const BACKSPACE: (u8, u32) = (0x08, 0x0E);
 const F1: (u8, u32) = (0x70, 0x3B);
 const F12: (u8, u32) = (0x7B, 0x58);
@@ -446,27 +447,73 @@ fn the_click_that_gives_the_window_focus_does_only_that() {
     assert_eq!(mouse_events(&frame.events), [Event::ButtonPressed(MouseButton::Left)]);
 }
 
-// F12 is the platform's: the reader gives neither its press nor its release,
-// and it quits. F1 is a key like any other.
+// Ctrl+Shift+Alt+F12 is the platform's: the reader doesn't give F12's press
+// with the three held, and it quits, on the frame of the press. The
+// modifiers' presses before it reach the interface.
 #[test]
-fn f12_is_the_platform_s_and_f1_is_a_key() {
+fn ctrl_shift_alt_f12_is_the_platform_s() {
     let mut reader = focused();
-    let frame = reader.read(&[keyboard(10, &[F1]), keyboard(20, &[])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::F1), Event::KeyReleased(Key::F1)]);
-    assert!(!frame.quit);
-    let frame = reader.read(&[keyboard(30, &[A]), keyboard(40, &[F12])], &[], &window(None));
-    assert_eq!(keys(&frame.events), vec![Event::KeyPressed(Key::A), Event::KeyReleased(Key::A)]);
+    let frame = reader.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]), keyboard(20, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F12])], &[], &window(None));
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT)]);
     assert!(frame.quit);
-    let frame = reader.read(&[keyboard(50, &[])], &[], &window(None));
-    assert_eq!(keys(&frame.events), Vec::new());
+}
+
+// The modifiers and F12 in one reading are the shortcut too, as the
+// modifiers go down before the keys that change with them.
+#[test]
+fn ctrl_shift_alt_f12_in_one_reading_quits() {
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F12])], &[], &window(None));
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT)]);
+    assert!(frame.quit);
+}
+
+// F12 alone, with fewer of the modifiers, or pressed before them, is a key
+// like any other, which quits nothing, and so is F1.
+#[test]
+fn f12_otherwise_is_a_key() {
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(10, &[F12]), keyboard(20, &[]), keyboard(30, &[F1]), keyboard(40, &[])], &[], &window(None));
+    assert_eq!(
+        keys(&frame.events),
+        [Event::KeyPressed(Key::F12), Event::KeyReleased(Key::F12), Event::KeyPressed(Key::F1), Event::KeyReleased(Key::F1)]
+    );
+    assert!(!frame.quit);
+
+    let frame = reader.read(&[keyboard(50, &[LEFT_CONTROL, LEFT_ALT]), keyboard(60, &[LEFT_CONTROL, LEFT_ALT, F12]), keyboard(70, &[])], &[], &window(None));
+    assert_eq!(
+        keys(&frame.events),
+        [
+            Event::KeyPressed(Key::CONTROL),
+            Event::KeyPressed(Key::ALT),
+            Event::KeyPressed(Key::F12),
+            Event::KeyReleased(Key::F12),
+            Event::KeyReleased(Key::CONTROL),
+            Event::KeyReleased(Key::ALT),
+        ]
+    );
+    assert!(!frame.quit);
+
+    let frame = reader.read(&[keyboard(80, &[F12]), keyboard(90, &[F12, LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT])], &[], &window(None));
+    assert_eq!(
+        keys(&frame.events),
+        [Event::KeyPressed(Key::F12), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT)]
+    );
     assert!(!frame.quit);
 }
 
-// Without focus, F12 does nothing: its press isn't input.
+// Without focus, Ctrl+Shift+Alt+F12 does nothing: its press isn't input.
+// Modifiers held from before the window got focus count only once they're
+// let go of, so F12 pressed with them is only F12.
 #[test]
-fn f12_without_focus_does_nothing() {
-    let mut reader = reader();
-    let frame = reader.read(&[keyboard(10, &[F12])], &[], &window(None));
+fn ctrl_shift_alt_f12_without_focus_does_nothing() {
+    let mut unfocused = reader();
+    let frame = unfocused.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F12])], &[], &window(None));
+    assert!(!frame.quit);
+
+    let mut focusing = reader();
+    let frame = focusing.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]), keyboard(30, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F12])], &[], &window(Some((20, true))));
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::F12)]);
     assert!(!frame.quit);
 }
 
@@ -579,19 +626,27 @@ fn a_frame_that_loses_focus_keeps_what_came_before_in_order() {
     );
 }
 
-// F12 quits once the frame's input before it has happened: a Ctrl+S just
-// before it saves. Nothing after it happens.
+// Ctrl+Shift+Alt+F12 quits once the frame's input before it has happened: a
+// Ctrl+S just before it saves. Nothing after it happens.
 #[test]
-fn f12_quits_after_what_came_before_it_and_nothing_after_it() {
-    const LEFT_CONTROL_S: (u8, u32) = (0x53, 0x1F);
+fn ctrl_shift_alt_f12_quits_after_what_came_before_it_and_nothing_after_it() {
+    const S: (u8, u32) = (0x53, 0x1F);
     let mut reader = focused();
     let frame = reader.read(
-        &[keyboard(10, &[LEFT_CONTROL]), keyboard(20, &[LEFT_CONTROL, LEFT_CONTROL_S]), keyboard(30, &[LEFT_CONTROL, LEFT_CONTROL_S, F12]), keyboard(40, &[A])],
+        &[
+            keyboard(10, &[LEFT_CONTROL]),
+            keyboard(20, &[LEFT_CONTROL, S]),
+            keyboard(30, &[LEFT_CONTROL, S, LEFT_SHIFT, LEFT_ALT, F12]),
+            keyboard(40, &[A]),
+        ],
         &[],
         &window(None),
     );
     assert!(frame.quit);
-    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S)]);
+    assert_eq!(
+        keys(&frame.events),
+        [Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::S), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::ALT)]
+    );
 }
 
 // The input latency starts at input that reaches the interface: not at the

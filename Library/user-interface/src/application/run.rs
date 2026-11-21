@@ -21,9 +21,9 @@
 // one can. F10 switches it on and off. Without it, frames present as soon as
 // they're drawn, and may tear, and the loop spins, for the lowest latency.
 //
-// F12 quits at once, and so does the taskbar's Close, which sends WM_CLOSE,
-// without asking the program, whether the window is minimized, shows the
-// error page, or neither.
+// Ctrl+Shift+Alt+F12 quits at once, and so does the taskbar's Close, which
+// sends WM_CLOSE, without asking the program, whether the window is
+// minimized, shows the error page, or neither.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -215,9 +215,10 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
                 Request::Close => closed = true,
             }
         }
-        // F12 quits, once the frame has had the input that came before it,
-        // and so does a program that closes itself, except in a scripted
-        // run, whose frame that closes is drawn and checked first.
+        // Ctrl+Shift+Alt+F12 quits, once the frame has had the input that
+        // came before it, and so does a program that closes itself, except
+        // in a scripted run, whose frame that closes is drawn and checked
+        // first.
         if input.quit || (closed && input.script.is_none()) {
             return finish(&mut gpu, source);
         }
@@ -322,7 +323,7 @@ enum Source {
 // rest of what it read.
 struct Input {
     frame: FrameInput,
-    // Whether F12 was pressed, which quits.
+    // Whether Ctrl+Shift+Alt+F12 was pressed, which quits.
     quit: bool,
     // When GameInput got the newest reading that the frame took, for the
     // input latency.

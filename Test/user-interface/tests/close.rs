@@ -1,8 +1,9 @@
-// Tests closing. F12 and the taskbar's Close quit at once, under the
-// interface, without asking the program (see application/run.rs): F12 never
-// reaches the interface. Alt+F4 is only two keys, and F1 one. A program can
-// close itself with Context::close, and the steps of its frame after the one
-// that closes don't happen.
+// Tests closing. Ctrl+Shift+Alt+F12 and the taskbar's Close quit at once,
+// under the interface, without asking the program (see application/run.rs):
+// Ctrl+Shift+Alt+F12 never reaches the interface. F12 alone, or with fewer of
+// the modifiers, is only a key, and so is F1, and Alt+F4 is only two keys. A
+// program can close itself with Context::close, and the steps of its frame
+// after the one that closes don't happen.
 
 use user_interface::{Button, Context, Event, Headless, Key, Program, Rect, Tree, Ui};
 
@@ -95,31 +96,75 @@ fn f1_is_only_a_key() {
     assert_eq!(app.program.keys, [Key::F1]);
 }
 
-// F12 is the platform's: whoever made a frame's events, it never reaches the
-// interface, as a press or a release.
+// F12 alone, with fewer of the modifiers, or pressed before them, is a key,
+// which the program gets like any other, and which closes nothing. Its
+// release with the three held is only a release.
 #[test]
-#[should_panic(expected = "F12 is the platform's")]
-fn f12_never_reaches_the_interface_as_a_press() {
-    Headless::new(Closing::default()).send(&[Event::KeyPressed(Key::F12)]);
+fn f12_otherwise_is_only_a_key() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::F12), Event::KeyReleased(Key::F12)]);
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT), Event::KeyPressed(Key::F12), Event::KeyReleased(Key::F12)]);
+    app.send(&[Event::KeyPressed(Key::F12), Event::KeyPressed(Key::SHIFT), Event::KeyReleased(Key::F12)]);
+    assert!(!app.closed());
+    assert_eq!(app.program.keys, [Key::F12, Key::CONTROL, Key::ALT, Key::F12, Key::F12, Key::SHIFT]);
+}
+
+// Ctrl+Shift+Alt+F12 is the platform's: whoever made a frame's events, F12's
+// press while Ctrl, Shift and Alt are held never reaches the interface, in
+// the frame that holds them or a later one.
+#[test]
+#[should_panic(expected = "Ctrl+Shift+Alt+F12 is the platform's")]
+fn ctrl_shift_alt_f12_never_reaches_the_interface() {
+    Headless::new(Closing::default()).send(&[
+        Event::KeyPressed(Key::CONTROL),
+        Event::KeyPressed(Key::SHIFT),
+        Event::KeyPressed(Key::ALT),
+        Event::KeyPressed(Key::F12),
+    ]);
 }
 
 #[test]
-#[should_panic(expected = "F12 is the platform's")]
-fn f12_never_reaches_the_interface_as_a_release() {
-    Headless::new(Closing::default()).send(&[Event::KeyReleased(Key::F12)]);
+#[should_panic(expected = "Ctrl+Shift+Alt+F12 is the platform's")]
+fn ctrl_shift_alt_f12_never_reaches_the_interface_with_the_modifiers_held_before() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::ALT)]);
+    app.send(&[Event::KeyPressed(Key::F12)]);
 }
 
-// A script can't press it either: one that does says so before it runs. It
-// can press F1.
+// A script can't press it either, whichever steps hold the modifiers: one
+// that does says so before it runs, with the step that presses it. It can
+// press F12 otherwise, and F1.
 #[test]
-fn a_script_can_t_press_f12() {
-    for step in [r#"{ "Frame": 1, "Key": "F12" }"#, r#"{ "Frame": 1, "Key": "Ctrl+F12" }"#, r#"{ "Frame": 1, "Hold": ["W", "F12"] }"#] {
-        let script = format!(r#"{{ "Steps": [ {step} ] }}"#);
+fn a_script_can_t_press_ctrl_shift_alt_f12() {
+    let quits = [
+        r#"{ "Frame": 1, "Key": "Ctrl+Shift+Alt+F12" }"#,
+        r#"{ "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt", "F12"] }"#,
+        r#"{ "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt"] }, { "Frame": 2, "Key": "F12" }"#,
+        r#"{ "Frame": 1, "Hold": ["Shift"] }, { "Frame": 1, "Key": "Ctrl+Alt+F12" }"#,
+        r#"{ "Frame": 1, "Key": "Ctrl+Shift+Alt+A" }, { "Frame": 1, "Key": "F12" }"#,
+    ];
+    for steps in quits {
+        let script = format!(r#"{{ "Steps": [ {steps} ] }}"#);
         let error = user_interface::Script::parse(&script).unwrap_err();
-        assert!(error.contains("F12 is the platform's"), "{error}");
+        assert!(error.contains("Ctrl+Shift+Alt+F12 is the platform's"), "{error}");
     }
-    for step in [r#"{ "Frame": 1, "Key": "F1" }"#, r#"{ "Frame": 1, "Hold": ["W", "F1"] }"#] {
-        let script = format!(r#"{{ "Steps": [ {step} ] }}"#);
-        assert!(user_interface::Script::parse(&script).is_ok(), "{step}");
+    // The steps run by frame, whatever the script's order, and the error
+    // names the step by its place in the script.
+    let script = r#"{ "Steps": [ { "Frame": 2, "Key": "F12" }, { "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt"] } ] }"#;
+    let error = user_interface::Script::parse(script).unwrap_err();
+    assert!(error.starts_with("has step 0, whose Key presses Ctrl+Shift+Alt+F12 at frame 2"), "{error}");
+
+    let allowed = [
+        r#"{ "Frame": 1, "Key": "F12" }"#,
+        r#"{ "Frame": 1, "Key": "Ctrl+Shift+F12" }"#,
+        r#"{ "Frame": 1, "Hold": ["W", "F12"] }"#,
+        r#"{ "Frame": 1, "Hold": ["F12", "Ctrl", "Shift", "Alt"] }"#,
+        r#"{ "Frame": 1, "Key": "Ctrl+Shift+Alt+A" }, { "Frame": 2, "Key": "F12" }"#,
+        r#"{ "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt"] }, { "Frame": 2, "Hold": ["Ctrl", "Shift"] }, { "Frame": 2, "Key": "F12" }"#,
+        r#"{ "Frame": 1, "Key": "F1" }"#,
+    ];
+    for steps in allowed {
+        let script = format!(r#"{{ "Steps": [ {steps} ] }}"#);
+        assert!(user_interface::Script::parse(&script).is_ok(), "{steps}");
     }
 }

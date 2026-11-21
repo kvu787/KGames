@@ -34,8 +34,9 @@
 // - A gamepad is known from when it connects, and a device that's unplugged
 //   lets go of what it held after the frame's readings, as GameInput doesn't
 //   say when it went.
-// - F12 is the platform's, and never reaches the interface, as a press or a
-//   release: it quits.
+// - Ctrl+Shift+Alt+F12 is the platform's, and never reaches the interface:
+//   F12's press while the interface has Ctrl, Shift and Alt held quits. F12
+//   alone, or with fewer of them, is a key like any other.
 // - The mice's input reaches the interface only while the window keeps
 //   Windows' cursor, hidden (see platform/cursor.rs): not while it doesn't,
 //   when Windows' arrow moves and the pointer would move apart from it, like
@@ -71,7 +72,7 @@ use game_input_raw::*;
 use windows_api_raw::*;
 
 use crate::drawing::geometry::Point;
-use crate::input::devices::{Gamepad, GamepadButtons, Key, MouseButton as Button};
+use crate::input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton as Button, Shortcut};
 use crate::input::events::Event;
 use crate::platform::input_devices::{Device, Devices, Reading};
 use crate::platform::window::{FocusChange, Window};
@@ -84,8 +85,9 @@ pub struct FrameRead {
     // The time of the newest reading that the frame took, as the counter's
     // ticks, if it took any: where its input latency starts.
     pub input_time: Option<i64>,
-    // Whether F12 was pressed, which quits: the frame's events are what
-    // came before it, which happen, and nothing after it does.
+    // Whether Ctrl+Shift+Alt+F12 was pressed, which quits: the frame's
+    // events are what came before it, which happen, and nothing after it
+    // does.
     pub quit: bool,
 }
 
@@ -145,7 +147,7 @@ pub struct InputReader {
     // Where the window placed the pointer as it last started to keep the
     // cursor, since the last frame, if it did: see WindowState.
     placed: Option<Point>,
-    // Whether F12 was pressed in the frame.
+    // Whether Ctrl+Shift+Alt+F12 was pressed in the frame.
     quit: bool,
 }
 
@@ -296,7 +298,7 @@ impl InputReader {
         }
         // The window's focus changes go before the first reading that's
         // later, and the readings keep the stream's order, whatever their
-        // times. F12 quits, so nothing after it happens.
+        // times. Ctrl+Shift+Alt+F12 quits, so nothing after it happens.
         let mut changes = window.focus_changes.clone();
         changes.sort_by_key(|change| change.time);
         // In a frame that gets focus, each gamepad's first reading is
@@ -557,16 +559,25 @@ impl InputReader {
             if !self.keys_down[code] && held {
                 self.keys_down[code] = true;
                 if self.focused {
-                    match Key(code as u8) {
-                        Key::F12 => self.quit = true,
-                        key => {
-                            events.push(Event::KeyPressed(key));
-                            self.keys_sent[code] = true;
-                        }
+                    let key = Key(code as u8);
+                    if Shortcut::new(self.modifiers_sent(), key) == Shortcut::QUIT {
+                        self.quit = true;
+                    } else {
+                        events.push(Event::KeyPressed(key));
+                        self.keys_sent[code] = true;
                     }
                 }
             }
         }
+    }
+
+    // Shift, Ctrl and Alt as the interface has them held: those whose
+    // presses it got, and whose releases it hasn't, so that a shortcut is
+    // the same here as in the interface. A modifier held as the window got
+    // focus counts only once it's let go of and pressed again.
+    fn modifiers_sent(&self) -> Modifiers {
+        let sent = |key: Key| self.keys_sent[key.0 as usize];
+        Modifiers::new(sent(Key::CONTROL), sent(Key::SHIFT), sent(Key::ALT))
     }
 
     fn mouse(&mut self, reading: &Reading, events: &mut Vec<Event>) {

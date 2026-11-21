@@ -302,7 +302,7 @@ impl Interface {
     // PerfBar measures, which takes what's known about the frames presented
     // so far, so that it goes on measuring whatever the window shows.
     fn begin_frame(&mut self, input: &FrameInput, size: Size) -> f64 {
-        no_f12(&input.events);
+        no_quit(self.input.modifiers(), &input.events);
         let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
@@ -1269,15 +1269,18 @@ impl Interface {
     }
 }
 
-// F12 is the platform's, which quits, and never reaches the interface, as a
-// press or a release, whoever made the frame's events: the reader drops it,
-// and scripts can't press it.
-fn no_f12(events: &[Event]) {
+// Ctrl+Shift+Alt+F12 is the platform's, which quits, and never reaches the
+// interface, whoever made the frame's events: the reader drops F12's press
+// while Ctrl, Shift and Alt are held, and scripts can't press it. `held` are
+// the modifiers held as the frame starts. F12 is otherwise a key like any
+// other.
+fn no_quit(mut held: Modifiers, events: &[Event]) {
     for event in events {
         assert!(
-            !matches!(event, Event::KeyPressed(Key::F12) | Event::KeyReleased(Key::F12)),
-            "F12 is the platform's, and never reaches the interface, but the frame's events had {event:?}"
+            event.shortcut(held) != Some(Shortcut::QUIT),
+            "Ctrl+Shift+Alt+F12 is the platform's, and never reaches the interface, but the frame's events pressed it"
         );
+        held = event.modifiers_after(held);
     }
 }
 
