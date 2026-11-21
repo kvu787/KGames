@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-const WAYS: [&str; 5] = ["Linear", "Curved", "Gaussian", "Offset", "Long"];
+const WAYS: [&str; 3] = ["Linear", "Curved", "Gaussian"];
 
 fn main() {
     for way in WAYS {

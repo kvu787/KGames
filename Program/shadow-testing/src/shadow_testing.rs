@@ -44,8 +44,8 @@ pub struct ShadowTesting {
     // their shadows in. The view notes them, as the one place that lays out
     // the page.
     pub tiles: Cell<Option<[Tile; KINDS.len()]>>,
-    // Made by prepare: each way's that the program draws, in KINDS' order.
-    pipelines: Vec<Option<ShadowPipeline>>,
+    // Made by prepare: each way's, in KINDS' order.
+    pipelines: Vec<ShadowPipeline>,
 }
 
 impl Default for ShadowTesting {
@@ -98,21 +98,20 @@ impl Program for ShadowTesting {
     fn prepare(&mut self, gpu: &mut Gpu) -> Result<()> {
         self.pipelines = KINDS
             .iter()
-            .map(|kind| kind.shaders().map(|(vertex, pixel)| ShadowPipeline::new(gpu, vertex, pixel)).transpose())
+            .map(|kind| {
+                let (vertex, pixel) = kind.shaders();
+                ShadowPipeline::new(gpu, vertex, pixel)
+            })
             .collect::<Result<_>>()?;
         Ok(())
     }
 
-    // Draws the box and its shadow of each way that the program draws. The
-    // interface draws Fluent's, in its stage's Canvas.
+    // Draws each way's box and its shadow on its stage.
     fn render(&mut self, _gpu: &mut Gpu, frame: &Frame) -> Result<()> {
         let Some(tiles) = self.tiles.get() else {
             return Ok(());
         };
         for ((approach, pipeline), tile) in self.approaches.iter().zip(&self.pipelines).zip(tiles) {
-            let Some(pipeline) = pipeline else {
-                continue;
-            };
             let kind = approach.kind;
             let area = kind.area(&approach.values, tile.boxed);
             pipeline.draw(frame, tile.stage, area, tile.boxed, BOX_COLOR, kind.params(&approach.values));

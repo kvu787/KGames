@@ -1,9 +1,10 @@
-// Tests ShadowTesting without a window, for every way of drawing a shadow:
-// what each slider does, on the frame of the press, in the tiles' real
-// layout, that the tiles are alike and every card fits in its tile, and,
-// drawn offscreen with the GPU, that every pixel around each box is what the
-// way's formula says, in both themes, and that each way's shadow fades out
-// before the edge of its stage at its strongest settings.
+// Tests ShadowTesting without a window, for every way of drawing an
+// omnidirectional shadow: what each slider does, on the frame of the press,
+// in the tiles' real layout, that the tiles are alike and every card fits in
+// its tile, that every way's shadow is the same on every side, and, drawn
+// offscreen with the GPU, that every pixel around each box is what the way's
+// formula says, in both themes, mirrored across the box, and that each way's
+// shadow fades out before the edge of its stage at its strongest settings.
 
 use shadow_testing::approaches::{Approach, KINDS, Kind, box_distance, coverage};
 use shadow_testing::shadow_testing::{BOX_COLOR, BOX_SIZE, Message, ShadowTesting};
@@ -29,6 +30,10 @@ fn close(a: [u8; 4], b: [u8; 4]) -> bool {
     a.iter().zip(b).take(3).all(|(a, b)| (*a as i32 - b as i32).abs() <= 2)
 }
 
+fn near(a: f32, b: f32) -> bool {
+    (a - b).abs() < 1e-5
+}
+
 fn slider(kind: Kind, setting: &str) -> String {
     format!("{}/{setting}", kind.name())
 }
@@ -40,18 +45,13 @@ fn on_rail(app: &Headless<ShadowTesting>, name: &str, fraction: f32) -> Point {
     Point::new(left + (right - left) * fraction, rect.center().y)
 }
 
-// Settings for checking pixels, unlike the defaults, with a shadow whose
-// end doesn't fade to nothing.
+// Settings for checking pixels, unlike the defaults, with a linear shadow
+// whose end doesn't fade to nothing.
 fn test_values(kind: Kind) -> Vec<f32> {
     match kind {
         Kind::Linear => vec![40.0, 0.6, 0.2],
         Kind::Curved => vec![40.0, 0.6, 1.7],
-        Kind::Gaussian => vec![20.0, 6.0, 10.0, 4.0, 0.5],
-        Kind::Offset => vec![10.0, -7.0, 0.4],
-        // An angle whose edges never pass through a sample exactly, so that
-        // the GPU's rounding can't put a sample on the other side of one.
-        Kind::Long => vec![70.0, 30.0, 0.6, 0.2],
-        Kind::Fluent => vec![64.0],
+        Kind::Gaussian => vec![20.0, 4.0, 0.5],
     }
 }
 
@@ -146,6 +146,35 @@ fn ctrl_r_resets_every_way_on_its_frame() {
     }
 }
 
+// Every way's shadow is the same on every side: as far out from the middle
+// of any of the box's four sides, it's as dark. Linear's and Curved's go by
+// the distance from the box alone, so they're as dark diagonally out from a
+// corner too.
+#[test]
+fn every_way_s_shadow_is_the_same_on_every_side() {
+    let rect = Rect::new(0.0, 0.0, 200.0, 120.0);
+    let center = rect.center();
+    for kind in KINDS {
+        let values = test_values(kind);
+        for distance in [0.5, 3.0, 12.5, 25.0, 39.5, 60.0] {
+            let right = kind.opacity(&values, rect, rect.right() + distance, center.y);
+            let sides = [
+                kind.opacity(&values, rect, rect.left() - distance, center.y),
+                kind.opacity(&values, rect, center.x, rect.top() - distance),
+                kind.opacity(&values, rect, center.x, rect.bottom() + distance),
+            ];
+            for side in sides {
+                assert!(near(side, right), "{} at {distance}: {side} on one side and {right} on the right", kind.name());
+            }
+            if kind != Kind::Gaussian {
+                let diagonal = distance / std::f32::consts::SQRT_2;
+                let corner = kind.opacity(&values, rect, rect.right() + diagonal, rect.bottom() + diagonal);
+                assert!(near(corner, right), "{} at {distance}: {corner} off the corner and {right} on the right", kind.name());
+            }
+        }
+    }
+}
+
 // The linear shadow's formula itself: the start's opacity half a pixel out
 // from the box, down in a straight line to the end's at the length, and
 // none past it, round around the corners.
@@ -153,24 +182,16 @@ fn ctrl_r_resets_every_way_on_its_frame() {
 fn the_linear_shadow_s_opacity_goes_from_the_start_to_the_end_in_a_straight_line() {
     let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
     let values = [40.0, 0.6, 0.2];
-    let at = |distance: f32| opacity(Kind::Linear, &values, rect, 10.0 + distance, 5.0);
+    let at = |distance: f32| Kind::Linear.opacity(&values, rect, 10.0 + distance, 5.0);
     assert!(near(at(0.5), 0.6 - 0.4 * 0.5 / 40.0));
     assert!(near(at(20.0), 0.4));
     assert!(near(at(39.5), 0.6 - 0.4 * 39.5 / 40.0));
     assert!(near(at(40.5), 0.0));
-    assert!(near(opacity(Kind::Linear, &[0.0, 0.6, 0.2], rect, 10.5, 5.0), 0.0));
+    assert!(near(Kind::Linear.opacity(&[0.0, 0.6, 0.2], rect, 10.5, 5.0), 0.0));
     // As far from a corner diagonally as straight out from a side.
     assert!(near(box_distance(rect, 13.0, 14.0), 5.0));
     assert!(near(box_distance(rect, 5.0, 13.0), 3.0));
     assert!(near(box_distance(rect, 5.0, 5.0), -5.0));
-}
-
-fn near(a: f32, b: f32) -> bool {
-    (a - b).abs() < 1e-5
-}
-
-fn opacity(kind: Kind, values: &[f32], rect: Rect, x: f32, y: f32) -> f32 {
-    kind.opacity(values, rect, x, y).expect("the program draws it")
 }
 
 // The curved shadow at a power of 1 is the linear one fading to nothing, and
@@ -178,14 +199,15 @@ fn opacity(kind: Kind, values: &[f32], rect: Rect, x: f32, y: f32) -> f32 {
 #[test]
 fn the_curved_shadow_at_a_power_of_1_is_linear_and_higher_powers_fade_faster() {
     let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+    let curved = |values: [f32; 3], x: f32| Kind::Curved.opacity(&values, rect, x, 5.0);
     for distance in [0.5, 7.0, 20.0, 39.5, 40.5, 60.0] {
         let x = 10.0 + distance;
-        assert!(near(opacity(Kind::Curved, &[40.0, 0.6, 1.0], rect, x, 5.0), opacity(Kind::Linear, &[40.0, 0.6, 0.0], rect, x, 5.0)), "{distance}");
-        if distance < 40.0 {
-            assert!(opacity(Kind::Curved, &[40.0, 0.6, 2.0], rect, x, 5.0) < opacity(Kind::Curved, &[40.0, 0.6, 1.0], rect, x, 5.0) || distance < 1.0);
+        assert!(near(curved([40.0, 0.6, 1.0], x), Kind::Linear.opacity(&[40.0, 0.6, 0.0], rect, x, 5.0)), "{distance}");
+        if (1.0..40.0).contains(&distance) {
+            assert!(curved([40.0, 0.6, 2.0], x) < curved([40.0, 0.6, 1.0], x), "{distance}");
         }
     }
-    assert!(near(opacity(Kind::Curved, &[40.0, 0.6, 2.0], rect, 30.0, 5.0), 0.6 * 0.25));
+    assert!(near(curved([40.0, 0.6, 2.0], 30.0), 0.6 * 0.25));
 }
 
 // The Gaussian shadow: erf is within its approximation's bound of known
@@ -198,47 +220,20 @@ fn the_gaussian_shadow_is_a_blurred_rectangle() {
         assert!((erf(x) - want).abs() < 1e-6, "erf({x}) is {}, not {want}", erf(x));
     }
     let rect = Rect::new(0.0, 0.0, 400.0, 400.0);
-    // A blur of 8 is a deviation of 4; no offset or spread.
-    let values = [8.0, 0.0, 0.0, 0.0, 0.8];
-    assert!(near(opacity(Kind::Gaussian, &values, rect, 400.0, 200.0), 0.4));
-    assert!(near(opacity(Kind::Gaussian, &values, rect, 400.0, 400.0), 0.2));
-    assert!(near(opacity(Kind::Gaussian, &values, rect, 200.0, 200.0), 0.8));
-    // Moved by the offset and grown by the spread: its edge is 10 + 6 right.
-    let moved = [8.0, 10.0, 0.0, 6.0, 0.8];
-    assert!(near(opacity(Kind::Gaussian, &moved, rect, 416.0, 200.0), 0.4));
+    let gaussian = |values: [f32; 3], rect: Rect, x: f32, y: f32| Kind::Gaussian.opacity(&values, rect, x, y);
+    // A blur of 8 is a deviation of 4, without a spread.
+    let values = [8.0, 0.0, 0.8];
+    assert!(near(gaussian(values, rect, 400.0, 200.0), 0.4));
+    assert!(near(gaussian(values, rect, 400.0, 400.0), 0.2));
+    assert!(near(gaussian(values, rect, 200.0, 200.0), 0.8));
+    // Grown by the spread on every side: its edges are 6 out.
+    let spread = [8.0, 6.0, 0.8];
+    assert!(near(gaussian(spread, rect, 406.0, 200.0), 0.4));
+    assert!(near(gaussian(spread, rect, -6.0, 200.0), 0.4));
+    assert!(near(gaussian(spread, rect, 200.0, -6.0), 0.4));
     // A spread that shrinks it to nothing leaves no shadow.
     let small = Rect::new(0.0, 0.0, 20.0, 20.0);
-    assert_eq!(opacity(Kind::Gaussian, &[8.0, 0.0, 0.0, -10.0, 0.8], small, 10.0, 10.0), 0.0);
-}
-
-// The offset shadow is the box moved, with hard edges.
-#[test]
-fn the_offset_shadow_is_the_box_moved() {
-    let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
-    let values = [5.0, -3.0, 0.4];
-    assert!(near(opacity(Kind::Offset, &values, rect, 14.5, 6.5), 0.4));
-    assert!(near(opacity(Kind::Offset, &values, rect, 15.5, 6.5), 0.0));
-    assert!(near(opacity(Kind::Offset, &values, rect, 14.5, 7.5), 0.0));
-    assert!(near(opacity(Kind::Offset, &values, rect, 5.5, -2.5), 0.4));
-}
-
-// The long shadow goes along its angle, from the start's opacity at the box
-// to the end's at its length, and nowhere else.
-#[test]
-fn the_long_shadow_goes_along_its_angle_from_the_start_to_the_end() {
-    let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
-    // Straight down, 40 long: a point 20 below the box's bottom, whose
-    // samples are 20 below it on average, is halfway.
-    let down = [40.0, 90.0, 0.6, 0.2];
-    assert!(near(opacity(Kind::Long, &down, rect, 5.5, 30.0), 0.4));
-    assert!(near(opacity(Kind::Long, &down, rect, 12.5, 30.0), 0.0));
-    assert!(near(opacity(Kind::Long, &down, rect, 5.5, 51.5), 0.0));
-    assert!(near(opacity(Kind::Long, &down, rect, 5.5, -1.5), 0.0));
-    // At 45 degrees, down and right, a pixel diagonally off the box's
-    // bottom right corner is in it, and one straight right of the box isn't.
-    let diagonal = [40.0, 45.0, 0.6, 0.6];
-    assert!(near(opacity(Kind::Long, &diagonal, rect, 20.5, 20.5), 0.6));
-    assert!(near(opacity(Kind::Long, &diagonal, rect, 30.5, 2.5), 0.0));
+    assert_eq!(gaussian([8.0, -10.0, 0.8], small, 10.0, 10.0), 0.0);
 }
 
 // What a pixel should be: the box's color over what it covers of the
@@ -246,30 +241,35 @@ fn the_long_shadow_goes_along_its_angle_from_the_start_to_the_end() {
 fn expected(kind: Kind, values: &[f32], rect: Rect, background: Color, x: u32, y: u32) -> [u8; 4] {
     let (cx, cy) = (x as f32 + 0.5, y as f32 + 0.5);
     let inside = coverage(box_distance(rect, cx, cy));
-    let shadow = opacity(kind, values, rect, cx, cy) * (1.0 - inside);
+    let shadow = kind.opacity(values, rect, cx, cy) * (1.0 - inside);
     let rest = 1.0 - inside - shadow;
     let mix = |boxed: f32, behind: f32| boxed * inside + behind * rest;
     Color::rgb(mix(BOX_COLOR.r, background.r), mix(BOX_COLOR.g, background.g), mix(BOX_COLOR.b, background.b)).to_bytes()
 }
 
 // Every pixel of the way's stage that its quad reaches, and a little past
-// it, is what its formula says.
+// it, is what its formula says, and the same as the pixel mirrored across
+// the box's middle, left to right and top to bottom.
 fn check_every_pixel(app: &Headless<ShadowTesting>, image: &Image, kind: Kind, theme: ThemeKind) {
     let values = &app.program.approach(kind).values;
     let tile = app.program.tile(kind);
+    let rect = tile.boxed;
     let background = Theme::new(theme).background;
-    let area = kind.area(values, tile.boxed).expand(4.0).intersect(tile.stage);
+    let area = kind.area(values, rect).expand(4.0).intersect(tile.stage);
+    let (mirror_x, mirror_y) = ((rect.left() + rect.right()) as u32 - 1, (rect.top() + rect.bottom()) as u32 - 1);
     for y in area.y as u32..area.bottom() as u32 {
         for x in area.x as u32..area.right() as u32 {
-            let want = expected(kind, values, tile.boxed, background, x, y);
+            let want = expected(kind, values, rect, background, x, y);
             let got = image.pixel(x, y);
             assert!(close(got, want), "{} at {values:?} in the {} theme: ({x}, {y}) is {got:?}, not {want:?}", kind.name(), theme.name());
+            let mirrored = image.pixel(mirror_x - x, mirror_y - y);
+            assert!(close(got, mirrored), "{} at {values:?}: ({x}, {y}) is {got:?}, but mirrored across the box it's {mirrored:?}", kind.name());
         }
     }
 }
 
 // Every pixel around every box, and in it, is what its way's formula says,
-// in both themes, for every way that the program draws.
+// in both themes.
 #[test]
 fn every_pixel_around_every_box_is_what_its_way_s_formula_says() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
@@ -280,63 +280,32 @@ fn every_pixel_around_every_box_is_what_its_way_s_formula_says() {
         }
         let image = app.render(&mut gpu).unwrap();
         save(&image, &format!("ShadowTesting{}", theme.name()));
-        for kind in KINDS.into_iter().filter(|kind| kind.shaders().is_some()) {
+        for kind in KINDS {
             check_every_pixel(&app, &image, kind, theme);
         }
     }
 }
 
-// Fluent's shadow, which the interface draws: the box is blue, the shadow
-// is under it, darker than the background below the box than above it, as
-// its directional shadow falls down, and stronger at a higher Z.
-#[test]
-fn fluent_s_shadow_falls_below_the_box_and_grows_with_z() {
-    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
-    let mut app = program();
-    let tile = app.program.tile(Kind::Fluent);
-    let rect = tile.boxed;
-    let darkness = |image: &Image, x: f32, y: f32| {
-        let [r, g, b, _] = image.pixel(x as u32, y as u32);
-        let background = Theme::new(ThemeKind::Light).background.to_bytes();
-        (background[0] as i32 + background[1] as i32 + background[2] as i32) - (r as i32 + g as i32 + b as i32)
-    };
-    let low = app.render(&mut gpu).unwrap();
-    assert!(close(low.pixel(rect.center().x as u32, rect.center().y as u32), BOX_COLOR.to_bytes()));
-    let below = darkness(&low, rect.center().x, rect.bottom() + 6.0);
-    let above = darkness(&low, rect.center().x, rect.top() - 6.0);
-    assert!(below > above && below > 10, "below {below}, above {above}");
-    assert_eq!(darkness(&low, tile.stage.x + 2.0, tile.stage.y + 2.0), 0);
-    set_all(&mut app, Kind::Fluent, &[128.0]);
-    let high = app.render(&mut gpu).unwrap();
-    assert!(darkness(&high, rect.center().x, rect.bottom() + 40.0) > darkness(&low, rect.center().x, rect.bottom() + 40.0));
-}
-
-// At each way's strongest settings, all at their maximum, and again with
-// any offsets at their minimum, its shadow fades out before the edge of its
-// stage: every pixel along the edge is the background.
+// At each way's strongest settings, all at their maximum, its shadow fades
+// out before the edge of its stage: every pixel along the edge is the
+// background.
 #[test]
 fn every_way_s_strongest_shadow_fades_out_on_its_stage() {
     let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
     let background = Theme::new(ThemeKind::Light).background.to_bytes();
-    for minimum_offsets in [false, true] {
-        let mut app = program();
-        for kind in KINDS {
-            let values: Vec<f32> = kind
-                .settings()
-                .iter()
-                .map(|setting| if minimum_offsets && setting.name.starts_with("Offset") { setting.minimum } else { setting.maximum })
-                .collect();
-            set_all(&mut app, kind, &values);
-        }
-        let image = app.render(&mut gpu).unwrap();
-        save(&image, &format!("ShadowTestingStrongest{}", if minimum_offsets { "Up" } else { "Down" }));
-        for kind in KINDS {
-            let stage = app.program.tile(kind).stage.round();
-            let (left, top, right, bottom) = (stage.x as u32, stage.y as u32, stage.right() as u32 - 1, stage.bottom() as u32 - 1);
-            let edge = (left..=right).flat_map(|x| [(x, top), (x, bottom)]).chain((top..=bottom).flat_map(|y| [(left, y), (right, y)]));
-            for (x, y) in edge {
-                assert!(close(image.pixel(x, y), background), "{}'s shadow reaches ({x}, {y}), on its stage's edge: {:?}", kind.name(), image.pixel(x, y));
-            }
+    let mut app = program();
+    for kind in KINDS {
+        let values: Vec<f32> = kind.settings().iter().map(|setting| setting.maximum).collect();
+        set_all(&mut app, kind, &values);
+    }
+    let image = app.render(&mut gpu).unwrap();
+    save(&image, "ShadowTestingStrongest");
+    for kind in KINDS {
+        let stage = app.program.tile(kind).stage.round();
+        let (left, top, right, bottom) = (stage.x as u32, stage.y as u32, stage.right() as u32 - 1, stage.bottom() as u32 - 1);
+        let edge = (left..=right).flat_map(|x| [(x, top), (x, bottom)]).chain((top..=bottom).flat_map(|y| [(left, y), (right, y)]));
+        for (x, y) in edge {
+            assert!(close(image.pixel(x, y), background), "{}'s shadow reaches ({x}, {y}), on its stage's edge: {:?}", kind.name(), image.pixel(x, y));
         }
     }
 }

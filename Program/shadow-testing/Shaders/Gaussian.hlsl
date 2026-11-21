@@ -1,15 +1,14 @@
-// The Gaussian shadow, like CSS's box-shadow: a copy of the box, grown by
-// the spread and moved by the offset, blurred by a Gaussian. A rectangle with
-// square corners blurs one axis at a time, so its blurred coverage is
+// The Gaussian shadow, like CSS's box-shadow with no offset: a copy of the
+// box, grown by the spread on every side, blurred by a Gaussian. A rectangle
+// with square corners blurs one axis at a time, so its blurred coverage is
 // exactly the product of the error function's differences across it in x and
 // in y.
 
 #include "Common.hlsli"
 
 #define SIGMA params0.x
-#define OFFSET params0.yz
-#define SPREAD params0.w
-#define OPACITY params1.x
+#define SPREAD params0.y
+#define OPACITY params0.z
 
 // Abramowitz and Stegun's 7.1.26, within 1.5e-7 of erf everywhere.
 float erfApproximation(float x) {
@@ -20,7 +19,7 @@ float erfApproximation(float x) {
 }
 
 float shadowOpacity(float2 p) {
-    float4 rect = float4(box.xy + OFFSET - SPREAD, box.zw + OFFSET + SPREAD);
+    float4 rect = float4(box.xy - SPREAD, box.zw + SPREAD);
     if (rect.z <= rect.x || rect.w <= rect.y) {
         return 0;
     }
