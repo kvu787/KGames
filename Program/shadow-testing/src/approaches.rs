@@ -14,7 +14,7 @@
 
 use user_interface::Rect;
 
-use crate::{bell, curved, exponential, gaussian, linear, smoothstep};
+use crate::{b_spline, bell, curved, exponential, gaussian, linear, round_gaussian, smoothstep};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Kind {
@@ -24,11 +24,22 @@ pub enum Kind {
     Exponential,
     Bell,
     Gaussian,
+    RoundGaussian,
+    BSpline,
 }
 
 // Every way, in the order the page shows them: those whose shadow goes by
-// the distance from the box alone, then the blurred box.
-pub const KINDS: [Kind; 6] = [Kind::Linear, Kind::Curved, Kind::Smoothstep, Kind::Exponential, Kind::Bell, Kind::Gaussian];
+// the distance from the box alone, then the Gaussian and its variants.
+pub const KINDS: [Kind; 8] = [
+    Kind::Linear,
+    Kind::Curved,
+    Kind::Smoothstep,
+    Kind::Exponential,
+    Kind::Bell,
+    Kind::Gaussian,
+    Kind::RoundGaussian,
+    Kind::BSpline,
+];
 
 // The faintest opacity that changes a pixel: half of an 8-bit step. A
 // shadow whose tail never ends stops drawing where it's fainter.
@@ -93,7 +104,11 @@ impl Setting {
 impl Kind {
     // Its card's title.
     pub fn title(self) -> &'static str {
-        self.name()
+        match self {
+            Kind::RoundGaussian => "Round Gaussian",
+            Kind::BSpline => "B-spline blur",
+            _ => self.name(),
+        }
     }
 
     // Its name in the state, and before its sliders' names.
@@ -105,6 +120,8 @@ impl Kind {
             Kind::Exponential => "Exponential",
             Kind::Bell => "Bell",
             Kind::Gaussian => "Gaussian",
+            Kind::RoundGaussian => "RoundGaussian",
+            Kind::BSpline => "BSpline",
         }
     }
 
@@ -117,9 +134,13 @@ impl Kind {
             Kind::Exponential => exponential::DESCRIPTION,
             Kind::Bell => bell::DESCRIPTION,
             Kind::Gaussian => gaussian::DESCRIPTION,
+            Kind::RoundGaussian => round_gaussian::DESCRIPTION,
+            Kind::BSpline => b_spline::DESCRIPTION,
         }
     }
 
+    // The Gaussian's variants have its settings, so that they compare at the
+    // same ones.
     pub fn settings(self) -> &'static [Setting] {
         match self {
             Kind::Linear => linear::SETTINGS,
@@ -127,7 +148,7 @@ impl Kind {
             Kind::Smoothstep => smoothstep::SETTINGS,
             Kind::Exponential => exponential::SETTINGS,
             Kind::Bell => bell::SETTINGS,
-            Kind::Gaussian => gaussian::SETTINGS,
+            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::SETTINGS,
         }
     }
 
@@ -140,6 +161,8 @@ impl Kind {
             Kind::Exponential => (exponential::VERTEX_SHADER, exponential::PIXEL_SHADER),
             Kind::Bell => (bell::VERTEX_SHADER, bell::PIXEL_SHADER),
             Kind::Gaussian => (gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER),
+            Kind::RoundGaussian => (round_gaussian::VERTEX_SHADER, round_gaussian::PIXEL_SHADER),
+            Kind::BSpline => (b_spline::VERTEX_SHADER, b_spline::PIXEL_SHADER),
         }
     }
 
@@ -151,7 +174,7 @@ impl Kind {
             Kind::Smoothstep => smoothstep::params(values),
             Kind::Exponential => exponential::params(values),
             Kind::Bell => bell::params(values),
-            Kind::Gaussian => gaussian::params(values),
+            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::params(values),
         }
     }
 
@@ -165,6 +188,8 @@ impl Kind {
             Kind::Exponential => exponential::area(values, rect),
             Kind::Bell => bell::area(values, rect),
             Kind::Gaussian => gaussian::area(values, rect),
+            Kind::RoundGaussian => round_gaussian::area(values, rect),
+            Kind::BSpline => b_spline::area(values, rect),
         }
     }
 
@@ -177,6 +202,8 @@ impl Kind {
             Kind::Exponential => exponential::opacity(values, rect, x, y),
             Kind::Bell => bell::opacity(values, rect, x, y),
             Kind::Gaussian => gaussian::opacity(values, rect, x, y),
+            Kind::RoundGaussian => round_gaussian::opacity(values, rect, x, y),
+            Kind::BSpline => b_spline::opacity(values, rect, x, y),
         }
     }
 }

@@ -2,7 +2,9 @@
 // box, grown by the spread on every side, blurred by a Gaussian whose
 // standard deviation is half the blur, as CSS's is. A rectangle with square
 // corners blurs one axis at a time, so its coverage is a product of the error
-// function's differences in x and in y. Shaders/Gaussian.hlsl.
+// function's differences in x and in y. Shaders/Gaussian.hlsl, with
+// Shaders/Blur.hlsli, which the other Gaussian ways share, as they share
+// this module's settings and functions.
 
 use user_interface::Rect;
 
@@ -20,17 +22,22 @@ pub const SETTINGS: &[Setting] = &[
     Setting::opacity("Opacity", "Opacity", 0.5),
 ];
 
-// The Gaussian's standard deviation: half the blur, and never quite 0.
-pub fn sigma(values: &[f32]) -> f32 {
-    (values[0] / 2.0).max(0.25)
+// The Gaussian's standard deviation for a blur: half of it, and never quite
+// 0.
+pub fn sigma_of(blur: f32) -> f32 {
+    (blur / 2.0).max(0.25)
 }
 
-// The box, grown by the spread: what's blurred.
-fn shadow_rect(values: &[f32], rect: Rect) -> Rect {
-    let spread = values[1];
+pub fn sigma(values: &[f32]) -> f32 {
+    sigma_of(values[0])
+}
+
+// The box, grown by the spread on every side.
+pub fn grown(rect: Rect, spread: f32) -> Rect {
     Rect::new(rect.x - spread, rect.y - spread, rect.width + spread * 2.0, rect.height + spread * 2.0)
 }
 
+// Blur, spread and opacity, as the shaders that take them take them.
 pub fn params(values: &[f32]) -> [f32; 8] {
     [sigma(values), values[1], values[2], 0.0, 0.0, 0.0, 0.0, 0.0]
 }
@@ -38,7 +45,7 @@ pub fn params(values: &[f32]) -> [f32; 8] {
 // Past 4 deviations from the blurred rectangle, the shadow is less than a
 // ten-thousandth of its opacity.
 pub fn area(values: &[f32], rect: Rect) -> Rect {
-    let shadow = shadow_rect(values, rect);
+    let shadow = grown(rect, values[1]);
     if shadow.is_empty() {
         return rect.expand(1.0);
     }
@@ -46,14 +53,19 @@ pub fn area(values: &[f32], rect: Rect) -> Rect {
 }
 
 pub fn opacity(values: &[f32], rect: Rect, x: f32, y: f32) -> f32 {
-    let shadow = shadow_rect(values, rect);
-    if shadow.is_empty() {
+    values[2] * blurred_box(grown(rect, values[1]), sigma(values), x, y)
+}
+
+// How much of the point the rectangle covers, blurred by a Gaussian of the
+// standard deviation, as Blur.hlsli works it out.
+pub fn blurred_box(rect: Rect, sigma: f32, x: f32, y: f32) -> f32 {
+    if rect.is_empty() {
         return 0.0;
     }
-    let scale = 1.0 / (sigma(values) * std::f32::consts::SQRT_2);
-    let across = 0.5 * (erf((x - shadow.left()) * scale) - erf((x - shadow.right()) * scale));
-    let down = 0.5 * (erf((y - shadow.top()) * scale) - erf((y - shadow.bottom()) * scale));
-    values[2] * across * down
+    let scale = 1.0 / (sigma * std::f32::consts::SQRT_2);
+    let across = 0.5 * (erf((x - rect.left()) * scale) - erf((x - rect.right()) * scale));
+    let down = 0.5 * (erf((y - rect.top()) * scale) - erf((y - rect.bottom()) * scale));
+    across * down
 }
 
 // Abramowitz and Stegun's 7.1.26, within 1.5e-7 of erf everywhere, as the

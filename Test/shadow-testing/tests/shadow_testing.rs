@@ -54,8 +54,14 @@ fn test_values(kind: Kind) -> Vec<f32> {
         Kind::Smoothstep => vec![40.0, 0.6],
         Kind::Exponential => vec![10.0, 0.6],
         Kind::Bell => vec![14.0, 0.6],
-        Kind::Gaussian => vec![20.0, 4.0, 0.5],
+        Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => vec![20.0, 4.0, 0.5],
     }
+}
+
+// Whether the way's shadow goes by the distance from the box alone, so that
+// it's as dark diagonally out from a corner as straight out from a side.
+fn round(kind: Kind) -> bool {
+    !matches!(kind, Kind::Gaussian | Kind::BSpline)
 }
 
 fn set_all(app: &mut Headless<ShadowTesting>, kind: Kind, values: &[f32]) {
@@ -181,9 +187,9 @@ fn ctrl_r_resets_every_way_on_its_frame() {
 }
 
 // Every way's shadow is the same on every side: as far out from the middle
-// of any of the box's four sides, it's as dark. All but Gaussian's go by the
-// distance from the box alone, so they're as dark diagonally out from a
-// corner too.
+// of any of the box's four sides, it's as dark. All but the blurred boxes go
+// by the distance from the box alone, so they're as dark diagonally out from
+// a corner too.
 #[test]
 fn every_way_s_shadow_is_the_same_on_every_side() {
     let rect = Rect::new(0.0, 0.0, 200.0, 120.0);
@@ -200,7 +206,7 @@ fn every_way_s_shadow_is_the_same_on_every_side() {
             for side in sides {
                 assert!(near(side, right), "{} at {distance}: {side} on one side and {right} on the right", kind.name());
             }
-            if kind != Kind::Gaussian {
+            if round(kind) {
                 let diagonal = distance / std::f32::consts::SQRT_2;
                 let corner = kind.opacity(&values, rect, rect.right() + diagonal, rect.bottom() + diagonal);
                 assert!(near(corner, right), "{} at {distance}: {corner} off the corner and {right} on the right", kind.name());
@@ -332,6 +338,52 @@ fn the_gaussian_shadow_is_a_blurred_rectangle() {
     // A spread that shrinks it to nothing leaves no shadow.
     let small = Rect::new(0.0, 0.0, 20.0, 20.0);
     assert_eq!(gaussian([8.0, -10.0, 0.8], small, 10.0, 10.0), 0.0);
+}
+
+// The round Gaussian is the Gaussian straight out from the middle of a long
+// side, and as dark diagonally out from a corner, where the Gaussian is
+// lighter.
+#[test]
+fn the_round_gaussian_is_the_gaussian_on_the_sides_and_round_at_the_corners() {
+    let rect = Rect::new(0.0, 0.0, 400.0, 400.0);
+    let values = [20.0, 4.0, 0.5];
+    for distance in [0.5, 3.0, 10.0, 25.0] {
+        let side = Kind::RoundGaussian.opacity(&values, rect, 400.0 + distance, 200.0);
+        assert!(near(side, Kind::Gaussian.opacity(&values, rect, 400.0 + distance, 200.0)), "{distance}");
+        let diagonal = distance / std::f32::consts::SQRT_2;
+        let corner = Kind::RoundGaussian.opacity(&values, rect, 400.0 + diagonal, 400.0 + diagonal);
+        assert!(near(corner, side), "{distance}");
+        assert!(Kind::Gaussian.opacity(&values, rect, 400.0 + diagonal, 400.0 + diagonal) < corner, "{distance}");
+    }
+}
+
+// The B-spline blur: its cumulative distribution goes from 0 to 1 between
+// two knots either side, smoothly, and its shadow is within a hundredth of
+// the Gaussian's everywhere along a side, but nothing past two knots.
+#[test]
+fn the_b_spline_blur_is_nearly_the_gaussian_but_ends_exactly() {
+    use shadow_testing::b_spline::{knot, spline_below};
+    assert_eq!(spline_below(-2.0), 0.0);
+    assert_eq!(spline_below(0.0), 0.5);
+    assert_eq!(spline_below(2.0), 1.0);
+    assert_eq!(spline_below(5.0), 1.0);
+    for t in [-1.5, -1.0, -0.3, 0.7, 1.0, 1.9] {
+        assert!(near(spline_below(t) + spline_below(-t), 1.0), "{t}");
+        // No steeper across a knot than the spline, whose peak is 2/3.
+        assert!((spline_below(t + 1e-4) - spline_below(t - 1e-4)).abs() <= 2e-4 * 2.0 / 3.0 + 1e-6, "it jumps at {t}");
+    }
+    let rect = Rect::new(0.0, 0.0, 400.0, 400.0);
+    let values = [20.0, 4.0, 0.5];
+    let end = 404.0 + 2.0 * knot(&values);
+    let mut distance = 0.5;
+    while distance < end - 400.0 {
+        let spline = Kind::BSpline.opacity(&values, rect, 400.0 + distance, 200.0);
+        let gaussian = Kind::Gaussian.opacity(&values, rect, 400.0 + distance, 200.0);
+        assert!((spline - gaussian).abs() < 0.01, "{distance}: {spline} and {gaussian}");
+        distance += 0.5;
+    }
+    assert_eq!(Kind::BSpline.opacity(&values, rect, end + 0.01, 200.0), 0.0);
+    assert!(Kind::Gaussian.opacity(&values, rect, end + 0.01, 200.0) > 0.0);
 }
 
 // What a pixel should be: the box's color over what it covers of the
