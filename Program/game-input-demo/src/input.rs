@@ -22,8 +22,8 @@ use crate::scripted_source::ScriptedSource;
 const LOG_CAPACITY: usize = 200;
 // Virtual-key codes of the demo's own shortcuts. F9, which switches the
 // theme, and F10, which switches vertical sync, are Library/user-interface's,
-// which reads them from the same readings, and so is Ctrl+Shift+Alt+F12,
-// which quits.
+// which reads them from the same readings, and so are Ctrl+Shift+Alt+F11,
+// which switches the cursor, and Ctrl+Shift+Alt+F12, which quits.
 const KEY_TOGGLE_RUMBLE: u8 = 0x72; // F3
 const KEY_CLEAR_LOG: u8 = 0x71; // F2
 

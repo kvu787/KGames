@@ -4,9 +4,10 @@
 // The demo reads its input from the devices that Library/user-interface reads
 // with GameInput, or from a script's Program steps in a scripted run, its
 // shortcuts F2 and F3 too. F9 and F10 are the library's, from the same
-// readings, and Ctrl+Shift+Alt+F12 the platform's, which quits. Without
-// GameInput the window still opens, and the library's notice under the app
-// bar says why there's no input.
+// readings, and Ctrl+Shift+Alt+F11 and Ctrl+Shift+Alt+F12 the platform's,
+// which switch the cursor and quit. Without GameInput the window still
+// opens, and the library's notice under the app bar says why there's no
+// input.
 
 use json::Value;
 use user_interface::testing::script::DEFAULT_FRAME_TIME;

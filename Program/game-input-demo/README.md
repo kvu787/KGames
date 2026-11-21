@@ -62,13 +62,15 @@ Shortcuts, while the demo's window has focus:
 | `F3`                 | Rumble test on or off. The gamepad's sticks then drive its grip motors |
 | `F9`                 | Switches between the light and dark themes                             |
 | `F10`                | Switches vertical sync on or off                                       |
+| `Ctrl+Shift+Alt+F11` | Switches between the drawn pointer and Windows' cursor, as in every    |
+|                      | KGames program                                                         |
 | `Ctrl+Shift+Alt+F12` | Quits, as in every KGames program                                      |
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
 Library/user-interface's, which reads them from the same readings, as in every KGames program, so
-the demo doesn't also switch on them, which would switch them back. `Ctrl+Shift+Alt+F12` is too,
-and the demo's cards show its keys as GameInput read them, like any keys, but do nothing with
-them.
+the demo doesn't also switch on them, which would switch them back. `Ctrl+Shift+Alt+F11` and
+`Ctrl+Shift+Alt+F12` are too, and the demo's cards show their keys as GameInput read them, like
+any keys, but do nothing with them.
 
 ### Rumble test
 
