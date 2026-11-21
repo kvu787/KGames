@@ -51,6 +51,9 @@ fn test_values(kind: Kind) -> Vec<f32> {
     match kind {
         Kind::Linear => vec![40.0, 0.6, 0.2],
         Kind::Curved => vec![40.0, 0.6, 1.7],
+        Kind::Smoothstep => vec![40.0, 0.6],
+        Kind::Exponential => vec![10.0, 0.6],
+        Kind::Bell => vec![14.0, 0.6],
         Kind::Gaussian => vec![20.0, 4.0, 0.5],
     }
 }
@@ -147,8 +150,8 @@ fn ctrl_r_resets_every_way_on_its_frame() {
 }
 
 // Every way's shadow is the same on every side: as far out from the middle
-// of any of the box's four sides, it's as dark. Linear's and Curved's go by
-// the distance from the box alone, so they're as dark diagonally out from a
+// of any of the box's four sides, it's as dark. All but Gaussian's go by the
+// distance from the box alone, so they're as dark diagonally out from a
 // corner too.
 #[test]
 fn every_way_s_shadow_is_the_same_on_every_side() {
@@ -208,6 +211,52 @@ fn the_curved_shadow_at_a_power_of_1_is_linear_and_higher_powers_fade_faster() {
         }
     }
     assert!(near(curved([40.0, 0.6, 2.0], 30.0), 0.6 * 0.25));
+}
+
+// The smoothstep shadow: the opacity at the box's edge, half of it halfway
+// to the length, none at the length, and an S curve, as far above half a
+// quarter of the way out as it's below half three quarters of the way.
+#[test]
+fn the_smoothstep_shadow_fades_along_an_s_curve() {
+    let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+    let at = |distance: f32| Kind::Smoothstep.opacity(&[40.0, 0.6], rect, 10.0 + distance, 5.0);
+    assert!(near(at(0.0001), 0.6));
+    assert!(near(at(20.0), 0.3));
+    assert!(near(at(10.0) + at(30.0), 0.6));
+    assert!(at(10.0) > 0.3 && at(10.0) < 0.6);
+    assert!(near(at(40.5), 0.0));
+}
+
+// The exponential shadow: a decay length further out, it's a factor of e
+// fainter, and its quad ends where it's the faintest that shows.
+#[test]
+fn the_exponential_shadow_falls_by_e_every_decay_length() {
+    use shadow_testing::approaches::FAINTEST;
+    use shadow_testing::exponential::reach;
+    let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+    let values = [10.0, 0.6];
+    let at = |distance: f32| Kind::Exponential.opacity(&values, rect, 10.0 + distance, 5.0);
+    assert!(near(at(0.0), 0.6));
+    for distance in [0.5, 4.0, 17.0] {
+        assert!(near(at(distance + 10.0), at(distance) / std::f32::consts::E), "{distance}");
+    }
+    assert!(near(at(reach(&values)), FAINTEST));
+}
+
+// The bell shadow: a width out, it's e to the minus a half of its opacity,
+// two widths out e to the minus two, and its quad ends where it's the
+// faintest that shows.
+#[test]
+fn the_bell_shadow_falls_along_a_bell_curve_of_the_distance() {
+    use shadow_testing::approaches::FAINTEST;
+    use shadow_testing::bell::reach;
+    let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+    let values = [14.0, 0.6];
+    let at = |distance: f32| Kind::Bell.opacity(&values, rect, 10.0 + distance, 5.0);
+    assert!(near(at(0.0), 0.6));
+    assert!(near(at(14.0), 0.6 * (-0.5f32).exp()));
+    assert!(near(at(28.0), 0.6 * (-2.0f32).exp()));
+    assert!(near(at(reach(&values)), FAINTEST));
 }
 
 // The Gaussian shadow: erf is within its approximation's bound of known

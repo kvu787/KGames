@@ -2,9 +2,12 @@
 // window.
 
 pub mod approaches;
+pub mod bell;
 pub mod cards;
 pub mod curved;
+pub mod exponential;
 pub mod gaussian;
 pub mod linear;
 pub mod pipeline;
 pub mod shadow_testing;
+pub mod smoothstep;

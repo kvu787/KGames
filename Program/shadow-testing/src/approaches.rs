@@ -9,17 +9,25 @@
 
 use user_interface::Rect;
 
-use crate::{curved, gaussian, linear};
+use crate::{bell, curved, exponential, gaussian, linear, smoothstep};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Kind {
     Linear,
     Curved,
+    Smoothstep,
+    Exponential,
+    Bell,
     Gaussian,
 }
 
-// Every way, in the order the page shows them.
-pub const KINDS: [Kind; 3] = [Kind::Linear, Kind::Curved, Kind::Gaussian];
+// Every way, in the order the page shows them: those whose shadow goes by
+// the distance from the box alone, then the blurred box.
+pub const KINDS: [Kind; 6] = [Kind::Linear, Kind::Curved, Kind::Smoothstep, Kind::Exponential, Kind::Bell, Kind::Gaussian];
+
+// The faintest opacity that changes a pixel: half of an 8-bit step. A
+// shadow whose tail never ends stops drawing where it's fainter.
+pub const FAINTEST: f32 = 0.5 / 255.0;
 
 // A setting of a way, and its slider.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -79,6 +87,9 @@ impl Kind {
         match self {
             Kind::Linear => "Linear",
             Kind::Curved => "Curved",
+            Kind::Smoothstep => "Smoothstep",
+            Kind::Exponential => "Exponential",
+            Kind::Bell => "Bell",
             Kind::Gaussian => "Gaussian",
         }
     }
@@ -88,6 +99,9 @@ impl Kind {
         match self {
             Kind::Linear => linear::DESCRIPTION,
             Kind::Curved => curved::DESCRIPTION,
+            Kind::Smoothstep => smoothstep::DESCRIPTION,
+            Kind::Exponential => exponential::DESCRIPTION,
+            Kind::Bell => bell::DESCRIPTION,
             Kind::Gaussian => gaussian::DESCRIPTION,
         }
     }
@@ -96,6 +110,9 @@ impl Kind {
         match self {
             Kind::Linear => linear::SETTINGS,
             Kind::Curved => curved::SETTINGS,
+            Kind::Smoothstep => smoothstep::SETTINGS,
+            Kind::Exponential => exponential::SETTINGS,
+            Kind::Bell => bell::SETTINGS,
             Kind::Gaussian => gaussian::SETTINGS,
         }
     }
@@ -105,6 +122,9 @@ impl Kind {
         match self {
             Kind::Linear => (linear::VERTEX_SHADER, linear::PIXEL_SHADER),
             Kind::Curved => (curved::VERTEX_SHADER, curved::PIXEL_SHADER),
+            Kind::Smoothstep => (smoothstep::VERTEX_SHADER, smoothstep::PIXEL_SHADER),
+            Kind::Exponential => (exponential::VERTEX_SHADER, exponential::PIXEL_SHADER),
+            Kind::Bell => (bell::VERTEX_SHADER, bell::PIXEL_SHADER),
             Kind::Gaussian => (gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER),
         }
     }
@@ -114,6 +134,9 @@ impl Kind {
         match self {
             Kind::Linear => linear::params(values),
             Kind::Curved => curved::params(values),
+            Kind::Smoothstep => smoothstep::params(values),
+            Kind::Exponential => exponential::params(values),
+            Kind::Bell => bell::params(values),
             Kind::Gaussian => gaussian::params(values),
         }
     }
@@ -124,6 +147,9 @@ impl Kind {
         match self {
             Kind::Linear => linear::area(values, rect),
             Kind::Curved => curved::area(values, rect),
+            Kind::Smoothstep => smoothstep::area(values, rect),
+            Kind::Exponential => exponential::area(values, rect),
+            Kind::Bell => bell::area(values, rect),
             Kind::Gaussian => gaussian::area(values, rect),
         }
     }
@@ -133,6 +159,9 @@ impl Kind {
         match self {
             Kind::Linear => linear::opacity(values, rect, x, y),
             Kind::Curved => curved::opacity(values, rect, x, y),
+            Kind::Smoothstep => smoothstep::opacity(values, rect, x, y),
+            Kind::Exponential => exponential::opacity(values, rect, x, y),
+            Kind::Bell => bell::opacity(values, rect, x, y),
             Kind::Gaussian => gaussian::opacity(values, rect, x, y),
         }
     }
