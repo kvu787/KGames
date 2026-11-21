@@ -5,7 +5,7 @@
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
 use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
 use user_interface::json::{self, Value};
-use user_interface::{Arguments, Color, CommonSettings, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Size, Startup, Theme, ThemeKind};
+use user_interface::{Arguments, Color, CommonSettings, CursorMode, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Size, Startup, Theme, ThemeKind};
 
 #[test]
 fn rectangles_cut_into_strips_and_columns() {
@@ -231,7 +231,7 @@ fn a_settings_file_that_can_t_be_read_is_kept() {
 }
 
 #[test]
-fn the_settings_every_program_has_start_its_display_theme_and_vertical_sync() {
+fn the_settings_every_program_has_start_its_display_theme_vertical_sync_and_cursor() {
     let read = |text: &str| {
         let mut settings = Settings::from_text(text);
         (CommonSettings::read(&mut settings), settings.problems().to_vec())
@@ -241,16 +241,18 @@ fn the_settings_every_program_has_start_its_display_theme_and_vertical_sync() {
         display: "Primary".to_string(),
         vertical_sync: true,
         theme: ThemeKind::Light,
+        cursor: CursorMode::GameInput,
     };
     assert_eq!((defaults, problems.len()), (light.clone(), 0));
     // Words ignore case.
-    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "VerticalSync": false, "Theme": "dark" }"#);
+    let (dark, problems) = read(r#"{ "Display": "CVVNY2", "VerticalSync": false, "Theme": "dark", "Cursor": "windows" }"#);
     assert_eq!(
         dark,
         CommonSettings {
             display: "CVVNY2".to_string(),
             vertical_sync: false,
             theme: ThemeKind::Dark,
+            cursor: CursorMode::Windows,
         }
     );
     assert!(problems.is_empty(), "{problems:?}");
@@ -262,6 +264,11 @@ fn the_settings_every_program_has_start_its_display_theme_and_vertical_sync() {
     let (wrong, problems) = read(r#"{ "Theme": true }"#);
     assert_eq!(wrong.theme, ThemeKind::Light);
     assert_eq!(problems, ["Theme must be \"Light\" or \"Dark\", not true, so it's the default."]);
+    // So is a wrong cursor.
+    assert_eq!(read(r#"{ "Cursor": "GameInput" }"#).0.cursor, CursorMode::GameInput);
+    let (wrong, problems) = read(r#"{ "Cursor": "Hardware" }"#);
+    assert_eq!(wrong.cursor, CursorMode::GameInput);
+    assert_eq!(problems, ["Cursor must be \"GameInput\" or \"Windows\", not \"Hardware\", so it's the default."]);
 }
 
 #[test]
@@ -275,7 +282,7 @@ fn a_missing_settings_file_is_written_with_the_settings_every_program_has() {
     startup.settings.boolean("Own", false);
     startup.settings.write_if_missing().unwrap();
     let written = std::fs::read_to_string(&path).unwrap();
-    let expected = "{\n  \"Display\": \"Primary\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Own\": false\n}\n";
+    let expected = "{\n  \"Display\": \"Primary\",\n  \"VerticalSync\": true,\n  \"Theme\": \"Light\",\n  \"Cursor\": \"GameInput\",\n  \"Own\": false\n}\n";
     assert_eq!(written, expected);
     std::fs::remove_dir_all(&folder).unwrap();
 }
@@ -298,7 +305,7 @@ fn every_programs_settings_file_has_the_settings_every_program_has() {
         let mut settings = Settings::from_text(&text);
         CommonSettings::read(&mut settings);
         assert!(settings.problems().is_empty(), "{}: {:?}", path.display(), settings.problems());
-        for name in ["Display", "VerticalSync", "Theme"] {
+        for name in ["Display", "VerticalSync", "Theme", "Cursor"] {
             assert!(members.iter().any(|(member, _)| member == name), "{} doesn't have {name}", path.display());
         }
     }

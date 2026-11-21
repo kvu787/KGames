@@ -5,6 +5,7 @@
 //       "Display": "Primary",
 //       "VerticalSync": true,
 //       "Theme": "Light",
+//       "Cursor": "GameInput",
 //       "RumbleTestInnerDeadZone": 0.1
 //     }
 

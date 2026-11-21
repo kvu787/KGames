@@ -11,8 +11,8 @@
 // messages instead, which stops it drawing.
 //
 // Programs start in the theme and vertical sync that their Settings.json
-// says, unless the command line says otherwise, in borderless fullscreen,
-// the one supported setup.
+// says, unless the command line says otherwise, and the cursor's mode that
+// it says, in borderless fullscreen, the one supported setup.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
@@ -127,6 +127,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     // with a script's input, or without input.
     let mice = matches!(source, Source::User { devices: Some(_), .. });
     let mut window = Window::create(&program.title(), display.monitor, ui.theme().background, mice).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    // In the cursor's mode that the Cursor setting says, before the window
+    // has focus, so that it keeps the cursor that way from the start.
+    window.set_cursor_mode(common.cursor);
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and

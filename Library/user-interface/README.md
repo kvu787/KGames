@@ -292,29 +292,29 @@ before, but reports gamepads' whole state, their held buttons too.
   inside the client area, apart from the pointer. A run whose input is a script's, or that has
   none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
   makes a test's frames draw it.
-- `Ctrl+Shift+Alt+F11` switches between that pointer, GameInput's cursor mode, which every
-  program starts in, and Windows' cursor mode, in which Windows' own cursor points: Windows moves
-  it, with its pointer speed and acceleration, and draws it over the frames, as its hardware
-  cursor, so it moves at once, whatever the frame rate, in the shape that the widget under the
-  pointer asks for, as Windows' cursor of the same look: the arrow, the I-beam, the hand, the
-  arrows that move and resize, the crosshair or the circle that's crossed out. The interface
-  doesn't draw the pointer then, which follows Windows' cursor: the window finds where it went as
-  the main loop checks focus, on every pass, which a move of the cursor over the window wakes,
-  timed on the clock that input is, and the reader puts each of those moves among GameInput's
-  readings by its time, as `Event::PointerMoved`, which is motion, unlike `Event::PointerPlaced`,
-  so a drag, or a camera that the pointer turns, moves with it. So a press lands where Windows'
-  cursor was found last before the button went down, which can be a little before it went. The
-  mice's motion moves nothing in that mode, but their buttons and wheels come from GameInput as
-  ever, in the stream's order with the keys. The window keeps the cursor as in GameInput's mode,
-  inside the client area, shown, and as the window starts to keep it, Windows' cursor goes to the
-  middle of the client area if it was outside, where the pointer is placed. As focus goes, it's
-  let go of where it is. The switch is in the frame that it's pressed in: the mice's motion
-  before the press moves the pointer, and Windows' cursor after it, or the other way around, and
-  as the frame leaves GameInput's mode, Windows' cursor shows where the frame left the pointer,
-  which it went its own way from while it was hidden, before the frame is presented, or as it
-  leaves Windows' mode, Windows' cursor hides, and the pointer goes on from where it is. A
-  switch while the window doesn't keep the cursor only changes how it keeps it next. The mode
-  lasts until the program closes, and isn't a setting.
+- `Ctrl+Shift+Alt+F11` switches between that pointer, GameInput's cursor mode, and Windows' cursor
+  mode, from whichever the `Cursor` setting started the program in. In Windows' cursor mode,
+  Windows' own cursor points: Windows moves it, with its pointer speed and acceleration, and draws
+  it over the frames, as its hardware cursor, so it moves at once, whatever the frame rate, in the
+  shape that the widget under the pointer asks for, as Windows' cursor of the same look: the arrow,
+  the I-beam, the hand, the arrows that move and resize, the crosshair or the circle that's crossed
+  out. The interface doesn't draw the pointer then, which follows Windows' cursor: the window finds
+  where it went as the main loop checks focus, on every pass, which a move of the cursor over the
+  window wakes, timed on the clock that input is, and the reader puts each of those moves among
+  GameInput's readings by its time, as `Event::PointerMoved`, which is motion, unlike
+  `Event::PointerPlaced`, so a drag, or a camera that the pointer turns, moves with it. So a press
+  lands where Windows' cursor was found last before the button went down, which can be a little
+  before it went. The mice's motion moves nothing in that mode, but their buttons and wheels come
+  from GameInput as ever, in the stream's order with the keys. The window keeps the cursor as in
+  GameInput's mode, inside the client area, shown, and as the window starts to keep it, Windows'
+  cursor goes to the middle of the client area if it was outside, where the pointer is placed. As
+  focus goes, it's let go of where it is. The switch is in the frame that it's pressed in: the
+  mice's motion before the press moves the pointer, and Windows' cursor after it, or the other way
+  around, and as the frame leaves GameInput's mode, Windows' cursor shows where the frame left the
+  pointer, which it went its own way from while it was hidden, before the frame is presented, or as
+  it leaves Windows' mode, Windows' cursor hides, and the pointer goes on from where it is. A
+  switch while the window doesn't keep the cursor only changes how it keeps it next, and so does
+  the `Cursor` setting, which the window takes on before it ever has focus.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
@@ -440,6 +440,9 @@ every one of the settings that every program has, which `Test/user-interface` ch
 | `VerticalSync` | `true`, by default: frames wait for the screen's refresh, and never      |
 |                | tear. `false`: frames present at once, and may tear                      |
 | `Theme`        | `"Light"`, by default, or `"Dark"`: the theme that the program starts in |
+| `Cursor`       | `"GameInput"`, by default: the pointer that the interface draws, which   |
+|                | GameInput's mice move. `"Windows"`: Windows' own cursor, which the       |
+|                | pointer follows. The cursor mode that the program starts in              |
 
 | Argument          | What it does                                                              |
 | ----------------- | ------------------------------------------------------------------------- |

@@ -1,5 +1,6 @@
 {
   "Display": "Primary",
   "VerticalSync": true,
-  "Theme": "Light"
+  "Theme": "Light",
+  "Cursor": "GameInput"
 }

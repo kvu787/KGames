@@ -220,6 +220,7 @@ it doesn't exist, the demo writes it with the defaults:
   "Display": "Primary",
   "VerticalSync": true,
   "Theme": "Light",
+  "Cursor": "GameInput",
   "RumbleTestInnerDeadZone": 0.1
 }
 ```
@@ -230,9 +231,11 @@ it doesn't exist, the demo writes it with the defaults:
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
 | `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
+| `Cursor`                  | `"GameInput"` or `"Windows"`, the cursor that the demo starts with: the     |
+|                           | pointer that it draws, or Windows' own. `Ctrl+Shift+Alt+F11` switches it    |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first three are the settings that every KGames program has, which
+The first four are the settings that every KGames program has, which
 [Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)
 reads, and the last is the demo's own.
 

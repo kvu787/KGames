@@ -70,7 +70,8 @@ use windows_api_raw::{POINT, RECT};
 // cursor hidden, or Windows' own cursor, which Windows moves and draws as
 // its hardware cursor, and which the interface's pointer follows.
 // Ctrl+Shift+Alt+F11 switches between them (see input/reader.rs). A program
-// starts with the interface's pointer.
+// starts in the one that its Cursor setting says, the interface's pointer
+// by default.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CursorMode {
     #[default]
@@ -79,6 +80,16 @@ pub enum CursorMode {
 }
 
 impl CursorMode {
+    pub const ALL: [CursorMode; 2] = [CursorMode::GameInput, CursorMode::Windows];
+
+    // As the Cursor setting says it.
+    pub fn name(self) -> &'static str {
+        match self {
+            CursorMode::GameInput => "GameInput",
+            CursorMode::Windows => "Windows",
+        }
+    }
+
     pub fn other(self) -> Self {
         match self {
             CursorMode::GameInput => CursorMode::Windows,
