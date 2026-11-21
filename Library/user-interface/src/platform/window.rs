@@ -20,11 +20,18 @@
 //   input is timed on, as input without focus is ignored, at the time the
 //   check finds it, so it can be a little after.
 // - While it has focus, if its frames read GameInput's mice, it keeps
-//   Windows' cursor inside its client area, hidden, and lets it go as focus
-//   goes and as the window closes, as platform/cursor.rs decides on the
-//   facts that the window gathers from Windows as it checks its focus, like
-//   whether a click on it gave it focus, which it hears of in
-//   WM_MOUSEACTIVATE.
+//   Windows' cursor inside its client area, hidden in GameInput's cursor
+//   mode, and lets it go as focus goes and as the window closes, as
+//   platform/cursor.rs decides on the facts that the window gathers from
+//   Windows as it checks its focus, like whether a click on it gave it
+//   focus, which it hears of in WM_MOUSEACTIVATE.
+// - In Windows' cursor mode, which Ctrl+Shift+Alt+F11 switches to, it keeps
+//   the cursor shown, in the shape of the frame's pointer, and finds where
+//   it went as it checks its focus, on the clock that input is timed on, for
+//   the interface's pointer to follow it there (see input/reader.rs), so it
+//   can be found a little after it moved, as focus changes are. The loop
+//   checks on every pass, which a move of the cursor over the window wakes,
+//   as Windows' messages do.
 // - It says when its setup may have changed: when it moves or changes size,
 //   or the displays, their scale or Windows' settings change.
 // - Until its first frame is presented, it shows the theme's background,
@@ -40,9 +47,10 @@ use std::ptr::NonNull;
 use windows_api_raw::*;
 use windows_core::{Error, PCWSTR, Result, w};
 
+use crate::core::interaction::Cursor;
 use crate::drawing::geometry::{Color, Point};
 use crate::platform::clock;
-use crate::platform::cursor::{CursorAction, CursorFacts, CursorKeeper};
+use crate::platform::cursor::{CursorAction, CursorFacts, CursorKeeper, CursorMode};
 
 // RunInBackground finds programs' windows by this class.
 const CLASS: PCWSTR = w!("MainWindow");
@@ -56,6 +64,14 @@ pub const DISPLAY_HEIGHT: i32 = 1440;
 pub struct FocusChange {
     pub time: i64,
     pub gained: bool,
+}
+
+// Windows' cursor went to a point in the client area, as the window found at
+// a time on the counter, in Windows' cursor mode, while the window keeps it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CursorMove {
+    pub time: i64,
+    pub at: Point,
 }
 
 // What the window procedure shares with the window, by GWLP_USERDATA.
@@ -79,8 +95,11 @@ struct Shared {
     clicked: Cell<bool>,
     // Whether Windows' cursor is hidden over the client area.
     cursor_hidden: Cell<bool>,
-    // Windows' arrow, which its cursor is over the window while it isn't
-    // hidden.
+    // The shape that Windows' cursor shows in over the client area while it
+    // isn't hidden: the frame's pointer's while the window keeps it in
+    // Windows' cursor mode, and the arrow otherwise.
+    cursor_shape: Cell<HCURSOR>,
+    // Windows' arrow.
     arrow: HCURSOR,
     // What the window shows until its first frame is presented.
     background: COLORREF,
@@ -109,6 +128,15 @@ pub struct Window {
     // window last started to keep Windows' cursor since the last frame read
     // its input.
     pointer_placed: Option<POINT>,
+    // In Windows' cursor mode, while the window keeps the cursor: where it
+    // went since the last frame read its input, and where it was last found,
+    // or put, in the client area.
+    cursor_moves: Vec<CursorMove>,
+    followed: Option<POINT>,
+    // Windows' cursors in the shapes of the interface's pointer, by
+    // Cursor::ALL, and the frame's pointer's.
+    shapes: [HCURSOR; Cursor::ALL.len()],
+    pointer_shape: HCURSOR,
 }
 
 impl Window {
@@ -145,6 +173,8 @@ impl Window {
 
     unsafe fn wrap(hwnd: HWND, background: Color, mice: bool) -> Window {
         unsafe {
+            let shapes = Cursor::ALL.map(|cursor| LoadCursorW(None, windows_cursor(cursor)));
+            let arrow = shapes[Cursor::Arrow as usize];
             let shared = Box::new(Shared {
                 focus_changes: Cell::new(Vec::new()),
                 focused: Cell::new(false),
@@ -152,7 +182,8 @@ impl Window {
                 setup_changed: Cell::new(true),
                 clicked: Cell::new(false),
                 cursor_hidden: Cell::new(false),
-                arrow: LoadCursorW(None, IDC_ARROW),
+                cursor_shape: Cell::new(arrow),
+                arrow,
                 background: colorref(background),
             });
             let shared = Box::into_non_null(shared);
@@ -162,6 +193,10 @@ impl Window {
                 shared,
                 cursor: CursorKeeper::new(mice),
                 pointer_placed: None,
+                cursor_moves: Vec::new(),
+                followed: None,
+                shapes,
+                pointer_shape: arrow,
             }
         }
     }
@@ -251,9 +286,10 @@ impl Window {
     // at once, without waiting for a frame. Says when that changes, at the
     // time it finds it. Windows' cursor goes with it, as platform/cursor.rs
     // decides, on every pass while the window keeps it, as something else
-    // may have changed its confinement. A click on the window that didn't
-    // give it focus by this check, like one on a window that mustn't take
-    // focus, counts for nothing after it.
+    // may have changed its confinement, and in Windows' cursor mode, where
+    // the cursor went. A click on the window that didn't give it focus by
+    // this check, like one on a window that mustn't take focus, counts for
+    // nothing after it.
     pub fn check_focus(&mut self) {
         unsafe {
             let focused = GetForegroundWindow() == self.hwnd && !IsIconic(self.hwnd).as_bool();
@@ -273,11 +309,41 @@ impl Window {
                 self.carry_out(&actions);
             }
         }
+        self.follow_cursor();
+    }
+
+    // In Windows' cursor mode, while the window keeps the cursor: where it
+    // went, in the client area, if it moved since it was last found, or put,
+    // timed now, for the pointer to follow (see input/reader.rs).
+    fn follow_cursor(&mut self) {
+        if !self.cursor.keeps() || self.cursor.mode() != CursorMode::Windows {
+            self.followed = None;
+            return;
+        }
+        let Some(area) = self.cursor_area() else {
+            return;
+        };
+        let mut cursor = POINT::default();
+        unsafe {
+            let _ = GetCursorPos(&mut cursor);
+        }
+        let at = POINT {
+            x: cursor.x - area.left,
+            y: cursor.y - area.top,
+        };
+        if self.followed.replace(at) != Some(at) {
+            self.cursor_moves.push(CursorMove {
+                time: clock::now(),
+                at: Point::new(at.x as f32, at.y as f32),
+            });
+        }
     }
 
     // Does what platform/cursor.rs decided with Windows' cursor, and the
-    // pointer.
+    // pointer, and gives the cursor the shape that goes with what it
+    // decided.
     fn carry_out(&mut self, actions: &[CursorAction]) {
+        let mut shown = false;
         for action in actions {
             let shared = self.shared();
             unsafe {
@@ -294,19 +360,84 @@ impl Window {
                         shared.cursor_hidden.set(true);
                         SetCursor(None);
                     }
-                    CursorAction::Show => shared.cursor_hidden.set(false),
+                    CursorAction::Show => {
+                        shared.cursor_hidden.set(false);
+                        shown = true;
+                    }
+                    // Where Windows' cursor is from then on, which the
+                    // pointer follows in Windows' cursor mode.
                     CursorAction::Place(at) => {
                         let _ = SetCursorPos(at.x, at.y);
+                        if let Some(area) = cursor_area(self.hwnd) {
+                            self.followed = Some(POINT {
+                                x: at.x - area.left,
+                                y: at.y - area.top,
+                            });
+                        }
                     }
-                    // For the next frame's input (see input/reader.rs).
-                    CursorAction::PlacePointer(at) => self.pointer_placed = Some(at),
+                    // For the next frame's input (see input/reader.rs),
+                    // where Windows' cursor is too.
+                    CursorAction::PlacePointer(at) => {
+                        self.pointer_placed = Some(at);
+                        self.followed = Some(at);
+                    }
                 }
+            }
+        }
+        self.update_shape(shown);
+    }
+
+    // The shape that Windows' cursor shows in over the client area: the
+    // frame's pointer's while the window keeps it in Windows' cursor mode,
+    // and the arrow otherwise. Windows asks for it with WM_SETCURSOR only as
+    // the cursor moves over the window, so while the window keeps the
+    // cursor, which is over its client area then, it's set at once as it
+    // changes, or as the cursor is `shown` again, unless it's hidden.
+    fn update_shape(&mut self, shown: bool) {
+        let keeps = self.cursor.keeps();
+        let shape = if keeps && self.cursor.mode() == CursorMode::Windows { self.pointer_shape } else { self.shared().arrow };
+        let shared = self.shared();
+        let changed = shared.cursor_shape.replace(shape) != shape;
+        if (changed || shown) && keeps && !shared.cursor_hidden.get() {
+            unsafe {
+                SetCursor(Some(shape));
             }
         }
     }
 
-    // Whether the window keeps Windows' cursor, hidden, so that its frames
-    // draw the pointer instead.
+    // The cursor's mode, which the next frame's input starts in.
+    pub fn cursor_mode(&self) -> CursorMode {
+        self.cursor.mode()
+    }
+
+    // Switches the cursor's mode, as a frame's input left it, once the
+    // frame's input has placed the pointer, with set_pointer: while the
+    // window keeps the cursor, it shows there, in Windows' cursor mode, or
+    // hides, in GameInput's (see platform/cursor.rs).
+    pub fn set_cursor_mode(&mut self, mode: CursorMode) {
+        if mode == self.cursor.mode() {
+            return;
+        }
+        let actions = self.cursor.set_mode(mode, unsafe { cursor_facts(self.hwnd) });
+        self.carry_out(&actions);
+    }
+
+    // The shape of the frame's pointer, which Windows' cursor takes while the
+    // window keeps it in Windows' cursor mode.
+    pub fn set_pointer_shape(&mut self, cursor: Cursor) {
+        self.pointer_shape = self.shapes[cursor as usize];
+        self.update_shape(false);
+    }
+
+    // Where Windows' cursor went, in Windows' cursor mode, since the last
+    // call, oldest first.
+    pub fn take_cursor_moves(&mut self) -> Vec<CursorMove> {
+        std::mem::take(&mut self.cursor_moves)
+    }
+
+    // Whether the window keeps Windows' cursor: hidden in GameInput's cursor
+    // mode, so that its frames draw the pointer instead, and shown in
+    // Windows'.
     pub fn keeps_cursor(&self) -> bool {
         self.cursor.keeps()
     }
@@ -536,6 +667,22 @@ unsafe fn cursor_facts(hwnd: HWND) -> CursorFacts {
     }
 }
 
+// Windows' own cursor in the shape of the interface's pointer.
+fn windows_cursor(cursor: Cursor) -> PCWSTR {
+    match cursor {
+        Cursor::Arrow => IDC_ARROW,
+        Cursor::Text => IDC_IBEAM,
+        Cursor::Hand => IDC_HAND,
+        Cursor::Move => IDC_SIZEALL,
+        Cursor::ResizeHorizontal => IDC_SIZEWE,
+        Cursor::ResizeVertical => IDC_SIZENS,
+        Cursor::ResizeDiagonal => IDC_SIZENWSE,
+        Cursor::ResizeAntidiagonal => IDC_SIZENESW,
+        Cursor::Crosshair => IDC_CROSS,
+        Cursor::NotAllowed => IDC_NO,
+    }
+}
+
 // Whether a mouse button is held, by Windows' account of the mouse, which has
 // a click that was going on as the window got focus, as GameInput's doesn't.
 fn mouse_button_held() -> bool {
@@ -564,11 +711,13 @@ unsafe extern "system" fn window_procedure(hwnd: HWND, message: u32, wparam: WPA
             // Alt+F4 into a close. Alt+F4 is only two keys to KGames, and
             // Ctrl+Shift+Alt+F12 quits instead (see input/reader.rs).
             WM_SYSKEYDOWN | WM_SYSKEYUP | WM_SYSCHAR => LRESULT(0),
-            // Hidden over the client area while the window keeps it, where
-            // the interface draws its own pointer, and the arrow otherwise.
+            // Hidden over the client area while the window keeps it in
+            // GameInput's cursor mode, where the interface draws its own
+            // pointer, in the pointer's shape while it keeps it in Windows',
+            // and the arrow otherwise.
             WM_SETCURSOR => {
                 if low_word(lparam.0) == HTCLIENT {
-                    let cursor = if shared.cursor_hidden.get() { None } else { Some(shared.arrow) };
+                    let cursor = if shared.cursor_hidden.get() { None } else { Some(shared.cursor_shape.get()) };
                     SetCursor(cursor);
                     LRESULT(1)
                 } else {

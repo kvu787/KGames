@@ -114,7 +114,7 @@ pub use input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton, S
 pub use input::events::{Event, FrameInput, Input};
 pub use platform::input_devices::{Device, Devices, Reading, Stream, Walked, Walker};
 pub use platform::cursor::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, CursorMode, clip_holder, on_screens};
-pub use platform::window::{FocusChange, Window};
+pub use platform::window::{CursorMove, FocusChange, Window};
 pub use testing::headless::Headless;
 pub use testing::script::{Script, ScriptRunner};
 pub use widgets::buttons::{Button, ButtonStyle, HyperlinkButton, ToggleButton};

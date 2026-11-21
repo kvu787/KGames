@@ -24,6 +24,11 @@
 // Ctrl+Shift+Alt+F12 quits at once, and so does the taskbar's Close, which
 // sends WM_CLOSE, without asking the program, whether the window is
 // minimized, shows the error page, or neither.
+//
+// Ctrl+Shift+Alt+F11 switches between the pointer that the frames draw,
+// which GameInput's mice move, and Windows' cursor, which Windows moves and
+// draws, and which the pointer follows (see platform/cursor.rs), in the
+// frame that it's pressed in.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -45,6 +50,7 @@ use crate::drawing::text::Fonts;
 use crate::input::events::FrameInput;
 use crate::input::reader::{InputReader, WindowState};
 use crate::platform::clock;
+use crate::platform::cursor::CursorMode;
 use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptFrame, ScriptRunner};
@@ -183,14 +189,15 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
 
         // The input, read as late as it can be. The frame draws the pointer
-        // exactly while Windows' cursor is kept, hidden, as this pass's check
-        // left it, and as the reader read the mice by, which a script's
-        // frames, and those without input, never do, and while it isn't
-        // kept, the pointer is away.
+        // exactly while Windows' cursor is kept, as this pass's check left
+        // it, and as the reader read the mice by, which a script's frames,
+        // and those without input, never do, and hidden, in GameInput's
+        // cursor mode as the frame's input leaves it, as Windows draws its
+        // own cursor in Windows'. While it isn't kept, the pointer is away.
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
         let kept = window.keeps_cursor();
-        ui.draws_pointer = kept;
+        ui.draws_pointer = kept && input.cursor_mode == CursorMode::GameInput;
         ui.set_pointer_away(mice && !kept);
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
@@ -201,10 +208,16 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             shown = None;
             ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.frame, size);
         }
-        // Where Windows' cursor shows as it's let go of.
+        // Where Windows' cursor shows as it's let go of, or as the frame's
+        // Ctrl+Shift+Alt+F11 switches to Windows' cursor mode, which the
+        // window takes on in the frame that it's pressed in, before it's
+        // presented, as it does the shape of the frame's pointer, which
+        // Windows' cursor takes in that mode.
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
+        window.set_cursor_mode(input.cursor_mode);
+        window.set_pointer_shape(ui.cursor());
         let mut closed = false;
         for request in std::mem::take(&mut ui.requests) {
             match request {
@@ -325,6 +338,9 @@ struct Input {
     frame: FrameInput,
     // Whether Ctrl+Shift+Alt+F12 was pressed, which quits.
     quit: bool,
+    // The cursor's mode as the frame's input leaves it, which
+    // Ctrl+Shift+Alt+F11 switches.
+    cursor_mode: CursorMode,
     // When GameInput got the newest reading that the frame took, for the
     // input latency.
     input_time: Option<i64>,
@@ -381,6 +397,7 @@ impl Source {
                 Ok(Input {
                     frame: FrameInput { delta, events: read.events },
                     quit: read.quit,
+                    cursor_mode: read.cursor_mode,
                     input_time: read.input_time,
                     script: None,
                 })
@@ -398,6 +415,7 @@ impl Source {
                         events: script.events.clone(),
                     },
                     quit: false,
+                    cursor_mode: state.cursor_mode,
                     input_time: None,
                     script: Some(script),
                 })

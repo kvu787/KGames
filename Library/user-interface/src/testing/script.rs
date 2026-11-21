@@ -139,7 +139,7 @@ impl Script {
         }
         // The steps run by frame, and in the script's order within a frame.
         steps.sort_by_key(|(_, step)| step.frame);
-        no_quit(&steps)?;
+        no_platform_shortcut(&steps)?;
         let steps = steps.into_iter().map(|(_, step)| step).collect();
         Ok(Script { frame_time, steps })
     }
@@ -396,14 +396,15 @@ fn keys_gesture(action: &Action, held: &[Key]) -> Result<Frames, String> {
     })
 }
 
-// Ctrl+Shift+Alt+F12 is the platform's, which quits, and never reaches the
-// interface, so a script can't press it: F12's press while Ctrl, Shift and
+// The platform's shortcuts, Ctrl+Shift+Alt+F12, which quits, and
+// Ctrl+Shift+Alt+F11, which switches the cursor, never reach the interface,
+// so a script can't press them: F12's or F11's press while Ctrl, Shift and
 // Alt are held, whichever steps hold them. This plays the steps' keys frame
 // by frame, as the runner makes them: in a frame, those that earlier frames'
-// steps put off to it, like a key's release, and then its own steps'. F12 is
-// otherwise a key like any other. `steps` are in the order they run, each
-// with its index in the script.
-fn no_quit(steps: &[(usize, Step)]) -> Result<(), String> {
+// steps put off to it, like a key's release, and then its own steps'. F12
+// and F11 are otherwise keys like any other. `steps` are in the order they
+// run, each with its index in the script.
+fn no_platform_shortcut(steps: &[(usize, Step)]) -> Result<(), String> {
     // Each frame's key events, with the step that made each: its index, and
     // its action's name.
     let mut frames: BTreeMap<u64, Vec<(Event, usize, &str)>> = BTreeMap::new();
@@ -420,9 +421,12 @@ fn no_quit(steps: &[(usize, Step)]) -> Result<(), String> {
     let mut modifiers = Modifiers::NONE;
     for (frame, events) in frames {
         for (event, index, name) in events {
-            if event.shortcut(modifiers) == Some(Shortcut::QUIT) {
+            if let Some(shortcut) = event.shortcut(modifiers)
+                && let Some(does) = shortcut.platform()
+            {
+                let shortcut = shortcut.name();
                 return Err(format!(
-                    "has step {index}, whose {name} presses Ctrl+Shift+Alt+F12 at frame {frame}, but Ctrl+Shift+Alt+F12 is the platform's, which quits, and which a script can't press"
+                    "has step {index}, whose {name} presses {shortcut} at frame {frame}, but {shortcut} is the platform's, which {does}, and which a script can't press"
                 ));
             }
             modifiers = event.modifiers_after(modifiers);

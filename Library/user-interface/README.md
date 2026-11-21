@@ -260,6 +260,7 @@ before, but reports gamepads' whole state, their held buttons too.
   and a key after a move sees the pointer where it went. Only mice's relative motion moves it,
   not a pen's or a touch screen's absolute positions. Tests and scripts point at places, which
   become the motion that takes the pointer there from where it is, and lands on the place exactly.
+  In Windows' cursor mode, below, Windows' cursor moves it instead.
 - While the window has focus and is the foreground window, Windows' cursor is hidden over it and
   kept inside its client area, as far as it's on the screens, so that no click goes to a window
   beside it, and the interface draws
@@ -291,6 +292,29 @@ before, but reports gamepads' whole state, their held buttons too.
   inside the client area, apart from the pointer. A run whose input is a script's, or that has
   none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
   makes a test's frames draw it.
+- `Ctrl+Shift+Alt+F11` switches between that pointer, GameInput's cursor mode, which every
+  program starts in, and Windows' cursor mode, in which Windows' own cursor points: Windows moves
+  it, with its pointer speed and acceleration, and draws it over the frames, as its hardware
+  cursor, so it moves at once, whatever the frame rate, in the shape that the widget under the
+  pointer asks for, as Windows' cursor of the same look: the arrow, the I-beam, the hand, the
+  arrows that move and resize, the crosshair or the circle that's crossed out. The interface
+  doesn't draw the pointer then, which follows Windows' cursor: the window finds where it went as
+  the main loop checks focus, on every pass, which a move of the cursor over the window wakes,
+  timed on the clock that input is, and the reader puts each of those moves among GameInput's
+  readings by its time, as `Event::PointerMoved`, which is motion, unlike `Event::PointerPlaced`,
+  so a drag, or a camera that the pointer turns, moves with it. So a press lands where Windows'
+  cursor was found last before the button went down, which can be a little before it went. The
+  mice's motion moves nothing in that mode, but their buttons and wheels come from GameInput as
+  ever, in the stream's order with the keys. The window keeps the cursor as in GameInput's mode,
+  inside the client area, shown, and as the window starts to keep it, Windows' cursor goes to the
+  middle of the client area if it was outside, where the pointer is placed. As focus goes, it's
+  let go of where it is. The switch is in the frame that it's pressed in: the mice's motion
+  before the press moves the pointer, and Windows' cursor after it, or the other way around, and
+  as the frame leaves GameInput's mode, Windows' cursor shows where the frame left the pointer,
+  which it went its own way from while it was hidden, before the frame is presented, or as it
+  leaves Windows' mode, Windows' cursor hides, and the pointer goes on from where it is. A
+  switch while the window doesn't keep the cursor only changes how it keeps it next. The mode
+  lasts until the program closes, and isn't a setting.
 - A device that's unplugged lets go of what it held after the frame's readings, as GameInput
   doesn't say when it went.
 - The pointer is on the topmost target under it, in the tree that the step's input came on: the
@@ -355,13 +379,14 @@ before, but reports gamepads' whole state, their held buttons too.
   `Context::close`, and the steps of its frame after the one that closes don't happen. In a
   scripted run, that frame is still drawn, and its `Capture` and `Expect` steps happen, and a
   script with steps in later frames, which never run, fails.
-- `Ctrl+Shift+Alt+F12` is the platform's, under the interface: it's F12's press while Ctrl, Shift
-  and Alt are held, as the interface has them, in any order before it, and the reader takes it
-  from GameInput's keys, so no program gets that press. The presses of the modifiers before it
-  reach the program, as any keys do. The interface stops the program if a frame's events press
-  it, whoever made the events, and a script that presses it, whichever steps hold the modifiers,
-  says so before it runs. `F12` alone, with fewer of the modifiers, or pressed before them, is a
-  key like any other, and so is `F1`.
+- `Ctrl+Shift+Alt+F12` and `Ctrl+Shift+Alt+F11` are the platform's, under the interface: each is
+  its key's press while Ctrl, Shift and Alt are held, as the interface has them, in any order
+  before it, and the reader takes it from GameInput's keys, so no program gets that press, or the
+  key's release. The presses of the modifiers before it reach the program, as any keys do. The
+  interface stops the program if a frame's events press either, whoever made the events, and a
+  script that presses either, whichever steps hold the modifiers, says so before it runs. `F12`
+  and `F11` alone, with fewer of the modifiers, or pressed before them, are keys like any other,
+  and so is `F1`.
 - `Alt+F4` is only two keys. Windows' own window shortcuts do nothing in the window, which
   swallows the system keys' messages, so Alt and F10 don't open the menu's keyboard mode,
   Alt+Space doesn't open the window's menu, and Windows doesn't close the window on Alt+F4. The
@@ -515,7 +540,9 @@ PresentMon does, so the input latency is comparable with PresentMon's: it's the 
 is its `MsUntilDisplayed`. Like PresentMon's, a frame's input is the newest that it took, and a
 frame that never reaches the screen, like one that a newer one replaced, passes its input on to the
 next frame that does, unless that one has input of its own. Readings of the gamepad count only in
-programs whose `Options::gamepad` is on.
+programs whose `Options::gamepad` is on. In Windows' cursor mode, it's still the frames' latency,
+which show what the mice did to the interface, like what's under the pointer: Windows' cursor
+itself moves without waiting for a frame, which the PerfBar doesn't measure.
 
 What it leaves out is what software can't see: the time before Windows gets the device's report,
 in the device and on its way, and after the display takes the frame, as scanout reaches the part of
@@ -631,7 +658,8 @@ writes its files in its output folder, through `startup.data_folder`.
 |                                  | and the frame's phases                                                     |
 | `src/platform/window.rs`         | The Win32 window, its focus, Windows' cursor over it, its setup and its    |
 |                                  | check, and the theme's background that it shows until its first frame      |
-| `src/platform/cursor.rs`         | What the window does with Windows' cursor, decided from what Windows says  |
+| `src/platform/cursor.rs`         | What the window does with Windows' cursor, in GameInput's cursor mode and  |
+|                                  | Windows', decided from what Windows says                                   |
 | `src/platform/input_devices.rs`  | Reads gamepads, keyboards and mice with GameInput, once a frame            |
 | `src/platform/clock.rs`          | The performance counter, which input and frames are timed on               |
 | `src/input/devices.rs`           | Keys, shortcuts, mouse buttons and the gamepad                             |
