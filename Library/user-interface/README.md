@@ -265,8 +265,8 @@ before, but reports gamepads' whole state, their held buttons too.
   beside it, and the interface draws
   the pointer over everything, in the shape that the widget under it asks for with
   `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
-  pointer is, in parts of a pixel, with antialiased edges, in the theme's accent with an edge in
-  `text_on_accent`, and its arrow is a dart, so that it's easy to tell from Windows' cursor. A
+  pointer is, in parts of a pixel, with antialiased edges, in the theme's accent, without an
+  outline, and its arrow is a dart, so that it's easy to tell from Windows' cursor. A
   click on the window that gives it focus keeps the cursor as its button goes down, which Windows
   says with `WM_MOUSEACTIVATE`. A click that was going on elsewhere as the window got focus, like a
   drag in another program, or onto the window's taskbar button, which brings it to the front,

@@ -434,7 +434,7 @@ fn the_cursors_card_draws_every_cursor_in_its_area() {
             let (left, top, right, bottom) = (rect.x as u32, rect.y as u32, rect.right() as u32, rect.bottom() as u32);
             let inside = (top..bottom).flat_map(|y| (left..right).map(move |x| (x, y))).filter(|&(x, y)| is_accent(x, y)).count();
             assert!(inside > 0, "{} isn't drawn, in the {} theme", cursor.name(), kind.name());
-            // Its edge is inside its area too: none of it is on the area's
+            // All of it is inside its area: none of it is on the area's
             // border.
             let border = (left..right).flat_map(|x| [(x, top), (x, bottom - 1)]).chain((top..bottom).flat_map(|y| [(left, y), (right - 1, y)]));
             let card = image.pixel(left, top);

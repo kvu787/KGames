@@ -650,9 +650,9 @@ fn side_by_side(images: &[Image]) -> Image {
 }
 
 // The window draws its own pointer while it keeps Windows' cursor, hidden,
-// in the shape that the widget under it asks for, in the theme's accent with
-// an edge in text_on_accent, unlike Windows' cursors, and only near its hot
-// spot. Once it lets the cursor go, as focus goes, Windows' cursor shows,
+// in the shape that the widget under it asks for, in the theme's accent,
+// without an outline in text_on_accent, unlike Windows' cursors, and only
+// near its hot spot. Once it lets the cursor go, as focus goes, Windows' cursor shows,
 // and the window draws none.
 #[test]
 fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the_window_keeps_the_cursor() {
@@ -662,7 +662,7 @@ fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the
         let mut app = Headless::with_theme(Shapes, kind);
         app.draw_pointer(true);
         let theme = Theme::new(kind);
-        let (fill, edge) = (theme.accent.to_bytes(), theme.text_on_accent.to_bytes());
+        let (fill, outline) = (theme.accent.to_bytes(), theme.text_on_accent.to_bytes());
         let mut shapes = Vec::new();
         for (index, cursor) in CURSORS.into_iter().enumerate() {
             let name = format!("Shape{index}");
@@ -684,10 +684,10 @@ fn the_pointer_is_drawn_in_the_shape_that_the_widget_under_it_asks_for_while_the
             }
             let outside: Vec<_> = changed.iter().filter(|(x, y)| !near.contains(user_interface::Point::new(*x as f32, *y as f32))).collect();
             let filled = changed.iter().any(|&(x, y)| close(with.pixel(x, y), fill));
-            let edged = changed.iter().any(|&(x, y)| close(with.pixel(x, y), edge));
-            if changed.is_empty() || !outside.is_empty() || !filled || !edged {
+            let outlined = changed.iter().any(|&(x, y)| close(with.pixel(x, y), outline));
+            if changed.is_empty() || !outside.is_empty() || !filled || outlined {
                 problems.push(format!(
-                    "{} theme, {cursor:?}: {} pixels, {:?} away from the hot spot, filled {filled}, edged {edged}",
+                    "{} theme, {cursor:?}: {} pixels, {:?} away from the hot spot, filled {filled}, outlined {outlined}",
                     kind.name(),
                     changed.len(),
                     &outside[..outside.len().min(5)],
