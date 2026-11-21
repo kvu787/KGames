@@ -1,0 +1,21 @@
+{
+  "Steps": [
+    { "Frame": 1, "Press": "Gaussian/Blur" },
+    { "Frame": 2, "Move": [2550, 300] },
+    { "Frame": 2, "Expect": { "Gaussian": { "Blur": 48 } } },
+    { "Frame": 3, "Release": true },
+    { "Frame": 4, "Press": "Long/Angle" },
+    { "Frame": 5, "Move": [800, 980] },
+    { "Frame": 5, "Expect": { "Long": { "Angle": 0 } } },
+    { "Frame": 6, "Release": true },
+    { "Frame": 7, "Scroll": { "At": "Fluent/Z", "Notches": 3 } },
+    { "Frame": 7, "Expect": { "Fluent": { "Z": 35 } } },
+    { "Frame": 8, "Press": "Offset/Opacity" },
+    { "Frame": 9, "Move": [0, 1000] },
+    { "Frame": 9, "Expect": { "Offset": { "Opacity": 0 } } },
+    { "Frame": 10, "Release": true },
+    { "Frame": 11, "Capture": "Changed" },
+    { "Frame": 12, "Key": "Ctrl+R" },
+    { "Frame": 12, "Expect": { "Gaussian": { "Blur": 24 }, "Long": { "Angle": 45 }, "Fluent": { "Z": 32 }, "Offset": { "Opacity": 0.3 } } }
+  ]
+}

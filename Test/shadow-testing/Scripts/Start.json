@@ -1,6 +1,17 @@
 {
   "Steps": [
     { "Frame": 2, "Capture": "Start" },
-    { "Frame": 2, "Expect": { "Linear": { "Length": 32, "StartOpacity": 0.5, "EndOpacity": 0 }, "Interface": { "Theme": "Light", "Size": [2560, 1440] } } }
+    {
+      "Frame": 2,
+      "Expect": {
+        "Linear": { "Length": 32, "StartOpacity": 0.5, "EndOpacity": 0 },
+        "Curved": { "Length": 48, "Opacity": 0.5, "Power": 2 },
+        "Gaussian": { "Blur": 24, "OffsetX": 0, "OffsetY": 8, "Spread": 0, "Opacity": 0.4 },
+        "Offset": { "OffsetX": 12, "OffsetY": 12, "Opacity": 0.3 },
+        "Long": { "Length": 64, "Angle": 45, "StartOpacity": 0.3, "EndOpacity": 0 },
+        "Fluent": { "Z": 32 },
+        "Interface": { "Theme": "Light", "Size": [2560, 1440] }
+      }
+    }
   ]
 }
