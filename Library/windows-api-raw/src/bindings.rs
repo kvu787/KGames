@@ -6385,6 +6385,15 @@ pub struct ID3D12RootSignature_Vtbl {
 }
 impl windows_core::RuntimeName for ID3D12RootSignature {}
 pub const IDC_ARROW: windows_core::PCWSTR = windows_core::PCWSTR(32512 as _);
+pub const IDC_CROSS: windows_core::PCWSTR = windows_core::PCWSTR(32515 as _);
+pub const IDC_HAND: windows_core::PCWSTR = windows_core::PCWSTR(32649 as _);
+pub const IDC_IBEAM: windows_core::PCWSTR = windows_core::PCWSTR(32513 as _);
+pub const IDC_NO: windows_core::PCWSTR = windows_core::PCWSTR(32648 as _);
+pub const IDC_SIZEALL: windows_core::PCWSTR = windows_core::PCWSTR(32646 as _);
+pub const IDC_SIZENESW: windows_core::PCWSTR = windows_core::PCWSTR(32643 as _);
+pub const IDC_SIZENS: windows_core::PCWSTR = windows_core::PCWSTR(32645 as _);
+pub const IDC_SIZENWSE: windows_core::PCWSTR = windows_core::PCWSTR(32642 as _);
+pub const IDC_SIZEWE: windows_core::PCWSTR = windows_core::PCWSTR(32644 as _);
 windows_core::imp::define_interface!(
     IDWriteFactory,
     IDWriteFactory_Vtbl,

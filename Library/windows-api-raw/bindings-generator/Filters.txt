@@ -311,6 +311,19 @@ WM_ERASEBKGND
 WM_SETCURSOR
 WS_EX_APPWINDOW
 
+// Windows' cursors in the shapes of the interface's pointer, which Windows'
+// cursor takes over the window while Ctrl+Shift+Alt+F11 shows it instead of
+// the pointer that the interface draws
+IDC_CROSS
+IDC_HAND
+IDC_IBEAM
+IDC_NO
+IDC_SIZEALL
+IDC_SIZENESW
+IDC_SIZENS
+IDC_SIZENWSE
+IDC_SIZEWE
+
 // Windows that test runs open beneath the others, and that a click never
 // activates
 GWL_EXSTYLE
