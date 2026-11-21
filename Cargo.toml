@@ -29,6 +29,7 @@ members = [
     "Program/mesh-modeler",
     "Program/minimal-scene-test",
     "Program/platformer",
+    "Program/shadow-testing",
     "Program/simple-paint-demo",
     "Program/spinning-car-test",
     "Program/ui-showcase",
