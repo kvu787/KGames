@@ -8,14 +8,18 @@
 use std::path::{Path, PathBuf};
 
 // Each shader, from the root of the repository, and what it draws.
-const SHADERS: [(&str, &str); 7] = [
+const SHADERS: [(&str, &str); 11] = [
     ("Library/simple-paint/Shaders/SimplePaint.hlsl", "3D models, painted with SimplePaint"),
     ("Library/simple-paint/Shaders/SimplePaintCore.hlsli", "SimplePaint's math, which SimplePaint.hlsl includes"),
     ("Library/simple-paint/Shaders/Unlit.hlsl", "3D models that aren't painted, unlit"),
     ("Library/user-interface/Shaders/Interface.hlsl", "the interface's shapes and glyphs"),
     ("Program/mesh-modeler/Shaders/Overlay.hlsl", "the modeler's overlay of edges, dots, tints and grid over its mesh"),
     ("Program/shadow-testing/Shaders/Common.hlsli", "what ShadowTesting's 2D shadows share, which each includes"),
+    ("Program/shadow-testing/Shaders/Curved.hlsl", "ShadowTesting's 2D box and its curved shadow"),
+    ("Program/shadow-testing/Shaders/Gaussian.hlsl", "ShadowTesting's 2D box and its Gaussian shadow"),
     ("Program/shadow-testing/Shaders/Linear.hlsl", "ShadowTesting's 2D box and its linear shadow"),
+    ("Program/shadow-testing/Shaders/Long.hlsl", "ShadowTesting's 2D box and its long shadow"),
+    ("Program/shadow-testing/Shaders/Offset.hlsl", "ShadowTesting's 2D box and its offset shadow"),
 ];
 // The extensions of shader sources.
 const EXTENSIONS: [&str; 6] = ["hlsl", "hlsli", "fx", "fxh", "glsl", "wgsl"];

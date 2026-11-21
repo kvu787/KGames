@@ -3,19 +3,26 @@
 // and how it draws, and a shader of its own in Shaders, which includes
 // Common.hlsli. Each module also works out its shadow's opacity at a point on
 // the CPU, as its shader does, so that tests can check every pixel that the
-// GPU draws.
+// GPU draws. Fluent, Library/user-interface's own shadow, is there for
+// reference, and the interface draws it.
 
 use user_interface::Rect;
 
-use crate::linear;
+use crate::{curved, fluent, gaussian, linear, long, offset};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Kind {
     Linear,
+    Curved,
+    Gaussian,
+    Offset,
+    Long,
+    // Library/user-interface's own, for reference, which the interface draws.
+    Fluent,
 }
 
 // Every way, in the order the page shows them.
-pub const KINDS: [Kind; 1] = [Kind::Linear];
+pub const KINDS: [Kind; 6] = [Kind::Linear, Kind::Curved, Kind::Gaussian, Kind::Offset, Kind::Long, Kind::Fluent];
 
 // A setting of a way, and its slider.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -73,13 +80,19 @@ impl Kind {
     pub fn name(self) -> &'static str {
         match self {
             Kind::Linear => "Linear",
+            Kind::Curved => "Curved",
+            Kind::Gaussian => "Gaussian",
+            Kind::Offset => "Offset",
+            Kind::Long => "Long",
+            Kind::Fluent => "Fluent",
         }
     }
 
     // Its card's title.
     pub fn title(self) -> &'static str {
         match self {
-            Kind::Linear => "Linear",
+            Kind::Fluent => "Fluent, the library's",
+            _ => self.name(),
         }
     }
 
@@ -87,19 +100,34 @@ impl Kind {
     pub fn description(self) -> &'static str {
         match self {
             Kind::Linear => linear::DESCRIPTION,
+            Kind::Curved => curved::DESCRIPTION,
+            Kind::Gaussian => gaussian::DESCRIPTION,
+            Kind::Offset => offset::DESCRIPTION,
+            Kind::Long => long::DESCRIPTION,
+            Kind::Fluent => fluent::DESCRIPTION,
         }
     }
 
     pub fn settings(self) -> &'static [Setting] {
         match self {
             Kind::Linear => linear::SETTINGS,
+            Kind::Curved => curved::SETTINGS,
+            Kind::Gaussian => gaussian::SETTINGS,
+            Kind::Offset => offset::SETTINGS,
+            Kind::Long => long::SETTINGS,
+            Kind::Fluent => fluent::SETTINGS,
         }
     }
 
-    // Its compiled vertex and pixel shaders.
-    pub fn shaders(self) -> (&'static [u8], &'static [u8]) {
+    // Its compiled vertex and pixel shaders, if the program draws it.
+    pub fn shaders(self) -> Option<(&'static [u8], &'static [u8])> {
         match self {
-            Kind::Linear => (linear::VERTEX_SHADER, linear::PIXEL_SHADER),
+            Kind::Linear => Some((linear::VERTEX_SHADER, linear::PIXEL_SHADER)),
+            Kind::Curved => Some((curved::VERTEX_SHADER, curved::PIXEL_SHADER)),
+            Kind::Gaussian => Some((gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER)),
+            Kind::Offset => Some((offset::VERTEX_SHADER, offset::PIXEL_SHADER)),
+            Kind::Long => Some((long::VERTEX_SHADER, long::PIXEL_SHADER)),
+            Kind::Fluent => None,
         }
     }
 
@@ -107,6 +135,11 @@ impl Kind {
     pub fn params(self, values: &[f32]) -> [f32; 8] {
         match self {
             Kind::Linear => linear::params(values),
+            Kind::Curved => curved::params(values),
+            Kind::Gaussian => gaussian::params(values),
+            Kind::Offset => offset::params(values),
+            Kind::Long => long::params(values),
+            Kind::Fluent => [0.0; 8],
         }
     }
 
@@ -115,13 +148,24 @@ impl Kind {
     pub fn area(self, values: &[f32], rect: Rect) -> Rect {
         match self {
             Kind::Linear => linear::area(values, rect),
+            Kind::Curved => curved::area(values, rect),
+            Kind::Gaussian => gaussian::area(values, rect),
+            Kind::Offset => offset::area(values, rect),
+            Kind::Long => long::area(values, rect),
+            Kind::Fluent => rect,
         }
     }
 
-    // Its shadow's opacity at a point, as its shader works it out.
-    pub fn opacity(self, values: &[f32], rect: Rect, x: f32, y: f32) -> f32 {
+    // Its shadow's opacity at a point, as its shader works it out, if the
+    // program draws it.
+    pub fn opacity(self, values: &[f32], rect: Rect, x: f32, y: f32) -> Option<f32> {
         match self {
-            Kind::Linear => linear::opacity(values, rect, x, y),
+            Kind::Linear => Some(linear::opacity(values, rect, x, y)),
+            Kind::Curved => Some(curved::opacity(values, rect, x, y)),
+            Kind::Gaussian => Some(gaussian::opacity(values, rect, x, y)),
+            Kind::Offset => Some(offset::opacity(values, rect, x, y)),
+            Kind::Long => Some(long::opacity(values, rect, x, y)),
+            Kind::Fluent => None,
         }
     }
 }

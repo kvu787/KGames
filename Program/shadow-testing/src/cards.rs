@@ -7,9 +7,10 @@
 // the tiles have fixed places in pixels.
 
 use user_interface::tokens::CARD_GAP;
-use user_interface::{AppBar, Card, Form, Icon, Rect, Slider, Status, Tree, Ui};
+use user_interface::{AppBar, Canvas, Card, Form, Icon, Rect, Slider, Status, Tree, Ui};
 
 use crate::approaches::{KINDS, Kind};
+use crate::fluent;
 use crate::shadow_testing::{BOX_SIZE, Message, ShadowTesting, TITLE, Tile};
 
 // Tiles to a row, and rows.
@@ -27,6 +28,10 @@ pub fn view(program: &ShadowTesting, ui: &mut Ui) -> Tree<Message> {
     for (kind, tile) in KINDS.iter().zip(tiles) {
         card(program, ui, &mut tree, *kind, tile);
     }
+    // Fluent's shadow is the interface's own, so the interface draws it.
+    let values = program.approach(Kind::Fluent).values.clone();
+    let fluent = tiles[KINDS.iter().position(|kind| *kind == Kind::Fluent).unwrap()];
+    tree.draw(fluent.stage, Canvas::new(move |painter, _| fluent::draw(painter, &values, fluent.stage, fluent.boxed)));
     program.tiles.set(Some(tiles));
     tree
 }
