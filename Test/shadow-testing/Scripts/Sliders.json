@@ -1,0 +1,18 @@
+{
+  "Steps": [
+    { "Frame": 1, "Press": "Length" },
+    { "Frame": 2, "Move": [1000, 300] },
+    { "Frame": 2, "Expect": { "Linear": { "Length": 256 }, "Interface": { "Pressed": "Length" } } },
+    { "Frame": 3, "Release": true },
+    { "Frame": 4, "Press": "EndOpacity" },
+    { "Frame": 5, "Move": [1000, 300] },
+    { "Frame": 5, "Expect": { "Linear": { "EndOpacity": 1 } } },
+    { "Frame": 6, "Release": true },
+    { "Frame": 7, "Press": "StartOpacity" },
+    { "Frame": 8, "Move": [0, 300] },
+    { "Frame": 8, "Expect": { "Linear": { "StartOpacity": 0 } } },
+    { "Frame": 9, "Release": true },
+    { "Frame": 9, "Expect": { "Linear": { "Length": 256, "StartOpacity": 0, "EndOpacity": 1 }, "Interface": { "Pressed": null } } },
+    { "Frame": 10, "Capture": "Reversed" }
+  ]
+}

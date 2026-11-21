@@ -1,0 +1,6 @@
+{
+  "Steps": [
+    { "Frame": 2, "Capture": "Start" },
+    { "Frame": 2, "Expect": { "Linear": { "Length": 32, "StartOpacity": 0.5, "EndOpacity": 0 }, "Interface": { "Theme": "Light", "Size": [2560, 1440] } } }
+  ]
+}

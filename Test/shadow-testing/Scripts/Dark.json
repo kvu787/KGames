@@ -1,0 +1,7 @@
+{
+  "Steps": [
+    { "Frame": 1, "Key": "F9" },
+    { "Frame": 1, "Expect": { "Interface": { "Theme": "Dark" } } },
+    { "Frame": 3, "Capture": "Dark" }
+  ]
+}

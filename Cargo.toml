@@ -51,6 +51,7 @@ members = [
     "Test/polygon-mesh",
     "Test/present-timing",
     "Test/run-lightly",
+    "Test/shadow-testing",
     "Test/simple-paint",
     "Test/simple-paint-demo",
     "Test/spinning-car-test",

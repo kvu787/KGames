@@ -368,6 +368,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "shadow-testing-tests"
+version = "0.1.0"
+dependencies = [
+ "shadow-testing",
+ "user-interface",
+]
+
+[[package]]
 name = "simple-paint"
 version = "0.1.0"
 dependencies = [
