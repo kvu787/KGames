@@ -77,9 +77,11 @@ fn every_widget_fits_in_the_window_in_both_themes() {
 }
 
 // Every way's stage is the same size, with the same box in its middle on
-// whole pixels, and every slider is in its way's tile, left of its stage.
+// whole pixels, and every slider and Reset button is inside its way's card,
+// inside its padding, so that everything that the card says fits in it.
 #[test]
-fn the_tiles_are_alike_and_each_way_s_sliders_are_in_its_tile() {
+fn the_tiles_are_alike_and_each_way_s_controls_fit_in_its_card() {
+    use user_interface::tokens::CARD_PADDING;
     let app = program();
     let first = app.program.tile(KINDS[0]);
     for kind in KINDS {
@@ -88,10 +90,11 @@ fn the_tiles_are_alike_and_each_way_s_sliders_are_in_its_tile() {
         assert_eq!(tile.boxed.size(), BOX_SIZE);
         assert!((tile.stage.width - first.stage.width).abs() <= 1.0 && (tile.stage.height - first.stage.height).abs() <= 1.0, "{}", kind.name());
         assert!((tile.boxed.center().x - tile.stage.center().x).abs() <= 0.5 && (tile.boxed.center().y - tile.stage.center().y).abs() <= 0.5);
-        for setting in kind.settings() {
-            let name = slider(kind, setting.name);
+        let inside = tile.card.inset(CARD_PADDING);
+        for name in kind.settings().iter().map(|setting| setting.name).chain(["Reset"]) {
+            let name = slider(kind, name);
             let rect = app.target(&name);
-            assert!(rect.x >= tile.area.x && rect.right() <= tile.stage.x && rect.y >= tile.area.y && rect.bottom() <= tile.area.bottom(), "{name} is at {rect:?}, out of {tile:?}");
+            assert!(rect.x >= inside.x && rect.right() <= inside.right() && rect.y >= inside.y && rect.bottom() <= inside.bottom(), "{name} is at {rect:?}, out of its card's {inside:?}");
         }
         for target in app.ui.targets() {
             assert!(!tile.stage.intersects(target.rect), "{} at {:?} is on {}'s stage", target.name, target.rect, kind.name());
@@ -418,8 +421,8 @@ fn a_press_on_a_slider_draws_the_new_shadow_on_its_frame() {
     assert!(close(before.pixel(x, y), Theme::new(ThemeKind::Light).background.to_bytes()));
     let at = on_rail(&app, "Linear/Length", 0.75);
     app.press_point(at);
-    assert_eq!(app.program.approach(Kind::Linear).value("Length"), 96.0);
+    assert_eq!(app.program.approach(Kind::Linear).value("Length"), 75.0);
     let after = app.render(&mut gpu).unwrap();
-    assert_ne!(after.pixel(x, y), before.pixel(x, y), "the shadow isn't 96 pixels long on the press's frame");
+    assert_ne!(after.pixel(x, y), before.pixel(x, y), "the shadow isn't 75 pixels long on the press's frame");
     check_every_pixel(&app, &after, Kind::Linear, ThemeKind::Light);
 }

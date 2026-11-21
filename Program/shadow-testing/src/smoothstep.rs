@@ -11,7 +11,7 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/Smooth
 
 pub const DESCRIPTION: &str = "Black around the box, as far as its length, fading to nothing along an S curve: soft where it leaves the box and where it ends.";
 
-pub const SETTINGS: &[Setting] = &[Setting::pixels("Length", "Length", 128.0, 20.0), Setting::opacity("Opacity", "Opacity", 0.25)];
+pub const SETTINGS: &[Setting] = &[Setting::pixels("Length", "Length", 100.0, 20.0), Setting::opacity("Opacity", "Opacity", 0.25)];
 
 pub fn params(values: &[f32]) -> [f32; 8] {
     [values[0], values[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

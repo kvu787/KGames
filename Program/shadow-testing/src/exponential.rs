@@ -17,7 +17,7 @@ pub const SETTINGS: &[Setting] = &[
         name: "Decay",
         label: "Decay length",
         minimum: 1.0,
-        maximum: 20.0,
+        maximum: 16.0,
         step: 0.5,
         default: 14.0,
         decimals: 1,

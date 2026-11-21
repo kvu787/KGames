@@ -13,7 +13,7 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/BellPi
 
 pub const DESCRIPTION: &str = "Black around the box, falling along a bell curve of the distance: flat where it leaves the box, then faster and faster.";
 
-pub const SETTINGS: &[Setting] = &[Setting::pixels("Width", "Width", 36.0, 8.0), Setting::opacity("Opacity", "Opacity", 0.25)];
+pub const SETTINGS: &[Setting] = &[Setting::pixels("Width", "Width", 28.0, 8.0), Setting::opacity("Opacity", "Opacity", 0.25)];
 
 pub fn params(values: &[f32]) -> [f32; 8] {
     [values[0].max(0.5), values[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

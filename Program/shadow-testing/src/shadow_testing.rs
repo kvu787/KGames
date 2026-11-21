@@ -19,7 +19,7 @@ use crate::pipeline::ShadowPipeline;
 pub const TITLE: &str = "ShadowTesting";
 // The box that casts every way's shadow.
 pub const BOX_COLOR: Color = Color::hex(0x0078D4);
-pub const BOX_SIZE: Size = Size::new(200.0, 120.0);
+pub const BOX_SIZE: Size = Size::new(200.0, 100.0);
 
 // What the input means.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,10 +32,12 @@ pub enum Message {
     Reset,
 }
 
-// Where a way's tile is: all of it, its stage, and the box on the stage.
+// Where a way's tile is: all of it, its card, its stage, and the box on the
+// stage.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Tile {
     pub area: Rect,
+    pub card: Rect,
     pub stage: Rect,
     pub boxed: Rect,
 }

@@ -91,8 +91,12 @@ impl Setting {
 }
 
 impl Kind {
-    // Its name in the state, before its sliders' names, and its card's
-    // title.
+    // Its card's title.
+    pub fn title(self) -> &'static str {
+        self.name()
+    }
+
+    // Its name in the state, and before its sliders' names.
     pub fn name(self) -> &'static str {
         match self {
             Kind::Linear => "Linear",

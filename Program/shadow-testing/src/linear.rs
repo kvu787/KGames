@@ -13,7 +13,7 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/Linear
 pub const DESCRIPTION: &str = "Black around the box, as far as its length. Its opacity goes in a straight line from the start at the edge to the end.";
 
 pub const SETTINGS: &[Setting] = &[
-    Setting::pixels("Length", "Length", 128.0, 20.0),
+    Setting::pixels("Length", "Length", 100.0, 20.0),
     Setting::opacity("StartOpacity", "Start opacity", 0.25),
     Setting::opacity("EndOpacity", "End opacity", 0.0),
 ];

@@ -1,6 +1,6 @@
 // Describes the page from the program's state: a tile for each way of
-// drawing an omnidirectional shadow, three to a row, each a card with sliders
-// for the way's settings beside its stage, which the interface leaves empty
+// drawing an omnidirectional shadow, five to a row, each a card with sliders
+// for the way's settings above its stage, which the interface leaves empty
 // for render to draw the blue box and its shadow on, in the middle. Every
 // stage is the same size, with the same box, so the ways can be compared side
 // by side. Programs support one client area, 2560 x 1440 in borderless
@@ -13,10 +13,11 @@ use crate::approaches::{Approach, KINDS, Kind};
 use crate::shadow_testing::{BOX_SIZE, Message, ShadowTesting, TITLE, Tile};
 
 // Tiles to a row, and as many rows as the ways need.
-pub const COLUMNS: usize = 3;
+pub const COLUMNS: usize = 5;
 pub const ROWS: usize = KINDS.len().div_ceil(COLUMNS);
-// Each tile's card.
-pub const CARD_WIDTH: f32 = 320.0;
+// Each tile's card, above its stage, as tall as a header, two lines of what
+// the way draws, and three sliders.
+pub const CARD_HEIGHT: f32 = 316.0;
 
 pub fn view(program: &ShadowTesting, ui: &mut Ui) -> Tree<Message> {
     let mut tree = Tree::new();
@@ -31,14 +32,15 @@ pub fn view(program: &ShadowTesting, ui: &mut Ui) -> Tree<Message> {
     tree
 }
 
-// Each way's tile in the page, in KINDS' order, three to a row.
+// Each way's tile in the page, in KINDS' order, five to a row: its card at
+// the top, and its stage under it.
 pub fn layout(page: Rect) -> [Tile; KINDS.len()] {
     let rows = page.rows::<ROWS>(CARD_GAP);
     std::array::from_fn(|index| {
         let area = rows[index / COLUMNS].columns::<COLUMNS>(CARD_GAP)[index % COLUMNS];
         let mut stage = area;
-        stage.cut_left(CARD_WIDTH, CARD_GAP);
-        Tile { area, stage, boxed: stage.centered(BOX_SIZE).round() }
+        let card = stage.cut_top(CARD_HEIGHT, CARD_GAP);
+        Tile { area, card, stage, boxed: stage.centered(BOX_SIZE).round() }
     })
 }
 
@@ -55,21 +57,20 @@ fn status_bar(ui: &mut Ui) -> Vec<Status> {
     ]
 }
 
-// A way's card, as tall as its content, at the top left of its tile: a
-// Reset button in its header, which is off while the way is at its defaults,
-// what it draws, and a slider for each of its settings, named after the way
-// and the setting, like "Linear/Length".
+// A way's card, at the top of its tile: its title, a Reset button in its
+// header, which is off while the way is at its defaults, what it draws, and
+// a slider for each of its settings, named after the way and the setting,
+// like "Linear/Length".
 fn card(program: &ShadowTesting, ui: &mut Ui, tree: &mut Tree<Message>, kind: Kind, tile: Tile) {
     let approach = program.approach(kind);
     let values = approach.values.clone();
     let changed = *approach != Approach::new(kind);
-    let rect = tile.area.left_strip(CARD_WIDTH);
-    tree.sized_card(ui, None, rect, Card::new(kind.name()), |ui, card, area| {
+    tree.card(ui, None, tile.card, Card::new(kind.title()), |ui, card, area| {
         let reset = Button::new("Reset").icon(Icon::Refresh).on_press(Message::ResetWay(kind));
         let width = reset.width(ui);
         card.add(&format!("{}/Reset", kind.name()), area.header.right_strip(width), reset)
             .set_enabled(changed)
-            .set_tooltip(format!("Set {}'s settings back to their defaults", kind.name()));
+            .set_tooltip(format!("Set {}'s settings back to their defaults", kind.title()));
         let mut form = Form::new(area.content);
         form.paragraph(ui, card, kind.description());
         let height = Slider::<Message>::height(true);
@@ -82,6 +83,5 @@ fn card(program: &ShadowTesting, ui: &mut Ui, tree: &mut Tree<Message>, kind: Ki
                 .on_change(move |value| Message::Set(kind, index, value));
             card.add(&format!("{}/{}", kind.name(), setting.name), form.take(height), slider);
         }
-        form.bottom()
     });
 }
