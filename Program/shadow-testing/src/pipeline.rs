@@ -2,8 +2,12 @@
 // over the area that the shadow can reach, only inside the way's stage, with
 // the box's rectangle, its color and the way's settings as root constants,
 // laid out as Common.hlsli's Constants.
+//
+// A way blends in sRGB, through the frame's view that stores colors as they
+// are, as the interface's colors do, or in linear light, through its sRGB
+// view, which decodes what's under the shadow, blends, and encodes the result.
 
-use graphics::{Frame, Gpu, TARGET_FORMAT, bytecode};
+use graphics::{Frame, Gpu, TARGET_FORMAT, TARGET_SRGB_FORMAT, bytecode};
 use user_interface::{Color, Rect};
 use windows_api_raw::*;
 use windows_core::Result;
@@ -11,10 +15,11 @@ use windows_core::Result;
 pub struct ShadowPipeline {
     root_signature: ID3D12RootSignature,
     pipeline: ID3D12PipelineState,
+    linear_light: bool,
 }
 
 impl ShadowPipeline {
-    pub fn new(gpu: &Gpu, vertex_shader: &[u8], pixel_shader: &[u8]) -> Result<Self> {
+    pub fn new(gpu: &Gpu, vertex_shader: &[u8], pixel_shader: &[u8], linear_light: bool) -> Result<Self> {
         unsafe {
             let device = &gpu.device;
             let root_signature: ID3D12RootSignature = device.CreateRootSignature(0, vertex_shader)?;
@@ -50,17 +55,23 @@ impl ShadowPipeline {
                 SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
                 ..Default::default()
             };
-            // Through the view that stores colors as they are, so that the
-            // shadow blends in sRGB, as the interface's colors do.
-            description.RTVFormats[0] = TARGET_FORMAT;
+            description.RTVFormats[0] = if linear_light { TARGET_SRGB_FORMAT } else { TARGET_FORMAT };
             let pipeline: ID3D12PipelineState = device.CreateGraphicsPipelineState(&description)?;
-            Ok(Self { root_signature, pipeline })
+            Ok(Self { root_signature, pipeline, linear_light })
         }
     }
 
     // Records the box, in its color, over its shadow into the frame, over
-    // what the frame has: a quad over `area`, cut to `stage`.
+    // what the frame has: a quad over `area`, cut to `stage`. The color is
+    // sRGB, which a way that blends in linear light gives its shader as
+    // linear light, so that the box looks the same either way.
     pub fn draw(&self, frame: &Frame, stage: Rect, area: Rect, rect: Rect, color: Color, params: [f32; 8]) {
+        let color = if self.linear_light {
+            let [r, g, b] = color.to_linear();
+            Color::rgba(r, g, b, color.a)
+        } else {
+            color
+        };
         let constants: [f32; 24] = [
             frame.width as f32,
             frame.height as f32,
@@ -90,7 +101,7 @@ impl ShadowPipeline {
         let stage = stage.round();
         unsafe {
             let commands = &frame.list;
-            frame.bind(false, None);
+            frame.bind(self.linear_light, None);
             commands.RSSetScissorRects(&[RECT {
                 left: stage.left() as i32,
                 top: stage.top() as i32,

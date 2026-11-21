@@ -27,11 +27,12 @@ pub enum Kind {
     RoundGaussian,
     BSpline,
     Layered,
+    LinearLight,
 }
 
 // Every way, in the order the page shows them: those whose shadow goes by
 // the distance from the box alone, then the Gaussian and its variants.
-pub const KINDS: [Kind; 9] = [
+pub const KINDS: [Kind; 10] = [
     Kind::Linear,
     Kind::Curved,
     Kind::Smoothstep,
@@ -41,6 +42,7 @@ pub const KINDS: [Kind; 9] = [
     Kind::RoundGaussian,
     Kind::BSpline,
     Kind::Layered,
+    Kind::LinearLight,
 ];
 
 // The faintest opacity that changes a pixel: half of an 8-bit step. A
@@ -110,6 +112,7 @@ impl Kind {
             Kind::RoundGaussian => "Round Gaussian",
             Kind::BSpline => "B-spline blur",
             Kind::Layered => "Layered Gaussians",
+            Kind::LinearLight => "Gaussian in linear light",
             _ => self.name(),
         }
     }
@@ -126,6 +129,7 @@ impl Kind {
             Kind::RoundGaussian => "RoundGaussian",
             Kind::BSpline => "BSpline",
             Kind::Layered => "Layered",
+            Kind::LinearLight => "LinearLight",
         }
     }
 
@@ -141,6 +145,7 @@ impl Kind {
             Kind::RoundGaussian => round_gaussian::DESCRIPTION,
             Kind::BSpline => b_spline::DESCRIPTION,
             Kind::Layered => layered::DESCRIPTION,
+            Kind::LinearLight => gaussian::LINEAR_LIGHT_DESCRIPTION,
         }
     }
 
@@ -153,7 +158,7 @@ impl Kind {
             Kind::Smoothstep => smoothstep::SETTINGS,
             Kind::Exponential => exponential::SETTINGS,
             Kind::Bell => bell::SETTINGS,
-            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::SETTINGS,
+            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline | Kind::LinearLight => gaussian::SETTINGS,
             Kind::Layered => layered::SETTINGS,
         }
     }
@@ -166,7 +171,7 @@ impl Kind {
             Kind::Smoothstep => (smoothstep::VERTEX_SHADER, smoothstep::PIXEL_SHADER),
             Kind::Exponential => (exponential::VERTEX_SHADER, exponential::PIXEL_SHADER),
             Kind::Bell => (bell::VERTEX_SHADER, bell::PIXEL_SHADER),
-            Kind::Gaussian => (gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER),
+            Kind::Gaussian | Kind::LinearLight => (gaussian::VERTEX_SHADER, gaussian::PIXEL_SHADER),
             Kind::RoundGaussian => (round_gaussian::VERTEX_SHADER, round_gaussian::PIXEL_SHADER),
             Kind::BSpline => (b_spline::VERTEX_SHADER, b_spline::PIXEL_SHADER),
             Kind::Layered => (layered::VERTEX_SHADER, layered::PIXEL_SHADER),
@@ -181,7 +186,7 @@ impl Kind {
             Kind::Smoothstep => smoothstep::params(values),
             Kind::Exponential => exponential::params(values),
             Kind::Bell => bell::params(values),
-            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => gaussian::params(values),
+            Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline | Kind::LinearLight => gaussian::params(values),
             Kind::Layered => layered::params(values),
         }
     }
@@ -195,11 +200,17 @@ impl Kind {
             Kind::Smoothstep => smoothstep::area(values, rect),
             Kind::Exponential => exponential::area(values, rect),
             Kind::Bell => bell::area(values, rect),
-            Kind::Gaussian => gaussian::area(values, rect),
+            Kind::Gaussian | Kind::LinearLight => gaussian::area(values, rect),
             Kind::RoundGaussian => round_gaussian::area(values, rect),
             Kind::BSpline => b_spline::area(values, rect),
             Kind::Layered => layered::area(values, rect),
         }
+    }
+
+    // Whether it blends in linear light, rather than in sRGB as the
+    // interface's colors do.
+    pub fn linear_light(self) -> bool {
+        self == Kind::LinearLight
     }
 
     // Its shadow's opacity at a point, as its shader works it out.
@@ -210,7 +221,7 @@ impl Kind {
             Kind::Smoothstep => smoothstep::opacity(values, rect, x, y),
             Kind::Exponential => exponential::opacity(values, rect, x, y),
             Kind::Bell => bell::opacity(values, rect, x, y),
-            Kind::Gaussian => gaussian::opacity(values, rect, x, y),
+            Kind::Gaussian | Kind::LinearLight => gaussian::opacity(values, rect, x, y),
             Kind::RoundGaussian => round_gaussian::opacity(values, rect, x, y),
             Kind::BSpline => b_spline::opacity(values, rect, x, y),
             Kind::Layered => layered::opacity(values, rect, x, y),

@@ -54,7 +54,7 @@ fn test_values(kind: Kind) -> Vec<f32> {
         Kind::Smoothstep => vec![40.0, 0.6],
         Kind::Exponential => vec![10.0, 0.6],
         Kind::Bell => vec![14.0, 0.6],
-        Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline => vec![20.0, 4.0, 0.5],
+        Kind::Gaussian | Kind::RoundGaussian | Kind::BSpline | Kind::LinearLight => vec![20.0, 4.0, 0.5],
         Kind::Layered => vec![4.0, 40.0, 0.3],
     }
 }
@@ -62,7 +62,7 @@ fn test_values(kind: Kind) -> Vec<f32> {
 // Whether the way's shadow goes by the distance from the box alone, so that
 // it's as dark diagonally out from a corner as straight out from a side.
 fn round(kind: Kind) -> bool {
-    !matches!(kind, Kind::Gaussian | Kind::BSpline | Kind::Layered)
+    !matches!(kind, Kind::Gaussian | Kind::BSpline | Kind::Layered | Kind::LinearLight)
 }
 
 fn set_all(app: &mut Headless<ShadowTesting>, kind: Kind, values: &[f32]) {
@@ -407,14 +407,38 @@ fn layered_gaussians_are_gaussians_of_half_the_blur_over_each_other() {
 }
 
 // What a pixel should be: the box's color over what it covers of the
-// pixel, and the background, darkened by the way's shadow, over the rest.
+// pixel, and the background, darkened by the way's shadow, over the rest, in
+// sRGB, or in linear light for a way that blends in it.
 fn expected(kind: Kind, values: &[f32], rect: Rect, background: Color, x: u32, y: u32) -> [u8; 4] {
     let (cx, cy) = (x as f32 + 0.5, y as f32 + 0.5);
     let inside = coverage(box_distance(rect, cx, cy));
     let shadow = kind.opacity(values, rect, cx, cy) * (1.0 - inside);
     let rest = 1.0 - inside - shadow;
     let mix = |boxed: f32, behind: f32| boxed * inside + behind * rest;
+    if kind.linear_light() {
+        let ([br, bg, bb], [r, g, b]) = (BOX_COLOR.to_linear(), background.to_linear());
+        return Color::from_linear(mix(br, r), mix(bg, g), mix(bb, b)).to_bytes();
+    }
     Color::rgb(mix(BOX_COLOR.r, background.r), mix(BOX_COLOR.g, background.g), mix(BOX_COLOR.b, background.b)).to_bytes()
+}
+
+// The Gaussian in linear light is the Gaussian, at the same settings and
+// opacity, but where it darkens the background by an opacity in linear
+// light, which leaves more of it than darkening it in sRGB.
+#[test]
+fn the_gaussian_in_linear_light_darkens_less_at_the_same_opacity() {
+    let rect = Rect::new(0.0, 0.0, 200.0, 100.0);
+    let values = test_values(Kind::LinearLight);
+    let background = Theme::new(ThemeKind::Light).background;
+    for distance in [0.5, 4.0, 15.0] {
+        let x = (200.0 + distance) as u32;
+        assert_eq!(Kind::LinearLight.opacity(&values, rect, x as f32 + 0.5, 50.5), Kind::Gaussian.opacity(&values, rect, x as f32 + 0.5, 50.5));
+        let linear = expected(Kind::LinearLight, &values, rect, background, x, 50);
+        let srgb = expected(Kind::Gaussian, &values, rect, background, x, 50);
+        assert!(linear[0] > srgb[0] && linear[1] > srgb[1] && linear[2] > srgb[2], "{distance}: {linear:?} isn't lighter than {srgb:?}");
+    }
+    // The box is the same blue either way.
+    assert!(close(expected(Kind::LinearLight, &values, rect, background, 100, 50), BOX_COLOR.to_bytes()));
 }
 
 // Every pixel of the way's stage that its quad reaches, and a little past

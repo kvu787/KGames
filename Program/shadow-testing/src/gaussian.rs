@@ -15,6 +15,10 @@ pub const PIXEL_SHADER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/Gaussi
 
 pub const DESCRIPTION: &str = "A blurred copy of the box, grown by the spread on every side, like CSS's box-shadow with no offset.";
 
+// The way that draws the Gaussian, with this shader, but blends it in
+// linear light, through the frame's sRGB view.
+pub const LINEAR_LIGHT_DESCRIPTION: &str = "Gaussian, at the same settings, blended in linear light instead of sRGB: the same opacity darkens less.";
+
 pub const SETTINGS: &[Setting] = &[
     Setting::pixels("Blur", "Blur", 48.0, 28.0),
     Setting::signed_pixels("Spread", "Spread", -12.0, 12.0, 0.0),

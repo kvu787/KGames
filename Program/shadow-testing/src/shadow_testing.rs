@@ -106,7 +106,7 @@ impl Program for ShadowTesting {
             .iter()
             .map(|kind| {
                 let (vertex, pixel) = kind.shaders();
-                ShadowPipeline::new(gpu, vertex, pixel)
+                ShadowPipeline::new(gpu, vertex, pixel, kind.linear_light())
             })
             .collect::<Result<_>>()?;
         Ok(())
