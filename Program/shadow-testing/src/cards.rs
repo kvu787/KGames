@@ -7,9 +7,9 @@
 // fullscreen, so the tiles have fixed places in pixels.
 
 use user_interface::tokens::CARD_GAP;
-use user_interface::{AppBar, Card, Form, Icon, Rect, Slider, Status, Tree, Ui};
+use user_interface::{AppBar, Button, Card, Form, Icon, Rect, Slider, Status, Tree, Ui};
 
-use crate::approaches::{KINDS, Kind};
+use crate::approaches::{Approach, KINDS, Kind};
 use crate::shadow_testing::{BOX_SIZE, Message, ShadowTesting, TITLE, Tile};
 
 // Tiles to a row, and as many rows as the ways need.
@@ -46,7 +46,7 @@ fn status_bar(ui: &mut Ui) -> Vec<Status> {
     let environment = ui.environment().clone();
     let display = format!("{} {}", environment.display, environment.display_name);
     vec![
-        Status::shortcut("Ctrl+R", "Reset"),
+        Status::shortcut("Ctrl+R", "Reset all"),
         Status::shortcut("F9", "Theme"),
         Status::shortcut("F10", "VSync"),
         Status::Spacer,
@@ -55,13 +55,21 @@ fn status_bar(ui: &mut Ui) -> Vec<Status> {
     ]
 }
 
-// A way's card, as tall as its content, at the top left of its tile: what
-// it draws, and a slider for each of its settings, named after the way and
-// the setting, like "Linear/Length".
+// A way's card, as tall as its content, at the top left of its tile: a
+// Reset button in its header, which is off while the way is at its defaults,
+// what it draws, and a slider for each of its settings, named after the way
+// and the setting, like "Linear/Length".
 fn card(program: &ShadowTesting, ui: &mut Ui, tree: &mut Tree<Message>, kind: Kind, tile: Tile) {
-    let values = program.approach(kind).values.clone();
+    let approach = program.approach(kind);
+    let values = approach.values.clone();
+    let changed = *approach != Approach::new(kind);
     let rect = tile.area.left_strip(CARD_WIDTH);
     tree.sized_card(ui, None, rect, Card::new(kind.name()), |ui, card, area| {
+        let reset = Button::new("Reset").icon(Icon::Refresh).on_press(Message::ResetWay(kind));
+        let width = reset.width(ui);
+        card.add(&format!("{}/Reset", kind.name()), area.header.right_strip(width), reset)
+            .set_enabled(changed)
+            .set_tooltip(format!("Set {}'s settings back to their defaults", kind.name()));
         let mut form = Form::new(area.content);
         form.paragraph(ui, card, kind.description());
         let height = Slider::<Message>::height(true);

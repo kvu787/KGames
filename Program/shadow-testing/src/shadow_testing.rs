@@ -1,4 +1,5 @@
-// The program: each way's settings, what the sliders and Ctrl+R do to them,
+// The program: each way's settings, what the sliders, the Reset buttons and
+// Ctrl+R do to them,
 // and the state for scripts. `cards::view` lays out a tile for each way, a
 // card of sliders beside a stage with the same blue box in the middle, and
 // `render` draws each way's box and shadow on its stage, before the
@@ -25,7 +26,9 @@ pub const BOX_SIZE: Size = Size::new(200.0, 120.0);
 pub enum Message {
     // A way's setting moved, by its index, to the value.
     Set(Kind, usize, f64),
-    // Every setting back to its default.
+    // A way's settings back to their defaults.
+    ResetWay(Kind),
+    // Every way's settings back to their defaults.
     Reset,
 }
 
@@ -87,6 +90,7 @@ impl Program for ShadowTesting {
     fn update(&mut self, message: Message, _ui: &mut Context<Message>) {
         match message {
             Message::Set(kind, setting, value) => self.approaches[index(kind)].set(setting, value),
+            Message::ResetWay(kind) => self.approaches[index(kind)] = Approach::new(kind),
             Message::Reset => self.approaches = KINDS.iter().map(|kind| Approach::new(*kind)).collect(),
         }
     }

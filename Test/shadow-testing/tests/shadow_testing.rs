@@ -135,6 +135,34 @@ fn the_state_has_every_way_s_settings() {
     assert_eq!(state.get("Linear").and_then(|linear| linear.get("StartOpacity")), Some(&Value::Number(0.3)));
 }
 
+// Each way's Reset button is off while the way is at its defaults, on from
+// the frame of a press that changes a setting, and sets that way's settings,
+// and only that way's, back to their defaults on the frame of its press.
+#[test]
+fn each_way_s_reset_button_resets_only_that_way_on_its_frame() {
+    let mut app = program();
+    for kind in KINDS {
+        assert!(!app.is_enabled(&slider(kind, "Reset")), "{}'s Reset is on at its defaults", kind.name());
+    }
+    for kind in KINDS {
+        let first = slider(kind, kind.settings()[0].name);
+        let at = on_rail(&app, &first, 0.9);
+        app.press_point(at);
+        assert_ne!(app.program.approach(kind), &Approach::new(kind), "{}", kind.name());
+        assert!(app.is_enabled(&slider(kind, "Reset")), "{}'s Reset is off after a change", kind.name());
+        app.release();
+    }
+    for (index, kind) in KINDS.iter().enumerate() {
+        app.press(&slider(*kind, "Reset"));
+        assert_eq!(app.program.approach(*kind), &Approach::new(*kind), "{}", kind.name());
+        assert!(!app.is_enabled(&slider(*kind, "Reset")), "{}'s Reset is on after it reset", kind.name());
+        for later in &KINDS[index + 1..] {
+            assert_ne!(app.program.approach(*later), &Approach::new(*later), "{}'s Reset reset {}", kind.name(), later.name());
+        }
+        app.release();
+    }
+}
+
 // Ctrl+R sets every way's settings back to their defaults, on the frame of
 // the press.
 #[test]
