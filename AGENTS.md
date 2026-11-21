@@ -70,7 +70,9 @@ Any mathematical notation in Markdown files (LaTeX, KaTeX, MathJax, etc) must di
 - For 3D models, only use SimplePaint or unlit shader.
 - `F9` toggles between light and dark mode.
 - `F10` toggles between VSync on and off.
-- `Ctrl+Shift+Alt+F12` quits the program at once, without asking, and so does the taskbar's Close. `Ctrl+Shift+Alt+F12` is `Library/user-interface`'s, and never reaches a program. `F12` alone is a key like any other. `Alt+F4` is only two keys. Windows' own window shortcuts, like Alt+Space, do nothing in a program's window; those Windows handles before any window sees them, like Alt+Tab and the Windows key, stay Windows'.
+- `Ctrl+Shift+Alt+F12` quits the program at once without asking
+  - Closing the window from its taskbar button does the same.
+  - This is owned by `Library/user-interface` and never reaches a program.
 
 ## Supported window setup
 
