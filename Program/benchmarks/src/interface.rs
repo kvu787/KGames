@@ -272,7 +272,7 @@ pub fn input(budget: Budget) -> Vec<Measurement> {
     let window = WindowState {
         focus_changes: vec![FocusChange { time: now, gained: true }],
         keeps_cursor: true,
-        pointer_placed: None,
+        ..WindowState::default()
     };
     reader.read(&[], &[], &window);
     let window = WindowState { focus_changes: Vec::new(), ..window };

@@ -205,8 +205,10 @@ pub struct Interface {
     // How many messages the last frame applied, over all its steps.
     pub(crate) messages_applied: usize,
     // Whether the frame draws the pointer, while the window has focus, as a
-    // window's frames do while it keeps Windows' cursor, hidden, and not a
-    // script's or a test's, whose captures never showed Windows' cursor.
+    // window's frames do while it keeps Windows' cursor, hidden, in
+    // GameInput's cursor mode, and not a script's or a test's, whose
+    // captures never showed Windows' cursor, or in Windows' cursor mode,
+    // where Windows draws its own.
     pub(crate) draws_pointer: bool,
     // Whether the pointer is away: a window's frames are while it doesn't
     // keep Windows' cursor, as focus went, or a click that was going on
@@ -302,7 +304,7 @@ impl Interface {
     // PerfBar measures, which takes what's known about the frames presented
     // so far, so that it goes on measuring whatever the window shows.
     fn begin_frame(&mut self, input: &FrameInput, size: Size) -> f64 {
-        no_quit(self.input.modifiers(), &input.events);
+        no_platform_shortcut(self.input.modifiers(), &input.events);
         let time = self.input.time + input.delta.max(0.0);
         self.frame += 1;
         self.size = size;
@@ -1269,17 +1271,20 @@ impl Interface {
     }
 }
 
-// Ctrl+Shift+Alt+F12 is the platform's, which quits, and never reaches the
-// interface, whoever made the frame's events: the reader drops F12's press
-// while Ctrl, Shift and Alt are held, and scripts can't press it. `held` are
-// the modifiers held as the frame starts. F12 is otherwise a key like any
-// other.
-fn no_quit(mut held: Modifiers, events: &[Event]) {
+// The platform's shortcuts, Ctrl+Shift+Alt+F12, which quits, and
+// Ctrl+Shift+Alt+F11, which switches the cursor, never reach the interface,
+// whoever made the frame's events: the reader takes F12's and F11's presses
+// while Ctrl, Shift and Alt are held, and scripts can't press them. `held`
+// are the modifiers held as the frame starts. F12 and F11 are otherwise keys
+// like any other.
+fn no_platform_shortcut(mut held: Modifiers, events: &[Event]) {
     for event in events {
-        assert!(
-            event.shortcut(held) != Some(Shortcut::QUIT),
-            "Ctrl+Shift+Alt+F12 is the platform's, and never reaches the interface, but the frame's events pressed it"
-        );
+        if let Some(shortcut) = event.shortcut(held)
+            && shortcut.platform().is_some()
+        {
+            let name = shortcut.name();
+            panic!("{name} is the platform's, and never reaches the interface, but the frame's events pressed it");
+        }
         held = event.modifiers_after(held);
     }
 }

@@ -1,8 +1,8 @@
-// Tests the program's window before its first frame, and where it keeps
-// Windows' cursor. The window is made hidden and never shown, so nothing
-// opens on a display, and nothing takes focus.
+// Tests the program's window before its first frame, where it keeps
+// Windows' cursor, and the cursor's mode. The window is made hidden and
+// never shown, so nothing opens on a display, and nothing takes focus.
 
-use user_interface::{Theme, ThemeKind, Window};
+use user_interface::{Cursor, CursorMode, Theme, ThemeKind, Window};
 use windows_api_raw::*;
 
 // Until its first frame is presented, a window shows what it paints with GDI.
@@ -73,4 +73,22 @@ fn a_window_moved_off_its_display_says_so() {
         assert!(SetWindowPos(window.hwnd(), None, area.left + 10, area.top, 0, 0, flags).as_bool());
         assert!(about_the_client_area(&window.setup_problems()), "{:?}", window.setup_problems());
     }
+}
+
+// A window without focus, like this hidden one, doesn't keep Windows'
+// cursor, so switching the cursor's mode only changes how it keeps it next:
+// it says the mode that the next frame starts in, and finds nothing of where
+// Windows' cursor goes, which it follows only while it keeps it.
+#[test]
+fn a_window_without_focus_switches_the_cursor_s_mode_without_keeping_it() {
+    let monitor = unsafe { MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY as u32) };
+    let mut window = Window::create("Mode", monitor, Theme::light().background, true).unwrap();
+    assert_eq!(window.cursor_mode(), CursorMode::GameInput);
+    window.set_cursor_mode(CursorMode::Windows);
+    window.set_pointer_shape(Cursor::Text);
+    window.check_focus();
+    assert_eq!((window.cursor_mode(), window.keeps_cursor()), (CursorMode::Windows, false));
+    assert_eq!(window.take_cursor_moves(), []);
+    window.set_cursor_mode(CursorMode::GameInput);
+    assert_eq!(window.cursor_mode(), CursorMode::GameInput);
 }

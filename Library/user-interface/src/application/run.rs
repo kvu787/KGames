@@ -11,8 +11,8 @@
 // messages instead, which stops it drawing.
 //
 // Programs start in the theme and vertical sync that their Settings.json
-// says, unless the command line says otherwise, in borderless fullscreen,
-// the one supported setup.
+// says, unless the command line says otherwise, and the cursor's mode that
+// it says, in borderless fullscreen, the one supported setup.
 //
 // With vertical sync on, frames present at the screen's refreshes, and
 // DXGI's queue has room again only once the last frame has gone to the
@@ -24,6 +24,11 @@
 // Ctrl+Shift+Alt+F12 quits at once, and so does the taskbar's Close, which
 // sends WM_CLOSE, without asking the program, whether the window is
 // minimized, shows the error page, or neither.
+//
+// Ctrl+Shift+Alt+F11 switches between the pointer that the frames draw,
+// which GameInput's mice move, and Windows' cursor, which Windows moves and
+// draws, and which the pointer follows (see platform/cursor.rs), in the
+// frame that it's pressed in.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -45,6 +50,7 @@ use crate::drawing::text::Fonts;
 use crate::input::events::FrameInput;
 use crate::input::reader::{InputReader, WindowState};
 use crate::platform::clock;
+use crate::platform::cursor::CursorMode;
 use crate::platform::input_devices::Devices;
 use crate::platform::window::Window;
 use crate::testing::script::{Script, ScriptFrame, ScriptRunner};
@@ -121,6 +127,9 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
     // with a script's input, or without input.
     let mice = matches!(source, Source::User { devices: Some(_), .. });
     let mut window = Window::create(&program.title(), display.monitor, ui.theme().background, mice).map_err(|error| format!("Couldn't open the window: {error}"))?;
+    // In the cursor's mode that the Cursor setting says, before the window
+    // has focus, so that it keeps the cursor that way from the start.
+    window.set_cursor_mode(common.cursor);
     let mut gpu = Gpu::new(AdapterChoice::Monitor(window.monitor())).map_err(|error| format!("Couldn't start Direct3D 12: {error}"))?;
     let (width, height) = window.client_size();
     // The renderer before the presenter: what's made last goes first, and
@@ -183,14 +192,15 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         }
 
         // The input, read as late as it can be. The frame draws the pointer
-        // exactly while Windows' cursor is kept, hidden, as this pass's check
-        // left it, and as the reader read the mice by, which a script's
-        // frames, and those without input, never do, and while it isn't
-        // kept, the pointer is away.
+        // exactly while Windows' cursor is kept, as this pass's check left
+        // it, and as the reader read the mice by, which a script's frames,
+        // and those without input, never do, and hidden, in GameInput's
+        // cursor mode as the frame's input leaves it, as Windows draws its
+        // own cursor in Windows'. While it isn't kept, the pointer is away.
         let read = clock::now();
         let input = source.read(&mut window, &ui, &mut program)?;
         let kept = window.keeps_cursor();
-        ui.draws_pointer = kept;
+        ui.draws_pointer = kept && input.cursor_mode == CursorMode::GameInput;
         ui.set_pointer_away(mice && !kept);
         let (width, height) = presenter.size();
         let size = Size::new(width as f32, height as f32);
@@ -201,10 +211,17 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
             shown = None;
             ui.frame_of(&unsupported_setup::<P::Message>(&problems), &input.frame, size);
         }
-        // Where Windows' cursor shows as it's let go of.
+        // Where Windows' cursor shows as it's let go of, or as the frame's
+        // Ctrl+Shift+Alt+F11 switches to Windows' cursor mode, which the
+        // window takes on in the frame that it's pressed in, before it's
+        // presented, as it does the shape of the frame's pointer, which
+        // Windows' cursor takes in that mode, first, so that it shows in
+        // this frame's shape and not the last one's.
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
+        window.set_pointer_shape(ui.cursor());
+        window.set_cursor_mode(input.cursor_mode);
         let mut closed = false;
         for request in std::mem::take(&mut ui.requests) {
             match request {
@@ -325,6 +342,9 @@ struct Input {
     frame: FrameInput,
     // Whether Ctrl+Shift+Alt+F12 was pressed, which quits.
     quit: bool,
+    // The cursor's mode as the frame's input leaves it, which
+    // Ctrl+Shift+Alt+F11 switches.
+    cursor_mode: CursorMode,
     // When GameInput got the newest reading that the frame took, for the
     // input latency.
     input_time: Option<i64>,
@@ -381,6 +401,7 @@ impl Source {
                 Ok(Input {
                     frame: FrameInput { delta, events: read.events },
                     quit: read.quit,
+                    cursor_mode: read.cursor_mode,
                     input_time: read.input_time,
                     script: None,
                 })
@@ -398,6 +419,7 @@ impl Source {
                         events: script.events.clone(),
                     },
                     quit: false,
+                    cursor_mode: state.cursor_mode,
                     input_time: None,
                     script: Some(script),
                 })

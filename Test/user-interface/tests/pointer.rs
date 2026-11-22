@@ -2,7 +2,7 @@
 // motion moves it, in GameInput's counts times MOUSE_SENSITIVITY, inside the
 // frame, from the frame's middle, where it starts with the mice's first
 // event. And the motion that tests and scripts make to point at a place,
-// which lands on it exactly.
+// which lands on it exactly, and the pointer that follows Windows' cursor.
 
 use user_interface::input::events::{MOUSE_SENSITIVITY, motion_to, moved_pointer};
 use user_interface::{Context, Event, Headless, Input, Key, MouseButton, Point, Program, Size, Tree, Ui};
@@ -182,4 +182,39 @@ fn a_placed_pointer_is_on_what_s_under_it_at_once() {
     assert_eq!((app.ui.hovered_name(), app.program.clicks), (None, 0));
     app.send(&[Event::ButtonReleased(MouseButton::Left), Event::PointerPlaced(button), Event::ButtonPressed(MouseButton::Left)]);
     assert_eq!(app.program.clicks, 1);
+}
+
+// In Windows' cursor mode, the pointer follows Windows' cursor, to where it
+// went, which starts the pointer too, and which is motion, unlike a
+// placement: a step's delta has it, so a drag or a camera that the pointer
+// turns moves with Windows' cursor. A place outside the frame is its nearest
+// point inside.
+#[test]
+fn a_pointer_that_follows_windows_cursor_moves_there() {
+    let mut input = new_input();
+    input.begin(0.0, &[Event::PointerMoved(Point::new(300.0, 400.0))]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(300.0, 400.0)), Point::ZERO));
+    input.begin(0.0, &[Event::PointerMoved(Point::new(310.0, 395.0))]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(310.0, 395.0)), Point::new(10.0, -5.0)));
+    input.begin(0.0, &[Event::PointerMoved(Point::new(320.0, 395.0)), Event::PointerPlaced(Point::new(100.0, 100.0)), Event::PointerMoved(Point::new(103.0, 104.0))]);
+    assert_eq!((input.pointer, input.pointer_delta), (Some(Point::new(103.0, 104.0)), Point::new(13.0, 4.0)));
+    input.begin(0.0, &[Event::PointerMoved(Point::new(5000.0, -20.0))]);
+    assert_eq!(input.pointer, Some(Point::new(2559.0, 0.0)));
+}
+
+// Following Windows' cursor only moves the pointer, as motion does: it's in
+// the step of the press after it, which lands where it took the pointer.
+#[test]
+fn a_pointer_that_follows_windows_cursor_is_on_what_s_under_it_at_once() {
+    let mut app = Headless::new(Pointing::default());
+    app.frame();
+    let button = app.target("Button").center();
+    app.send(&[Event::PointerMoved(button)]);
+    assert_eq!((app.pointer(), app.ui.hovered_name()), (button, Some("Button")));
+    app.send(&[Event::PointerMoved(Point::new(5.0, 900.0)), Event::ButtonPressed(MouseButton::Left)]);
+    assert_eq!((app.ui.hovered_name(), app.program.clicks), (None, 0));
+    app.send(&[Event::ButtonReleased(MouseButton::Left), Event::PointerMoved(button), Event::ButtonPressed(MouseButton::Left)]);
+    assert_eq!(app.program.clicks, 1);
+    let events = [Event::PointerMoved(button), Event::ButtonPressed(MouseButton::Left), Event::PointerMoved(MIDDLE)];
+    assert_eq!(Input::default().steps(&events), vec![&events[..2], &events[2..]]);
 }

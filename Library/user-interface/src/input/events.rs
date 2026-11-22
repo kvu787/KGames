@@ -19,7 +19,9 @@
 // events, and carries on from where it is after that, except where it's
 // placed: a window places it where Windows' cursor is, or in the middle if
 // that's outside the window, as it starts to keep the cursor, like as it
-// gets focus (see platform/cursor.rs), which isn't motion. It moves in the events' order, so a press happens where the
+// gets focus (see platform/cursor.rs), which isn't motion. In Windows'
+// cursor mode, Windows' cursor moves it instead, to where it went, which is
+// motion. It moves in the events' order, so a press happens where the
 // pointer was as the button went down. It's worked out in f64, so that a
 // test's motion, worked out from where the pointer is to a point, lands on
 // that point exactly (see testing/gestures.rs).
@@ -53,6 +55,11 @@ pub enum Event {
     // Unlike motion, it's no part of `Input::pointer_delta`, so a drag or a
     // camera that the pointer turns doesn't jump with it.
     PointerPlaced(Point),
+    // The pointer moved to a point in the frame, inside it, as Windows'
+    // cursor did, which it follows in Windows' cursor mode (see
+    // platform/cursor.rs). It's motion, like MouseMoved, in
+    // `Input::pointer_delta`.
+    PointerMoved(Point),
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
     // In notches of the wheel, +y away from the user, +x to the right.
@@ -182,7 +189,7 @@ impl Input {
         let mut index = 0;
         while index < events.len() {
             let acts = match &events[index] {
-                Event::MouseMoved { .. } | Event::PointerPlaced(_) => false,
+                Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::PointerMoved(_) => false,
                 Event::Gamepad(gamepad) => std::mem::replace(&mut self.step_gamepad_buttons, gamepad.buttons.0) != gamepad.buttons.0,
                 _ => true,
             };
@@ -195,7 +202,7 @@ impl Input {
             start = index;
         }
         let rest = &events[start..];
-        let moves_pointer = rest.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_)));
+        let moves_pointer = rest.iter().any(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::PointerMoved(_)));
         if steps.is_empty() || moves_pointer {
             steps.push(rest);
         } else if !rest.is_empty() {
@@ -241,7 +248,7 @@ impl Input {
         }
         match event {
             Event::MouseMoved { x, y } => self.pointer = Some(moved_pointer(self.pointer, *x, *y, self.size)),
-            Event::PointerPlaced(at) => self.pointer = Some(moved_pointer(Some(*at), 0.0, 0.0, self.size)),
+            Event::PointerPlaced(at) | Event::PointerMoved(at) => self.pointer = Some(moved_pointer(Some(*at), 0.0, 0.0, self.size)),
             Event::ButtonPressed(button) => {
                 let time = self.time;
                 let position = self.pointer.unwrap_or_default();

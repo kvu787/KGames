@@ -3,7 +3,9 @@
 // Ctrl+Shift+Alt+F12 never reaches the interface. F12 alone, or with fewer of
 // the modifiers, is only a key, and so is F1, and Alt+F4 is only two keys. A
 // program can close itself with Context::close, and the steps of its frame
-// after the one that closes don't happen.
+// after the one that closes don't happen. And the platform's other shortcut,
+// Ctrl+Shift+Alt+F11, which switches the cursor, and never reaches the
+// interface either.
 
 use user_interface::{Button, Context, Event, Headless, Key, Program, Rect, Tree, Ui};
 
@@ -163,6 +165,49 @@ fn a_script_can_t_press_ctrl_shift_alt_f12() {
         r#"{ "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt"] }, { "Frame": 2, "Hold": ["Ctrl", "Shift"] }, { "Frame": 2, "Key": "F12" }"#,
         r#"{ "Frame": 1, "Key": "F1" }"#,
     ];
+    for steps in allowed {
+        let script = format!(r#"{{ "Steps": [ {steps} ] }}"#);
+        assert!(user_interface::Script::parse(&script).is_ok(), "{steps}");
+    }
+}
+
+// Ctrl+Shift+Alt+F11, which switches the cursor, is the platform's too:
+// whoever made a frame's events, F11's press while Ctrl, Shift and Alt are
+// held never reaches the interface.
+#[test]
+#[should_panic(expected = "Ctrl+Shift+Alt+F11 is the platform's")]
+fn ctrl_shift_alt_f11_never_reaches_the_interface() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::ALT)]);
+    app.send(&[Event::KeyPressed(Key::F11)]);
+}
+
+// F11 alone, or with fewer of the modifiers, is a key, which the program
+// gets like any other.
+#[test]
+fn f11_otherwise_is_only_a_key() {
+    let mut app = Headless::new(Closing::default());
+    app.send(&[Event::KeyPressed(Key::F11), Event::KeyReleased(Key::F11)]);
+    app.send(&[Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::F11)]);
+    assert!(!app.closed());
+    assert_eq!(app.program.keys, [Key::F11, Key::CONTROL, Key::SHIFT, Key::F11]);
+}
+
+// A script can't press Ctrl+Shift+Alt+F11 either, whichever steps hold the
+// modifiers, and the error says what it does. It can press F11 otherwise.
+#[test]
+fn a_script_can_t_press_ctrl_shift_alt_f11() {
+    let switches = [
+        r#"{ "Frame": 1, "Key": "Ctrl+Shift+Alt+F11" }"#,
+        r#"{ "Frame": 1, "Hold": ["Ctrl", "Shift", "Alt"] }, { "Frame": 2, "Key": "F11" }"#,
+    ];
+    for steps in switches {
+        let script = format!(r#"{{ "Steps": [ {steps} ] }}"#);
+        let error = user_interface::Script::parse(&script).unwrap_err();
+        assert!(error.contains("presses Ctrl+Shift+Alt+F11 at frame"), "{error}");
+        assert!(error.contains("Ctrl+Shift+Alt+F11 is the platform's, which switches the cursor, and which a script can't press"), "{error}");
+    }
+    let allowed = [r#"{ "Frame": 1, "Key": "F11" }"#, r#"{ "Frame": 1, "Key": "Ctrl+Alt+F11" }"#, r#"{ "Frame": 1, "Hold": ["F11", "Ctrl", "Shift", "Alt"] }"#];
     for steps in allowed {
         let script = format!(r#"{{ "Steps": [ {steps} ] }}"#);
         assert!(user_interface::Script::parse(&script).is_ok(), "{steps}");

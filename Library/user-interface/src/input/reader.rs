@@ -1,8 +1,9 @@
 // Turns a frame's GameInput readings (platform/input_devices.rs) into the
 // interface's events (input/events.rs), in the order of GameInput's stream,
 // which is the order the input happened in, with the window's focus changes,
-// which come from the window and not from GameInput, put among them by their
-// times. Nothing here reorders the readings:
+// and in Windows' cursor mode, where Windows' cursor went, which come from
+// the window and not from GameInput, put among them by their times. Nothing
+// here reorders the readings:
 //
 // - Keys come from keyboards' readings, which are the keys held down. Shift,
 //   Ctrl and Alt are the same keys on the left and the right. A held key
@@ -11,10 +12,24 @@
 //   it from the keys (see input/typing.rs).
 // - The mouse's buttons, wheels and motion come from mice's readings, in
 //   the stream's order, the motion in GameInput's counts, which move the
-//   interface's pointer (see input/events.rs), while the window keeps
-//   Windows' cursor, hidden (see platform/window.rs and platform/cursor.rs).
+//   interface's pointer (see input/events.rs) in GameInput's cursor mode,
+//   while the window keeps Windows' cursor, hidden (see platform/window.rs
+//   and platform/cursor.rs).
 //   Only mice's relative motion counts, not the absolute positions of a pen
 //   or a touch screen.
+// - In Windows' cursor mode, which Ctrl+Shift+Alt+F11 switches to, the
+//   mice's motion moves nothing, and Windows' cursor moves the pointer
+//   instead, to where the window found it went, with Event::PointerMoved,
+//   at the time it found it, which can be a little after the cursor moved,
+//   while the mice's input reaches the interface. Their buttons and wheels
+//   still come from their readings. The press of Ctrl+Shift+Alt+F11 changes
+//   the mode from its point in the stream on: the mice's motion before it
+//   moves the pointer, and Windows' cursor after it, or the other way
+//   around. Windows' cursor's moves come only while the window is in
+//   Windows' cursor mode, which it switches to as the frame's input left it
+//   once the frame has had it, so a frame that switches to it has none
+//   after its press, and Windows' cursor shows where the frame left the
+//   pointer.
 //   A mouse's motion and wheels are running totals, which only its readings
 //   with relative positions have: GameInput gives each mouse a reading as
 //   focus goes that has none, and whose totals are 0, and goes on adding up
@@ -34,12 +49,15 @@
 // - A gamepad is known from when it connects, and a device that's unplugged
 //   lets go of what it held after the frame's readings, as GameInput doesn't
 //   say when it went.
-// - Ctrl+Shift+Alt+F12 is the platform's, and never reaches the interface:
-//   F12's press while the interface has Ctrl, Shift and Alt held quits. F12
-//   alone, or with fewer of them, is a key like any other.
+// - Ctrl+Shift+Alt+F12 and Ctrl+Shift+Alt+F11 are the platform's, and never
+//   reach the interface: F12's press while the interface has Ctrl, Shift and
+//   Alt held quits, and F11's switches the cursor's mode (see
+//   platform/cursor.rs), from that point in the stream on. F12 and F11
+//   alone, or with fewer of them, are keys like any other.
 // - The mice's input reaches the interface only while the window keeps
-//   Windows' cursor, hidden (see platform/cursor.rs): not while it doesn't,
-//   when Windows' arrow moves and the pointer would move apart from it, like
+//   Windows' cursor, hidden or, in Windows' cursor mode, shown (see
+//   platform/cursor.rs): not while it doesn't, when Windows' arrow moves
+//   free and the pointer would move apart from it, like
 //   while a click that was going on elsewhere as the window got focus is
 //   held, before the window keeps it. A click on the window that gives it
 //   focus keeps it at once, so the mice's motion moves the pointer while
@@ -74,8 +92,9 @@ use windows_api_raw::*;
 use crate::drawing::geometry::Point;
 use crate::input::devices::{Gamepad, GamepadButtons, Key, Modifiers, MouseButton as Button, Shortcut};
 use crate::input::events::Event;
+use crate::platform::cursor::CursorMode;
 use crate::platform::input_devices::{Device, Devices, Reading};
-use crate::platform::window::{FocusChange, Window};
+use crate::platform::window::{CursorMove, FocusChange, Window};
 
 // What a frame read: the frame's events, for its FrameInput (see
 // input/events.rs), and what the platform does with the rest.
@@ -89,6 +108,9 @@ pub struct FrameRead {
     // events are what came before it, which happen, and nothing after it
     // does.
     pub quit: bool,
+    // The cursor's mode as the frame's input leaves it, which
+    // Ctrl+Shift+Alt+F11 switches, for the window to take on.
+    pub cursor_mode: CursorMode,
 }
 
 // A keyboard's held keys.
@@ -149,6 +171,8 @@ pub struct InputReader {
     placed: Option<Point>,
     // Whether Ctrl+Shift+Alt+F12 was pressed in the frame.
     quit: bool,
+    // The cursor's mode at this point in the frame's input.
+    cursor_mode: CursorMode,
 }
 
 // What a frame's device events say about devices' connections: the gamepads
@@ -180,15 +204,18 @@ pub fn connections(events: &[(GameInputDeviceEvent, Device)]) -> Connections {
 }
 
 // What the window says for a frame: when it got or lost focus, whether it
-// keeps Windows' cursor, and where it placed the pointer, in the client area,
+// keeps Windows' cursor, where it placed the pointer, in the client area,
 // as it last started to keep the cursor, if it did since the last frame:
-// where Windows' cursor was, or the middle. The pointer goes there as the
-// mice's input starts.
+// where Windows' cursor was, or the middle, which the pointer goes to as the
+// mice's input starts, the cursor's mode, which the frame starts in, and in
+// Windows' cursor mode, where Windows' cursor went, and when.
 #[derive(Clone, Debug, Default)]
 pub struct WindowState {
     pub focus_changes: Vec<FocusChange>,
     pub keeps_cursor: bool,
     pub pointer_placed: Option<Point>,
+    pub cursor_mode: CursorMode,
+    pub cursor_moves: Vec<CursorMove>,
 }
 
 impl WindowState {
@@ -198,6 +225,24 @@ impl WindowState {
             focus_changes: window.take_focus_changes(),
             keeps_cursor: window.keeps_cursor(),
             pointer_placed: window.take_pointer_placed(),
+            cursor_mode: window.cursor_mode(),
+            cursor_moves: window.take_cursor_moves(),
+        }
+    }
+}
+
+// What the window found, among the readings by its time.
+#[derive(Clone, Copy, Debug)]
+enum Found {
+    Focus(FocusChange),
+    Cursor(CursorMove),
+}
+
+impl Found {
+    fn time(&self) -> i64 {
+        match self {
+            Found::Focus(change) => change.time,
+            Found::Cursor(moved) => moved.time,
         }
     }
 }
@@ -222,6 +267,7 @@ impl InputReader {
             keeps_after: false,
             placed: None,
             quit: false,
+            cursor_mode: CursorMode::default(),
         }
     }
 
@@ -287,6 +333,7 @@ impl InputReader {
         // from the frame's start, or as focus comes.
         self.keeps_after = window.keeps_cursor;
         self.placed = window.pointer_placed;
+        self.cursor_mode = window.cursor_mode;
         if window.focus_changes.is_empty() {
             if self.mouse_open() && !window.keeps_cursor {
                 self.close_mouse(&mut frame.events);
@@ -296,9 +343,11 @@ impl InputReader {
                 self.open_mouse(&mut frame.events);
             }
         }
-        // The window's focus changes go before the first reading that's
-        // later, and the readings keep the stream's order, whatever their
-        // times. Ctrl+Shift+Alt+F12 quits, so nothing after it happens.
+        // The window's focus changes, and Windows' cursor's moves, go before
+        // the first reading that's later, a focus change first if one was
+        // found at the same time, and the readings keep the stream's order,
+        // whatever their times. Ctrl+Shift+Alt+F12 quits, so nothing after
+        // it happens.
         let mut changes = window.focus_changes.clone();
         changes.sort_by_key(|change| change.time);
         // In a frame that gets focus, each gamepad's first reading is
@@ -313,19 +362,22 @@ impl InputReader {
         if gets_focus {
             self.catching_up = self.gamepads.iter().map(|(device, _)| *device).collect();
         }
-        let mut changes = changes.into_iter().peekable();
+        let mut found: Vec<Found> = changes.into_iter().map(Found::Focus).chain(window.cursor_moves.iter().copied().map(Found::Cursor)).collect();
+        found.sort_by_key(Found::time);
+        let mut found = found.into_iter().peekable();
         for (time, reading) in readings {
-            while let Some(change) = changes.next_if(|change| change.time <= *time) {
-                self.focus_change(change, &mut frame.events);
+            while let Some(next) = found.next_if(|next| next.time() <= *time) {
+                self.found(next, &mut frame.events);
             }
             self.reading(*time, reading, &mut frame);
             if self.quit {
                 frame.quit = std::mem::take(&mut self.quit);
+                frame.cursor_mode = self.cursor_mode;
                 return frame;
             }
         }
-        for change in changes {
-            self.focus_change(change, &mut frame.events);
+        for next in found {
+            self.found(next, &mut frame.events);
         }
         if self.mouse_open() && !window.keeps_cursor {
             self.close_mouse(&mut frame.events);
@@ -357,7 +409,22 @@ impl InputReader {
         if self.gamepad && self.focused {
             self.send_gamepad(&mut frame.events);
         }
+        frame.cursor_mode = self.cursor_mode;
         frame
+    }
+
+    // What the window found: a focus change, or where Windows' cursor went,
+    // which the pointer follows in Windows' cursor mode, while the mice's
+    // input reaches the interface.
+    fn found(&mut self, found: Found, events: &mut Vec<Event>) {
+        match found {
+            Found::Focus(change) => self.focus_change(change, events),
+            Found::Cursor(moved) => {
+                if self.mouse_open() && self.cursor_mode == CursorMode::Windows {
+                    events.push(Event::PointerMoved(moved.at));
+                }
+            }
+        }
     }
 
     // The window got or lost focus, at a time on the counter.
@@ -560,8 +627,11 @@ impl InputReader {
                 self.keys_down[code] = true;
                 if self.focused {
                     let key = Key(code as u8);
-                    if Shortcut::new(self.modifiers_sent(), key) == Shortcut::QUIT {
+                    let shortcut = Shortcut::new(self.modifiers_sent(), key);
+                    if shortcut == Shortcut::QUIT {
                         self.quit = true;
+                    } else if shortcut == Shortcut::TOGGLE_CURSOR {
+                        self.cursor_mode = self.cursor_mode.other();
                     } else {
                         events.push(Event::KeyPressed(key));
                         self.keys_sent[code] = true;
@@ -603,14 +673,15 @@ impl InputReader {
         // mouse's last reading with them. The motion comes first: a reading
         // with a press has the motion before it. The interface hears of each
         // motion as it happens, so that what comes after it in the stream,
-        // like a key, sees the pointer where it went.
+        // like a key, sees the pointer where it went. In Windows' cursor
+        // mode, Windows' cursor moves the pointer instead.
         let change = match (previous, totals) {
             (Some(previous), Some(totals)) if self.mouse_open() => Some((previous, totals)),
             _ => None,
         };
         if let Some((previous, totals)) = change {
             let (x, y) = (totals.x.wrapping_sub(previous.x), totals.y.wrapping_sub(previous.y));
-            if (x, y) != (0, 0) {
+            if (x, y) != (0, 0) && self.cursor_mode == CursorMode::GameInput {
                 events.push(Event::MouseMoved { x: x as f64, y: y as f64 });
             }
         }

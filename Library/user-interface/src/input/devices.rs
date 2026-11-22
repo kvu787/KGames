@@ -232,6 +232,20 @@ impl Shortcut {
     // Ctrl, Shift and Alt are held. It never reaches the interface.
     pub const QUIT: Shortcut = Shortcut::new(Modifiers::new(true, true, true), Key::F12);
 
+    // The platform's, which switches between the pointer that the interface
+    // draws and Windows' cursor (see platform/cursor.rs): F11's press while
+    // Ctrl, Shift and Alt are held. It never reaches the interface.
+    pub const TOGGLE_CURSOR: Shortcut = Shortcut::new(Modifiers::new(true, true, true), Key::F11);
+
+    // The platform's shortcuts, with what each does, which never reach the
+    // interface.
+    pub const PLATFORM: [(Shortcut, &'static str); 2] = [(Shortcut::QUIT, "quits"), (Shortcut::TOGGLE_CURSOR, "switches the cursor")];
+
+    // What the shortcut does if it's the platform's.
+    pub fn platform(&self) -> Option<&'static str> {
+        Shortcut::PLATFORM.iter().find(|(shortcut, _)| shortcut == self).map(|(_, does)| *does)
+    }
+
     pub const fn new(modifiers: Modifiers, key: Key) -> Self {
         Self { modifiers, key }
     }

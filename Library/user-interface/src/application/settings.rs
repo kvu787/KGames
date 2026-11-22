@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use json::Value;
 
 use crate::design::theme::ThemeKind;
+use crate::platform::cursor::CursorMode;
 
 // The settings that every program has, which the library reads first, in
 // this order, before the program reads its own.
@@ -24,6 +25,9 @@ pub struct CommonSettings {
     pub vertical_sync: bool,
     // The theme that the program starts in, which F9 switches.
     pub theme: ThemeKind,
+    // The cursor's mode that the program starts in, which
+    // Ctrl+Shift+Alt+F11 switches (see platform/cursor.rs).
+    pub cursor: CursorMode,
 }
 
 impl CommonSettings {
@@ -33,10 +37,12 @@ impl CommonSettings {
         let vertical_sync = settings.boolean("VerticalSync", true);
         let themes = [ThemeKind::Light, ThemeKind::Dark];
         let theme = settings.choice_of("Theme", ThemeKind::Light, &themes, |theme| theme.name());
+        let cursor = settings.choice_of("Cursor", CursorMode::GameInput, &CursorMode::ALL, CursorMode::name);
         CommonSettings {
             display,
             vertical_sync,
             theme,
+            cursor,
         }
     }
 }
