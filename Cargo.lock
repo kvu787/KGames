@@ -357,25 +357,6 @@ name = "shader-compiler"
 version = "0.1.0"
 
 [[package]]
-name = "shadow-testing"
-version = "0.1.0"
-dependencies = [
- "graphics",
- "shader-compiler",
- "user-interface",
- "windows-api-raw",
- "windows-core",
-]
-
-[[package]]
-name = "shadow-testing-tests"
-version = "0.1.0"
-dependencies = [
- "shadow-testing",
- "user-interface",
-]
-
-[[package]]
 name = "simple-paint"
 version = "0.1.0"
 dependencies = [
