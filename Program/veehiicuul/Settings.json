@@ -2,6 +2,7 @@
   "Display": "Primary",
   "VerticalSync": true,
   "Theme": "Light",
+  "Cursor": "GameInput",
   "Scene": "Ribeye",
   "Vehicle": "Yellow",
   "Camera": "Fixed",

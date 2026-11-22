@@ -62,13 +62,15 @@ Shortcuts, while the demo's window has focus:
 | `F3`                 | Rumble test on or off. The gamepad's sticks then drive its grip motors |
 | `F9`                 | Switches between the light and dark themes                             |
 | `F10`                | Switches vertical sync on or off                                       |
+| `Ctrl+Shift+Alt+F11` | Switches between the drawn pointer and Windows' cursor, as in every    |
+|                      | KGames program                                                         |
 | `Ctrl+Shift+Alt+F12` | Quits, as in every KGames program                                      |
 
 The demo reads `F2` and `F3` from GameInput's readings, like any other key. `F9` and `F10` are
 Library/user-interface's, which reads them from the same readings, as in every KGames program, so
-the demo doesn't also switch on them, which would switch them back. `Ctrl+Shift+Alt+F12` is too,
-and the demo's cards show its keys as GameInput read them, like any keys, but do nothing with
-them.
+the demo doesn't also switch on them, which would switch them back. `Ctrl+Shift+Alt+F11` and
+`Ctrl+Shift+Alt+F12` are too, and the demo's cards show their keys as GameInput read them, like
+any keys, but do nothing with them.
 
 ### Rumble test
 
@@ -218,6 +220,7 @@ it doesn't exist, the demo writes it with the defaults:
   "Display": "Primary",
   "VerticalSync": true,
   "Theme": "Light",
+  "Cursor": "GameInput",
   "RumbleTestInnerDeadZone": 0.1
 }
 ```
@@ -228,9 +231,11 @@ it doesn't exist, the demo writes it with the defaults:
 | `VerticalSync`            | Whether frames wait for the screen's refresh, and never tear, or present at |
 |                           | once, and may tear. `F10` switches it                                       |
 | `Theme`                   | `"Light"` or `"Dark"`, the theme that the demo starts in. `F9` switches it  |
+| `Cursor`                  | `"GameInput"` or `"Windows"`, the cursor that the demo starts with: the     |
+|                           | pointer that it draws, or Windows' own. `Ctrl+Shift+Alt+F11` switches it    |
 | `RumbleTestInnerDeadZone` | The [rumble test](#rumble-test)'s stick dead zone, from 0 to less than 1    |
 
-The first three are the settings that every KGames program has, which
+The first four are the settings that every KGames program has, which
 [Library/user-interface](../../Library/user-interface/README.md#settings-and-the-command-line)
 reads, and the last is the demo's own.
 

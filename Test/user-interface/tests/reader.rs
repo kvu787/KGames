@@ -1,13 +1,15 @@
 // Tests how GameInput's readings become the interface's events: keys, the
-// mouse's buttons, wheel and motion, which moves the pointer, the gamepad,
-// what the window's focus does to them, which the interface never hears of,
-// Ctrl+Shift+Alt+F12, and the time of a frame's newest input, which its
-// input latency starts at. The readings, the window's size and the focus
-// changes are made up, with times on the performance counter.
+// mouse's buttons, wheel and motion, which moves the pointer, or in Windows'
+// cursor mode, Windows' cursor, which the pointer follows, the gamepad, what
+// the window's focus does to them, which the interface never hears of,
+// Ctrl+Shift+Alt+F12 and Ctrl+Shift+Alt+F11, and the time of a frame's newest
+// input, which its input latency starts at. The readings, the window's size,
+// the focus changes and Windows' cursor's moves are made up, with times on
+// the performance counter.
 
 use user_interface::game_input_raw::*;
 use user_interface::input::reader::{Connections, InputReader, WindowState, connections};
-use user_interface::FocusChange;
+use user_interface::{CursorMode, CursorMove, FocusChange};
 use user_interface::{Event, GamepadButtons, Input, Key, MouseButton, Point, Reading};
 
 const KEYBOARD: usize = 1;
@@ -20,6 +22,7 @@ const LEFT_CONTROL: (u8, u32) = (0xA2, 0x1D);
 const LEFT_ALT: (u8, u32) = (0xA4, 0x38);
 const BACKSPACE: (u8, u32) = (0x08, 0x0E);
 const F1: (u8, u32) = (0x70, 0x3B);
+const F11: (u8, u32) = (0x7A, 0x57);
 const F12: (u8, u32) = (0x7B, 0x58);
 
 fn keyboard(time: i64, keys: &[(u8, u32)]) -> (i64, Reading) {
@@ -96,7 +99,17 @@ fn window(focus: Option<(i64, bool)>) -> WindowState {
     WindowState {
         focus_changes: focus.map(|(time, gained)| FocusChange { time, gained }).into_iter().collect(),
         keeps_cursor: focus.is_none_or(|(_, gained)| gained),
-        pointer_placed: None,
+        ..WindowState::default()
+    }
+}
+
+// The window in Windows' cursor mode, which found that Windows' cursor went
+// to each point at each time.
+fn following(focus: Option<(i64, bool)>, moves: &[(i64, Point)]) -> WindowState {
+    WindowState {
+        cursor_mode: CursorMode::Windows,
+        cursor_moves: moves.iter().map(|(time, at)| CursorMove { time: *time, at: *at }).collect(),
+        ..window(focus)
     }
 }
 
@@ -125,7 +138,7 @@ fn buttons(events: &[Event]) -> Vec<Event> {
 fn mouse_events(events: &[Event]) -> Vec<Event> {
     events
         .iter()
-        .filter(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_)))
+        .filter(|event| matches!(event, Event::MouseMoved { .. } | Event::PointerPlaced(_) | Event::PointerMoved(_) | Event::ButtonPressed(_) | Event::ButtonReleased(_) | Event::Wheel(_)))
         .cloned()
         .collect()
 }
@@ -515,6 +528,152 @@ fn ctrl_shift_alt_f12_without_focus_does_nothing() {
     let frame = focusing.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]), keyboard(30, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F12])], &[], &window(Some((20, true))));
     assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::F12)]);
     assert!(!frame.quit);
+}
+
+// Ctrl+Shift+Alt+F11 is the platform's: the reader doesn't give F11's press
+// with the three held, or its release, and the frame's input leaves the
+// cursor in the other mode, which the window takes on. The modifiers'
+// presses before it reach the interface. In one reading with them, it's the
+// shortcut too.
+#[test]
+fn ctrl_shift_alt_f11_is_the_platform_s() {
+    let mut reader = focused();
+    let frame = reader.read(
+        &[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]), keyboard(20, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11]), keyboard(30, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT])],
+        &[],
+        &window(None),
+    );
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT)]);
+    assert_eq!((frame.cursor_mode, frame.quit), (CursorMode::Windows, false));
+    let frame = reader.read(&[keyboard(40, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11])], &[], &following(None, &[]));
+    assert_eq!(keys(&frame.events), []);
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+    let frame = reader.read(&[keyboard(50, &[])], &[], &window(None));
+    assert_eq!(keys(&frame.events), [Event::KeyReleased(Key::SHIFT), Event::KeyReleased(Key::CONTROL), Event::KeyReleased(Key::ALT)]);
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+
+    let mut reader = focused();
+    let frame = reader.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11])], &[], &window(None));
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::SHIFT), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT)]);
+    assert_eq!(frame.cursor_mode, CursorMode::Windows);
+}
+
+// F11 alone, with fewer of the modifiers, or pressed before them, is a key
+// like any other, which switches nothing. Without focus, Ctrl+Shift+Alt+F11
+// does nothing, and modifiers held from before the window got focus count
+// only once they're let go of. A frame without it leaves the cursor in the
+// mode that it started in.
+#[test]
+fn f11_otherwise_is_a_key() {
+    let mut focused = focused();
+    let frame = focused.read(&[keyboard(10, &[F11]), keyboard(20, &[]), keyboard(30, &[LEFT_CONTROL, LEFT_ALT]), keyboard(40, &[LEFT_CONTROL, LEFT_ALT, F11])], &[], &window(None));
+    assert_eq!(
+        keys(&frame.events),
+        [Event::KeyPressed(Key::F11), Event::KeyReleased(Key::F11), Event::KeyPressed(Key::CONTROL), Event::KeyPressed(Key::ALT), Event::KeyPressed(Key::F11)]
+    );
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+    let frame = focused.read(&[keyboard(50, &[]), keyboard(60, &[F11]), keyboard(70, &[F11, LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT])], &[], &following(None, &[]));
+    assert_eq!(frame.cursor_mode, CursorMode::Windows);
+
+    let mut unfocused = reader();
+    let frame = unfocused.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11])], &[], &window(None));
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+    let mut focusing = reader();
+    let frame = focusing.read(&[keyboard(10, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]), keyboard(30, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11])], &[], &window(Some((20, true))));
+    assert_eq!(keys(&frame.events), [Event::KeyPressed(Key::F11)]);
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+}
+
+// In Windows' cursor mode, the mice's motion moves nothing, and Windows'
+// cursor moves the pointer instead, to where the window found it went,
+// among the readings by the times it found it, before a reading at the same
+// time, as a focus change goes. The mice's buttons and wheels count as
+// ever, where Windows' cursor took the pointer before them.
+#[test]
+fn in_windows_mode_windows_cursor_moves_the_pointer_and_the_mice_s_motion_doesn_t() {
+    let (first, second, third) = (Point::new(300.0, 400.0), Point::new(310.0, 404.0), Point::new(330.0, 410.0));
+    let mut reader = focused();
+    reader.read(&[mouse_at(5, GameInputMouseNone, 0, 0)], &[], &following(None, &[]));
+    let frame = reader.read(
+        &[mouse_at(10, GameInputMouseNone, 10, 0), mouse_at(20, GameInputMouseLeftButton, 20, 0), mouse_with(30, 30, 0, 120), mouse_with(40, 40, 0, 120)],
+        &[],
+        &following(None, &[(15, first), (20, second), (35, third)]),
+    );
+    assert_eq!(
+        mouse_events(&frame.events),
+        [
+            Event::PointerMoved(first),
+            Event::PointerMoved(second),
+            Event::ButtonPressed(MouseButton::Left),
+            Event::ButtonReleased(MouseButton::Left),
+            Event::Wheel(Point::new(0.0, 1.0)),
+            Event::PointerMoved(third),
+        ]
+    );
+    assert_eq!(frame.cursor_mode, CursorMode::Windows);
+    let mut input = Input::default();
+    input.resize(user_interface::Size::new(2560.0, 1440.0));
+    let mut presses = Vec::new();
+    for step in input.steps(&frame.events) {
+        input.begin(0.0, step);
+        if input.button_pressed(MouseButton::Left) {
+            presses.push(input.pointer);
+        }
+    }
+    assert_eq!((presses, input.pointer), (vec![Some(second)], Some(third)));
+}
+
+// The press of Ctrl+Shift+Alt+F11 switches from its point in the stream on:
+// the mice's motion before it moves the pointer, and none after it does.
+// The window, which was in GameInput's mode for the frame, found nothing of
+// Windows' cursor, which it shows where the frame left the pointer, and
+// follows from the next frame. Switching back, Windows' cursor's moves
+// before the press move the pointer, and the mice's motion after it does.
+#[test]
+fn ctrl_shift_alt_f11_switches_from_its_point_in_the_stream_on() {
+    let (first, second) = (Point::new(300.0, 400.0), Point::new(320.0, 400.0));
+    let mut reader = focused();
+    reader.read(&[mouse_at(5, GameInputMouseNone, 0, 0)], &[], &window(None));
+    let frame = reader.read(
+        &[mouse_at(10, GameInputMouseNone, 10, 0), keyboard(20, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11]), mouse_at(30, GameInputMouseNone, 20, 0)],
+        &[],
+        &window(None),
+    );
+    assert_eq!(motions(&frame.events), [(10.0, 0.0)]);
+    assert_eq!(frame.cursor_mode, CursorMode::Windows);
+    let frame = reader.read(
+        &[
+            keyboard(40, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT]),
+            mouse_at(45, GameInputMouseNone, 30, 0),
+            keyboard(60, &[LEFT_CONTROL, LEFT_SHIFT, LEFT_ALT, F11]),
+            mouse_at(70, GameInputMouseNone, 40, 0),
+        ],
+        &[],
+        &following(None, &[(50, first), (65, second)]),
+    );
+    assert_eq!(mouse_events(&frame.events), [Event::PointerMoved(first), Event::MouseMoved { x: 10.0, y: 0.0 }]);
+    assert_eq!(frame.cursor_mode, CursorMode::GameInput);
+}
+
+// Windows' cursor moves the pointer only while the mice's input reaches the
+// interface: with focus, after the focus change if it was found at the same
+// time, and while the window keeps the cursor. As the window starts to keep
+// it, the pointer is placed first, where Windows' cursor was.
+#[test]
+fn windows_cursor_moves_the_pointer_only_while_the_mice_s_input_reaches_the_interface() {
+    let (placed, first, second) = (Point::new(100.0, 100.0), Point::new(300.0, 400.0), Point::new(320.0, 400.0));
+    let mut focusing = reader();
+    let frame = focusing.read(&[], &[], &WindowState { pointer_placed: Some(placed), ..following(Some((20, true)), &[(10, first), (20, second)]) });
+    assert_eq!(mouse_events(&frame.events), [Event::PointerPlaced(placed), Event::PointerMoved(second)]);
+
+    let mut held = reader();
+    held.read(&[], &[], &WindowState { keeps_cursor: false, ..following(Some((1, true)), &[]) });
+    let frame = held.read(&[], &[], &WindowState { keeps_cursor: false, ..following(None, &[(10, first)]) });
+    assert_eq!(mouse_events(&frame.events), []);
+    let frame = held.read(&[], &[], &WindowState { pointer_placed: Some(placed), ..following(None, &[(20, second)]) });
+    assert_eq!(mouse_events(&frame.events), [Event::PointerPlaced(placed), Event::PointerMoved(second)]);
+    let frame = held.read(&[], &[], &following(Some((30, false)), &[(25, first), (35, second)]));
+    assert_eq!(mouse_events(&frame.events), [Event::PointerMoved(first)]);
 }
 
 // As the window lets Windows' cursor go while it has focus, like as its

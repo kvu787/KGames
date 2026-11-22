@@ -1,9 +1,9 @@
-// Tests what the window does with Windows' cursor, which platform/cursor.rs
-// decides on the facts that the window gathers from Windows, through whole
-// sequences, without a window, as one with focus is what the facts describe,
-// and tests never take focus.
+// Tests what the window does with Windows' cursor, in both of its modes,
+// which platform/cursor.rs decides on the facts that the window gathers from
+// Windows, through whole sequences, without a window, as one with focus is
+// what the facts describe, and tests never take focus.
 
-use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, clip_holder, on_screens};
+use user_interface::{ClipHolder, CursorAction, CursorFacts, CursorKeeper, CursorMode, clip_holder, on_screens};
 use windows_api_raw::{POINT, RECT};
 
 use CursorAction::{Confine, Hide, Place, PlacePointer, Release, Show};
@@ -296,4 +296,170 @@ fn without_mice_the_cursor_is_left_alone() {
     assert!(!keeper.keeps());
     assert_eq!(keeper.update(facts(false, SCREENS)), []);
     assert_eq!(keeper.let_go(facts(false, SCREENS)), []);
+}
+
+// Ctrl+Shift+Alt+F11 switches the cursor to Windows' mode: while the window
+// keeps the cursor, it shows where the pointer is, which it went its own way
+// from while it was hidden, and is still kept. Switching back hides it, where
+// it is. Switching to the mode it's in does nothing.
+#[test]
+fn switching_while_the_window_keeps_the_cursor_shows_it_where_the_pointer_is_or_hides_it() {
+    let mut keeper = keeping();
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), [Show, Place(AT_POINTER)]);
+    assert_eq!(keeper.mode(), CursorMode::Windows);
+    assert!(keeper.keeps());
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), []);
+    assert_eq!(keeper.update(facts(true, AREA)), []);
+    assert_eq!(keeper.set_mode(CursorMode::GameInput, facts(true, AREA)), [Hide]);
+    assert_eq!(keeper.mode(), CursorMode::GameInput);
+    assert!(keeper.keeps());
+}
+
+// Windows' cursor shows where the pointer is, inside the area that it's kept
+// in, or in the middle of the client area if the pointer was nowhere yet.
+#[test]
+fn switching_to_windows_mode_places_the_cursor_inside_the_area() {
+    let mut keeper = CursorKeeper::new(true);
+    keeper.update(facts(true, SCREENS));
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), [Show, Place(POINT { x: 1280, y: 720 })]);
+    keeper.set_mode(CursorMode::GameInput, facts(true, AREA));
+    keeper.set_pointer(POINT { x: 5000, y: -3 });
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), [Show, Place(POINT { x: 2559, y: 0 })]);
+    let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
+    let mut keeper = CursorKeeper::new(true);
+    let at = CursorFacts { area: Some(shifted), ..facts(true, SCREENS) };
+    keeper.update(at);
+    keeper.set_pointer(POINT { x: 10, y: 20 });
+    assert_eq!(keeper.set_mode(CursorMode::Windows, at), [Show, Place(POINT { x: 110, y: 70 })]);
+}
+
+// In Windows' mode, the window keeps the cursor as it does in GameInput's,
+// but shown: as it starts to keep it, it doesn't hide it, and the pointer is
+// placed where it is. As focus goes, the confinement is released, and the
+// cursor stays where it is, which the pointer followed, and shows already.
+#[test]
+fn windows_mode_keeps_the_cursor_shown_and_lets_it_go_where_it_is() {
+    let mut keeper = CursorKeeper::new(true);
+    keeper.set_pointer(AT_POINTER);
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, SCREENS)), []);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), PlacePointer(AT_CURSOR)]);
+    assert!(keeper.keeps());
+    assert_eq!(keeper.update(facts(true, AREA)), []);
+    assert_eq!(keeper.update(facts(true, OTHER)), [Confine(AREA)]);
+    assert_eq!(keeper.update(facts(false, AREA)), [Release]);
+    assert!(!keeper.keeps());
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), PlacePointer(AT_CURSOR)]);
+    assert_eq!(keeper.update(facts(false, SCREENS)), []);
+    keeper.update(facts(true, SCREENS));
+    assert_eq!(keeper.update(facts(false, OTHER)), []);
+    keeper.update(facts(true, SCREENS));
+    let minimized = CursorFacts { area: None, ..facts(false, AREA) };
+    assert_eq!(keeper.update(minimized), [Release]);
+    keeper.update(facts(true, SCREENS));
+    assert_eq!(keeper.let_go(facts(false, AREA)), [Release]);
+}
+
+// In Windows' mode, a cursor outside the area that the window keeps it in,
+// like on another display as Alt+Tab gives the window focus, is put in the
+// middle of the client area, where the pointer is placed, and not left at
+// the area's edge, where the confinement puts it, shown.
+#[test]
+fn in_windows_mode_a_cursor_outside_is_put_in_the_middle() {
+    let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
+    let at = |x, y| CursorFacts { area: Some(shifted), cursor: POINT { x, y }, ..facts(true, SCREENS) };
+    let kept = on_screens(shifted, SCREENS).unwrap();
+    let away = CursorFacts { focused: false, clip: kept, ..at(0, 0) };
+    let mut keeper = CursorKeeper::new(true);
+    keeper.set_mode(CursorMode::Windows, at(0, 0));
+    for (x, y) in [(-1000, 20), (4000, 700), (99, 700), (700, 1440)] {
+        let middle = POINT { x: 1380, y: 770 };
+        assert_eq!(keeper.update(at(x, y)), [Confine(kept), Place(middle), PlacePointer(POINT { x: 1280, y: 720 })], "from ({x}, {y})");
+        keeper.update(away);
+    }
+    assert_eq!(keeper.update(at(700, 650)), [Confine(kept), PlacePointer(POINT { x: 600, y: 600 })]);
+}
+
+// Switching while the window doesn't keep the cursor, like while another
+// window has focus, or a click from elsewhere is held as it gets focus,
+// changes only how the window keeps it next. So does switching in a run
+// without mice, which never keeps it.
+#[test]
+fn switching_without_keeping_the_cursor_changes_only_how_it_s_kept_next() {
+    let mut keeper = CursorKeeper::new(true);
+    let held = CursorFacts { button_held: true, ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(held), []);
+    assert_eq!(keeper.set_mode(CursorMode::Windows, held), []);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), PlacePointer(AT_CURSOR)]);
+    assert_eq!(keeper.update(facts(false, AREA)), [Release]);
+    assert_eq!(keeper.set_mode(CursorMode::GameInput, facts(false, SCREENS)), []);
+    assert_eq!(keeper.update(facts(true, SCREENS)), [Confine(AREA), Hide, PlacePointer(AT_CURSOR)]);
+
+    let mut keeper = CursorKeeper::new(false);
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, SCREENS)), []);
+    assert_eq!(keeper.update(facts(true, SCREENS)), []);
+    assert!(!keeper.keeps());
+    assert_eq!(keeper.mode(), CursorMode::Windows);
+}
+
+// In Windows' mode, while the window keeps the cursor, the pointer follows
+// it to where Windows says it is, in the client area's pixels, as each check
+// finds it moved: not to where it already was as the window started to keep
+// it, and the pointer was placed there, and not again while it stays.
+#[test]
+fn the_pointer_follows_the_cursor_s_moves_in_windows_mode() {
+    let shifted = RECT { left: 100, top: 50, right: 2660, bottom: 1490 };
+    let at = |x, y| CursorFacts { area: Some(shifted), cursor: POINT { x, y }, ..facts(true, SCREENS) };
+    let mut keeper = CursorKeeper::new(true);
+    keeper.set_mode(CursorMode::Windows, at(0, 0));
+    assert!(!keeper.follows());
+    assert_eq!(keeper.follow(POINT { x: 500, y: 500 }, shifted), None);
+    keeper.update(at(700, 650));
+    assert!(keeper.follows());
+    assert_eq!(keeper.follow(POINT { x: 700, y: 650 }, shifted), None);
+    assert_eq!(keeper.follow(POINT { x: 710, y: 655 }, shifted), Some(POINT { x: 610, y: 605 }));
+    assert_eq!(keeper.follow(POINT { x: 710, y: 655 }, shifted), None);
+    assert_eq!(keeper.follow(POINT { x: 700, y: 650 }, shifted), Some(POINT { x: 600, y: 600 }));
+}
+
+// Where the window put Windows' cursor isn't a move of it: in the middle, as
+// it started to keep a cursor that was outside, and where the pointer is, as
+// it switched to Windows' mode. Moves from there are.
+#[test]
+fn where_the_window_put_the_cursor_is_no_move_of_it() {
+    let mut keeper = CursorKeeper::new(true);
+    keeper.set_mode(CursorMode::Windows, facts(true, SCREENS));
+    let outside = CursorFacts { cursor: POINT { x: 4000, y: 700 }, ..facts(true, SCREENS) };
+    assert_eq!(keeper.update(outside), [Confine(AREA), Place(POINT { x: 1280, y: 720 }), PlacePointer(POINT { x: 1280, y: 720 })]);
+    assert_eq!(keeper.follow(POINT { x: 1280, y: 720 }, AREA), None);
+    assert_eq!(keeper.follow(POINT { x: 1281, y: 720 }, AREA), Some(POINT { x: 1281, y: 720 }));
+
+    let mut keeper = keeping();
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), [Show, Place(AT_POINTER)]);
+    assert_eq!(keeper.follow(AT_POINTER, AREA), None);
+    assert_eq!(keeper.follow(AT_CURSOR, AREA), Some(AT_CURSOR));
+}
+
+// The pointer follows nothing in GameInput's mode, where the mice move it,
+// or while the window doesn't keep the cursor. As the window keeps it again
+// after letting it go, the pointer is placed where the cursor is, which is
+// no move either, and switching back to Windows' mode starts over from
+// where the window put the cursor.
+#[test]
+fn the_pointer_follows_only_while_the_window_keeps_the_cursor_in_windows_mode() {
+    let mut keeper = keeping();
+    assert!(!keeper.follows());
+    assert_eq!(keeper.follow(POINT { x: 5, y: 5 }, AREA), None);
+    keeper.set_mode(CursorMode::Windows, facts(true, AREA));
+    assert_eq!(keeper.follow(POINT { x: 5, y: 5 }, AREA), Some(POINT { x: 5, y: 5 }));
+    keeper.update(facts(false, AREA));
+    assert!(!keeper.follows());
+    assert_eq!(keeper.follow(POINT { x: 6, y: 6 }, AREA), None);
+    keeper.update(facts(true, SCREENS));
+    assert!(keeper.follows());
+    assert_eq!(keeper.follow(AT_CURSOR, AREA), None);
+    keeper.set_mode(CursorMode::GameInput, facts(true, AREA));
+    assert_eq!(keeper.follow(POINT { x: 7, y: 7 }, AREA), None);
+    keeper.set_pointer(POINT { x: 7, y: 7 });
+    assert_eq!(keeper.set_mode(CursorMode::Windows, facts(true, AREA)), [Show, Place(POINT { x: 7, y: 7 })]);
+    assert_eq!(keeper.follow(POINT { x: 7, y: 7 }, AREA), None);
 }

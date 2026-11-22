@@ -1,14 +1,28 @@
-// Windows' cursor, while the interface draws a pointer of its own, as games
-// do: GameInput's mice move the interface's pointer (see input/events.rs),
-// and Windows' cursor is kept out of the way. What the window does with it
-// is decided here, from facts that platform/window.rs gathers from Windows,
-// as actions that it carries out, so that every transition is tested
-// without a window that has focus (Test/user-interface/tests/cursor.rs).
+// Windows' cursor, while the interface has a pointer of its own, as games
+// do. What the window does with it is decided here, from facts that
+// platform/window.rs gathers from Windows, as actions that it carries out,
+// so that every transition is tested without a window that has focus
+// (Test/user-interface/tests/cursor.rs).
+//
+// The cursor has two modes, which Ctrl+Shift+Alt+F11 switches between (see
+// input/reader.rs), whether the window keeps the cursor or not:
+//
+// - GameInput's, which a program starts in: GameInput's mice move the
+//   interface's pointer (see input/events.rs), which the frames draw, and
+//   Windows' cursor is hidden, out of the way.
+// - Windows': Windows moves its cursor, with its own speed and
+//   acceleration, and draws it over the frames, as its hardware cursor, in
+//   the shape that the widget under the pointer asks for, and the interface's
+//   pointer follows it, undrawn (see platform/window.rs). The mice's buttons
+//   and wheels still come from GameInput.
+//
+// In both:
 //
 // - While the window has focus, and its frames read GameInput's mice, which
 //   the run decides once, it keeps Windows' cursor inside its client area,
-//   hidden, and its frames draw the pointer exactly while it does. A run
-//   whose input is a script's, or that has none, leaves the cursor alone.
+//   hidden in GameInput's mode, and its frames draw the pointer exactly
+//   while it keeps it in that mode. A run whose input is a script's, or that
+//   has none, leaves the cursor alone.
 // - It starts to keep it at once if a click on the window gave it focus, as
 //   the button goes down, while it's held, which Windows says by asking the
 //   window with WM_MOUSEACTIVATE whether the click activates it. Otherwise
@@ -24,7 +38,8 @@
 //   Alt+Tab gives the window focus, the pointer is placed in the middle of
 //   the client area instead, where it starts with the mice's first event
 //   too, and not at the area's edge, where the confinement puts Windows'
-//   cursor, hidden.
+//   cursor, hidden, or in Windows' mode, shown, so that it's put in the
+//   middle too.
 // - Windows keeps a confinement within the screens, the virtual screen,
 //   which GetClipCursor gives without one, so the window confines the cursor
 //   to the part of its client area that's on the screens, and keeps nothing
@@ -39,9 +54,54 @@
 // - As focus goes, it lets the cursor go where the interface's pointer was,
 //   where it shows, as SDL does, unless another program has confined the
 //   cursor by then, or the window is minimized, and has no client area on
-//   the screen. As the window closes, the same.
+//   the screen. In Windows' mode, it lets it go where it is, which the
+//   pointer followed, and where it shows already. As the window closes, the
+//   same.
+// - Switching to Windows' mode while the window keeps the cursor shows it
+//   where the pointer is, which it went its own way from while it was
+//   hidden, and switching to GameInput's hides it, and the pointer goes on
+//   from where it is. Switching while the window doesn't keep it only
+//   changes how the window keeps it next.
+// - In Windows' mode, while the window keeps the cursor, the pointer follows
+//   it to where Windows says it is each time the window checks, if it moved
+//   since the window last found it there, or put it there, or placed the
+//   pointer where it was: so that only the cursor's own moves are motion,
+//   and not where the window put it.
 
 use windows_api_raw::{POINT, RECT};
+
+// Which cursor points while the window keeps Windows' cursor: the pointer
+// that the interface draws, which GameInput's mice move, with Windows'
+// cursor hidden, or Windows' own cursor, which Windows moves and draws as
+// its hardware cursor, and which the interface's pointer follows.
+// Ctrl+Shift+Alt+F11 switches between them (see input/reader.rs). A program
+// starts in the one that its Cursor setting says, the interface's pointer
+// by default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CursorMode {
+    #[default]
+    GameInput,
+    Windows,
+}
+
+impl CursorMode {
+    pub const ALL: [CursorMode; 2] = [CursorMode::GameInput, CursorMode::Windows];
+
+    // As the Cursor setting says it.
+    pub fn name(self) -> &'static str {
+        match self {
+            CursorMode::GameInput => "GameInput",
+            CursorMode::Windows => "Windows",
+        }
+    }
+
+    pub fn other(self) -> Self {
+        match self {
+            CursorMode::GameInput => CursorMode::Windows,
+            CursorMode::Windows => CursorMode::GameInput,
+        }
+    }
+}
 
 // What Windows says, each time the window checks its focus.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,7 +135,9 @@ pub enum CursorAction {
     Release,
     // Hides it, at once, and over the client area from then on.
     Hide,
-    // Shows Windows' arrow over the client area again.
+    // Shows it over the client area again, at once while the window keeps
+    // it: in the pointer's shape while the window keeps it in Windows' mode,
+    // and as the arrow otherwise.
     Show,
     // Puts it there, in the screen's pixels, with SetCursorPos.
     Place(POINT),
@@ -148,19 +210,95 @@ pub struct CursorKeeper {
     kept: Option<RECT>,
     // Where the interface's pointer last was, in the client area's pixels.
     pointer: Option<POINT>,
+    mode: CursorMode,
+    // Where Windows' cursor last was, in the client area's pixels, as the
+    // window found it, or put it, or placed the pointer where it was, while
+    // it keeps it: so that only Windows' cursor's own moves are motion.
+    followed: Option<POINT>,
 }
 
 impl CursorKeeper {
     // A keeper for a run whose frames read GameInput's mice, or don't, which
-    // keeps nothing yet.
+    // keeps nothing yet, in GameInput's mode.
     pub fn new(mice: bool) -> Self {
-        Self { mice, kept: None, pointer: None }
+        Self {
+            mice,
+            kept: None,
+            pointer: None,
+            mode: CursorMode::default(),
+            followed: None,
+        }
     }
 
-    // Whether the window keeps Windows' cursor, hidden, so that its frames
-    // draw the pointer.
+    // Whether the window keeps Windows' cursor: hidden in GameInput's mode,
+    // so that its frames draw the pointer, and shown in Windows'.
     pub fn keeps(&self) -> bool {
         self.kept.is_some()
+    }
+
+    pub fn mode(&self) -> CursorMode {
+        self.mode
+    }
+
+    // Whether the pointer follows Windows' cursor, which shows in the
+    // pointer's shape: while the window keeps it in Windows' mode.
+    pub fn follows(&self) -> bool {
+        self.kept.is_some() && self.mode == CursorMode::Windows
+    }
+
+    // Where the pointer follows Windows' cursor to, in the client area's
+    // pixels, from where Windows says it is and the client area, if it moved
+    // since the window last found it, or put it, or placed the pointer where
+    // it was. Nothing while the pointer doesn't follow it.
+    pub fn follow(&mut self, cursor: POINT, area: RECT) -> Option<POINT> {
+        if !self.follows() {
+            return None;
+        }
+        let at = POINT {
+            x: cursor.x - area.left,
+            y: cursor.y - area.top,
+        };
+        (self.followed.replace(at) != Some(at)).then_some(at)
+    }
+
+    // Switches the cursor's mode, with what Windows says now: while the
+    // window keeps the cursor, shows it where the pointer is, or the middle
+    // of the client area if it was nowhere yet, in the area that it's kept
+    // in, or hides it. Otherwise only how the window keeps it next changes.
+    pub fn set_mode(&mut self, mode: CursorMode, facts: CursorFacts) -> Vec<CursorAction> {
+        if std::mem::replace(&mut self.mode, mode) == mode {
+            return Vec::new();
+        }
+        let Some(kept) = self.kept else {
+            return Vec::new();
+        };
+        match mode {
+            CursorMode::GameInput => vec![CursorAction::Hide],
+            CursorMode::Windows => {
+                let mut actions = vec![CursorAction::Show];
+                if let Some(area) = facts.area {
+                    let at = nearest(self.pointer_on_screen(area), kept);
+                    actions.push(CursorAction::Place(at));
+                    self.followed = Some(POINT {
+                        x: at.x - area.left,
+                        y: at.y - area.top,
+                    });
+                }
+                actions
+            }
+        }
+    }
+
+    // Where the pointer is, in the screen's pixels, with the client area
+    // there, or the area's middle if it was nowhere yet.
+    fn pointer_on_screen(&self, area: RECT) -> POINT {
+        match self.pointer {
+            Some(pointer) => POINT {
+                x: area.left + pointer.x,
+                y: area.top + pointer.y,
+            },
+            None => middle(area),
+        }
     }
 
     // Where the interface's pointer is, in the client area's pixels, where
@@ -179,15 +317,23 @@ impl CursorKeeper {
                     actions.push(CursorAction::Confine(keep));
                 }
                 if self.kept.replace(keep).is_none() {
-                    actions.push(CursorAction::Hide);
                     // Where Windows' cursor is, or the middle if it's
-                    // outside, as far as that's on the screens.
+                    // outside, as far as that's on the screens, where
+                    // Windows' cursor goes too in Windows' mode, where it
+                    // shows.
                     let inside = nearest(facts.cursor, keep) == facts.cursor;
                     let at = if inside { facts.cursor } else { nearest(middle(area), keep) };
-                    actions.push(CursorAction::PlacePointer(POINT {
+                    match self.mode {
+                        CursorMode::GameInput => actions.push(CursorAction::Hide),
+                        CursorMode::Windows if !inside => actions.push(CursorAction::Place(at)),
+                        CursorMode::Windows => {}
+                    }
+                    let placed = POINT {
                         x: at.x - area.left,
                         y: at.y - area.top,
-                    }));
+                    };
+                    actions.push(CursorAction::PlacePointer(placed));
+                    self.followed = Some(placed);
                 }
             }
             (true, Some(_)) => {}
@@ -197,32 +343,30 @@ impl CursorKeeper {
     }
 
     // Lets the cursor go, if the window keeps it, as focus goes or the window
-    // closes: releases the confinement if the window still holds it, and
-    // puts the cursor where the pointer was, or in the middle of the client
-    // area if it was nowhere yet, on the screens, unless another program has
-    // confined it, or there's no client area on the screens.
+    // closes: releases the confinement if the window still holds it, and in
+    // GameInput's mode, shows the cursor and puts it where the pointer was,
+    // or in the middle of the client area if it was nowhere yet, on the
+    // screens, unless another program has confined it, or there's no client
+    // area on the screens. In Windows' mode, it shows already, where it is.
     pub fn let_go(&mut self, facts: CursorFacts) -> Vec<CursorAction> {
         let Some(kept) = self.kept.take() else {
             return Vec::new();
         };
+        self.followed = None;
         let holder = clip_holder(facts.clip, kept, facts.screens);
         let mut actions = Vec::new();
         if holder == ClipHolder::Window {
             actions.push(CursorAction::Release);
+        }
+        if self.mode == CursorMode::Windows {
+            return actions;
         }
         actions.push(CursorAction::Show);
         if holder != ClipHolder::Other
             && let Some(area) = facts.area
             && let Some(visible) = on_screens(area, facts.screens)
         {
-            let at = match self.pointer {
-                Some(pointer) => POINT {
-                    x: area.left + pointer.x,
-                    y: area.top + pointer.y,
-                },
-                None => middle(area),
-            };
-            actions.push(CursorAction::Place(nearest(at, visible)));
+            actions.push(CursorAction::Place(nearest(self.pointer_on_screen(area), visible)));
         }
         actions
     }
