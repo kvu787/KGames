@@ -1,7 +1,7 @@
 // Cards: the surfaces that group a page's controls, with a title in their
 // header. A card is CardBackgroundFillColorDefault with a CardStroke border
 // and OverlayCornerRadius corners, on the page's background. A floating card
-// is opaque acrylic, raised like a flyout, for over a 3D view. A card with a
+// is opaque acrylic with a flyout's stroke, for over a 3D view. A card with a
 // view leaves a hole in its content for a 3D view that the program's render
 // draws.
 //
@@ -19,7 +19,7 @@
 use crate::core::interaction::Sense;
 use crate::core::interface::Ui;
 use crate::core::tree::{Draw, Element, Tree, Widget};
-use crate::design::tokens::{BODY_STRONG, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, ELEVATION_FLOATING_CARD, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S};
+use crate::design::tokens::{BODY_STRONG, CAPTION, CARD_HEADER_GAP, CARD_HEADER_HEIGHT, CARD_PADDING, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S};
 use crate::drawing::geometry::{Color, Insets, Rect};
 use crate::drawing::painter::{Align, Border, Corners};
 use crate::drawing::text::Fonts;
@@ -28,7 +28,7 @@ use crate::drawing::text::Fonts;
 pub enum CardStyle {
     #[default]
     Standard,
-    // Opaque and raised, for over a 3D view.
+    // Opaque acrylic, for over a 3D view.
     Floating,
     // CardBackgroundFillColorSecondary, for a card inside a card.
     Subtle,
@@ -161,9 +161,6 @@ impl<M: 'static> Widget<M> for Card {
             CardStyle::Floating => (theme.acrylic, theme.surface_stroke_flyout),
             CardStyle::Subtle => (theme.card_background_secondary, theme.card_stroke),
         };
-        if self.style == CardStyle::Floating {
-            painter.shadow(rect, RADIUS_OVERLAY, ELEVATION_FLOATING_CARD);
-        }
         if self.view {
             // The fill goes around the view, which the program draws.
             let view = area.content;

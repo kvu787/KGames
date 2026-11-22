@@ -3,10 +3,10 @@
 KGames' user interface library, for Win32, Direct3D 12 and DirectWrite, after Microsoft's
 [Fluent 2](https://fluent2.microsoft.design) design system as WinUI 3 implements it on Windows 11,
 with WinUI 3's own values: its theme resources' colors, its controls' sizes, paddings and parts,
-and its elevation borders and shadows, but not its animations. Every GUI program is built on it: it
-owns the window, reads the input, runs the main loop, lays out text, draws the widgets on the GPU,
-and runs scripts and headless tests. [UiShowcase](../../Program/ui-showcase/README.md) shows every
-widget.
+and its elevation borders, but not its shadows or its animations. Every GUI program is built on
+it: it owns the window, reads the input, runs the main loop, lays out text, draws the widgets on
+the GPU, and runs scripts and headless tests. [UiShowcase](../../Program/ui-showcase/README.md)
+shows every widget.
 
 A program is its state, what each frame's input means to it, and a description of its interface
 from that state. Each frame, the main loop reads the newest input and takes it in steps, in the
@@ -126,15 +126,16 @@ of your own, so that every program looks like one family, and like Windows 11.
 - **Tokens** (`design/tokens.rs`): Fluent's 4-pixel spacing ramp (`SPACE_XXS` to `SPACE_XXXL`),
   corner radii (4 for controls, 8 for cards, flyouts and dialogs), the control height (32), the type
   ramp (`CAPTION`, `BODY`, `BODY_STRONG`, `BODY_LARGE`, `SUBTITLE`, `TITLE`, `TITLE_LARGE`,
-  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), elevation as WinUI's ThemeShadow makes
-  it from a depth (`elevation(z)`, with tooltips at 16, flyouts at 32, submenus 8 over their menu,
-  and dialogs at 128), and the page's sizes.
+  `DISPLAY`, and `MONO` and `MONO_CAPTION` in Cascadia Mono), and the page's sizes.
 - **Controls** (`design/controls.rs`): WinUI 3's controls' own metrics, like a button's padding of
   11, 5, 11 and 6, a toggle switch's 40 × 20 track, a slider's thumb, a combo box's chevron column,
   a list item's backplate and selection pill, and a menu item's padding, each from WinUI's styles.
 - **Elevation borders**: controls' borders shade from their top to their bottom, as WinUI's
   ControlElevationBorderBrush does, and text fields' bottom edge is strong, and the accent's two
   pixels while they have focus.
+- **No shadows**: nothing casts one, unlike WinUI's ThemeShadow. A surface over another, like a
+  flyout, a menu, a combo box's list, a tooltip, a dialog or a floating card, is set apart by its
+  fill and its stroke alone, and a dialog by the smoke under it too.
 - **Motion**: none between states. A hover, a press, a selection, a switch that's flipped, and a
   menu, submenu or dialog that opens or closes all show whole on the frame that makes them, without
   WinUI's fades, slides and eases. Only what has to move to do its job moves: the indeterminate
@@ -208,8 +209,8 @@ A widget that takes the wheel says so in its `Sense` - `takes_wheel()`, like a s
 `takes_wheel_while_focused()`, like a number box's and its buttons', while the box has focus - so
 what it's in doesn't scroll under it; `Sense::VIEW` takes it already.
 `Canvas::new(|painter, rect| ...)` draws a program's own graphics, like graphs and previews:
-rounded rectangles with borders and gradients, Fluent's shadows, circles, rings, arcs, lines,
-polygons, text and icons, with clipping. State that a widget of a program's own keeps between
+rounded rectangles with borders and gradients, circles, rings, arcs, lines, polygons, text and
+icons, with clipping. State that a widget of a program's own keeps between
 frames, like a scroll offset, lives in the interface's memory, `ctx.memory::<T>()` in its contexts,
 by the widget's id; `Ui::memory` reads it in `view`, like for laying out a scrolled list.
 
@@ -668,7 +669,7 @@ writes its files in its output folder, through `startup.data_folder`.
 | `src/input/events.rs`            | A frame's events in steps, and each step's input, from its events          |
 | `src/input/reader.rs`            | Turns a frame's GameInput readings into events                             |
 | `src/design/theme.rs`            | WinUI's theme resources, light and dark                                    |
-| `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, elevation, and the page's sizes        |
+| `src/design/tokens.rs`           | Fluent's spacing, radii, type ramp, motion, and the page's sizes           |
 | `src/design/controls.rs`         | WinUI 3's controls' sizes, paddings and parts                              |
 | `src/design/icons.rs`            | Segoe Fluent Icons                                                         |
 | `src/drawing/geometry.rs`        | Points, sizes, insets, rectangles and colors                               |

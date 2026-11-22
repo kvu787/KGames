@@ -1,9 +1,8 @@
 // WinUI's menus: MenuFlyout, which opens from a button, from a right-click as
 // a context menu, or from a MenuBar's items; its items with their icons,
 // checks and keyboard accelerators; its separators; and its submenus, which
-// open beside their item, each raised 8 more than the menu it's from. A menu
-// shows whole on the frame that opens it, and goes on the frame that closes
-// it.
+// open beside their item. A menu shows whole on the frame that opens it, and
+// goes on the frame that closes it.
 //
 // Items are targets named "<menu>/<label>", and each carries the message
 // that choosing it sends. The pointer resting on an item with a submenu
@@ -20,7 +19,7 @@ use crate::design::controls::{
     MENU_SEPARATOR_HEIGHT,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, CAPTION, ELEVATION_FLYOUT, ELEVATION_SUBMENU, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S, elevation};
+use crate::design::tokens::{BODY, CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_S};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::drawing::text::Fonts;
@@ -290,9 +289,8 @@ pub(crate) fn interact_menu<M: Clone + 'static>(interaction: &Interaction, ctx: 
     }
 }
 
-// Draws an open menu, raised for its level of nesting, and its open
-// submenu.
-pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: Id, items: &[MenuItem<M>], level: u32) {
+// Draws an open menu, and its open submenu.
+pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: Id, items: &[MenuItem<M>]) {
     if !ctx.popup_open_of(owner) {
         return;
     }
@@ -306,7 +304,6 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
     let layer_before = painter.layer();
     painter.set_layer(Layer::Popup);
     painter.push_clip_over(bounds);
-    painter.shadow(panel, RADIUS_OVERLAY, elevation(ELEVATION_FLYOUT.z + (ELEVATION_SUBMENU.z - ELEVATION_FLYOUT.z) * level as f32));
     painter.shape(panel, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
     for (index, (item, slot)) in items.iter().zip(slots(panel, items)).enumerate() {
         if item.separator {
@@ -361,7 +358,7 @@ pub(crate) fn draw_menu<M: Clone + 'static>(ctx: &mut Draw, name: &str, owner: I
         && let Some(children) = &item.submenu
     {
         let item_name = item_name(name, item);
-        draw_menu(ctx, &child_name(&item_name), id(&item_name), children, level + 1);
+        draw_menu(ctx, &child_name(&item_name), id(&item_name), children);
     }
 }
 
@@ -392,7 +389,7 @@ pub(crate) fn interact_context_menu<M: Clone + 'static>(interaction: &Interactio
 pub(crate) fn draw_context_menu<M: Clone + 'static>(ctx: &mut Draw, items: &[MenuItem<M>]) {
     let name = context_menu_name(ctx.name());
     let owner = ctx.id();
-    draw_menu(ctx, &name, owner, items, 0);
+    draw_menu(ctx, &name, owner, items);
 }
 
 // WinUI's MenuBar: menus' names along a bar, each opening its menu below it.
@@ -498,7 +495,7 @@ impl<M: Clone + 'static> Widget<M> for MenuBar<M> {
             let mut painter = ctx.painter();
             painter.rounded(item, RADIUS_CONTROL, background);
             painter.text_in(item, title, BODY, foreground, Align::Center);
-            draw_menu(ctx, &child_name(&item_name), item_id, items, 0);
+            draw_menu(ctx, &child_name(&item_name), item_id, items);
         }
     }
 }

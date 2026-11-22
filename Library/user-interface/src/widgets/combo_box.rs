@@ -13,7 +13,7 @@ use crate::design::controls::{
     SELECTION_PILL_PRESSED_LENGTH, SELECTION_PILL_THICKNESS,
 };
 use crate::design::icons::Icon;
-use crate::design::tokens::{BODY, ELEVATION_FLYOUT, RADIUS_CONTROL, RADIUS_OVERLAY};
+use crate::design::tokens::{BODY, RADIUS_CONTROL, RADIUS_OVERLAY};
 use crate::drawing::geometry::{Point, Rect};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::widgets::widget::{Elevation, Reaction, StateColors, WheelRemainder, react};
@@ -222,7 +222,6 @@ impl<M: Clone + 'static> Widget<M> for ComboBox<M> {
         let layer = painter.layer();
         painter.set_layer(Layer::Popup);
         painter.push_clip_over(bounds);
-        painter.shadow(panel, RADIUS_OVERLAY, ELEVATION_FLYOUT);
         painter.shape(panel, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
         painter.push_clip(panel);
         for row in 0..self.shown_count() {

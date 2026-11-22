@@ -19,7 +19,7 @@ use crate::design::controls::{
     SLIDER_INNER_THUMB_SCALE_PRESSED, SLIDER_INNER_THUMB_SIZE, SLIDER_THUMB_OVERHANG, SLIDER_THUMB_RADIUS, SLIDER_THUMB_SIZE,
     SLIDER_TOOLTIP_FONT_SIZE, SLIDER_TOOLTIP_PADDING, SLIDER_TRACK_HEIGHT, SLIDER_TRACK_RADIUS, TOOLTIP_OFFSET,
 };
-use crate::design::tokens::{BODY, ELEVATION_TOOLTIP, RADIUS_CONTROL};
+use crate::design::tokens::{BODY, RADIUS_CONTROL};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 use crate::drawing::text::TextStyle;
@@ -291,7 +291,6 @@ impl<M: Clone + 'static> Widget<M> for Slider<M> {
             let layer = painter.layer();
             painter.set_layer(Layer::Tooltip);
             painter.push_clip_over(bounds);
-            painter.shadow(tip_rect, RADIUS_CONTROL, ELEVATION_TOOLTIP);
             painter.shape(tip_rect, RADIUS_CONTROL, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
             painter.text_in(tip_rect.pad(SLIDER_TOOLTIP_PADDING), &text, style, theme.text_primary, Align::Center);
             painter.pop_clip();

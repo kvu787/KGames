@@ -245,7 +245,7 @@ impl<M: Clone + 'static> Widget<M> for Button<M> {
         {
             let name = Self::menu_name(ctx.name());
             let owner = ctx.id();
-            menu::draw_menu(ctx, &name, owner, items, 0);
+            menu::draw_menu(ctx, &name, owner, items);
         }
     }
 }
