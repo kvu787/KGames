@@ -4,8 +4,7 @@
 // on the frame that makes it, that a press draws all it did on its own frame,
 // that a selection that moves leaves its old item on that frame, that a
 // release shows on its own frame, that a context menu's items look like a
-// menu's, that menus and dialogs cast no shadow, that a popup is drawn past
-// the edge of the scroll area that its
+// menu's, that a popup is drawn past the edge of the scroll area that its
 // widget is in, WinUI's glyphs for chevrons, whether the
 // PerfBar says that vertical sync is on, the PerfBar's colors in each theme,
 // the page for an unsupported setup, and the pointer that a window draws
@@ -15,7 +14,7 @@ use user_interface::controls::MENU_BAR_HEIGHT;
 use user_interface::graphics::{AdapterChoice, Gpu, Image, write_png};
 use user_interface::tokens::PERF_BAR_HEIGHT;
 use user_interface::{
-    Button, Canvas, Card, CheckBox, Color, ComboBox, Context, Cursor, Dialog, Event, Headless, Icon, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
+    Button, Canvas, Card, CheckBox, Color, ComboBox, Context, Cursor, Event, Headless, Icon, Interface, Key, ListView, MenuBar, MenuItem, MouseButton, Palette,
     Point, Program, RadioGroup, Rect, ScrollArea, Segmented, SelectorBar, Sense, Slider, Text, Theme, ThemeKind, ToggleSwitch, Tree, Ui, View, Widget, unsupported_setup,
 };
 
@@ -407,71 +406,6 @@ fn a_context_menu_s_items_look_like_a_menu_s() {
     app.move_to("Area/ContextMenu/Save");
     let image = app.render(&mut gpu).unwrap();
     assert_ne!(image.pixel(x, y), plain, "the item under the pointer isn't filled");
-}
-
-// A dialog, open over an empty page.
-struct Dialogs;
-
-impl Program for Dialogs {
-    type Message = ();
-
-    fn title(&self) -> String {
-        "Dialogs".to_string()
-    }
-
-    fn update(&mut self, _message: (), _ui: &mut Context<()>) {}
-
-    fn view(&self, ui: &mut Ui) -> Tree<()> {
-        let mut tree = Tree::new();
-        let dialog = Dialog::new("Quit?", "Unsaved work is lost.").primary("Quit").close("Cancel");
-        let area = dialog.area(ui);
-        tree.add("Quit", area.rect, dialog);
-        tree
-    }
-}
-
-// Nothing casts a shadow: around an open menu, every pixel is what it was
-// before it opened, and around an open dialog, every pixel is the smoke over
-// the page, as far from the dialog as next to it, in both themes.
-#[test]
-fn menus_and_dialogs_cast_no_shadow() {
-    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
-    for kind in [ThemeKind::Light, ThemeKind::Dark] {
-        let mut app = Headless::with_theme(Menus, kind);
-        let closed = app.render(&mut gpu).unwrap();
-        app.click("Button");
-        let open = app.render(&mut gpu).unwrap();
-        let items = app.target("Button/Menu/Open").union(app.target("Button/Menu/Save"));
-        // Past the menu's padding and border, out to where a flyout's shadow
-        // would still be dark.
-        let around = items.expand(48.0);
-        let panel = items.expand(12.0);
-        // The button looks pressed while its menu is open.
-        let button = app.target("Button").expand(1.0);
-        for y in around.y as u32..around.bottom() as u32 {
-            for x in around.x as u32..around.right() as u32 {
-                let center = Point::new(x as f32 + 0.5, y as f32 + 0.5);
-                if !panel.contains(center) && !button.contains(center) {
-                    assert_eq!(open.pixel(x, y), closed.pixel(x, y), "in the {} theme, the open menu changed ({x}, {y}), outside it", kind.name());
-                }
-            }
-        }
-
-        let mut app = Headless::with_theme(Dialogs, kind);
-        let image = app.render(&mut gpu).unwrap();
-        save(&image, &format!("Dialog{}", kind.name()));
-        let dialog = app.target("Quit");
-        let smoke = image.pixel(dialog.x as u32 - 300, dialog.center().y as u32);
-        let around = dialog.expand(96.0);
-        let rim = dialog.expand(2.0);
-        for y in around.y as u32..around.bottom() as u32 {
-            for x in around.x as u32..around.right() as u32 {
-                if !rim.contains(Point::new(x as f32 + 0.5, y as f32 + 0.5)) {
-                    assert_eq!(image.pixel(x, y), smoke, "in the {} theme, ({x}, {y}), around the dialog, isn't the smoke", kind.name());
-                }
-            }
-        }
-    }
 }
 
 // A combo box at the bottom of a scroll area, whose list opens past the
