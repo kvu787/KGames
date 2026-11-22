@@ -1,7 +1,7 @@
 // WinUI's ToolTip: what a control is for, TOOLTIP_DELAY after the pointer
 // gets on it, as WinUI's ToolTipService opens it, however the pointer moves
-// on it meanwhile. It's in-app acrylic with a flyout's stroke, raised like a
-// tooltip, above where the pointer is as it shows, or below if there's no
+// on it meanwhile. It's in-app acrylic with a flyout's stroke, without a
+// shadow, above where the pointer is as it shows, or below if there's no
 // room above, and always in the window, and it stays there while it shows.
 // A press or the wheel puts it away until the pointer moves to another
 // control. Elements get one with Element::tooltip; this places and draws it.
@@ -9,7 +9,7 @@
 use crate::core::interface::Interface;
 use crate::core::tree::{Tooltip, TooltipLine};
 use crate::design::controls::{TOOLTIP_OFFSET, TOOLTIP_PADDING};
-use crate::design::tokens::{CAPTION, CAPTION_STRONG, ELEVATION_TOOLTIP, MONO, RADIUS_CONTROL, SPACE_S, SPACE_XS};
+use crate::design::tokens::{CAPTION, CAPTION_STRONG, MONO, RADIUS_CONTROL, SPACE_S, SPACE_XS};
 use crate::drawing::geometry::{Point, Rect, Size};
 use crate::drawing::painter::{Align, Border, Layer};
 
@@ -75,7 +75,6 @@ pub(crate) fn draw_tooltip(ui: &mut Interface, tooltip: &PlacedTooltip) {
     let theme = painter.theme();
     painter.set_layer(Layer::Tooltip);
     painter.push_clip(bounds);
-    painter.shadow(rect, RADIUS_CONTROL, ELEVATION_TOOLTIP);
     painter.shape(rect, RADIUS_CONTROL, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
     let mut area = rect.pad(TOOLTIP_PADDING);
     for (line, &height) in lines.iter().zip(heights) {

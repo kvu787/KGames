@@ -7,7 +7,7 @@
 // each widget carries the message that the input on it sends.
 
 use user_interface::tokens::{
-    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, DISPLAY, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, ICON,
+    BODY, BODY_LARGE, BODY_STRONG, CAPTION, CARD_GAP, CONTROL_HEIGHT, DISPLAY, ICON,
     ICON_LARGE, MONO, MONO_CAPTION, RADIUS_CONTROL, RADIUS_OVERLAY, SPACE_L, SPACE_M, SPACE_S, SPACE_XS, SUBTITLE, TITLE, TITLE_LARGE,
 };
 use user_interface::{
@@ -384,24 +384,29 @@ fn shapes(ui: &mut Ui, tree: &mut Tree<Message>, area: Rect) {
     tree.draw(
         area,
         Canvas::new(move |painter, area| {
-            let [elevations, rest] = area.rows::<2>(SPACE_L);
-            let tiles = elevations.top_strip(120.0).inset(SPACE_L).columns::<3>(SPACE_L * 2.0);
-            let names = ["Tooltip · 16", "Flyout · 32", "Dialog · 128"];
-            for ((tile, elevation), name) in tiles.iter().zip([ELEVATION_TOOLTIP, ELEVATION_FLYOUT, ELEVATION_DIALOG]).zip(names) {
-                painter.shadow(*tile, RADIUS_OVERLAY, elevation);
-                painter.shape(*tile, RADIUS_OVERLAY, theme.acrylic, Some(Border::new(theme.surface_stroke_flyout, 1.0)));
+            // The surfaces that go over the page, which nothing sets apart
+            // but their fill and their stroke: no surface casts a shadow.
+            let [surfaces, rest] = area.rows::<2>(SPACE_L);
+            let tiles = surfaces.top_strip(120.0).inset(SPACE_L).columns::<3>(SPACE_L * 2.0);
+            let looks = [
+                ("Card", theme.card_background, theme.card_stroke),
+                ("Flyout", theme.acrylic, theme.surface_stroke_flyout),
+                ("Dialog", theme.background, theme.surface_stroke),
+            ];
+            for (tile, (name, fill, stroke)) in tiles.iter().zip(looks) {
+                painter.shape(*tile, RADIUS_OVERLAY, fill, Some(Border::new(stroke, 1.0)));
                 painter.text_in(*tile, name, CAPTION, theme.text_secondary, Align::Center);
             }
-            let mut y = elevations.y + 160.0;
+            let mut y = surfaces.y + 160.0;
             let data = theme.data.all();
             for (index, color) in data.iter().enumerate() {
-                let x = elevations.x + 24.0 + index as f32 * 52.0;
+                let x = surfaces.x + 24.0 + index as f32 * 52.0;
                 painter.circle(Point::new(x, y), 16.0, *color);
             }
             y += 52.0;
-            painter.line(Point::new(elevations.x + 8.0, y), Point::new(elevations.right() - 8.0, y + 24.0), 2.0, theme.accent);
+            painter.line(Point::new(surfaces.x + 8.0, y), Point::new(surfaces.right() - 8.0, y + 24.0), 2.0, theme.accent);
             painter.polyline(
-                &[Point::new(elevations.x + 8.0, y + 56.0), Point::new(elevations.x + 120.0, y + 36.0), Point::new(elevations.x + 240.0, y + 72.0), Point::new(elevations.x + 360.0, y + 40.0)],
+                &[Point::new(surfaces.x + 8.0, y + 56.0), Point::new(surfaces.x + 120.0, y + 36.0), Point::new(surfaces.x + 240.0, y + 72.0), Point::new(surfaces.x + 360.0, y + 40.0)],
                 2.0,
                 theme.data.orange,
             );

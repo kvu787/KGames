@@ -15,7 +15,7 @@ use crate::core::interaction::{Interaction, Part, Sense};
 use crate::core::interface::Ui;
 use crate::core::tree::{Dispatch, Draw, Parts, Widget};
 use crate::design::controls::{DIALOG_BUTTON_GAP, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH, DIALOG_PADDING, DIALOG_TITLE_GAP};
-use crate::design::tokens::{BODY, CONTROL_HEIGHT, ELEVATION_DIALOG, RADIUS_OVERLAY, SUBTITLE};
+use crate::design::tokens::{BODY, CONTROL_HEIGHT, RADIUS_OVERLAY, SUBTITLE};
 use crate::drawing::geometry::{Insets, Rect, Size};
 use crate::drawing::painter::{Border, Corners, Layer};
 use crate::drawing::text::Fonts;
@@ -244,7 +244,6 @@ impl<M: Clone + 'static> Widget<M> for Dialog<M> {
             let mut painter = ctx.painter();
             let theme = painter.theme();
             painter.fill(bounds, theme.smoke);
-            painter.shadow(rect, RADIUS_OVERLAY, ELEVATION_DIALOG);
             painter.shape(rect, RADIUS_OVERLAY, theme.background, Some(Border::new(theme.surface_stroke, 1.0)));
             let top = Rect::new(rect.x + 1.0, rect.y + 1.0, rect.width - 2.0, metrics.top_height - 1.0);
             painter.shape(top, Corners::top(RADIUS_OVERLAY - 1.0), theme.layer_alt, None);

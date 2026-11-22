@@ -29,8 +29,9 @@ icon and the cards, and a button for the theme, five columns of cards, and a sta
 |                            | menus, and an expander                                                   |
 | Cursors                    | Every look of the pointer, which takes the look of the one that it's on  |
 | Tabs                       | The type ramp and a line of spans, the icons, the theme's colors, and    |
-|                            | shapes: the elevations of tooltips, flyouts and dialogs, lines, circles, |
-|                            | rings, arcs, polygons, gradients and an elevation border                 |
+|                            | shapes: the surfaces of cards, flyouts and dialogs, which have no        |
+|                            | shadows, lines, circles, rings, arcs, polygons, gradients and an         |
+|                            | elevation border                                                         |
 | Info bars                  | One of each severity, of which the caution closes, and comes back        |
 | Color                      | A color picker's spectrum and value slider, a hex field, and a palette   |
 | List                       | 120 items that scroll, of which the search shows those it matches, one   |

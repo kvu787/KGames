@@ -1,8 +1,10 @@
 // Fluent 2's design tokens on Windows: spacing, corner radii, sizes, the type
-// ramp, motion and elevation, with the values WinUI 3 gives them. Size and
-// space everything with these, and color it with the theme's roles (see
-// theme.rs), so that every program looks like one family, and like Windows
-// 11. Controls' own sizes, like a checkbox's box, are in controls.rs.
+// ramp and motion, with the values WinUI 3 gives them. Size and space
+// everything with these, and color it with the theme's roles (see theme.rs),
+// so that every program looks like one family, and like Windows 11. Controls'
+// own sizes, like a checkbox's box, are in controls.rs. Nothing casts a
+// shadow: a surface over another, like a flyout, a dialog or a tooltip, is set
+// apart by its fill and its stroke alone.
 //
 // Fluent 2: https://fluent2.microsoft.design. WinUI 3's values come from
 // microsoft/microsoft-ui-xaml's theme resources.
@@ -107,80 +109,6 @@ impl Curve {
         bezier(y1, y2, (low + high) / 2.0)
     }
 }
-
-// A drop shadow: black, below the surface, blurred as Windows' composition
-// blurs, whose Gaussian's standard deviation is a third of the radius.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Shadow {
-    pub offset_y: f32,
-    pub blur: f32,
-    pub opacity_light: f32,
-    pub opacity_dark: f32,
-}
-
-impl Shadow {
-    const NONE: Shadow = Shadow {
-        offset_y: 0.0,
-        blur: 0.0,
-        opacity_light: 0.0,
-        opacity_dark: 0.0,
-    };
-
-    pub fn sigma(&self) -> f32 {
-        (self.blur / 3.0).max(0.5)
-    }
-}
-
-// An elevation: WinUI's ThemeShadow for a surface raised by Translation Z,
-// which is two drop shadows, an ambient one and a directional one.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Elevation {
-    pub z: f32,
-    pub shadows: [Shadow; 2],
-}
-
-// ThemeShadow's recipe for a Translation Z, from WinUI's DropShadowRecipe.h:
-// the elevation is half the Z, up to 64. Up to 16, there's only the
-// directional shadow; above, the ambient one too, and both are stronger.
-pub const fn elevation(z: f32) -> Elevation {
-    let level = if z / 2.0 < 64.0 { z / 2.0 } else { 64.0 };
-    if level < 2.0 {
-        return Elevation {
-            z,
-            shadows: [Shadow::NONE, Shadow::NONE],
-        };
-    }
-    let (ambient, directional_light, directional_dark) = if level <= 16.0 {
-        let light = level / 100.0 + 0.06;
-        (Shadow::NONE, if light < 0.14 { light } else { 0.14 }, 0.26)
-    } else {
-        let ambient = Shadow {
-            offset_y: 2.0,
-            blur: level / 3.0,
-            opacity_light: 0.15,
-            opacity_dark: 0.37,
-        };
-        (ambient, 0.19, 0.37)
-    };
-    let directional = Shadow {
-        offset_y: level * 0.5,
-        blur: level,
-        opacity_light: directional_light,
-        opacity_dark: directional_dark,
-    };
-    Elevation {
-        z,
-        shadows: [ambient, directional],
-    }
-}
-
-// The Z that WinUI raises each kind of surface by.
-pub const ELEVATION_TOOLTIP: Elevation = elevation(16.0);
-pub const ELEVATION_FLYOUT: Elevation = elevation(32.0);
-pub const ELEVATION_SUBMENU: Elevation = elevation(40.0);
-pub const ELEVATION_DIALOG: Elevation = elevation(128.0);
-// A card over a 3D view floats like a flyout.
-pub const ELEVATION_FLOATING_CARD: Elevation = ELEVATION_FLYOUT;
 
 // How KGames lays out a program's window, in fixed pixels: the PerfBar
 // along the very top, which every program has, an app bar under it, which
