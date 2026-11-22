@@ -62,6 +62,11 @@
 //   hidden, and switching to GameInput's hides it, and the pointer goes on
 //   from where it is. Switching while the window doesn't keep it only
 //   changes how the window keeps it next.
+// - In Windows' mode, while the window keeps the cursor, the pointer follows
+//   it to where Windows says it is each time the window checks, if it moved
+//   since the window last found it there, or put it there, or placed the
+//   pointer where it was: so that only the cursor's own moves are motion,
+//   and not where the window put it.
 
 use windows_api_raw::{POINT, RECT};
 
@@ -206,6 +211,10 @@ pub struct CursorKeeper {
     // Where the interface's pointer last was, in the client area's pixels.
     pointer: Option<POINT>,
     mode: CursorMode,
+    // Where Windows' cursor last was, in the client area's pixels, as the
+    // window found it, or put it, or placed the pointer where it was, while
+    // it keeps it: so that only Windows' cursor's own moves are motion.
+    followed: Option<POINT>,
 }
 
 impl CursorKeeper {
@@ -217,6 +226,7 @@ impl CursorKeeper {
             kept: None,
             pointer: None,
             mode: CursorMode::default(),
+            followed: None,
         }
     }
 
@@ -228,6 +238,27 @@ impl CursorKeeper {
 
     pub fn mode(&self) -> CursorMode {
         self.mode
+    }
+
+    // Whether the pointer follows Windows' cursor, which shows in the
+    // pointer's shape: while the window keeps it in Windows' mode.
+    pub fn follows(&self) -> bool {
+        self.kept.is_some() && self.mode == CursorMode::Windows
+    }
+
+    // Where the pointer follows Windows' cursor to, in the client area's
+    // pixels, from where Windows says it is and the client area, if it moved
+    // since the window last found it, or put it, or placed the pointer where
+    // it was. Nothing while the pointer doesn't follow it.
+    pub fn follow(&mut self, cursor: POINT, area: RECT) -> Option<POINT> {
+        if !self.follows() {
+            return None;
+        }
+        let at = POINT {
+            x: cursor.x - area.left,
+            y: cursor.y - area.top,
+        };
+        (self.followed.replace(at) != Some(at)).then_some(at)
     }
 
     // Switches the cursor's mode, with what Windows says now: while the
@@ -246,7 +277,12 @@ impl CursorKeeper {
             CursorMode::Windows => {
                 let mut actions = vec![CursorAction::Show];
                 if let Some(area) = facts.area {
-                    actions.push(CursorAction::Place(nearest(self.pointer_on_screen(area), kept)));
+                    let at = nearest(self.pointer_on_screen(area), kept);
+                    actions.push(CursorAction::Place(at));
+                    self.followed = Some(POINT {
+                        x: at.x - area.left,
+                        y: at.y - area.top,
+                    });
                 }
                 actions
             }
@@ -292,10 +328,12 @@ impl CursorKeeper {
                         CursorMode::Windows if !inside => actions.push(CursorAction::Place(at)),
                         CursorMode::Windows => {}
                     }
-                    actions.push(CursorAction::PlacePointer(POINT {
+                    let placed = POINT {
                         x: at.x - area.left,
                         y: at.y - area.top,
-                    }));
+                    };
+                    actions.push(CursorAction::PlacePointer(placed));
+                    self.followed = Some(placed);
                 }
             }
             (true, Some(_)) => {}
@@ -314,6 +352,7 @@ impl CursorKeeper {
         let Some(kept) = self.kept.take() else {
             return Vec::new();
         };
+        self.followed = None;
         let holder = clip_holder(facts.clip, kept, facts.screens);
         let mut actions = Vec::new();
         if holder == ClipHolder::Window {

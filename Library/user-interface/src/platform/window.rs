@@ -129,10 +129,8 @@ pub struct Window {
     // its input.
     pointer_placed: Option<POINT>,
     // In Windows' cursor mode, while the window keeps the cursor: where it
-    // went since the last frame read its input, and where it was last found,
-    // or put, in the client area.
+    // went since the last frame read its input.
     cursor_moves: Vec<CursorMove>,
-    followed: Option<POINT>,
     // Windows' cursors in the shapes of the interface's pointer, by
     // Cursor::ALL, and the frame's pointer's.
     shapes: [HCURSOR; Cursor::ALL.len()],
@@ -194,7 +192,6 @@ impl Window {
                 cursor: CursorKeeper::new(mice),
                 pointer_placed: None,
                 cursor_moves: Vec::new(),
-                followed: None,
                 shapes,
                 pointer_shape: arrow,
             }
@@ -314,24 +311,21 @@ impl Window {
 
     // In Windows' cursor mode, while the window keeps the cursor: where it
     // went, in the client area, if it moved since it was last found, or put,
-    // timed now, for the pointer to follow (see input/reader.rs).
+    // as platform/cursor.rs decides, timed now, for the pointer to follow
+    // (see input/reader.rs). Nothing if Windows can't say where it is, like
+    // for a moment as the desktop changes, as when the machine locks.
     fn follow_cursor(&mut self) {
-        if !self.cursor.keeps() || self.cursor.mode() != CursorMode::Windows {
-            self.followed = None;
+        if !self.cursor.follows() {
             return;
         }
         let Some(area) = self.cursor_area() else {
             return;
         };
         let mut cursor = POINT::default();
-        unsafe {
-            let _ = GetCursorPos(&mut cursor);
+        if !unsafe { GetCursorPos(&mut cursor) }.as_bool() {
+            return;
         }
-        let at = POINT {
-            x: cursor.x - area.left,
-            y: cursor.y - area.top,
-        };
-        if self.followed.replace(at) != Some(at) {
+        if let Some(at) = self.cursor.follow(cursor, area) {
             self.cursor_moves.push(CursorMove {
                 time: clock::now(),
                 at: Point::new(at.x as f32, at.y as f32),
@@ -364,23 +358,11 @@ impl Window {
                         shared.cursor_hidden.set(false);
                         shown = true;
                     }
-                    // Where Windows' cursor is from then on, which the
-                    // pointer follows in Windows' cursor mode.
                     CursorAction::Place(at) => {
                         let _ = SetCursorPos(at.x, at.y);
-                        if let Some(area) = cursor_area(self.hwnd) {
-                            self.followed = Some(POINT {
-                                x: at.x - area.left,
-                                y: at.y - area.top,
-                            });
-                        }
                     }
-                    // For the next frame's input (see input/reader.rs),
-                    // where Windows' cursor is too.
-                    CursorAction::PlacePointer(at) => {
-                        self.pointer_placed = Some(at);
-                        self.followed = Some(at);
-                    }
+                    // For the next frame's input (see input/reader.rs).
+                    CursorAction::PlacePointer(at) => self.pointer_placed = Some(at),
                 }
             }
         }
@@ -395,7 +377,7 @@ impl Window {
     // changes, or as the cursor is `shown` again, unless it's hidden.
     fn update_shape(&mut self, shown: bool) {
         let keeps = self.cursor.keeps();
-        let shape = if keeps && self.cursor.mode() == CursorMode::Windows { self.pointer_shape } else { self.shared().arrow };
+        let shape = if self.cursor.follows() { self.pointer_shape } else { self.shared().arrow };
         let shared = self.shared();
         let changed = shared.cursor_shape.replace(shape) != shape;
         if (changed || shown) && keeps && !shared.cursor_hidden.get() {

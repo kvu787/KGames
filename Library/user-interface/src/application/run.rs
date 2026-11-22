@@ -215,12 +215,13 @@ fn run_program<P: Program>(options: &Options, create: impl FnOnce(&mut Startup) 
         // Ctrl+Shift+Alt+F11 switches to Windows' cursor mode, which the
         // window takes on in the frame that it's pressed in, before it's
         // presented, as it does the shape of the frame's pointer, which
-        // Windows' cursor takes in that mode.
+        // Windows' cursor takes in that mode, first, so that it shows in
+        // this frame's shape and not the last one's.
         if let Some(at) = ui.pointer() {
             window.set_pointer(at);
         }
-        window.set_cursor_mode(input.cursor_mode);
         window.set_pointer_shape(ui.cursor());
+        window.set_cursor_mode(input.cursor_mode);
         let mut closed = false;
         for request in std::mem::take(&mut ui.requests) {
             match request {
