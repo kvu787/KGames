@@ -12,8 +12,9 @@
 //   it from the keys (see input/typing.rs).
 // - The mouse's buttons, wheels and motion come from mice's readings, in
 //   the stream's order, the motion in GameInput's counts, which move the
-//   interface's pointer (see input/events.rs), while the window keeps
-//   Windows' cursor, hidden (see platform/window.rs and platform/cursor.rs).
+//   interface's pointer (see input/events.rs) in GameInput's cursor mode,
+//   while the window keeps Windows' cursor, hidden (see platform/window.rs
+//   and platform/cursor.rs).
 //   Only mice's relative motion counts, not the absolute positions of a pen
 //   or a touch screen.
 // - In Windows' cursor mode, which Ctrl+Shift+Alt+F11 switches to, the

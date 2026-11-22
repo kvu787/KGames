@@ -261,37 +261,36 @@ before, but reports gamepads' whole state, their held buttons too.
   not a pen's or a touch screen's absolute positions. Tests and scripts point at places, which
   become the motion that takes the pointer there from where it is, and lands on the place exactly.
   In Windows' cursor mode, below, Windows' cursor moves it instead.
-- While the window has focus and is the foreground window, Windows' cursor is hidden over it and
-  kept inside its client area, as far as it's on the screens, so that no click goes to a window
-  beside it, and the interface draws
-  the pointer over everything, in the shape that the widget under it asks for with
-  `Widget::cursor`, in exactly the frames in which Windows' cursor is hidden. It's drawn where the
-  pointer is, in parts of a pixel, with antialiased edges, in the theme's accent, without an
-  outline, and its arrow is a dart, so that it's easy to tell from Windows' cursor. A
-  click on the window that gives it focus keeps the cursor as its button goes down, which Windows
-  says with `WM_MOUSEACTIVATE`. A click that was going on elsewhere as the window got focus, like a
-  drag in another program, or onto the window's taskbar button, which brings it to the front,
-  puts that off until it's let go of, so that the drag isn't kept on the window. While the
-  window doesn't keep the cursor, the mice's input doesn't reach the interface, so the pointer
-  stays where it was, undrawn, and the buttons that the mice pressed are let go of as that starts.
-  As the window starts to keep the cursor again, the pointer is placed where Windows' cursor is,
-  so it shows where the click that gave the window focus was, or where the cursor was left, and
-  not where focus last went. If Windows' cursor is outside the client area, like on another
-  display as Alt+Tab gives the window focus, the pointer is placed in the middle of the client
-  area instead, and not at its edge, where the confinement puts Windows' cursor, hidden.
-  The pointer is away then: nothing is under it, no tooltip shows, and the popups that were open
-  close as it goes, though the program never hears why. As it
-  loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes, Windows' cursor
-  goes where the pointer was, as SDL puts it, where it shows once the window is left, unless the
-  program that got focus has confined the cursor already, whose confinement the window leaves
-  alone, or the window is minimized. `platform/cursor.rs` decides all of it, on what Windows says
-  as the main loop checks focus on every pass, and `Test/user-interface/tests/cursor.rs` tests it.
-  So the windows beside it and the taskbar can't be reached with the mouse while the window has
-  focus: Alt+Tab or the Windows key leave it. A window that's always on top over it, like Task
-  Manager's can be, still gets the clicks under Windows' hidden cursor, which goes its own way
-  inside the client area, apart from the pointer. A run whose input is a script's, or that has
-  none, leaves Windows' cursor alone and doesn't draw the pointer, and `Headless::draw_pointer`
-  makes a test's frames draw it.
+- In GameInput's cursor mode, which programs start in by default, while the window has focus and is
+  the foreground window, Windows' cursor is hidden over it and kept inside its client area, as far
+  as it's on the screens, so that no click goes to a window beside it, and the interface draws the
+  pointer over everything, in the shape that the widget under it asks for with `Widget::cursor`, in
+  exactly the frames in which Windows' cursor is hidden. It's drawn where the pointer is, in parts
+  of a pixel, with antialiased edges, in the theme's accent, without an outline, and its arrow is a
+  dart, so that it's easy to tell from Windows' cursor. A click on the window that gives it focus
+  keeps the cursor as its button goes down, which Windows says with `WM_MOUSEACTIVATE`. A click
+  that was going on elsewhere as the window got focus, like a drag in another program, or onto the
+  window's taskbar button, which brings it to the front, puts that off until it's let go of, so
+  that the drag isn't kept on the window. While the window doesn't keep the cursor, the mice's
+  input doesn't reach the interface, so the pointer stays where it was, undrawn, and the buttons
+  that the mice pressed are let go of as that starts. As the window starts to keep the cursor
+  again, the pointer is placed where Windows' cursor is, so it shows where the click that gave the
+  window focus was, or where the cursor was left, and not where focus last went. If Windows' cursor
+  is outside the client area, like on another display as Alt+Tab gives the window focus, the
+  pointer is placed in the middle of the client area instead, and not at its edge, where the
+  confinement puts Windows' cursor, hidden. The pointer is away then: nothing is under it, no
+  tooltip shows, and the popups that were open close as it goes, though the program never hears
+  why. As it loses focus, like with Alt+Tab, the Windows key or minimizing, and as it closes,
+  Windows' cursor goes where the pointer was, as SDL puts it, where it shows once the window is
+  left, unless the program that got focus has confined the cursor already, whose confinement the
+  window leaves alone, or the window is minimized. The next bullet says how Windows' cursor mode
+  differs. `platform/cursor.rs` decides all of it, on what Windows says as the main loop checks
+  focus on every pass, and `Test/user-interface/tests/cursor.rs` tests it. So the windows beside it
+  and the taskbar can't be reached with the mouse while the window has focus: Alt+Tab or the
+  Windows key leave it. A window that's always on top over it, like Task Manager's can be, still
+  gets the clicks under Windows' hidden cursor, which goes its own way inside the client area,
+  apart from the pointer. A run whose input is a script's, or that has none, leaves Windows' cursor
+  alone and doesn't draw the pointer, and `Headless::draw_pointer` makes a test's frames draw it.
 - `Ctrl+Shift+Alt+F11` switches between that pointer, GameInput's cursor mode, and Windows' cursor
   mode, from whichever the `Cursor` setting started the program in. In Windows' cursor mode,
   Windows' own cursor points: Windows moves it, with its pointer speed and acceleration, and draws
