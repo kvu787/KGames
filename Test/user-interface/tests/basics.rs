@@ -3,7 +3,7 @@
 // fold into each step's input, settings, the command line, and text layout.
 
 use user_interface::controls::{PROGRESS_BAR_CURVE, PROGRESS_RING_CURVE};
-use user_interface::tokens::{BODY, Curve, ELEVATION_DIALOG, ELEVATION_FLYOUT, ELEVATION_TOOLTIP, elevation};
+use user_interface::tokens::{BODY, Curve};
 use user_interface::json::{self, Value};
 use user_interface::{Arguments, Color, CommonSettings, CursorMode, Event, Fonts, Input, Insets, Key, Modifiers, MouseButton, Point, Rect, Settings, Shortcut, Size, Startup, Theme, ThemeKind};
 
@@ -82,22 +82,6 @@ fn the_themes_have_winui_3s_values() {
     assert_eq!(light.background.to_hex(), "#F3F3F3");
     assert_eq!(dark.background.to_hex(), "#202020");
     assert_eq!(light.acrylic.to_hex(), "#F9F9F9");
-}
-
-#[test]
-fn elevations_follow_themeshadows_recipe() {
-    // Up to 16, only the directional shadow: half the Z blurs, down a
-    // quarter of the Z.
-    assert_eq!(ELEVATION_TOOLTIP.shadows[0].opacity_light, 0.0);
-    assert_eq!((ELEVATION_TOOLTIP.shadows[1].blur, ELEVATION_TOOLTIP.shadows[1].offset_y), (8.0, 4.0));
-    assert_eq!(ELEVATION_TOOLTIP.shadows[1].opacity_light, 0.14);
-    assert_eq!((ELEVATION_FLYOUT.shadows[1].blur, ELEVATION_FLYOUT.shadows[1].offset_y), (16.0, 8.0));
-    assert_eq!(ELEVATION_FLYOUT.shadows[1].opacity_dark, 0.26);
-    // Above, an ambient one too, and both stronger.
-    assert_eq!(ELEVATION_DIALOG.shadows[0].opacity_light, 0.15);
-    assert_eq!((ELEVATION_DIALOG.shadows[1].blur, ELEVATION_DIALOG.shadows[1].offset_y), (64.0, 32.0));
-    assert_eq!(ELEVATION_DIALOG.shadows[1].opacity_dark, 0.37);
-    assert!(elevation(2.0).shadows.iter().all(|shadow| shadow.opacity_light == 0.0));
 }
 
 #[test]

@@ -15,11 +15,10 @@
     "DescriptorTable(SRV(t3), visibility=SHADER_VISIBILITY_PIXEL)"
 
 #define KIND_SHAPE 0
-#define KIND_SHADOW 1
-#define KIND_GLYPH 2
-#define KIND_LINE 3
-#define KIND_ARC 4
-#define KIND_POLYGON 5
+#define KIND_GLYPH 1
+#define KIND_LINE 2
+#define KIND_ARC 3
+#define KIND_POLYGON 4
 
 static const float TAU = 6.28318531;
 
@@ -94,9 +93,6 @@ Varyings VSMain(uint vertex : SV_VertexID, uint index : SV_InstanceID) {
     } else if (kind == KIND_ARC) {
         float reach = instance.bounds.z + instance.bounds.w * 0.5 + 1.0;
         position = instance.bounds.xy + (corner * 2 - 1) * reach;
-    } else if (kind == KIND_SHADOW) {
-        float margin = instance.radii.y * 3.0 + abs(instance.radii.z) + 1.0;
-        position = lerp(instance.bounds.xy - margin, instance.bounds.zw + margin, corner);
     } else if (kind == KIND_GLYPH) {
         position = lerp(instance.bounds.xy, instance.bounds.zw, corner);
     } else {
@@ -143,42 +139,6 @@ float4 gradient(float2 p, float4 line_, uint start, uint end) {
     return lerp(unpack(start), unpack(end), t);
 }
 
-// A rounded box's Gaussian shadow, after Evan Wallace's closed form for a
-// blurred box, with the corners integrated by sampling.
-float2 erf2(float2 x) {
-    float2 s = sign(x);
-    float2 a = abs(x);
-    x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
-    x *= x;
-    return s - s / (x * x);
-}
-
-float gaussian(float x, float sigma) {
-    return exp(-(x * x) / (2.0 * sigma * sigma)) / (sqrt(TAU) * sigma);
-}
-
-float shadowRow(float x, float y, float sigma, float radius, float2 halfSize) {
-    float delta = min(halfSize.y - radius - abs(y), 0.0);
-    float curved = halfSize.x - radius + sqrt(max(0.0, radius * radius - delta * delta));
-    float2 integral = 0.5 + 0.5 * erf2((x + float2(-curved, curved)) * (sqrt(0.5) / sigma));
-    return integral.y - integral.x;
-}
-
-float boxShadow(float2 p, float2 halfSize, float sigma, float radius) {
-    float low = p.y - halfSize.y;
-    float high = p.y + halfSize.y;
-    float start = clamp(-3.0 * sigma, low, high);
-    float end = clamp(3.0 * sigma, low, high);
-    float step = (end - start) / 6.0;
-    float y = start + step * 0.5;
-    float value = 0.0;
-    for (int i = 0; i < 6; i++) {
-        value += shadowRow(p.x, p.y - y, sigma, radius, halfSize) * gaussian(y, sigma) * step;
-        y += step;
-    }
-    return value;
-}
-
 float4 PSMain(Varyings input) : SV_Target {
     float2 p = input.pixel;
     float4 clip = input.clip;
@@ -207,16 +167,6 @@ float4 PSMain(Varyings input) : SV_Target {
         float4 fill = gradient(p, input.fillLine, input.colors.x, input.colors.y);
         float4 stroke = gradient(p, input.borderLine, input.colors.z, input.colors.w);
         return fill * inner + stroke * (outer - inner);
-    }
-
-    if (kind == KIND_SHADOW) {
-        float2 center = (input.bounds.xy + input.bounds.zw) * 0.5;
-        float2 halfSize = (input.bounds.zw - input.bounds.xy) * 0.5;
-        float radius = min(input.radii.x, min(halfSize.x, halfSize.y));
-        float sigma = input.radii.y;
-        float value = boxShadow(p - center - float2(0, input.radii.z), halfSize, sigma, radius);
-        float outside = 1.0 - coverage(roundedBox(p - center, halfSize, radius.xxxx));
-        return unpack(input.colors.x) * saturate(value) * outside;
     }
 
     if (kind == KIND_GLYPH) {

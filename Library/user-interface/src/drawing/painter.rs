@@ -10,18 +10,16 @@
 
 use std::borrow::Cow;
 use crate::design::icons::Icon;
-use crate::design::theme::{Theme, ThemeKind};
-use crate::design::tokens::Elevation;
+use crate::design::theme::Theme;
 use crate::drawing::geometry::{Color, Insets, Point, Rect, Size};
 use crate::drawing::text::{Fonts, GlyphQuad, TextStyle};
 
 // The kinds of instance, as the shader numbers them.
 const KIND_SHAPE: u32 = 0;
-const KIND_SHADOW: u32 = 1;
-const KIND_GLYPH: u32 = 2;
-const KIND_LINE: u32 = 3;
-const KIND_ARC: u32 = 4;
-const KIND_POLYGON: u32 = 5;
+const KIND_GLYPH: u32 = 1;
+const KIND_LINE: u32 = 2;
+const KIND_ARC: u32 = 3;
+const KIND_POLYGON: u32 = 4;
 
 // One quad for the GPU, laid out as Interface.hlsl's Instance.
 #[repr(C)]
@@ -394,29 +392,6 @@ impl<'a> Painter<'a> {
     // An outline outside the rectangle.
     pub fn outline(&mut self, rect: Rect, radius: f32, width: f32, color: Color) {
         self.shape(rect.expand(width), radius + width, Color::TRANSPARENT, Some(Border::new(color, width)));
-    }
-
-    // The shadows of a surface at an elevation, only outside the surface, so
-    // that they never darken a translucent surface from below.
-    pub fn shadow(&mut self, rect: Rect, radius: f32, elevation: Elevation) {
-        for shadow in elevation.shadows {
-            let opacity = match self.theme.kind {
-                ThemeKind::Light => shadow.opacity_light,
-                ThemeKind::Dark => shadow.opacity_dark,
-            };
-            if opacity <= 0.0 {
-                continue;
-            }
-            self.list.push(
-                KIND_SHADOW,
-                Instance {
-                    bounds: [rect.left(), rect.top(), rect.right(), rect.bottom()],
-                    radii: [radius, shadow.sigma(), shadow.offset_y, 0.0],
-                    colors: [Color::BLACK.with_alpha(opacity).pack_premultiplied(), 0, 0, 0],
-                    ..Default::default()
-                },
-            );
-        }
     }
 
     pub fn circle(&mut self, center: Point, radius: f32, color: Color) {

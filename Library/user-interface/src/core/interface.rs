@@ -1120,9 +1120,8 @@ impl Interface {
         });
     }
 
-    // How many instances the frame drew: each shape, glyph, line, arc,
-    // polygon and shadow is one, which the renderer draws in one call. For
-    // benchmarks.
+    // How many instances the frame drew: each shape, glyph, line, arc and
+    // polygon is one, which the renderer draws in one call. For benchmarks.
     pub fn instance_count(&self) -> usize {
         self.draw.instance_count()
     }
