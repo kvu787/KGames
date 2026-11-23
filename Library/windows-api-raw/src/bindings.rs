@@ -866,6 +866,11 @@ pub unsafe fn ToUnicodeEx(
     }
 }
 #[inline]
+pub unsafe fn TranslateMessage(lpmsg: *const MSG) -> windows_core::BOOL {
+    windows_core::link!("user32.dll" "system" fn TranslateMessage(lpmsg : *const MSG) -> windows_core::BOOL);
+    unsafe { TranslateMessage(lpmsg) }
+}
+#[inline]
 pub unsafe fn UpdateWindow(hwnd: HWND) -> windows_core::BOOL {
     windows_core::link!("user32.dll" "system" fn UpdateWindow(hwnd : HWND) -> windows_core::BOOL);
     unsafe { UpdateWindow(hwnd) }
@@ -9276,9 +9281,24 @@ pub struct TRACE_LOGFILE_HEADER_1_0 {
     pub CpuSpeedInMHz: u32,
 }
 pub const USER_DEFAULT_SCREEN_DPI: i32 = 96;
+pub const VK_CONTROL: i32 = 17;
+pub const VK_DELETE: i32 = 46;
+pub const VK_DOWN: i32 = 40;
+pub const VK_END: i32 = 35;
+pub const VK_F10: i32 = 121;
+pub const VK_F12: i32 = 123;
+pub const VK_F9: i32 = 120;
+pub const VK_HOME: i32 = 36;
 pub const VK_LBUTTON: i32 = 1;
+pub const VK_LEFT: i32 = 37;
 pub const VK_MBUTTON: i32 = 4;
+pub const VK_MENU: i32 = 18;
+pub const VK_NUMPAD0: i32 = 96;
+pub const VK_NUMPAD9: i32 = 105;
 pub const VK_RBUTTON: i32 = 2;
+pub const VK_RIGHT: i32 = 39;
+pub const VK_SHIFT: i32 = 16;
+pub const VK_UP: i32 = 38;
 pub const VK_XBUTTON1: i32 = 5;
 pub const VK_XBUTTON2: i32 = 6;
 pub const WAIT_OBJECT_0: i32 = 0;
@@ -9289,10 +9309,12 @@ pub type WICBitmapEncoderCacheOption = i32;
 pub const WICBitmapEncoderCacheTempFile: WICBitmapEncoderCacheOption = 1;
 pub const WICBitmapEncoderNoCache: WICBitmapEncoderCacheOption = 2;
 pub type WICPixelFormatGUID = windows_core::GUID;
+pub const WM_CHAR: i32 = 258;
 pub const WM_CLOSE: i32 = 16;
 pub const WM_DISPLAYCHANGE: i32 = 126;
 pub const WM_DPICHANGED: i32 = 736;
 pub const WM_ERASEBKGND: i32 = 20;
+pub const WM_KEYDOWN: i32 = 256;
 pub const WM_MOUSEACTIVATE: i32 = 33;
 pub const WM_MOVE: i32 = 3;
 pub const WM_PAINT: i32 = 15;
