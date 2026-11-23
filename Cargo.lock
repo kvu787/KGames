@@ -302,6 +302,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixel-font-tester-tests"
+version = "0.1.0"
+dependencies = [
+ "aseprite",
+ "graphics",
+ "pixel-font-tester",
+ "windows-api-raw",
+]
+
+[[package]]
 name = "platformer"
 version = "0.1.0"
 dependencies = [

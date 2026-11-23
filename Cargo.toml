@@ -49,6 +49,7 @@ members = [
     "Test/meshes",
     "Test/minimal-scene-test",
     "Test/paint-settings",
+    "Test/pixel-font-tester",
     "Test/platformer",
     "Test/polygon-mesh",
     "Test/present-timing",
