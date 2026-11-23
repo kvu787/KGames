@@ -3,6 +3,17 @@
 version = 4
 
 [[package]]
+name = "aseprite"
+version = "0.1.0"
+
+[[package]]
+name = "aseprite-tests"
+version = "0.1.0"
+dependencies = [
+ "aseprite",
+]
+
+[[package]]
 name = "benchmarks"
 version = "0.1.0"
 dependencies = [

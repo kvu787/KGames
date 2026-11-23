@@ -117,6 +117,7 @@ it seems like clipcursor is a requirement even despite its unreliability
 | [PolygonMesh](Library/polygon-mesh/README.md)       | Polygon meshes: their edits, selections, Catmull-Clark subdivision, and files                               |
 | [PaintSettings](Library/paint-settings/README.md)   | SimplePaint materials in JSON settings files                                                                |
 | [Gltf](Library/gltf/README.md)                      | Reads models from the .glb files that Blender exports                                                       |
+| [Aseprite](Library/aseprite/README.md)              | Reads the first frame of Aseprite's .aseprite files, with its visible layers flattened                      |
 | [Json](Library/json/README.md)                      | A JSON parser and writer                                                                                    |
 | [ShaderCompiler](Library/shader-compiler/README.md) | Compiles HLSL with the Windows SDK's `dxc.exe`, at build time                                               |
 | [WindowsApiRaw](Library/windows-api-raw/README.md)  | The generated Windows API bindings that every crate shares, and nothing else                                |
