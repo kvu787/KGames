@@ -163,3 +163,28 @@ RustRover keeps its settings in `.idea`, which Git leaves out, so its folder is 
 
 KGames is free software under the GNU General Public License, version 3 or (at your option) any
 later version: GPL-3.0-or-later. [LICENSE.txt](LICENSE.txt) has its text.
+
+# misc notes
+
+what are the most optimal text rendering approaches for these requirements:
+
+- will only be displayed on a modern desktop monitor setup
+- assume a gpu that is equivalent or better to nvidia rtx laptop 20 series
+- 95 unique glyphs
+  - monospace
+  - ascii only
+  - single font and style
+- only needs to be rendered at standard reading text size for people with good vision
+- must be able to render at any floating point position
+- must not be snapped to any grid like a pixel or sub-pixel grid
+
+how performant can the rendering of a gui like this be:
+
+- runs a modern desktop/laptop system with cpu with discrete gpu
+- assume the gpu that is equivalent or better to nvidia rtx laptop 20 series
+- 95 unique glyphs
+  - monospace
+  - ascii only
+  - single font and style
+- everything, including fonts, is rendered on the physical pixel grid
+- the application will use win32/winapi and can use any framework or low level stuff like d3d12 or directwrite.
