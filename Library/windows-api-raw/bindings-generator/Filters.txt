@@ -121,6 +121,28 @@ GetKeyNameTextW
 MapVirtualKeyW
 MAPVK_VK_TO_VSC_EX
 
+// Program/pixel-font-tester, which isn't built on Library/user-interface and
+// doesn't read GameInput: its keys and typed text, from its window's keyboard
+// messages, with the keyboard layout's characters from TranslateMessage
+TranslateMessage
+WM_CHAR
+WM_KEYDOWN
+VK_CONTROL
+VK_DELETE
+VK_DOWN
+VK_END
+VK_F9
+VK_F10
+VK_F12
+VK_HOME
+VK_LEFT
+VK_MENU
+VK_NUMPAD0
+VK_NUMPAD9
+VK_RIGHT
+VK_SHIFT
+VK_UP
+
 // Opting out of power throttling
 GetCurrentProcess
 SetProcessInformation

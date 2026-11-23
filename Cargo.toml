@@ -4,6 +4,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "Library/aseprite",
     "Library/displays",
     "Library/game-input",
     "Library/game-input-raw",
@@ -28,11 +29,13 @@ members = [
     "Program/identify-displays",
     "Program/mesh-modeler",
     "Program/minimal-scene-test",
+    "Program/pixel-font-tester",
     "Program/platformer",
     "Program/simple-paint-demo",
     "Program/spinning-car-test",
     "Program/ui-showcase",
     "Program/veehiicuul",
+    "Test/aseprite",
     "Test/benchmarks",
     "Test/frame-times",
     "Test/game-input",
@@ -46,6 +49,7 @@ members = [
     "Test/meshes",
     "Test/minimal-scene-test",
     "Test/paint-settings",
+    "Test/pixel-font-tester",
     "Test/platformer",
     "Test/polygon-mesh",
     "Test/present-timing",

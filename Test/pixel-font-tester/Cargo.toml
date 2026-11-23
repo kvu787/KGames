@@ -1,0 +1,15 @@
+[package]
+name = "pixel-font-tester-tests"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[dependencies]
+aseprite = { path = "../../Library/aseprite" }
+graphics = { path = "../../Library/graphics" }
+pixel-font-tester = { path = "../../Program/pixel-font-tester" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[lints]
+workspace = true

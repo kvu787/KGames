@@ -1,0 +1,31 @@
+[package]
+name = "pixel-font-tester"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+# The tester's parts, which Test/pixel-font-tester tests without a window.
+[lib]
+# Every test is in Test.
+test = false
+doctest = false
+
+[[bin]]
+name = "pixel-font-tester"
+# Every test is in Test.
+test = false
+
+[dependencies]
+aseprite = { path = "../../Library/aseprite" }
+displays = { path = "../../Library/displays" }
+graphics = { path = "../../Library/graphics" }
+windows-api-raw = { path = "../../Library/windows-api-raw" }
+
+[dependencies.windows-core]
+workspace = true
+
+[build-dependencies]
+shader-compiler = { path = "../../Library/shader-compiler" }
+
+[lints]
+workspace = true
