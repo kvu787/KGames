@@ -11,7 +11,8 @@
 //   screen scaling: the box, its border and padding, and what's wrong with
 //   an unsupported setup, are laid out in them, so they're on the GUI's grid.
 // - The text's, `scale` × `scale` of the display's, which Ctrl and a number
-//   set: the font's pixels, and the caret, one of them wide.
+//   set: the font's pixels, the spacing between characters, which Shift and
+//   a number sets, and the caret, one of them wide.
 
 use crate::font::Font;
 use crate::text::Position;
@@ -90,14 +91,36 @@ pub const fn text_area() -> Rect {
     field().inset(PADDING)
 }
 
-// How many columns the text area shows whole at the scale: at least one.
-pub fn visible_columns(font: &Font, scale: u32) -> usize {
-    fit(text_area().width(), font.glyph_width * scale, font.advance * scale)
+// How the text is set, which Ctrl and Shift with a number change.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Style {
+    // How many of the display's pixels each of the font's pixels is, across
+    // and down.
+    pub scale: u32,
+    // How many of the font's pixels are between characters.
+    pub spacing: u32,
 }
 
-// How many lines the text area shows whole at the scale: at least one.
-pub fn visible_lines(font: &Font, scale: u32) -> usize {
-    fit(text_area().height(), font.glyph_height * scale, font.line_height * scale)
+impl Style {
+    // How far a character moves the next one right, in the display's pixels.
+    pub fn advance(self, font: &Font) -> u32 {
+        (font.glyph_width + self.spacing) * self.scale
+    }
+
+    // How far a line moves the next one down, in the display's pixels.
+    pub fn line_height(self, font: &Font) -> u32 {
+        font.line_height * self.scale
+    }
+}
+
+// How many columns the text area shows whole: at least one.
+pub fn visible_columns(font: &Font, style: Style) -> usize {
+    fit(text_area().width(), font.glyph_width * style.scale, style.advance(font))
+}
+
+// How many lines the text area shows whole: at least one.
+pub fn visible_lines(font: &Font, style: Style) -> usize {
+    fit(text_area().height(), font.glyph_height * style.scale, style.line_height(font))
 }
 
 // How many things `size` long, `step` apart, fit in `room`.
@@ -107,18 +130,20 @@ fn fit(room: i32, size: u32, step: u32) -> usize {
 
 // The top left pixel of the glyph at the position, with the text scrolled to
 // show `scroll` at the text area's top left.
-pub fn glyph_origin(font: &Font, scale: u32, scroll: Position, position: Position) -> (i32, i32) {
+pub fn glyph_origin(font: &Font, style: Style, scroll: Position, position: Position) -> (i32, i32) {
     let area = text_area();
     let column = position.column as i32 - scroll.column as i32;
     let line = position.line as i32 - scroll.line as i32;
-    (area.left + column * (font.advance * scale) as i32, area.top + line * (font.line_height * scale) as i32)
+    (area.left + column * style.advance(font) as i32, area.top + line * style.line_height(font) as i32)
 }
 
-// The caret before the position: one of the font's pixels wide, in the gap
-// before the glyph there, at its right, as tall as a glyph.
-pub fn caret(font: &Font, scale: u32, scroll: Position, position: Position) -> Rect {
-    let (x, y) = glyph_origin(font, scale, scroll, position);
-    let gap = font.advance - font.glyph_width;
-    let left = x - (gap.div_ceil(2) * scale) as i32;
+// The caret before the position: one of the font's pixels wide, as tall as
+// a glyph, in the gap before the glyph there, in its middle, or right of it
+// when that's two pixels apart. Without a gap, it's over the last column of
+// the glyph before.
+pub fn caret(font: &Font, style: Style, scroll: Position, position: Position) -> Rect {
+    let (x, y) = glyph_origin(font, style, scroll, position);
+    let scale = style.scale;
+    let left = x - (style.spacing.div_ceil(2).max(1) * scale) as i32;
     Rect::new(left, y, left + scale as i32, y + (font.glyph_height * scale) as i32)
 }

@@ -26,12 +26,16 @@ no focus taken with `--no-activate`, and `F9`, `F10` and `Ctrl + Shift + Alt + F
 | `Ctrl + 1` to `Ctrl + 9`    | Show the text at 1 to 9 times the font's size, from the top row or |
 |                             | the numpad. `Ctrl + 1` is the font's own size                      |
 | `Ctrl + 0`                  | Shows the text at 10 times the font's size                         |
+| `Ctrl + Shift + 0` to `9`   | Puts 0 to 9 of the font's pixels between characters. The sheet's   |
+|                             | spacing, 2 now, is where it starts                                 |
 | `F9`                        | Switches between the light and the dark theme                      |
 | `F10`                       | Switches vertical sync on and off                                  |
 | `Ctrl + Shift + Alt + F12`  | Quits at once                                                      |
 
-The number keys alone type digits. `AltGr` and a number key types what the keyboard's layout says,
-like `{` in German's, as Windows sees `AltGr` as `Ctrl + Alt`.
+The number keys alone type digits, and with `Shift`, what they type with it, like `!`. `AltGr`
+and a number key types what the keyboard's layout says, like `{` in German's, as Windows sees
+`AltGr` as `Ctrl + Alt`. With the spacing at 0, the caret covers the last column of the
+character before it, as there's no gap between them for it.
 
 The box scrolls, by whole columns and lines, to show the caret and the character after it, as
 soon as a key moves it. Text doesn't wrap: it goes on to the right, and down, from the box's top
@@ -74,7 +78,8 @@ antialiasing, no filtering, no blending across pixels' edges. There are two kind
 - The GUI's, 2 × 2 of the display's (`GUI_SCALE` in `src/layout.rs`), like Aseprite's screen
   scaling: the box, its border and padding, and the error in an unsupported setup are laid out
   in them, on their grid.
-- The text's, which `Ctrl` and a number set: the font's pixels, and the caret, one of them wide.
+- The text's, which `Ctrl` and a number set: the font's pixels, the spacing between characters,
+  which `Ctrl + Shift` and a number set, and the caret, one of them wide.
 
 The renderer draws nothing but rectangles of whole pixels, filled with a color or with a glyph,
 whose pixel shader finds the glyph's pixel under each of the display's with integer math. Its
@@ -99,6 +104,8 @@ Program\RunInBackground\RunInBackground.ps1 pixel-font-tester --arguments '--tex
 | `--vsync`, `--no-vsync`      | Starts with vertical sync on, as by default, or off             |
 | `--theme Light`, `Dark`      | Starts in the theme. Light by default                           |
 | `--size <1-10>`              | Starts at the size. 1 by default                                |
+| `--spacing <0-9>`            | Starts with that many of the font's pixels between characters.  |
+|                              | The sheet's spacing by default                                  |
 | `--text <text>`              | Starts with the text, typed: `\n` breaks the line, and `\\` is  |
 |                              | a backslash                                                     |
 

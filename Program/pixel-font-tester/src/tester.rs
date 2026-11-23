@@ -3,14 +3,42 @@
 // `Input`, which tests make up instead. Everything an input causes, like the
 // box scrolling to keep the caret in it, happens as it's handled, so the
 // frame that follows shows all of it.
+//
+// Ctrl and a number key sets the text's size, and Ctrl+Shift and a number
+// key the spacing between its characters, in the font's pixels.
 
 use crate::font::Font;
-use crate::layout;
+use crate::layout::{self, Style};
 use crate::text::{Position, Text};
 
 // The biggest size: Ctrl+0's, after Ctrl+1 to Ctrl+9's 1 to 9 times the
 // font's own.
 pub const MAXIMUM_SCALE: u32 = 10;
+// The most spacing between characters: Ctrl+Shift+9's. Ctrl+Shift+0's is
+// none.
+pub const MAXIMUM_SPACING: u32 = 9;
+
+// What a number key with Ctrl sets: the size, or with Ctrl+Shift, the spacing
+// between characters. Without Ctrl, it types, like Shift+1's !. AltGr, which
+// some layouts type characters with, is Ctrl+Alt to Windows, so nothing with
+// Alt is a shortcut.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Shortcut {
+    Scale(u32),
+    Spacing(u32),
+}
+
+pub fn shortcut(key: Key, modifiers: Modifiers) -> Option<Shortcut> {
+    let Key::Digit(digit) = key else {
+        return None;
+    };
+    let digit = u32::from(digit);
+    match modifiers {
+        Modifiers { control: false, .. } | Modifiers { alt: true, .. } => None,
+        Modifiers { shift: true, .. } => Some(Shortcut::Spacing(digit)),
+        Modifiers { shift: false, .. } => Some(Shortcut::Scale(if digit == 0 { MAXIMUM_SCALE } else { digit })),
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Theme {
@@ -109,6 +137,8 @@ pub struct Tester {
     // How many of the screen's pixels each of the font's pixels is, across
     // and down.
     pub scale: u32,
+    // How many of the font's pixels are between characters.
+    pub spacing: u32,
     pub theme: Theme,
     pub vsync: bool,
     // Whether Ctrl+Shift+Alt+F12 asked to quit.
@@ -118,10 +148,12 @@ pub struct Tester {
 }
 
 impl Tester {
+    // With the spacing between characters that the font's sheet has.
     pub fn new(text: Text, scale: u32, theme: Theme, vsync: bool, font: &Font) -> Tester {
         let mut tester = Tester {
             text,
             scale: scale.clamp(1, MAXIMUM_SCALE),
+            spacing: font.spacing(),
             theme,
             vsync,
             quit: false,
@@ -129,6 +161,21 @@ impl Tester {
         };
         tester.show_caret(font);
         tester
+    }
+
+    pub fn style(&self) -> Style {
+        Style {
+            scale: self.scale,
+            spacing: self.spacing,
+        }
+    }
+
+    // Sets how many of the font's pixels are between characters, and scrolls
+    // from the top left again, as far as it takes to show the caret.
+    pub fn set_spacing(&mut self, spacing: u32, font: &Font) {
+        self.spacing = spacing.min(MAXIMUM_SPACING);
+        self.scroll = Position::default();
+        self.show_caret(font);
     }
 
     pub fn handle(&mut self, input: Input, font: &Font) {
@@ -154,14 +201,16 @@ impl Tester {
 
     fn pressed(&mut self, key: Key, modifiers: Modifiers) {
         match key {
-            // Ctrl and a number sets the size. AltGr, which some layouts type
-            // characters with, is Ctrl+Alt to Windows, and its numbers type.
-            Key::Digit(digit) if modifiers.control && !modifiers.alt => {
-                self.scale = if digit == 0 { MAXIMUM_SCALE } else { u32::from(digit) };
+            Key::Digit(_) => {
+                match shortcut(key, modifiers) {
+                    Some(Shortcut::Scale(scale)) => self.scale = scale,
+                    Some(Shortcut::Spacing(spacing)) => self.spacing = spacing,
+                    // It types, with the WM_CHAR that comes after it.
+                    None => return,
+                }
                 // From the top left again, as far as the caret lets it.
                 self.scroll = Position::default();
             }
-            Key::Digit(_) => {}
             Key::F12 if modifiers.control && modifiers.shift && modifiers.alt => self.quit = true,
             Key::F12 => {}
             Key::F9 => self.theme = self.theme.toggled(),
@@ -182,8 +231,8 @@ impl Tester {
     // character after it, whole.
     fn show_caret(&mut self, font: &Font) {
         let caret = self.text.caret();
-        let columns = layout::visible_columns(font, self.scale);
-        let lines = layout::visible_lines(font, self.scale);
+        let columns = layout::visible_columns(font, self.style());
+        let lines = layout::visible_lines(font, self.style());
         self.scroll.column = self.scroll.column.clamp((caret.column + 1).saturating_sub(columns), caret.column);
         self.scroll.line = self.scroll.line.clamp((caret.line + 1).saturating_sub(lines), caret.line);
     }

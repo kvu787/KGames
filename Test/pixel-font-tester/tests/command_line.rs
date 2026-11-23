@@ -29,12 +29,19 @@ fn it_takes_what_run_in_background_gives_every_program() {
 }
 
 #[test]
-fn the_size_and_the_text_to_start_with_can_be_given() {
+fn the_size_the_spacing_and_the_text_to_start_with_can_be_given() {
     assert_eq!(parse(&["--size", "10"]).unwrap().scale, 10);
     assert_eq!(parse(&["--text", r"one\ntwo \\n"]).unwrap().text, "one\ntwo \\n");
     for size in ["0", "11", "two"] {
         let error = parse(&["--size", size]).unwrap_err();
         assert!(error.contains("--size"), "{error}");
+    }
+    assert_eq!(parse(&[]).unwrap().spacing, None);
+    assert_eq!(parse(&["--spacing", "0"]).unwrap().spacing, Some(0));
+    assert_eq!(parse(&["--spacing", "9"]).unwrap().spacing, Some(9));
+    for spacing in ["10", "-1", "two"] {
+        let error = parse(&["--spacing", spacing]).unwrap_err();
+        assert!(error.contains("--spacing"), "{error}");
     }
 }
 

@@ -6,8 +6,8 @@ mod common;
 
 use common::real_font;
 use pixel_font_tester::font::Font;
-use pixel_font_tester::layout;
-use pixel_font_tester::tester::{Input, Key, MAXIMUM_SCALE, Modifiers, Tester, Theme};
+use pixel_font_tester::layout::{self, Style};
+use pixel_font_tester::tester::{Input, Key, MAXIMUM_SCALE, Modifiers, Shortcut, Tester, Theme, shortcut};
 use pixel_font_tester::text::{Position, Text};
 
 fn tester(text: &str, font: &Font) -> Tester {
@@ -122,10 +122,65 @@ fn ctrl_and_a_number_sets_the_size_and_zero_is_ten() {
     tester.handle(Input::Character(0x00), &font);
     tester.handle(Input::Character(0x1E), &font);
     assert_eq!(tester.text.to_text(), "text");
-    // With Shift too, it's the same.
-    let shifted = Modifiers { shift: true, ..Modifiers::CONTROL };
-    tester.handle(Input::Key(Key::Digit(2), shifted), &font);
-    assert_eq!(tester.scale, 2);
+    assert_eq!(tester.spacing, font.spacing());
+}
+
+const CONTROL_SHIFT: Modifiers = Modifiers {
+    control: true,
+    shift: true,
+    alt: false,
+};
+
+#[test]
+fn ctrl_shift_and_a_number_sets_the_spacing_from_none_to_nine() {
+    let font = real_font();
+    let mut tester = tester("text", &font);
+    // From the sheet's.
+    assert_eq!(tester.spacing, font.spacing());
+    for digit in [0, 1, 5, 9, 3] {
+        tester.handle(Input::Key(Key::Digit(digit), CONTROL_SHIFT), &font);
+        assert_eq!(tester.spacing, u32::from(digit));
+        assert_eq!(tester.scale, 1, "Ctrl+Shift+{digit} set the size");
+    }
+    // Ctrl+Shift+2's NUL, and Ctrl+Shift+6's record separator, type nothing.
+    tester.handle(Input::Character(0x00), &font);
+    tester.handle(Input::Character(0x1E), &font);
+    assert_eq!(tester.text.to_text(), "text");
+    assert_eq!(shortcut(Key::Digit(4), CONTROL_SHIFT), Some(Shortcut::Spacing(4)));
+    assert_eq!(shortcut(Key::Digit(4), Modifiers::CONTROL), Some(Shortcut::Scale(4)));
+    assert_eq!(shortcut(Key::Left, CONTROL_SHIFT), None);
+}
+
+#[test]
+fn shift_and_a_number_types_what_the_layout_says() {
+    let font = real_font();
+    let mut tester = tester("", &font);
+    let shift = Modifiers { shift: true, ..Modifiers::NONE };
+    tester.handle(Input::Key(Key::Digit(1), shift), &font);
+    tester.handle(Input::Character(u16::from(b'!')), &font);
+    assert_eq!(tester.text.to_text(), "!");
+    assert_eq!((tester.scale, tester.spacing), (1, font.spacing()));
+    assert_eq!(shortcut(Key::Digit(1), shift), None);
+    // Shift+AltGr, which is Ctrl+Shift+Alt to Windows, types too.
+    let shift_altgr = Modifiers { alt: true, ..CONTROL_SHIFT };
+    tester.handle(Input::Key(Key::Digit(1), shift_altgr), &font);
+    assert_eq!(tester.spacing, font.spacing());
+    assert_eq!(shortcut(Key::Digit(1), shift_altgr), None);
+}
+
+#[test]
+fn a_new_spacing_scrolls_to_show_the_caret_at_once() {
+    let font = real_font();
+    let mut tester = tester(&"x".repeat(200), &font);
+    for digit in [9, 0, 4] {
+        tester.handle(Input::Key(Key::Digit(digit), CONTROL_SHIFT), &font);
+        assert!(caret_shows(&tester, &font), "Ctrl+Shift+{digit}: {:?}", tester.scroll);
+        let columns = layout::visible_columns(&font, tester.style());
+        assert_eq!(tester.scroll.column, 201usize.saturating_sub(columns), "Ctrl+Shift+{digit}");
+    }
+    // Spacing 9 shows fewer columns than none.
+    let columns = |spacing| layout::visible_columns(&font, Style { scale: 1, spacing });
+    assert!(columns(9) < columns(0));
 }
 
 #[test]
@@ -167,15 +222,15 @@ fn caret_shows(tester: &Tester, font: &Font) -> bool {
     let scroll = tester.scroll;
     caret.line >= scroll.line
         && caret.column >= scroll.column
-        && caret.line < scroll.line + layout::visible_lines(font, tester.scale)
-        && caret.column < scroll.column + layout::visible_columns(font, tester.scale)
+        && caret.line < scroll.line + layout::visible_lines(font, tester.style())
+        && caret.column < scroll.column + layout::visible_columns(font, tester.style())
 }
 
 #[test]
 fn the_box_scrolls_with_the_caret_as_it_moves() {
     let font = real_font();
     let mut tester = tester("", &font);
-    let columns = layout::visible_columns(&font, 1);
+    let columns = layout::visible_columns(&font, tester.style());
     // Typing past the right edge scrolls right, with that character.
     type_text(&mut tester, &font, &"x".repeat(columns - 1));
     assert_eq!(tester.scroll, position(0, 0));
@@ -186,7 +241,7 @@ fn the_box_scrolls_with_the_caret_as_it_moves() {
     press(&mut tester, &font, Key::Home);
     assert_eq!(tester.scroll, position(0, 0));
     // So do lines, down and up.
-    let lines = layout::visible_lines(&font, 1);
+    let lines = layout::visible_lines(&font, tester.style());
     press(&mut tester, &font, Key::End);
     type_text(&mut tester, &font, &"\r".repeat(lines));
     assert_eq!(tester.scroll, position(1, 0));
@@ -204,7 +259,7 @@ fn a_new_size_scrolls_to_show_the_caret_at_once() {
         tester.handle(Input::Key(Key::Digit(digit), Modifiers::CONTROL), &font);
         assert!(caret_shows(&tester, &font), "Ctrl+{digit}: {:?}", tester.scroll);
         // As far left and up as shows it.
-        let columns = layout::visible_columns(&font, tester.scale);
+        let columns = layout::visible_columns(&font, tester.style());
         assert_eq!(tester.scroll.column, 101usize.saturating_sub(columns), "Ctrl+{digit}");
     }
     // Small enough, it all shows from the top left.

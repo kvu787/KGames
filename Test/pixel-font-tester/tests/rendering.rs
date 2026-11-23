@@ -76,13 +76,15 @@ fn frames_on_the_gpu_match_the_scene_pixel_for_pixel_at_every_size() {
     // at the right, and enough lines to be cut at the bottom.
     let printable: String = (0x20u8..0x7F).map(char::from).collect();
     let text = format!("{printable}\tend\nThe quick brown fox jumps over the lazy dog\n{}", "gjpqy Wm\n".repeat(30));
-    for (scale, theme) in [(1, Theme::Light), (2, Theme::Dark), (3, Theme::Light), (7, Theme::Dark), (10, Theme::Light)] {
+    let cases = [(1, Theme::Light, 2), (2, Theme::Dark, 0), (3, Theme::Light, 1), (7, Theme::Dark, 9), (10, Theme::Light, 2)];
+    for (scale, theme, spacing) in cases {
         let mut tester = Tester::new(Text::typed(&text), scale, theme, true, &font);
+        tester.set_spacing(spacing, &font);
         // From the top left, so that the long line is cut at the right.
         tester.handle(Input::Key(Key::Home, Modifiers::CONTROL), &font);
         let scene = scene(&tester, &font, &[]);
         let image = draw(&mut gpu, &mut renderer, &scene);
-        assert_matches(&image, &reference(&scene, &font), &format!("scale {scale}"));
+        assert_matches(&image, &reference(&scene, &font), &format!("scale {scale}, spacing {spacing}"));
     }
 }
 

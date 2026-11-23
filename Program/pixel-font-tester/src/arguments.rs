@@ -1,11 +1,12 @@
 // The tester's command line. It takes the options that RunInBackground gives
-// every program, like Library/user-interface's programs do, and two of its
-// own, for runs that can't type: the text to start with, and the size.
+// every program, like Library/user-interface's programs do, and some of its
+// own, for runs that can't type: the text to start with, the size, and the
+// spacing between characters.
 
-use crate::tester::{MAXIMUM_SCALE, Theme};
+use crate::tester::{MAXIMUM_SCALE, MAXIMUM_SPACING, Theme};
 
 pub const USAGE: &str = "pixel-font-tester [--display <identifier>|Primary] [--no-activate] [--no-input] [--vsync|--no-vsync] \
-                         [--theme Light|Dark] [--size <1-10>] [--text <text>]";
+                         [--theme Light|Dark] [--size <1-10>] [--spacing <0-9>] [--text <text>]";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arguments {
@@ -18,6 +19,8 @@ pub struct Arguments {
     pub vsync: bool,
     pub theme: Theme,
     pub scale: u32,
+    // The font's pixels between characters, or the sheet's spacing if none.
+    pub spacing: Option<u32>,
     // The text to start with, with \n for a line break and \\ for a
     // backslash.
     pub text: String,
@@ -32,6 +35,7 @@ impl Default for Arguments {
             vsync: true,
             theme: Theme::Light,
             scale: 1,
+            spacing: None,
             text: String::new(),
         }
     }
@@ -64,6 +68,16 @@ impl Arguments {
                         .ok()
                         .filter(|scale| (1..=MAXIMUM_SCALE).contains(scale))
                         .ok_or_else(|| format!("--size must be a whole number from 1 to {MAXIMUM_SCALE}, not {size}."))?;
+                }
+                "--spacing" => {
+                    let spacing = value()?;
+                    parsed.spacing = Some(
+                        spacing
+                            .parse()
+                            .ok()
+                            .filter(|spacing| *spacing <= MAXIMUM_SPACING)
+                            .ok_or_else(|| format!("--spacing must be a whole number from 0 to {MAXIMUM_SPACING}, not {spacing}."))?,
+                    );
                 }
                 "--text" => parsed.text = unescape(&value()?),
                 "--script" | "--output" => return Err("PixelFontTester doesn't run scripts: test its input with Test/pixel-font-tester's tests.".to_string()),

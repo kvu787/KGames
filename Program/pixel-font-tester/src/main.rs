@@ -23,6 +23,9 @@ fn run() -> Result<(), String> {
     let arguments = Arguments::parse(std::env::args().skip(1)).map_err(|message| format!("{message}\nUsage: {USAGE}"))?;
     let font = Font::load(&glyphs_path())?;
     let mut tester = Tester::new(Text::typed(&arguments.text), arguments.scale, arguments.theme, arguments.vsync, &font);
+    if let Some(spacing) = arguments.spacing {
+        tester.set_spacing(spacing, &font);
+    }
 
     let displays = displays::enumerate().map_err(|error| format!("Couldn't find the displays: {error}"))?;
     let display = if arguments.display.eq_ignore_ascii_case("Primary") {

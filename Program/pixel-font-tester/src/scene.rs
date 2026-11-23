@@ -90,21 +90,21 @@ pub fn scene(tester: &Tester, font: &Font, problems: &[String]) -> Scene {
     quads.push(solid(layout::BOX, colors.border));
     quads.push(solid(layout::field(), colors.field));
     let area = layout::text_area();
-    let (scale, scroll) = (tester.scale, tester.scroll);
+    let (style, scroll) = (tester.style(), tester.scroll);
     for (line, characters) in tester.text.lines().iter().enumerate().skip(scroll.line) {
-        let (_, y) = layout::glyph_origin(font, scale, scroll, Position { line, column: 0 });
+        let (_, y) = layout::glyph_origin(font, style, scroll, Position { line, column: 0 });
         if y >= area.bottom {
             break;
         }
         for (column, &character) in characters.iter().enumerate().skip(scroll.column) {
-            let origin = layout::glyph_origin(font, scale, scroll, Position { line, column });
+            let origin = layout::glyph_origin(font, style, scroll, Position { line, column });
             if origin.0 >= area.right {
                 break;
             }
-            quads.extend(glyph(font, character, origin, scale, area, colors.text));
+            quads.extend(glyph(font, character, origin, style.scale, area, colors.text));
         }
     }
-    let caret = layout::caret(font, scale, scroll, tester.text.caret()).intersection(layout::field());
+    let caret = layout::caret(font, style, scroll, tester.text.caret()).intersection(layout::field());
     if !caret.is_empty() {
         quads.push(solid(caret, colors.text));
     }

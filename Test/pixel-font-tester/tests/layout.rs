@@ -6,7 +6,7 @@ mod common;
 
 use common::real_font;
 use pixel_font_tester::font::Font;
-use pixel_font_tester::layout::{self, BOX, GUI_SCALE, Rect, WINDOW_HEIGHT, WINDOW_WIDTH};
+use pixel_font_tester::layout::{self, BOX, GUI_SCALE, Rect, Style, WINDOW_HEIGHT, WINDOW_WIDTH};
 use pixel_font_tester::scene::{Quad, SOLID, Scene, pack, scene};
 use pixel_font_tester::tester::{Input, Key, Modifiers, Tester, Theme};
 use pixel_font_tester::text::{Position, Text};
@@ -129,10 +129,54 @@ fn the_caret_is_one_of_the_font_s_pixels_wide_in_the_gap_before_its_character() 
 }
 
 #[test]
+fn spacing_puts_that_many_of_the_font_s_pixels_between_characters_at_every_size() {
+    let font = real_font();
+    for scale in [1, 2, 7] {
+        for spacing in 0..=9 {
+            let mut tester = tester("abc\nd", scale, &font);
+            tester.set_spacing(spacing, &font);
+            let quads = glyph_quads(&scene(&tester, &font, &[]));
+            // Each glyph's right edge, then the spacing, then the next one.
+            assert_eq!(quads[1].area.left - quads[0].area.right, (spacing * scale) as i32, "scale {scale}, spacing {spacing}");
+            assert_eq!(quads[2].area.left - quads[1].area.right, (spacing * scale) as i32, "scale {scale}, spacing {spacing}");
+            // Lines are as far apart as ever.
+            assert_eq!(quads[3].origin[1] - quads[0].origin[1], (font.line_height * scale) as i32);
+            assert_eq!(quads[3].origin[0], quads[0].origin[0]);
+        }
+    }
+}
+
+#[test]
+fn the_caret_is_in_the_gap_and_without_one_over_the_last_column_before_it() {
+    let font = real_font();
+    for scale in [1, 3] {
+        for spacing in 0..=9 {
+            let mut tester = tester("ab", scale, &font);
+            tester.set_spacing(spacing, &font);
+            tester.handle(Input::Key(Key::Left, Modifiers::NONE), &font);
+            let scene = scene(&tester, &font, &[]);
+            let quads = glyph_quads(&scene);
+            let caret = scene.quads.last().unwrap().area;
+            let (a, b) = (quads[0].area, quads[1].area);
+            assert_eq!(caret.width(), scale as i32);
+            if spacing == 0 {
+                assert_eq!((caret.left, caret.right), (a.right - scale as i32, b.left), "scale {scale}");
+            } else {
+                assert!(caret.left >= a.right && caret.right <= b.left, "scale {scale}, spacing {spacing}: {caret:?} isn't in the gap");
+                // In its middle, or right of it.
+                let (left_room, right_room) = (caret.left - a.right, b.left - caret.right);
+                assert!(right_room <= left_room && left_room - right_room <= scale as i32, "scale {scale}, spacing {spacing}");
+            }
+        }
+    }
+}
+
+#[test]
 fn glyphs_are_cut_at_the_text_area_s_edges_and_lines_past_them_aren_t_drawn() {
     let font = real_font();
-    let columns = layout::visible_columns(&font, 3);
-    let lines = layout::visible_lines(&font, 3);
+    let style = Style { scale: 3, spacing: font.spacing() };
+    let columns = layout::visible_columns(&font, style);
+    let lines = layout::visible_lines(&font, style);
     let row = "W".repeat(columns + 3);
     let text = vec![row; lines + 3].join("\n");
     let mut tester = tester(&text, 3, &font);
@@ -155,7 +199,7 @@ fn glyphs_are_cut_at_the_text_area_s_edges_and_lines_past_them_aren_t_drawn() {
 #[test]
 fn scrolled_text_starts_with_the_first_column_and_line_that_show() {
     let font = real_font();
-    let columns = layout::visible_columns(&font, 10);
+    let columns = layout::visible_columns(&font, Style { scale: 10, spacing: font.spacing() });
     let line = format!("A{}Z", "x".repeat(columns));
     let tester = tester(&format!("{line}\n{line}"), 10, &font);
     // As far as shows the caret, after Z, and the character after it.

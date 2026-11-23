@@ -166,6 +166,12 @@ impl Font {
         })
     }
 
+    // The pixels between characters that the sheet has: the narrowest gap
+    // between its columns.
+    pub fn spacing(&self) -> u32 {
+        self.advance - self.glyph_width
+    }
+
     // A character's glyph: glyph_width × glyph_height coverage, from 0 to
     // 255, a row at a time from the top. Bytes past ASCII have the box.
     pub fn glyph(&self, character: u8) -> &[u8] {
