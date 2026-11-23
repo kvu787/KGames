@@ -29,6 +29,7 @@ members = [
     "Program/identify-displays",
     "Program/mesh-modeler",
     "Program/minimal-scene-test",
+    "Program/pixel-font-tester",
     "Program/platformer",
     "Program/simple-paint-demo",
     "Program/spinning-car-test",

@@ -92,6 +92,7 @@ it seems like clipcursor is a requirement even despite its unreliability
 | [SimplePaintDemo](Program/simple-paint-demo/README.md)   | Edits a SimplePaint material live on a UV sphere                         |
 | [MeshModeler](Program/mesh-modeler/README.md)            | Models polygon meshes, subdivides them, and paints them with SimplePaint |
 | [UiShowcase](Program/ui-showcase/README.md)              | Shows every widget of the UI framework, and what input does to it        |
+| [PixelFontTester](Program/pixel-font-tester/README.md)   | Shows what's typed in the pixel font of Glyphs.aseprite, pixel perfect   |
 | [WinUi3Sample](Program/WinUi3Sample/README.md)           | A real WinUI 3 app, in C# and XAML, to compare the UI framework with     |
 | [MinimalSceneTest](Program/minimal-scene-test/README.md) | A sphere moving over a ground plane, for checking smooth motion          |
 | [SpinningCarTest](Program/spinning-car-test/README.md)   | A car moving and spinning past a sphere, painted with SimplePaint        |
