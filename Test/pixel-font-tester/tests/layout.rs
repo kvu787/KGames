@@ -83,11 +83,12 @@ fn text_flows_left_to_right_and_top_to_bottom_from_the_box_s_top_left() {
 #[test]
 fn spaces_advance_without_a_quad_and_characters_without_glyphs_draw_the_box() {
     let font = real_font();
-    let tester = tester("a !\t", 1, &font);
+    let tester = tester("a \t!", 1, &font);
     let quads = glyph_quads(&scene(&tester, &font, &[]));
     let characters: Vec<u32> = quads.iter().map(|quad| quad.glyph).collect();
-    // The renderer's atlas has the box for ! and tab.
-    assert_eq!(characters, b"a!\t".map(u32::from));
+    // The renderer's atlas has the box for tab.
+    assert!(!font.has_own_glyph(b'\t'));
+    assert_eq!(characters, b"a\t!".map(u32::from));
     assert_eq!(quads[1].origin[0] - quads[0].origin[0], 2 * font.advance as i32);
 }
 

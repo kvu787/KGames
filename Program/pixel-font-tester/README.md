@@ -1,9 +1,8 @@
 # PixelFontTester
 
-A box to type ASCII into, which shows it in the pixel font that
-[Glyphs.aseprite](../../Glyphs.aseprite) at the root of the repository draws, at 1 to 10 times its
-size. Its whole GUI is pixel perfect, like Aseprite's, as a starting point for a GUI that's only
-that.
+A box to type ASCII into, which shows it in the pixel font that [Glyphs.aseprite](Glyphs.aseprite)
+draws and [Glyphs.txt](Glyphs.txt) maps, at 1 to 10 times its size. Its whole GUI is pixel perfect,
+like Aseprite's, as a starting point for a GUI that's only that.
 
 It's built on Win32 and Direct3D 12 directly, with [Library/graphics](../../Library/graphics/README.md),
 not on [Library/user-interface](../../Library/user-interface/README.md), and draws its text with
@@ -43,31 +42,44 @@ left.
 
 ## The font
 
-The tester reads `Glyphs.aseprite` as it starts, with [Library/aseprite](../../Library/aseprite/README.md),
-so start it again after saving the font in Aseprite. The glyphs are in the 210 × 40 box at the top
-left of the canvas's first frame, in three rows of 26:
+The tester reads `Glyphs.aseprite` and `Glyphs.txt` as it starts, `Glyphs.aseprite` with
+[Library/aseprite](../../Library/aseprite/README.md), so start it again after saving either. It reads
+two of `Glyphs.aseprite`'s layers, in its first frame, whether they're visible or not, and leaves
+out the rest, like its background:
 
-| Row | Glyphs                                                                |
-| --- | --------------------------------------------------------------------- |
-| 1   | `0` to `9`, then boxes. The first box is the box glyph                |
-| 2   | `A` to `Z`                                                            |
-| 3   | `a` to `z`, a little taller than the others, with their descenders    |
+| Layer    | What it has                                                                   |
+| -------- | ----------------------------------------------------------------------------- |
+| `grid`   | A cell for each glyph, which its outline marks, over the glyph's outer pixels |
+| `glyphs` | The glyphs, each in its cell                                                  |
 
-Space is blank. Every other character without a glyph of its own, like punctuation and tab, shows
-the box. `src/font.rs` finds the glyphs in the box, rather than at fixed places:
+`Glyphs.txt`'s lines are the grid's rows of cells, top to bottom, and each line's characters are
+its row's cells, left to right:
 
-- A row of glyphs is a run of rows of pixels with ink, and a glyph is a run of columns of pixels
-  with ink, in its row. A pixel has ink if it isn't wholly transparent, and its alpha is its
-  coverage.
-- Glyphs are in columns, and each column's left edge is its leftmost glyph's, so narrow glyphs,
-  like `i`, keep their place in their column, and the font is monospaced. Columns 7 to 25 are a
-  pixel further right than 0 to 6 now, which is fine.
-- A glyph is as wide as the widest from its column's left edge, and as tall as the tallest row. A
-  row's glyphs start at the top of its tallest, and take only their own row's pixels.
-- A character advances by a glyph's width and the narrowest gap between columns, and a line by a
-  glyph's height and the narrowest gap between rows.
+| Row | Glyphs                                                   |
+| --- | -------------------------------------------------------- |
+| 1   | `0` to `9`                                               |
+| 2   | `A` to `Z`                                               |
+| 3   | `a` to `z`                                               |
+| 4   | Space, which is blank, then the symbols, from `'` to `_` |
 
-With the glyphs as they are, a glyph is 6 × 13 pixels, characters are 8 apart, and lines 15.
+So every one of ASCII's printable characters has a glyph. Every other character, like tab, shows
+the box: the outline of a glyph's whole cell. `src/font.rs` finds the cells in the grid, rather than
+at fixed places, so rows and cells can be added:
+
+- A row of cells is a run of the grid's rows of pixels with ink, and a cell is a run of columns of
+  pixels with ink, in its row, from the first to the last of its rows with ink in them. So a cell's
+  outline and the lines across it, like its baseline, are all one cell. A pixel has ink if it isn't
+  wholly transparent.
+- The cells are all the same size, which is a glyph's, so the font is monospaced. A glyph is every
+  pixel of the `glyphs` layer in its cell, with its alpha as its coverage. The `glyphs` layer
+  draws nothing outside the cells.
+- A character advances by a glyph's width and the narrowest gap between two cells side by side,
+  and a line by a glyph's height and the narrowest gap between two rows of cells.
+- `Glyphs.txt` has as many lines as the grid has rows, each with as many characters as its row has
+  cells, and each character once, of ASCII's printable characters and tab.
+
+If any of that doesn't hold, the tester doesn't open, and prints what's wrong. With the cells as
+they are, a glyph is 6 × 13 pixels, characters are 8 apart, and lines 15.
 
 ## Pixel perfect
 

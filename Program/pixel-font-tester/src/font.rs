@@ -1,48 +1,51 @@
-// The pixel font: its glyphs, as Glyphs.aseprite at the root of the
-// repository draws them in the 210 × 40 box at the top left of its canvas.
+// The pixel font: its glyphs, as Glyphs.aseprite, next to this crate's
+// Cargo.toml, draws them, and Glyphs.txt, next to it, maps them to
+// characters.
 //
-// The box has three rows of glyphs: the digits, then boxes, then the capital
-// letters, then the small ones, 26 to a row. The font finds them in it,
-// rather than at fixed places, so that a glyph can be moved a pixel without
-// breaking it:
+// Glyphs.aseprite's grid layer marks a cell for each glyph, and its glyphs
+// layer draws them, each in its cell; its other layers, like the background,
+// are left out. The font finds the cells in the grid, rather than at fixed
+// places, so that the sheet can grow:
 //
-// - A row of glyphs is a run of the box's rows of pixels with ink in them,
-//   and a glyph is a run of columns of pixels with ink in them, in its row.
-// - Glyphs are in columns, and each column's left edge is its leftmost
-//   glyph's. A narrow glyph, like i or l, keeps its place in its column, so
-//   the font is monospaced.
-// - A glyph is as wide as the widest glyph from its column's left edge, and
-//   as tall as the tallest row: a row's top is the top of its tallest glyphs,
-//   which for the small letters are those with ascenders, and the small
-//   letters' row is taller by their descenders.
-// - A character advances by a glyph's width and the narrowest gap between
-//   two columns, and a line by a glyph's height and the narrowest gap between
-//   two rows.
+// - A row of cells is a run of the grid's rows of pixels with ink in them,
+//   and a cell is a run of columns of pixels with ink in them, in its row,
+//   from the first to the last of its rows with ink in those columns. So a
+//   cell's outline and the lines inside it, like the baseline, are one cell.
+//   A pixel has ink if it isn't wholly transparent.
+// - The cells are all the same size, which is a glyph's: the font is
+//   monospaced. The grid's lines are over the glyph's pixels, not around
+//   them, and the glyph is every pixel of the glyphs layer in its cell, with
+//   its alpha as its coverage.
+// - A character advances by a glyph's width and the narrowest gap between two
+//   cells side by side, and a line by a glyph's height and the narrowest gap
+//   between two rows of cells.
 //
-// Space is blank, and every other character without a glyph of its own,
-// like punctuation and tab, has the box, the first one after the digits.
+// Glyphs.txt's lines are the grid's rows of cells, top to bottom, and each
+// line's characters are its row's cells, left to right. Space has a cell,
+// which is blank. Every character without one, like tab, has the box: the
+// outline of a glyph's whole cell.
 
 use std::path::{Path, PathBuf};
 
 use aseprite::Canvas;
 
-// The box at the top left of the canvas that has the glyphs.
-pub const SHEET_WIDTH: u32 = 210;
-pub const SHEET_HEIGHT: u32 = 40;
+use crate::text::is_text;
 
-// The characters of each row's glyphs, left to right. The digits' row has
-// boxes after them, which have no characters.
-const ROWS: [&[u8]; 3] = [b"0123456789", b"ABCDEFGHIJKLMNOPQRSTUVWXYZ", b"abcdefghijklmnopqrstuvwxyz"];
-const COLUMNS: usize = 26;
-// The row and column of the box glyph.
-const BOX: (usize, usize) = (0, 10);
+// The layers of Glyphs.aseprite that the font reads.
+pub const GRID_LAYER: &str = "grid";
+pub const GLYPHS_LAYER: &str = "glyphs";
 
 // The characters that the font has glyphs for: ASCII's.
 pub const CHARACTERS: usize = 128;
 
-// Glyphs.aseprite at the root of the repository.
+// Glyphs.aseprite, which draws the font.
 pub fn glyphs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("Glyphs.aseprite")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("Glyphs.aseprite")
+}
+
+// Glyphs.txt, which maps its cells to characters.
+pub fn mapping_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("Glyphs.txt")
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -57,7 +60,7 @@ pub struct Font {
     // Each ASCII character's glyph: its coverage, from 0 to 255, a row at a
     // time from the top.
     glyphs: Vec<Vec<u8>>,
-    // Whether each character has a glyph of its own, rather than the box.
+    // Whether each character has a cell of its own, rather than the box.
     own: Vec<bool>,
 }
 
@@ -66,6 +69,12 @@ pub struct Font {
 struct Run {
     first: u32,
     last: u32,
+}
+
+impl Run {
+    fn length(self) -> u32 {
+        self.last + 1 - self.first
+    }
 }
 
 // The runs of trues.
@@ -90,69 +99,143 @@ fn runs(values: impl Iterator<Item = bool>) -> Vec<Run> {
     runs
 }
 
+// A cell of the grid: its columns and rows.
+#[derive(Clone, Copy, Debug)]
+struct Cell {
+    columns: Run,
+    rows: Run,
+}
+
+// The characters of each row of cells: the mapping's lines, which have to be
+// characters that the text can have, each once.
+fn rows_of_characters(mapping: &str) -> Result<Vec<Vec<u8>>, String> {
+    let mut mapped = [false; CHARACTERS];
+    let mut rows = Vec::new();
+    for (line, text) in mapping.lines().enumerate() {
+        let mut row = Vec::new();
+        for character in text.chars() {
+            if !is_text(character) {
+                return Err(format!(
+                    "Line {} of the mapping has {character:?}, which isn't one of ASCII's printable characters or tab.",
+                    line + 1
+                ));
+            }
+            let byte = character as u8;
+            if std::mem::replace(&mut mapped[usize::from(byte)], true) {
+                return Err(format!("The mapping has {character:?} more than once."));
+            }
+            row.push(byte);
+        }
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
 impl Font {
-    // The font in the .aseprite file at the path.
-    pub fn load(path: &Path) -> Result<Font, String> {
-        let canvas = aseprite::load(path)?;
-        Font::from_canvas(&canvas).map_err(|error| format!("{} has no font that can be read: {error}", path.display()))
+    // The font in the .aseprite file at the first path, mapped by the text
+    // file at the second.
+    pub fn load(glyphs: &Path, mapping: &Path) -> Result<Font, String> {
+        let grid = aseprite::load_layer(glyphs, GRID_LAYER)?;
+        let ink = aseprite::load_layer(glyphs, GLYPHS_LAYER)?;
+        let text = std::fs::read_to_string(mapping).map_err(|error| format!("Couldn't read {}: {error}", mapping.display()))?;
+        Font::from_sheet(&grid, &ink, &text)
+            .map_err(|error| format!("{} and {} have no font that can be read: {error}", glyphs.display(), mapping.display()))
     }
 
-    // The font in the box at the top left of the canvas.
-    pub fn from_canvas(canvas: &Canvas) -> Result<Font, String> {
-        if canvas.width < SHEET_WIDTH || canvas.height < SHEET_HEIGHT {
+    // The font in the cells of the grid layer, drawn by the glyphs layer,
+    // which the mapping's lines map to characters.
+    pub fn from_sheet(grid: &Canvas, glyphs: &Canvas, mapping: &str) -> Result<Font, String> {
+        if (grid.width, grid.height) != (glyphs.width, glyphs.height) {
             return Err(format!(
-                "The canvas is {} × {} pixels, smaller than the {SHEET_WIDTH} × {SHEET_HEIGHT} box of glyphs at its top left.",
-                canvas.width, canvas.height
+                "The grid layer is {} × {} pixels, and the glyphs layer {} × {}.",
+                grid.width, grid.height, glyphs.width, glyphs.height
             ));
         }
-        let coverage = |x: u32, y: u32| if x < SHEET_WIDTH && y < SHEET_HEIGHT { canvas.pixel(x, y)[3] } else { 0 };
-        let ink = |x: u32, y: u32| coverage(x, y) > 0;
+        let characters = rows_of_characters(mapping)?;
+        let ink = |x: u32, y: u32| grid.pixel(x, y)[3] > 0;
 
-        let rows = runs((0..SHEET_HEIGHT).map(|y| (0..SHEET_WIDTH).any(|x| ink(x, y))));
-        if rows.len() != ROWS.len() {
-            return Err(format!("The box of glyphs has {} rows of glyphs, not {}.", rows.len(), ROWS.len()));
+        let bands = runs((0..grid.height).map(|y| (0..grid.width).any(|x| ink(x, y))));
+        if bands.is_empty() {
+            return Err("The grid has no cells.".to_string());
         }
-        let mut glyph_runs = Vec::new();
-        for (index, row) in rows.iter().enumerate() {
-            let columns = runs((0..SHEET_WIDTH).map(|x| (row.first..=row.last).any(|y| ink(x, y))));
-            if columns.len() != COLUMNS {
-                return Err(format!("Row {} of the box of glyphs has {} glyphs, not {COLUMNS}.", index + 1, columns.len()));
+        if bands.len() != characters.len() {
+            return Err(format!("The grid has {} rows of cells, and the mapping {} lines.", bands.len(), characters.len()));
+        }
+        let mut cells: Vec<Vec<Cell>> = Vec::new();
+        for (index, band) in bands.iter().enumerate() {
+            let row: Vec<Cell> = runs((0..grid.width).map(|x| (band.first..=band.last).any(|y| ink(x, y))))
+                .into_iter()
+                .map(|columns| {
+                    let rows = runs((band.first..=band.last).map(|y| (columns.first..=columns.last).any(|x| ink(x, y))));
+                    let rows = Run {
+                        first: band.first + rows[0].first,
+                        last: band.first + rows[rows.len() - 1].last,
+                    };
+                    Cell { columns, rows }
+                })
+                .collect();
+            if row.len() != characters[index].len() {
+                return Err(format!(
+                    "Row {} of the grid has {} cells, and line {} of the mapping {} characters.",
+                    index + 1,
+                    row.len(),
+                    index + 1,
+                    characters[index].len()
+                ));
             }
-            glyph_runs.push(columns);
+            cells.push(row);
         }
 
-        let lefts: Vec<u32> = (0..COLUMNS).map(|column| glyph_runs.iter().map(|row| row[column].first).min().unwrap()).collect();
-        let glyph_width = glyph_runs.iter().flat_map(|row| row.iter().zip(&lefts).map(|(run, left)| run.last + 1 - left)).max().unwrap();
-        let glyph_height = rows.iter().map(|row| row.last + 1 - row.first).max().unwrap();
-        let mut column_gap = u32::MAX;
-        for pair in lefts.windows(2) {
-            let right = pair[0] + glyph_width;
-            if pair[1] < right {
-                return Err(format!("The glyphs at x = {} and x = {} are closer than a glyph's width, {glyph_width}.", pair[0], pair[1]));
+        let first = cells[0][0];
+        let (glyph_width, glyph_height) = (first.columns.length(), first.rows.length());
+        for (row, cells) in cells.iter().enumerate() {
+            for (column, cell) in cells.iter().enumerate() {
+                let size = (cell.columns.length(), cell.rows.length());
+                if size != (glyph_width, glyph_height) {
+                    return Err(format!(
+                        "The cells aren't all the same size: the first is {glyph_width} × {glyph_height} pixels, and cell {} of row {} is {} × {}.",
+                        column + 1,
+                        row + 1,
+                        size.0,
+                        size.1
+                    ));
+                }
             }
-            column_gap = column_gap.min(pair[1] - right);
         }
-        let row_gap = rows.windows(2).map(|pair| pair[1].first - pair[0].last - 1).min().unwrap();
+        let column_gap = cells.iter().flat_map(|row| row.windows(2).map(|pair| pair[1].columns.first - pair[0].columns.last - 1)).min().unwrap_or(0);
+        let row_gap = bands.windows(2).map(|pair| pair[1].first - pair[0].last - 1).min().unwrap_or(0);
 
-        // A row's glyph, from its row's pixels only, as a glyph is taller
-        // than the shorter rows, and would reach into the next.
-        let glyph = |row: usize, column: usize| {
-            let (left, band) = (lefts[column], rows[row]);
-            let mut pixels = vec![0u8; (glyph_width * glyph_height) as usize];
-            for y in 0..=(band.last - band.first) {
-                for x in 0..glyph_width {
-                    pixels[(y * glyph_width + x) as usize] = coverage(left + x, band.first + y);
+        // Every pixel that the glyphs layer draws is in a cell.
+        let mut in_cell = vec![false; (grid.width * grid.height) as usize];
+        for cell in cells.iter().flatten() {
+            for y in cell.rows.first..=cell.rows.last {
+                for x in cell.columns.first..=cell.columns.last {
+                    in_cell[(y * grid.width + x) as usize] = true;
+                }
+            }
+        }
+        if let Some(at) = (0..in_cell.len()).find(|&at| glyphs.pixels[at][3] > 0 && !in_cell[at]) {
+            let (x, y) = (at as u32 % grid.width, at as u32 / grid.width);
+            return Err(format!("The glyphs layer draws at x = {x}, y = {y}, outside every cell of the grid."));
+        }
+
+        let glyph = |cell: Cell| {
+            let mut pixels = Vec::with_capacity((glyph_width * glyph_height) as usize);
+            for y in cell.rows.first..=cell.rows.last {
+                for x in cell.columns.first..=cell.columns.last {
+                    pixels.push(glyphs.pixel(x, y)[3]);
                 }
             }
             pixels
         };
-        let mut glyphs = vec![glyph(BOX.0, BOX.1); CHARACTERS];
+        let the_box: Vec<u8> = (0..glyph_height)
+            .flat_map(|y| (0..glyph_width).map(move |x| if x == 0 || y == 0 || x == glyph_width - 1 || y == glyph_height - 1 { 255 } else { 0 }))
+            .collect();
+        let mut font_glyphs = vec![the_box; CHARACTERS];
         let mut own = vec![false; CHARACTERS];
-        glyphs[usize::from(b' ')] = vec![0; (glyph_width * glyph_height) as usize];
-        own[usize::from(b' ')] = true;
-        for (row, characters) in ROWS.iter().enumerate() {
+        for (row, characters) in characters.iter().enumerate() {
             for (column, &character) in characters.iter().enumerate() {
-                glyphs[usize::from(character)] = glyph(row, column);
+                font_glyphs[usize::from(character)] = glyph(cells[row][column]);
                 own[usize::from(character)] = true;
             }
         }
@@ -161,13 +244,13 @@ impl Font {
             glyph_height,
             advance: glyph_width + column_gap,
             line_height: glyph_height + row_gap,
-            glyphs,
+            glyphs: font_glyphs,
             own,
         })
     }
 
     // The pixels between characters that the sheet has: the narrowest gap
-    // between its columns.
+    // between its cells.
     pub fn spacing(&self) -> u32 {
         self.advance - self.glyph_width
     }
@@ -178,7 +261,7 @@ impl Font {
         &self.glyphs[usize::from(character).min(CHARACTERS - 1)]
     }
 
-    // Whether a character has a glyph of its own, rather than the box. Space
+    // Whether a character has a cell of its own, rather than the box. Space
     // does: it's blank.
     pub fn has_own_glyph(&self, character: u8) -> bool {
         self.own.get(usize::from(character)).copied().unwrap_or(false)

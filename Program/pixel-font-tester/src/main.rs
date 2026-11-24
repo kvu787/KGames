@@ -1,5 +1,5 @@
 // PixelFontTester: type ASCII into a box, and see it in the pixel font that
-// Glyphs.aseprite at the root of the repository draws. See README.md.
+// Glyphs.aseprite draws and Glyphs.txt maps. See README.md.
 //
 // The main loop is Library/user-interface's, for the lowest input latency:
 // it handles the window's messages, and hands their input to the tester,
@@ -12,7 +12,7 @@ use std::process::ExitCode;
 
 use graphics::{AdapterChoice, Gpu, Presenter};
 use pixel_font_tester::arguments::{Arguments, USAGE};
-use pixel_font_tester::font::{Font, glyphs_path};
+use pixel_font_tester::font::{Font, glyphs_path, mapping_path};
 use pixel_font_tester::renderer::Renderer;
 use pixel_font_tester::scene::scene;
 use pixel_font_tester::tester::Tester;
@@ -21,7 +21,7 @@ use pixel_font_tester::window::Window;
 
 fn run() -> Result<(), String> {
     let arguments = Arguments::parse(std::env::args().skip(1)).map_err(|message| format!("{message}\nUsage: {USAGE}"))?;
-    let font = Font::load(&glyphs_path())?;
+    let font = Font::load(&glyphs_path(), &mapping_path())?;
     let mut tester = Tester::new(Text::typed(&arguments.text), arguments.scale, arguments.theme, arguments.vsync, &font);
     if let Some(spacing) = arguments.spacing {
         tester.set_spacing(spacing, &font);
