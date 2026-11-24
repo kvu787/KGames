@@ -1,9 +1,10 @@
 // .aseprite files that the tests write, a chunk at a time, read into the
-// canvas that Aseprite shows, and Glyphs.aseprite at the root.
+// canvas that Aseprite shows, or a layer of them on its own, and
+// PixelFontTester's Glyphs.aseprite.
 
 use std::path::Path;
 
-use aseprite::{Canvas, adler32, blend_normal, load, read};
+use aseprite::{Canvas, adler32, blend_normal, load, load_layer, read, read_layer};
 
 const RED: [u8; 4] = [255, 0, 0, 255];
 const BLUE: [u8; 4] = [0, 0, 255, 255];
@@ -239,11 +240,47 @@ fn what_it_can_t_read_fails_and_says_why() {
 }
 
 #[test]
-fn the_glyphs_at_the_root_read() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Glyphs.aseprite");
+fn a_layer_on_its_own_is_its_cel_at_its_opacity_hidden_or_not() {
+    let chunks = [
+        visible_layer("Bottom"),
+        layer(0, NORMAL, 0, 0, 128, "Hidden"),
+        // A blend mode changes nothing with nothing under it.
+        layer(VISIBLE, NORMAL, 0, 1, 255, "Multiply"),
+        raw_cel(0, 0, 0, 255, 0, 2, &[RED, RED]),
+        raw_cel(1, 1, 0, 255, 0, 1, &[BLUE]),
+        raw_cel(2, 0, 0, 255, 0, 1, &[GREEN]),
+    ];
+    let bytes = file(2, 1, 32, LAYER_OPACITY_VALID, &chunks);
+    assert_eq!(read_layer(&bytes, "Bottom").unwrap().pixels, [RED, RED]);
+    assert_eq!(read_layer(&bytes, "Hidden").unwrap().pixels, [CLEAR, blend_normal(CLEAR, BLUE, 128)]);
+    assert_eq!(read_layer(&bytes, "Multiply").unwrap().pixels, [GREEN, CLEAR]);
+}
+
+#[test]
+fn a_layer_that_isn_t_one_layer_of_pixels_fails_and_says_why() {
+    let error = |chunks: &[Chunk], name: &str| read_layer(&file(1, 1, 32, 0, chunks), name).unwrap_err();
+    assert!(error(&[visible_layer("Ink")], "Missing").contains("no layer named \"Missing\""));
+    assert!(error(&[visible_layer("Ink"), visible_layer("Ink")], "Ink").contains("more than one"));
+    assert!(error(&[layer(VISIBLE, GROUP, 0, 0, 255, "Group")], "Group").contains("not a layer of pixels"));
+    assert!(error(&[layer(VISIBLE, TILEMAP, 0, 0, 255, "Tiles")], "Tiles").contains("not a layer of pixels"));
+    // What the file as a whole can't be read for fails too.
+    assert!(error(&[], "Ink").contains("no layer"));
+    assert!(read_layer(&file(1, 1, 8, 0, &[visible_layer("Ink")]), "Ink").unwrap_err().contains("Indexed"));
+}
+
+#[test]
+fn pixel_font_tester_s_glyphs_read() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Program/pixel-font-tester/Glyphs.aseprite");
     let canvas = load(&path).unwrap();
     assert!(canvas.width > 0 && canvas.height > 0);
     assert!(canvas.pixels.iter().any(|pixel| pixel[3] == 255), "nothing is drawn");
+    for name in ["grid", "glyphs"] {
+        let layer = load_layer(&path, name).unwrap();
+        assert_eq!((layer.width, layer.height), (canvas.width, canvas.height));
+        assert!(layer.pixels.iter().any(|pixel| pixel[3] == 255), "nothing is drawn on {name}");
+    }
     let error = load(&path.with_extension("missing")).unwrap_err();
     assert!(error.contains("Glyphs.missing"), "{error}");
+    let error = load_layer(&path, "Missing").unwrap_err();
+    assert!(error.contains("Glyphs.aseprite") && error.contains("Missing"), "{error}");
 }
