@@ -86,6 +86,13 @@ pub fn glyphs() -> Canvas {
     canvas
 }
 
+// The box, which characters without a cell show: the outline of a glyph's
+// whole cell, a row at a time from the top.
+pub fn the_box(font: &Font) -> Vec<u8> {
+    let (width, height) = (font.glyph_width, font.glyph_height);
+    (0..height).flat_map(|y| (0..width).map(move |x| if x == 0 || y == 0 || x == width - 1 || y == height - 1 { 255 } else { 0 })).collect()
+}
+
 pub fn sheet_font() -> Font {
     Font::from_sheet(&grid(), &glyphs(), MAPPING).unwrap()
 }

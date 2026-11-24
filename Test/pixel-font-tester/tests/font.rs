@@ -5,14 +5,8 @@
 mod common;
 
 use aseprite::Canvas;
-use common::{CELL_HEIGHT, CELL_WIDTH, MAPPING, ROW_TOPS, alpha, cell_left, glyphs, grid, mapped, real_font, sheet_font};
+use common::{CELL_HEIGHT, CELL_WIDTH, MAPPING, ROW_TOPS, alpha, cell_left, glyphs, grid, mapped, real_font, sheet_font, the_box};
 use pixel_font_tester::font::{CHARACTERS, Font};
-
-// The box: the outline of a glyph's whole cell.
-fn the_box(font: &Font) -> Vec<u8> {
-    let (width, height) = (font.glyph_width, font.glyph_height);
-    (0..height).flat_map(|y| (0..width).map(move |x| if x == 0 || y == 0 || x == width - 1 || y == height - 1 { 255 } else { 0 })).collect()
-}
 
 fn clear(canvas: &mut Canvas, x: u32, y: u32) {
     let index = (y * canvas.width + x) as usize;
