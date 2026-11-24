@@ -6,6 +6,7 @@
 - Links:
   - https://github.com/Microsoft/DirectX-Specs
   - https://github.com/microsoft/DirectX-Graphics-Samples
+  - https://github.com/microsoft/DirectXMath
 
 # Where to find certain things on this machine
 
