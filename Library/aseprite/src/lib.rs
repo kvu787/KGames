@@ -1,5 +1,6 @@
 // Reads Aseprite's .aseprite files: the first frame of an RGBA sprite, as
-// its canvas shows it, with its visible layers flattened. See README.md for
+// its canvas shows it, with its visible layers flattened, or one of its
+// layers on its own. See README.md for
 // what it reads, and the file format's specification:
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md
 
@@ -67,68 +68,10 @@ pub fn load(path: &Path) -> Result<Canvas, String> {
 // Only RGBA sprites are read. Reference layers, which Aseprite doesn't
 // export, are left out.
 pub fn read(bytes: &[u8]) -> Result<Canvas, String> {
-    let mut reader = Reader { bytes, at: 0 };
-    let _file_size = reader.u32()?;
-    if reader.u16()? != FILE_MAGIC {
-        return Err("It isn't an Aseprite file.".to_string());
-    }
-    let frames = reader.u16()?;
-    let width = reader.u16()?;
-    let height = reader.u16()?;
-    let depth = reader.u16()?;
-    let flags = reader.u32()?;
-    if depth != 32 {
-        let mode = match depth {
-            16 => "Grayscale",
-            8 => "Indexed",
-            _ => "an unknown",
-        };
-        return Err(format!("It's in {mode} color mode, with {depth} bits a pixel. Only RGBA sprites can be read."));
-    }
-    if frames == 0 {
-        return Err("It has no frames.".to_string());
-    }
-
-    let mut canvas = Canvas::new(u32::from(width), u32::from(height));
-    let mut layers: Vec<Layer> = Vec::new();
-    let mut cels: Vec<Cel> = Vec::new();
-    let frame_start = HEADER_SIZE;
-    let mut frame = Reader { bytes, at: frame_start };
-    let frame_size = frame.u32()? as usize;
-    if frame.u16()? != FRAME_MAGIC {
-        return Err("Its first frame's header is wrong.".to_string());
-    }
-    let old_chunk_count = frame.u16()?;
-    let _duration = frame.u16()?;
-    frame.skip(2)?;
-    let new_chunk_count = frame.u32()?;
-    let chunk_count = if new_chunk_count == 0 { u32::from(old_chunk_count) } else { new_chunk_count };
-    let frame_end = frame_start.checked_add(frame_size).filter(|&end| end <= bytes.len()).ok_or("Its first frame runs past its end.")?;
-
-    let mut at = frame_start + FRAME_HEADER_SIZE;
-    for _ in 0..chunk_count {
-        let mut chunk = Reader { bytes: &bytes[..frame_end], at };
-        let size = chunk.u32()? as usize;
-        let kind = chunk.u16()?;
-        if size < CHUNK_HEADER_SIZE || at + size > frame_end {
-            return Err(format!("A chunk of type {kind:#06X} runs past its frame's end."));
-        }
-        let data = &bytes[at + CHUNK_HEADER_SIZE..at + size];
-        match kind {
-            LAYER_CHUNK => layers.push(Layer::read(data, &layers, flags)?),
-            CEL_CHUNK => cels.push(Cel::read(data)?),
-            // Palettes, color profiles, tags, slices, user data and the
-            // rest change nothing on the canvas.
-            _ => {}
-        }
-        at += size;
-    }
-
-    // Bottom to top: a cel's order is its layer's index plus its z-index,
-    // and the cel with the lower z-index goes first of two in the same place.
-    cels.sort_by_key(|cel| (cel.layer as i32 + i32::from(cel.z_index), cel.z_index));
-    for cel in &cels {
-        let layer = layers.get(cel.layer).ok_or_else(|| format!("A cel is on layer {}, which doesn't exist.", cel.layer))?;
+    let frame = Frame::read(bytes)?;
+    let mut canvas = Canvas::new(frame.width, frame.height);
+    for cel in &frame.cels {
+        let layer = frame.layers.get(cel.layer).ok_or_else(|| format!("A cel is on layer {}, which doesn't exist.", cel.layer))?;
         if !layer.shown {
             continue;
         }
@@ -138,10 +81,118 @@ pub fn read(bytes: &[u8]) -> Result<Canvas, String> {
         if layer.blend_mode != 0 {
             return Err(format!("The layer \"{}\" has a blend mode other than Normal, which can't be read.", layer.name));
         }
-        let opacity = (u32::from(cel.opacity) * u32::from(layer.opacity) + 127) / 255;
-        cel.draw(&mut canvas, opacity as u8, &layer.name)?;
+        cel.draw(&mut canvas, layer.opacity_of(cel), &layer.name)?;
     }
     Ok(canvas)
+}
+
+// One layer of the first frame of the .aseprite file at the path, on its
+// own.
+pub fn load_layer(path: &Path, name: &str) -> Result<Canvas, String> {
+    let bytes = std::fs::read(path).map_err(|error| format!("Couldn't read {}: {error}", path.display()))?;
+    read_layer(&bytes, name).map_err(|error| format!("Couldn't read {}: {error}", path.display()))
+}
+
+// One layer of the first frame of an .aseprite file's bytes, on its own: the
+// layer named `name`, which has to be the only one with that name, and a
+// layer of pixels, not a group or a tilemap. Its cel is on a transparent
+// canvas, at its opacity, as the canvas would show it if it were the only
+// visible layer, whether it's visible or not.
+pub fn read_layer(bytes: &[u8], name: &str) -> Result<Canvas, String> {
+    let frame = Frame::read(bytes)?;
+    let mut named = frame.layers.iter().enumerate().filter(|(_, layer)| layer.name == name);
+    let (index, layer) = named.next().ok_or_else(|| format!("It has no layer named \"{name}\"."))?;
+    if named.next().is_some() {
+        return Err(format!("It has more than one layer named \"{name}\"."));
+    }
+    if layer.kind != NORMAL_LAYER {
+        return Err(format!("The layer \"{name}\" is a group or a tilemap, not a layer of pixels."));
+    }
+    let mut canvas = Canvas::new(frame.width, frame.height);
+    for cel in frame.cels.iter().filter(|cel| cel.layer == index) {
+        cel.draw(&mut canvas, layer.opacity_of(cel), name)?;
+    }
+    Ok(canvas)
+}
+
+// The first frame of a file: the canvas's size, the layers, and their cels,
+// bottom to top.
+struct Frame {
+    width: u32,
+    height: u32,
+    layers: Vec<Layer>,
+    cels: Vec<Cel>,
+}
+
+impl Frame {
+    fn read(bytes: &[u8]) -> Result<Frame, String> {
+        let mut reader = Reader { bytes, at: 0 };
+        let _file_size = reader.u32()?;
+        if reader.u16()? != FILE_MAGIC {
+            return Err("It isn't an Aseprite file.".to_string());
+        }
+        let frames = reader.u16()?;
+        let width = reader.u16()?;
+        let height = reader.u16()?;
+        let depth = reader.u16()?;
+        let flags = reader.u32()?;
+        if depth != 32 {
+            let mode = match depth {
+                16 => "Grayscale",
+                8 => "Indexed",
+                _ => "an unknown",
+            };
+            return Err(format!("It's in {mode} color mode, with {depth} bits a pixel. Only RGBA sprites can be read."));
+        }
+        if frames == 0 {
+            return Err("It has no frames.".to_string());
+        }
+
+        let mut layers: Vec<Layer> = Vec::new();
+        let mut cels: Vec<Cel> = Vec::new();
+        let frame_start = HEADER_SIZE;
+        let mut frame = Reader { bytes, at: frame_start };
+        let frame_size = frame.u32()? as usize;
+        if frame.u16()? != FRAME_MAGIC {
+            return Err("Its first frame's header is wrong.".to_string());
+        }
+        let old_chunk_count = frame.u16()?;
+        let _duration = frame.u16()?;
+        frame.skip(2)?;
+        let new_chunk_count = frame.u32()?;
+        let chunk_count = if new_chunk_count == 0 { u32::from(old_chunk_count) } else { new_chunk_count };
+        let frame_end = frame_start.checked_add(frame_size).filter(|&end| end <= bytes.len()).ok_or("Its first frame runs past its end.")?;
+
+        let mut at = frame_start + FRAME_HEADER_SIZE;
+        for _ in 0..chunk_count {
+            let mut chunk = Reader { bytes: &bytes[..frame_end], at };
+            let size = chunk.u32()? as usize;
+            let kind = chunk.u16()?;
+            if size < CHUNK_HEADER_SIZE || at + size > frame_end {
+                return Err(format!("A chunk of type {kind:#06X} runs past its frame's end."));
+            }
+            let data = &bytes[at + CHUNK_HEADER_SIZE..at + size];
+            match kind {
+                LAYER_CHUNK => layers.push(Layer::read(data, &layers, flags)?),
+                CEL_CHUNK => cels.push(Cel::read(data)?),
+                // Palettes, color profiles, tags, slices, user data and the
+                // rest change nothing on the canvas.
+                _ => {}
+            }
+            at += size;
+        }
+
+        // Bottom to top: a cel's order is its layer's index plus its z-index,
+        // and the cel with the lower z-index goes first of two in the same
+        // place.
+        cels.sort_by_key(|cel| (cel.layer as i32 + i32::from(cel.z_index), cel.z_index));
+        Ok(Frame {
+            width: u32::from(width),
+            height: u32::from(height),
+            layers,
+            cels,
+        })
+    }
 }
 
 struct Layer {
@@ -186,6 +237,12 @@ impl Layer {
             shown: visible && flags & LAYER_REFERENCE == 0 && (kind == NORMAL_LAYER || kind == TILEMAP_LAYER),
             visible,
         })
+    }
+
+    // The opacity that a cel of the layer blends at: its own times the
+    // layer's.
+    fn opacity_of(&self, cel: &Cel) -> u8 {
+        ((u32::from(cel.opacity) * u32::from(self.opacity) + 127) / 255) as u8
     }
 }
 

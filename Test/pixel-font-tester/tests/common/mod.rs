@@ -1,56 +1,103 @@
 // What the tests share: a sheet of glyphs made up to test how the font finds
-// them, and the font that Glyphs.aseprite at the root draws.
+// them, and the font that the tester's Glyphs.aseprite draws and Glyphs.txt
+// maps.
 
 #![allow(dead_code)]
 
 use aseprite::Canvas;
-use pixel_font_tester::font::{Font, SHEET_HEIGHT, SHEET_WIDTH, glyphs_path};
+use pixel_font_tester::font::{Font, glyphs_path, mapping_path};
 
-// The made-up sheet's glyphs: 3 pixels wide, 2 apart, from x = 1, but those
-// from column 13 on a pixel further right, like Glyphs.aseprite's from column
-// 7 on. Rows of 5, 5 and 7 pixels, 2 apart, from y = 1.
-pub const GLYPH_WIDTH: u32 = 3;
-pub const ROW_TOPS: [u32; 3] = [1, 8, 15];
-pub const ROW_HEIGHTS: [u32; 3] = [5, 5, 7];
+// The made-up sheet's mapping: rows of cells of different lengths, like
+// Glyphs.txt's, with space's blank cell in the last.
+pub const MAPPING: &str = "0123\nABCDEFGH\n i.!\n";
 
-pub fn column_left(column: u32) -> u32 {
-    1 + column * 5 + u32::from(column >= 13)
+// Its cells: 3 × 5 pixels, 2 apart, from x = 1, but those from the
+// capitals' E on a pixel further right. Rows 2 apart, from y = 1, but the
+// last a pixel further down.
+pub const CELL_WIDTH: u32 = 3;
+pub const CELL_HEIGHT: u32 = 5;
+pub const ROW_TOPS: [u32; 3] = [1, 8, 16];
+
+pub fn cell_left(row: u32, column: u32) -> u32 {
+    1 + column * 5 + u32::from(row == 1 && column >= 4)
+}
+
+// The rows of the mapping, and their characters.
+pub fn mapped() -> Vec<(u32, u32, u8)> {
+    let mut mapped = Vec::new();
+    for (row, line) in MAPPING.lines().enumerate() {
+        for (column, character) in line.bytes().enumerate() {
+            mapped.push((row as u32, column as u32, character));
+        }
+    }
+    mapped
 }
 
 // Each glyph's pixels have an alpha of their own, so that a test can tell
-// which glyph a character got: 1 + row × 26 + column.
+// which glyph a character got: 1 + row × 10 + column.
 pub fn alpha(row: u32, column: u32) -> u8 {
-    (1 + row * 26 + column) as u8
+    (1 + row * 10 + column) as u8
 }
 
-// The made-up sheet, at the top left of a canvas a little bigger than it. The
-// i, in the small letters' row, is one pixel wide, in its column's middle.
-pub fn sheet() -> Canvas {
-    let mut canvas = Canvas::new(SHEET_WIDTH + 20, SHEET_HEIGHT + 20);
-    for row in 0..3 {
-        for column in 0..26 {
-            let narrow = row == 2 && column == 8;
-            for y in ROW_TOPS[row as usize]..ROW_TOPS[row as usize] + ROW_HEIGHTS[row as usize] {
-                for x in 0..GLYPH_WIDTH {
-                    if !narrow || x == 1 {
-                        let index = (y * canvas.width + column_left(column) + x) as usize;
-                        canvas.pixels[index] = [0, 0, 0, alpha(row, column)];
-                    }
+const RED: [u8; 4] = [172, 50, 50, 255];
+
+fn set(canvas: &mut Canvas, x: u32, y: u32, pixel: [u8; 4]) {
+    let index = (y * canvas.width + x) as usize;
+    canvas.pixels[index] = pixel;
+}
+
+// The made-up sheet's grid layer: each cell's outline, over its glyph's
+// outermost pixels, like Glyphs.aseprite's, with a line across it, like its
+// baseline.
+pub fn grid() -> Canvas {
+    let mut canvas = Canvas::new(45, 25);
+    for (row, column, _) in mapped() {
+        let (left, top) = (cell_left(row, column), ROW_TOPS[row as usize]);
+        for x in 0..CELL_WIDTH {
+            for y in 0..CELL_HEIGHT {
+                if x == 0 || x == CELL_WIDTH - 1 || y == 0 || y == 3 || y == CELL_HEIGHT - 1 {
+                    set(&mut canvas, left + x, top + y, RED);
                 }
             }
         }
     }
-    // Outside the box, which the font never reads.
-    let outside = (SHEET_HEIGHT + 5) * canvas.width + 5;
-    canvas.pixels[outside as usize] = [0, 0, 0, 255];
     canvas
 }
 
+// The made-up sheet's glyphs layer: every glyph fills its cell, but space,
+// which is blank, and i, which is one pixel wide, in its cell's middle.
+pub fn glyphs() -> Canvas {
+    let mut canvas = Canvas::new(45, 25);
+    for (row, column, character) in mapped() {
+        let (left, top) = (cell_left(row, column), ROW_TOPS[row as usize]);
+        for x in 0..CELL_WIDTH {
+            for y in 0..CELL_HEIGHT {
+                let ink = match character {
+                    b' ' => false,
+                    b'i' => x == 1,
+                    _ => true,
+                };
+                if ink {
+                    set(&mut canvas, left + x, top + y, [0, 0, 0, alpha(row, column)]);
+                }
+            }
+        }
+    }
+    canvas
+}
+
+// The box, which characters without a cell show: the outline of a glyph's
+// whole cell, a row at a time from the top.
+pub fn the_box(font: &Font) -> Vec<u8> {
+    let (width, height) = (font.glyph_width, font.glyph_height);
+    (0..height).flat_map(|y| (0..width).map(move |x| if x == 0 || y == 0 || x == width - 1 || y == height - 1 { 255 } else { 0 })).collect()
+}
+
 pub fn sheet_font() -> Font {
-    Font::from_canvas(&sheet()).unwrap()
+    Font::from_sheet(&grid(), &glyphs(), MAPPING).unwrap()
 }
 
 // The font that the tester shows.
 pub fn real_font() -> Font {
-    Font::load(&glyphs_path()).unwrap()
+    Font::load(&glyphs_path(), &mapping_path()).unwrap()
 }

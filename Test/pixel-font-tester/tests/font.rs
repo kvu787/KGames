@@ -1,81 +1,64 @@
-// How the font finds its glyphs in the box at the top left of a sheet, which
-// characters get which, and the font that Glyphs.aseprite draws.
+// How the font finds its glyphs in the grid's cells, which characters the
+// mapping gives which, and the font that Glyphs.aseprite draws and Glyphs.txt
+// maps.
 
 mod common;
 
 use aseprite::Canvas;
-use common::{GLYPH_WIDTH, ROW_HEIGHTS, alpha, column_left, real_font, sheet, sheet_font};
-use pixel_font_tester::font::{CHARACTERS, Font, SHEET_WIDTH};
+use common::{CELL_HEIGHT, CELL_WIDTH, MAPPING, ROW_TOPS, alpha, cell_left, glyphs, grid, mapped, real_font, sheet_font, the_box};
+use pixel_font_tester::font::{CHARACTERS, Font};
 
-// The alpha of every pixel with ink in a character's glyph, or none if it's
-// blank.
-fn inks(font: &Font, character: u8) -> Vec<u8> {
-    let mut inks: Vec<u8> = font.glyph(character).iter().copied().filter(|&coverage| coverage > 0).collect();
-    inks.dedup();
-    inks
+fn clear(canvas: &mut Canvas, x: u32, y: u32) {
+    let index = (y * canvas.width + x) as usize;
+    canvas.pixels[index] = [0; 4];
 }
 
 #[test]
-fn the_metrics_come_from_the_glyphs_and_the_gaps_between_them() {
+fn the_metrics_come_from_the_cells_and_the_gaps_between_them() {
     let font = sheet_font();
-    assert_eq!(font.glyph_width, GLYPH_WIDTH);
-    // The small letters' row is the tallest.
-    assert_eq!(font.glyph_height, 7);
-    // The narrowest gaps, 2, though the gap before column 13 is 3.
-    assert_eq!(font.advance, GLYPH_WIDTH + 2);
-    assert_eq!(font.line_height, 7 + 2);
+    assert_eq!((font.glyph_width, font.glyph_height), (CELL_WIDTH, CELL_HEIGHT));
+    // The narrowest gaps, 2, though the gap before the capitals' E is 3,
+    // and so is the one before the last row.
+    assert_eq!(cell_left(1, 4) - cell_left(1, 3) - CELL_WIDTH, 3);
+    assert_eq!(ROW_TOPS[2] - ROW_TOPS[1] - CELL_HEIGHT, 3);
+    assert_eq!(font.advance, CELL_WIDTH + 2);
+    assert_eq!(font.line_height, CELL_HEIGHT + 2);
+    assert_eq!(font.spacing(), 2);
 }
 
 #[test]
-fn digits_and_letters_get_the_glyphs_in_their_places() {
+fn each_line_of_the_mapping_is_a_row_of_cells_and_each_character_a_cell() {
     let font = sheet_font();
-    for (row, characters) in [b"0123456789".as_slice(), b"ABCDEFGHIJKLMNOPQRSTUVWXYZ", b"abcdefghijklmnopqrstuvwxyz"].iter().enumerate() {
-        for (column, &character) in characters.iter().enumerate() {
-            assert_eq!(inks(&font, character), [alpha(row as u32, column as u32)], "{}", character as char);
-            assert!(font.has_own_glyph(character), "{}", character as char);
+    for (row, column, character) in mapped() {
+        assert!(font.has_own_glyph(character), "{}", character as char);
+        let glyph = font.glyph(character);
+        match character {
+            b' ' => assert!(glyph.iter().all(|&coverage| coverage == 0), "space isn't blank"),
+            // One pixel wide, in its cell's middle.
+            b'i' => {
+                for y in 0..CELL_HEIGHT {
+                    let row_of_pixels: Vec<u8> = (0..CELL_WIDTH).map(|x| font.coverage(b'i', x, y)).collect();
+                    assert_eq!(row_of_pixels, [0, alpha(row, column), 0], "row {y}");
+                }
+            }
+            // Every pixel of its cell, those under the grid's lines too.
+            _ => assert!(glyph.iter().all(|&coverage| coverage == alpha(row, column)), "{}", character as char),
         }
     }
 }
 
 #[test]
-fn a_column_a_pixel_further_right_is_read_where_it_is() {
+fn every_character_without_a_cell_has_the_box() {
     let font = sheet_font();
-    // N is column 13 of the capitals: whole, though a pixel right of the
-    // grid of the columns before it.
-    assert!(font.glyph(b'N')[..GLYPH_WIDTH as usize].iter().all(|&coverage| coverage == alpha(1, 13)));
-    assert_eq!(column_left(13) - column_left(12), 6);
-}
-
-#[test]
-fn a_narrow_glyph_keeps_its_place_in_its_column() {
-    let font = sheet_font();
-    for y in 0..ROW_HEIGHTS[2] {
-        let row: Vec<u8> = (0..GLYPH_WIDTH).map(|x| font.coverage(b'i', x, y)).collect();
-        assert_eq!(row, [0, alpha(2, 8), 0], "row {y}");
-    }
-}
-
-#[test]
-fn a_shorter_row_s_glyphs_don_t_reach_into_the_next_row() {
-    let font = sheet_font();
-    for y in 0..font.glyph_height {
-        let expected = if y < ROW_HEIGHTS[0] { alpha(0, 0) } else { 0 };
-        assert!((0..GLYPH_WIDTH).all(|x| font.coverage(b'0', x, y) == expected), "row {y}");
-    }
-}
-
-#[test]
-fn space_is_blank_and_every_other_character_without_a_glyph_has_the_box() {
-    let font = sheet_font();
-    assert!(font.glyph(b' ').iter().all(|&coverage| coverage == 0));
-    assert!(font.has_own_glyph(b' '));
-    let the_box = alpha(0, 10);
-    for character in (0..CHARACTERS as u8).filter(|character| !character.is_ascii_alphanumeric() && *character != b' ') {
-        assert_eq!(inks(&font, character), [the_box], "{character}");
+    let the_box = the_box(&font);
+    let mapped: Vec<u8> = MAPPING.bytes().filter(|&byte| byte != b'\n').collect();
+    for character in (0..CHARACTERS as u8).filter(|character| !mapped.contains(character)) {
+        assert_eq!(font.glyph(character), the_box, "{character}");
         assert!(!font.has_own_glyph(character), "{character}");
     }
     // Bytes past ASCII, which the tester never has, get it too.
-    assert_eq!(inks(&font, 200), [the_box]);
+    assert_eq!(font.glyph(200), the_box);
+    assert!(!font.has_own_glyph(200));
 }
 
 #[test]
@@ -83,7 +66,7 @@ fn the_atlas_has_every_glyph_side_by_side() {
     let font = sheet_font();
     let (width, height, pixels) = font.atlas();
     assert_eq!((width, height), (font.glyph_width * CHARACTERS as u32, font.glyph_height));
-    for character in [b' ', b'0', b'A', b'i', b'z', b'~', 127] {
+    for character in [b' ', b'0', b'E', b'i', b'!', b'z', b'\t', 127] {
         for y in 0..height {
             for x in 0..font.glyph_width {
                 let at = (y * width + u32::from(character) * font.glyph_width + x) as usize;
@@ -94,38 +77,56 @@ fn the_atlas_has_every_glyph_side_by_side() {
 }
 
 #[test]
+fn a_mapping_that_doesn_t_fit_the_grid_says_why() {
+    let error = |mapping: &str| Font::from_sheet(&grid(), &glyphs(), mapping).unwrap_err();
+    let message = error("0123\nABCDEFGH\n");
+    assert!(message.contains("3 rows") && message.contains("2 lines"), "{message}");
+    let message = error("012\nABCDEFGH\n i.!\n");
+    assert!(message.contains("Row 1") && message.contains("4 cells") && message.contains("3 characters"), "{message}");
+    let message = error("0120\nABCDEFGH\n i.!\n");
+    assert!(message.contains("'0' more than once"), "{message}");
+    let message = error("012é\nABCDEFGH\n i.!\n");
+    assert!(message.contains("Line 1") && message.contains("'é'"), "{message}");
+    let message = error("");
+    assert!(message.contains("3 rows") && message.contains("0 lines"), "{message}");
+}
+
+#[test]
 fn a_sheet_it_can_t_read_says_why() {
-    let mut missing = sheet();
-    // The capitals' last glyph.
-    for y in 8..13 {
-        for x in column_left(25)..column_left(25) + GLYPH_WIDTH {
-            missing.pixels[(y * missing.width + x) as usize] = [0; 4];
-        }
+    // The capitals' A, a pixel narrower: its right edge is gone.
+    let mut narrow = grid();
+    for y in ROW_TOPS[1]..ROW_TOPS[1] + CELL_HEIGHT {
+        clear(&mut narrow, cell_left(1, 0) + CELL_WIDTH - 1, y);
     }
-    let error = Font::from_canvas(&missing).unwrap_err();
-    assert!(error.contains("Row 2") && error.contains("25 glyphs"), "{error}");
+    let message = Font::from_sheet(&narrow, &glyphs(), MAPPING).unwrap_err();
+    assert!(message.contains("same size") && message.contains("cell 1 of row 2 is 2 × 5"), "{message}");
 
-    let mut extra_row = sheet();
-    let at = (30 * extra_row.width + 3) as usize;
-    extra_row.pixels[at] = [0, 0, 0, 255];
-    let error = Font::from_canvas(&extra_row).unwrap_err();
-    assert!(error.contains("4 rows"), "{error}");
+    // The glyphs layer draws between two cells.
+    let mut outside = glyphs();
+    let index = (ROW_TOPS[0] * outside.width + cell_left(0, 0) + CELL_WIDTH) as usize;
+    outside.pixels[index] = [0, 0, 0, 255];
+    let message = Font::from_sheet(&grid(), &outside, MAPPING).unwrap_err();
+    assert!(message.contains(&format!("x = {}, y = {}", cell_left(0, 0) + CELL_WIDTH, ROW_TOPS[0])), "{message}");
 
-    let error = Font::from_canvas(&Canvas::new(SHEET_WIDTH - 1, 100)).unwrap_err();
-    assert!(error.contains("smaller"), "{error}");
+    let message = Font::from_sheet(&Canvas::new(45, 25), &Canvas::new(45, 25), MAPPING).unwrap_err();
+    assert!(message.contains("no cells"), "{message}");
+    let message = Font::from_sheet(&grid(), &Canvas::new(44, 25), MAPPING).unwrap_err();
+    assert!(message.contains("44 × 25"), "{message}");
 }
 
 // What these check holds however the glyphs in Glyphs.aseprite are drawn,
-// as long as the box has its three rows of 26.
+// as long as Glyphs.txt maps every one of ASCII's printable characters.
 #[test]
-fn glyphs_aseprite_has_a_font() {
+fn glyphs_aseprite_has_a_glyph_for_every_printable_character() {
     let font = real_font();
     assert!(font.advance > font.glyph_width && font.line_height > font.glyph_height);
-    let the_box = font.glyph(b'!').to_vec();
-    assert!(the_box.iter().any(|&coverage| coverage > 0));
-    for character in (b'0'..=b'9').chain(b'A'..=b'Z').chain(b'a'..=b'z') {
+    let the_box = the_box(&font);
+    assert!(font.glyph(b' ').iter().all(|&coverage| coverage == 0), "space isn't blank");
+    for character in b'!'..=b'~' {
         let glyph = font.glyph(character);
+        assert!(font.has_own_glyph(character), "{} has no cell", character as char);
         assert!(glyph.iter().any(|&coverage| coverage > 0), "{} is blank", character as char);
         assert_ne!(glyph, the_box, "{} is the box", character as char);
     }
+    assert_eq!(font.glyph(b'\t'), the_box);
 }

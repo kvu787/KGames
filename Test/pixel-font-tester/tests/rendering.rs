@@ -7,7 +7,7 @@
 
 mod common;
 
-use common::real_font;
+use common::{real_font, the_box};
 use graphics::{AdapterChoice, Gpu, Image, Offscreen};
 use pixel_font_tester::font::Font;
 use pixel_font_tester::layout::{WINDOW_HEIGHT, WINDOW_WIDTH};
@@ -103,6 +103,36 @@ fn a_scrolled_frame_and_the_setup_s_problems_match_too() {
     let problems = ["The display is 1920 x 1080 pixels. It must be 2560 x 1440.".to_string()];
     let error = scene(&tester, &font, &problems);
     assert_matches(&draw(&mut gpu, &mut renderer, &error), &reference(&error, &font), "problems");
+}
+
+// What the GPU draws on the frame that Tab is pressed: the outline of a whole
+// cell, in the text's color, where the tab is.
+#[test]
+fn pressing_tab_draws_the_box() {
+    let font = real_font();
+    let mut gpu = Gpu::new(AdapterChoice::HighPerformance).unwrap();
+    let mut renderer = Renderer::new(&mut gpu, &font).unwrap();
+    let scale = 4;
+    let mut tester = Tester::new(Text::new(), scale, Theme::Dark, true, &font);
+    tester.handle(Input::Character(0x09), &font);
+    let scene = scene(&tester, &font, &[]);
+    let image = draw(&mut gpu, &mut renderer, &scene);
+    let quad = scene.quads.iter().find(|quad| quad.glyph == u32::from(b'\t')).unwrap();
+    let colors = Theme::Dark.colors();
+    let the_box = the_box(&font);
+    for y in 0..font.glyph_height {
+        for x in 0..font.glyph_width {
+            let expected = if the_box[(y * font.glyph_width + x) as usize] > 0 { colors.text } else { colors.field };
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    let px = (quad.origin[0] + (x * scale + dx) as i32) as u32;
+                    let py = (quad.origin[1] + (y * scale + dy) as i32) as u32;
+                    let [r, g, b, _] = image.pixel(px, py);
+                    assert_eq!([r, g, b], expected, "the box's pixel {x}, {y} at {px}, {py}");
+                }
+            }
+        }
+    }
 }
 
 #[test]

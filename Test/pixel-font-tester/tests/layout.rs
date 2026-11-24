@@ -4,12 +4,16 @@
 
 mod common;
 
-use common::real_font;
+use common::{real_font, the_box};
 use pixel_font_tester::font::Font;
 use pixel_font_tester::layout::{self, BOX, GUI_SCALE, Rect, Style, WINDOW_HEIGHT, WINDOW_WIDTH};
 use pixel_font_tester::scene::{Quad, SOLID, Scene, pack, scene};
 use pixel_font_tester::tester::{Input, Key, Modifiers, Tester, Theme};
 use pixel_font_tester::text::{Position, Text};
+use pixel_font_tester::window;
+
+// The Tab key's virtual-key code.
+const VK_TAB: i32 = 0x09;
 
 fn tester(text: &str, scale: u32, font: &Font) -> Tester {
     Tester::new(Text::typed(text), scale, Theme::Light, true, font)
@@ -83,12 +87,43 @@ fn text_flows_left_to_right_and_top_to_bottom_from_the_box_s_top_left() {
 #[test]
 fn spaces_advance_without_a_quad_and_characters_without_glyphs_draw_the_box() {
     let font = real_font();
-    let tester = tester("a !\t", 1, &font);
+    let tester = tester("a \t!", 1, &font);
     let quads = glyph_quads(&scene(&tester, &font, &[]));
     let characters: Vec<u32> = quads.iter().map(|quad| quad.glyph).collect();
-    // The renderer's atlas has the box for ! and tab.
-    assert_eq!(characters, b"a!\t".map(u32::from));
+    // The renderer's atlas has the box for tab.
+    assert!(!font.has_own_glyph(b'\t'));
+    assert_eq!(characters, b"a\t!".map(u32::from));
     assert_eq!(quads[1].origin[0] - quads[0].origin[0], 2 * font.advance as i32);
+}
+
+// The Tab key isn't one of the window's keys, so TranslateMessage's WM_CHAR
+// for it, a tab, is what the tester gets.
+#[test]
+fn pressing_tab_types_the_box_in_the_frame_it_s_pressed() {
+    let font = real_font();
+    for scale in [1, 2, 10] {
+        let mut tester = tester("ab", scale, &font);
+        assert_eq!(window::key(VK_TAB), None);
+        tester.handle(Input::Character(0x09), &font);
+        assert_eq!(tester.text.to_text(), "ab\t");
+        assert_eq!(tester.text.caret(), Position { line: 0, column: 3 });
+
+        let scene = scene(&tester, &font, &[]);
+        let quads = glyph_quads(&scene);
+        let characters: Vec<u32> = quads.iter().map(|quad| quad.glyph).collect();
+        assert_eq!(characters, b"ab\t".map(u32::from), "scale {scale}");
+        let tab = quads[2];
+        let area = layout::text_area();
+        let size = [(font.glyph_width * scale) as i32, (font.glyph_height * scale) as i32];
+        assert_eq!(tab.origin, [area.left + (2 * font.advance * scale) as i32, area.top], "scale {scale}");
+        assert_eq!((tab.area.width(), tab.area.height(), tab.scale), (size[0], size[1], scale), "scale {scale}");
+        // Its glyph is the box: the outline of a whole cell.
+        assert_eq!(font.glyph(b'\t'), the_box(&font));
+        // The caret is after it.
+        let caret = scene.quads.last().unwrap();
+        assert_eq!(caret.glyph, SOLID);
+        assert!(caret.area.left >= tab.area.right, "scale {scale}: the caret covers the box");
+    }
 }
 
 #[test]
