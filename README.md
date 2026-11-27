@@ -190,3 +190,16 @@ how performant can the rendering of a gui like this be:
   - single font and style
 - everything, including fonts, is rendered on the physical pixel grid
 - the application will use win32/winapi and can use any framework or low level stuff like d3d12 or directwrite.
+
+SetCursor(NULL)
+WM_SETCURSOR
+ClipCursor
+GetForegroundWindow
+GetClipCursor
+That’s the argument for keeping it in one pixel at the middle, as SDL does.
+WM_ACTIVATE
+GetAsyncKeyState
+IsIconic
+exactly one window
+deal with SetCursorPos and ClipCursor unreliability
+it seems like clipcursor is a requirement even despite its unreliability
